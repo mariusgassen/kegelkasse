@@ -144,7 +144,7 @@ def create_reset_token(req: CreateResetTokenRequest, db: Session = Depends(get_d
                                created_by=current_user.id, expires_at=expires)
     db.add(reset)
     db.commit()
-    return {"token": token_val, "reset_url": f"/reset?token={token_val}"}
+    return {"token": token_val, "reset_url": f"/reset?reset={token_val}"}
 
 
 class ResetPasswordRequest(BaseModel):
