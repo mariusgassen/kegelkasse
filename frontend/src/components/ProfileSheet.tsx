@@ -44,6 +44,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const [newPw, setNewPw] = useState('')
     const [saving, setSaving] = useState(false)
     const [avatarLoading, setAvatarLoading] = useState(false)
+    const [confirmDelete, setConfirmDelete] = useState(false)
 
     const isFakeEmail = user?.email?.endsWith('@kegelkasse.internal') ?? false
 
@@ -196,6 +197,26 @@ export function ProfileSheet({open, onClose}: Props) {
                     }}>
                         {t('auth.logout')}
                     </button>
+
+                    {/* Account delete */}
+                    {!confirmDelete ? (
+                        <button className="text-[11px] text-kce-muted text-center py-1 w-full"
+                                onClick={() => setConfirmDelete(true)}>
+                            Konto löschen
+                        </button>
+                    ) : (
+                        <div className="kce-card p-3 flex flex-col gap-2 border border-red-900/40">
+                            <p className="text-xs text-center text-kce-cream">Konto wirklich löschen? Statistiken bleiben erhalten.</p>
+                            <div className="flex gap-2">
+                                <button className="btn-secondary flex-1 btn-sm" onClick={() => setConfirmDelete(false)}>Abbrechen</button>
+                                <button className="btn-danger flex-1 btn-sm" onClick={async () => {
+                                    await api.deleteAccount()
+                                    authState.setToken(null)
+                                    setUser(null)
+                                }}>Ja, löschen</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

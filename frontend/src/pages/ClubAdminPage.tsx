@@ -5,6 +5,7 @@
 import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
+import {shareOrCopy} from '@/utils/share.ts'
 import {applyClubTheme} from '@/App.tsx'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -22,7 +23,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'invites' | 'clubs'>('settings')
+    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs'>('settings')
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -49,11 +50,12 @@ export function ClubAdminPage() {
     })
 
     const TABS = [
-        {id: 'settings', label: '⚙️ Einstellungen'},
-        {id: 'penalties', label: '⚠️ Strafen'},
-        {id: 'templates', label: '🏆 Spiele'},
-        {id: 'invites', label: '📨 Einladungen'},
-        ...(user?.role === 'superadmin' ? [{id: 'clubs', label: '🏛️ Vereine'}] : []),
+        {id: 'settings', label: t('club.tab.settings')},
+        {id: 'penalties', label: t('club.tab.penalties')},
+        {id: 'templates', label: t('club.tab.templates')},
+        {id: 'teams', label: t('club.tab.teams')},
+        {id: 'invites', label: t('club.tab.invites')},
+        ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
     ] as const
 
     return (
@@ -85,6 +87,11 @@ export function ClubAdminPage() {
             {tab === 'templates' && (
                 <AdminGuard>
                     <GameTemplatesTab templates={gameTemplates} onChanged={refetchGT}/>
+                </AdminGuard>
+            )}
+            {tab === 'teams' && (
+                <AdminGuard>
+                    <ClubTeamsTab/>
                 </AdminGuard>
             )}
             {tab === 'invites' && (
@@ -168,6 +175,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
 // ── Penalty Types ──
 function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[]; onChanged: () => void }) {
+    const t = useT()
     const [icon, setIcon] = useState('⚠️')
     const [name, setName] = useState('')
     const [amount, setAmount] = useState('0.50')
@@ -187,8 +195,13 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     </button>
                 </div>
             ))}
-            <div className="kce-card p-3 mt-2">
-                <div className="field-label">Neue Strafe</div>
+            <form className="kce-card p-3 mt-2" onSubmit={async e => {
+                e.preventDefault()
+                if (!name.trim()) return
+                await api.createPenaltyType({icon, name, default_amount: parseFloat(amount) || 0, sort_order: 99})
+                setIcon('⚠️'); setName(''); setAmount('0.50'); onChanged()
+            }}>
+                <div className="field-label">{t('club.penalty.newLabel')}</div>
                 <div className="flex gap-2 mb-2">
                     <input className="kce-input w-14 text-center" value={icon} onChange={e => setIcon(e.target.value)}/>
                     <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}
@@ -196,22 +209,15 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     <input className="kce-input w-20" type="number" value={amount}
                            onChange={e => setAmount(e.target.value)} step="0.10"/>
                 </div>
-                <button className="btn-primary w-full btn-sm" onClick={async () => {
-                    if (!name.trim()) return
-                    await api.createPenaltyType({icon, name, default_amount: parseFloat(amount) || 0, sort_order: 99})
-                    setIcon('⚠️');
-                    setName('');
-                    setAmount('0.50');
-                    onChanged()
-                }}>+ Hinzufügen
-                </button>
-            </div>
+                <button type="submit" className="btn-primary w-full btn-sm">+ {t('action.add')}</button>
+            </form>
         </div>
     )
 }
 
 // ── Game Templates ──
 function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; onChanged: () => void }) {
+    const t = useT()
     const [sheet, setSheet] = useState(false)
     const [editing, setEditing] = useState<GameTemplate | null>(null)
     const [name, setName] = useState('')
@@ -239,10 +245,19 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setSheet(true)
     }
 
+    async function saveTemplate() {
+        if (!name.trim()) return
+        const d = {name, description: desc || undefined, winner_type: wtype,
+            is_opener: isOpener, default_loser_penalty: parseFloat(penalty) || 0, sort_order: 0}
+        if (editing) await api.updateGameTemplate(editing.id, d)
+        else await api.createGameTemplate(d)
+        onChanged(); setSheet(false)
+    }
+
     return (
         <div>
-            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ Vorlage</button>
-            {!templates.length && <Empty icon="🏆" text="Noch keine Vorlagen."/>}
+            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('club.template.add')}</button>
+            {!templates.length && <Empty icon="🏆" text={t('club.template.none')}/>}
             {templates.map((gt, i) => (
                 <div key={gt.id} className="kce-card p-3 mb-2 flex items-start gap-3">
                     <div className="flex-1">
@@ -267,46 +282,31 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
             ))}
 
             <Sheet open={sheet} onClose={() => setSheet(false)}
-                   title={editing ? '✏️ Vorlage bearbeiten' : '🏆 Neue Vorlage'}>
+                   title={editing ? t('club.template.edit') : t('club.template.new')} onSubmit={saveTemplate}>
                 <div className="flex flex-col gap-3">
-                    <div><label className="field-label">Name</label>
+                    <div><label className="field-label">{t('game.name')}</label>
                         <input className="kce-input" value={name} onChange={e => setName(e.target.value)}/></div>
-                    <div><label className="field-label">Beschreibung</label>
+                    <div><label className="field-label">{t('club.template.description')}</label>
                         <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
-                    <div><label className="field-label">Gewinner-Typ</label>
+                    <div><label className="field-label">{t('club.template.winnerType')}</label>
                         <select className="kce-input" value={wtype} onChange={e => setWtype(e.target.value)}>
-                            <option value="either">Beliebig (Team oder Spieler)</option>
-                            <option value="team">Nur Team</option>
-                            <option value="individual">Nur Einzelspieler</option>
+                            <option value="either">{t('club.template.winnerType.either')}</option>
+                            <option value="team">{t('club.template.winnerType.team')}</option>
+                            <option value="individual">{t('club.template.winnerType.individual')}</option>
                         </select></div>
                     <div className="flex items-center gap-3">
                         <input type="checkbox" id="is-opener" checked={isOpener}
                                onChange={e => setIsOpener(e.target.checked)}/>
                         <label htmlFor="is-opener" className="text-sm font-bold cursor-pointer">
-                            👑 Eröffnungsspiel / Großes Spiel
+                            {t('club.template.isOpener')}
                         </label>
                     </div>
-                    <div><label className="field-label">Standard Verlierer-Strafe (€)</label>
+                    <div><label className="field-label">{t('club.template.loserPenalty')}</label>
                         <input className="kce-input" type="number" value={penalty}
                                onChange={e => setPenalty(e.target.value)} step="0.50" min="0"/></div>
                     <div className="flex gap-2 mt-1">
-                        <button className="btn-secondary flex-1" onClick={() => setSheet(false)}>Abbrechen</button>
-                        <button className="btn-primary flex-[2]" onClick={async () => {
-                            if (!name.trim()) return
-                            const d = {
-                                name,
-                                description: desc || undefined,
-                                winner_type: wtype,
-                                is_opener: isOpener,
-                                default_loser_penalty: parseFloat(penalty) || 0,
-                                sort_order: 0
-                            }
-                            if (editing) await api.updateGameTemplate(editing.id, d)
-                            else await api.createGameTemplate(d)
-                            onChanged();
-                            setSheet(false)
-                        }}>Speichern
-                        </button>
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>
@@ -374,6 +374,72 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
     )
 }
 
+// ── Club Teams ──
+function ClubTeamsTab() {
+    const t = useT()
+    const {data: teams = [], refetch} = useQuery({
+        queryKey: ['club-teams'],
+        queryFn: api.listClubTeams,
+    })
+    const [sheet, setSheet] = useState(false)
+    const [editing, setEditing] = useState<{id: number; name: string; sort_order: number} | null>(null)
+    const [name, setName] = useState('')
+    const [sortOrder, setSortOrder] = useState('0')
+
+    function openNew() { setEditing(null); setName(''); setSortOrder(String(teams.length)); setSheet(true) }
+    function openEdit(t: {id: number; name: string; sort_order: number}) {
+        setEditing(t); setName(t.name); setSortOrder(String(t.sort_order)); setSheet(true)
+    }
+
+    async function save() {
+        if (!name.trim()) return
+        const d = {name: name.trim(), sort_order: parseInt(sortOrder) || 0}
+        if (editing) await api.updateClubTeam(editing.id, d)
+        else await api.createClubTeam(d)
+        refetch()
+        setSheet(false)
+    }
+
+    return (
+        <div>
+            <p className="text-xs text-kce-muted mb-3">{t('club.teams.description')}</p>
+            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('club.teams.add')}</button>
+            {teams.length === 0 && <Empty icon="🤝" text={t('club.teams.none')}/>}
+            {teams.map(team => (
+                <div key={team.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                         style={{background: 'linear-gradient(135deg,var(--kce-secondary),var(--kce-primary))'}}>
+                        {team.name[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 font-bold text-sm">{team.name}</div>
+                    <button className="btn-secondary btn-xs" onClick={() => openEdit(team)}>✏️</button>
+                    <button className="btn-danger btn-xs" onClick={() => api.deleteClubTeam(team.id).then(() => refetch())}>✕</button>
+                </div>
+            ))}
+
+            <Sheet open={sheet} onClose={() => setSheet(false)}
+                   title={editing ? t('club.teams.edit') : t('club.teams.new')} onSubmit={save}>
+                <div className="flex flex-col gap-3">
+                    <div>
+                        <label className="field-label">{t('club.teams.name')}</label>
+                        <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
+                               placeholder="z.B. Team A, Die Adler…"/>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('club.teams.sortOrder')}</label>
+                        <input className="kce-input w-20" type="number" value={sortOrder}
+                               onChange={e => setSortOrder(e.target.value)} min="0"/>
+                    </div>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]" disabled={!name.trim()}>{t('action.save')}</button>
+                    </div>
+                </div>
+            </Sheet>
+        </div>
+    )
+}
+
 // ── Invites ──
 function InvitesTab() {
     const t = useT()
@@ -389,7 +455,7 @@ function InvitesTab() {
 
             {inviteUrl && (
                 <div className="kce-card p-4">
-                    <div className="field-label">Einladungslink</div>
+                    <div className="field-label">{t('club.invite.link')}</div>
                     <div
                         className="bg-kce-bg rounded-lg p-3 text-xs font-mono text-kce-cream break-all mb-3">{inviteUrl}</div>
                     <div className="flex gap-2">
@@ -397,12 +463,10 @@ function InvitesTab() {
                             navigator.clipboard.writeText(inviteUrl)
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000)
-                        }}>{copied ? t('auth.invite.copied') : '📋 Kopieren'}</button>
-                        <a href={`https://wa.me/?text=${encodeURIComponent('Kegelkasse Einladung: ' + inviteUrl)}`}
-                           target="_blank" rel="noopener noreferrer"
-                           className="btn-secondary btn-sm flex-1 justify-center">
-                            📱 WhatsApp
-                        </a>
+                        }}>{copied ? t('auth.invite.copied') : t('club.invite.copy')}</button>
+                        <button className="btn-primary btn-sm flex-1" onClick={async () => {
+                            await shareOrCopy(inviteUrl, 'Kegelkasse Einladung')
+                        }}>📤 {t('share.button')}</button>
                     </div>
                 </div>
             )}

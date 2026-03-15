@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from models.club import Club, ClubSettings
-from models.evening import RegularMember
+from models.evening import RegularMember, ClubTeam
 from models.game import GameTemplate, WinnerType
 from models.penalty import PenaltyType
 from models.user import User, UserRole
@@ -77,9 +77,14 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
 
 
 @router.get("/members")
-def get_members(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    users = db.query(User).filter(User.club_id == user.club_id, User.is_active == True).all()
-    return [{"id": u.id, "name": u.name, "role": u.role, "regular_member_id": u.regular_member_id} for u in users]
+def get_members(include_inactive: bool = False, db: Session = Depends(get_db),
+                user: User = Depends(require_club_member)):
+    q = db.query(User).filter(User.club_id == user.club_id)
+    if not include_inactive:
+        q = q.filter(User.is_active == True)
+    users = q.order_by(User.name).all()
+    return [{"id": u.id, "name": u.name, "role": u.role,
+             "regular_member_id": u.regular_member_id, "is_active": u.is_active} for u in users]
 
 
 @router.patch("/members/{member_id}/role")
@@ -96,28 +101,83 @@ def update_member_role(member_id: int, role: str, db: Session = Depends(get_db),
     return {"ok": True}
 
 
+@router.delete("/members/{member_id}")
+def deactivate_member(member_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(require_club_admin)):
+    """Admin only: soft-delete a club member (preserves stats)."""
+    target = db.query(User).filter(User.id == member_id, User.club_id == user.club_id).first()
+    if not target: raise HTTPException(404)
+    if target.role == UserRole.superadmin:
+        raise HTTPException(403, "Cannot deactivate superadmin")
+    if target.id == user.id:
+        raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
+    target.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+@router.patch("/members/{member_id}/reactivate")
+def reactivate_member(member_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(require_club_admin)):
+    """Admin only: reactivate a previously deactivated member."""
+    target = db.query(User).filter(User.id == member_id, User.club_id == user.club_id).first()
+    if not target: raise HTTPException(404)
+    target.is_active = True
+    db.commit()
+    return {"ok": True}
+
+
+class LinkRosterRequest(BaseModel):
+    regular_member_id: Optional[int] = None
+
+
+@router.patch("/members/{member_id}/link")
+def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    """Admin only: link or unlink a user account to a roster (RegularMember) entry."""
+    target = db.query(User).filter(User.id == member_id, User.club_id == user.club_id).first()
+    if not target: raise HTTPException(404)
+    if data.regular_member_id is not None:
+        member = db.query(RegularMember).filter(
+            RegularMember.id == data.regular_member_id,
+            RegularMember.club_id == user.club_id
+        ).first()
+        if not member: raise HTTPException(404, "Roster-Eintrag nicht gefunden")
+    target.regular_member_id = data.regular_member_id
+    db.commit()
+    return {"ok": True}
+
+
 # ── Regular members (Stammspieler) — admin write, all read ──
+
+def _member_dict(m: RegularMember) -> dict:
+    return {"id": m.id, "name": m.name, "nickname": m.nickname,
+            "is_guest": m.is_guest, "is_active": m.is_active}
+
 
 @router.get("/regular-members")
 def list_regular_members(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    return db.query(RegularMember).filter(
+    members = db.query(RegularMember).filter(
         RegularMember.club_id == user.club_id, RegularMember.is_active == True
     ).order_by(RegularMember.name).all()
+    return [_member_dict(m) for m in members]
 
 
 class RegularMemberCreate(BaseModel):
     name: str
     nickname: Optional[str] = None
+    is_guest: bool = False
 
 
 @router.post("/regular-members")
 def create_regular_member(data: RegularMemberCreate, db: Session = Depends(get_db),
-                          user: User = Depends(require_club_admin)):
-    m = RegularMember(club_id=user.club_id, name=data.name, nickname=data.nickname)
+                          user: User = Depends(require_club_member)):
+    m = RegularMember(club_id=user.club_id, name=data.name,
+                      nickname=data.nickname, is_guest=data.is_guest)
     db.add(m)
     db.commit()
     db.refresh(m)
-    return {"id": m.id, "name": m.name, "nickname": m.nickname}
+    return _member_dict(m)
 
 
 @router.put("/regular-members/{mid}")
@@ -126,9 +186,10 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     m.name = data.name
-    if data.nickname is not None: m.nickname = data.nickname
+    m.nickname = data.nickname
+    m.is_guest = data.is_guest
     db.commit()
-    return {"id": m.id, "name": m.name, "nickname": m.nickname}
+    return _member_dict(m)
 
 
 @router.delete("/regular-members/{mid}")
@@ -141,6 +202,35 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     return {"ok": True}
 
 
+@router.post("/regular-members/{discard_id}/merge-into/{keep_id}")
+def merge_regular_members(discard_id: int, keep_id: int, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    """Re-attribute all data from discard to keep, then soft-delete discard."""
+    from models.evening import EveningPlayer
+    from models.user import InviteToken
+    discard = db.query(RegularMember).filter(
+        RegularMember.id == discard_id, RegularMember.club_id == user.club_id).first()
+    keep = db.query(RegularMember).filter(
+        RegularMember.id == keep_id, RegularMember.club_id == user.club_id).first()
+    if not discard or not keep:
+        raise HTTPException(404)
+    if discard_id == keep_id:
+        raise HTTPException(400, "Gleicher Eintrag")
+    # Re-attribute evening players
+    db.query(EveningPlayer).filter(EveningPlayer.regular_member_id == discard_id).update(
+        {EveningPlayer.regular_member_id: keep_id})
+    # Re-attribute linked user accounts
+    db.query(User).filter(User.regular_member_id == discard_id).update(
+        {User.regular_member_id: keep_id})
+    # Re-attribute invite tokens
+    db.query(InviteToken).filter(InviteToken.regular_member_id == discard_id).update(
+        {InviteToken.regular_member_id: keep_id})
+    # Soft-delete the discarded entry
+    discard.is_active = False
+    db.commit()
+    return {"ok": True, "kept_id": keep_id}
+
+
 @router.post("/regular-members/{mid}/invite")
 def create_member_invite(mid: int, db: Session = Depends(get_db),
                          user: User = Depends(require_club_admin)):
@@ -151,7 +241,7 @@ def create_member_invite(mid: int, db: Session = Depends(get_db),
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     token_val = _secrets.token_urlsafe(32)
-    expires = datetime.utcnow() + timedelta(days=7)
+    expires = datetime.now(datetime.UTC) + timedelta(days=7)
     invite = InviteToken(
         token=token_val, club_id=user.club_id,
         created_by=user.id, expires_at=expires,
@@ -265,5 +355,55 @@ def delete_game_template(gtid: int, db: Session = Depends(get_db),
     gt = db.query(GameTemplate).filter(GameTemplate.id == gtid, GameTemplate.club_id == user.club_id).first()
     if not gt: raise HTTPException(404)
     gt.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Club Teams ──
+
+def _team_dict(team: ClubTeam) -> dict:
+    return {"id": team.id, "name": team.name, "sort_order": team.sort_order}
+
+
+@router.get("/teams")
+def list_club_teams(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    teams = db.query(ClubTeam).filter(
+        ClubTeam.club_id == user.club_id, ClubTeam.is_active == True
+    ).order_by(ClubTeam.sort_order, ClubTeam.name).all()
+    return [_team_dict(t) for t in teams]
+
+
+class ClubTeamUpsert(BaseModel):
+    name: str
+    sort_order: int = 0
+
+
+@router.post("/teams")
+def create_club_team(data: ClubTeamUpsert, db: Session = Depends(get_db),
+                     user: User = Depends(require_club_admin)):
+    team = ClubTeam(club_id=user.club_id, name=data.name, sort_order=data.sort_order)
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return _team_dict(team)
+
+
+@router.put("/teams/{tid}")
+def update_club_team(tid: int, data: ClubTeamUpsert, db: Session = Depends(get_db),
+                     user: User = Depends(require_club_admin)):
+    team = db.query(ClubTeam).filter(ClubTeam.id == tid, ClubTeam.club_id == user.club_id).first()
+    if not team: raise HTTPException(404)
+    team.name = data.name
+    team.sort_order = data.sort_order
+    db.commit()
+    return _team_dict(team)
+
+
+@router.delete("/teams/{tid}")
+def delete_club_team(tid: int, db: Session = Depends(get_db),
+                     user: User = Depends(require_club_admin)):
+    team = db.query(ClubTeam).filter(ClubTeam.id == tid, ClubTeam.club_id == user.club_id).first()
+    if not team: raise HTTPException(404)
+    team.is_active = False
     db.commit()
     return {"ok": True}

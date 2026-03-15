@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member
 from core.database import get_db
 from models.drink import DrinkRound, DrinkType
-from models.evening import Evening, EveningPlayer, Team
+from models.evening import Evening, EveningPlayer, Team, ClubTeam
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
 from models.user import User
@@ -194,6 +194,46 @@ def delete_team(eid: int, tid: int, db: Session = Depends(get_db),
     db.delete(t)
     db.commit()
     return {"ok": True}
+
+
+# ── Club team templates → evening ──
+
+@router.post("/{eid}/teams/from-templates")
+def apply_club_team_templates(eid: int, shuffle: bool = False, db: Session = Depends(get_db),
+                              user: User = Depends(require_club_member)):
+    """Create all club team slots as evening teams. shuffle=true randomly distributes players."""
+    import random
+    e = get_club_evening(eid, user, db)
+    templates = db.query(ClubTeam).filter(
+        ClubTeam.club_id == user.club_id, ClubTeam.is_active == True
+    ).order_by(ClubTeam.sort_order, ClubTeam.name).all()
+    if not templates: raise HTTPException(400, "Keine Team-Vorlagen konfiguriert")
+
+    # Remove all existing team assignments first
+    db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"team_id": None})
+    # Delete existing teams
+    for t in e.teams:
+        db.delete(t)
+    db.flush()
+
+    # Create fresh teams from templates
+    teams = []
+    for tmpl in templates:
+        t = Team(evening_id=e.id, name=tmpl.name)
+        db.add(t)
+        teams.append(t)
+    db.flush()
+
+    # Optionally randomly distribute all evening players across teams
+    if shuffle:
+        evening_players = list(e.players)
+        random.shuffle(evening_players)
+        for i, player in enumerate(evening_players):
+            player.team_id = teams[i % len(teams)].id
+
+    db.commit()
+    db.refresh(e)
+    return serialize_evening(e)
 
 
 # ── Penalties ──

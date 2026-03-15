@@ -5,13 +5,25 @@ from sqlalchemy.sql import func
 from core.database import Base
 
 
+class ClubTeam(Base):
+    """Named team slot defined at club level — members are drawn randomly per evening."""
+    __tablename__ = "club_team"
+    id = Column(Integer, primary_key=True, index=True)
+    club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
+    name = Column(String, nullable=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class RegularMember(Base):
-    """Club's roster of regular players (Stammspieler). Managed by admins."""
+    """Club's roster of regular players (Stammspieler) and saved guests."""
     __tablename__ = "regular_member"
     id = Column(Integer, primary_key=True, index=True)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
     name = Column(String, nullable=False)
     nickname = Column(String, nullable=True)
+    is_guest = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=True)  # linked user account
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

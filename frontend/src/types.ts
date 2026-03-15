@@ -32,6 +32,7 @@ export interface RegularMember {
     id: number
     name: string
     nickname: string | null
+    is_guest: boolean
     is_active: boolean
 }
 
@@ -40,6 +41,12 @@ export interface PenaltyType {
     icon: string
     name: string
     default_amount: number
+    sort_order: number
+}
+
+export interface ClubTeam {
+    id: number
+    name: string
     sort_order: number
 }
 

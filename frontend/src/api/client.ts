@@ -1,6 +1,7 @@
 import {
     Club,
     ClubSettings,
+    ClubTeam,
     DrinkRound,
     Evening,
     EveningListItem,
@@ -48,7 +49,12 @@ export const api = {
     updateProfile: (d: { name?: string; username?: string; email?: string; current_password?: string; new_password?: string }) =>
         request<User>('PATCH', '/auth/profile', d),
     updateAvatar: (avatar: string | null) => request<User>('PATCH', '/auth/avatar', {avatar}),
+    deleteAccount: () => request<void>('DELETE', '/auth/me'),
     createInvite: () => request<{ token: string; expires_at: string; invite_url: string }>('POST', '/auth/invite'),
+    createResetToken: (userId: number) =>
+        request<{ token: string; reset_url: string }>('POST', '/auth/create-reset-token', {user_id: userId}),
+    resetPassword: (token: string, newPassword: string) =>
+        request<void>('POST', '/auth/reset-password', {token, new_password: newPassword}),
     getInviteInfo: (token: string) =>
         request<{ valid: boolean; member_name: string | null }>('GET', `/auth/invite-info?token=${token}`),
     register: (token: string, pw: string, username: string, name?: string) =>
@@ -59,8 +65,14 @@ export const api = {
     // Club
     getClub: () => request<Club>('GET', '/club/'),
     updateClubSettings: (d: Partial<ClubSettings> & { name?: string }) => request<void>('PATCH', '/club/settings', d),
-    getMembers: () => request<{ id: number; name: string; role: string }[]>('GET', '/club/members'),
+    getMembers: (includeInactive = false) =>
+        request<{ id: number; name: string; role: string; regular_member_id: number | null; is_active: boolean }[]>(
+            'GET', `/club/members${includeInactive ? '?include_inactive=true' : ''}`),
     updateMemberRole: (id: number, role: string) => request<void>('PATCH', `/club/members/${id}/role?role=${role}`),
+    deactivateMember: (id: number) => request<void>('DELETE', `/club/members/${id}`),
+    reactivateMember: (id: number) => request<void>('PATCH', `/club/members/${id}/reactivate`),
+    linkUserToRoster: (userId: number, regularMemberId: number | null) =>
+        request<void>('PATCH', `/club/members/${userId}/link`, {regular_member_id: regularMemberId}),
 
     // Superadmin
     listAllClubs: () => request<{ id: number; name: string; slug: string; member_count: number; is_active: boolean }[]>('GET', '/superadmin/clubs'),
@@ -68,12 +80,14 @@ export const api = {
     switchClub: (clubId: number) => request<{ access_token: string; user: User }>('POST', `/superadmin/switch-club/${clubId}`),
 
     // Regular members (Stammspieler)
+    mergeRegularMembers: (discardId: number, keepId: number) =>
+        request<void>('POST', `/club/regular-members/${discardId}/merge-into/${keepId}`),
     createMemberInvite: (mid: number) =>
         request<{ token: string; invite_url: string; member_name: string }>('POST', `/club/regular-members/${mid}/invite`),
     listRegularMembers: () => request<RegularMember[]>('GET', '/club/regular-members'),
-    createRegularMember: (d: { name: string; nickname?: string }) =>
+    createRegularMember: (d: { name: string; nickname?: string; is_guest?: boolean }) =>
         request<RegularMember>('POST', '/club/regular-members', d),
-    updateRegularMember: (id: number, d: { name: string; nickname?: string }) =>
+    updateRegularMember: (id: number, d: { name: string; nickname?: string; is_guest?: boolean }) =>
         request<RegularMember>('PUT', `/club/regular-members/${id}`, d),
     deleteRegularMember: (id: number) => request<void>('DELETE', `/club/regular-members/${id}`),
 
@@ -84,6 +98,14 @@ export const api = {
     updatePenaltyType: (id: number, d: { icon: string; name: string; default_amount: number; sort_order: number }) =>
         request<PenaltyType>('PUT', `/club/penalty-types/${id}`, d),
     deletePenaltyType: (id: number) => request<void>('DELETE', `/club/penalty-types/${id}`),
+
+    // Club teams
+    listClubTeams: () => request<ClubTeam[]>('GET', '/club/teams'),
+    createClubTeam: (d: { name: string; sort_order: number }) => request<ClubTeam>('POST', '/club/teams', d),
+    updateClubTeam: (id: number, d: { name: string; sort_order: number }) => request<ClubTeam>('PUT', `/club/teams/${id}`, d),
+    deleteClubTeam: (id: number) => request<void>('DELETE', `/club/teams/${id}`),
+    applyClubTeamsToEvening: (eid: number, shuffle = false) =>
+        request<Evening>('POST', `/evening/${eid}/teams/from-templates${shuffle ? '?shuffle=true' : ''}`),
 
     // Game templates
     listGameTemplates: () => request<GameTemplate[]>('GET', '/club/game-templates'),

@@ -183,7 +183,7 @@ export default function App() {
                             className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
                             style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}
                             onClick={() => setPage('evening')}>
-                            🎳 Aktiv
+                            🎳 {t('evening.active')}
                         </button>
                     )}
                     {/* Avatar button */}

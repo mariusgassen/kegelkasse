@@ -9,24 +9,32 @@ export function LoginPage() {
     const [pw, setPw] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const [mode, setMode] = useState<'login' | 'register'>('login')
+    const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login')
     const [inviteToken, setInviteToken] = useState('')
     const [name, setName] = useState('')
     const [username, setUsername] = useState('')
     const [prefilledName, setPrefilledName] = useState<string | null>(null)
+    const [resetToken, setResetToken] = useState('')
+    const [resetDone, setResetDone] = useState(false)
     const setUser = useAppStore(s => s.setUser)
     const t = useT()
     const {setLocale, locale} = useI18n()
 
-    // Auto-fill token from URL and load invite info
+    // Auto-fill token from URL
     useEffect(() => {
-        const token = new URLSearchParams(window.location.search).get('token')
-        if (!token) return
-        setInviteToken(token)
-        setMode('register')
-        api.getInviteInfo(token).then(info => {
-            if (info.member_name) setPrefilledName(info.member_name)
-        }).catch(() => {})
+        const params = new URLSearchParams(window.location.search)
+        const invite = params.get('token')
+        const reset = params.get('reset')
+        if (invite) {
+            setInviteToken(invite)
+            setMode('register')
+            api.getInviteInfo(invite).then(info => {
+                if (info.member_name) setPrefilledName(info.member_name)
+            }).catch(() => {})
+        } else if (reset) {
+            setResetToken(reset)
+            setMode('reset')
+        }
     }, [])
 
     async function handleLogin(e: React.FormEvent) {
@@ -73,6 +81,20 @@ export function LoginPage() {
             setUser(res.user)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Fehler')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleReset(e: React.FormEvent) {
+        e.preventDefault();
+        setError('');
+        setLoading(true)
+        try {
+            await api.resetPassword(resetToken, pw)
+            setResetDone(true)
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : t('auth.reset.invalid'))
         } finally {
             setLoading(false)
         }
@@ -135,6 +157,35 @@ export function LoginPage() {
                                 ⚡ Dev Login
                             </button>
                         )}
+                    </>
+                ) : mode === 'reset' ? (
+                    <>
+                        <h2 className="font-display font-bold text-kce-cream text-lg mb-4">{t('auth.reset.title')}</h2>
+                        {resetDone ? (
+                            <>
+                                <p className="text-green-400 text-sm mb-4">{t('auth.reset.success')}</p>
+                                <button className="btn-primary w-full" onClick={() => { setMode('login'); setResetDone(false) }}>
+                                    {t('auth.login')}
+                                </button>
+                            </>
+                        ) : (
+                            <form onSubmit={handleReset} className="flex flex-col gap-3">
+                                <div>
+                                    <label className="field-label">{t('auth.password')}</label>
+                                    <input className="kce-input" type="password" value={pw}
+                                           onChange={e => setPw(e.target.value)} placeholder="••••••••" required autoFocus/>
+                                </div>
+                                {error && <p className="text-red-400 text-xs">{error}</p>}
+                                <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                                    {loading ? t('action.loading') : t('auth.reset.button')}
+                                </button>
+                            </form>
+                        )}
+                        <p className="text-center text-kce-muted text-xs mt-4">
+                            <button onClick={() => setMode('login')} className="text-kce-amber font-bold">
+                                ← {t('auth.login')}
+                            </button>
+                        </p>
                     </>
                 ) : (
                     <>

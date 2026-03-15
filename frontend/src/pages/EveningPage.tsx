@@ -1,4 +1,5 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
+import {useQuery} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -13,10 +14,14 @@ export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const {setActiveEveningId, regularMembers} = useAppStore()
+    const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
     // ── Start evening form ──
     const [startDate, setStartDate] = useState(today())
     const [startVenue, setStartVenue] = useState('')
+    useEffect(() => {
+        if (club?.settings?.home_venue && !startVenue) setStartVenue(club.settings.home_venue)
+    }, [club?.settings?.home_venue])
     const [startNote, setStartNote] = useState('')
     const [starting, setStarting] = useState(false)
 
@@ -29,7 +34,7 @@ export function EveningPage() {
     // ── Add player sheet ──
     const [playerSheet, setPlayerSheet] = useState(false)
     const [guestName, setGuestName] = useState('')
-    const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
+    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set())
 
     // ── Edit player sheet ──
     const [editPlayerSheet, setEditPlayerSheet] = useState(false)
@@ -123,6 +128,45 @@ export function EveningPage() {
         setTeamSheet(true)
     }
 
+    async function saveEvening() {
+        await api.updateEvening(evening!.id, {
+            date: editDate, venue: editVenue || undefined, note: editNote || undefined,
+        })
+        invalidate(); setEditSheet(false)
+    }
+
+    async function saveEditPlayer() {
+        if (!editingPlayer) return
+        await api.updatePlayer(evening!.id, editingPlayer.id, {team_id: editPlayerTeam})
+        invalidate(); setEditPlayerSheet(false)
+    }
+
+    async function saveTeam() {
+        if (!teamName.trim()) return
+        if (editingTeam) {
+            await api.updateTeam(evening!.id, editingTeam.id, {name: teamName, player_ids: teamPlayerIds as number[]})
+        } else {
+            await api.createTeam(evening!.id, {name: teamName, player_ids: teamPlayerIds as number[]})
+        }
+        invalidate(); setTeamSheet(false)
+    }
+
+    async function addPlayers() {
+        if (selectedMemberIds.size === 0 && !guestName.trim()) return
+        const adds: Promise<unknown>[] = []
+        for (const id of selectedMemberIds) {
+            const rm = regularMembers.find(r => r.id === id)!
+            adds.push(api.addPlayer(evening!.id, {name: rm.nickname || rm.name, regular_member_id: rm.id}))
+        }
+        if (guestName.trim()) {
+            const saved = await api.createRegularMember({name: guestName.trim(), is_guest: true})
+            adds.push(api.addPlayer(evening!.id, {name: saved.name, regular_member_id: saved.id}))
+            api.listRegularMembers().then(d => useAppStore.getState().setRegularMembers(d))
+        }
+        await Promise.all(adds)
+        invalidate(); setPlayerSheet(false)
+    }
+
     function openEditTeam(team: Team) {
         setEditingTeam(team)
         setTeamName(team.name)
@@ -188,7 +232,7 @@ export function EveningPage() {
                 {!evening.is_closed && (
                     <button className="btn-secondary btn-xs" onClick={() => {
                         setGuestName('')
-                        setSelectedMemberId(null)
+                        setSelectedMemberIds(new Set())
                         setPlayerSheet(true)
                     }}>+ {t('player.add')}</button>
                 )}
@@ -228,7 +272,24 @@ export function EveningPage() {
                     🤝 Teams ({teams.length})
                 </div>
                 {!evening.is_closed && (
-                    <button className="btn-secondary btn-xs" onClick={openNewTeam}>+ {t('team.create')}</button>
+                    <div className="flex gap-1">
+                        <button className="btn-secondary btn-xs" title="Teams aus Vorlage anlegen"
+                                onClick={async () => {
+                                    try { await api.applyClubTeamsToEvening(evening.id, false); invalidate() }
+                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+                                }}>
+                            📋 Vorlage
+                        </button>
+                        <button className="btn-secondary btn-xs" title="Teams auslosen (zufällig verteilen)"
+                                onClick={async () => {
+                                    if (players.length === 0) { showToast('Keine Spieler am Abend'); return }
+                                    try { await api.applyClubTeamsToEvening(evening.id, true); invalidate() }
+                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+                                }}>
+                            🎲
+                        </button>
+                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>+</button>
+                    </div>
                 )}
             </div>
 
@@ -300,7 +361,7 @@ export function EveningPage() {
             }
 
             {/* ── Edit evening sheet ── */}
-            <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')}>
+            <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')} onSubmit={saveEvening}>
                 <div className="flex flex-col gap-3">
                     <div>
                         <label className="field-label">{t('evening.date')}</label>
@@ -316,69 +377,81 @@ export function EveningPage() {
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
                     </div>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
-                        <button className="btn-primary flex-[2]" onClick={async () => {
-                            await api.updateEvening(evening.id, {
-                                date: editDate,
-                                venue: editVenue || undefined,
-                                note: editNote || undefined,
-                            })
-                            invalidate()
-                            setEditSheet(false)
-                        }}>{t('action.save')}</button>
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>
 
             {/* ── Add player sheet ── */}
-            <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')}>
+            <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')} onSubmit={addPlayers}>
                 <div className="flex flex-col gap-3">
-                    {regularMembers.length > 0 && (
-                        <div>
-                            <div className="field-label">Stammspieler</div>
-                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                                {regularMembers.filter(rm => !players.some(p => p.regular_member_id === rm.id)).map(rm => (
-                                    <button key={rm.id} type="button"
-                                            className={`chip ${selectedMemberId === rm.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setSelectedMemberId(rm.id)
-                                                setGuestName('')
-                                            }}>
-                                        {rm.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    {(() => {
+                        const stamm = regularMembers.filter(rm => !rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
+                        const guests = regularMembers.filter(rm => rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
+                        const toggle = (id: number) => setSelectedMemberIds(prev => {
+                            const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+                        })
+                        return (<>
+                            {stamm.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="field-label mb-0">Stammspieler</span>
+                                        <div className="flex gap-1">
+                                            <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>Alle</button>
+                                            <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    onClick={() => setSelectedMemberIds(new Set())}>Keine</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                                        {stamm.map(rm => (
+                                            <button key={rm.id} type="button"
+                                                    className={`chip ${selectedMemberIds.has(rm.id) ? 'active' : ''}`}
+                                                    onClick={() => { toggle(rm.id); setGuestName('') }}>
+                                                {rm.nickname || rm.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {guests.length > 0 && (
+                                <div>
+                                    <span className="field-label">Bekannte Gäste</span>
+                                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                        {guests.map(rm => (
+                                            <button key={rm.id} type="button"
+                                                    className={`chip ${selectedMemberIds.has(rm.id) ? 'active' : ''}`}
+                                                    onClick={() => { toggle(rm.id); setGuestName('') }}>
+                                                {rm.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>)
+                    })()}
                     <div>
-                        <label className="field-label">{t('player.guestName')}</label>
+                        <label className="field-label">Neuer Gast</label>
                         <input className="kce-input" value={guestName}
-                               onChange={e => {
-                                   setGuestName(e.target.value)
-                                   setSelectedMemberId(null)
-                               }}
-                               placeholder="z.B. Max Gast"/>
+                               onChange={e => { setGuestName(e.target.value); if (e.target.value) setSelectedMemberIds(new Set()) }}
+                               placeholder="z.B. Max Mustermann"/>
+                        {guestName.trim() && (
+                            <p className="text-[10px] text-kce-muted mt-1">Wird automatisch für Statistiken gespeichert.</p>
+                        )}
                     </div>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
-                        <button className="btn-primary flex-[2]"
-                                disabled={!selectedMemberId && !guestName.trim()}
-                                onClick={async () => {
-                                    if (selectedMemberId) {
-                                        const rm = regularMembers.find(r => r.id === selectedMemberId)!
-                                        await api.addPlayer(evening.id, {name: rm.nickname || rm.name, regular_member_id: rm.id})
-                                    } else if (guestName.trim()) {
-                                        await api.addPlayer(evening.id, {name: guestName.trim()})
-                                    }
-                                    invalidate()
-                                    setPlayerSheet(false)
-                                }}>{t('action.add')}</button>
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
+                            {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} hinzufügen` : t('action.add')}
+                        </button>
                     </div>
                 </div>
             </Sheet>
 
             {/* ── Edit player sheet ── */}
-            <Sheet open={editPlayerSheet} onClose={() => setEditPlayerSheet(false)} title={t('player.edit')}>
+            <Sheet open={editPlayerSheet} onClose={() => setEditPlayerSheet(false)} title={t('player.edit')} onSubmit={saveEditPlayer}>
                 {editingPlayer && (
                     <div className="flex flex-col gap-3">
                         <div className="text-sm font-bold text-kce-cream">{editingPlayer.name}</div>
@@ -391,12 +464,8 @@ export function EveningPage() {
                             </select>
                         </div>
                         <div className="flex gap-2">
-                            <button className="btn-secondary flex-1" onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
-                            <button className="btn-primary flex-[2]" onClick={async () => {
-                                await api.updatePlayer(evening.id, editingPlayer.id, {team_id: editPlayerTeam})
-                                invalidate()
-                                setEditPlayerSheet(false)
-                            }}>{t('action.save')}</button>
+                            <button type="button" className="btn-secondary flex-1" onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
+                            <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                         </div>
                     </div>
                 )}
@@ -404,7 +473,7 @@ export function EveningPage() {
 
             {/* ── Team sheet ── */}
             <Sheet open={teamSheet} onClose={() => setTeamSheet(false)}
-                   title={editingTeam ? t('team.edit') : t('team.create')}>
+                   title={editingTeam ? t('team.edit') : t('team.create')} onSubmit={saveTeam}>
                 <div className="flex flex-col gap-3">
                     <div>
                         <label className="field-label">{t('team.name')}</label>
@@ -419,22 +488,8 @@ export function EveningPage() {
                         onSelectAll={() => setTeamPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
-                        <button className="btn-primary flex-[2]" disabled={!teamName.trim()} onClick={async () => {
-                            if (editingTeam) {
-                                await api.updateTeam(evening.id, editingTeam.id, {
-                                    name: teamName,
-                                    player_ids: teamPlayerIds as number[],
-                                })
-                            } else {
-                                await api.createTeam(evening.id, {
-                                    name: teamName,
-                                    player_ids: teamPlayerIds as number[],
-                                })
-                            }
-                            invalidate()
-                            setTeamSheet(false)
-                        }}>{t('action.save')}</button>
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]" disabled={!teamName.trim()}>{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>

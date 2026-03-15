@@ -162,7 +162,8 @@ export function PenaltiesPage() {
             }
 
             {/* Add penalty sheet */}
-            <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}>
+            <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}
+                   onSubmit={tab === 'quick' ? submitQuick : submitCustom}>
                 <div className="flex gap-1 mb-3">
                     {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
                         <button key={id} type="button"
@@ -216,11 +217,10 @@ export function PenaltiesPage() {
                             onSelectNone={() => setPlayerIds([])}/>
 
                         <div className="flex gap-2 mt-1">
-                            <button className="btn-secondary flex-1" onClick={() => setSheet(false)}>
+                            <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
                                 {t('action.cancel')}
                             </button>
-                            <button className="btn-primary flex-[2]" disabled={saving || !selectedType || playerIds.length === 0}
-                                    onClick={submitQuick}>
+                            <button type="submit" className="btn-primary flex-[2]" disabled={saving || !selectedType || playerIds.length === 0}>
                                 {t('penalty.confirm')}
                             </button>
                         </div>
@@ -260,12 +260,11 @@ export function PenaltiesPage() {
                             onSelectNone={() => setCustomPlayerIds([])}/>
 
                         <div className="flex gap-2 mt-1">
-                            <button className="btn-secondary flex-1" onClick={() => setSheet(false)}>
+                            <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
                                 {t('action.cancel')}
                             </button>
-                            <button className="btn-primary flex-[2]"
-                                    disabled={saving || !customName.trim() || customPlayerIds.length === 0}
-                                    onClick={submitCustom}>
+                            <button type="submit" className="btn-primary flex-[2]"
+                                    disabled={saving || !customName.trim() || customPlayerIds.length === 0}>
                                 {t('penalty.confirm')}
                             </button>
                         </div>
