@@ -3,65 +3,219 @@
 @tailwind utilities;
 
 @layer base {
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body, #root { height: 100%; overflow: hidden; }
-  body { font-family: 'Nunito', sans-serif; background-color: #1a1410; color: #f5ede0; overscroll-behavior: none; }
-  input, select, textarea { font-family: 'Nunito', sans-serif; }
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body, #root {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1410;
+        color: #f5ede0;
+        overscroll-behavior: none;
+    }
+
+    input, select, textarea {
+        font-family: 'Nunito', sans-serif;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+    }
 }
 
 @layer components {
-  .safe-top    { padding-top:    env(safe-area-inset-top, 0px); }
-  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
-  .page-scroll { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
-  .page-scroll::-webkit-scrollbar { width: 3px; }
-  .page-scroll::-webkit-scrollbar-thumb { background: #3d2e28; border-radius: 2px; }
+    .safe-top {
+        padding-top: env(safe-area-inset-top, 0px);
+    }
 
-  .kce-card    { background: #241c18; border: 1px solid #3d2e28; border-radius: 14px; }
-  .kce-input   { @apply w-full bg-kce-bg border border-kce-border rounded-lg px-3 py-2.5 text-kce-cream text-sm font-body placeholder-kce-muted outline-none transition-colors focus:border-kce-amber; }
+    .safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 16px);
+    }
 
-  .btn-primary   { @apply bg-kce-amber text-kce-bg font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center; }
-  .btn-secondary { @apply bg-kce-surface2 text-kce-muted border border-kce-border font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5; }
-  .btn-danger    { @apply bg-red-900/20 text-red-400 border border-red-800/40 font-bold rounded-lg px-3 py-2 text-xs transition-all active:scale-95 flex items-center gap-1; }
-  .btn-ghost     { @apply text-kce-muted font-bold text-xs transition-all active:opacity-60; }
-  .btn-sm { @apply px-3 py-1.5 text-xs rounded-md; }
-  .btn-xs { @apply px-2 py-1 text-[11px] rounded; }
+    .page-scroll {
+        height: 100%;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
 
-  .chip { @apply px-3 py-1.5 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted text-xs font-bold cursor-pointer transition-all select-none; }
-  .chip.active { @apply bg-kce-amber text-kce-bg border-kce-amber; }
+    .page-scroll::-webkit-scrollbar {
+        width: 3px;
+    }
 
-  .sec-heading { @apply font-display font-bold text-kce-amber text-base flex items-center gap-2 mb-3; }
-  .sec-heading::after { content: ''; flex: 1; height: 1px; background: #3d2e28; }
+    .page-scroll::-webkit-scrollbar-thumb {
+        background: #3d2e28;
+        border-radius: 2px;
+    }
 
-  .field-label { @apply block text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1.5; }
+    .kce-card {
+        background: #241c18;
+        border: 1px solid #3d2e28;
+        border-radius: 14px;
+    }
 
-  .bottom-sheet { @apply fixed inset-0 z-50 flex items-end justify-center; background: rgba(0,0,0,.8); backdrop-filter: blur(6px); }
-  .sheet-panel  { @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-5 overflow-y-auto animate-slide-up; max-height: 90vh; }
-  .sheet-handle { @apply w-10 h-1 bg-kce-border rounded-full mx-auto mb-4; }
-  .sheet-title  { @apply font-display font-bold text-kce-amber text-lg mb-4; }
+    .kce-input {
+        @apply w-full bg-kce-bg border border-kce-border rounded-lg px-3 py-2.5 text-kce-cream text-sm font-body placeholder-kce-muted outline-none transition-colors focus:border-kce-amber;
+    }
 
-  .nav-btn { @apply flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-kce-muted text-[9px] font-extrabold border-none bg-transparent cursor-pointer transition-all; }
-  .nav-btn .icon { @apply text-base leading-none; }
-  .nav-btn.active { @apply bg-kce-amber text-kce-bg; }
+    .btn-primary {
+        @apply bg-kce-amber text-kce-bg font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center;
+    }
 
-  .penalty-strip { background: linear-gradient(135deg,#c4701a,#e8a020); }
-  .opener-card   { background: linear-gradient(135deg,#3d3540,#6b7c5a); border: 2px solid #e8a020; }
+    .btn-secondary {
+        @apply bg-kce-surface2 text-kce-muted border border-kce-border font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5;
+    }
 
-  .role-badge-admin  { @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded; background: rgba(232,160,32,.15); color: #e8a020; }
-  .role-badge-member { @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded; background: rgba(122,98,88,.2); color: #7a6258; }
+    .btn-danger {
+        @apply bg-red-900/20 text-red-400 border border-red-800/40 font-bold rounded-lg px-3 py-2 text-xs transition-all active:scale-95 flex items-center gap-1;
+    }
 
-  .team-0 { background: rgba(232,160,32,.15); color: #e8a020; }
-  .team-1 { background: rgba(92,184,122,.15); color: #5cb87a; }
-  .team-2 { background: rgba(80,144,216,.15); color: #5090d8; }
-  .team-3 { background: rgba(217,80,80,.15);  color: #d95050; }
-  .team-4 { background: rgba(160,107,204,.15);color: #a06bcc; }
-  .team-5 { background: rgba(255,150,50,.15); color: #ff9632; }
+    .btn-ghost {
+        @apply text-kce-muted font-bold text-xs transition-all active:opacity-60;
+    }
 
-  /* Offline banner */
-  .offline-banner { @apply fixed top-0 left-0 right-0 z-[999] text-center text-xs font-bold py-1.5; background: #c4701a; color: #f5ede0; }
+    .btn-sm {
+        @apply px-3 py-1.5 text-xs rounded-md;
+    }
 
-  /* Spinner wheel */
-  @keyframes spin-stop { 0%{transform:rotate(0)} 70%{transform:rotate(calc(var(--target) - 20deg))} 85%{transform:rotate(calc(var(--target) + 10deg))} 100%{transform:rotate(var(--target))} }
-  .wheel-spinning { animation: spin-stop 3s cubic-bezier(.17,.67,.12,.99) forwards; }
+    .btn-xs {
+        @apply px-2 py-1 text-[11px] rounded;
+    }
+
+    .chip {
+        @apply px-3 py-1.5 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted text-xs font-bold cursor-pointer transition-all select-none;
+    }
+
+    .chip.active {
+        @apply bg-kce-amber text-kce-bg border-kce-amber;
+    }
+
+    .sec-heading {
+        @apply font-display font-bold text-kce-amber text-base flex items-center gap-2 mb-3;
+    }
+
+    .sec-heading::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #3d2e28;
+    }
+
+    .field-label {
+        @apply block text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1.5;
+    }
+
+    .bottom-sheet {
+        @apply fixed inset-0 z-50 flex items-end justify-center;
+        background: rgba(0, 0, 0, .8);
+        backdrop-filter: blur(6px);
+    }
+
+    .sheet-panel {
+        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-5 overflow-y-auto animate-slide-up;
+        max-height: 90vh;
+    }
+
+    .sheet-handle {
+        @apply w-10 h-1 bg-kce-border rounded-full mx-auto mb-4;
+    }
+
+    .sheet-title {
+        @apply font-display font-bold text-kce-amber text-lg mb-4;
+    }
+
+    .nav-btn {
+        @apply flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-kce-muted text-[9px] font-extrabold border-none bg-transparent cursor-pointer transition-all;
+    }
+
+    .nav-btn .icon {
+        @apply text-base leading-none;
+    }
+
+    .nav-btn.active {
+        @apply bg-kce-amber text-kce-bg;
+    }
+
+    .penalty-strip {
+        background: linear-gradient(135deg, #c4701a, #e8a020);
+    }
+
+    .opener-card {
+        background: linear-gradient(135deg, #3d3540, #6b7c5a);
+        border: 2px solid #e8a020;
+    }
+
+    .role-badge-admin {
+        @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded;
+        background: rgba(232, 160, 32, .15);
+        color: #e8a020;
+    }
+
+    .role-badge-member {
+        @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded;
+        background: rgba(122, 98, 88, .2);
+        color: #7a6258;
+    }
+
+    .team-0 {
+        background: rgba(232, 160, 32, .15);
+        color: #e8a020;
+    }
+
+    .team-1 {
+        background: rgba(92, 184, 122, .15);
+        color: #5cb87a;
+    }
+
+    .team-2 {
+        background: rgba(80, 144, 216, .15);
+        color: #5090d8;
+    }
+
+    .team-3 {
+        background: rgba(217, 80, 80, .15);
+        color: #d95050;
+    }
+
+    .team-4 {
+        background: rgba(160, 107, 204, .15);
+        color: #a06bcc;
+    }
+
+    .team-5 {
+        background: rgba(255, 150, 50, .15);
+        color: #ff9632;
+    }
+
+    /* Offline banner */
+    .offline-banner {
+        @apply fixed top-0 left-0 right-0 z-[999] text-center text-xs font-bold py-1.5;
+        background: #c4701a;
+        color: #f5ede0;
+    }
+
+    /* Spinner wheel */
+    @keyframes spin-stop {
+        0% {
+            transform: rotate(0)
+        }
+        70% {
+            transform: rotate(calc(var(--target) - 20deg))
+        }
+        85% {
+            transform: rotate(calc(var(--target) + 10deg))
+        }
+        100% {
+            transform: rotate(var(--target))
+        }
+    }
+    .wheel-spinning {
+        animation: spin-stop 3s cubic-bezier(.17, .67, .12, .99) forwards;
+    }
 }

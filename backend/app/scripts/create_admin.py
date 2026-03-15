@@ -3,17 +3,18 @@ Bootstrap script — creates the first superadmin user, default club,
 and seeds the club with default penalty types and game templates.
 Run via: python -m app.scripts.create_admin
 """
-import sys, os
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
-from app.core.database import SessionLocal
-from app.core.security import get_password_hash
-from app.core.config import settings
-from app.models.user import User, UserRole
-from app.models.club import Club, ClubSettings
-from app.models.penalty import PenaltyType
-from app.models.game import GameTemplate, WinnerType
+from core.database import SessionLocal
+from core.security import get_password_hash
+from core.config import settings
+from models.user import User, UserRole
+from models.club import Club, ClubSettings
+from models.penalty import PenaltyType
+from models.game import GameTemplate, WinnerType
 
 DEFAULT_PENALTY_TYPES = [
     ("⏰", "Zu spät", 0.50, 0),

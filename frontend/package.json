@@ -1,28 +1,29 @@
 {
   "name": "kegelkasse-frontend",
   "private": true,
-  "version": "2.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --host"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.56.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^5.0.0",
-    "@tanstack/react-query": "^5.56.2"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
     "typescript": "^5.5.3",
     "vite": "^5.4.8",
-    "vite-plugin-pwa": "^0.20.5",
-    "tailwindcss": "^3.4.13",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47"
+    "vite-plugin-pwa": "^0.20.5"
   }
 }

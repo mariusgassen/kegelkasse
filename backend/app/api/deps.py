@@ -1,15 +1,17 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.core.security import decode_token
-from app.models.user import User, UserRole
+
+from core.database import get_db
+from core.security import decode_token
+from models.user import User, UserRole
 
 security = HTTPBearer()
 
+
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+        db: Session = Depends(get_db)
 ) -> User:
     payload = decode_token(credentials.credentials)
     if not payload:
@@ -19,11 +21,13 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
 
+
 def require_club_member(user: User = Depends(get_current_user)) -> User:
     """Any authenticated user with a club."""
     if not user.club_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No club assigned")
     return user
+
 
 def require_club_admin(user: User = Depends(get_current_user)) -> User:
     """Club admin or superadmin required — for club settings, templates, member management."""
@@ -33,6 +37,7 @@ def require_club_admin(user: User = Depends(get_current_user)) -> User:
             detail="Club admin role required for this action"
         )
     return user
+
 
 def require_superadmin(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.superadmin:

@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.core.database import Base
+
+from core.database import Base
+
 
 class Club(Base):
     __tablename__ = "club"
@@ -16,6 +18,7 @@ class Club(Base):
     evenings = relationship("Evening", back_populates="club")
     settings = relationship("ClubSettings", back_populates="club", uselist=False)
 
+
 class ClubSettings(Base):
     """
     Editable club configuration — managed by admins only.
@@ -24,10 +27,10 @@ class ClubSettings(Base):
     __tablename__ = "club_setting"
     id = Column(Integer, primary_key=True)
     club_id = Column(Integer, ForeignKey("club.id"), unique=True, nullable=False)
-    home_venue = Column(String, nullable=True)       # default venue pre-filled in new evenings
-    logo_url = Column(String, nullable=True)         # uploaded logo path
+    home_venue = Column(String, nullable=True)  # default venue pre-filled in new evenings
+    logo_url = Column(String, nullable=True)  # uploaded logo path
     primary_color = Column(String, default="#e8a020")
     secondary_color = Column(String, default="#6b7c5a")
-    extra = Column(JSON, default=dict)               # future extensibility
+    extra = Column(JSON, default=dict)  # future extensibility
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="settings")

@@ -1,24 +1,29 @@
 """Offline sync endpoint — applies queued client operations in timestamp order."""
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List, Any, Optional
-from app.core.database import get_db
-from app.models.user import User
-from app.api.deps import require_club_member
 import time
+from typing import List, Any, Optional
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from api.deps import require_club_member
+from core.database import get_db
+from models.user import User
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
+
 class SyncChange(BaseModel):
-    type: str          # e.g. "add_penalty", "delete_penalty", "update_player"
-    timestamp: float   # client timestamp — changes applied in order
+    type: str  # e.g. "add_penalty", "delete_penalty", "update_player"
+    timestamp: float  # client timestamp — changes applied in order
     data: Any
+
 
 class SyncPayload(BaseModel):
     client_id: str
     last_sync: Optional[float] = None
     changes: List[SyncChange] = []
+
 
 @router.post("/")
 def sync(payload: SyncPayload, db: Session = Depends(get_db),

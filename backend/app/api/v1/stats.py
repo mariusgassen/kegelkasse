@@ -1,15 +1,17 @@
 """Statistics and analysis endpoints."""
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from collections import defaultdict
-from app.core.database import get_db
-from app.models.user import User
-from app.models.evening import Evening
-from app.models.penalty import PenaltyLog, PenaltyMode
-from app.models.drink import DrinkRound
-from app.api.deps import require_club_member
+
+from api.deps import require_club_member
+from core.database import get_db
+from models.evening import Evening
+from models.penalty import PenaltyMode
+from models.user import User
 
 router = APIRouter(prefix="/stats", tags=["stats"])
+
 
 @router.get("/year/{year}")
 def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
@@ -20,8 +22,8 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
     ).all()
 
     player_stats: dict = defaultdict(lambda: {"name": "", "evenings": 0, "penalty_total": 0.0,
-                                               "penalty_count": 0, "game_wins": 0,
-                                               "beer_rounds": 0, "shot_rounds": 0})
+                                              "penalty_count": 0, "game_wins": 0,
+                                              "beer_rounds": 0, "shot_rounds": 0})
     for e in evenings:
         for p in e.players:
             key = p.regular_member_id or f"guest_{p.name}"
@@ -37,8 +39,10 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
                     player_stats[key]["game_wins"] += 1
             for r in e.drink_rounds:
                 if not r.is_deleted and p.id in r.participant_ids:
-                    if r.drink_type == "beer": player_stats[key]["beer_rounds"] += 1
-                    else: player_stats[key]["shot_rounds"] += 1
+                    if r.drink_type == "beer":
+                        player_stats[key]["beer_rounds"] += 1
+                    else:
+                        player_stats[key]["shot_rounds"] += 1
 
     return {
         "year": year,
