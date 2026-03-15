@@ -1,0 +1,118 @@
+import { useState } from 'react'
+import { api, authState } from '../api/client'
+import { useAppStore } from '../store/app'
+import { useT, useI18n } from '../i18n'
+import { AppLogo } from '../components/Logo'
+
+export function LoginPage() {
+  const [email, setEmail]   = useState('')
+  const [pw, setPw]         = useState('')
+  const [error, setError]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [mode, setMode]     = useState<'login'|'register'>('login')
+  const [inviteToken, setInviteToken] = useState('')
+  const [name, setName]     = useState('')
+  const setUser = useAppStore(s => s.setUser)
+  const t = useT()
+  const { setLocale, locale } = useI18n()
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      const res = await api.login(email, pw)
+      authState.setToken(res.access_token)
+      setUser(res.user)
+      if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t('auth.error.invalid'))
+    } finally { setLoading(false) }
+  }
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault(); setError(''); setLoading(true)
+    try {
+      const res = await api.register(inviteToken, name, pw)
+      authState.setToken(res.access_token)
+      setUser(res.user)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Fehler')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8"
+         style={{background:'linear-gradient(160deg,#1a1410 0%,#241c18 60%,#2a1e18 100%)'}}>
+      {/* Language toggle */}
+      <div className="absolute top-4 right-4 flex gap-1">
+        {(['de','en'] as const).map(l => (
+          <button key={l} onClick={() => setLocale(l)}
+            className={`text-xs font-bold px-2 py-1 rounded ${locale===l ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted'}`}>
+            {l.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* Logo */}
+      <div className="mb-6 flex flex-col items-center gap-3">
+        <AppLogo size={80} />
+        <div className="text-center">
+          <h1 className="font-display font-bold text-kce-amber text-2xl leading-tight">{t('app.name')}</h1>
+          <p className="text-kce-muted text-xs font-bold tracking-widest mt-0.5">{t('app.subtitle')}</p>
+        </div>
+      </div>
+
+      <div className="kce-card w-full max-w-sm p-6">
+        {mode === 'login' ? (
+          <>
+            <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.login')}</h2>
+            <form onSubmit={handleLogin} className="flex flex-col gap-3">
+              <div>
+                <label className="field-label">{t('auth.email')}</label>
+                <input className="kce-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@example.de" required />
+              </div>
+              <div>
+                <label className="field-label">{t('auth.password')}</label>
+                <input className="kce-input" type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="••••••••" required />
+              </div>
+              {error && <p className="text-red-400 text-xs">{error}</p>}
+              <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                {loading ? t('action.loading') : t('auth.loginButton')}
+              </button>
+            </form>
+            <p className="text-center text-kce-muted text-xs mt-4">
+              {t('auth.haveInvite')}{' '}
+              <button onClick={() => setMode('register')} className="text-kce-amber font-bold">{t('auth.clickHere')}</button>
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.register.title')}</h2>
+            <form onSubmit={handleRegister} className="flex flex-col gap-3">
+              <div>
+                <label className="field-label">Einladungs-Token</label>
+                <input className="kce-input" value={inviteToken} onChange={e=>setInviteToken(e.target.value)} placeholder="aus dem Einladungslink" required />
+              </div>
+              <div>
+                <label className="field-label">{t('auth.name')}</label>
+                <input className="kce-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Dein Name" required />
+              </div>
+              <div>
+                <label className="field-label">{t('auth.password')}</label>
+                <input className="kce-input" type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="••••••••" required />
+              </div>
+              {error && <p className="text-red-400 text-xs">{error}</p>}
+              <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                {loading ? t('action.loading') : t('auth.register.button')}
+              </button>
+            </form>
+            <p className="text-center text-kce-muted text-xs mt-4">
+              <button onClick={() => setMode('login')} className="text-kce-amber font-bold">← {t('auth.login')}</button>
+            </p>
+          </>
+        )}
+      </div>
+
+      <p className="text-kce-muted text-[10px] mt-6 italic tracking-wider">{t('app.motto')}</p>
+    </div>
+  )
+}
