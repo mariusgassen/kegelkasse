@@ -14,10 +14,45 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
+/** Amount input with € or × prefix, adapts step/placeholder to mode */
+function AmountInput({mode, value, onChange, defaultAmount}: {
+    mode: PenaltyMode
+    value: string
+    onChange: (v: string) => void
+    defaultAmount?: number
+}) {
+    const t = useT()
+    const isEuro = mode === 'euro'
+    const label = isEuro
+        ? (defaultAmount !== undefined ? `${t('penalty.amount.override')} (Standard: ${fe(defaultAmount)})` : t('penalty.amount'))
+        : t('penalty.count.label')
+    const placeholder = isEuro
+        ? (defaultAmount !== undefined ? String(defaultAmount) : '0.00')
+        : '1'
+    return (
+        <div>
+            <label className="field-label">{label}</label>
+            <div className="flex items-center gap-2">
+                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">
+                    {isEuro ? '€' : '×'}
+                </span>
+                <input className="kce-input flex-1"
+                       type="number"
+                       step={isEuro ? '0.10' : '1'}
+                       min="0"
+                       value={value}
+                       placeholder={placeholder}
+                       onChange={e => onChange(e.target.value)}/>
+            </div>
+        </div>
+    )
+}
+
 export function PenaltiesPage() {
     const t = useT()
     const {evening, invalidate} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
+    const setPenaltyTypes = useAppStore(s => s.setPenaltyTypes)
     const [sheet, setSheet] = useState(false)
     const [tab, setTab] = useState<'quick' | 'custom'>('quick')
 
@@ -33,6 +68,7 @@ export function PenaltiesPage() {
     const [customAmount, setCustomAmount] = useState('')
     const [customMode, setCustomMode] = useState<PenaltyMode>('euro')
     const [customPlayerIds, setCustomPlayerIds] = useState<(number | string)[]>([])
+    const [saveAsTemplate, setSaveAsTemplate] = useState(false)
 
     const [saving, setSaving] = useState(false)
 
@@ -65,12 +101,15 @@ export function PenaltiesPage() {
         setCustomAmount('')
         setCustomMode('euro')
         setCustomPlayerIds([])
+        setSaveAsTemplate(false)
         setSheet(true)
     }
 
     async function submitQuick() {
         if (!selectedPenaltyType || playerIds.length === 0) return
-        const effectiveAmount = amount ? parseFloat(amount) : selectedPenaltyType.default_amount
+        const effectiveAmount = mode === 'count'
+            ? (parseInt(amount) || 1)
+            : (parseFloat(amount) || selectedPenaltyType.default_amount)
         setSaving(true)
         try {
             await api.addPenalty(evening!.id, {
@@ -92,7 +131,9 @@ export function PenaltiesPage() {
 
     async function submitCustom() {
         if (!customName.trim() || customPlayerIds.length === 0) return
-        const effectiveAmount = parseFloat(customAmount) || 0
+        const effectiveAmount = customMode === 'count'
+            ? (parseInt(customAmount) || 1)
+            : (parseFloat(customAmount) || 0)
         setSaving(true)
         try {
             await api.addPenalty(evening!.id, {
@@ -103,6 +144,15 @@ export function PenaltiesPage() {
                 mode: customMode,
                 client_timestamp: Date.now(),
             })
+            if (saveAsTemplate) {
+                const newPt = await api.createPenaltyType({
+                    icon: customIcon,
+                    name: customName,
+                    default_amount: effectiveAmount,
+                    sort_order: 99,
+                })
+                setPenaltyTypes([...penaltyTypes, newPt])
+            }
             invalidate()
             setSheet(false)
         } catch (e: unknown) {
@@ -175,39 +225,35 @@ export function PenaltiesPage() {
 
                 {tab === 'quick' ? (
                     <div className="flex flex-col gap-3">
-                        {/* Penalty type chips */}
+                        {/* 1 — Pick type */}
                         <div>
                             <div className="field-label">{t('penalty.quick')}</div>
                             <div className="flex flex-wrap gap-1.5">
                                 {penaltyTypes.map(pt => (
                                     <button key={pt.id} type="button"
                                             className={`chip ${selectedType === pt.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setSelectedType(pt.id)
-                                                setAmount('')
-                                            }}>
+                                            onClick={() => { setSelectedType(pt.id); setAmount('') }}>
                                         {pt.icon} {pt.name}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        {selectedPenaltyType && (
-                            <div>
-                                <label className="field-label">
-                                    Betrag (Standard: {fe(selectedPenaltyType.default_amount)})
-                                </label>
-                                <input className="kce-input" type="number" step="0.10" min="0"
-                                       value={amount}
-                                       placeholder={String(selectedPenaltyType.default_amount)}
-                                       onChange={e => setAmount(e.target.value)}/>
-                            </div>
-                        )}
-
+                        {/* 2 — Mode (defines what kind of value to enter next) */}
                         <ModeToggle
                             options={[{value: 'euro', label: t('penalty.mode.euro')}, {value: 'count', label: t('penalty.mode.count')}]}
-                            value={mode} onChange={v => setMode(v as PenaltyMode)}/>
+                            value={mode} onChange={v => { setMode(v as PenaltyMode); setAmount('') }}/>
 
+                        {/* 3 — Amount (label/step/placeholder adapt to mode) */}
+                        {selectedPenaltyType && (
+                            <AmountInput
+                                mode={mode}
+                                value={amount}
+                                onChange={setAmount}
+                                defaultAmount={mode === 'euro' ? selectedPenaltyType.default_amount : undefined}/>
+                        )}
+
+                        {/* 4 — Players */}
                         <ChipSelect
                             label={t('penalty.who')}
                             options={playerOptions}
@@ -227,6 +273,7 @@ export function PenaltiesPage() {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
+                        {/* 1 — Icon + Name */}
                         <div className="flex gap-2">
                             <div>
                                 <label className="field-label">Icon</label>
@@ -241,16 +288,15 @@ export function PenaltiesPage() {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="field-label">Betrag</label>
-                            <input className="kce-input" type="number" step="0.10" min="0"
-                                   value={customAmount} onChange={e => setCustomAmount(e.target.value)}/>
-                        </div>
-
+                        {/* 2 — Mode */}
                         <ModeToggle
                             options={[{value: 'euro', label: t('penalty.mode.euro')}, {value: 'count', label: t('penalty.mode.count')}]}
-                            value={customMode} onChange={v => setCustomMode(v as PenaltyMode)}/>
+                            value={customMode} onChange={v => { setCustomMode(v as PenaltyMode); setCustomAmount('') }}/>
 
+                        {/* 3 — Amount (adapts to mode) */}
+                        <AmountInput mode={customMode} value={customAmount} onChange={setCustomAmount}/>
+
+                        {/* 4 — Players */}
                         <ChipSelect
                             label={t('penalty.who')}
                             options={playerOptions}
@@ -258,6 +304,14 @@ export function PenaltiesPage() {
                             onChange={setCustomPlayerIds}
                             onSelectAll={() => setCustomPlayerIds(players.map(p => p.id))}
                             onSelectNone={() => setCustomPlayerIds([])}/>
+
+                        {/* 5 — Save as template toggle */}
+                        <button type="button"
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${saveAsTemplate ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                                onClick={() => setSaveAsTemplate(v => !v)}>
+                            <span>{saveAsTemplate ? '✓' : '+'}</span>
+                            {t('penalty.saveAsTemplate')}
+                        </button>
 
                         <div className="flex gap-2 mt-1">
                             <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
