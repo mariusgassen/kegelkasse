@@ -1,6 +1,7 @@
 """Authentication endpoints — login, invite, register."""
 import secrets
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -21,7 +22,8 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     token: str
-    name: str
+    name: Optional[str] = None
+    username: str
     password: str
 
 
@@ -29,24 +31,26 @@ class UpdateLocaleRequest(BaseModel):
     locale: str  # "de" | "en"
 
 
+def _user_dict(u: User) -> dict:
+    return {"id": u.id, "email": u.email, "username": u.username, "name": u.name,
+            "role": u.role, "club_id": u.club_id, "preferred_locale": u.preferred_locale,
+            "avatar": u.avatar}
+
+
 @router.post("/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    # Accept email or username in the email field
+    user = (db.query(User).filter(User.email == req.email).first()
+            or db.query(User).filter(User.username == req.email).first())
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     token = create_access_token({"sub": str(user.id)})
-    return {
-        "access_token": token,
-        "user": {"id": user.id, "email": user.email, "name": user.name,
-                 "role": user.role, "club_id": user.club_id, "preferred_locale": user.preferred_locale}
-    }
+    return {"access_token": token, "user": _user_dict(user)}
 
 
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "email": current_user.email, "name": current_user.name,
-            "role": current_user.role, "club_id": current_user.club_id,
-            "preferred_locale": current_user.preferred_locale}
+    return _user_dict(current_user)
 
 
 @router.patch("/locale")
@@ -55,6 +59,60 @@ def update_locale(req: UpdateLocaleRequest, db: Session = Depends(get_db),
     current_user.preferred_locale = req.locale
     db.commit()
     return {"ok": True}
+
+
+class UpdateAvatarRequest(BaseModel):
+    avatar: Optional[str] = None  # base64 data URI or null to remove
+
+
+@router.patch("/avatar")
+def update_avatar(req: UpdateAvatarRequest, db: Session = Depends(get_db),
+                  current_user: User = Depends(get_current_user)):
+    current_user.avatar = req.avatar
+    db.commit()
+    return _user_dict(current_user)
+
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
+@router.patch("/profile")
+def update_profile(req: UpdateProfileRequest, db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    """Update display name, username, login email, and/or password."""
+    if req.name is not None:
+        current_user.name = req.name.strip()
+
+    if req.username is not None:
+        uname = req.username.strip().lower()
+        if uname:
+            existing = db.query(User).filter(User.username == uname, User.id != current_user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Username wird bereits verwendet")
+        current_user.username = uname or None
+
+    if req.email is not None:
+        email = req.email.strip().lower()
+        if email:
+            existing = db.query(User).filter(User.email == email, User.id != current_user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="E-Mail wird bereits verwendet")
+            current_user.email = email
+
+    if req.new_password:
+        has_real_email = not current_user.email.endswith("@kegelkasse.internal")
+        if has_real_email:
+            if not req.current_password or not verify_password(req.current_password, current_user.hashed_password):
+                raise HTTPException(status_code=400, detail="Aktuelles Passwort falsch")
+        current_user.hashed_password = get_password_hash(req.new_password)
+
+    db.commit()
+    return _user_dict(current_user)
 
 
 @router.post("/invite")
@@ -72,6 +130,25 @@ def create_invite(db: Session = Depends(get_db), current_user: User = Depends(ge
             "invite_url": f"/join?token={token_val}"}
 
 
+@router.get("/invite-info")
+def get_invite_info(token: str, db: Session = Depends(get_db)):
+    """Return public info about an invite token — used to pre-fill the registration form."""
+    invite = db.query(InviteToken).filter(
+        InviteToken.token == token,
+        InviteToken.used_at == None,
+        InviteToken.expires_at > datetime.utcnow()
+    ).first()
+    if not invite:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite token")
+    result: dict = {"valid": True, "member_name": None}
+    if invite.regular_member_id:
+        from models.evening import RegularMember
+        member = db.query(RegularMember).filter(RegularMember.id == invite.regular_member_id).first()
+        if member:
+            result["member_name"] = member.name
+    return result
+
+
 @router.post("/register")
 def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
     invite = db.query(InviteToken).filter(
@@ -81,12 +158,26 @@ def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
     ).first()
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid or expired invite token")
+    # For member invites, use the RegularMember's name
+    name = req.name
+    if invite.regular_member_id and not name:
+        from models.evening import RegularMember
+        member = db.query(RegularMember).filter(RegularMember.id == invite.regular_member_id).first()
+        if member:
+            name = member.name
+    if not name:
+        raise HTTPException(status_code=400, detail="Name required")
+    uname = req.username.strip().lower()
+    if db.query(User).filter(User.username == uname).first():
+        raise HTTPException(status_code=400, detail="Username wird bereits verwendet")
     user = User(
         email=f"member_{secrets.token_hex(6)}@kegelkasse.internal",
-        name=req.name,
+        name=name,
+        username=uname,
         hashed_password=get_password_hash(req.password),
         role=UserRole.member,
-        club_id=invite.club_id
+        club_id=invite.club_id,
+        regular_member_id=invite.regular_member_id,
     )
     db.add(user)
     db.flush()

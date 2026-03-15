@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {api, authState} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useI18n, useT} from '@/i18n'
@@ -12,9 +12,22 @@ export function LoginPage() {
     const [mode, setMode] = useState<'login' | 'register'>('login')
     const [inviteToken, setInviteToken] = useState('')
     const [name, setName] = useState('')
+    const [username, setUsername] = useState('')
+    const [prefilledName, setPrefilledName] = useState<string | null>(null)
     const setUser = useAppStore(s => s.setUser)
     const t = useT()
     const {setLocale, locale} = useI18n()
+
+    // Auto-fill token from URL and load invite info
+    useEffect(() => {
+        const token = new URLSearchParams(window.location.search).get('token')
+        if (!token) return
+        setInviteToken(token)
+        setMode('register')
+        api.getInviteInfo(token).then(info => {
+            if (info.member_name) setPrefilledName(info.member_name)
+        }).catch(() => {})
+    }, [])
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
@@ -55,7 +68,7 @@ export function LoginPage() {
         setError('');
         setLoading(true)
         try {
-            const res = await api.register(inviteToken, name, pw)
+            const res = await api.register(inviteToken, pw, username, prefilledName ? undefined : name)
             authState.setToken(res.access_token)
             setUser(res.user)
         } catch (e: unknown) {
@@ -93,11 +106,11 @@ export function LoginPage() {
                         <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.login')}</h2>
                         <form onSubmit={handleLogin} className="flex flex-col gap-3">
                             <div>
-                                <label className="field-label">{t('auth.email')}</label>
-                                <input className="kce-input" type="email"
+                                <label className="field-label">{t('auth.email')} / Username</label>
+                                <input className="kce-input"
                                        value={email}
                                        onChange={e => setEmail(e.target.value)}
-                                       placeholder="name@example.de" required/>
+                                       placeholder="name@example.de oder @username" required/>
                             </div>
                             <div>
                                 <label className="field-label">{t('auth.password')}</label>
@@ -125,18 +138,36 @@ export function LoginPage() {
                     </>
                 ) : (
                     <>
-                        <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.register.title')}</h2>
+                        <h2 className="font-display font-bold text-kce-cream text-lg mb-1">{t('auth.register.title')}</h2>
+                        {prefilledName && (
+                            <p className="text-kce-muted text-xs mb-4">
+                                Willkommen, <span className="text-kce-cream font-bold">{prefilledName}</span>! Wähle ein Passwort.
+                            </p>
+                        )}
                         <form onSubmit={handleRegister} className="flex flex-col gap-3">
+                            {!prefilledName && (
+                                <>
+                                    <div>
+                                        <label className="field-label">Einladungs-Token</label>
+                                        <input className="kce-input" value={inviteToken}
+                                               onChange={e => setInviteToken(e.target.value)}
+                                               placeholder="aus dem Einladungslink" required/>
+                                    </div>
+                                    <div>
+                                        <label className="field-label">{t('auth.name')}</label>
+                                        <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
+                                               placeholder="Dein Name" required/>
+                                    </div>
+                                </>
+                            )}
                             <div>
-                                <label className="field-label">Einladungs-Token</label>
-                                <input className="kce-input" value={inviteToken}
-                                       onChange={e => setInviteToken(e.target.value)}
-                                       placeholder="aus dem Einladungslink" required/>
-                            </div>
-                            <div>
-                                <label className="field-label">{t('auth.name')}</label>
-                                <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
-                                       placeholder="Dein Name" required/>
+                                <label className="field-label">Username</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
+                                    <input className="kce-input pl-6" value={username}
+                                           onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
+                                           placeholder="username" autoFocus={!!prefilledName} required/>
+                                </div>
                             </div>
                             <div>
                                 <label className="field-label">{t('auth.password')}</label>

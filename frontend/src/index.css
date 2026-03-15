@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --kce-primary: #e8a020;
+    --kce-secondary: #6b7c5a;
+    --kce-bg: #1a1410;
+    --kce-surface: #241c18;
+    --kce-surface2: #2e2420;
+    --kce-border: #3d2e28;
+    --kce-cream: #f5ede0;
+    --kce-muted: #7a6258;
+}
+
 @layer base {
     * {
         box-sizing: border-box;
@@ -15,8 +26,8 @@
 
     body {
         font-family: 'Nunito', sans-serif;
-        background-color: #1a1410;
-        color: #f5ede0;
+        background-color: var(--kce-bg);
+        color: var(--kce-cream);
         overscroll-behavior: none;
     }
 
@@ -50,13 +61,13 @@
     }
 
     .page-scroll::-webkit-scrollbar-thumb {
-        background: #3d2e28;
+        background: var(--kce-border);
         border-radius: 2px;
     }
 
     .kce-card {
-        background: #241c18;
-        border: 1px solid #3d2e28;
+        background: var(--kce-surface);
+        border: 1px solid var(--kce-border);
         border-radius: 14px;
     }
 
@@ -104,7 +115,7 @@
         content: '';
         flex: 1;
         height: 1px;
-        background: #3d2e28;
+        background: var(--kce-border);
     }
 
     .field-label {
@@ -143,12 +154,12 @@
     }
 
     .penalty-strip {
-        background: linear-gradient(135deg, #c4701a, #e8a020);
+        background: linear-gradient(135deg, var(--kce-primary), var(--kce-primary));
     }
 
     .opener-card {
-        background: linear-gradient(135deg, #3d3540, #6b7c5a);
-        border: 2px solid #e8a020;
+        background: linear-gradient(135deg, #3d3540, var(--kce-secondary));
+        border: 2px solid var(--kce-primary);
     }
 
     .role-badge-admin {
@@ -197,7 +208,7 @@
     .offline-banner {
         @apply fixed top-0 left-0 right-0 z-[999] text-center text-xs font-bold py-1.5;
         background: #c4701a;
-        color: #f5ede0;
+        color: var(--kce-cream);
     }
 
     /* Spinner wheel */

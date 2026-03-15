@@ -5,10 +5,12 @@ export type UserRole = 'superadmin' | 'admin' | 'member'
 export interface User {
     id: number
     email: string
+    username: string | null
     name: string
     role: UserRole
     club_id: number | null
     preferred_locale: string
+    avatar: string | null
 }
 
 export interface ClubSettings {
@@ -16,6 +18,7 @@ export interface ClubSettings {
     logo_url: string | null
     primary_color: string
     secondary_color: string
+    bg_color: string | null
 }
 
 export interface Club {

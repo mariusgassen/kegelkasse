@@ -6,18 +6,18 @@ export default {
       colors: {
         kce: {
           ring:      '#3d3540',
-          olive:     '#6b7c5a',
+          olive:     'var(--kce-secondary)',
           brown:     '#4a3c38',
-          cream:     '#f5ede0',
+          cream:     'var(--kce-cream)',
           squirrel:  '#b8401a',
-          bg:        '#1a1410',
-          surface:   '#241c18',
-          surface2:  '#2e2420',
-          border:    '#3d2e28',
-          muted:     '#7a6258',
-          amber:     '#e8a020',
-          'amber-light': '#f0bc50',
-          'amber-dark':  '#c4701a',
+          bg:        'var(--kce-bg)',
+          surface:   'var(--kce-surface)',
+          surface2:  'var(--kce-surface2)',
+          border:    'var(--kce-border)',
+          muted:     'var(--kce-muted)',
+          amber:     'var(--kce-primary)',
+          'amber-light': 'var(--kce-primary)',
+          'amber-dark':  'var(--kce-primary)',
         }
       },
       fontFamily: {

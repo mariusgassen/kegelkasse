@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kegelkasse Kegelclub Manager — a full-stack 9-pin bowling club management PWA. Manages evenings, games, penalties, member rosters, and treasury with offline-first capabilities and German/English i18n.
+Kegelkasse Kegelclub Manager — a full-stack 9-pin bowling club management PWA.
+Manages evenings, games, penalties, member rosters, and treasury with offline-first capabilities and German/English i18n.
 
 ## Development Commands
 

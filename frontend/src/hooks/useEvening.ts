@@ -1,9 +1,11 @@
+import {useEffect} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 
 export function useActiveEvening() {
     const activeEveningId = useAppStore(s => s.activeEveningId)
+    const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const qc = useQueryClient()
 
     const {data: evening, isLoading} = useQuery({
@@ -14,6 +16,11 @@ export function useActiveEvening() {
         // Poll every 30s for live updates (other users editing same evening)
         refetchInterval: 1000 * 30,
     })
+
+    // Clear stale activeEveningId when the evening has been closed
+    useEffect(() => {
+        if (evening?.is_closed) setActiveEveningId(null)
+    }, [evening?.is_closed])
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
 

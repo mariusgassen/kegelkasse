@@ -3,6 +3,7 @@ Club management — settings, regular members, penalty types, game templates.
 All write operations require club_admin role.
 Read operations available to all club members.
 """
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -34,6 +35,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
             "logo_url": s.logo_url if s else None,
             "primary_color": s.primary_color if s else "#e8a020",
             "secondary_color": s.secondary_color if s else "#6b7c5a",
+            "bg_color": (s.extra or {}).get("bg_color") if s else None,
         } if s else {}
     }
 
@@ -42,18 +44,34 @@ class ClubSettingsUpdate(BaseModel):
     home_venue: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
+    bg_color: Optional[str] = None
+    name: Optional[str] = None  # club name rename
+
+
+_SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
+_SETTINGS_EXTRA = {"bg_color"}
 
 
 @router.patch("/settings")
 def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db),
                          user: User = Depends(require_club_admin)):
-    """Admin only: update club settings (home venue, colors)."""
+    """Admin only: update club settings (home venue, colors) and club name."""
+    payload = data.model_dump(exclude_none=True)
+    if "name" in payload:
+        club = db.query(Club).filter(Club.id == user.club_id).first()
+        if club:
+            club.name = payload["name"]
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
-    for field, value in data.model_dump(exclude_none=True).items():
-        setattr(s, field, value)
+    for field, value in payload.items():
+        if field in _SETTINGS_COLUMNS:
+            setattr(s, field, value)
+        elif field in _SETTINGS_EXTRA:
+            extra = dict(s.extra or {})
+            extra[field] = value
+            s.extra = extra
     db.commit()
     return {"ok": True}
 
@@ -61,7 +79,7 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
 @router.get("/members")
 def get_members(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     users = db.query(User).filter(User.club_id == user.club_id, User.is_active == True).all()
-    return [{"id": u.id, "name": u.name, "role": u.role} for u in users]
+    return [{"id": u.id, "name": u.name, "role": u.role, "regular_member_id": u.regular_member_id} for u in users]
 
 
 @router.patch("/members/{member_id}/role")
@@ -121,6 +139,27 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     m.is_active = False
     db.commit()
     return {"ok": True}
+
+
+@router.post("/regular-members/{mid}/invite")
+def create_member_invite(mid: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_admin)):
+    """Create a one-time invite link pre-linked to a specific Stammspieler."""
+    from datetime import timedelta
+    import secrets as _secrets
+    from models.user import InviteToken
+    m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not m: raise HTTPException(404)
+    token_val = _secrets.token_urlsafe(32)
+    expires = datetime.utcnow() + timedelta(days=7)
+    invite = InviteToken(
+        token=token_val, club_id=user.club_id,
+        created_by=user.id, expires_at=expires,
+        regular_member_id=mid,
+    )
+    db.add(invite)
+    db.commit()
+    return {"token": token_val, "invite_url": f"/join?token={token_val}", "member_name": m.name}
 
 
 # ── Penalty types — admin write, all read ──

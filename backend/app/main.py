@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from api.v1 import auth, club, evenings, stats, sync
+from api.v1 import auth, club, evenings, stats, sync, superadmin
 
 app = FastAPI(
     title="Kegelkasse API",
@@ -40,6 +40,7 @@ app.include_router(club.router, prefix="/api/v1")
 app.include_router(evenings.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
+app.include_router(superadmin.router, prefix="/api/v1")
 
 
 @app.get("/api/health")

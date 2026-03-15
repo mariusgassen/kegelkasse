@@ -45,21 +45,31 @@ export const api = {
         request<{ access_token: string; user: User }>('POST', '/auth/login', {email, password: pw}),
     me: () => request<User>('GET', '/auth/me'),
     updateLocale: (locale: string) => request<void>('PATCH', '/auth/locale', {locale}),
+    updateProfile: (d: { name?: string; username?: string; email?: string; current_password?: string; new_password?: string }) =>
+        request<User>('PATCH', '/auth/profile', d),
+    updateAvatar: (avatar: string | null) => request<User>('PATCH', '/auth/avatar', {avatar}),
     createInvite: () => request<{ token: string; expires_at: string; invite_url: string }>('POST', '/auth/invite'),
-    register: (token: string, name: string, pw: string) =>
+    getInviteInfo: (token: string) =>
+        request<{ valid: boolean; member_name: string | null }>('GET', `/auth/invite-info?token=${token}`),
+    register: (token: string, pw: string, username: string, name?: string) =>
         request<{ access_token: string; user: User }>('POST', '/auth/register', {
-            token,
-            name,
-            password: pw
+            token, password: pw, username, ...(name ? {name} : {})
         }),
 
     // Club
     getClub: () => request<Club>('GET', '/club/'),
-    updateClubSettings: (d: Partial<ClubSettings>) => request<void>('PATCH', '/club/settings', d),
+    updateClubSettings: (d: Partial<ClubSettings> & { name?: string }) => request<void>('PATCH', '/club/settings', d),
     getMembers: () => request<{ id: number; name: string; role: string }[]>('GET', '/club/members'),
     updateMemberRole: (id: number, role: string) => request<void>('PATCH', `/club/members/${id}/role?role=${role}`),
 
+    // Superadmin
+    listAllClubs: () => request<{ id: number; name: string; slug: string; member_count: number; is_active: boolean }[]>('GET', '/superadmin/clubs'),
+    createClub: (name: string) => request<{ id: number; name: string; slug: string; member_count: number; is_active: boolean }>('POST', '/superadmin/clubs', {name}),
+    switchClub: (clubId: number) => request<{ access_token: string; user: User }>('POST', `/superadmin/switch-club/${clubId}`),
+
     // Regular members (Stammspieler)
+    createMemberInvite: (mid: number) =>
+        request<{ token: string; invite_url: string; member_name: string }>('POST', `/club/regular-members/${mid}/invite`),
     listRegularMembers: () => request<RegularMember[]>('GET', '/club/regular-members'),
     createRegularMember: (d: { name: string; nickname?: string }) =>
         request<RegularMember>('POST', '/club/regular-members', d),

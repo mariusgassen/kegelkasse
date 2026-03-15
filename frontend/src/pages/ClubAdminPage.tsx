@@ -2,10 +2,11 @@
  * Club admin page — settings, members, penalty types, game templates, invites.
  * Write operations guarded by AdminGuard (admin/superadmin only).
  */
-import {useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
-import {api} from '@/api/client.ts'
-import {isAdmin, useAppStore} from '@/store/app.ts'
+import {useEffect, useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {api, authState} from '@/api/client.ts'
+import {applyClubTheme} from '@/App.tsx'
+import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -21,10 +22,10 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useState<'settings' | 'members' | 'penalties' | 'templates' | 'invites'>('settings')
+    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'invites' | 'clubs'>('settings')
 
+    const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
-    const {data: members = []} = useQuery({queryKey: ['club-members'], queryFn: api.getMembers})
     const {data: penaltyTypes = [], refetch: refetchPT} = useQuery({
         queryKey: ['penalty-types'], queryFn: async () => {
             const d = await api.listPenaltyTypes();
@@ -49,10 +50,10 @@ export function ClubAdminPage() {
 
     const TABS = [
         {id: 'settings', label: '⚙️ Einstellungen'},
-        {id: 'members', label: '👥 Mitglieder'},
         {id: 'penalties', label: '⚠️ Strafen'},
         {id: 'templates', label: '🏆 Spiele'},
         {id: 'invites', label: '📨 Einladungen'},
+        ...(user?.role === 'superadmin' ? [{id: 'clubs', label: '🏛️ Vereine'}] : []),
     ] as const
 
     return (
@@ -70,10 +71,12 @@ export function ClubAdminPage() {
 
             {tab === 'settings' && (
                 <AdminGuard>
-                    <ClubSettingsTab club={club} onSaved={() => showToast(t('club.savedOk'))}/>
+                    <ClubSettingsTab club={club} onSaved={async () => {
+                        await qc.invalidateQueries({queryKey: ['club']})
+                        showToast(t('club.savedOk'))
+                    }}/>
                 </AdminGuard>
             )}
-            {tab === 'members' && <MembersTab members={members} isAdmin={isAdmin(user)}/>}
             {tab === 'penalties' && (
                 <AdminGuard>
                     <PenaltyTypesTab penaltyTypes={penaltyTypes} onChanged={refetchPT}/>
@@ -89,6 +92,9 @@ export function ClubAdminPage() {
                     <InvitesTab/>
                 </AdminGuard>
             )}
+            {tab === 'clubs' && user?.role === 'superadmin' && (
+                <SuperadminClubsTab qc={qc}/>
+            )}
         </div>
     )
 }
@@ -96,14 +102,29 @@ export function ClubAdminPage() {
 // ── Club Settings ──
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
+    const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
     const [color1, setColor1] = useState(club?.settings?.primary_color || '#e8a020')
     const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
+    const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
+
+    useEffect(() => {
+        if (!club) return
+        setClubName(club.name || '')
+        setVenue(club.settings?.home_venue || '')
+        setColor1(club.settings?.primary_color || '#e8a020')
+        setColor2(club.settings?.secondary_color || '#6b7c5a')
+        setBgColor(club.settings?.bg_color || '#1a1410')
+    }, [club])
 
     return (
         <div className="flex flex-col gap-3">
             <div className="kce-card p-4">
-                <div className="text-xs font-bold text-kce-muted mb-3">{club?.name || 'Kegelkasse'}</div>
+                <div className="mb-3">
+                    <label className="field-label">{t('club.name.label')}</label>
+                    <input className="kce-input" value={clubName} onChange={e => setClubName(e.target.value)}
+                           placeholder="Vereinsname"/>
+                </div>
                 <div className="mb-3">
                     <label className="field-label">{t('club.defaultVenue')}</label>
                     <input className="kce-input" value={venue} onChange={e => setVenue(e.target.value)}
@@ -126,43 +147,21 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             <span className="text-kce-muted text-xs font-mono">{color2}</span>
                         </div>
                     </div>
+                    <div className="flex-1">
+                        <label className="field-label">{t('club.color.bg')}</label>
+                        <div className="flex gap-2 items-center">
+                            <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
+                                   className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
+                            <span className="text-kce-muted text-xs font-mono">{bgColor}</span>
+                        </div>
+                    </div>
                 </div>
                 <button className="btn-primary w-full" onClick={async () => {
-                    await api.updateClubSettings({home_venue: venue, primary_color: color1, secondary_color: color2})
+                    await api.updateClubSettings({name: clubName || undefined, home_venue: venue, primary_color: color1, secondary_color: color2, bg_color: bgColor})
+                    applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     onSaved()
                 }}>{t('action.save')}</button>
             </div>
-        </div>
-    )
-}
-
-// ── Members ──
-function MembersTab({members, isAdmin}: { members: any[]; isAdmin: boolean }) {
-    return (
-        <div>
-            {members.map(m => (
-                <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                    <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-kce-bg text-xs flex-shrink-0"
-                        style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
-                        {m.name[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                        <div className="text-sm font-bold">{m.name}</div>
-                    </div>
-                    <span
-                        className={m.role === 'admin' || m.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
-            {m.role}
-          </span>
-                    {isAdmin && m.role !== 'superadmin' && (
-                        <button className="btn-secondary btn-xs" onClick={() =>
-                            api.updateMemberRole(m.id, m.role === 'admin' ? 'member' : 'admin').then(() => window.location.reload())
-                        }>
-                            {m.role === 'admin' ? '↓' : '↑'}
-                        </button>
-                    )}
-                </div>
-            ))}
         </div>
     )
 }
@@ -311,6 +310,66 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                     </div>
                 </div>
             </Sheet>
+        </div>
+    )
+}
+
+// ── Superadmin: All Clubs ──
+function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
+    const t = useT()
+    const {setUser} = useAppStore()
+    const [newName, setNewName] = useState('')
+    const {data: clubs = [], refetch} = useQuery({
+        queryKey: ['superadmin-clubs'],
+        queryFn: api.listAllClubs,
+    })
+
+    const handleSwitch = async (clubId: number) => {
+        const res = await api.switchClub(clubId)
+        authState.setToken(res.access_token)
+        setUser(res.user)
+        await qc.invalidateQueries()
+        window.location.reload()
+    }
+
+    const handleCreate = async () => {
+        if (!newName.trim()) return
+        await api.createClub(newName.trim())
+        setNewName('')
+        refetch()
+        showToast(t('superadmin.clubs.created'))
+    }
+
+    return (
+        <div className="flex flex-col gap-3">
+            {clubs.map(c => (
+                <div key={c.id} className="kce-card p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate">{c.name}</div>
+                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
+                    </div>
+                    {c.is_active ? (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
+                              style={{background: 'rgba(232,160,32,.15)', color: '#e8a020'}}>
+                            {t('superadmin.clubs.active')}
+                        </span>
+                    ) : (
+                        <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
+                            {t('superadmin.clubs.switch')}
+                        </button>
+                    )}
+                </div>
+            ))}
+
+            <div className="kce-card p-3 mt-1">
+                <div className="field-label">{t('superadmin.clubs.create')}</div>
+                <div className="flex gap-2">
+                    <input className="kce-input flex-1" value={newName} onChange={e => setNewName(e.target.value)}
+                           placeholder={t('superadmin.clubs.namePlaceholder')}
+                           onKeyDown={e => e.key === 'Enter' && handleCreate()}/>
+                    <button className="btn-primary btn-sm flex-shrink-0" onClick={handleCreate}>+</button>
+                </div>
+            </div>
         </div>
     )
 }
