@@ -281,6 +281,15 @@ export function ProfileSheet({open, onClose}: Props) {
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
                         {saving ? 'Speichern…' : t('action.save')}
                     </button>
+                    <a
+                        href="/docs"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
+                    >
+                        <span>📖 Dokumentation</span>
+                        <span className="text-kce-muted text-xs">↗</span>
+                    </a>
                     <button className="btn-danger w-full py-2.5 text-sm" onClick={() => {
                         authState.setToken(null)
                         setUser(null)
