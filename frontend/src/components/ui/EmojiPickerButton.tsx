@@ -71,7 +71,7 @@ export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPicke
                 searchDisabled
                 skinTonesDisabled
                 previewConfig={{ showPreview: false }}
-                lazyLoadEmojis
+
             />
         </div>,
         document.body
