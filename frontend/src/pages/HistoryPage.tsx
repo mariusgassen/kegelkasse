@@ -12,7 +12,7 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-export function HistoryPage() {
+export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
@@ -44,6 +44,7 @@ export function HistoryPage() {
             qc.invalidateQueries({queryKey: ['evenings']})
             qc.invalidateQueries({queryKey: ['evening', id]})
             showToast('Wiedereröffnet!')
+            onNavigate?.()
         } catch (e: unknown) {
             showToast(e instanceof Error ? e.message : 'Fehler')
         }

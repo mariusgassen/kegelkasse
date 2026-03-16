@@ -60,6 +60,8 @@ export const de = {
     "player.edit": "Spieler bearbeiten",
     "player.noTeam": "Ohne Team",
     "player.noPlayers": "Noch keine Spieler. Tippe auf + Spieler.",
+    "player.removeConfirm": "Spieler entfernen?",
+    "player.removeWarning": "Alle Strafen und Spieleinträge dieses Spielers werden ebenfalls gelöscht.",
     "team.create": "Team erstellen",
     "team.edit": "Team bearbeiten",
     "team.name": "Team-Name",

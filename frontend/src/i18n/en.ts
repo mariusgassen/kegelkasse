@@ -60,6 +60,8 @@ export const en = {
     "player.edit": "Edit player",
     "player.noTeam": "No team",
     "player.noPlayers": "No players yet. Tap + Players.",
+    "player.removeConfirm": "Remove player?",
+    "player.removeWarning": "All penalties and game entries for this player will also be deleted.",
     "team.create": "Create team",
     "team.edit": "Edit team",
     "team.name": "Team name",

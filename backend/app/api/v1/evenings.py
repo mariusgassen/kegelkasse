@@ -156,6 +156,20 @@ def remove_player(eid: int, pid: int, db: Session = Depends(get_db),
     e = get_club_evening(eid, user, db)
     p = db.query(EveningPlayer).filter(EveningPlayer.id == pid, EveningPlayer.evening_id == e.id).first()
     if not p: raise HTTPException(404)
+    # Delete penalty log entries that reference this player
+    db.query(PenaltyLog).filter(PenaltyLog.player_id == pid).delete(synchronize_session=False)
+    # Remove player from drink round participant lists
+    for dr in db.query(DrinkRound).filter(DrinkRound.evening_id == e.id).all():
+        if pid in (dr.participant_ids or []):
+            dr.participant_ids = [x for x in dr.participant_ids if x != pid]
+    # Clean up game scores and winner refs
+    player_key = f"p:{pid}"
+    for g in db.query(Game).filter(Game.evening_id == e.id, Game.is_deleted == False).all():
+        if g.scores and player_key in g.scores:
+            g.scores = {k: v for k, v in g.scores.items() if k != player_key}
+        if g.winner_ref == player_key:
+            g.winner_ref = None
+            g.winner_name = None
     db.delete(p)
     db.commit()
     return {"ok": True}

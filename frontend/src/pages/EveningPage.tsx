@@ -54,6 +54,7 @@ export function EveningPage() {
     const [drinkPlayerIds, setDrinkPlayerIds] = useState<(number | string)[]>([])
 
     const [closeConfirm, setCloseConfirm] = useState(false)
+    const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
 
     // ── No active evening ──
     if (!activeEveningId && !evening) {
@@ -244,25 +245,40 @@ export function EveningPage() {
                     const team = teams.find(t => t.id === p.team_id)
                     const rm = regularMembers.find(r => r.id === p.regular_member_id)
                     return (
-                        <div key={p.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
-                                 style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
-                                {rm?.avatar
-                                    ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                                    : p.name[0].toUpperCase()
-                                }
+                        <div key={p.id} className="kce-card mb-2">
+                            <div className="p-3 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
+                                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                                    {rm?.avatar
+                                        ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                        : p.name[0].toUpperCase()
+                                    }
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                    <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
+                                </div>
+                                {!evening.is_closed && (
+                                    <div className="flex gap-1">
+                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️</button>
+                                        {confirmRemovePlayerId === p.id ? (
+                                            <>
+                                                <button className="btn-danger btn-xs" onClick={async () => {
+                                                    await api.removePlayer(evening.id, p.id)
+                                                    setConfirmRemovePlayerId(null)
+                                                    invalidate()
+                                                }}>✓</button>
+                                                <button className="btn-secondary btn-xs" onClick={() => setConfirmRemovePlayerId(null)}>✕</button>
+                                            </>
+                                        ) : (
+                                            <button className="btn-danger btn-xs" onClick={() => setConfirmRemovePlayerId(p.id)}>✕</button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
-                                <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
-                            </div>
-                            {!evening.is_closed && (
-                                <div className="flex gap-1">
-                                    <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️</button>
-                                    <button className="btn-danger btn-xs" onClick={async () => {
-                                        await api.removePlayer(evening.id, p.id)
-                                        invalidate()
-                                    }}>✕</button>
+                            {confirmRemovePlayerId === p.id && (
+                                <div className="text-xs text-red-400 px-3 pb-2">
+                                    ⚠️ {t('player.removeWarning')}
                                 </div>
                             )}
                         </div>

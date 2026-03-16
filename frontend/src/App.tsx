@@ -234,7 +234,7 @@ export default function App() {
                     ['evening', <EveningHubPage onNavigate={() => setPage('config')}/>],
                     ['config', <EveningPage/>],
                     ['treasury', <TreasuryPage/>],
-                    ['history', <HistoryPage/>],
+                    ['history', <HistoryPage onNavigate={() => setPage('evening')}/>],
                     ['stats', <StatsPage/>],
                     ['club', <ClubAdminPage/>],
                 ] as [PageId, ReactNode][]).map(([id, el]) => (
