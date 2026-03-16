@@ -1,0 +1,47 @@
+/**
+ * Kegelkasse Documentation — Custom Theme
+ * Primary: Amber/Brown (bowling ball feel)
+ */
+
+:root {
+  --ifm-color-primary: #c27a2a;
+  --ifm-color-primary-dark: #ae6d25;
+  --ifm-color-primary-darker: #a36723;
+  --ifm-color-primary-darkest: #87551d;
+  --ifm-color-primary-light: #d4892f;
+  --ifm-color-primary-lighter: #d98f36;
+  --ifm-color-primary-lightest: #e0a152;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #e0a152;
+  --ifm-color-primary-dark: #da933c;
+  --ifm-color-primary-darker: #d78d32;
+  --ifm-color-primary-darkest: #b87228;
+  --ifm-color-primary-light: #e6b068;
+  --ifm-color-primary-lighter: #e9b771;
+  --ifm-color-primary-lightest: #efca92;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Role badges */
+.badge--superadmin {
+  background-color: #7c3aed;
+  color: white;
+}
+.badge--admin {
+  background-color: #2563eb;
+  color: white;
+}
+.badge--member {
+  background-color: #16a34a;
+  color: white;
+}
+
+/* Role permission table */
+.permission-table th {
+  white-space: nowrap;
+}
