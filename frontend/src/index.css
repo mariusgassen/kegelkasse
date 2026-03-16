@@ -165,7 +165,12 @@
     }
 
     .nav-btn .icon {
-        @apply text-base leading-none;
+        @apply text-base;
+        line-height: 1;
+        height: 1.2em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .nav-btn.active {

@@ -37,13 +37,19 @@ type Expense = {
     id: number; amount: number; description: string; created_at: string | null
 }
 
+// Unified booking entry for the Buchungen tab
+type BookingEntry =
+    | { kind: 'payment'; data: Payment }
+    | { kind: 'expense'; data: Expense }
+
 export function TreasuryPage() {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
+    const regularMembers = useAppStore(s => s.regularMembers)
     const admin = isAdmin(user)
 
-    const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'transactions' | 'expenses'>('overview', ['overview', 'accounts', 'transactions', 'expenses'])
+    const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
 
     // Balances — always loaded (used in overview + accounts tabs)
     const {data: balances = [], refetch: refetchBalances} = useQuery({
@@ -59,18 +65,18 @@ export function TreasuryPage() {
         staleTime: 1000 * 30,
     })
 
-    // Expenses — loaded for expenses tab + overview
+    // Expenses — loaded for bookings tab + overview
     const {data: expenses = [], refetch: refetchExpenses} = useQuery({
         queryKey: ['club-expenses'],
         queryFn: api.getExpenses,
         staleTime: 1000 * 30,
     })
 
-    // All payments — loaded for transactions tab
+    // All payments — loaded for bookings tab
     const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
-        enabled: tab === 'transactions',
+        enabled: tab === 'bookings',
         staleTime: 1000 * 30,
     })
 
@@ -134,35 +140,64 @@ export function TreasuryPage() {
         }
     }
 
-    // Expense sheet
-    const [expenseSheet, setExpenseSheet] = useState(false)
-    const [expenseAmount, setExpenseAmount] = useState('')
-    const [expenseDesc, setExpenseDesc] = useState('')
-    const [savingExpense, setSavingExpense] = useState(false)
-
-    async function submitExpense() {
-        const abs = parseAmount(expenseAmount)
-        if (!abs || abs <= 0 || !expenseDesc.trim()) return
-        setSavingExpense(true)
-        try {
-            await api.createExpense({amount: abs, description: expenseDesc.trim()})
-            refetchExpenses()
-            setExpenseSheet(false)
-            setExpenseAmount('')
-            setExpenseDesc('')
-        } catch (e: unknown) {
-            toastError(e)
-        } finally {
-            setSavingExpense(false)
-        }
-    }
-
+    // Expense operations
     async function deleteExpense(eid: number) {
         try {
             await api.deleteExpense(eid)
             refetchExpenses()
         } catch (e: unknown) {
             toastError(e)
+        }
+    }
+
+    // New booking sheet — unified for Club expenses and member payments
+    const [bookingSheet, setBookingSheet] = useState(false)
+    const [bookingTarget, setBookingTarget] = useState<'club' | number>('club')
+    const [bookingDirection, setBookingDirection] = useState<'in' | 'out'>('out')
+    const [bookingAmount, setBookingAmount] = useState('')
+    const [bookingNote, setBookingNote] = useState('')
+    const [savingBooking, setSavingBooking] = useState(false)
+
+    function openBookingSheet() {
+        setBookingTarget('club')
+        setBookingDirection('out')
+        setBookingAmount('')
+        setBookingNote('')
+        setBookingSheet(true)
+    }
+
+    const allMembers = [...balances as Balance[], ...(guestBalances as Balance[])]
+
+    async function submitBooking() {
+        const abs = parseAmount(bookingAmount)
+        if (!abs || abs <= 0) return
+        setSavingBooking(true)
+        try {
+            if (bookingTarget === 'club') {
+                if (!bookingNote.trim()) return
+                const amount = bookingDirection === 'out' ? abs : abs
+                await api.createExpense({
+                    amount,
+                    description: bookingNote.trim(),
+                })
+                refetchExpenses()
+            } else {
+                const amount = bookingDirection === 'in' ? abs : -abs
+                await api.createMemberPayment({
+                    regular_member_id: bookingTarget,
+                    amount,
+                    note: bookingNote || undefined,
+                })
+                refetchBalances()
+                refetchGuestBalances()
+                qc.invalidateQueries({queryKey: ['member-payments', bookingTarget]})
+                qc.invalidateQueries({queryKey: ['all-payments']})
+            }
+            setBookingSheet(false)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSavingBooking(false)
         }
     }
 
@@ -182,12 +217,24 @@ export function TreasuryPage() {
     const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
         .sort((a, b) => a.balance - b.balance)
 
+    // Merged bookings for Buchungen tab — sorted by created_at desc
+    const mergedBookings: BookingEntry[] = [
+        ...(allPayments as Payment[]).map(p => ({kind: 'payment' as const, data: p})),
+        ...(expenses as Expense[]).map(e => ({kind: 'expense' as const, data: e})),
+    ].sort((a, b) => {
+        const ta = a.data.created_at ?? ''
+        const tb = b.data.created_at ?? ''
+        return tb.localeCompare(ta)
+    })
+
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
         {id: 'accounts', label: t('treasury.tab.accounts')},
-        {id: 'transactions', label: t('treasury.tab.transactions')},
-        {id: 'expenses', label: t('treasury.tab.expenses')},
+        {id: 'bookings', label: t('treasury.tab.bookings')},
     ] as const
+
+    const isClubBooking = bookingTarget === 'club'
+    const bookingValid = parseAmount(bookingAmount) > 0 && (isClubBooking ? bookingNote.trim().length > 0 : true)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -464,73 +511,69 @@ export function TreasuryPage() {
             )}
 
             {/* ── Buchungen ── */}
-            {tab === 'transactions' && (
-                <div>
-                    {(allPayments as Payment[]).length === 0
-                        ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
-                        : (allPayments as Payment[]).map(p => (
-                            <div key={p.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                <span
-                                    className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {p.amount >= 0 ? '⬆' : '⬇'}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">{p.member_name}</div>
-                                    <div className="text-xs text-kce-muted truncate">
-                                        {p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}
-                                    </div>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                    <div
-                                        className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
-                                    </div>
-                                    <div className="text-xs text-kce-muted">{fDate(p.created_at)}</div>
-                                </div>
-                                {admin && (
-                                    <button className="btn-danger btn-xs flex-shrink-0"
-                                            onClick={() => deletePayment(p.id, p.regular_member_id)}>✕</button>
-                                )}
-                            </div>
-                        ))
-                    }
-                </div>
-            )}
-
-            {/* ── Ausgaben ── */}
-            {tab === 'expenses' && (
+            {tab === 'bookings' && (
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-xs text-kce-muted">{t('treasury.expensesTotal')}</span>
-                            <div className="font-bold text-orange-400 text-lg">{fe(totalExpenses)}</div>
+                            <div className="font-bold text-orange-400 text-sm">-{fe(totalExpenses)}</div>
                         </div>
                         {admin && (
-                            <button className="btn-primary btn-sm" onClick={() => {
-                                setExpenseAmount('')
-                                setExpenseDesc('')
-                                setExpenseSheet(true)
-                            }}>
-                                + {t('treasury.expense.add')}
+                            <button className="btn-primary btn-sm" onClick={openBookingSheet}>
+                                + {t('treasury.booking.add')}
                             </button>
                         )}
                     </div>
-                    {(expenses as Expense[]).length === 0
-                        ? <Empty icon="🧾" text={t('treasury.expense.none')}/>
-                        : (expenses as Expense[]).map(e => (
-                            <div key={e.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                <span className="text-xl flex-shrink-0 text-orange-400">⬇</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">{e.description}</div>
-                                    <div className="text-xs text-kce-muted">{fDate(e.created_at)}</div>
-                                </div>
-                                <div className="font-bold text-orange-400 text-sm flex-shrink-0">-{fe(e.amount)}</div>
-                                {admin && (
-                                    <button className="btn-danger btn-xs flex-shrink-0"
-                                            onClick={() => deleteExpense(e.id)}>✕</button>
-                                )}
-                            </div>
-                        ))
+
+                    {mergedBookings.length === 0
+                        ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
+                        : mergedBookings.map((entry, idx) => {
+                            if (entry.kind === 'payment') {
+                                const p = entry.data
+                                return (
+                                    <div key={`p-${p.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                        <span className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {p.amount >= 0 ? '⬆' : '⬇'}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold truncate">{p.member_name}</div>
+                                            <div className="text-xs text-kce-muted truncate">
+                                                {p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
+                                            </div>
+                                            <div className="text-xs text-kce-muted">{fDate(p.created_at)}</div>
+                                        </div>
+                                        {admin && (
+                                            <button className="btn-danger btn-xs flex-shrink-0"
+                                                    onClick={() => deletePayment(p.id, p.regular_member_id)}>✕</button>
+                                        )}
+                                    </div>
+                                )
+                            } else {
+                                const e = entry.data
+                                return (
+                                    <div key={`e-${e.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                        <span className="text-xl flex-shrink-0 text-orange-400">⬇</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                                {e.description}
+                                                <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">{t('treasury.booking.club')}</span>
+                                            </div>
+                                            <div className="text-xs text-kce-muted">{fDate(e.created_at)}</div>
+                                        </div>
+                                        <div className="font-bold text-orange-400 text-sm flex-shrink-0">-{fe(e.amount)}</div>
+                                        {admin && (
+                                            <button className="btn-danger btn-xs flex-shrink-0"
+                                                    onClick={() => deleteExpense(e.id)}>✕</button>
+                                        )}
+                                    </div>
+                                )
+                            }
+                        })
                     }
                 </div>
             )}
@@ -573,30 +616,67 @@ export function TreasuryPage() {
                 </div>
             </Sheet>
 
-            {/* Expense sheet */}
-            <Sheet open={expenseSheet} onClose={() => setExpenseSheet(false)}
-                   title={`🧾 ${t('treasury.expense.add')}`} onSubmit={submitExpense}>
+            {/* New booking sheet */}
+            <Sheet open={bookingSheet} onClose={() => setBookingSheet(false)}
+                   title={`📋 ${t('treasury.booking.add')}`} onSubmit={submitBooking}>
                 <div className="flex flex-col gap-3">
+                    {/* Target: Club or member */}
                     <div>
-                        <label className="field-label">{t('treasury.expense.description')}</label>
-                        <input className="kce-input" value={expenseDesc}
-                               onChange={e => setExpenseDesc(e.target.value)}
-                               placeholder={t('treasury.expense.descPlaceholder')} autoFocus/>
+                        <label className="field-label">{t('treasury.booking.for')}</label>
+                        <div className="flex gap-2 flex-wrap">
+                            <button type="button"
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${bookingTarget === 'club' ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                    onClick={() => setBookingTarget('club')}>
+                                🏛️ {t('treasury.booking.club')}
+                            </button>
+                            {allMembers.map(m => (
+                                <button key={m.regular_member_id} type="button"
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${bookingTarget === m.regular_member_id ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                        onClick={() => setBookingTarget(m.regular_member_id)}>
+                                    {m.nickname || m.name}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    {/* Direction */}
+                    <ModeToggle
+                        options={isClubBooking
+                            ? [{value: 'out', label: `⬇ ${t('treasury.booking.expense')}`}]
+                            : [
+                                {value: 'in', label: `⬆ ${t('treasury.payment.deposit')}`},
+                                {value: 'out', label: `⬇ ${t('treasury.payment.withdrawal')}`},
+                            ]
+                        }
+                        value={isClubBooking ? 'out' : bookingDirection}
+                        onChange={v => setBookingDirection(v as 'in' | 'out')}/>
+
+                    {/* Amount */}
                     <div>
                         <label className="field-label">{t('treasury.payment.amount')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
-                                   value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)}
-                                   placeholder="0,00"/>
+                                   value={bookingAmount} onChange={e => setBookingAmount(e.target.value)}
+                                   placeholder="0,00" autoFocus/>
                         </div>
                     </div>
+
+                    {/* Note / description */}
+                    <div>
+                        <label className="field-label">
+                            {isClubBooking ? t('treasury.expense.description') : t('treasury.payment.note')}
+                        </label>
+                        <input className="kce-input" value={bookingNote}
+                               onChange={e => setBookingNote(e.target.value)}
+                               placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
+                    </div>
+
                     <div className="flex gap-2 mt-1">
                         <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setExpenseSheet(false)}>{t('action.cancel')}</button>
+                                onClick={() => setBookingSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
-                                disabled={savingExpense || !expenseAmount || parseAmount(expenseAmount) <= 0 || !expenseDesc.trim()}>
+                                disabled={savingBooking || !bookingValid}>
                             ✓ {t('action.save')}
                         </button>
                     </div>

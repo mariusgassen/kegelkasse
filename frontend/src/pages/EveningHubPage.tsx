@@ -5,6 +5,8 @@
 import {useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {api} from '@/api/client.ts'
+import {toastError} from '@/utils/error.ts'
 import {PenaltiesPage} from './PenaltiesPage'
 import {GamesPage} from './GamesPage'
 
@@ -16,8 +18,9 @@ interface Props {
 
 export function EveningHubPage({onNavigate}: Props) {
     const t = useT()
-    const {activeEveningId} = useActiveEvening()
+    const {evening, invalidate, activeEveningId} = useActiveEvening()
     const [subTab, setSubTab] = useState<SubTab>('penalties')
+    const [closeConfirm, setCloseConfirm] = useState(false)
 
     // No active evening — prompt to configure one
     if (!activeEveningId) {
@@ -40,10 +43,12 @@ export function EveningHubPage({onNavigate}: Props) {
         {id: 'games', label: `🏆 ${t('nav.games')}`},
     ]
 
+    const isClosed = evening?.is_closed ?? false
+
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
-            {/* Sub-tab strip */}
-            <div className="flex gap-1 px-2 pt-2 pb-1.5 flex-shrink-0"
+            {/* Sub-tab strip + end button */}
+            <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 flex-shrink-0"
                  style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
@@ -52,7 +57,48 @@ export function EveningHubPage({onNavigate}: Props) {
                         {tb.label}
                     </button>
                 ))}
+                {!isClosed && evening && (
+                    <button type="button"
+                            className="btn-danger btn-xs flex-shrink-0"
+                            onClick={() => setCloseConfirm(true)}>
+                        {t('evening.end')}
+                    </button>
+                )}
+                {isClosed && evening && (
+                    <button type="button"
+                            className="btn-secondary btn-xs flex-shrink-0"
+                            onClick={async () => {
+                                try {
+                                    await api.updateEvening(evening.id, {is_closed: false})
+                                    invalidate()
+                                } catch (e: unknown) {
+                                    toastError(e)
+                                }
+                            }}>
+                        {t('evening.reopen')}
+                    </button>
+                )}
             </div>
+
+            {/* Close confirm bar */}
+            {closeConfirm && (
+                <div className="px-2 py-2 flex-shrink-0 flex items-center gap-2"
+                     style={{background: 'var(--kce-surface)', borderBottom: '1px solid var(--kce-border)'}}>
+                    <p className="text-xs text-kce-muted flex-1">{t('evening.endConfirm')}</p>
+                    <button className="btn-secondary btn-xs" onClick={() => setCloseConfirm(false)}>
+                        {t('action.cancel')}
+                    </button>
+                    <button className="btn-danger btn-xs" onClick={async () => {
+                        try {
+                            await api.updateEvening(evening!.id, {is_closed: true})
+                            setCloseConfirm(false)
+                            invalidate()
+                        } catch (e: unknown) {
+                            toastError(e)
+                        }
+                    }}>{t('action.done')}</button>
+                </div>
+            )}
 
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
