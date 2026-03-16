@@ -52,7 +52,14 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
             l.amount for e in evenings for l in e.penalty_log
             if not l.is_deleted and l.mode == PenaltyMode.euro
         ),
-        "total_beer_rounds": sum(len(e.drink_rounds) for e in evenings),
+        "total_beers": sum(
+            len(r.participant_ids) for e in evenings for r in e.drink_rounds
+            if not r.is_deleted and r.drink_type == "beer"
+        ),
+        "total_shots": sum(
+            len(r.participant_ids) for e in evenings for r in e.drink_rounds
+            if not r.is_deleted and r.drink_type == "shots"
+        ),
         "players": sorted(player_stats.values(), key=lambda x: x["penalty_total"], reverse=True)
     }
 

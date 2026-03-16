@@ -243,7 +243,8 @@ export const api = {
         year: number;
         evening_count: number;
         total_penalties: number;
-        total_beer_rounds: number;
+        total_beers: number;
+        total_shots: number;
         players: {
             name: string; regular_member_id: number | null;
             evenings: number; penalty_total: number; penalty_count: number;

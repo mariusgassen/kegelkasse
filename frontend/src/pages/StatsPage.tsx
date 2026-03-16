@@ -43,9 +43,8 @@ export function StatsPage() {
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
                         <StatBox value={String(eveningStats.penaltyCount)} label="Strafen"/>
-                        <StatBox value={String(eveningStats.beerRounds)}
-                                 label={t('treasury.drinks').replace('🍺 ', '')}/>
-                        <StatBox value={String(eveningStats.shotRounds)} label="Schnapsrunden"/>
+                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label="Biere"/>
+                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label="Schnäpse"/>
                     </div>
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
@@ -83,7 +82,7 @@ export function StatsPage() {
                     <div className="grid grid-cols-3 gap-2 mb-4">
                         <StatBox value={String(yearStats.evening_count)} label="Abende"/>
                         <StatBox value={fe(yearStats.total_penalties)} label="Strafen gesamt"/>
-                        <StatBox value={String(yearStats.total_beer_rounds)} label="🍺 Runden"/>
+                        <StatBox value={`🍺 ${yearStats.total_beers}`} label="Biere"/>
                     </div>
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">Jahres-Strafenkasse</div>
@@ -188,8 +187,8 @@ function StatBox({value, label}: { value: string; label: string }) {
 function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>, myMemberId: number | null | undefined) {
     const totalEuro = evening.penalty_log.filter(l => l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
     const penaltyCount = evening.penalty_log.length
-    const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').length
-    const shotRounds = evening.drink_rounds.filter(r => r.drink_type === 'shots').length
+    const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').reduce((s, r) => s + r.participant_ids.length, 0)
+    const shotRounds = evening.drink_rounds.filter(r => r.drink_type === 'shots').reduce((s, r) => s + r.participant_ids.length, 0)
 
     const byPlayer = (fn: (pid: number) => number) =>
         [...evening.players].sort((a, b) => fn(b.id) - fn(a.id))[0]
