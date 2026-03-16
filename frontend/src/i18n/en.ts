@@ -296,6 +296,7 @@ export const en = {
     "treasury.booking.add": "Booking",
     "treasury.booking.for": "For",
     "treasury.booking.club": "Club",
+    "treasury.booking.income": "Income",
     "treasury.booking.expense": "Expense",
     "member.addedToEvening": "added",
     "member.merged": "Merged",
