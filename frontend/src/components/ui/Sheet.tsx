@@ -12,6 +12,8 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
     const isDraggingRef = useRef(false)
+    const dragYRef = useRef(0)
+    const handleRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (!open) return
@@ -28,28 +30,52 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
     }, [open])
 
     useEffect(() => {
-        if (!open) setDragY(0)
+        if (!open) {
+            setDragY(0)
+            dragYRef.current = 0
+        }
     }, [open])
 
-    if (!open) return null
+    // Attach touch listeners with { passive: false } so we can preventDefault on iOS Safari.
+    // React's synthetic onTouchMove is passive and cannot prevent scroll.
+    useEffect(() => {
+        const el = handleRef.current
+        if (!el) return
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        startYRef.current = e.touches[0].clientY
-        isDraggingRef.current = true
-    }
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDraggingRef.current) return
-        const delta = e.touches[0].clientY - startYRef.current
-        if (delta > 0) setDragY(delta)
-    }
-    const handleTouchEnd = () => {
-        isDraggingRef.current = false
-        if (dragY > 80) {
-            onClose()
-        } else {
-            setDragY(0)
+        const onStart = (e: TouchEvent) => {
+            startYRef.current = e.touches[0].clientY
+            isDraggingRef.current = true
         }
-    }
+        const onMove = (e: TouchEvent) => {
+            if (!isDraggingRef.current) return
+            e.preventDefault()
+            const delta = e.touches[0].clientY - startYRef.current
+            if (delta > 0) {
+                dragYRef.current = delta
+                setDragY(delta)
+            }
+        }
+        const onEnd = () => {
+            isDraggingRef.current = false
+            if (dragYRef.current > 80) {
+                onClose()
+            } else {
+                dragYRef.current = 0
+                setDragY(0)
+            }
+        }
+
+        el.addEventListener('touchstart', onStart, {passive: true})
+        el.addEventListener('touchmove', onMove, {passive: false})
+        el.addEventListener('touchend', onEnd, {passive: true})
+        return () => {
+            el.removeEventListener('touchstart', onStart)
+            el.removeEventListener('touchmove', onMove)
+            el.removeEventListener('touchend', onEnd)
+        }
+    }, [open, onClose])
+
+    if (!open) return null
 
     const inner = onSubmit ? (
         <form onSubmit={e => { e.preventDefault(); onSubmit() }}>
@@ -70,10 +96,8 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
             >
                 {/* Drag handle */}
                 <div
+                    ref={handleRef}
                     className="sheet-handle"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
                 />
                 {/* Title row with close button */}
                 <div className="flex items-center justify-between mb-4">
