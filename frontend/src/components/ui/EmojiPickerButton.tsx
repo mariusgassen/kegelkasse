@@ -1,7 +1,7 @@
-import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
-import { useRef, useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { useT } from '@/i18n'
+import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
+import {useEffect, useRef, useState} from 'react'
+import {createPortal} from 'react-dom'
+import {useT} from '@/i18n'
 
 const PICKER_W = 300
 const PICKER_H = 380
@@ -13,10 +13,10 @@ interface EmojiPickerButtonProps {
     mode?: 'icon' | 'insert'
 }
 
-export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPickerButtonProps) {
+export function EmojiPickerButton({value, onChange, mode = 'icon'}: EmojiPickerButtonProps) {
     const t = useT()
     const [open, setOpen] = useState(false)
-    const [pos, setPos] = useState({ top: 0, left: 0 })
+    const [pos, setPos] = useState({top: 0, left: 0})
     const triggerRef = useRef<HTMLButtonElement>(null)
     const pickerRef = useRef<HTMLDivElement>(null)
 
@@ -29,22 +29,25 @@ export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPicke
             ? rect.top - PICKER_H - 8
             : rect.bottom + 8
         const left = Math.max(8, Math.min(rect.left, window.innerWidth - PICKER_W - 8))
-        setPos({ top, left })
+        setPos({top, left})
         setOpen(true)
     }
 
     useEffect(() => {
         if (!open) return
+
         function onMouseDown(e: MouseEvent) {
             const target = e.target as Node
             if (!triggerRef.current?.contains(target) && !pickerRef.current?.contains(target)) {
                 setOpen(false)
             }
         }
+
         function onScroll(e: Event) {
             if (pickerRef.current?.contains(e.target as Node)) return
             setOpen(false)
         }
+
         document.addEventListener('mousedown', onMouseDown)
         document.addEventListener('scroll', onScroll, true)
         return () => {
@@ -61,7 +64,7 @@ export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPicke
     const portal = open && createPortal(
         <div
             ref={pickerRef}
-            style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+            style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999}}
         >
             <EmojiPicker
                 onEmojiClick={handlePick}
@@ -70,7 +73,7 @@ export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPicke
                 width={PICKER_W}
                 searchDisabled
                 skinTonesDisabled
-                previewConfig={{ showPreview: false }}
+                previewConfig={{showPreview: false}}
 
             />
         </div>,

@@ -1,7 +1,7 @@
 import {useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
-import {useAppStore, isAdmin} from '@/store/app.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -94,7 +94,7 @@ export function PenaltiesPage() {
 
     // Absence penalties
     const [absenceLoading, setAbsenceLoading] = useState(false)
-    const [absenceResult, setAbsenceResult] = useState<{avg: number; absent_count: number} | null>(null)
+    const [absenceResult, setAbsenceResult] = useState<{ avg: number; absent_count: number } | null>(null)
 
     // Edit sheet
     const [editEntry, setEditEntry] = useState<PenaltyLogEntry | null>(null)
@@ -116,7 +116,12 @@ export function PenaltiesPage() {
     const playerOptions = players.map(p => ({id: p.id, label: p.name}))
 
     // Per-player euro contribution (full uncapped)
-    function entryEuroValue(l: typeof players[0] extends never ? never : {mode: string; amount: number; unit_amount: number | null; penalty_type_name: string}): number {
+    function entryEuroValue(l: typeof players[0] extends never ? never : {
+        mode: string;
+        amount: number;
+        unit_amount: number | null;
+        penalty_type_name: string
+    }): number {
         if (l.mode === 'euro') return l.amount
         if (l.unit_amount != null) return l.amount * l.unit_amount
         const pt = penaltyTypes.find(pt => pt.name === l.penalty_type_name)
@@ -366,7 +371,8 @@ export function PenaltiesPage() {
                         return (
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-kce-border"/>
-                                <span className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap">
+                                <span
+                                    className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap">
                                     ▶ {event.game.name} · {fTime(event.ts)}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-border"/>
@@ -377,7 +383,8 @@ export function PenaltiesPage() {
                         return (
                             <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
-                                <span className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap">
+                                <span
+                                    className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap">
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
@@ -396,45 +403,46 @@ export function PenaltiesPage() {
                         : null
                     const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
                     return (
-                    <div key={`p-${entry.id}`} className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
-                        <span className="text-xl flex-shrink-0">{entry.icon}</span>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold truncate">{entry.player_name}</div>
-                            <div className="text-xs text-kce-muted truncate flex items-center gap-1">
-                                {entry.penalty_type_name}
-                                {entryGame && <span className="text-kce-muted">· {entryGame.name}</span>}
-                                {isCapped && <span className="text-kce-amber">· ≤ {fe(guestPenaltyCap!)}</span>}
+                        <div key={`p-${entry.id}`}
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
+                            <span className="text-xl flex-shrink-0">{entry.icon}</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold truncate">{entry.player_name}</div>
+                                <div className="text-xs text-kce-muted truncate flex items-center gap-1">
+                                    {entry.penalty_type_name}
+                                    {entryGame && <span className="text-kce-muted">· {entryGame.name}</span>}
+                                    {isCapped && <span className="text-kce-amber">· ≤ {fe(guestPenaltyCap!)}</span>}
+                                </div>
                             </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                            {entry.mode === 'euro'
-                                ? <span className="text-sm font-bold text-red-400">{fe(entry.amount)}</span>
-                                : <span className="text-sm font-bold text-red-400">
+                            <div className="text-right flex-shrink-0">
+                                {entry.mode === 'euro'
+                                    ? <span className="text-sm font-bold text-red-400">{fe(entry.amount)}</span>
+                                    : <span className="text-sm font-bold text-red-400">
                                     {entry.unit_amount != null
                                         ? `${entry.amount} × ${fe(entry.unit_amount)}`
                                         : `×${entry.amount}`}
                                   </span>
-                            }
-                            <div className="text-xs text-kce-muted">{fTime(entry.client_timestamp)}</div>
-                        </div>
-                        <button className="btn-ghost btn-xs flex-shrink-0 text-kce-muted"
-                                onClick={() => openEditSheet(entry)}>✏️
-                        </button>
-                        {confirmDeleteId === entry.id ? (
-                            <div className="flex gap-1 flex-shrink-0">
-                                <button className="btn-danger btn-xs"
-                                        onClick={() => confirmDelete(entry.id)}>✓
-                                </button>
-                                <button className="btn-secondary btn-xs"
-                                        onClick={() => setConfirmDeleteId(null)}>✕
-                                </button>
+                                }
+                                <div className="text-xs text-kce-muted">{fTime(entry.client_timestamp)}</div>
                             </div>
-                        ) : (
-                            <button className="btn-danger btn-xs flex-shrink-0"
-                                    onClick={() => setConfirmDeleteId(entry.id)}>✕
+                            <button className="btn-ghost btn-xs flex-shrink-0 text-kce-muted"
+                                    onClick={() => openEditSheet(entry)}>✏️
                             </button>
-                        )}
-                    </div>
+                            {confirmDeleteId === entry.id ? (
+                                <div className="flex gap-1 flex-shrink-0">
+                                    <button className="btn-danger btn-xs"
+                                            onClick={() => confirmDelete(entry.id)}>✓
+                                    </button>
+                                    <button className="btn-secondary btn-xs"
+                                            onClick={() => setConfirmDeleteId(null)}>✕
+                                    </button>
+                                </div>
+                            ) : (
+                                <button className="btn-danger btn-xs flex-shrink-0"
+                                        onClick={() => setConfirmDeleteId(entry.id)}>✕
+                                </button>
+                            )}
+                        </div>
                     )
                 })
             }
@@ -469,7 +477,10 @@ export function PenaltiesPage() {
                                 {penaltyTypes.map(pt => (
                                     <button key={pt.id} type="button"
                                             className={`chip ${selectedType === pt.id ? 'active' : ''}`}
-                                            onClick={() => { setSelectedType(pt.id); setAmount(mode === 'euro' ? String(pt.default_amount) : '') }}>
+                                            onClick={() => {
+                                                setSelectedType(pt.id);
+                                                setAmount(mode === 'euro' ? String(pt.default_amount) : '')
+                                            }}>
                                         {pt.icon} {pt.name}
                                     </button>
                                 ))}
@@ -479,12 +490,15 @@ export function PenaltiesPage() {
                         {/* 3 — Mode + Amount (less prominent) */}
                         <div className="border border-kce-border rounded-xl p-3 flex flex-col gap-2">
                             <ModeToggle
-                                options={[{value: 'count', label: t('penalty.mode.count')}, {value: 'euro', label: t('penalty.mode.euro')}]}
+                                options={[{value: 'count', label: t('penalty.mode.count')}, {
+                                    value: 'euro',
+                                    label: t('penalty.mode.euro')
+                                }]}
                                 value={mode} onChange={v => {
-                                    const m = v as PenaltyMode
-                                    setMode(m)
-                                    setAmount(m === 'euro' && selectedPenaltyType ? String(selectedPenaltyType.default_amount) : '')
-                                }}/>
+                                const m = v as PenaltyMode
+                                setMode(m)
+                                setAmount(m === 'euro' && selectedPenaltyType ? String(selectedPenaltyType.default_amount) : '')
+                            }}/>
                             {selectedPenaltyType && (
                                 <AmountInput
                                     mode={mode}
@@ -498,7 +512,8 @@ export function PenaltiesPage() {
                             <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
                                 {t('action.cancel')}
                             </button>
-                            <button type="submit" className="btn-primary flex-[2]" disabled={saving || !selectedType || playerIds.length === 0}>
+                            <button type="submit" className="btn-primary flex-[2]"
+                                    disabled={saving || !selectedType || playerIds.length === 0}>
                                 {t('penalty.confirm')}
                             </button>
                         </div>
@@ -531,14 +546,22 @@ export function PenaltiesPage() {
                         {/* 3 — Mode + Amount (less prominent) */}
                         <div className="border border-kce-border rounded-xl p-3 flex flex-col gap-2">
                             <ModeToggle
-                                options={[{value: 'count', label: t('penalty.mode.count')}, {value: 'euro', label: t('penalty.mode.euro')}]}
-                                value={customMode} onChange={v => { setCustomMode(v as PenaltyMode); setCustomAmount(''); setCustomUnitAmount('') }}/>
+                                options={[{value: 'count', label: t('penalty.mode.count')}, {
+                                    value: 'euro',
+                                    label: t('penalty.mode.euro')
+                                }]}
+                                value={customMode} onChange={v => {
+                                setCustomMode(v as PenaltyMode);
+                                setCustomAmount('');
+                                setCustomUnitAmount('')
+                            }}/>
                             <AmountInput mode={customMode} value={customAmount} onChange={setCustomAmount}/>
                             {customMode === 'count' && (
                                 <div>
                                     <label className="field-label">{t('penalty.unitAmount')}</label>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                                        <span
+                                            className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                                         <input className="kce-input flex-1"
                                                type="text" inputMode="decimal"
                                                value={customUnitAmount}
@@ -583,7 +606,10 @@ export function PenaltiesPage() {
                             {penaltyTypes.map(pt => (
                                 <button key={pt.id} type="button"
                                         className={`chip ${editType === pt.id ? 'active' : ''}`}
-                                        onClick={() => { setEditType(pt.id); setEditAmount('') }}>
+                                        onClick={() => {
+                                            setEditType(pt.id);
+                                            setEditAmount('')
+                                        }}>
                                     {pt.icon} {pt.name}
                                 </button>
                             ))}
@@ -592,8 +618,14 @@ export function PenaltiesPage() {
 
                     {/* Mode */}
                     <ModeToggle
-                        options={[{value: 'count', label: t('penalty.mode.count')}, {value: 'euro', label: t('penalty.mode.euro')}]}
-                        value={editMode} onChange={v => { setEditMode(v as PenaltyMode); setEditAmount('') }}/>
+                        options={[{value: 'count', label: t('penalty.mode.count')}, {
+                            value: 'euro',
+                            label: t('penalty.mode.euro')
+                        }]}
+                        value={editMode} onChange={v => {
+                        setEditMode(v as PenaltyMode);
+                        setEditAmount('')
+                    }}/>
 
                     {/* Amount */}
                     <AmountInput

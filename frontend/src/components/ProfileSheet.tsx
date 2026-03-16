@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore} from '@/store/app'
-import {Locale, useI18n, useT} from '@/i18n'
+import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
 
@@ -16,7 +16,8 @@ function resizeToBase64(file: File, size = 256): Promise<string> {
         const url = URL.createObjectURL(file)
         img.onload = () => {
             const canvas = document.createElement('canvas')
-            canvas.width = size; canvas.height = size
+            canvas.width = size;
+            canvas.height = size
             const ctx = canvas.getContext('2d')!
             const min = Math.min(img.width, img.height)
             const x = (img.width - min) / 2
@@ -51,6 +52,9 @@ export function ProfileSheet({open, onClose}: Props) {
     const [saving, setSaving] = useState(false)
     const [avatarLoading, setAvatarLoading] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
+    const [pushLoading, setPushLoading] = useState(false)
+    const [pushSubscribed, setPushSubscribed] = useState(false)
+    const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
     const isDraggingRef = useRef(false)
@@ -75,12 +79,19 @@ export function ProfileSheet({open, onClose}: Props) {
             if (!isDraggingRef.current) return
             e.preventDefault()
             const delta = e.touches[0].clientY - startYRef.current
-            if (delta > 0) { dragYRef.current = delta; setDragY(delta) }
+            if (delta > 0) {
+                dragYRef.current = delta;
+                setDragY(delta)
+            }
         }
         const onEnd = () => {
             isDraggingRef.current = false
-            if (dragYRef.current > 80) { onClose() }
-            else { dragYRef.current = 0; setDragY(0) }
+            if (dragYRef.current > 80) {
+                onClose()
+            } else {
+                dragYRef.current = 0;
+                setDragY(0)
+            }
         }
         el.addEventListener('touchstart', onStart, {passive: true})
         el.addEventListener('touchmove', onMove, {passive: false})
@@ -91,6 +102,14 @@ export function ProfileSheet({open, onClose}: Props) {
             el.removeEventListener('touchend', onEnd)
         }
     }, [open, onClose])
+
+    // Check push status when sheet opens
+    useEffect(() => {
+        if (!open || !pushSupported) return
+        navigator.serviceWorker.ready.then(reg =>
+            reg.pushManager.getSubscription()
+        ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
+    }, [open, pushSupported])
 
     const year = new Date().getFullYear()
     const {data: myStats} = useQuery({
@@ -140,7 +159,8 @@ export function ProfileSheet({open, onClose}: Props) {
                 const updated = await api.updateProfile(payload)
                 setUser(updated)
             }
-            setCurrentPw(''); setNewPw('')
+            setCurrentPw('');
+            setNewPw('')
             showToast(t('club.savedOk'))
             onClose()
         } catch (e: unknown) {
@@ -150,10 +170,53 @@ export function ProfileSheet({open, onClose}: Props) {
         }
     }
 
+    async function handlePushToggle() {
+        if (!pushSupported) return
+        setPushLoading(true)
+        try {
+            const reg = await navigator.serviceWorker.ready
+            if (pushSubscribed) {
+                const sub = await reg.pushManager.getSubscription()
+                if (sub) {
+                    await api.unsubscribeFromPush(sub.endpoint)
+                    await sub.unsubscribe()
+                }
+                setPushSubscribed(false)
+                showToast('Benachrichtigungen deaktiviert')
+            } else {
+                const permission = await Notification.requestPermission()
+                if (permission !== 'granted') {
+                    showToast('Benachrichtigungen wurden nicht erlaubt')
+                    return
+                }
+                const { public_key } = await api.getVapidPublicKey()
+                const padding = '='.repeat((4 - public_key.length % 4) % 4)
+                const base64 = (public_key + padding).replace(/-/g, '+').replace(/_/g, '/')
+                const raw = atob(base64)
+                const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+                const subJson = sub.toJSON()
+                await api.subscribeToPush({
+                    endpoint: subJson.endpoint!,
+                    p256dh: subJson.keys!.p256dh,
+                    auth: subJson.keys!.auth,
+                })
+                setPushSubscribed(true)
+                showToast('Benachrichtigungen aktiviert')
+            }
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        } finally {
+            setPushLoading(false)
+        }
+    }
+
     const initials = (user?.name || '?')[0].toUpperCase()
 
     return (
-        <div className="bottom-sheet" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+        <div className="bottom-sheet" onClick={e => {
+            if (e.target === e.currentTarget) onClose()
+        }}>
             <div
                 className="sheet-panel safe-bottom"
                 style={{
@@ -209,7 +272,8 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div>
                             <label className="field-label">{t('auth.username')}</label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
+                                <span
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
                                 <input className="kce-input pl-6" value={username}
                                        onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                        placeholder={t('auth.usernamePlaceholder')}/>
@@ -244,13 +308,33 @@ export function ProfileSheet({open, onClose}: Props) {
                         <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.language')}</span>
                         <div className="flex gap-1">
                             {(['de', 'en'] as const).map(l => (
-                                <button key={l} onClick={() => { setLocale(l); api.updateLocale(l).catch(() => {}) }}
+                                <button key={l} onClick={() => {
+                                    setLocale(l);
+                                    api.updateLocale(l).catch(() => {
+                                    })
+                                }}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${locale === l ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
                                     {l.toUpperCase()}
                                 </button>
                             ))}
                         </div>
                     </div>
+
+                    {/* Push notifications */}
+                    {pushSupported && (
+                        <div className="kce-card p-4 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">Benachrichtigungen</span>
+                                {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">Aktiv auf diesem Gerät</div>}
+                            </div>
+                            <button
+                                onClick={handlePushToggle}
+                                disabled={pushLoading}
+                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
+                                {pushLoading ? '…' : pushSubscribed ? 'Deaktivieren' : 'Aktivieren'}
+                            </button>
+                        </div>
+                    )}
 
                     {/* Personal year stats */}
                     {myStats && (
@@ -260,19 +344,23 @@ export function ProfileSheet({open, onClose}: Props) {
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="text-center">
-                                    <div className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
+                                    <div
+                                        className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
                                     <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.penalties')}</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
+                                    <div
+                                        className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
                                     <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.evenings')}</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
+                                    <div
+                                        className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
                                     <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.wins')}</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
+                                    <div
+                                        className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
                                     <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
                                 </div>
                             </div>
@@ -308,12 +396,15 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div className="kce-card p-3 flex flex-col gap-2 border border-red-900/40">
                             <p className="text-xs text-center text-kce-cream">{t('profile.deleteConfirm')}</p>
                             <div className="flex gap-2">
-                                <button className="btn-secondary flex-1 btn-sm" onClick={() => setConfirmDelete(false)}>{t('action.cancel')}</button>
+                                <button className="btn-secondary flex-1 btn-sm"
+                                        onClick={() => setConfirmDelete(false)}>{t('action.cancel')}
+                                </button>
                                 <button className="btn-danger flex-1 btn-sm" onClick={async () => {
                                     await api.deleteAccount()
                                     authState.setToken(null)
                                     setUser(null)
-                                }}>{t('action.confirmDelete')}</button>
+                                }}>{t('action.confirmDelete')}
+                                </button>
                             </div>
                         </div>
                     )}

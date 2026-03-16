@@ -31,7 +31,8 @@ export function LoginPage() {
             setMode('register')
             api.getInviteInfo(invite).then(info => {
                 if (info.member_name) setPrefilledName(info.member_name)
-            }).catch(() => {})
+            }).catch(() => {
+            })
         } else if (reset) {
             setResetToken(reset)
             setMode('reset')
@@ -169,7 +170,10 @@ export function LoginPage() {
                         {resetDone ? (
                             <>
                                 <p className="text-green-400 text-sm mb-4">{t('auth.reset.success')}</p>
-                                <button className="btn-primary w-full" onClick={() => { setMode('login'); setResetDone(false) }}>
+                                <button className="btn-primary w-full" onClick={() => {
+                                    setMode('login');
+                                    setResetDone(false)
+                                }}>
                                     {t('auth.login')}
                                 </button>
                             </>
@@ -178,7 +182,8 @@ export function LoginPage() {
                                 <div>
                                     <label className="field-label">{t('auth.password')}</label>
                                     <input className="kce-input" type="password" value={pw}
-                                           onChange={e => setPw(e.target.value)} placeholder="••••••••" required autoFocus/>
+                                           onChange={e => setPw(e.target.value)} placeholder="••••••••" required
+                                           autoFocus/>
                                 </div>
                                 {error && <p className="text-red-400 text-xs">{error}</p>}
                                 <button type="submit" className="btn-primary mt-1" disabled={loading}>
@@ -211,7 +216,8 @@ export function LoginPage() {
                                     </div>
                                     <div>
                                         <label className="field-label">{t('auth.name')}</label>
-                                        <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
+                                        <input className="kce-input" value={name}
+                                               onChange={e => setName(e.target.value)}
                                                placeholder={t('auth.namePlaceholder')} required/>
                                     </div>
                                 </>
@@ -219,7 +225,8 @@ export function LoginPage() {
                             <div>
                                 <label className="field-label">{t('auth.username')}</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
+                                    <span
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
                                     <input className="kce-input pl-6" value={username}
                                            onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                            placeholder={t('auth.usernamePlaceholder')} autoFocus={!!prefilledName} required/>

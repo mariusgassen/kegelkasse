@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {useAppStore, isAdmin} from '@/store/app.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -60,7 +60,9 @@ export function MembersPage() {
             setResetUserName(userName)
             setResetCopied(false)
             setResetSheet(true)
-        } catch (e: unknown) { toastError(e) }
+        } catch (e: unknown) {
+            toastError(e)
+        }
     }
 
     async function openInvite(m: RegularMember) {
@@ -76,14 +78,29 @@ export function MembersPage() {
         setRegularMembers(d)
     }
 
-    function openNew() { setEditing(null); setName(''); setNickname(''); setSheet(true) }
-    function openEdit(m: RegularMember) { setEditing(m); setName(m.name); setNickname(m.nickname ?? ''); setSheet(true) }
+    function openNew() {
+        setEditing(null);
+        setName('');
+        setNickname('');
+        setSheet(true)
+    }
+
+    function openEdit(m: RegularMember) {
+        setEditing(m);
+        setName(m.name);
+        setNickname(m.nickname ?? '');
+        setSheet(true)
+    }
 
     async function save() {
         if (!name.trim()) return
         setSaving(true)
         try {
-            if (editing) await api.updateRegularMember(editing.id, {name: name.trim(), nickname: nickname || undefined, is_guest: editing.is_guest})
+            if (editing) await api.updateRegularMember(editing.id, {
+                name: name.trim(),
+                nickname: nickname || undefined,
+                is_guest: editing.is_guest
+            })
             else await api.createRegularMember({name: name.trim(), nickname: nickname || undefined})
             await refetchRoster()
             setSheet(false)
@@ -95,8 +112,12 @@ export function MembersPage() {
     }
 
     async function remove(m: RegularMember) {
-        try { await api.deleteRegularMember(m.id); await refetchRoster() }
-        catch (e: unknown) { toastError(e) }
+        try {
+            await api.deleteRegularMember(m.id);
+            await refetchRoster()
+        } catch (e: unknown) {
+            toastError(e)
+        }
     }
 
     async function addToEvening(m: RegularMember) {
@@ -105,17 +126,27 @@ export function MembersPage() {
             await api.addPlayer(evening.id, {name: m.nickname || m.name, regular_member_id: m.id})
             invalidateEvening()
             showToast(`${m.name} ${t('member.addedToEvening')}`)
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        }
     }
 
     async function handleDeactivate(userId: number) {
-        try { await api.deactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { toastError(e) }
+        try {
+            await api.deactivateMember(userId);
+            refetchUsers()
+        } catch (e: unknown) {
+            toastError(e)
+        }
     }
 
     async function handleReactivate(userId: number) {
-        try { await api.reactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { toastError(e) }
+        try {
+            await api.reactivateMember(userId);
+            refetchUsers()
+        } catch (e: unknown) {
+            toastError(e)
+        }
     }
 
     async function handleLink(memberId: number) {
@@ -124,7 +155,9 @@ export function MembersPage() {
             await api.linkUserToRoster(linkUserId, memberId)
             await Promise.all([refetchUsers(), refetchRoster()])
             setLinkSheet(false)
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        }
     }
 
     async function handleMerge(keepId: number) {
@@ -134,7 +167,9 @@ export function MembersPage() {
             await Promise.all([refetchUsers(), refetchRoster()])
             setMergeSheet(false)
             showToast(t('member.merged'))
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        }
     }
 
     async function handleAutoCreateRoster(userId: number, userName: string) {
@@ -142,7 +177,9 @@ export function MembersPage() {
             const newMember = await api.createRegularMember({name: userName})
             await api.linkUserToRoster(userId, newMember.id)
             await Promise.all([refetchUsers(), refetchRoster()])
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        }
     }
 
     const alreadyInEvening = new Set(evening?.players.map(p => p.regular_member_id).filter(Boolean))
@@ -165,8 +202,9 @@ export function MembersPage() {
             <div className="flex items-center justify-between mb-3">
                 <div className="sec-heading mb-0">{t('member.appUsers')}</div>
                 {admin && inactiveUsers.length > 0 && (
-                    <button className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                            onClick={() => setShowInactive(v => !v)}>
+                    <button
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                        onClick={() => setShowInactive(v => !v)}>
                         {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
                     </button>
                 )}
@@ -178,8 +216,9 @@ export function MembersPage() {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
                     return (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
-                                 style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
+                            <div
+                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
+                                style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
                                 {u.avatar
                                     ? <img src={u.avatar} alt="" className="w-full h-full object-cover"/>
                                     : u.name[0].toUpperCase()}
@@ -189,7 +228,8 @@ export function MembersPage() {
                                 {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
                                 {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
                             </div>
-                            <span className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
+                            <span
+                                className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
                                 {u.role}
                             </span>
                             {admin && linked && (
@@ -197,7 +237,11 @@ export function MembersPage() {
                             )}
                             {admin && !linked && u.role !== 'superadmin' && (
                                 <button className="btn-secondary btn-xs" title="Mit Roster verknüpfen"
-                                        onClick={() => { setLinkUserId(u.id); setLinkUserName(u.name); setLinkSheet(true) }}>
+                                        onClick={() => {
+                                            setLinkUserId(u.id);
+                                            setLinkUserName(u.name);
+                                            setLinkSheet(true)
+                                        }}>
                                     🔗
                                 </button>
                             )}
@@ -223,10 +267,12 @@ export function MembersPage() {
             {/* Inactive users */}
             {showInactive && inactiveUsers.length > 0 && (
                 <>
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}</div>
+                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
+                    </div>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
+                            <div
+                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
                                 {u.name[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -260,8 +306,9 @@ export function MembersPage() {
                     const inEvening = alreadyInEvening.has(m.id)
                     return (
                         <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
-                                 style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
+                            <div
+                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
+                                style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
                                 {m.avatar
                                     ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
                                     : (m.nickname || m.name)[0].toUpperCase()}
@@ -281,10 +328,16 @@ export function MembersPage() {
                                 )}
                                 {admin && (
                                     <>
-                                        <button className="btn-secondary btn-xs" onClick={() => openInvite(m)} title="Einladungslink">📨</button>
+                                        <button className="btn-secondary btn-xs" onClick={() => openInvite(m)}
+                                                title="Einladungslink">📨
+                                        </button>
                                         <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
                                         <button className="btn-secondary btn-xs" title="Zusammenlegen"
-                                                onClick={() => { setMergeDiscard(m); setMergeSheet(true) }}>⇄</button>
+                                                onClick={() => {
+                                                    setMergeDiscard(m);
+                                                    setMergeSheet(true)
+                                                }}>⇄
+                                        </button>
                                         <button className="btn-danger btn-xs" onClick={() => remove(m)}>✕</button>
                                     </>
                                 )}
@@ -304,7 +357,8 @@ export function MembersPage() {
                     const inEvening = alreadyInEvening.has(m.id)
                     return (
                         <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden bg-kce-muted">
+                            <div
+                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden bg-kce-muted">
                                 {m.avatar
                                     ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
                                     : (m.nickname || m.name)[0].toUpperCase()}
@@ -315,9 +369,10 @@ export function MembersPage() {
                             </div>
                             <div className="flex gap-1.5 flex-shrink-0">
                                 {evening && !evening.is_closed && (
-                                    <button className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
-                                            disabled={inEvening}
-                                            onClick={() => addToEvening(m)}>
+                                    <button
+                                        className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
+                                        disabled={inEvening}
+                                        onClick={() => addToEvening(m)}>
                                         {inEvening ? '✓' : t('member.addToEvening')}
                                     </button>
                                 )}
@@ -341,8 +396,9 @@ export function MembersPage() {
                     {availableForLink.map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleLink(m.id)}>
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                                 style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                                style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
                                 {m.name[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -355,7 +411,10 @@ export function MembersPage() {
                         <p className="text-xs text-kce-muted text-center py-2">{t('member.allLinked')}</p>
                     )}
                     <button className="btn-secondary btn-sm mt-1"
-                            onClick={async () => { await handleAutoCreateRoster(linkUserId!, linkUserName); setLinkSheet(false) }}>
+                            onClick={async () => {
+                                await handleAutoCreateRoster(linkUserId!, linkUserName);
+                                setLinkSheet(false)
+                            }}>
                         + {t('member.createRosterEntry')} „{linkUserName}"
                     </button>
                 </div>
@@ -371,8 +430,9 @@ export function MembersPage() {
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleMerge(m.id)}>
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                                 style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
+                            <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                                style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
                                 {m.name[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -455,7 +515,8 @@ export function MembersPage() {
                                placeholder="z.B. Kapitän, Aufschläger…"/>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]" disabled={saving || !name.trim()}>
                             {t('action.save')}
                         </button>

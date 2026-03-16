@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
-import {useAppStore, isAdmin} from '@/store/app.ts'
+import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -18,7 +18,7 @@ function fTime(iso: string) {
     return new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
-function playerLabel(p: {name: string; is_king: boolean}) {
+function playerLabel(p: { name: string; is_king: boolean }) {
     return p.is_king ? `👑 ${p.name}` : p.name
 }
 
@@ -90,8 +90,13 @@ export function GamesPage() {
     }
 
     function openAddSheet() {
-        setTemplateId(null); setGameName(''); setIsOpener(false)
-        setWinnerType('either'); setLoserPenalty('0'); setPerPointPenalty('0'); setGameNote('')
+        setTemplateId(null);
+        setGameName('');
+        setIsOpener(false)
+        setWinnerType('either');
+        setLoserPenalty('0');
+        setPerPointPenalty('0');
+        setGameNote('')
         setAddSheet(true)
     }
 
@@ -233,12 +238,14 @@ export function GamesPage() {
                     <div key={game.id} className="kce-card p-3 mb-2">
                         {/* Header row */}
                         <div className="flex items-center gap-2 mb-2">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[game.status] ?? 'bg-kce-muted'}`}/>
+                            <span
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[game.status] ?? 'bg-kce-muted'}`}/>
                             <span className="text-sm font-bold flex-1 truncate">
                                 {game.is_opener ? '👑 ' : ''}{game.name}
                             </span>
                             {game.status === 'running' && game.started_at && (
-                                <span className="text-xs text-green-400 font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
+                                <span
+                                    className="text-xs text-green-400 font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
                             )}
                             {game.status === 'finished' && game.finished_at && (
                                 <span className="text-xs text-kce-muted flex-shrink-0">{fTime(game.finished_at)}</span>
@@ -285,10 +292,13 @@ export function GamesPage() {
                             {confirmDeleteId === game.id ? (
                                 <div className="flex gap-1">
                                     <button className="btn-danger btn-xs" onClick={() => doDelete(game.id)}>✓</button>
-                                    <button className="btn-secondary btn-xs" onClick={() => setConfirmDeleteId(null)}>✕</button>
+                                    <button className="btn-secondary btn-xs"
+                                            onClick={() => setConfirmDeleteId(null)}>✕
+                                    </button>
                                 </div>
                             ) : (
-                                <button className="btn-danger btn-xs" onClick={() => setConfirmDeleteId(game.id)}>✕</button>
+                                <button className="btn-danger btn-xs"
+                                        onClick={() => setConfirmDeleteId(game.id)}>✕</button>
                             )}
                         </div>
                     </div>
@@ -323,7 +333,8 @@ export function GamesPage() {
 
                     {/* is_opener toggle */}
                     {hasOpener && !isOpener ? (
-                        <div className="text-xs text-kce-muted px-3 py-2 rounded-lg border border-kce-border opacity-50">
+                        <div
+                            className="text-xs text-kce-muted px-3 py-2 rounded-lg border border-kce-border opacity-50">
                             👑 {t('game.isOpener')} — {t('game.openerExists')}
                         </div>
                     ) : (
@@ -415,7 +426,8 @@ export function GamesPage() {
                             )}
                             {canPickPlayer && players.length > 0 && (
                                 <div>
-                                    {canPickTeam && <div className="text-xs text-kce-muted mb-1">{t('game.winnerType.player')}</div>}
+                                    {canPickTeam && <div
+                                        className="text-xs text-kce-muted mb-1">{t('game.winnerType.player')}</div>}
                                     <div className="flex flex-wrap gap-1.5">
                                         {players.map(p => (
                                             <button key={`p:${p.id}`} type="button"
@@ -440,7 +452,10 @@ export function GamesPage() {
                                                 <span className="text-xs text-kce-cream flex-1">{team.name}</span>
                                                 <input className="kce-input w-20" type="number" min="0"
                                                        value={scoresInput[`t:${team.id}`] ?? ''}
-                                                       onChange={e => setScoresInput(prev => ({...prev, [`t:${team.id}`]: e.target.value}))}
+                                                       onChange={e => setScoresInput(prev => ({
+                                                           ...prev,
+                                                           [`t:${team.id}`]: e.target.value
+                                                       }))}
                                                        placeholder="0"/>
                                             </div>
                                         ))
@@ -449,7 +464,10 @@ export function GamesPage() {
                                                 <span className="text-xs text-kce-cream flex-1">{playerLabel(p)}</span>
                                                 <input className="kce-input w-20" type="number" min="0"
                                                        value={scoresInput[`p:${p.id}`] ?? ''}
-                                                       onChange={e => setScoresInput(prev => ({...prev, [`p:${p.id}`]: e.target.value}))}
+                                                       onChange={e => setScoresInput(prev => ({
+                                                           ...prev,
+                                                           [`p:${p.id}`]: e.target.value
+                                                       }))}
                                                        placeholder="0"/>
                                             </div>
                                         ))
@@ -462,7 +480,8 @@ export function GamesPage() {
                         <div>
                             <label className="field-label">{t('game.loserPenalty')}</label>
                             <div className="flex items-center gap-2">
-                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                <span
+                                    className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                                 <input className="kce-input flex-1" type="text" inputMode="decimal"
                                        value={finishPenalty}
                                        onChange={e => setFinishPenalty(e.target.value)}/>
@@ -520,7 +539,8 @@ export function GamesPage() {
             </Sheet>
 
             {/* ── Edit metadata sheet (open/running games) ── */}
-            <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')} onSubmit={submitEdit}>
+            <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')}
+                   onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
                     <div>
                         <label className="field-label">{t('game.name')}</label>

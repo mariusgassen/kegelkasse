@@ -80,7 +80,13 @@ export const api = {
         request<{ access_token: string; user: User }>('POST', '/auth/login', {email, password: pw}),
     me: () => request<User>('GET', '/auth/me'),
     updateLocale: (locale: string) => request<void>('PATCH', '/auth/locale', {locale}),
-    updateProfile: (d: { name?: string; username?: string; email?: string; current_password?: string; new_password?: string }) =>
+    updateProfile: (d: {
+        name?: string;
+        username?: string;
+        email?: string;
+        current_password?: string;
+        new_password?: string
+    }) =>
         request<User>('PATCH', '/auth/profile', d),
     updateAvatar: (avatar: string | null) => request<User>('PATCH', '/auth/avatar', {avatar}),
     deleteAccount: () => request<void>('DELETE', '/auth/me'),
@@ -98,9 +104,19 @@ export const api = {
 
     // Club
     getClub: () => request<Club>('GET', '/club/'),
-    updateClubSettings: (d: Partial<ClubSettings> & { name?: string; guest_penalty_cap?: number | null }) => request<void>('PATCH', '/club/settings', d),
+    updateClubSettings: (d: Partial<ClubSettings> & {
+        name?: string;
+        guest_penalty_cap?: number | null
+    }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
-        request<{ id: number; name: string; role: string; regular_member_id: number | null; is_active: boolean; avatar: string | null }[]>(
+        request<{
+            id: number;
+            name: string;
+            role: string;
+            regular_member_id: number | null;
+            is_active: boolean;
+            avatar: string | null
+        }[]>(
             'GET', `/club/members${includeInactive ? '?include_inactive=true' : ''}`),
     updateMemberRole: (id: number, role: string) => request<void>('PATCH', `/club/members/${id}/role?role=${role}`),
     deactivateMember: (id: number) => request<void>('DELETE', `/club/members/${id}`),
@@ -109,15 +125,34 @@ export const api = {
         request<void>('PATCH', `/club/members/${userId}/link`, {regular_member_id: regularMemberId}),
 
     // Superadmin
-    listAllClubs: () => request<{ id: number; name: string; slug: string; member_count: number; is_active: boolean }[]>('GET', '/superadmin/clubs'),
-    createClub: (name: string) => request<{ id: number; name: string; slug: string; member_count: number; is_active: boolean }>('POST', '/superadmin/clubs', {name}),
-    switchClub: (clubId: number) => request<{ access_token: string; user: User }>('POST', `/superadmin/switch-club/${clubId}`),
+    listAllClubs: () => request<{
+        id: number;
+        name: string;
+        slug: string;
+        member_count: number;
+        is_active: boolean
+    }[]>('GET', '/superadmin/clubs'),
+    createClub: (name: string) => request<{
+        id: number;
+        name: string;
+        slug: string;
+        member_count: number;
+        is_active: boolean
+    }>('POST', '/superadmin/clubs', {name}),
+    switchClub: (clubId: number) => request<{
+        access_token: string;
+        user: User
+    }>('POST', `/superadmin/switch-club/${clubId}`),
 
     // Regular members (Stammspieler)
     mergeRegularMembers: (discardId: number, keepId: number) =>
         request<void>('POST', `/club/regular-members/${discardId}/merge-into/${keepId}`),
     createMemberInvite: (mid: number) =>
-        request<{ token: string; invite_url: string; member_name: string }>('POST', `/club/regular-members/${mid}/invite`),
+        request<{
+            token: string;
+            invite_url: string;
+            member_name: string
+        }>('POST', `/club/regular-members/${mid}/invite`),
     listRegularMembers: () => request<RegularMember[]>('GET', '/club/regular-members'),
     createRegularMember: (d: { name: string; nickname?: string; is_guest?: boolean }) =>
         request<RegularMember>('POST', '/club/regular-members', d),
@@ -136,7 +171,10 @@ export const api = {
     // Club teams
     listClubTeams: () => request<ClubTeam[]>('GET', '/club/teams'),
     createClubTeam: (d: { name: string; sort_order: number }) => request<ClubTeam>('POST', '/club/teams', d),
-    updateClubTeam: (id: number, d: { name: string; sort_order: number }) => request<ClubTeam>('PUT', `/club/teams/${id}`, d),
+    updateClubTeam: (id: number, d: {
+        name: string;
+        sort_order: number
+    }) => request<ClubTeam>('PUT', `/club/teams/${id}`, d),
     deleteClubTeam: (id: number) => request<void>('DELETE', `/club/teams/${id}`),
     applyClubTeamsToEvening: (eid: number, shuffle = false) =>
         request<Evening>('POST', `/evening/${eid}/teams/from-templates${shuffle ? '?shuffle=true' : ''}`),
@@ -270,7 +308,12 @@ export const api = {
         amount: number; note: string | null; created_at: string | null
     }[]>('GET', '/club/member-payments'),
     createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string }) =>
-        request<{ id: number; amount: number; note: string | null; created_at: string | null }>('POST', '/club/member-payments', d),
+        request<{
+            id: number;
+            amount: number;
+            note: string | null;
+            created_at: string | null
+        }>('POST', '/club/member-payments', d),
     deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
 
     // Stats
@@ -295,4 +338,12 @@ export const api = {
     // Sync
     sync: (payload: { client_id: string; last_sync?: number; changes: any[] }) =>
         request<{ applied: number; errors: any[]; server_timestamp: number }>('POST', '/sync/', payload),
+
+    // Push notifications
+    getVapidPublicKey: () => request<{ public_key: string }>('GET', '/push/vapid-key'),
+    getPushStatus: () => request<{ subscribed: boolean; configured: boolean }>('GET', '/push/status'),
+    subscribeToPush: (d: { endpoint: string; p256dh: string; auth: string }) =>
+        request<{ ok: boolean }>('POST', '/push/subscribe', d),
+    unsubscribeFromPush: (endpoint?: string) =>
+        request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
 }

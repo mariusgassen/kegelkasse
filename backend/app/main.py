@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from api.v1 import auth, club, evenings, stats, sync, superadmin
+from api.v1 import auth, club, evenings, push, stats, sync, superadmin
 from core.events import event_bus
 
 app = FastAPI(
@@ -56,6 +56,7 @@ app.include_router(evenings.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
 app.include_router(superadmin.router, prefix="/api/v1")
+app.include_router(push.router, prefix="/api/v1")
 
 
 @app.get("/api/health")

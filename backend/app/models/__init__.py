@@ -4,4 +4,5 @@ from models.evening import Evening, EveningPlayer, Team
 from models.game import GameTemplate, Game
 from models.payment import MemberPayment
 from models.penalty import PenaltyType, PenaltyLog
+from models.push import PushSubscription
 from models.user import User, InviteToken

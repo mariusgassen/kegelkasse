@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from core.events import event_bus
+from core.push import push_to_regular_member, push_to_club
 from core.security import decode_token
 from core.database import get_db
 from models.drink import DrinkRound, DrinkType
@@ -102,9 +103,13 @@ class EveningUpdate(BaseModel):
 def update_evening(eid: int, data: EveningUpdate, db: Session = Depends(get_db),
                    user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
+    was_open = not e.is_closed
     for k, v in data.model_dump(exclude_none=True).items(): setattr(e, k, v)
     db.commit()
     db.refresh(e)
+    if was_open and e.is_closed:
+        push_to_club(db, e.club_id, "Abend beendet 🎳",
+                     f"Abend vom {e.date} wurde abgeschlossen.")
     return serialize_evening(e)
 
 
@@ -309,6 +314,14 @@ def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
         db.add(log)
         created.append(log)
     db.commit()
+    for log in created:
+        if log.player_id:
+            player = db.query(EveningPlayer).filter(EveningPlayer.id == log.player_id).first()
+            if player and player.regular_member_id and data.mode == "euro":
+                fee = f"{data.amount:.2f}".replace('.', ',')
+                push_to_regular_member(db, player.regular_member_id,
+                                       f"{data.icon} {data.penalty_type_name}",
+                                       f"{fee}€ — {e.date}")
     return [{"id": l.id, "player_name": l.player_name, "amount": l.amount} for l in created]
 
 
@@ -404,6 +417,10 @@ def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
         ))
 
     db.commit()
+    for member in absent_members:
+        fee = f"{avg:.2f}".replace('.', ',')
+        push_to_regular_member(db, member.id, "🏠 Abwesenheitsstrafe",
+                               f"{fee}€ für {e.date} — du warst nicht dabei.")
     return {"avg": avg, "absent_count": len(absent_members)}
 
 
@@ -499,6 +516,10 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
             game_id=g.id,
             client_timestamp=now_ts, created_by=user.id,
         ))
+        if p.regular_member_id:
+            fee = f"{total_penalty:.2f}".replace('.', ',')
+            push_to_regular_member(db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
+                                   f"{fee}€ — {e.date}")
 
 
 @router.post("/{eid}/games/{gid}/finish")

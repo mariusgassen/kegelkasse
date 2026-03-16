@@ -195,7 +195,14 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
                 <button className="btn-primary w-full" onClick={async () => {
                     const cap = guestCap.trim() ? parseAmount(guestCap) : null
-                    await api.updateClubSettings({name: clubName || undefined, home_venue: venue, primary_color: color1, secondary_color: color2, bg_color: bgColor, guest_penalty_cap: cap})
+                    await api.updateClubSettings({
+                        name: clubName || undefined,
+                        home_venue: venue,
+                        primary_color: color1,
+                        secondary_color: color2,
+                        bg_color: bgColor,
+                        guest_penalty_cap: cap
+                    })
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     setGuestPenaltyCap(cap)
                     onSaved()
@@ -246,7 +253,10 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 e.preventDefault()
                 if (!name.trim()) return
                 await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99})
-                setIcon('⚠️'); setName(''); setAmount('0.50'); onChanged()
+                setIcon('⚠️');
+                setName('');
+                setAmount('0.50');
+                onChanged()
             }}>
                 <div className="field-label">{t('club.penalty.newLabel')}</div>
                 <div className="flex gap-2 mb-2">
@@ -339,12 +349,15 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
 
     async function saveTemplate() {
         if (!name.trim()) return
-        const d = {name, description: desc || undefined, winner_type: wtype,
+        const d = {
+            name, description: desc || undefined, winner_type: wtype,
             is_opener: isOpener, default_loser_penalty: parseAmount(penalty),
-            per_point_penalty: parseAmount(perPoint), sort_order: 0}
+            per_point_penalty: parseAmount(perPoint), sort_order: 0
+        }
         if (editing) await api.updateGameTemplate(editing.id, d)
         else await api.createGameTemplate(d)
-        onChanged(); setSheet(false)
+        onChanged();
+        setSheet(false)
     }
 
     return (
@@ -383,7 +396,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         <div className="flex gap-2">
                             <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}/>
                             <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
-                        </div></div>
+                        </div>
+                    </div>
                     <div><label className="field-label">{t('club.template.description')}</label>
                         <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
                     <div><label className="field-label">{t('club.template.winnerType')}</label>
@@ -408,7 +422,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
                     <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                     </div>
                 </div>
@@ -449,7 +464,8 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                 <div key={c.id} className="kce-card p-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold truncate">{c.name}</div>
-                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
+                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder
+                        </div>
                     </div>
                     {c.is_active ? (
                         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
@@ -485,13 +501,22 @@ function ClubTeamsTab() {
         queryFn: api.listClubTeams,
     })
     const [sheet, setSheet] = useState(false)
-    const [editing, setEditing] = useState<{id: number; name: string; sort_order: number} | null>(null)
+    const [editing, setEditing] = useState<{ id: number; name: string; sort_order: number } | null>(null)
     const [name, setName] = useState('')
     const [sortOrder, setSortOrder] = useState('0')
 
-    function openNew() { setEditing(null); setName(''); setSortOrder(String(teams.length)); setSheet(true) }
-    function openEdit(t: {id: number; name: string; sort_order: number}) {
-        setEditing(t); setName(t.name); setSortOrder(String(t.sort_order)); setSheet(true)
+    function openNew() {
+        setEditing(null);
+        setName('');
+        setSortOrder(String(teams.length));
+        setSheet(true)
+    }
+
+    function openEdit(t: { id: number; name: string; sort_order: number }) {
+        setEditing(t);
+        setName(t.name);
+        setSortOrder(String(t.sort_order));
+        setSheet(true)
     }
 
     async function save() {
@@ -510,13 +535,16 @@ function ClubTeamsTab() {
             {teams.length === 0 && <Empty icon="🤝" text={t('club.teams.none')}/>}
             {teams.map(team => (
                 <div key={team.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                         style={{background: 'linear-gradient(135deg,var(--kce-secondary),var(--kce-primary))'}}>
+                    <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                        style={{background: 'linear-gradient(135deg,var(--kce-secondary),var(--kce-primary))'}}>
                         {team.name[0].toUpperCase()}
                     </div>
                     <div className="flex-1 font-bold text-sm">{team.name}</div>
                     <button className="btn-secondary btn-xs" onClick={() => openEdit(team)}>✏️</button>
-                    <button className="btn-danger btn-xs" onClick={() => api.deleteClubTeam(team.id).then(() => refetch())}>✕</button>
+                    <button className="btn-danger btn-xs"
+                            onClick={() => api.deleteClubTeam(team.id).then(() => refetch())}>✕
+                    </button>
                 </div>
             ))}
 
@@ -537,8 +565,10 @@ function ClubTeamsTab() {
                                onChange={e => setSortOrder(e.target.value)} min="0"/>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]" disabled={!name.trim()}>{t('action.save')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={!name.trim()}>{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>

@@ -35,7 +35,7 @@ export function EveningHubPage({onNavigate}: Props) {
         )
     }
 
-    const TABS: {id: SubTab; label: string}[] = [
+    const TABS: { id: SubTab; label: string }[] = [
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
     ]

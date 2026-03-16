@@ -21,7 +21,7 @@ const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
-type ChartSeries = {id: number; name: string; color: string; events: {ts: number; delta: number}[]}
+type ChartSeries = { id: number; name: string; color: string; events: { ts: number; delta: number }[] }
 
 const PAD = {top: 12, right: 12, bottom: 22, left: 38}
 const VW = 400, VH = 140
@@ -47,7 +47,7 @@ function CumulativeChart({series, yFormat, title}: {
     const xS = (t: number) => PAD.left + ((t - tMin) / tSpan) * IW
     const yS = (v: number) => PAD.top + IH - (v / maxVal) * IH
 
-    function buildPath(events: {ts: number; delta: number}[]) {
+    function buildPath(events: { ts: number; delta: number }[]) {
         const sorted = [...events].sort((a, b) => a.ts - b.ts)
         let cum = 0
         let d = `M ${xS(tMin)},${yS(0)}`
@@ -113,7 +113,7 @@ function CumulativeChart({series, yFormat, title}: {
 
 // ── Evening timeline section ────────────────────────────────────────────────
 
-function EveningTimeline({evening}: {evening: Evening}) {
+function EveningTimeline({evening}: { evening: Evening }) {
     const allIds = evening.players.map(p => p.id)
     const [selected, setSelected] = useState<number[]>(allIds)
 
@@ -259,14 +259,19 @@ export function StatsPage() {
                             const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
                             return (
                                 <div key={p.id} className="kce-card p-3">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                    <div
+                                        className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
+                                        style={{
+                                            background: 'linear-gradient(135deg,#c4701a,#e8a020)',
+                                            margin: '0 auto'
+                                        }}>
                                         {rm?.avatar
                                             ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                             : p.name[0].toUpperCase()
                                         }
                                     </div>
-                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                    <div
+                                        className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
                                     <div className="flex justify-around text-center">
                                         <div>
                                             <div className="text-kce-amber font-bold text-sm">{wins}</div>
@@ -321,7 +326,8 @@ export function StatsPage() {
                             <div key={i} className={`kce-card p-3 mb-2 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}>
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-base w-6 text-center flex-shrink-0">
-                                        {medals[i] ?? <span className="text-xs text-kce-muted font-bold">{i + 1}.</span>}
+                                        {medals[i] ??
+                                            <span className="text-xs text-kce-muted font-bold">{i + 1}.</span>}
                                     </span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
@@ -332,9 +338,11 @@ export function StatsPage() {
                                             {p.evenings} Abende · {p.game_wins} Siege · 🍺{p.beer_rounds}
                                         </div>
                                     </div>
-                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
+                                    <div
+                                        className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
-                                <div className="h-1 rounded-full overflow-hidden" style={{background: 'var(--kce-surface2)'}}>
+                                <div className="h-1 rounded-full overflow-hidden"
+                                     style={{background: 'var(--kce-surface2)'}}>
                                     <div className="h-full rounded-full transition-all"
                                          style={{
                                              width: `${barWidth}%`,
@@ -400,7 +408,7 @@ export function StatsPage() {
     )
 }
 
-function StatBox({value, label}: {value: string; label: string}) {
+function StatBox({value, label}: { value: string; label: string }) {
     return (
         <div className="kce-card p-3 text-center">
             <div className="font-display font-bold text-kce-amber text-xl leading-tight">{value}</div>
@@ -430,7 +438,9 @@ function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEve
     const cleanest = [...evening.players].sort((a, b) => strafenTotal(a.id) - strafenTotal(b.id))[0]
 
     const winnersMap: Record<string, number> = {}
-    evening.games.forEach(g => { if (g.winner_name) winnersMap[g.winner_name] = (winnersMap[g.winner_name] || 0) + 1 })
+    evening.games.forEach(g => {
+        if (g.winner_name) winnersMap[g.winner_name] = (winnersMap[g.winner_name] || 0) + 1
+    })
     const topWinner = Object.entries(winnersMap).sort((a, b) => b[1] - a[1])[0]
 
     const hof = [

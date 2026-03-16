@@ -38,3 +38,4 @@ postgres_dev_data/
 # Logs
 *.logdocs/build
 docs/node_modules
+/backend/docs_static/

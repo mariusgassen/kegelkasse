@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
+from core.push import push_to_regular_member
 from models.club import Club, ClubSettings
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
@@ -534,6 +535,9 @@ def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
     db.add(payment)
     db.commit()
     db.refresh(payment)
+    fee = f"{data.amount:.2f}".replace('.', ',')
+    push_to_regular_member(db, data.regular_member_id, "💰 Einzahlung erfasst",
+                           f"+{fee}€ in die Kasse eingetragen.")
     return {"id": payment.id, "amount": payment.amount, "note": payment.note,
             "created_at": payment.created_at.isoformat() if payment.created_at else None}
 

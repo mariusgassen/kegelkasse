@@ -1,12 +1,11 @@
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {useAppStore, isAdmin} from '@/store/app.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 
@@ -66,7 +65,7 @@ export function TreasuryPage() {
     })
 
     // Payment sheet
-    const [paymentTarget, setPaymentTarget] = useState<{id: number; name: string} | null>(null)
+    const [paymentTarget, setPaymentTarget] = useState<{ id: number; name: string } | null>(null)
     const [paymentMode, setPaymentMode] = useState<'deposit' | 'withdrawal'>('deposit')
     const [paymentAmount, setPaymentAmount] = useState('')
     const [paymentNote, setPaymentNote] = useState('')
@@ -150,7 +149,9 @@ export function TreasuryPage() {
                     <div className="kce-card p-4 mb-3 flex items-center justify-between"
                          style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
                         <div>
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰 {t('treasury.cashOnHand')}</div>
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰
+                                {t('treasury.cashOnHand')}
+                            </div>
                             <div className="font-display font-bold text-kce-amber text-3xl">{fe(kassenstand)}</div>
                             <div className="text-[10px] text-kce-muted mt-1">{t('treasury.cashOnHandHint')}</div>
                         </div>
@@ -161,17 +162,20 @@ export function TreasuryPage() {
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.openLabel')}</span>
                             <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
-                            <span className="text-[10px] text-kce-muted">{debtors.length} {t('treasury.membersCount')}</span>
+                            <span
+                                className="text-[10px] text-kce-muted">{debtors.length} {t('treasury.membersCount')}</span>
                         </div>
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.creditLabel')}</span>
                             <span className="font-display font-bold text-green-400 text-xl">{fe(totalSurplus)}</span>
-                            <span className="text-[10px] text-kce-muted">{credits.length} {t('treasury.membersCount')}</span>
+                            <span
+                                className="text-[10px] text-kce-muted">{credits.length} {t('treasury.membersCount')}</span>
                         </div>
                     </div>
 
                     {debtors.length === 0 && credits.length === 0
-                        ? <div className="kce-card p-4 text-center text-sm font-bold text-green-400">{t('treasury.noOutstanding')}</div>
+                        ? <div
+                            className="kce-card p-4 text-center text-sm font-bold text-green-400">{t('treasury.noOutstanding')}</div>
                         : null
                     }
 
@@ -180,7 +184,8 @@ export function TreasuryPage() {
                             <div className="sec-heading">{t('treasury.openLabel')}</div>
                             {debtors.map((b, i) => (
                                 <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                    <span className="text-sm font-display font-bold text-kce-muted w-5 text-center flex-shrink-0">
+                                    <span
+                                        className="text-sm font-display font-bold text-kce-muted w-5 text-center flex-shrink-0">
                                         {i + 1}.
                                     </span>
                                     <div className="flex-1 min-w-0">
@@ -189,7 +194,8 @@ export function TreasuryPage() {
                                             Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
                                         </div>
                                     </div>
-                                    <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                    <span
+                                        className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
                                     {admin && (
                                         <button className="btn-primary btn-sm flex-shrink-0"
                                                 onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
@@ -213,7 +219,8 @@ export function TreasuryPage() {
                                             Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
                                         </div>
                                     </div>
-                                    <span className="font-bold text-green-400 text-sm flex-shrink-0">+{fe(b.balance)}</span>
+                                    <span
+                                        className="font-bold text-green-400 text-sm flex-shrink-0">+{fe(b.balance)}</span>
                                 </div>
                             ))}
                         </>
@@ -245,8 +252,9 @@ export function TreasuryPage() {
                                 <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
                                     <button className="w-full p-3 flex items-center gap-3 text-left"
                                             onClick={() => setExpandedMember(isExpanded ? null : b.regular_member_id)}>
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0"
-                                             style={{background: dotColor}}>
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0"
+                                            style={{background: dotColor}}>
                                             {b.name[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -270,16 +278,21 @@ export function TreasuryPage() {
 
                                     {isExpanded && (
                                         <div className="border-t border-kce-border px-3 pb-3 pt-2">
-                                            <div className="text-xs font-bold text-kce-muted mb-2">{t('treasury.payment.history')}</div>
+                                            <div
+                                                className="text-xs font-bold text-kce-muted mb-2">{t('treasury.payment.history')}</div>
                                             {(memberPayments as MemberPayment[]).length === 0
-                                                ? <p className="text-xs text-kce-muted mb-2">{t('treasury.payment.noHistory')}</p>
+                                                ?
+                                                <p className="text-xs text-kce-muted mb-2">{t('treasury.payment.noHistory')}</p>
                                                 : (memberPayments as MemberPayment[]).map(p => (
                                                     <div key={p.id} className="flex items-center gap-2 mb-1.5 text-xs">
-                                                        <span className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                        <span
+                                                            className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                             {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                                         </span>
-                                                        <span className="text-kce-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
-                                                        <span className="text-kce-muted flex-shrink-0">{fDate(p.created_at)}</span>
+                                                        <span
+                                                            className="text-kce-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
+                                                        <span
+                                                            className="text-kce-muted flex-shrink-0">{fDate(p.created_at)}</span>
                                                         {admin && (
                                                             <button className="btn-danger btn-xs flex-shrink-0"
                                                                     onClick={() => deletePayment(p.id, b.regular_member_id)}>✕</button>
@@ -295,8 +308,9 @@ export function TreasuryPage() {
                                                             💸 {t('treasury.payment.settle')}
                                                         </button>
                                                     )}
-                                                    <button className={`btn-secondary btn-sm ${hasDebt ? '' : 'w-full'}`}
-                                                            onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name)}>
+                                                    <button
+                                                        className={`btn-secondary btn-sm ${hasDebt ? '' : 'w-full'}`}
+                                                        onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name)}>
                                                         + {t('treasury.payment.record')}
                                                     </button>
                                                 </div>
@@ -317,7 +331,8 @@ export function TreasuryPage() {
                         ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
                         : (allPayments as Payment[]).map(p => (
                             <div key={p.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                <span className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <span
+                                    className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {p.amount >= 0 ? '⬆' : '⬇'}
                                 </span>
                                 <div className="flex-1 min-w-0">
@@ -327,7 +342,8 @@ export function TreasuryPage() {
                                     </div>
                                 </div>
                                 <div className="text-right flex-shrink-0">
-                                    <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    <div
+                                        className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                         {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                     </div>
                                     <div className="text-xs text-kce-muted">{fDate(p.created_at)}</div>
@@ -356,7 +372,8 @@ export function TreasuryPage() {
                     <div>
                         <label className="field-label">{t('treasury.payment.amount')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <span
+                                className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
                                    placeholder="0,00" autoFocus/>

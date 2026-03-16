@@ -26,7 +26,9 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
 
     useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : ''
-        return () => { document.body.style.overflow = '' }
+        return () => {
+            document.body.style.overflow = ''
+        }
     }, [open])
 
     useEffect(() => {
@@ -78,7 +80,10 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
     if (!open) return null
 
     const inner = onSubmit ? (
-        <form onSubmit={e => { e.preventDefault(); onSubmit() }}>
+        <form onSubmit={e => {
+            e.preventDefault();
+            onSubmit()
+        }}>
             {children}
         </form>
     ) : children

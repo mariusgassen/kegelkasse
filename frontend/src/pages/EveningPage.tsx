@@ -134,13 +134,15 @@ export function EveningPage() {
         await api.updateEvening(evening!.id, {
             date: editDate, venue: editVenue || undefined, note: editNote || undefined,
         })
-        invalidate(); setEditSheet(false)
+        invalidate();
+        setEditSheet(false)
     }
 
     async function saveEditPlayer() {
         if (!editingPlayer) return
         await api.updatePlayer(evening!.id, editingPlayer.id, {team_id: editPlayerTeam})
-        invalidate(); setEditPlayerSheet(false)
+        invalidate();
+        setEditPlayerSheet(false)
     }
 
     async function saveTeam() {
@@ -150,7 +152,8 @@ export function EveningPage() {
         } else {
             await api.createTeam(evening!.id, {name: teamName, player_ids: teamPlayerIds as number[]})
         }
-        invalidate(); setTeamSheet(false)
+        invalidate();
+        setTeamSheet(false)
     }
 
     async function addPlayers() {
@@ -166,7 +169,8 @@ export function EveningPage() {
             api.listRegularMembers().then(d => useAppStore.getState().setRegularMembers(d))
         }
         await Promise.all(adds)
-        invalidate(); setPlayerSheet(false)
+        invalidate();
+        setPlayerSheet(false)
     }
 
     function openEditTeam(team: Team) {
@@ -181,7 +185,8 @@ export function EveningPage() {
             <div className="flex items-center justify-between mb-3">
                 <div className="sec-heading mb-0">🎳 {t('nav.evening')}</div>
                 {!evening.is_closed && (
-                    <span className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1.5 py-0.5">
+                    <span
+                        className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1.5 py-0.5">
                         {t('evening.active')}
                     </span>
                 )}
@@ -248,8 +253,9 @@ export function EveningPage() {
                     return (
                         <div key={p.id} className="kce-card mb-2">
                             <div className="p-3 flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
-                                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                                <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
+                                    style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
                                     {rm?.avatar
                                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                         : p.name[0].toUpperCase()
@@ -257,22 +263,28 @@ export function EveningPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
-                                    <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
+                                    <div
+                                        className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️</button>
+                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️
+                                        </button>
                                         {confirmRemovePlayerId === p.id ? (
                                             <>
                                                 <button className="btn-danger btn-xs" onClick={async () => {
                                                     await api.removePlayer(evening.id, p.id)
                                                     setConfirmRemovePlayerId(null)
                                                     invalidate()
-                                                }}>✓</button>
-                                                <button className="btn-secondary btn-xs" onClick={() => setConfirmRemovePlayerId(null)}>✕</button>
+                                                }}>✓
+                                                </button>
+                                                <button className="btn-secondary btn-xs"
+                                                        onClick={() => setConfirmRemovePlayerId(null)}>✕
+                                                </button>
                                             </>
                                         ) : (
-                                            <button className="btn-danger btn-xs" onClick={() => setConfirmRemovePlayerId(p.id)}>✕</button>
+                                            <button className="btn-danger btn-xs"
+                                                    onClick={() => setConfirmRemovePlayerId(p.id)}>✕</button>
                                         )}
                                     </div>
                                 )}
@@ -296,16 +308,27 @@ export function EveningPage() {
                     <div className="flex gap-1">
                         <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
                                 onClick={async () => {
-                                    try { await api.applyClubTeamsToEvening(evening.id, false); invalidate() }
-                                    catch (e: unknown) { toastError(e) }
+                                    try {
+                                        await api.applyClubTeamsToEvening(evening.id, false);
+                                        invalidate()
+                                    } catch (e: unknown) {
+                                        toastError(e)
+                                    }
                                 }}>
                             {t('team.fromTemplateBadge')}
                         </button>
                         <button className="btn-secondary btn-xs" title={t('team.randomize')}
                                 onClick={async () => {
-                                    if (players.length === 0) { showToast(t('team.noPlayers')); return }
-                                    try { await api.applyClubTeamsToEvening(evening.id, true); invalidate() }
-                                    catch (e: unknown) { toastError(e) }
+                                    if (players.length === 0) {
+                                        showToast(t('team.noPlayers'));
+                                        return
+                                    }
+                                    try {
+                                        await api.applyClubTeamsToEvening(evening.id, true);
+                                        invalidate()
+                                    } catch (e: unknown) {
+                                        toastError(e)
+                                    }
                                 }}>
                             🎲
                         </button>
@@ -324,11 +347,13 @@ export function EveningPage() {
                                 <div className="text-sm font-bold">{team.name}</div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditTeam(team)}>✏️</button>
+                                        <button className="btn-secondary btn-xs" onClick={() => openEditTeam(team)}>✏️
+                                        </button>
                                         <button className="btn-danger btn-xs" onClick={async () => {
                                             await api.deleteTeam(evening.id, team.id)
                                             invalidate()
-                                        }}>✕</button>
+                                        }}>✕
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -382,11 +407,13 @@ export function EveningPage() {
             }
 
             {/* ── Edit evening sheet ── */}
-            <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')} onSubmit={saveEvening}>
+            <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')}
+                   onSubmit={saveEvening}>
                 <div className="flex flex-col gap-3">
                     <div>
                         <label className="field-label">{t('evening.date')}</label>
-                        <input className="kce-input" type="date" value={editDate} onChange={e => setEditDate(e.target.value)}/>
+                        <input className="kce-input" type="date" value={editDate}
+                               onChange={e => setEditDate(e.target.value)}/>
                     </div>
                     <div>
                         <label className="field-label">{t('evening.venue')}</label>
@@ -398,20 +425,24 @@ export function EveningPage() {
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>
 
             {/* ── Add player sheet ── */}
-            <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')} onSubmit={addPlayers}>
+            <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')}
+                   onSubmit={addPlayers}>
                 <div className="flex flex-col gap-3">
                     {(() => {
                         const stamm = regularMembers.filter(rm => !rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
                         const guests = regularMembers.filter(rm => rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
                         const toggle = (id: number) => setSelectedMemberIds(prev => {
-                            const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+                            const next = new Set(prev);
+                            next.has(id) ? next.delete(id) : next.add(id);
+                            return next
                         })
                         return (<>
                             {stamm.length > 0 && (
@@ -419,17 +450,24 @@ export function EveningPage() {
                                     <div className="flex items-center justify-between mb-1.5">
                                         <span className="field-label mb-0">{t('member.title')}</span>
                                         <div className="flex gap-1">
-                                            <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
-                                                    onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>{t('action.all')}</button>
-                                            <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
-                                                    onClick={() => setSelectedMemberIds(new Set())}>{t('action.none')}</button>
+                                            <button type="button"
+                                                    className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>{t('action.all')}
+                                            </button>
+                                            <button type="button"
+                                                    className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    onClick={() => setSelectedMemberIds(new Set())}>{t('action.none')}
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                                         {stamm.map(rm => (
                                             <button key={rm.id} type="button"
                                                     className={`chip ${selectedMemberIds.has(rm.id) ? 'active' : ''}`}
-                                                    onClick={() => { toggle(rm.id); setGuestName('') }}>
+                                                    onClick={() => {
+                                                        toggle(rm.id);
+                                                        setGuestName('')
+                                                    }}>
                                                 {rm.nickname || rm.name}
                                             </button>
                                         ))}
@@ -443,7 +481,10 @@ export function EveningPage() {
                                         {guests.map(rm => (
                                             <button key={rm.id} type="button"
                                                     className={`chip ${selectedMemberIds.has(rm.id) ? 'active' : ''}`}
-                                                    onClick={() => { toggle(rm.id); setGuestName('') }}>
+                                                    onClick={() => {
+                                                        toggle(rm.id);
+                                                        setGuestName('')
+                                                    }}>
                                                 {rm.nickname || rm.name}
                                             </button>
                                         ))}
@@ -455,14 +496,18 @@ export function EveningPage() {
                     <div>
                         <label className="field-label">{t('player.newGuest')}</label>
                         <input className="kce-input" value={guestName}
-                               onChange={e => { setGuestName(e.target.value); if (e.target.value) setSelectedMemberIds(new Set()) }}
+                               onChange={e => {
+                                   setGuestName(e.target.value);
+                                   if (e.target.value) setSelectedMemberIds(new Set())
+                               }}
                                placeholder={t('player.guestPlaceholder')}/>
                         {guestName.trim() && (
                             <p className="text-[10px] text-kce-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
                                 disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
                             {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
@@ -472,7 +517,8 @@ export function EveningPage() {
             </Sheet>
 
             {/* ── Edit player sheet ── */}
-            <Sheet open={editPlayerSheet} onClose={() => setEditPlayerSheet(false)} title={t('player.edit')} onSubmit={saveEditPlayer}>
+            <Sheet open={editPlayerSheet} onClose={() => setEditPlayerSheet(false)} title={t('player.edit')}
+                   onSubmit={saveEditPlayer}>
                 {editingPlayer && (
                     <div className="flex flex-col gap-3">
                         <div className="text-sm font-bold text-kce-cream">{editingPlayer.name}</div>
@@ -485,7 +531,8 @@ export function EveningPage() {
                             </select>
                         </div>
                         <div className="flex gap-2">
-                            <button type="button" className="btn-secondary flex-1" onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
+                            <button type="button" className="btn-secondary flex-1"
+                                    onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
                             <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
                         </div>
                     </div>
@@ -509,8 +556,10 @@ export function EveningPage() {
                         onSelectAll={() => setTeamPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]" disabled={!teamName.trim()}>{t('action.save')}</button>
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={!teamName.trim()}>{t('action.save')}</button>
                     </div>
                 </div>
             </Sheet>
@@ -528,8 +577,10 @@ export function EveningPage() {
                         ))}
                     </div>
                     <div>
-                        <label className="field-label">{t('drinks.variety')}</label>
-                        <input className="kce-input" value={drinkVariety} onChange={e => setDrinkVariety(e.target.value)}
+                        <label
+                            className="field-label">{t('drinks.variety')}</label>
+                        <input className="kce-input" value={drinkVariety}
+                               onChange={e => setDrinkVariety(e.target.value)}
                                placeholder={t('drinks.sortPlaceholder')}/>
                     </div>
                     <ChipSelect
@@ -540,17 +591,19 @@ export function EveningPage() {
                         onSelectAll={() => setDrinkPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setDrinkPlayerIds([])}/>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setDrinkSheet(false)}>{t('action.cancel')}</button>
-                        <button className="btn-primary flex-[2]" disabled={drinkPlayerIds.length === 0} onClick={async () => {
-                            await api.addDrinkRound(evening.id, {
-                                drink_type: drinkType,
-                                variety: drinkVariety || undefined,
-                                participant_ids: drinkPlayerIds as number[],
-                                client_timestamp: Date.now(),
-                            })
-                            invalidate()
-                            setDrinkSheet(false)
-                        }}>{t('action.done')}</button>
+                        <button className="btn-secondary flex-1"
+                                onClick={() => setDrinkSheet(false)}>{t('action.cancel')}</button>
+                        <button className="btn-primary flex-[2]" disabled={drinkPlayerIds.length === 0}
+                                onClick={async () => {
+                                    await api.addDrinkRound(evening.id, {
+                                        drink_type: drinkType,
+                                        variety: drinkVariety || undefined,
+                                        participant_ids: drinkPlayerIds as number[],
+                                        client_timestamp: Date.now(),
+                                    })
+                                    invalidate()
+                                    setDrinkSheet(false)
+                                }}>{t('action.done')}</button>
                     </div>
                 </div>
             </Sheet>
