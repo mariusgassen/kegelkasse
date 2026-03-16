@@ -132,16 +132,26 @@
         @apply fixed inset-0 z-50 flex items-end justify-center;
         background: rgba(0, 0, 0, .8);
         backdrop-filter: blur(6px);
+        /* Prevent sheet from sliding behind the notch/status bar in PWA mode */
+        padding-top: env(safe-area-inset-top, 44px);
     }
 
     .sheet-panel {
-        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-3 overflow-y-auto animate-slide-up;
-        max-height: calc(100dvh - env(safe-area-inset-top, 44px) - 8px);
+        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
+        max-height: 100%;
     }
 
+    /* Large invisible touch target; visual bar rendered via ::before */
     .sheet-handle {
-        @apply w-10 h-1.5 bg-kce-border rounded-full mx-auto mb-3 cursor-grab active:cursor-grabbing;
+        @apply w-full flex items-center justify-center cursor-grab active:cursor-grabbing mb-1;
+        height: 28px;
         touch-action: none;
+    }
+
+    .sheet-handle::before {
+        content: '';
+        @apply w-10 h-1.5 bg-kce-border rounded-full;
+        display: block;
     }
 
     .sheet-title {
