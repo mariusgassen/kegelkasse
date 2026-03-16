@@ -20,6 +20,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const {data: evenings, isLoading} = useEveningList()
 
+    const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
@@ -35,8 +36,10 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
         staleTime: 1000 * 60,
     })
 
+    const q = search.trim().toLowerCase()
     const closed = (evenings ?? []).filter(e => e.is_closed)
         .sort((a, b) => b.date.localeCompare(a.date))
+        .filter(e => !q || e.date.includes(q) || (e.venue ?? '').toLowerCase().includes(q))
 
     async function doReopen(id: number) {
         try {
@@ -84,6 +87,13 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     return (
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">📚 {t('history.title')}</div>
+
+            <input
+                className="kce-input mb-4"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t('history.search')}
+            />
 
             {isAdmin(user) && (
                 <button className="btn-secondary w-full mb-4 text-sm"
