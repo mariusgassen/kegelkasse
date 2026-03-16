@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 def _send_one(db: Session, sub: PushSubscription, title: str, body: str, url: str = '/') -> None:
     try:
         from pywebpush import webpush, WebPushException
+        # Env vars store PEM newlines as literal \n — restore them before use
+        private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
         webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
             data=json.dumps({"title": title, "body": body, "url": url}),
-            vapid_private_key=settings.VAPID_PRIVATE_KEY,
+            vapid_private_key=private_key,
             vapid_claims={"sub": f"mailto:{settings.VAPID_CLAIM_EMAIL}"},
         )
     except Exception as exc:
