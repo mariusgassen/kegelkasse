@@ -208,6 +208,9 @@ export function StatsPage() {
     const {data: eveningList = []} = useEveningList()
     const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
 
+    // Only show year chips for years that have at least one evening
+    const yearsWithEvenings = [...new Set(eveningList.map(e => new Date(e.date).getFullYear()))].sort((a, b) => b - a)
+
     // Fallback chain: picked → active → latest closed
     const effectiveId = pickedId ?? activeEveningId ?? sortedEvenings[0]?.id ?? null
 
@@ -333,7 +336,7 @@ export function StatsPage() {
             <div className="sec-heading text-sm flex items-center justify-between mt-6">
                 <span>{t('stats.year')}</span>
                 <div className="flex gap-1">
-                    {[currentYear - 1, currentYear].map(y => (
+                    {yearsWithEvenings.map(y => (
                         <button key={y} type="button"
                                 className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${year === y ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                                 onClick={() => setYear(y)}>
