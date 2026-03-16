@@ -19,6 +19,7 @@ export interface ClubSettings {
     primary_color: string
     secondary_color: string
     bg_color: string | null
+    guest_penalty_cap: number | null
 }
 
 export interface Club {
@@ -84,6 +85,7 @@ export interface PenaltyLogEntry {
     amount: number
     mode: 'euro' | 'count'
     unit_amount: number | null
+    regular_member_id: number | null
     client_timestamp: number
 }
 

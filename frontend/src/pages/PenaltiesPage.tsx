@@ -59,6 +59,8 @@ export function PenaltiesPage() {
     const {evening, invalidate} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const setPenaltyTypes = useAppStore(s => s.setPenaltyTypes)
+    const regularMembers = useAppStore(s => s.regularMembers)
+    const guestPenaltyCap = useAppStore(s => s.guestPenaltyCap)
     const user = useAppStore(s => s.user)
     const [sheet, setSheet] = useState(false)
     const [tab, setTab] = useState<'quick' | 'custom'>('quick')
@@ -82,6 +84,10 @@ export function PenaltiesPage() {
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
+    // Absence penalties
+    const [absenceLoading, setAbsenceLoading] = useState(false)
+    const [absenceResult, setAbsenceResult] = useState<{avg: number; absent_count: number} | null>(null)
+
     // Edit sheet
     const [editEntry, setEditEntry] = useState<PenaltyLogEntry | null>(null)
     const [editPlayerId, setEditPlayerId] = useState<number | null>(null)
@@ -101,15 +107,36 @@ export function PenaltiesPage() {
     const players = evening.players
     const playerOptions = players.map(p => ({id: p.id, label: p.name}))
 
-    // Total: euro entries + count entries × unit_amount (frozen at log time)
-    const euroTotal = evening.penalty_log.reduce((sum, l) => {
-        if (l.mode === 'euro') return sum + l.amount
-        if (l.unit_amount != null) return sum + l.amount * l.unit_amount
-        // fallback for legacy entries without unit_amount
+    // Per-player euro contribution (full uncapped)
+    function entryEuroValue(l: typeof players[0] extends never ? never : {mode: string; amount: number; unit_amount: number | null; penalty_type_name: string}): number {
+        if (l.mode === 'euro') return l.amount
+        if (l.unit_amount != null) return l.amount * l.unit_amount
         const pt = penaltyTypes.find(pt => pt.name === l.penalty_type_name)
-        if (pt) return sum + l.amount * pt.default_amount
-        return sum
-    }, 0)
+        return pt ? l.amount * pt.default_amount : 0
+    }
+
+    // Treasury total: group by player, cap guests, add absence entries at face value
+    const euroTotal = (() => {
+        // Absence entries (player_id = null): add directly, no cap
+        let total = evening.penalty_log
+            .filter(l => l.player_id === null)
+            .reduce((s, l) => s + entryEuroValue(l), 0)
+
+        // Present players: group, then cap guests
+        const byPlayer = new Map<number, number>()
+        for (const l of evening.penalty_log.filter(l => l.player_id !== null)) {
+            byPlayer.set(l.player_id!, (byPlayer.get(l.player_id!) ?? 0) + entryEuroValue(l))
+        }
+        for (const [pid, sum] of byPlayer) {
+            const player = players.find(p => p.id === pid)
+            const member = regularMembers.find(m => m.id === player?.regular_member_id)
+            const capped = member?.is_guest && guestPenaltyCap != null
+                ? Math.min(sum, guestPenaltyCap)
+                : sum
+            total += capped
+        }
+        return total
+    })()
 
     const selectedPenaltyType = penaltyTypes.find(pt => pt.id === selectedType)
 
@@ -235,7 +262,21 @@ export function PenaltiesPage() {
         }
     }
 
+    async function doCalculateAbsence() {
+        setAbsenceLoading(true)
+        try {
+            const result = await api.calculateAbsencePenalties(evening!.id)
+            setAbsenceResult(result)
+            invalidate()
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : 'Fehler')
+        } finally {
+            setAbsenceLoading(false)
+        }
+    }
+
     const log = [...evening.penalty_log].reverse()
+    const hasAbsenceEntries = evening.penalty_log.some(l => l.player_id === null && l.penalty_type_name === 'Abwesenheit')
     const editPenaltyType = penaltyTypes.find(pt => pt.id === editType)
 
     return (
@@ -249,19 +290,49 @@ export function PenaltiesPage() {
             </div>
 
             {/* Add button */}
-            <button className="btn-primary w-full mb-4" onClick={openSheet}>
+            <button className="btn-primary w-full mb-2" onClick={openSheet}>
                 + {t('penalty.enter')}
             </button>
+
+            {/* Absence penalties (admin only) */}
+            {isAdmin(user) && (
+                <div className="mb-4">
+                    <button
+                        className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                        onClick={doCalculateAbsence}
+                        disabled={absenceLoading}>
+                        🏠 {hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
+                    </button>
+                    {absenceResult && (
+                        <p className="text-xs text-kce-muted text-center mt-1">
+                            {absenceResult.absent_count} {t('penalty.absence.result')} · Ø {fe(absenceResult.avg)}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Log */}
             {log.length === 0
                 ? <Empty icon="⚠️" text={t('penalty.none')}/>
-                : log.map(entry => (
-                    <div key={entry.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                : log.map(entry => {
+                    const isAbsence = entry.player_id === null && entry.penalty_type_name === 'Abwesenheit'
+                    const entryPlayer = players.find(p => p.id === entry.player_id)
+                    const entryMember = regularMembers.find(m => m.id === entryPlayer?.regular_member_id)
+                    const playerTotal = entryMember?.is_guest && guestPenaltyCap != null
+                        ? evening.penalty_log
+                            .filter(l => l.player_id === entry.player_id)
+                            .reduce((s, l) => s + entryEuroValue(l), 0)
+                        : null
+                    const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
+                    return (
+                    <div key={entry.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
                         <span className="text-xl flex-shrink-0">{entry.icon}</span>
                         <div className="flex-1 min-w-0">
                             <div className="text-sm font-bold truncate">{entry.player_name}</div>
-                            <div className="text-xs text-kce-muted truncate">{entry.penalty_type_name}</div>
+                            <div className="text-xs text-kce-muted truncate flex items-center gap-1">
+                                {entry.penalty_type_name}
+                                {isCapped && <span className="text-kce-amber">· ≤ {fe(guestPenaltyCap!)}</span>}
+                            </div>
                         </div>
                         <div className="text-right flex-shrink-0">
                             {entry.mode === 'euro'
@@ -292,7 +363,8 @@ export function PenaltiesPage() {
                             </button>
                         )}
                     </div>
-                ))
+                    )
+                })
             }
 
             {/* Add penalty sheet */}

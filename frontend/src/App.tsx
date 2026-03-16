@@ -105,7 +105,7 @@ const NAV: { id: PageId; icon: string; labelKey: string }[] = [
 ]
 
 export default function App() {
-    const {user, setUser, setPenaltyTypes, setRegularMembers, setGameTemplates, activeEveningId, setActiveEveningId} = useAppStore()
+    const {user, setUser, setPenaltyTypes, setRegularMembers, setGameTemplates, setGuestPenaltyCap, activeEveningId, setActiveEveningId} = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
     const [page, setPage] = usePage<PageId>('penalties')
@@ -131,6 +131,7 @@ export default function App() {
                 setPenaltyTypes(pt)
                 setRegularMembers(rm)
                 setGameTemplates(gt)
+                setGuestPenaltyCap(club.settings?.guest_penalty_cap ?? null)
                 applyClubTheme(club)
                 // Auto-select the single open evening for new/other-device users
                 if (!activeEveningId) {

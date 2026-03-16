@@ -8,11 +8,13 @@ interface AppState {
     penaltyTypes: PenaltyType[]
     regularMembers: RegularMember[]
     gameTemplates: GameTemplate[]
+    guestPenaltyCap: number | null
     setUser: (u: User | null) => void
     setActiveEveningId: (id: number | null) => void
     setPenaltyTypes: (pt: PenaltyType[]) => void
     setRegularMembers: (rm: RegularMember[]) => void
     setGameTemplates: (gt: GameTemplate[]) => void
+    setGuestPenaltyCap: (cap: number | null) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -23,11 +25,13 @@ export const useAppStore = create<AppState>()(
             penaltyTypes: [],
             regularMembers: [],
             gameTemplates: [],
+            guestPenaltyCap: null,
             setUser: (user) => set({user}),
             setActiveEveningId: (activeEveningId) => set({activeEveningId}),
             setPenaltyTypes: (penaltyTypes) => set({penaltyTypes}),
             setRegularMembers: (regularMembers) => set({regularMembers}),
             setGameTemplates: (gameTemplates) => set({gameTemplates}),
+            setGuestPenaltyCap: (guestPenaltyCap) => set({guestPenaltyCap}),
         }),
         {
             name: 'kegelkasse-app',

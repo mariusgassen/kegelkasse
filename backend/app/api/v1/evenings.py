@@ -1,14 +1,15 @@
 """Evening management — CRUD for evenings, players, teams, penalties, games, drinks."""
+from datetime import datetime, UTC
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_member
+from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from models.drink import DrinkRound, DrinkType
-from models.evening import Evening, EveningPlayer, Team, ClubTeam
+from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
 from models.user import User
@@ -32,6 +33,7 @@ def serialize_evening(e: Evening) -> dict:
                      "team_id": p.team_id} for p in e.players],
         "teams": [{"id": t.id, "name": t.name} for t in e.teams],
         "penalty_log": [{"id": l.id, "player_id": l.player_id, "team_id": l.team_id,
+                         "regular_member_id": l.regular_member_id,
                          "player_name": l.player_name, "penalty_type_name": l.penalty_type_name,
                          "icon": l.icon, "amount": l.amount, "mode": l.mode,
                          "unit_amount": l.unit_amount,
@@ -308,6 +310,71 @@ def delete_penalty(eid: int, lid: int, db: Session = Depends(get_db),
     l.is_deleted = True
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{eid}/absence-penalties")
+def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
+                                user: User = Depends(require_club_admin)):
+    """Admin: calculate average penalty of present players and create entries for absent members."""
+    e = get_club_evening(eid, user, db)
+
+    # Delete existing absence entries to allow recalculation
+    db.query(PenaltyLog).filter(
+        PenaltyLog.evening_id == e.id,
+        PenaltyLog.penalty_type_name == "Abwesenheit",
+        PenaltyLog.player_id == None,
+    ).delete()
+
+    present_players = db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).all()
+    if not present_players:
+        raise HTTPException(400, "No players present at this evening")
+
+    present_regular_ids = {p.regular_member_id for p in present_players if p.regular_member_id}
+    present_player_ids = [p.id for p in present_players]
+
+    # Sum all penalty contributions for present players (full uncapped amounts)
+    penalties = db.query(PenaltyLog).filter(
+        PenaltyLog.evening_id == e.id,
+        PenaltyLog.is_deleted == False,
+        PenaltyLog.player_id.in_(present_player_ids),
+    ).all()
+
+    total = 0.0
+    for pl in penalties:
+        if pl.mode == PenaltyMode.euro:
+            total += pl.amount
+        elif pl.unit_amount is not None:
+            total += pl.amount * pl.unit_amount
+
+    avg = total / len(present_players)
+
+    # Absent non-guest RegularMembers
+    absent_members = db.query(RegularMember).filter(
+        RegularMember.club_id == e.club_id,
+        RegularMember.is_active == True,
+        RegularMember.is_guest == False,
+        ~RegularMember.id.in_(present_regular_ids),
+    ).all()
+
+    now_ts = datetime.now(UTC).timestamp() * 1000
+    for member in absent_members:
+        db.add(PenaltyLog(
+            evening_id=e.id,
+            player_id=None,
+            team_id=None,
+            regular_member_id=member.id,
+            player_name=member.name,
+            penalty_type_name="Abwesenheit",
+            icon="🏠",
+            amount=avg,
+            mode=PenaltyMode.euro,
+            unit_amount=None,
+            client_timestamp=now_ts,
+            created_by=user.id,
+        ))
+
+    db.commit()
+    return {"avg": avg, "absent_count": len(absent_members)}
 
 
 # ── Games ──

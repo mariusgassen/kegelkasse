@@ -41,6 +41,7 @@ class PenaltyLog(Base):
     amount = Column(Float, nullable=False)
     mode = Column(Enum(PenaltyMode), default=PenaltyMode.euro)
     unit_amount = Column(Float, nullable=True)  # default_amount at log time (count mode only)
+    regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=True)  # set for absence entries
     is_deleted = Column(Boolean, default=False)  # soft delete
     created_by = Column(Integer, ForeignKey("user.id"))
     client_timestamp = Column(Float, nullable=False)  # for offline sync

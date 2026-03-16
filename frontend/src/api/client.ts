@@ -64,7 +64,7 @@ export const api = {
 
     // Club
     getClub: () => request<Club>('GET', '/club/'),
-    updateClubSettings: (d: Partial<ClubSettings> & { name?: string }) => request<void>('PATCH', '/club/settings', d),
+    updateClubSettings: (d: Partial<ClubSettings> & { name?: string; guest_penalty_cap?: number | null }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{ id: number; name: string; role: string; regular_member_id: number | null; is_active: boolean }[]>(
             'GET', `/club/members${includeInactive ? '?include_inactive=true' : ''}`),
@@ -172,6 +172,8 @@ export const api = {
     }) =>
         request<void>('PATCH', `/evening/${eid}/penalties/${lid}`, d),
     deletePenalty: (eid: number, lid: number) => request<void>('DELETE', `/evening/${eid}/penalties/${lid}`),
+    calculateAbsencePenalties: (eid: number) =>
+        request<{ avg: number; absent_count: number }>('POST', `/evening/${eid}/absence-penalties`),
 
     // Games
     addGame: (eid: number, d: {

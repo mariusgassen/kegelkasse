@@ -109,11 +109,13 @@ export function ClubAdminPage() {
 // ── Club Settings ──
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
+    const setGuestPenaltyCap = useAppStore(s => s.setGuestPenaltyCap)
     const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
     const [color1, setColor1] = useState(club?.settings?.primary_color || '#e8a020')
     const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
     const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
+    const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
 
     useEffect(() => {
         if (!club) return
@@ -122,6 +124,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setColor1(club.settings?.primary_color || '#e8a020')
         setColor2(club.settings?.secondary_color || '#6b7c5a')
         setBgColor(club.settings?.bg_color || '#1a1410')
+        setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
     }, [club])
 
     return (
@@ -163,9 +166,21 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         </div>
                     </div>
                 </div>
+                <div className="mb-3">
+                    <label className="field-label">{t('club.penalty.guestCap')}</label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                        <input className="kce-input flex-1" type="number" step="0.50" min="0"
+                               value={guestCap} placeholder={t('club.penalty.guestCapPlaceholder')}
+                               onChange={e => setGuestCap(e.target.value)}/>
+                    </div>
+                    <p className="text-xs text-kce-muted mt-1">{t('club.penalty.guestCapHint')}</p>
+                </div>
                 <button className="btn-primary w-full" onClick={async () => {
-                    await api.updateClubSettings({name: clubName || undefined, home_venue: venue, primary_color: color1, secondary_color: color2, bg_color: bgColor})
+                    const cap = guestCap.trim() ? parseFloat(guestCap) : null
+                    await api.updateClubSettings({name: clubName || undefined, home_venue: venue, primary_color: color1, secondary_color: color2, bg_color: bgColor, guest_penalty_cap: cap})
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
+                    setGuestPenaltyCap(cap)
                     onSaved()
                 }}>{t('action.save')}</button>
             </div>

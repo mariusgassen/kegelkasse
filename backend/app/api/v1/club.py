@@ -36,6 +36,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
             "primary_color": s.primary_color if s else "#e8a020",
             "secondary_color": s.secondary_color if s else "#6b7c5a",
             "bg_color": (s.extra or {}).get("bg_color") if s else None,
+            "guest_penalty_cap": (s.extra or {}).get("guest_penalty_cap") if s else None,
         } if s else {}
     }
 
@@ -45,11 +46,12 @@ class ClubSettingsUpdate(BaseModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
+    guest_penalty_cap: Optional[float] = None
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap"}
 
 
 @router.patch("/settings")

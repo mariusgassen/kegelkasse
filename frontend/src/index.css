@@ -77,10 +77,16 @@
 
     .btn-primary {
         @apply bg-kce-amber text-kce-bg font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center;
+        &:disabled {
+            @apply opacity-35 cursor-not-allowed active:scale-100;
+        }
     }
 
     .btn-secondary {
         @apply bg-kce-surface2 text-kce-muted border border-kce-border font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5;
+        &:disabled {
+            @apply opacity-35 cursor-not-allowed active:scale-100;
+        }
     }
 
     .btn-danger {
