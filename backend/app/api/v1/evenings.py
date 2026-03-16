@@ -1,12 +1,16 @@
 """Evening management — CRUD for evenings, players, teams, penalties, games, drinks."""
+import asyncio
 from datetime import datetime, UTC
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
+from core.events import event_bus
+from core.security import decode_token
 from core.database import get_db
 from models.drink import DrinkRound, DrinkType
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
@@ -597,3 +601,42 @@ def delete_drink_round(eid: int, rid: int, db: Session = Depends(get_db),
     r.is_deleted = True
     db.commit()
     return {"ok": True}
+
+
+@router.get("/{eid}/events")
+async def stream_evening_events(
+        eid: int,
+        token: str = Query(...),
+        db: Session = Depends(get_db),
+):
+    """SSE stream — pushes 'updated' whenever the evening changes."""
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user or not user.is_active or not user.club_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    e = db.query(Evening).filter(Evening.id == eid, Evening.club_id == user.club_id).first()
+    if not e:
+        raise HTTPException(status_code=404, detail="Evening not found")
+
+    async def event_stream():
+        q = event_bus.subscribe(eid)
+        try:
+            yield "data: connected\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(q.get(), timeout=25)
+                    yield f"data: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": heartbeat\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            event_bus.unsubscribe(eid, q)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

@@ -3,10 +3,11 @@ Kegelkasse API — FastAPI application entry point.
 Serves the React PWA from /static and exposes REST API under /api/v1.
 """
 import os
+import re
 import tomllib
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as _f:
     __version__ = tomllib.load(_f)["tool"]["poetry"]["version"]
@@ -15,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.v1 import auth, club, evenings, stats, sync, superadmin
+from core.events import event_bus
 
 app = FastAPI(
     title="Kegelkasse API",
@@ -23,6 +25,19 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json"
 )
+
+_EVENING_PATH_RE = re.compile(r"^/api/v1/evening/(\d+)/.+")
+
+
+@app.middleware("http")
+async def notify_evening_on_mutate(request: Request, call_next):
+    response = await call_next(request)
+    if request.method in ("POST", "PATCH", "DELETE") and response.status_code < 300:
+        m = _EVENING_PATH_RE.match(request.url.path)
+        if m:
+            await event_bus.publish(int(m.group(1)))
+    return response
+
 
 # CORS — wide open in development, locked down in production
 cors_origins = ["*"] if os.getenv("ENVIRONMENT") == "development" else []
