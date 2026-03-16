@@ -14,8 +14,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./frontend/dist:/app/static:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
