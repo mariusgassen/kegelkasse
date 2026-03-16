@@ -36,7 +36,7 @@ jobs:
         git config --local user.name "github-actions[bot]"
         git config --local user.email "actions@github.com"
         if [ -n "$(git status --porcelain)" ]; then
-          git add poetry.lock
+          git add backend/poetry.lock
           git commit -m "chore: Update poetry.lock"
           git push
         else
