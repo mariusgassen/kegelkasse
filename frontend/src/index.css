@@ -33,6 +33,8 @@
 
     input, select, textarea {
         font-family: 'Nunito', sans-serif;
+        /* Prevent iOS/Android from zooming on input focus (requires >= 16px) */
+        font-size: 16px;
     }
 
     input[type="number"]::-webkit-inner-spin-button,
@@ -72,7 +74,7 @@
     }
 
     .kce-input {
-        @apply w-full bg-kce-bg border border-kce-border rounded-lg px-3 py-2.5 text-kce-cream text-sm font-body placeholder-kce-muted outline-none transition-colors focus:border-kce-amber;
+        @apply w-full bg-kce-bg border border-kce-border rounded-lg px-3 py-2.5 text-kce-cream font-body placeholder-kce-muted outline-none transition-colors focus:border-kce-amber;
     }
 
     .btn-primary {
