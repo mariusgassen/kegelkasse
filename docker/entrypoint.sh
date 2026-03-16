@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+export PYTHONPATH=/app/app
 echo "[Kegelkasse] Running database migrations..."
 cd /app && alembic upgrade head
 echo "[Kegelkasse] Seeding initial data..."
