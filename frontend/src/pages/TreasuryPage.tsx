@@ -166,7 +166,11 @@ export function TreasuryPage() {
         setBookingSheet(true)
     }
 
-    const allMembers = [...balances as Balance[], ...(guestBalances as Balance[])]
+    // Only regular (non-guest) members in the booking sheet picker
+    const memberPickerList = (balances as Balance[]).filter(b => {
+        const rm = regularMembers.find(r => r.id === b.regular_member_id)
+        return rm && !rm.is_guest
+    })
 
     async function submitBooking() {
         const abs = parseAmount(bookingAmount)
@@ -626,13 +630,13 @@ export function TreasuryPage() {
                         <div className="flex gap-2 flex-wrap">
                             <button type="button"
                                     className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${bookingTarget === 'club' ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                    onClick={() => setBookingTarget('club')}>
+                                    onClick={() => { setBookingTarget('club'); setBookingDirection('out') }}>
                                 🏛️ {t('treasury.booking.club')}
                             </button>
-                            {allMembers.map(m => (
+                            {memberPickerList.map(m => (
                                 <button key={m.regular_member_id} type="button"
                                         className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${bookingTarget === m.regular_member_id ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                        onClick={() => setBookingTarget(m.regular_member_id)}>
+                                        onClick={() => { setBookingTarget(m.regular_member_id); setBookingDirection('in') }}>
                                     {m.nickname || m.name}
                                 </button>
                             ))}
