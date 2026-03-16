@@ -4,6 +4,7 @@ import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
 import {useT} from '@/i18n'
+import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
 
 function fe(v: number) {
@@ -25,7 +26,7 @@ export function StatsPage() {
     })
 
     // ── Evening analysis ──
-    const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id) : null
+    const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id, t) : null
 
     const players = yearStats?.players ?? []
     const maxPenalty = players[0]?.penalty_total ?? 1
@@ -42,9 +43,9 @@ export function StatsPage() {
                 <>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
-                        <StatBox value={String(eveningStats.penaltyCount)} label="Strafen"/>
-                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label="Biere"/>
-                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label="Schnäpse"/>
+                        <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
+                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
+                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
                     </div>
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
@@ -80,12 +81,12 @@ export function StatsPage() {
             ) : (
                 <>
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                        <StatBox value={String(yearStats.evening_count)} label="Abende"/>
-                        <StatBox value={fe(yearStats.total_penalties)} label="Strafen gesamt"/>
-                        <StatBox value={`🍺 ${yearStats.total_beers}`} label="Biere"/>
+                        <StatBox value={String(yearStats.evening_count)} label={t('stats.evenings')}/>
+                        <StatBox value={fe(yearStats.total_penalties)} label={t('member.totalPenalties')}/>
+                        <StatBox value={`🍺 ${yearStats.total_beers}`} label={t('drinks.beer')}/>
                     </div>
 
-                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">Jahres-Strafenkasse</div>
+                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
                     {displayPlayers.map((p, i) => {
                         const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
                         const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
@@ -125,7 +126,7 @@ export function StatsPage() {
                         <button type="button"
                                 className="w-full text-xs text-kce-muted py-2 font-bold"
                                 onClick={() => setShowAllMembers(v => !v)}>
-                            {showAllMembers ? '▲ Weniger' : `▼ Alle ${players.length} Mitglieder`}
+                            {showAllMembers ? t('stats.showLess') : `${t('stats.showAllMembers')} (${players.length})`}
                         </button>
                     )}
                 </>
@@ -154,15 +155,15 @@ export function StatsPage() {
                                     <div className="flex justify-around text-center">
                                         <div>
                                             <div className="text-kce-amber font-bold text-sm">{wins}</div>
-                                            <div className="text-[9px] text-kce-muted">Siege</div>
+                                            <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
                                         </div>
                                         <div>
                                             <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                            <div className="text-[9px] text-kce-muted">Strafen</div>
+                                            <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
                                         </div>
                                         <div>
                                             <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
-                                            <div className="text-[9px] text-kce-muted">Bier</div>
+                                            <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -184,7 +185,7 @@ function StatBox({value, label}: { value: string; label: string }) {
     )
 }
 
-function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>, myMemberId: number | null | undefined) {
+function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>, myMemberId: number | null | undefined, t: (k: TranslationKey) => string) {
     const totalEuro = evening.penalty_log.filter(l => l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
     const penaltyCount = evening.penalty_log.length
     const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').reduce((s, r) => s + r.participant_ids.length, 0)
@@ -213,34 +214,34 @@ function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEve
     const hof = [
         topStrafen && strafenTotal(topStrafen.id) > 0 && {
             icon: '🤑',
-            label: 'Strafenkaiser',
+            label: t('stats.penaltyKing'),
             name: topStrafen.name,
             value: fe(strafenTotal(topStrafen.id))
         },
         topNull && nullCount(topNull.id) > 0 && {
             icon: '🚫',
-            label: 'Nullen-König',
+            label: t('stats.nullKing'),
             name: topNull.name,
-            value: nullCount(topNull.id) + ' Nullen'
+            value: nullCount(topNull.id) + ' ' + t('stats.nulls')
         },
         topBeer && beerCount(topBeer.id) > 0 && {
             icon: '🍺',
-            label: 'Bier-Champ',
+            label: t('stats.beerChamp'),
             name: topBeer.name,
-            value: beerCount(topBeer.id) + ' Runden'
+            value: beerCount(topBeer.id) + ' ' + t('stats.rounds')
         },
         topShots && shotCount(topShots.id) > 0 && {
             icon: '🥃',
-            label: 'Schnapsnase',
+            label: t('stats.shotNose'),
             name: topShots.name,
-            value: shotCount(topShots.id) + ' Runden'
+            value: shotCount(topShots.id) + ' ' + t('stats.rounds')
         },
-        topWinner && {icon: '🏆', label: 'Spiele-König', name: topWinner[0], value: topWinner[1] + ' Siege'},
+        topWinner && {icon: '🏆', label: t('stats.gameKing'), name: topWinner[0], value: topWinner[1] + ' ' + t('stats.wins')},
         cleanest && strafenTotal(cleanest.id) === 0 && {
             icon: '😇',
-            label: 'Sauberster',
+            label: t('stats.cleanest'),
             name: cleanest.name,
-            value: 'Keine Strafe!'
+            value: t('stats.noPenalty')
         },
     ].filter(Boolean) as { icon: string; label: string; name: string; value: string }[]
 

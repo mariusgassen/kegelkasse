@@ -45,10 +45,10 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             setActiveEveningId(id)
             qc.invalidateQueries({queryKey: ['evenings']})
             qc.invalidateQueries({queryKey: ['evening', id]})
-            showToast('Wiedereröffnet!')
+            showToast(t('evening.reopen'))
             onNavigate?.()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            showToast(e instanceof Error ? e.message : t('error.generic'))
         }
     }
 
@@ -59,7 +59,7 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             setConfirmDeleteId(null)
             if (expandedId === id) setExpandedId(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            showToast(e instanceof Error ? e.message : t('error.generic'))
         }
     }
 
@@ -74,7 +74,7 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             qc.invalidateQueries({queryKey: ['evenings']})
             setBacklogSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            showToast(e instanceof Error ? e.message : t('error.generic'))
         } finally {
             setSaving(false)
         }

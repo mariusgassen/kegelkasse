@@ -79,7 +79,7 @@ export function EveningPage() {
                             <label className="field-label">{t('evening.note')}</label>
                             <input className="kce-input" value={startNote}
                                    onChange={e => setStartNote(e.target.value)}
-                                   placeholder="Optional…"/>
+                                   placeholder={t('common.optional')}/>
                         </div>
                         <button className="btn-primary mt-1" disabled={starting} onClick={async () => {
                             setStarting(true)
@@ -92,7 +92,7 @@ export function EveningPage() {
                                 setActiveEveningId(ev.id)
                                 invalidate()
                             } catch (e: unknown) {
-                                showToast(e instanceof Error ? e.message : 'Fehler')
+                                showToast(e instanceof Error ? e.message : t('error.generic'))
                             } finally {
                                 setStarting(false)
                             }
@@ -228,7 +228,7 @@ export function EveningPage() {
             {/* ── Players ── */}
             <div className="flex items-center justify-between mb-2">
                 <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
-                    👤 Spieler ({players.length})
+                    👤 {t('team.members')} ({players.length})
                 </div>
                 {!evening.is_closed && (
                     <button className="btn-secondary btn-xs" onClick={() => {
@@ -293,18 +293,18 @@ export function EveningPage() {
                 </div>
                 {!evening.is_closed && (
                     <div className="flex gap-1">
-                        <button className="btn-secondary btn-xs" title="Teams aus Vorlage anlegen"
+                        <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
                                 onClick={async () => {
                                     try { await api.applyClubTeamsToEvening(evening.id, false); invalidate() }
-                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
                                 }}>
-                            📋 Vorlage
+                            {t('team.fromTemplateBadge')}
                         </button>
-                        <button className="btn-secondary btn-xs" title="Teams auslosen (zufällig verteilen)"
+                        <button className="btn-secondary btn-xs" title={t('team.randomize')}
                                 onClick={async () => {
-                                    if (players.length === 0) { showToast('Keine Spieler am Abend'); return }
+                                    if (players.length === 0) { showToast(t('team.noPlayers')); return }
                                     try { await api.applyClubTeamsToEvening(evening.id, true); invalidate() }
-                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
                                 }}>
                             🎲
                         </button>
@@ -314,7 +314,7 @@ export function EveningPage() {
             </div>
 
             {teams.length === 0
-                ? <Empty icon="🤝" text="Noch keine Teams."/>
+                ? <Empty icon="🤝" text={t('club.teams.none')}/>
                 : teams.map(team => {
                     const members = players.filter(p => p.team_id === team.id)
                     return (
@@ -367,7 +367,7 @@ export function EveningPage() {
                             <span className="text-xl">{icon}</span>
                             <div className="flex-1">
                                 <div className="text-sm font-bold">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
-                                <div className="text-xs text-kce-muted">{count} Spieler</div>
+                                <div className="text-xs text-kce-muted">{count} {t('drinks.playerCount')}</div>
                             </div>
                             {!evening.is_closed && (
                                 <button className="btn-danger btn-xs" onClick={async () => {
@@ -416,12 +416,12 @@ export function EveningPage() {
                             {stamm.length > 0 && (
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
-                                        <span className="field-label mb-0">Stammspieler</span>
+                                        <span className="field-label mb-0">{t('member.title')}</span>
                                         <div className="flex gap-1">
                                             <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
-                                                    onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>Alle</button>
+                                                    onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>{t('action.all')}</button>
                                             <button type="button" className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
-                                                    onClick={() => setSelectedMemberIds(new Set())}>Keine</button>
+                                                    onClick={() => setSelectedMemberIds(new Set())}>{t('action.none')}</button>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
@@ -437,7 +437,7 @@ export function EveningPage() {
                             )}
                             {guests.length > 0 && (
                                 <div>
-                                    <span className="field-label">Bekannte Gäste</span>
+                                    <span className="field-label">{t('player.knownGuests')}</span>
                                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                                         {guests.map(rm => (
                                             <button key={rm.id} type="button"
@@ -452,19 +452,19 @@ export function EveningPage() {
                         </>)
                     })()}
                     <div>
-                        <label className="field-label">Neuer Gast</label>
+                        <label className="field-label">{t('player.newGuest')}</label>
                         <input className="kce-input" value={guestName}
                                onChange={e => { setGuestName(e.target.value); if (e.target.value) setSelectedMemberIds(new Set()) }}
-                               placeholder="z.B. Max Mustermann"/>
+                               placeholder={t('player.guestPlaceholder')}/>
                         {guestName.trim() && (
-                            <p className="text-[10px] text-kce-muted mt-1">Wird automatisch für Statistiken gespeichert.</p>
+                            <p className="text-[10px] text-kce-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary flex-1" onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
                                 disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
-                            {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} hinzufügen` : t('action.add')}
+                            {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
                         </button>
                     </div>
                 </div>
@@ -476,7 +476,7 @@ export function EveningPage() {
                     <div className="flex flex-col gap-3">
                         <div className="text-sm font-bold text-kce-cream">{editingPlayer.name}</div>
                         <div>
-                            <label className="field-label">Team</label>
+                            <label className="field-label">{t('team.label')}</label>
                             <select className="kce-input" value={editPlayerTeam ?? ''}
                                     onChange={e => setEditPlayerTeam(e.target.value ? Number(e.target.value) : null)}>
                                 <option value="">{t('player.noTeam')}</option>
@@ -498,7 +498,7 @@ export function EveningPage() {
                     <div>
                         <label className="field-label">{t('team.name')}</label>
                         <input className="kce-input" value={teamName} onChange={e => setTeamName(e.target.value)}
-                               placeholder="z.B. Team A"/>
+                               placeholder={t('team.namePlaceholder')}/>
                     </div>
                     <ChipSelect
                         label={t('team.members')}
@@ -527,7 +527,7 @@ export function EveningPage() {
                         ))}
                     </div>
                     <div>
-                        <label className="field-label">{drinkType === 'shots' ? t('drinks.sortPlaceholder') : 'Sorte (optional)'}</label>
+                        <label className="field-label">{t('drinks.variety')}</label>
                         <input className="kce-input" value={drinkVariety} onChange={e => setDrinkVariety(e.target.value)}
                                placeholder={t('drinks.sortPlaceholder')}/>
                     </div>

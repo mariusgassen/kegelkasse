@@ -84,7 +84,7 @@ export function LoginPage() {
             clearAuthParams()
             setUser(res.user)
         } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : 'Fehler')
+            setError(e instanceof Error ? e.message : t('error.generic'))
         } finally {
             setLoading(false)
         }
@@ -133,11 +133,11 @@ export function LoginPage() {
                         <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.login')}</h2>
                         <form onSubmit={handleLogin} className="flex flex-col gap-3">
                             <div>
-                                <label className="field-label">{t('auth.email')} / Username</label>
+                                <label className="field-label">{t('auth.email')} / {t('auth.username')}</label>
                                 <input className="kce-input"
                                        value={email}
                                        onChange={e => setEmail(e.target.value)}
-                                       placeholder="name@example.de oder @username" required/>
+                                       placeholder={t('auth.emailPlaceholder')} required/>
                             </div>
                             <div>
                                 <label className="field-label">{t('auth.password')}</label>
@@ -197,32 +197,32 @@ export function LoginPage() {
                         <h2 className="font-display font-bold text-kce-cream text-lg mb-1">{t('auth.register.title')}</h2>
                         {prefilledName && (
                             <p className="text-kce-muted text-xs mb-4">
-                                Willkommen, <span className="text-kce-cream font-bold">{prefilledName}</span>! Wähle ein Passwort.
+                                {t('auth.register.welcome')} <span className="text-kce-cream font-bold">{prefilledName}</span>! {t('auth.register.welcomeSuffix')}
                             </p>
                         )}
                         <form onSubmit={handleRegister} className="flex flex-col gap-3">
                             {!prefilledName && (
                                 <>
                                     <div>
-                                        <label className="field-label">Einladungs-Token</label>
+                                        <label className="field-label">{t('auth.invite.tokenLabel')}</label>
                                         <input className="kce-input" value={inviteToken}
                                                onChange={e => setInviteToken(e.target.value)}
-                                               placeholder="aus dem Einladungslink" required/>
+                                               placeholder={t('auth.invite.tokenPlaceholder')} required/>
                                     </div>
                                     <div>
                                         <label className="field-label">{t('auth.name')}</label>
                                         <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
-                                               placeholder="Dein Name" required/>
+                                               placeholder={t('auth.namePlaceholder')} required/>
                                     </div>
                                 </>
                             )}
                             <div>
-                                <label className="field-label">Username</label>
+                                <label className="field-label">{t('auth.username')}</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
                                     <input className="kce-input pl-6" value={username}
                                            onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
-                                           placeholder="username" autoFocus={!!prefilledName} required/>
+                                           placeholder={t('auth.usernamePlaceholder')} autoFocus={!!prefilledName} required/>
                                 </div>
                             </div>
                             <div>

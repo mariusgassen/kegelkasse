@@ -112,7 +112,7 @@ export function ProfileSheet({open, onClose}: Props) {
             const updated = await api.updateAvatar(base64)
             setUser(updated)
         } catch {
-            showToast('Fehler beim Hochladen')
+            showToast(t('profile.uploadError'))
         } finally {
             setAvatarLoading(false)
             e.target.value = ''
@@ -143,7 +143,7 @@ export function ProfileSheet({open, onClose}: Props) {
             showToast(t('club.savedOk'))
             onClose()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            showToast(e instanceof Error ? e.message : t('error.generic'))
         } finally {
             setSaving(false)
         }
@@ -191,7 +191,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     </div>
                     {user?.avatar && (
                         <button className="text-[10px] text-kce-muted" onClick={handleRemoveAvatar}>
-                            Bild entfernen
+                            {t('profile.removeAvatar')}
                         </button>
                     )}
                     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange}/>
@@ -201,38 +201,38 @@ export function ProfileSheet({open, onClose}: Props) {
                 <div className="flex flex-col gap-3">
                     <div className="kce-card p-4 flex flex-col gap-3">
                         <div>
-                            <label className="field-label">Anzeigename</label>
+                            <label className="field-label">{t('profile.displayName')}</label>
                             <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
-                                   placeholder="Vorname Nachname"/>
+                                   placeholder={t('profile.displayNamePlaceholder')}/>
                         </div>
                         <div>
-                            <label className="field-label">Username</label>
+                            <label className="field-label">{t('auth.username')}</label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
                                 <input className="kce-input pl-6" value={username}
                                        onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
-                                       placeholder="username"/>
+                                       placeholder={t('auth.usernamePlaceholder')}/>
                             </div>
                         </div>
                         <div>
-                            <label className="field-label">Login-E-Mail</label>
+                            <label className="field-label">{t('profile.loginEmail')}</label>
                             {isFakeEmail && !email && (
-                                <p className="text-[10px] text-kce-muted mb-1">Noch keine E-Mail — Login per Username.</p>
+                                <p className="text-[10px] text-kce-muted mb-1">{t('profile.noEmail')}</p>
                             )}
                             <input className="kce-input" type="email" value={email}
-                                   onChange={e => setEmail(e.target.value)} placeholder="deine@email.de"/>
+                                   onChange={e => setEmail(e.target.value)} placeholder={t('profile.emailPlaceholder')}/>
                         </div>
                     </div>
 
                     <div className="kce-card p-4 flex flex-col gap-3">
-                        <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">Passwort ändern</div>
+                        <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('profile.changePassword')}</div>
                         <div>
-                            <label className="field-label">Aktuelles Passwort</label>
+                            <label className="field-label">{t('profile.currentPassword')}</label>
                             <input className="kce-input" type="password" value={currentPw}
                                    onChange={e => setCurrentPw(e.target.value)} placeholder="••••••••"/>
                         </div>
                         <div>
-                            <label className="field-label">Neues Passwort</label>
+                            <label className="field-label">{t('profile.newPassword')}</label>
                             <input className="kce-input" type="password" value={newPw}
                                    onChange={e => setNewPw(e.target.value)} placeholder="••••••••"/>
                         </div>
@@ -240,7 +240,7 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     {/* Language */}
                     <div className="kce-card p-4 flex items-center justify-between">
-                        <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">Sprache</span>
+                        <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.language')}</span>
                         <div className="flex gap-1">
                             {(['de', 'en'] as const).map(l => (
                                 <button key={l} onClick={() => { setLocale(l); api.updateLocale(l).catch(() => {}) }}
@@ -255,31 +255,31 @@ export function ProfileSheet({open, onClose}: Props) {
                     {myStats && (
                         <div className="kce-card p-4">
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
-                                📊 Meine Statistiken {year}
+                                {t('profile.myStats')} {year}
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="text-center">
                                     <div className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Strafen</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.penalties')}</div>
                                 </div>
                                 <div className="text-center">
                                     <div className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Abende</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.evenings')}</div>
                                 </div>
                                 <div className="text-center">
                                     <div className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Siege</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.wins')}</div>
                                 </div>
                                 <div className="text-center">
                                     <div className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Bierrunden</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
-                        {saving ? 'Speichern…' : t('action.save')}
+                        {saving ? t('action.saving') : t('action.save')}
                     </button>
                     <a
                         href="/docs"
@@ -287,7 +287,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
                     >
-                        <span>📖 Dokumentation</span>
+                        <span>{t('profile.docs')}</span>
                         <span className="text-kce-muted text-xs">↗</span>
                     </a>
                     <button className="btn-danger w-full py-2.5 text-sm" onClick={() => {
@@ -301,18 +301,18 @@ export function ProfileSheet({open, onClose}: Props) {
                     {!confirmDelete ? (
                         <button className="text-[11px] text-kce-muted text-center py-1 w-full"
                                 onClick={() => setConfirmDelete(true)}>
-                            Konto löschen
+                            {t('profile.deleteAccount')}
                         </button>
                     ) : (
                         <div className="kce-card p-3 flex flex-col gap-2 border border-red-900/40">
-                            <p className="text-xs text-center text-kce-cream">Konto wirklich löschen? Statistiken bleiben erhalten.</p>
+                            <p className="text-xs text-center text-kce-cream">{t('profile.deleteConfirm')}</p>
                             <div className="flex gap-2">
-                                <button className="btn-secondary flex-1 btn-sm" onClick={() => setConfirmDelete(false)}>Abbrechen</button>
+                                <button className="btn-secondary flex-1 btn-sm" onClick={() => setConfirmDelete(false)}>{t('action.cancel')}</button>
                                 <button className="btn-danger flex-1 btn-sm" onClick={async () => {
                                     await api.deleteAccount()
                                     authState.setToken(null)
                                     setUser(null)
-                                }}>Ja, löschen</button>
+                                }}>{t('action.confirmDelete')}</button>
                             </div>
                         </div>
                     )}
