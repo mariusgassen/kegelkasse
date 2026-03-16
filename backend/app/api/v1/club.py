@@ -673,8 +673,8 @@ def list_expenses(db: Session = Depends(get_db), user: User = Depends(require_cl
 @router.post("/expenses", status_code=201)
 def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
                    user: User = Depends(require_club_admin)):
-    if data.amount <= 0:
-        raise HTTPException(400, "Betrag muss positiv sein")
+    if data.amount == 0:
+        raise HTTPException(400, "Betrag darf nicht 0 sein")
     expense = ClubExpense(
         club_id=user.club_id,
         amount=data.amount,

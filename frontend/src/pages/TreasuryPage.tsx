@@ -179,7 +179,8 @@ export function TreasuryPage() {
         try {
             if (bookingTarget === 'club') {
                 if (!bookingNote.trim()) return
-                const amount = bookingDirection === 'out' ? abs : abs
+                // Positive = expense (Ausgabe), negative = income (Einnahme)
+                const amount = bookingDirection === 'out' ? abs : -abs
                 await api.createExpense({
                     amount,
                     description: bookingNote.trim(),
@@ -561,7 +562,9 @@ export function TreasuryPage() {
                                 const e = entry.data
                                 return (
                                     <div key={`e-${e.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <span className="text-xl flex-shrink-0 text-orange-400">⬇</span>
+                                        <span className={`text-xl flex-shrink-0 ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                                            {e.amount < 0 ? '⬆' : '⬇'}
+                                        </span>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {e.description}
@@ -569,7 +572,9 @@ export function TreasuryPage() {
                                             </div>
                                             <div className="text-xs text-kce-muted">{fDate(e.created_at)}</div>
                                         </div>
-                                        <div className="font-bold text-orange-400 text-sm flex-shrink-0">-{fe(e.amount)}</div>
+                                        <div className={`font-bold text-sm flex-shrink-0 ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                                            {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
+                                        </div>
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
                                                     onClick={() => deleteExpense(e.id)}>✕</button>
@@ -646,13 +651,16 @@ export function TreasuryPage() {
                     {/* Direction */}
                     <ModeToggle
                         options={isClubBooking
-                            ? [{value: 'out', label: `⬇ ${t('treasury.booking.expense')}`}]
+                            ? [
+                                {value: 'in', label: `⬆ ${t('treasury.booking.income')}`},
+                                {value: 'out', label: `⬇ ${t('treasury.booking.expense')}`},
+                            ]
                             : [
                                 {value: 'in', label: `⬆ ${t('treasury.payment.deposit')}`},
                                 {value: 'out', label: `⬇ ${t('treasury.payment.withdrawal')}`},
                             ]
                         }
-                        value={isClubBooking ? 'out' : bookingDirection}
+                        value={bookingDirection}
                         onChange={v => setBookingDirection(v as 'in' | 'out')}/>
 
                     {/* Amount */}
