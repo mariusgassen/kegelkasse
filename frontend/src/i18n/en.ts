@@ -235,4 +235,6 @@ export const en = {
     "playercard.winRate": "Win rate",
     "playercard.avgPenalty": "Avg. fine/evening",
     "playercard.beerIndex": "Beer index",
+    "emoji.pick": "Pick emoji",
+    "emoji.insert": "Insert emoji",
 } as const

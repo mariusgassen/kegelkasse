@@ -8,6 +8,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
@@ -513,8 +514,7 @@ export function PenaltiesPage() {
                         <div className="flex gap-2">
                             <div>
                                 <label className="field-label">Icon</label>
-                                <input className="kce-input w-14 text-center" value={customIcon}
-                                       onChange={e => setCustomIcon(e.target.value)}/>
+                                <EmojiPickerButton value={customIcon} onChange={setCustomIcon}/>
                             </div>
                             <div className="flex-1">
                                 <label className="field-label">Name</label>
