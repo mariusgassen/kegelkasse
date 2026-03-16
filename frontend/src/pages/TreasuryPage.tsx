@@ -8,6 +8,7 @@ import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
+import {useHashTab} from '@/hooks/usePage.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -42,7 +43,7 @@ export function TreasuryPage() {
     const user = useAppStore(s => s.user)
     const admin = isAdmin(user)
 
-    const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'expenses'>('overview')
+    const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'transactions' | 'expenses'>('overview', ['overview', 'accounts', 'transactions', 'expenses'])
 
     // Balances — always loaded (used in overview + accounts tabs)
     const {data: balances = [], refetch: refetchBalances} = useQuery({

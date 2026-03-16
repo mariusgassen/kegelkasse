@@ -3,6 +3,7 @@
  * Write operations guarded by AdminGuard (admin/superadmin only).
  */
 import {useEffect, useState} from 'react'
+import {useHashTab} from '@/hooks/usePage.ts'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
 import {shareOrCopy} from '@/utils/share.ts'
@@ -26,7 +27,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs' | 'members'>('settings')
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs' | 'members'>('settings', ['settings', 'penalties', 'templates', 'teams', 'invites', 'clubs', 'members'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
