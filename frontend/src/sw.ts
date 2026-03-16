@@ -1,5 +1,6 @@
 /// <reference lib="WebWorker" />
 /// <reference types="vite-plugin-pwa/vanillajs" />
+import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst, NetworkFirst } from 'workbox-strategies'
@@ -7,12 +8,20 @@ import { ExpirationPlugin } from 'workbox-expiration'
 
 declare const self: ServiceWorkerGlobalScope
 
+// Take control immediately when a new SW version installs — prevents stale UI after deploy
+self.skipWaiting()
+clientsClaim()
+
 // Precache & route injected by vite-plugin-pwa
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// SPA navigation fallback
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
+// SPA navigation fallback — exclude /docs so those routes reach the server
+registerRoute(
+    new NavigationRoute(createHandlerBoundToURL('index.html'), {
+        denylist: [/^\/docs(\/.*)?$/],
+    })
+)
 
 // Google Fonts
 registerRoute(
@@ -23,9 +32,9 @@ registerRoute(
     })
 )
 
-// API: network first
+// API: network first — exclude SSE event streams (they are long-lived, not cacheable)
 registerRoute(
-    ({ url }) => url.pathname.startsWith('/api/'),
+    ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.endsWith('/events'),
     new NetworkFirst({
         cacheName: 'api-cache',
         networkTimeoutSeconds: 5,

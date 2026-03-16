@@ -18,27 +18,48 @@ export function useActiveEvening() {
         refetchInterval: 1000 * 30,
     })
 
-    // SSE subscription — invalidates query instantly when server signals a change
+    // SSE subscription — invalidates query instantly when server signals a change.
+    // Auto-reconnects with exponential backoff (1s → 2s → 4s … max 30s) so users
+    // don't need to manually reload after network hiccups or server restarts.
     useEffect(() => {
         if (!activeEveningId) return
         const token = authState.getToken()
         if (!token) return
 
-        const es = new EventSource(`/api/v1/evening/${activeEveningId}/events?token=${encodeURIComponent(token)}`)
-        esRef.current = es
+        let closed = false
+        let backoff = 1000
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-        es.onmessage = (e) => {
-            if (e.data === 'updated') {
-                qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
+        function connect() {
+            if (closed) return
+            const es = new EventSource(`/api/v1/evening/${activeEveningId}/events?token=${encodeURIComponent(token!)}`)
+            esRef.current = es
+
+            es.onopen = () => {
+                backoff = 1000 // reset on successful connection
+            }
+            es.onmessage = (e) => {
+                if (e.data === 'updated') {
+                    qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
+                }
+            }
+            es.onerror = () => {
+                es.close()
+                if (!closed) {
+                    reconnectTimer = setTimeout(() => {
+                        backoff = Math.min(backoff * 2, 30_000)
+                        connect()
+                    }, backoff)
+                }
             }
         }
-        es.onerror = () => {
-            // Connection dropped — polling fallback handles recovery
-            es.close()
-        }
+
+        connect()
 
         return () => {
-            es.close()
+            closed = true
+            if (reconnectTimer) clearTimeout(reconnectTimer)
+            esRef.current?.close()
             esRef.current = null
         }
     }, [activeEveningId])
