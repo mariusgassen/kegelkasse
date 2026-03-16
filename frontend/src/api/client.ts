@@ -1,3 +1,4 @@
+import {t as tl} from '@/i18n'
 import {
     Club,
     ClubSettings,
@@ -17,6 +18,23 @@ import {
 const API_BASE = '/api/v1'
 let _token: string | null = localStorage.getItem('kegelkasse_token')
 
+export class UnauthorizedError extends Error {
+    constructor() {
+        super(tl('error.session'))
+        this.name = 'UnauthorizedError'
+    }
+}
+
+export class NetworkError extends Error {
+    constructor() {
+        super(tl('error.network'))
+        this.name = 'NetworkError'
+    }
+}
+
+type UnauthorizedCallback = () => void
+let _unauthorizedCallbacks: UnauthorizedCallback[] = []
+
 export const authState = {
     setToken(t: string | null) {
         _token = t
@@ -25,14 +43,30 @@ export const authState = {
     },
     getToken: () => _token,
     isLoggedIn: () => !!_token,
+    onUnauthorized(cb: UnauthorizedCallback): () => void {
+        _unauthorizedCallbacks.push(cb)
+        return () => { _unauthorizedCallbacks = _unauthorizedCallbacks.filter(f => f !== cb) }
+    },
+    _fireUnauthorized() {
+        _unauthorizedCallbacks.forEach(cb => cb())
+    },
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = {'Content-Type': 'application/json'}
     if (_token) headers['Authorization'] = `Bearer ${_token}`
-    const res = await fetch(API_BASE + path, {
-        method, headers, body: body ? JSON.stringify(body) : undefined,
-    })
+    let res: Response
+    try {
+        res = await fetch(API_BASE + path, {
+            method, headers, body: body ? JSON.stringify(body) : undefined,
+        })
+    } catch {
+        throw new NetworkError()
+    }
+    if (res.status === 401) {
+        authState._fireUnauthorized()
+        throw new UnauthorizedError()
+    }
     if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)

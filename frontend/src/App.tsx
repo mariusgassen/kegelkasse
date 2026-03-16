@@ -6,11 +6,11 @@
 import React, {ReactNode, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useAppStore} from './store/app'
-import {Locale, useI18n, useT} from './i18n'
-import {api, authState} from './api/client'
+import {Locale, useI18n, useT, t as tI18n} from './i18n'
+import {api, authState, NetworkError, UnauthorizedError} from './api/client'
 import {LoginPage} from './pages/LoginPage'
 import {AppLogoAnimated} from './components/Logo'
-import {ToastContainer} from './components/ui/Toast'
+import {ToastContainer, showToast} from './components/ui/Toast'
 import {OfflineBanner} from './components/ui/OfflineBanner'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
@@ -107,8 +107,24 @@ export default function App() {
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
+    const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
+    const [bootNetworkError, setBootNetworkError] = useState(false)
     const queryClient = useQueryClient()
     useActiveEvening()
+
+    // Register global 401 handler — auto-logout when any request returns Unauthorized.
+    // The toast is suppressed here; the UnauthorizedError message surfaces through
+    // catch blocks in event handlers. For background queries it's shown via the
+    // session-expired toast below.
+    useEffect(() => {
+        return authState.onUnauthorized(() => {
+            const wasLoggedIn = !!useAppStore.getState().user
+            authState.setToken(null)
+            useAppStore.getState().setUser(null)
+            if (wasLoggedIn) showToast(tI18n('error.session'), 'error')
+        })
+    }, [])
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -119,10 +135,13 @@ export default function App() {
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
 
     // Boot — verify token, load club data
-    useQuery({
+    const {refetch: retryBoot} = useQuery({
         queryKey: ['boot', locale],
         queryFn: async () => {
-            if (!authState.isLoggedIn()) return null
+            if (!authState.isLoggedIn()) {
+                setBootDone(true)
+                return null
+            }
             try {
                 const u = await api.me()
                 setUser(u)
@@ -143,10 +162,22 @@ export default function App() {
                     const open = evenings.filter((e: any) => !e.is_closed)
                     if (open.length === 1) setActiveEveningId(open[0].id)
                 }
+                setBootNetworkError(false)
+                setBootDone(true)
                 return u
-            } catch {
-                authState.setToken(null)
-                setUser(null)
+            } catch (e) {
+                if (e instanceof NetworkError) {
+                    // Server unreachable — keep token, show retry screen
+                    setBootNetworkError(true)
+                    setBootDone(true)
+                } else {
+                    // Auth error (401 fires via onUnauthorized) or other — clear session
+                    if (!(e instanceof UnauthorizedError)) {
+                        authState.setToken(null)
+                        setUser(null)
+                    }
+                    setBootDone(true)
+                }
                 return null
             }
         },
@@ -160,6 +191,40 @@ export default function App() {
             setLocale(user.preferred_locale as Locale)
         }
     }, [user?.preferred_locale])
+
+    // ── Loading splash ──
+    if (!bootDone) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4"
+                 style={{background: 'var(--kce-bg)'}}>
+                <AppLogoAnimated size={64}/>
+                <p className="text-kce-muted text-xs font-bold tracking-widest animate-pulse">
+                    {t('error.connecting')}
+                </p>
+            </div>
+        )
+    }
+
+    // ── Boot network error (has token but server unreachable) ──
+    if (bootNetworkError && !user) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6"
+                 style={{background: 'var(--kce-bg)'}}>
+                <AppLogoAnimated size={64}/>
+                <div className="text-center">
+                    <p className="text-kce-cream font-bold text-sm mb-1">📡 {t('error.serverDown')}</p>
+                    <p className="text-kce-muted text-xs">{t('error.network')}</p>
+                </div>
+                <button className="btn-primary px-6" onClick={() => {
+                    setBootNetworkError(false)
+                    setBootDone(false)
+                    retryBoot()
+                }}>
+                    {t('error.retry')}
+                </button>
+            </div>
+        )
+    }
 
     if (!user) return <LoginPage/>
 

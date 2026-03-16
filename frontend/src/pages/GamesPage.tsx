@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, WinnerType} from '@/types.ts'
 
@@ -144,7 +145,7 @@ export function GamesPage() {
             invalidate()
             setAddSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -155,7 +156,7 @@ export function GamesPage() {
             await api.startGame(evening!.id, gid)
             invalidate()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         }
     }
 
@@ -176,7 +177,7 @@ export function GamesPage() {
             invalidate()
             setFinishTarget(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -197,7 +198,7 @@ export function GamesPage() {
             invalidate()
             setEditTarget(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -208,7 +209,7 @@ export function GamesPage() {
             await api.deleteGame(evening!.id, gid)
             invalidate()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setConfirmDeleteId(null)
         }

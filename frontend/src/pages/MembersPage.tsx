@@ -7,6 +7,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import type {RegularMember} from '@/types.ts'
 
@@ -59,7 +60,7 @@ export function MembersPage() {
             setResetUserName(userName)
             setResetCopied(false)
             setResetSheet(true)
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        } catch (e: unknown) { toastError(e) }
     }
 
     async function openInvite(m: RegularMember) {
@@ -87,7 +88,7 @@ export function MembersPage() {
             await refetchRoster()
             setSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -95,7 +96,7 @@ export function MembersPage() {
 
     async function remove(m: RegularMember) {
         try { await api.deleteRegularMember(m.id); await refetchRoster() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function addToEvening(m: RegularMember) {
@@ -103,18 +104,18 @@ export function MembersPage() {
         try {
             await api.addPlayer(evening.id, {name: m.nickname || m.name, regular_member_id: m.id})
             invalidateEvening()
-            showToast(`${m.name} hinzugefügt`)
+            showToast(`${m.name} ${t('member.addedToEvening')}`)
         } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
     }
 
     async function handleDeactivate(userId: number) {
         try { await api.deactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function handleReactivate(userId: number) {
         try { await api.reactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function handleLink(memberId: number) {
@@ -132,7 +133,7 @@ export function MembersPage() {
             await api.mergeRegularMembers(mergeDiscard.id, keepId)
             await Promise.all([refetchUsers(), refetchRoster()])
             setMergeSheet(false)
-            showToast('Zusammengelegt')
+            showToast(t('member.merged'))
         } catch (e: unknown) { showToast(e instanceof Error ? e.message : 'Fehler') }
     }
 
@@ -162,17 +163,17 @@ export function MembersPage() {
 
             {/* ── App-Nutzer ── */}
             <div className="flex items-center justify-between mb-3">
-                <div className="sec-heading mb-0">App-Nutzer</div>
+                <div className="sec-heading mb-0">{t('member.appUsers')}</div>
                 {admin && inactiveUsers.length > 0 && (
                     <button className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                             onClick={() => setShowInactive(v => !v)}>
-                        {showInactive ? 'Inaktive ausbl.' : `+ ${inactiveUsers.length} inaktiv`}
+                        {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
                     </button>
                 )}
             </div>
 
             {activeUsers.length === 0
-                ? <Empty icon="📱" text="Noch keine App-Nutzer."/>
+                ? <Empty icon="📱" text={t('member.noAppUsers')}/>
                 : activeUsers.map(u => {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
                     return (
@@ -186,7 +187,7 @@ export function MembersPage() {
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{linked?.nickname || u.name}</div>
                                 {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
-                                {!linked && <div className="text-[10px] text-kce-muted">kein Roster-Eintrag</div>}
+                                {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
                             </div>
                             <span className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
                                 {u.role}
@@ -222,7 +223,7 @@ export function MembersPage() {
             {/* Inactive users */}
             {showInactive && inactiveUsers.length > 0 && (
                 <>
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-3 mb-2">Inaktiv</div>
+                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}</div>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
                             <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
@@ -234,7 +235,7 @@ export function MembersPage() {
                             {admin && (
                                 <button className="btn-secondary btn-xs opacity-100"
                                         onClick={() => handleReactivate(u.id)}>
-                                    ↩ Reaktivieren
+                                    {t('member.reactivate')}
                                 </button>
                             )}
                         </div>
@@ -244,13 +245,13 @@ export function MembersPage() {
 
             {/* ── Spieler-Roster ── */}
             <div className="flex items-center justify-between mt-4 mb-3">
-                <div className="sec-heading mb-0">Spieler-Roster</div>
+                <div className="sec-heading mb-0">{t('member.roster')}</div>
                 {admin && (
                     <button className="btn-secondary btn-xs" onClick={openNew}>+ {t('member.add')}</button>
                 )}
             </div>
             <p className="text-[10px] text-kce-muted mb-3">
-                Vereinsmitglieder ohne App-Account — für Statistiken und Quick-Add beim Abend.
+                {t('member.rosterHint')}
             </p>
 
             {unlinkedRoster.length === 0
@@ -275,7 +276,7 @@ export function MembersPage() {
                                         className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
                                         disabled={inEvening}
                                         onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : '+ Abend'}
+                                        {inEvening ? '✓' : t('member.addToEvening')}
                                     </button>
                                 )}
                                 {admin && (
@@ -295,9 +296,9 @@ export function MembersPage() {
 
             {/* ── Gäste ── */}
             {savedGuests.length > 0 && (<>
-                <div className="sec-heading mt-4">Bekannte Gäste</div>
+                <div className="sec-heading mt-4">{t('player.knownGuests')}</div>
                 <p className="text-[10px] text-kce-muted mb-3">
-                    Gäste die gespeichert wurden — erscheinen beim Spieler hinzufügen zur Auswahl.
+                    {t('member.knownGuestsHint')}
                 </p>
                 {savedGuests.map(m => {
                     const inEvening = alreadyInEvening.has(m.id)
@@ -310,14 +311,14 @@ export function MembersPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
-                                <div className="text-[10px] text-kce-muted">{m.nickname ? m.name + ' · ' : ''}Gast</div>
+                                <div className="text-[10px] text-kce-muted">{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</div>
                             </div>
                             <div className="flex gap-1.5 flex-shrink-0">
                                 {evening && !evening.is_closed && (
                                     <button className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
                                             disabled={inEvening}
                                             onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : '+ Abend'}
+                                        {inEvening ? '✓' : t('member.addToEvening')}
                                     </button>
                                 )}
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
@@ -332,10 +333,10 @@ export function MembersPage() {
 
             {/* Link to roster sheet */}
             <Sheet open={linkSheet} onClose={() => setLinkSheet(false)}
-                   title={`🔗 ${linkUserName} verknüpfen`}>
+                   title={`🔗 ${linkUserName} ${t('member.linkWith')}`}>
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-kce-muted mb-1">
-                        Wähle einen bestehenden Roster-Eintrag oder lege einen neuen an.
+                        {t('member.linkHint')}
                     </p>
                     {availableForLink.map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
@@ -351,21 +352,21 @@ export function MembersPage() {
                         </button>
                     ))}
                     {availableForLink.length === 0 && (
-                        <p className="text-xs text-kce-muted text-center py-2">Alle Roster-Einträge sind bereits verknüpft.</p>
+                        <p className="text-xs text-kce-muted text-center py-2">{t('member.allLinked')}</p>
                     )}
                     <button className="btn-secondary btn-sm mt-1"
                             onClick={async () => { await handleAutoCreateRoster(linkUserId!, linkUserName); setLinkSheet(false) }}>
-                        + Neuen Roster-Eintrag für „{linkUserName}" erstellen
+                        + {t('member.createRosterEntry')} „{linkUserName}"
                     </button>
                 </div>
             </Sheet>
 
             {/* Merge roster sheet */}
             <Sheet open={mergeSheet} onClose={() => setMergeSheet(false)}
-                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" zusammenlegen`}>
+                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" ${t('member.mergeWith')}`}>
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-kce-muted mb-1">
-                        Wähle den Eintrag, der behalten wird. Alle Abende und Strafen von „{mergeDiscard?.nickname || mergeDiscard?.name}" werden übertragen, der Eintrag danach deaktiviert.
+                        {t('member.mergeHint')}
                     </p>
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
@@ -378,11 +379,11 @@ export function MembersPage() {
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
                                 {m.nickname && <div className="text-xs text-kce-muted">{m.name}</div>}
                             </div>
-                            <span className="text-xs text-kce-muted">behalten →</span>
+                            <span className="text-xs text-kce-muted">{t('member.keep')}</span>
                         </button>
                     ))}
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).length === 0 && (
-                        <p className="text-xs text-kce-muted text-center py-2">Keine anderen Einträge vorhanden.</p>
+                        <p className="text-xs text-kce-muted text-center py-2">{t('member.noOtherEntries')}</p>
                     )}
                 </div>
             </Sheet>
@@ -391,8 +392,7 @@ export function MembersPage() {
                    title={`📨 Einladung für ${inviteName}`}>
                 <div className="flex flex-col gap-3">
                     <p className="text-xs text-kce-muted">
-                        Link an {inviteName} senden — sie müssen nur ein Passwort setzen und sind direkt drin.
-                        Gültig 7 Tage, einmalig verwendbar.
+                        {t('member.inviteHint')}
                     </p>
                     {inviteUrl && (
                         <>
@@ -447,7 +447,7 @@ export function MembersPage() {
                     <div>
                         <label className="field-label">{t('auth.name')}</label>
                         <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
-                               placeholder="Vorname Nachname"/>
+                               placeholder={t('member.namePlaceholder')}/>
                     </div>
                     <div>
                         <label className="field-label">{t('member.nickname')}</label>

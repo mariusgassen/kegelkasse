@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react'
+import {useT} from '@/i18n'
 
 interface Option {
     id: number | string;
@@ -15,6 +16,7 @@ interface ChipSelectProps {
 }
 
 export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNone, label}: ChipSelectProps) {
+    const t = useT()
     const toggle = (id: number | string) =>
         onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
 
@@ -28,9 +30,9 @@ export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNo
           </span>
                     <div className="ml-auto flex gap-1.5">
                         {onSelectAll &&
-                            <button type="button" className="btn-secondary btn-xs" onClick={onSelectAll}>Alle</button>}
+                            <button type="button" className="btn-secondary btn-xs" onClick={onSelectAll}>{t('action.all')}</button>}
                         {onSelectNone && <button type="button" className="btn-secondary btn-xs"
-                                                 onClick={onSelectNone}>Keine</button>}
+                                                 onClick={onSelectNone}>{t('action.none')}</button>}
                     </div>
                 </div>
             )}

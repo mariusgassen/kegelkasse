@@ -10,6 +10,7 @@ import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 
@@ -192,7 +193,7 @@ export function PenaltiesPage() {
             invalidate()
             setSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -228,7 +229,7 @@ export function PenaltiesPage() {
             invalidate()
             setSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -239,7 +240,7 @@ export function PenaltiesPage() {
             await api.deletePenalty(evening!.id, lid)
             invalidate()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setConfirmDeleteId(null)
         }
@@ -265,7 +266,7 @@ export function PenaltiesPage() {
             invalidate()
             setEditEntry(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -278,7 +279,7 @@ export function PenaltiesPage() {
             setAbsenceResult(result)
             invalidate()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setAbsenceLoading(false)
         }
