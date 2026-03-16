@@ -41,7 +41,10 @@ export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPicke
                 setOpen(false)
             }
         }
-        function onScroll() { setOpen(false) }
+        function onScroll(e: Event) {
+            if (pickerRef.current?.contains(e.target as Node)) return
+            setOpen(false)
+        }
         document.addEventListener('mousedown', onMouseDown)
         document.addEventListener('scroll', onScroll, true)
         return () => {
