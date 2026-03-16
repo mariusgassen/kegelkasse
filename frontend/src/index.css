@@ -135,16 +135,17 @@
     }
 
     .sheet-panel {
-        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-5 overflow-y-auto animate-slide-up;
-        max-height: 90vh;
+        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-3 overflow-y-auto animate-slide-up;
+        max-height: calc(100dvh - env(safe-area-inset-top, 44px) - 8px);
     }
 
     .sheet-handle {
-        @apply w-10 h-1 bg-kce-border rounded-full mx-auto mb-4;
+        @apply w-10 h-1.5 bg-kce-border rounded-full mx-auto mb-3 cursor-grab active:cursor-grabbing;
+        touch-action: none;
     }
 
     .sheet-title {
-        @apply font-display font-bold text-kce-amber text-lg mb-4;
+        @apply font-display font-bold text-kce-amber text-lg;
     }
 
     .nav-btn {
