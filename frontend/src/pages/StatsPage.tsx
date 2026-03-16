@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {useActiveEvening} from '../hooks/useEvening'
+import {useEveningList} from '../hooks/useEvening'
 import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
@@ -197,12 +197,29 @@ function EveningTimeline({evening}: { evening: Evening }) {
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export function StatsPage() {
-    const {evening} = useActiveEvening()
     const t = useT()
     const user = useAppStore(s => s.user)
+    const activeEveningId = useAppStore(s => s.activeEveningId)
     const currentYear = new Date().getFullYear()
     const [year, setYear] = useState(currentYear)
     const [showAllMembers, setShowAllMembers] = useState(false)
+    const [pickedId, setPickedId] = useState<number | null>(null)
+
+    const {data: eveningList = []} = useEveningList()
+    const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
+
+    // Fallback chain: picked → active → latest closed
+    const effectiveId = pickedId ?? activeEveningId ?? sortedEvenings[0]?.id ?? null
+
+    const {data: selectedEvening} = useQuery({
+        queryKey: ['evening', effectiveId],
+        queryFn: () => api.getEvening(effectiveId!),
+        enabled: !!effectiveId,
+        staleTime: effectiveId === activeEveningId ? 1000 * 15 : 1000 * 60 * 5,
+    })
+
+    const evening = selectedEvening ?? null
+    const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id, t) : null
 
     const {data: yearStats} = useQuery({
         queryKey: ['stats', year],
@@ -210,19 +227,110 @@ export function StatsPage() {
         staleTime: 1000 * 60 * 5,
     })
 
-    // ── Evening analysis ──
-    const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id, t) : null
-
     const players = yearStats?.players ?? []
     const maxPenalty = players[0]?.penalty_total ?? 1
     const displayPlayers = showAllMembers ? players : players.slice(0, 5)
+
+    const fDate = (dateStr: string) =>
+        new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">{t('stats.title')}</div>
 
-            {/* ── Year stats ── */}
-            <div className="sec-heading text-sm flex items-center justify-between">
+            {/* ── Evening analysis ── */}
+            <div className="sec-heading text-sm">{t('stats.evening')}</div>
+
+            {sortedEvenings.length === 0 ? (
+                <Empty icon="🎳" text={t('stats.noData')}/>
+            ) : (
+                <>
+                    {/* Evening picker */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                        {sortedEvenings.map(e => {
+                            const isActive = e.id === activeEveningId
+                            const isSelected = e.id === effectiveId
+                            return (
+                                <button key={e.id} type="button"
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                        onClick={() => setPickedId(e.id)}>
+                                    {isActive ? '🎳 ' : ''}{fDate(e.date)}{e.venue ? ` · ${e.venue}` : ''}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {evening && eveningStats ? (
+                        <>
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
+                                <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
+                                <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
+                                <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
+                            </div>
+
+                            <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
+                            {eveningStats.hallOfFame.map((h, i) => (
+                                <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                    <span className="text-2xl">{h.icon}</span>
+                                    <div className="flex-1">
+                                        <div className="text-xs font-bold text-kce-muted">{h.label}</div>
+                                        <div className="text-sm font-bold">{h.name}</div>
+                                    </div>
+                                    <div className="text-kce-amber font-bold text-sm">{h.value}</div>
+                                </div>
+                            ))}
+
+                            <EveningTimeline evening={evening}/>
+
+                            {evening.players.length > 0 && (
+                                <>
+                                    <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {evening.players.map(p => {
+                                            const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
+                                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+                                            const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
+                                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
+                                            return (
+                                                <div key={p.id} className="kce-card p-3">
+                                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
+                                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                                        {rm?.avatar
+                                                            ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                                            : p.name[0].toUpperCase()
+                                                        }
+                                                    </div>
+                                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                                    <div className="flex justify-around text-center">
+                                                        <div>
+                                                            <div className="text-kce-amber font-bold text-sm">{wins}</div>
+                                                            <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
+                                                            <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
+                                                            <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <Empty icon="📈" text="Lade..."/>
+                    )}
+                </>
+            )}
+
+            {/* ── Jahresrückblick ── */}
+            <div className="sec-heading text-sm flex items-center justify-between mt-6">
                 <span>{t('stats.year')}</span>
                 <div className="flex gap-1">
                     {[currentYear - 1, currentYear].map(y => (
@@ -266,8 +374,7 @@ export function StatsPage() {
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
                                         </div>
                                     </div>
-                                    <div
-                                        className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
+                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
                                 <div className="h-1 rounded-full overflow-hidden"
                                      style={{background: 'var(--kce-surface2)'}}>
@@ -291,73 +398,6 @@ export function StatsPage() {
                     )}
                 </>
             )}
-
-            {/* ── Evening KPIs (only when active evening exists) ── */}
-            {evening && eveningStats && (
-                <>
-                    <div className="sec-heading text-sm mt-4">{t('stats.evening')}</div>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                        <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
-                        <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
-                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
-                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
-                    </div>
-
-                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
-                    {eveningStats.hallOfFame.map((h, i) => (
-                        <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <span className="text-2xl">{h.icon}</span>
-                            <div className="flex-1">
-                                <div className="text-xs font-bold text-kce-muted">{h.label}</div>
-                                <div className="text-sm font-bold">{h.name}</div>
-                            </div>
-                            <div className="text-kce-amber font-bold text-sm">{h.value}</div>
-                        </div>
-                    ))}
-
-                    <EveningTimeline evening={evening}/>
-
-                    {evening.players.length > 0 && (
-                        <>
-                            <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {evening.players.map(p => {
-                                    const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
-                                    const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
-                                    const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
-                                    const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
-                                    return (
-                                        <div key={p.id} className="kce-card p-3">
-                                            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                                 style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
-                                                {rm?.avatar
-                                                    ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                                                    : p.name[0].toUpperCase()
-                                                }
-                                            </div>
-                                            <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
-                                            <div className="flex justify-around text-center">
-                                                <div>
-                                                    <div className="text-kce-amber font-bold text-sm">{wins}</div>
-                                                    <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                                    <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
-                                                    <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </>
-                    )}
-                </>
-            )}
         </div>
     )
 }
@@ -371,7 +411,7 @@ function StatBox({value, label}: { value: string; label: string }) {
     )
 }
 
-function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>, myMemberId: number | null | undefined, t: (k: TranslationKey) => string) {
+function computeEveningStats(evening: Evening, myMemberId: number | null | undefined, t: (k: TranslationKey) => string) {
     const totalEuro = evening.penalty_log.filter(l => l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
     const penaltyCount = evening.penalty_log.length
     const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').reduce((s, r) => s + r.participant_ids.length, 0)
