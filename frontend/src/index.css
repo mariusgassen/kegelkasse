@@ -159,7 +159,7 @@
     }
 
     .nav-btn {
-        @apply flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-kce-muted text-[9px] font-extrabold border-none bg-transparent cursor-pointer transition-all;
+        @apply flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-kce-muted text-[9px] font-extrabold border-none bg-transparent cursor-pointer transition-all;
     }
 
     .nav-btn .icon {
