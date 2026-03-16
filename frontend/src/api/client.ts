@@ -300,6 +300,10 @@ export const api = {
         regular_member_id: number; name: string; nickname: string | null;
         penalty_total: number; payments_total: number; balance: number
     }[]>('GET', '/club/member-balances'),
+    getGuestBalances: () => request<{
+        regular_member_id: number; name: string; nickname: string | null;
+        penalty_total: number; payments_total: number; balance: number
+    }[]>('GET', '/club/guest-balances'),
     getMemberPayments: (mid: number) => request<{
         id: number; amount: number; note: string | null; created_at: string | null
     }[]>('GET', `/club/member-payments/${mid}`),
@@ -315,6 +319,14 @@ export const api = {
             created_at: string | null
         }>('POST', '/club/member-payments', d),
     deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
+
+    // Club expenses
+    getExpenses: () => request<{
+        id: number; amount: number; description: string; created_at: string | null
+    }[]>('GET', '/club/expenses'),
+    createExpense: (d: { amount: number; description: string }) =>
+        request<{ id: number; amount: number; description: string; created_at: string | null }>('POST', '/club/expenses', d),
+    deleteExpense: (eid: number) => request<void>('DELETE', `/club/expenses/${eid}`),
 
     // Stats
     getYearStats: (year: number) => request<{
