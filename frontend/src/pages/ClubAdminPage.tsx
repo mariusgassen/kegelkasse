@@ -380,7 +380,10 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                    title={editing ? t('club.template.edit') : t('club.template.new')} onSubmit={saveTemplate}>
                 <div className="flex flex-col gap-3">
                     <div><label className="field-label">{t('game.name')}</label>
-                        <input className="kce-input" value={name} onChange={e => setName(e.target.value)}/></div>
+                        <div className="flex gap-2">
+                            <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}/>
+                            <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
+                        </div></div>
                     <div><label className="field-label">{t('club.template.description')}</label>
                         <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
                     <div><label className="field-label">{t('club.template.winnerType')}</label>
@@ -522,8 +525,11 @@ function ClubTeamsTab() {
                 <div className="flex flex-col gap-3">
                     <div>
                         <label className="field-label">{t('club.teams.name')}</label>
-                        <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
-                               placeholder="z.B. Team A, Die Adler…"/>
+                        <div className="flex gap-2">
+                            <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}
+                                   placeholder="z.B. Team A, Die Adler…"/>
+                            <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
+                        </div>
                     </div>
                     <div>
                         <label className="field-label">{t('club.teams.sortOrder')}</label>

@@ -246,4 +246,14 @@
     .wheel-spinning {
         animation: spin-stop 3s cubic-bezier(.17, .67, .12, .99) forwards;
     }
+
+    .EmojiPickerReact {
+        --epr-bg-color: var(--kce-surface) !important;
+        --epr-search-border-color: var(--kce-border) !important;
+        --epr-text-color: var(--kce-cream) !important;
+        --epr-category-label-bg-color: var(--kce-surface2) !important;
+        --epr-hover-bg-color: var(--kce-surface2) !important;
+        border-color: var(--kce-border) !important;
+        border-radius: 12px !important;
+    }
 }

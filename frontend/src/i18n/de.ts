@@ -235,6 +235,8 @@ export const de = {
     "playercard.winRate": "Siegquote",
     "playercard.avgPenalty": "Ø Strafe/Abend",
     "playercard.beerIndex": "Bier-Index",
+    "emoji.pick": "Emoji wählen",
+    "emoji.insert": "Emoji einfügen",
 } as const
 
 export type TranslationKey = keyof typeof de
