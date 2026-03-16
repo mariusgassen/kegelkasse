@@ -40,6 +40,7 @@ export const de = {
     "nav.history": "Historie",
     "nav.stats": "Stats",
     "nav.club": "Verein",
+    "evening.tab.log": "Protokoll",
     "evening.start": "Neuen Abend starten",
     "evening.startButton": "🍺 Los geht's!",
     "evening.end": "Abend beenden",

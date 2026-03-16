@@ -177,9 +177,11 @@ export function MembersPage() {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
                     return (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
                                  style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
-                                {u.name[0].toUpperCase()}
+                                {u.avatar
+                                    ? <img src={u.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : u.name[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{linked?.nickname || u.name}</div>
@@ -257,9 +259,11 @@ export function MembersPage() {
                     const inEvening = alreadyInEvening.has(m.id)
                     return (
                         <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
                                  style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
-                                {m.name[0].toUpperCase()}
+                                {m.avatar
+                                    ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : (m.nickname || m.name)[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
@@ -299,12 +303,14 @@ export function MembersPage() {
                     const inEvening = alreadyInEvening.has(m.id)
                     return (
                         <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
-                                {m.name[0].toUpperCase()}
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden bg-kce-muted">
+                                {m.avatar
+                                    ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : (m.nickname || m.name)[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{m.name}</div>
-                                <div className="text-[10px] text-kce-muted">Gast</div>
+                                <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
+                                <div className="text-[10px] text-kce-muted">{m.nickname ? m.name + ' · ' : ''}Gast</div>
                             </div>
                             <div className="flex gap-1.5 flex-shrink-0">
                                 {evening && !evening.is_closed && (

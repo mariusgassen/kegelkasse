@@ -1,23 +1,42 @@
 /**
- * Evening hub — sub-tab wrapper for Abend | Strafen | Spiele.
- * All sub-pages are always mounted (display:none when inactive) to
- * preserve scroll position across tab switches.
+ * Evening hub — sub-tab wrapper for Protokoll | Spiele.
+ * Evening configuration is accessed separately via the AKTIV header button.
  */
 import {useState} from 'react'
 import {useT} from '@/i18n'
-import {EveningPage} from './EveningPage'
+import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {PenaltiesPage} from './PenaltiesPage'
 import {GamesPage} from './GamesPage'
 
-type SubTab = 'evening' | 'penalties' | 'games'
+type SubTab = 'penalties' | 'games'
 
-export function EveningHubPage() {
+interface Props {
+    onNavigate: () => void
+}
+
+export function EveningHubPage({onNavigate}: Props) {
     const t = useT()
-    const [subTab, setSubTab] = useState<SubTab>('evening')
+    const {activeEveningId} = useActiveEvening()
+    const [subTab, setSubTab] = useState<SubTab>('penalties')
+
+    // No active evening — prompt to configure one
+    if (!activeEveningId) {
+        return (
+            <div className="page-scroll px-3 py-3 pb-24">
+                <div className="sec-heading">🎳 {t('nav.evening')}</div>
+                <div className="kce-card p-5 text-center">
+                    <div className="text-2xl mb-3">🎳</div>
+                    <div className="text-sm font-bold text-kce-cream mb-1">{t('evening.noActive')}</div>
+                    <button className="btn-primary mt-4" onClick={onNavigate}>
+                        {t('evening.startButton')}
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     const TABS: {id: SubTab; label: string}[] = [
-        {id: 'evening', label: `🎳 ${t('nav.evening')}`},
-        {id: 'penalties', label: `⚠️ ${t('nav.penalties')}`},
+        {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
     ]
 
@@ -37,9 +56,6 @@ export function EveningHubPage() {
 
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
-                <div style={{position: 'absolute', inset: 0, display: subTab === 'evening' ? 'block' : 'none'}}>
-                    <EveningPage/>
-                </div>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'penalties' ? 'block' : 'none'}}>
                     <PenaltiesPage/>
                 </div>

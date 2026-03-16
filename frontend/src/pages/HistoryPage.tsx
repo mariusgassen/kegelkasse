@@ -122,6 +122,7 @@ export function HistoryPage() {
                                     <div className="border-t border-kce-border px-3 pb-3 pt-2">
                                         {detail ? (
                                             <>
+                                                {/* Summary stats */}
                                                 <div className="flex gap-4 mb-3 text-sm">
                                                     <div>
                                                         <div className="text-xs text-kce-muted">{t('history.players')}</div>
@@ -134,23 +135,84 @@ export function HistoryPage() {
                                                     <div>
                                                         <div className="text-xs text-kce-muted">{t('history.total')}</div>
                                                         <div className="font-bold text-kce-amber">
-                                                            {fe(detail.penalty_log
-                                                                .filter(l => !('is_deleted' in l))
-                                                                .reduce((s, l) => s + (l.mode === 'euro' ? l.amount : 0), 0))}
+                                                            {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : 0), 0))}
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                {/* Players */}
+                                                {detail.players.length > 0 && (
+                                                    <div className="mb-3">
+                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            👤 {t('history.players')}
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {detail.players.map(p => (
+                                                                <span key={p.id} className="text-[11px] px-2 py-0.5 rounded-full bg-kce-surface2 text-kce-cream">
+                                                                    {p.is_king ? '👑 ' : ''}{p.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Games */}
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
-                                                    <div className="mb-3 text-xs text-kce-muted">
+                                                    <div className="mb-3">
+                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            🏆 {t('nav.games')}
+                                                        </div>
                                                         {detail.games.filter(g => g.status === 'finished').map(g => (
-                                                            <div key={g.id}>
-                                                                🏆 {g.name}: {g.winner_name ?? '–'}
+                                                            <div key={g.id} className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
+                                                                <span className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.name}</span>
+                                                                <span className="text-xs text-kce-muted">{g.winner_name ?? '–'}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
+
+                                                {/* Penalties per player */}
+                                                {detail.penalty_log.length > 0 && (() => {
+                                                    const totals = new Map<string, {name: string; amount: number}>()
+                                                    for (const l of detail.penalty_log) {
+                                                        const key = l.player_name
+                                                        const cur = totals.get(key) ?? {name: l.player_name, amount: 0}
+                                                        totals.set(key, {...cur, amount: cur.amount + (l.mode === 'euro' ? l.amount : 0)})
+                                                    }
+                                                    const sorted = [...totals.values()].sort((a, b) => b.amount - a.amount)
+                                                    return (
+                                                        <div className="mb-3">
+                                                            <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                                ⚠️ {t('penalty.title')}
+                                                            </div>
+                                                            {sorted.map(({name, amount}) => (
+                                                                <div key={name} className="flex items-center justify-between py-0.5">
+                                                                    <span className="text-xs text-kce-cream">{name}</span>
+                                                                    <span className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )
+                                                })()}
+
+                                                {/* Drinks */}
+                                                {detail.drink_rounds.length > 0 && (
+                                                    <div className="mb-3">
+                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1">
+                                                            🍺 {t('drinks.title')}
+                                                        </div>
+                                                        <div className="text-xs text-kce-muted">
+                                                            {detail.drink_rounds.filter(r => r.drink_type === 'beer').length}× {t('drinks.beer')}
+                                                            {detail.drink_rounds.filter(r => r.drink_type === 'shots').length > 0 && (
+                                                                <> · {detail.drink_rounds.filter(r => r.drink_type === 'shots').length}× {t('drinks.shots')}</>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Admin actions */}
                                                 {isAdmin(user) && (
-                                                    <div className="flex gap-2">
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
                                                         <button className="btn-secondary btn-sm flex-1"
                                                                 onClick={() => doReopen(ev.id)}>
                                                             ↩ {t('history.reopen')}

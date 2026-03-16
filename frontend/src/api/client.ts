@@ -66,7 +66,7 @@ export const api = {
     getClub: () => request<Club>('GET', '/club/'),
     updateClubSettings: (d: Partial<ClubSettings> & { name?: string; guest_penalty_cap?: number | null }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
-        request<{ id: number; name: string; role: string; regular_member_id: number | null; is_active: boolean }[]>(
+        request<{ id: number; name: string; role: string; regular_member_id: number | null; is_active: boolean; avatar: string | null }[]>(
             'GET', `/club/members${includeInactive ? '?include_inactive=true' : ''}`),
     updateMemberRole: (id: number, role: string) => request<void>('PATCH', `/club/members/${id}/role?role=${role}`),
     deactivateMember: (id: number) => request<void>('DELETE', `/club/members/${id}`),

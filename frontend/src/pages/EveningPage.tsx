@@ -427,7 +427,7 @@ export function EveningPage() {
                                             <button key={rm.id} type="button"
                                                     className={`chip ${selectedMemberIds.has(rm.id) ? 'active' : ''}`}
                                                     onClick={() => { toggle(rm.id); setGuestName('') }}>
-                                                {rm.name}
+                                                {rm.nickname || rm.name}
                                             </button>
                                         ))}
                                     </div>

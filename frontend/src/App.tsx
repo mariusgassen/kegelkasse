@@ -18,12 +18,13 @@ import {ProfileSheet} from './components/ProfileSheet'
 
 // Lazy-loaded page components to keep initial bundle small
 import {EveningHubPage} from './pages/EveningHubPage'
+import {EveningPage} from './pages/EveningPage'
 import {TreasuryPage} from './pages/TreasuryPage'
 import {HistoryPage} from './pages/HistoryPage'
 import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
 
-type PageId = 'evening' | 'treasury' | 'history' | 'stats' | 'club'
+type PageId = 'evening' | 'config' | 'treasury' | 'history' | 'stats' | 'club'
 
 function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -177,7 +178,7 @@ export default function App() {
                         <button
                             className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
                             style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}
-                            onClick={() => setPage('evening')}>
+                            onClick={() => setPage('config')}>
                             🎳 {t('evening.active')}
                         </button>
                     )}
@@ -208,7 +209,8 @@ export default function App() {
             {/* ── Pages (all mounted, toggled via display) ── */}
             <main style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 {([
-                    ['evening', <EveningHubPage/>],
+                    ['evening', <EveningHubPage onNavigate={() => setPage('config')}/>],
+                    ['config', <EveningPage/>],
                     ['treasury', <TreasuryPage/>],
                     ['history', <HistoryPage/>],
                     ['stats', <StatsPage/>],
