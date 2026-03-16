@@ -117,8 +117,8 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 3  | **Kasse**                          | ✅      | Ranking, Spiele/Getränke, Text-Export (Share/Copy)                                                    |
 | 4  | **Mitglieder-Konten & Abrechnung** | ✅      | member_payment Tabelle, Salden-Endpoint, Zahlungen in MembersPage                                     |
 | 5  | **Historie**                       | ✅      | Detail-Ansicht, Wiedereröffnen, Löschen, Nachtragen-Sheet                                             |
-| 6  | **Eigene Historie / Profil**       | ⬜      | Persönliche Statistiken                                                                               |
-| 7  | **Statistiken & Analyse**          | ⬜      | Charts mit recharts                                                                                   |
+| 6  | **Eigene Historie / Profil**       | ✅      | Persönliche Jahresstatistiken im Profil (Strafen, Abende, Siege, Bier)                                |
+| 7  | **Statistiken & Analyse**          | ✅      | Jahresranking mit CSS-Balken, Jahresauswahl, alle Mitglieder ein-/ausklappbar                         |
 | 8  | **Push Notifications**             | ⬜      | Web Push für Strafen, Abend-Events                                                                    |
 | 9  | **Offline-Sync**                   | ⬜      | IndexedDB-Queue vollständig implementieren                                                            |
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |

@@ -11,6 +11,7 @@ export interface User {
     club_id: number | null
     preferred_locale: string
     avatar: string | null
+    regular_member_id: number | null
 }
 
 export interface ClubSettings {

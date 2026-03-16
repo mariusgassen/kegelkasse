@@ -1,5 +1,7 @@
+import {useState} from 'react'
 import {useActiveEvening} from '../hooks/useEvening'
 import {useQuery} from '@tanstack/react-query'
+import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
 import {useT} from '@/i18n'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -11,7 +13,10 @@ function fe(v: number) {
 export function StatsPage() {
     const {evening} = useActiveEvening()
     const t = useT()
-    const year = new Date().getFullYear()
+    const user = useAppStore(s => s.user)
+    const currentYear = new Date().getFullYear()
+    const [year, setYear] = useState(currentYear)
+    const [showAllMembers, setShowAllMembers] = useState(false)
 
     const {data: yearStats} = useQuery({
         queryKey: ['stats', year],
@@ -20,7 +25,11 @@ export function StatsPage() {
     })
 
     // ── Evening analysis ──
-    const eveningStats = evening ? computeEveningStats(evening) : null
+    const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id) : null
+
+    const players = yearStats?.players ?? []
+    const maxPenalty = players[0]?.penalty_total ?? 1
+    const displayPlayers = showAllMembers ? players : players.slice(0, 5)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -53,37 +62,73 @@ export function StatsPage() {
                 </>
             )}
 
-            <div className="sec-heading text-sm mt-4">
-                {t('stats.year')} <span className="text-kce-muted text-xs">{year}</span>
+            {/* ── Year stats ── */}
+            <div className="sec-heading text-sm mt-4 flex items-center justify-between">
+                <span>{t('stats.year')}</span>
+                <div className="flex gap-1">
+                    {[currentYear - 1, currentYear].map(y => (
+                        <button key={y} type="button"
+                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${year === y ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => setYear(y)}>
+                            {y}
+                        </button>
+                    ))}
+                </div>
             </div>
+
             {!yearStats ? (
                 <Empty icon="📅" text={`${t('stats.noYearData')} ${year}`}/>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className="grid grid-cols-3 gap-2 mb-4">
                         <StatBox value={String(yearStats.evening_count)} label="Abende"/>
                         <StatBox value={fe(yearStats.total_penalties)} label="Strafen gesamt"/>
+                        <StatBox value={String(yearStats.total_beer_rounds)} label="🍺 Runden"/>
                     </div>
+
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">Jahres-Strafenkasse</div>
-                    {yearStats.players.slice(0, 5).map((p: any, i: number) => {
-                        const colors = [{bg: '#e8a020', tc: '#0a0600'}, {bg: '#909090', tc: '#fff'}, {
-                            bg: '#b07030',
-                            tc: '#fff'
-                        }]
-                        const c = colors[i] || {bg: '#3d2e28', tc: '#b88840'}
+                    {displayPlayers.map((p, i) => {
+                        const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
+                        const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
+                        const medals = ['🥇', '🥈', '🥉']
                         return (
-                            <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                <div
-                                    className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold"
-                                    style={{background: c.bg, color: c.tc}}>{i + 1}</div>
-                                <div className="flex-1">
-                                    <div className="text-sm font-bold">{p.name}</div>
-                                    <div className="text-xs text-kce-muted">{p.evenings} Abende</div>
+                            <div key={i} className={`kce-card p-3 mb-2 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="text-base w-6 text-center flex-shrink-0">
+                                        {medals[i] ?? <span className="text-xs text-kce-muted font-bold">{i + 1}.</span>}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold truncate flex items-center gap-1">
+                                            {p.name}
+                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">ICH</span>}
+                                        </div>
+                                        <div className="text-[10px] text-kce-muted">
+                                            {p.evenings} Abende · {p.game_wins} Siege · 🍺{p.beer_rounds}
+                                        </div>
+                                    </div>
+                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
-                                <div className="text-red-400 font-bold text-sm">{fe(p.penalty_total)}</div>
+                                {/* Bar chart */}
+                                <div className="h-1 rounded-full overflow-hidden" style={{background: 'var(--kce-surface2)'}}>
+                                    <div className="h-full rounded-full transition-all"
+                                         style={{
+                                             width: `${barWidth}%`,
+                                             background: isMe
+                                                 ? 'var(--kce-amber)'
+                                                 : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--kce-muted)'
+                                         }}/>
+                                </div>
                             </div>
                         )
                     })}
+
+                    {players.length > 5 && (
+                        <button type="button"
+                                className="w-full text-xs text-kce-muted py-2 font-bold"
+                                onClick={() => setShowAllMembers(v => !v)}>
+                            {showAllMembers ? '▲ Weniger' : `▼ Alle ${players.length} Mitglieder`}
+                        </button>
+                    )}
                 </>
             )}
 
@@ -93,20 +138,20 @@ export function StatsPage() {
                     <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
                     <div className="grid grid-cols-2 gap-2">
                         {evening.players.map(p => {
+                            const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
                             const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
                             const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
                             const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
                             return (
                                 <div key={p.id} className="kce-card p-3">
-                                    <div
-                                        className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                        style={{
-                                            background: 'linear-gradient(135deg,#c4701a,#e8a020)',
-                                            margin: '0 auto'
-                                        }}>
-                                        {p.name[0].toUpperCase()}
+                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
+                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                        {rm?.avatar
+                                            ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                            : p.name[0].toUpperCase()
+                                        }
                                     </div>
-                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.name}</div>
+                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
                                     <div className="flex justify-around text-center">
                                         <div>
                                             <div className="text-kce-amber font-bold text-sm">{wins}</div>
@@ -140,7 +185,7 @@ function StatBox({value, label}: { value: string; label: string }) {
     )
 }
 
-function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>) {
+function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEvening>["evening"]>, myMemberId: number | null | undefined) {
     const totalEuro = evening.penalty_log.filter(l => l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
     const penaltyCount = evening.penalty_log.length
     const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').length

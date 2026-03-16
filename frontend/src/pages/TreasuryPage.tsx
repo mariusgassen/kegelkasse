@@ -114,6 +114,7 @@ export function TreasuryPage() {
     }
 
     // Derived overview stats
+    const kassenstand = balances.reduce((s, b) => s + b.payments_total, 0)
     const totalOutstanding = balances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
@@ -144,6 +145,17 @@ export function TreasuryPage() {
             {/* ── Übersicht ── */}
             {tab === 'overview' && (
                 <div>
+                    {/* Kassenstand hero */}
+                    <div className="kce-card p-4 mb-3 flex items-center justify-between"
+                         style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
+                        <div>
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰 Kassenstand</div>
+                            <div className="font-display font-bold text-kce-amber text-3xl">{fe(kassenstand)}</div>
+                            <div className="text-[10px] text-kce-muted mt-1">Einzahlungen · Bargeld in der Kasse</div>
+                        </div>
+                        <span className="text-4xl opacity-20">💰</span>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">🔴 Offen</span>

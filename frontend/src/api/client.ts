@@ -243,8 +243,18 @@ export const api = {
         year: number;
         evening_count: number;
         total_penalties: number;
-        players: any[]
+        total_beer_rounds: number;
+        players: {
+            name: string; regular_member_id: number | null;
+            evenings: number; penalty_total: number; penalty_count: number;
+            game_wins: number; beer_rounds: number; shot_rounds: number
+        }[]
     }>('GET', `/stats/year/${year}`),
+    getMyStats: (year: number) => request<{
+        year: number; regular_member_id: number | null;
+        penalty_total: number; evenings_attended: number;
+        total_evenings: number; game_wins: number; beer_rounds: number
+    }>('GET', `/stats/me/${year}`),
 
     // Sync
     sync: (payload: { client_id: string; last_sync?: number; changes: any[] }) =>

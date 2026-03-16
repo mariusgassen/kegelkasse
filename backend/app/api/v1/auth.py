@@ -34,7 +34,7 @@ class UpdateLocaleRequest(BaseModel):
 def _user_dict(u: User) -> dict:
     return {"id": u.id, "email": u.email, "username": u.username, "name": u.name,
             "role": u.role, "club_id": u.club_id, "preferred_locale": u.preferred_locale,
-            "avatar": u.avatar}
+            "avatar": u.avatar, "regular_member_id": u.regular_member_id}
 
 
 @router.post("/login")

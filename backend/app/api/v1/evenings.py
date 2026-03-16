@@ -476,7 +476,7 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
             continue
         db.add(PenaltyLog(
             evening_id=e.id, player_id=p.id, player_name=p.name,
-            penalty_type_name=g.name, icon="🏆",
+            penalty_type_name="Spielstrafe", icon="🏆",
             amount=total_penalty, mode=PenaltyMode.euro,
             game_id=g.id,
             client_timestamp=now_ts, created_by=user.id,

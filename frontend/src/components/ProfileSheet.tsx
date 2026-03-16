@@ -1,8 +1,13 @@
 import {useRef, useState} from 'react'
+import {useQuery} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {Locale, useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
+
+function fe(v: number) {
+    return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
+}
 
 function resizeToBase64(file: File, size = 256): Promise<string> {
     return new Promise(resolve => {
@@ -45,6 +50,14 @@ export function ProfileSheet({open, onClose}: Props) {
     const [saving, setSaving] = useState(false)
     const [avatarLoading, setAvatarLoading] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
+
+    const year = new Date().getFullYear()
+    const {data: myStats} = useQuery({
+        queryKey: ['my-stats', year],
+        queryFn: () => api.getMyStats(year),
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 60 * 5,
+    })
 
     const isFakeEmail = user?.email?.endsWith('@kegelkasse.internal') ?? false
 
@@ -187,6 +200,33 @@ export function ProfileSheet({open, onClose}: Props) {
                             ))}
                         </div>
                     </div>
+
+                    {/* Personal year stats */}
+                    {myStats && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                📊 Meine Statistiken {year}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Strafen</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Abende</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Siege</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">Bierrunden</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
                         {saving ? 'Speichern…' : t('action.save')}

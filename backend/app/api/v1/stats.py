@@ -21,13 +21,14 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
         Evening.date.like(f"{year}%")
     ).all()
 
-    player_stats: dict = defaultdict(lambda: {"name": "", "evenings": 0, "penalty_total": 0.0,
-                                              "penalty_count": 0, "game_wins": 0,
-                                              "beer_rounds": 0, "shot_rounds": 0})
+    player_stats: dict = defaultdict(lambda: {"name": "", "regular_member_id": None, "evenings": 0,
+                                              "penalty_total": 0.0, "penalty_count": 0,
+                                              "game_wins": 0, "beer_rounds": 0, "shot_rounds": 0})
     for e in evenings:
         for p in e.players:
             key = p.regular_member_id or f"guest_{p.name}"
             player_stats[key]["name"] = p.name
+            player_stats[key]["regular_member_id"] = p.regular_member_id
             player_stats[key]["evenings"] += 1
             for l in e.penalty_log:
                 if l.player_id == p.id and not l.is_deleted:
@@ -53,4 +54,44 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
         ),
         "total_beer_rounds": sum(len(e.drink_rounds) for e in evenings),
         "players": sorted(player_stats.values(), key=lambda x: x["penalty_total"], reverse=True)
+    }
+
+
+@router.get("/me/{year}")
+def get_my_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Personal stats for the current user in the given year."""
+    evenings = db.query(Evening).filter(
+        Evening.club_id == user.club_id,
+        Evening.date.like(f"{year}%")
+    ).all()
+
+    mid = user.regular_member_id
+    penalty_total = 0.0
+    evenings_attended = 0
+    game_wins = 0
+    beer_rounds = 0
+
+    for e in evenings:
+        player = next((p for p in e.players if p.regular_member_id == mid), None)
+        if not player:
+            continue
+        evenings_attended += 1
+        for l in e.penalty_log:
+            if l.player_id == player.id and not l.is_deleted and l.mode == PenaltyMode.euro:
+                penalty_total += l.amount
+        for g in e.games:
+            if not g.is_deleted and g.winner_ref == f"p:{player.id}":
+                game_wins += 1
+        for r in e.drink_rounds:
+            if not r.is_deleted and player.id in r.participant_ids and r.drink_type == "beer":
+                beer_rounds += 1
+
+    return {
+        "year": year,
+        "regular_member_id": mid,
+        "penalty_total": penalty_total,
+        "evenings_attended": evenings_attended,
+        "total_evenings": len(evenings),
+        "game_wins": game_wins,
+        "beer_rounds": beer_rounds,
     }
