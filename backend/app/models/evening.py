@@ -58,6 +58,7 @@ class EveningPlayer(Base):
     regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=True)
     name = Column(String, nullable=False)  # denormalized — works for guests too
     team_id = Column(Integer, ForeignKey("team.id"), nullable=True)
+    is_king = Column(Boolean, default=False)
     evening = relationship("Evening", back_populates="players")
     regular_member = relationship("RegularMember")
     team = relationship("Team", back_populates="members")

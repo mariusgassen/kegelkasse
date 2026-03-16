@@ -84,6 +84,9 @@ export function PenaltiesPage() {
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
+    // Filter
+    const [filterPlayer, setFilterPlayer] = useState<number | null>(null)
+
     // Absence penalties
     const [absenceLoading, setAbsenceLoading] = useState(false)
     const [absenceResult, setAbsenceResult] = useState<{avg: number; absent_count: number} | null>(null)
@@ -275,8 +278,27 @@ export function PenaltiesPage() {
         }
     }
 
-    const log = [...evening.penalty_log].reverse()
+    const allLog = [...evening.penalty_log].reverse()
+    const log = filterPlayer !== null
+        ? allLog.filter(l => l.player_id === filterPlayer)
+        : allLog
     const hasAbsenceEntries = evening.penalty_log.some(l => l.player_id === null && l.penalty_type_name === 'Abwesenheit')
+
+    // Build merged timeline (only when no player filter active)
+    type TimelineEvent =
+        | { kind: 'penalty'; entry: typeof log[0]; ts: number }
+        | { kind: 'game_started'; game: typeof evening.games[0]; ts: number }
+        | { kind: 'game_finished'; game: typeof evening.games[0]; ts: number }
+
+    const timeline: TimelineEvent[] = log.map(e => ({kind: 'penalty', entry: e, ts: e.client_timestamp}))
+
+    if (filterPlayer === null) {
+        for (const g of evening.games) {
+            if (g.started_at) timeline.push({kind: 'game_started', game: g, ts: new Date(g.started_at).getTime()})
+            if (g.finished_at) timeline.push({kind: 'game_finished', game: g, ts: new Date(g.finished_at).getTime()})
+        }
+        timeline.sort((a, b) => b.ts - a.ts)
+    }
     const editPenaltyType = penaltyTypes.find(pt => pt.id === editType)
 
     return (
@@ -311,11 +333,53 @@ export function PenaltiesPage() {
                 </div>
             )}
 
+            {/* Player filter chips */}
+            {players.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                    <button
+                        className={`chip ${filterPlayer === null ? 'active' : ''}`}
+                        onClick={() => setFilterPlayer(null)}>
+                        {t('action.all')}
+                    </button>
+                    {players.map(p => (
+                        <button key={p.id}
+                                className={`chip ${filterPlayer === p.id ? 'active' : ''}`}
+                                onClick={() => setFilterPlayer(filterPlayer === p.id ? null : p.id)}>
+                            {p.is_king ? '👑 ' : ''}{p.name}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Log */}
-            {log.length === 0
+            {timeline.length === 0
                 ? <Empty icon="⚠️" text={t('penalty.none')}/>
-                : log.map(entry => {
+                : timeline.map((event, idx) => {
+                    if (event.kind === 'game_started') {
+                        return (
+                            <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
+                                <div className="h-px flex-1 bg-kce-border"/>
+                                <span className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap">
+                                    ▶ {event.game.name} · {fTime(event.ts)}
+                                </span>
+                                <div className="h-px flex-1 bg-kce-border"/>
+                            </div>
+                        )
+                    }
+                    if (event.kind === 'game_finished') {
+                        return (
+                            <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
+                                <div className="h-px flex-1 bg-kce-amber/40"/>
+                                <span className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap">
+                                    🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
+                                </span>
+                                <div className="h-px flex-1 bg-kce-amber/40"/>
+                            </div>
+                        )
+                    }
+                    const entry = event.entry
                     const isAbsence = entry.player_id === null && entry.penalty_type_name === 'Abwesenheit'
+                    const entryGame = entry.game_id ? evening.games.find(g => g.id === entry.game_id) : null
                     const entryPlayer = players.find(p => p.id === entry.player_id)
                     const entryMember = regularMembers.find(m => m.id === entryPlayer?.regular_member_id)
                     const playerTotal = entryMember?.is_guest && guestPenaltyCap != null
@@ -325,12 +389,13 @@ export function PenaltiesPage() {
                         : null
                     const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
                     return (
-                    <div key={entry.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
+                    <div key={`p-${entry.id}`} className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
                         <span className="text-xl flex-shrink-0">{entry.icon}</span>
                         <div className="flex-1 min-w-0">
                             <div className="text-sm font-bold truncate">{entry.player_name}</div>
                             <div className="text-xs text-kce-muted truncate flex items-center gap-1">
                                 {entry.penalty_type_name}
+                                {entryGame && <span className="text-kce-muted">· {entryGame.name}</span>}
                                 {isCapped && <span className="text-kce-amber">· ≤ {fe(guestPenaltyCap!)}</span>}
                             </div>
                         </div>

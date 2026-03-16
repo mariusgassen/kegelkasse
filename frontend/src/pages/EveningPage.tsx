@@ -242,14 +242,18 @@ export function EveningPage() {
                 ? <Empty icon="👤" text={t('player.noPlayers')}/>
                 : players.map(p => {
                     const team = teams.find(t => t.id === p.team_id)
+                    const rm = regularMembers.find(r => r.id === p.regular_member_id)
                     return (
                         <div key={p.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0"
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
                                  style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
-                                {p.name[0].toUpperCase()}
+                                {rm?.avatar
+                                    ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : p.name[0].toUpperCase()
+                                }
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{p.name}</div>
+                                <div className="text-sm font-bold truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
                                 <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
                             </div>
                             {!evening.is_closed && (

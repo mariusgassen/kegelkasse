@@ -14,6 +14,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import type {GameTemplate, PenaltyType} from '@/types.ts'
+import {MembersPage} from './MembersPage'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -23,7 +24,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs'>('settings')
+    const [tab, setTab] = useState<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs' | 'members'>('settings')
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -51,56 +52,70 @@ export function ClubAdminPage() {
 
     const TABS = [
         {id: 'settings', label: t('club.tab.settings')},
+        {id: 'members', label: t('club.tab.members')},
         {id: 'penalties', label: t('club.tab.penalties')},
         {id: 'templates', label: t('club.tab.templates')},
         {id: 'teams', label: t('club.tab.teams')},
         {id: 'invites', label: t('club.tab.invites')},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
-    ] as const
+    ]
 
     return (
-        <div className="page-scroll px-3 py-3 pb-24">
-            <div className="sec-heading">{t('club.title')}</div>
-
-            {/* Tab strip */}
-            <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-                {TABS.map(tb => (
-                    <button key={tb.id} type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                            onClick={() => setTab(tb.id as any)}>{tb.label}</button>
-                ))}
+        <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
+            {/* Header: title + tab strip */}
+            <div className="flex-shrink-0 px-3 pt-3 pb-0">
+                <div className="sec-heading">{t('club.title')}</div>
+                <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
+                    {TABS.map(tb => (
+                        <button key={tb.id} type="button"
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => setTab(tb.id as any)}>{tb.label}</button>
+                    ))}
+                </div>
             </div>
 
-            {tab === 'settings' && (
-                <AdminGuard>
-                    <ClubSettingsTab club={club} onSaved={async () => {
-                        await qc.invalidateQueries({queryKey: ['club']})
-                        showToast(t('club.savedOk'))
-                    }}/>
-                </AdminGuard>
+            {/* Members tab: full-height mounted sub-page */}
+            {tab === 'members' && (
+                <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
+                    <MembersPage/>
+                </div>
             )}
-            {tab === 'penalties' && (
-                <AdminGuard>
-                    <PenaltyTypesTab penaltyTypes={penaltyTypes} onChanged={refetchPT}/>
-                </AdminGuard>
-            )}
-            {tab === 'templates' && (
-                <AdminGuard>
-                    <GameTemplatesTab templates={gameTemplates} onChanged={refetchGT}/>
-                </AdminGuard>
-            )}
-            {tab === 'teams' && (
-                <AdminGuard>
-                    <ClubTeamsTab/>
-                </AdminGuard>
-            )}
-            {tab === 'invites' && (
-                <AdminGuard>
-                    <InvitesTab/>
-                </AdminGuard>
-            )}
-            {tab === 'clubs' && user?.role === 'superadmin' && (
-                <SuperadminClubsTab qc={qc}/>
+
+            {/* All other tabs: scrollable inline content */}
+            {tab !== 'members' && (
+                <div className="page-scroll px-3 pb-24">
+                    {tab === 'settings' && (
+                        <AdminGuard>
+                            <ClubSettingsTab club={club} onSaved={async () => {
+                                await qc.invalidateQueries({queryKey: ['club']})
+                                showToast(t('club.savedOk'))
+                            }}/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'penalties' && (
+                        <AdminGuard>
+                            <PenaltyTypesTab penaltyTypes={penaltyTypes} onChanged={refetchPT}/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'templates' && (
+                        <AdminGuard>
+                            <GameTemplatesTab templates={gameTemplates} onChanged={refetchGT}/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'teams' && (
+                        <AdminGuard>
+                            <ClubTeamsTab/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'invites' && (
+                        <AdminGuard>
+                            <InvitesTab/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'clubs' && user?.role === 'superadmin' && (
+                        <SuperadminClubsTab qc={qc}/>
+                    )}
+                </div>
             )}
         </div>
     )

@@ -35,6 +35,7 @@ export interface RegularMember {
     nickname: string | null
     is_guest: boolean
     is_active: boolean
+    avatar: string | null
 }
 
 export interface PenaltyType {
@@ -68,6 +69,7 @@ export interface EveningPlayer {
     name: string
     regular_member_id: number | null
     team_id: number | null
+    is_king: boolean
 }
 
 export interface Team {
@@ -86,8 +88,11 @@ export interface PenaltyLogEntry {
     mode: 'euro' | 'count'
     unit_amount: number | null
     regular_member_id: number | null
+    game_id: number | null
     client_timestamp: number
 }
+
+export type GameStatus = 'open' | 'running' | 'finished'
 
 export interface Game {
     id: number
@@ -99,8 +104,12 @@ export interface Game {
     winner_name: string | null
     scores: Record<string, number>
     loser_penalty: number
+    per_point_penalty: number
     note: string | null
     sort_order: number
+    status: GameStatus
+    started_at: string | null
+    finished_at: string | null
     client_timestamp: number
 }
 

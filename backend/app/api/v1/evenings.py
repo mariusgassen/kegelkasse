@@ -10,7 +10,7 @@ from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from models.drink import DrinkRound, DrinkType
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
-from models.game import Game, WinnerType
+from models.game import Game, GameStatus, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
 from models.user import User
 
@@ -30,10 +30,11 @@ def serialize_evening(e: Evening) -> dict:
         "id": e.id, "date": e.date, "venue": e.venue, "note": e.note,
         "is_closed": e.is_closed,
         "players": [{"id": p.id, "name": p.name, "regular_member_id": p.regular_member_id,
-                     "team_id": p.team_id} for p in e.players],
+                     "team_id": p.team_id, "is_king": p.is_king} for p in e.players],
         "teams": [{"id": t.id, "name": t.name} for t in e.teams],
         "penalty_log": [{"id": l.id, "player_id": l.player_id, "team_id": l.team_id,
                          "regular_member_id": l.regular_member_id,
+                         "game_id": l.game_id,
                          "player_name": l.player_name, "penalty_type_name": l.penalty_type_name,
                          "icon": l.icon, "amount": l.amount, "mode": l.mode,
                          "unit_amount": l.unit_amount,
@@ -42,8 +43,11 @@ def serialize_evening(e: Evening) -> dict:
         "games": [{"id": g.id, "name": g.name, "is_opener": g.is_opener,
                    "winner_type": g.winner_type, "winner_ref": g.winner_ref,
                    "winner_name": g.winner_name, "scores": g.scores,
-                   "loser_penalty": g.loser_penalty, "note": g.note,
+                   "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "note": g.note,
                    "sort_order": g.sort_order, "template_id": g.template_id,
+                   "status": g.status,
+                   "started_at": g.started_at.isoformat() if g.started_at else None,
+                   "finished_at": g.finished_at.isoformat() if g.finished_at else None,
                    "client_timestamp": g.client_timestamp}
                   for g in e.games if not g.is_deleted],
         "drink_rounds": [{"id": r.id, "drink_type": r.drink_type, "variety": r.variety,
@@ -98,6 +102,14 @@ def update_evening(eid: int, data: EveningUpdate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(e)
     return serialize_evening(e)
+
+
+@router.delete("/{eid}", status_code=204)
+def delete_evening(eid: int, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    e = get_club_evening(eid, user, db)
+    db.delete(e)
+    db.commit()
 
 
 # ── Players ──
@@ -384,10 +396,8 @@ class GameCreate(BaseModel):
     template_id: Optional[int] = None
     is_opener: bool = False
     winner_type: str = "either"
-    winner_ref: Optional[str] = None
-    winner_name: Optional[str] = None
-    scores: dict = {}
     loser_penalty: float = 0
+    per_point_penalty: float = 0
     note: Optional[str] = None
     sort_order: int = 0
     client_timestamp: float
@@ -397,35 +407,117 @@ class GameCreate(BaseModel):
 def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
              user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
-    g = Game(evening_id=e.id, winner_type=WinnerType(data.winner_type), **{
-        k: v for k, v in data.model_dump().items() if k != "winner_type"
-    })
+    g = Game(
+        evening_id=e.id,
+        name=data.name,
+        template_id=data.template_id,
+        is_opener=data.is_opener,
+        winner_type=WinnerType(data.winner_type),
+        loser_penalty=data.loser_penalty,
+        per_point_penalty=data.per_point_penalty,
+        note=data.note,
+        sort_order=data.sort_order,
+        status="open",
+        client_timestamp=data.client_timestamp,
+    )
     db.add(g)
-    db.flush()
-    # Auto-apply loser penalties
-    if data.loser_penalty > 0:
-        losers = [p for p in e.players if
-                  ("p:" + str(p.id) != data.winner_ref) and
-                  (not p.team_id or "t:" + str(p.team_id) != data.winner_ref)]
-        for p in losers:
-            log = PenaltyLog(
-                evening_id=e.id, player_id=p.id, player_name=p.name,
-                penalty_type_name=f"Loser: {data.name}", icon="🏆",
-                amount=data.loser_penalty, mode=PenaltyMode.euro,
-                client_timestamp=data.client_timestamp, created_by=user.id
-            )
-            db.add(log)
     db.commit()
     return {"id": g.id, "name": g.name}
+
+
+@router.post("/{eid}/games/{gid}/start")
+def start_game(eid: int, gid: int, db: Session = Depends(get_db),
+               user: User = Depends(require_club_member)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
+    if not g: raise HTTPException(404)
+    if g.status != "open":
+        raise HTTPException(400, "Game is not in open state")
+    g.status = "running"
+    g.started_at = datetime.now(UTC)
+    db.commit()
+    return {"ok": True}
+
+
+class GameFinish(BaseModel):
+    winner_ref: str   # "p:{player_id}" or "t:{team_id}"
+    winner_name: str
+    scores: dict = {}
+    loser_penalty: Optional[float] = None  # override game default
+
+
+def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, user: User):
+    """Delete existing auto-penalties for this game, then recreate."""
+    db.query(PenaltyLog).filter(
+        PenaltyLog.game_id == g.id,
+        PenaltyLog.is_deleted == False,
+    ).update({"is_deleted": True})
+    db.flush()
+    base_penalty = g.loser_penalty
+    per_point = g.per_point_penalty or 0
+    if base_penalty <= 0 and per_point <= 0:
+        return
+    scores = g.scores or {}
+    winner_score = scores.get(winner_ref, 0) or 0
+    is_team_game = winner_ref.startswith("t:")
+    losers = [p for p in e.players if
+              ("p:" + str(p.id) != winner_ref) and
+              (not p.team_id or "t:" + str(p.team_id) != winner_ref)]
+    now_ts = datetime.now(UTC).timestamp() * 1000
+    for p in losers:
+        if is_team_game and p.team_id:
+            loser_ref = f"t:{p.team_id}"
+        else:
+            loser_ref = f"p:{p.id}"
+        loser_score = scores.get(loser_ref, 0) or 0
+        diff = abs(winner_score - loser_score)
+        total_penalty = base_penalty + diff * per_point
+        if total_penalty <= 0:
+            continue
+        db.add(PenaltyLog(
+            evening_id=e.id, player_id=p.id, player_name=p.name,
+            penalty_type_name=g.name, icon="🏆",
+            amount=total_penalty, mode=PenaltyMode.euro,
+            game_id=g.id,
+            client_timestamp=now_ts, created_by=user.id,
+        ))
+
+
+@router.post("/{eid}/games/{gid}/finish")
+def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_db),
+                user: User = Depends(require_club_member)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
+    if not g: raise HTTPException(404)
+    g.winner_ref = data.winner_ref
+    g.winner_name = data.winner_name
+    g.scores = data.scores
+    if data.loser_penalty is not None:
+        g.loser_penalty = data.loser_penalty
+    if g.status != "finished":
+        g.status = "finished"
+        g.finished_at = datetime.now(UTC)
+    _apply_game_penalties(e, g, data.winner_ref, db, user)
+    # King: opener game with individual winner → set king flag
+    if g.is_opener and data.winner_ref.startswith("p:"):
+        db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
+        db.flush()
+        try:
+            winner_pid = int(data.winner_ref[2:])
+            winner_player = db.query(EveningPlayer).filter(EveningPlayer.id == winner_pid).first()
+            if winner_player:
+                winner_player.is_king = True
+        except (ValueError, IndexError):
+            pass
+    db.commit()
+    return {"ok": True}
 
 
 class GameUpdate(BaseModel):
     name: Optional[str] = None
     is_opener: Optional[bool] = None
-    winner_ref: Optional[str] = None
-    winner_name: Optional[str] = None
-    scores: Optional[dict] = None
     loser_penalty: Optional[float] = None
+    per_point_penalty: Optional[float] = None
     note: Optional[str] = None
 
 
@@ -435,7 +527,13 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g: raise HTTPException(404)
-    for k, v in data.model_dump(exclude_none=True).items(): setattr(g, k, v)
+    changed = data.model_dump(exclude_none=True)
+    penalty_changed = "loser_penalty" in changed or "per_point_penalty" in changed
+    for k, v in changed.items():
+        setattr(g, k, v)
+    # Re-apply loser penalties if game is finished and penalty amount changed
+    if g.status == "finished" and penalty_changed and g.winner_ref:
+        _apply_game_penalties(e, g, g.winner_ref, db, user)
     db.commit()
     return {"ok": True}
 
@@ -446,6 +544,8 @@ def delete_game(eid: int, gid: int, db: Session = Depends(get_db),
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g: raise HTTPException(404)
+    # Soft-delete auto-penalties too
+    db.query(PenaltyLog).filter(PenaltyLog.game_id == gid).update({"is_deleted": True})
     g.is_deleted = True
     db.commit()
     return {"ok": True}

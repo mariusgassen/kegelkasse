@@ -13,9 +13,10 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from models.club import Club, ClubSettings
-from models.evening import RegularMember, ClubTeam
+from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
-from models.penalty import PenaltyType
+from models.payment import MemberPayment
+from models.penalty import PenaltyType, PenaltyLog
 from models.user import User, UserRole
 
 router = APIRouter(prefix="/club", tags=["club"])
@@ -152,17 +153,19 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
 
 # ── Regular members (Stammspieler) — admin write, all read ──
 
-def _member_dict(m: RegularMember) -> dict:
+def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
     return {"id": m.id, "name": m.name, "nickname": m.nickname,
-            "is_guest": m.is_guest, "is_active": m.is_active}
+            "is_guest": m.is_guest, "is_active": m.is_active, "avatar": avatar}
 
 
 @router.get("/regular-members")
 def list_regular_members(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    members = db.query(RegularMember).filter(
-        RegularMember.club_id == user.club_id, RegularMember.is_active == True
-    ).order_by(RegularMember.name).all()
-    return [_member_dict(m) for m in members]
+    rows = (db.query(RegularMember, User.avatar)
+            .outerjoin(User, User.id == RegularMember.user_id)
+            .filter(RegularMember.club_id == user.club_id, RegularMember.is_active == True)
+            .order_by(RegularMember.name)
+            .all())
+    return [_member_dict(m, avatar) for m, avatar in rows]
 
 
 class RegularMemberCreate(BaseModel):
@@ -409,3 +412,149 @@ def delete_club_team(tid: int, db: Session = Depends(get_db),
     team.is_active = False
     db.commit()
     return {"ok": True}
+
+
+# ── Member balances & payments ──
+
+def _penalty_euro(l: PenaltyLog) -> float:
+    if l.mode == "euro":
+        return l.amount
+    if l.unit_amount is not None:
+        return l.amount * l.unit_amount
+    return 0.0
+
+
+@router.get("/member-balances")
+def get_member_balances(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Per-member: total penalties (all evenings), total payments, balance."""
+    members = db.query(RegularMember).filter(
+        RegularMember.club_id == user.club_id,
+        RegularMember.is_active == True,
+        RegularMember.is_guest == False,
+    ).order_by(RegularMember.name).all()
+
+    # Build mapping: regular_member_id → list of evening_player_ids
+    player_rows = (
+        db.query(EveningPlayer.id, EveningPlayer.regular_member_id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
+        .all()
+    )
+    member_player_ids: dict[int, list[int]] = {}
+    for pid, mid in player_rows:
+        member_player_ids.setdefault(mid, []).append(pid)
+
+    # Penalty totals from penalty_log via player_id (non-absence)
+    all_player_ids = [pid for ids in member_player_ids.values() for pid in ids]
+    penalty_rows = (
+        db.query(PenaltyLog)
+        .filter(PenaltyLog.player_id.in_(all_player_ids), PenaltyLog.is_deleted == False)
+        .all()
+    ) if all_player_ids else []
+    penalty_by_player: dict[int, float] = {}
+    for l in penalty_rows:
+        penalty_by_player[l.player_id] = penalty_by_player.get(l.player_id, 0.0) + _penalty_euro(l)
+
+    # Absence penalties (player_id=null, regular_member_id set directly)
+    absence_rows = (
+        db.query(PenaltyLog)
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            PenaltyLog.player_id.is_(None),
+            PenaltyLog.regular_member_id.isnot(None),
+            PenaltyLog.is_deleted == False,
+        )
+        .all()
+    )
+    absence_by_member: dict[int, float] = {}
+    for l in absence_rows:
+        absence_by_member[l.regular_member_id] = absence_by_member.get(l.regular_member_id, 0.0) + _penalty_euro(l)
+
+    # Payments
+    payments = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id).all()
+    payments_by_member: dict[int, float] = {}
+    for p in payments:
+        payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
+
+    result = []
+    for m in members:
+        player_ids = member_player_ids.get(m.id, [])
+        penalty_total = sum(penalty_by_player.get(pid, 0.0) for pid in player_ids)
+        penalty_total += absence_by_member.get(m.id, 0.0)
+        payments_total = payments_by_member.get(m.id, 0.0)
+        result.append({
+            "regular_member_id": m.id,
+            "name": m.name,
+            "nickname": m.nickname,
+            "penalty_total": round(penalty_total, 2),
+            "payments_total": round(payments_total, 2),
+            "balance": round(payments_total - penalty_total, 2),
+        })
+    return result
+
+
+@router.get("/member-payments/{mid}")
+def list_member_payments(mid: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_member)):
+    member = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not member: raise HTTPException(404)
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.regular_member_id == mid, MemberPayment.club_id == user.club_id
+    ).order_by(MemberPayment.created_at.desc()).all()
+    return [{"id": p.id, "amount": p.amount, "note": p.note,
+             "created_at": p.created_at.isoformat() if p.created_at else None} for p in payments]
+
+
+class PaymentCreate(BaseModel):
+    regular_member_id: int
+    amount: float
+    note: Optional[str] = None
+
+
+@router.post("/member-payments", status_code=201)
+def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
+                           user: User = Depends(require_club_admin)):
+    member = db.query(RegularMember).filter(
+        RegularMember.id == data.regular_member_id, RegularMember.club_id == user.club_id
+    ).first()
+    if not member: raise HTTPException(404)
+    payment = MemberPayment(
+        club_id=user.club_id,
+        regular_member_id=data.regular_member_id,
+        amount=data.amount,
+        note=data.note,
+        created_by=user.id,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return {"id": payment.id, "amount": payment.amount, "note": payment.note,
+            "created_at": payment.created_at.isoformat() if payment.created_at else None}
+
+
+@router.delete("/member-payments/{pid}", status_code=204)
+def delete_member_payment(pid: int, db: Session = Depends(get_db),
+                           user: User = Depends(require_club_admin)):
+    p = db.query(MemberPayment).filter(MemberPayment.id == pid, MemberPayment.club_id == user.club_id).first()
+    if not p: raise HTTPException(404)
+    db.delete(p)
+    db.commit()
+
+
+@router.get("/member-payments")
+def list_all_payments(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """All payments for the club, newest first."""
+    payments = (
+        db.query(MemberPayment, RegularMember)
+        .join(RegularMember, RegularMember.id == MemberPayment.regular_member_id)
+        .filter(MemberPayment.club_id == user.club_id)
+        .order_by(MemberPayment.created_at.desc())
+        .all()
+    )
+    return [{
+        "id": p.id, "regular_member_id": p.regular_member_id,
+        "member_name": m.nickname or m.name,
+        "amount": p.amount, "note": p.note,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    } for p, m in payments]

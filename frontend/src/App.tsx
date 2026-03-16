@@ -17,16 +17,13 @@ import {usePage} from './hooks/usePage'
 import {ProfileSheet} from './components/ProfileSheet'
 
 // Lazy-loaded page components to keep initial bundle small
-import {EveningPage} from './pages/EveningPage'
-import {PenaltiesPage} from './pages/PenaltiesPage'
-import {GamesPage} from './pages/GamesPage'
+import {EveningHubPage} from './pages/EveningHubPage'
 import {TreasuryPage} from './pages/TreasuryPage'
-import {MembersPage} from './pages/MembersPage'
 import {HistoryPage} from './pages/HistoryPage'
 import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
 
-type PageId = 'evening' | 'penalties' | 'games' | 'treasury' | 'members' | 'history' | 'stats' | 'club'
+type PageId = 'evening' | 'treasury' | 'history' | 'stats' | 'club'
 
 function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -94,11 +91,8 @@ export function applyClubTheme(club: { settings?: { primary_color?: string | nul
 }
 
 const NAV: { id: PageId; icon: string; labelKey: string }[] = [
-    {id: 'penalties', icon: '⚠️', labelKey: 'nav.penalties'},
     {id: 'evening', icon: '🎳', labelKey: 'nav.evening'},
-    {id: 'games', icon: '🏆', labelKey: 'nav.games'},
     {id: 'treasury', icon: '💰', labelKey: 'nav.treasury'},
-    {id: 'members', icon: '👥', labelKey: 'nav.members'},
     {id: 'history', icon: '📚', labelKey: 'nav.history'},
     {id: 'stats', icon: '📊', labelKey: 'nav.stats'},
     {id: 'club', icon: '⚙️', labelKey: 'nav.club'},
@@ -108,7 +102,7 @@ export default function App() {
     const {user, setUser, setPenaltyTypes, setRegularMembers, setGameTemplates, setGuestPenaltyCap, activeEveningId, setActiveEveningId} = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const [page, setPage] = usePage<PageId>('penalties')
+    const [page, setPage] = usePage<PageId>('evening')
     const [profileOpen, setProfileOpen] = useState(false)
     useActiveEvening()
 
@@ -214,11 +208,8 @@ export default function App() {
             {/* ── Pages (all mounted, toggled via display) ── */}
             <main style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 {([
-                    ['evening', <EveningPage/>],
-                    ['penalties', <PenaltiesPage/>],
-                    ['games', <GamesPage/>],
+                    ['evening', <EveningHubPage/>],
                     ['treasury', <TreasuryPage/>],
-                    ['members', <MembersPage/>],
                     ['history', <HistoryPage/>],
                     ['stats', <StatsPage/>],
                     ['club', <ClubAdminPage/>],

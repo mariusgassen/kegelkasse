@@ -7,6 +7,12 @@ from sqlalchemy.sql import func
 from core.database import Base
 
 
+class GameStatus(str, enum.Enum):
+    open = "open"
+    running = "running"
+    finished = "finished"
+
+
 class WinnerType(str, enum.Enum):
     team = "team"
     individual = "individual"
@@ -45,7 +51,11 @@ class Game(Base):
     winner_name = Column(String, nullable=True)
     scores = Column(JSON, default=dict)  # {"t:1": 42, "p:3": 38}
     loser_penalty = Column(Float, default=0)
+    per_point_penalty = Column(Float, default=0)  # extra penalty per point diff from winner
     note = Column(Text, nullable=True)
+    status = Column(String, default="open", nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, default=False)
     client_timestamp = Column(Float, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

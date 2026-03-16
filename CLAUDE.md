@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Kegelkasse Kegelclub Manager — a full-stack 9-pin bowling club management PWA.
-Manages evenings, games, penalties, member rosters, and treasury with offline-first capabilities and German/English i18n.
+Manages clubs, evenings, games, penalties, member rosters, and treasury with offline-first capabilities and
+German/English i18n.
 
 ## Development Commands
 
@@ -43,35 +44,89 @@ cp .env.example .env
 
 ## Architecture
 
-**Backend:** FastAPI + PostgreSQL + SQLAlchemy ORM + Alembic migrations. Runs inside Docker. API versioned at `/api/v1/`. Serves the React SPA as static files in production (mounts build to `/assets`, fallback to `index.html`).
+**Backend:** FastAPI + PostgreSQL + SQLAlchemy ORM + Alembic migrations. Runs inside Docker. API versioned at
+`/api/v1/`. Serves the React SPA as static files in production (mounts build to `/assets`, fallback to `index.html`).
 
-**Frontend:** React 18 + TypeScript + Vite. State via Zustand (persists `user` and `activeEveningId`). REST API calls with JWT Bearer auth via `frontend/src/api/client.ts`. Real-time updates via 30s polling on the evening page. PWA with service worker + IndexedDB for offline support.
+**Frontend:** React 18 + TypeScript + Vite. State via Zustand (persists `user` and `activeEveningId`). REST API calls
+with JWT Bearer auth via `frontend/src/api/client.ts`. Real-time updates via 30s polling on the evening page. PWA with
+service worker + IndexedDB for offline support.
 
-**Auth flow:** JWT tokens, bcrypt passwords, invite-based registration (one-time tokens). Three roles: `superadmin`, `admin`, `member`.
+**Auth flow:** JWT tokens, bcrypt passwords, invite-based registration (one-time tokens). Three roles: `superadmin`,
+`admin`, `member`.
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `backend/app/main.py` | FastAPI app setup, route registration, CORS, static serving |
-| `backend/app/core/config.py` | Environment settings |
-| `backend/app/core/security.py` | JWT + password hashing |
-| `backend/app/api/deps.py` | Auth dependencies, role checks |
-| `backend/app/api/v1/evenings.py` | Main business logic (50+ endpoints) |
-| `backend/alembic/versions/001_initial_schema.py` | Full DB schema |
-| `frontend/src/App.tsx` | Router, header, nav, boot/auth flow |
-| `frontend/src/store/app.ts` | Zustand store, role helpers |
-| `frontend/src/api/client.ts` | All API calls |
-| `frontend/src/types.ts` | Shared TypeScript interfaces |
-| `frontend/vite.config.ts` | Vite + PWA config, API proxy |
+| File                             | Purpose                                                     |
+|----------------------------------|-------------------------------------------------------------|
+| `backend/app/main.py`            | FastAPI app setup, route registration, CORS, static serving |
+| `backend/app/core/config.py`     | Environment settings                                        |
+| `backend/app/core/security.py`   | JWT + password hashing                                      |
+| `backend/app/api/deps.py`        | Auth dependencies, role checks                              |
+| `backend/app/api/v1/evenings.py` | Main business logic (games, penalties, drinks, players)     |
+| `backend/alembic/versions/`      | Numbered migrations (001–010 done)                          |
+| `frontend/src/App.tsx`           | Router, header, nav, boot/auth flow                         |
+| `frontend/src/store/app.ts`      | Zustand store, role helpers                                 |
+| `frontend/src/api/client.ts`     | All API calls                                               |
+| `frontend/src/types.ts`          | Shared TypeScript interfaces                                |
+| `frontend/src/i18n/de.ts`        | German translations (source of truth for keys)              |
+| `frontend/src/i18n/en.ts`        | English translations (must stay in sync with de.ts)         |
+| `frontend/vite.config.ts`        | Vite + PWA config, API proxy                                |
 
 ## Data Model
 
-- `Club` → `RegularMembers`, `PenaltyTypes`, `GameTemplates`, `Evenings`
+- `Club` → `RegularMembers`, `PenaltyTypes`, `GameTemplates`, `Evenings`, `ClubTeams`
 - `Evening` → `EveningPlayers`, `Teams`, `Games`, `PenaltyLog`, `DrinkRounds`
+- `EveningPlayer.is_king` — set on the Eröffnungsspiel winner (one per evening)
+- `Game.status` — `open` → `running` → `finished`
+- `Game.started_at` / `finished_at` — timestamps for game timing
+- `PenaltyLog.game_id` — FK to Game for auto-created loser penalties
+- `PenaltyLog.regular_member_id` — FK to RegularMember for absence entries
+- `PenaltyLog.unit_amount` — default_amount frozen at log time (retroactive-safe for count mode)
+- `ClubSettings.extra` JSON — stores `bg_color`, `guest_penalty_cap`
 - Soft deletes via `is_deleted` flag on `Game` and `PenaltyLog`
 - `Evening.is_closed` archives to history
 
+## Coding Conventions
+
+- **i18n:** All UI strings via `useT()`. Add keys to `de.ts` first, then `en.ts`. Keys follow `scope.sub.key` naming.
+- **Admin guards:** `require_club_admin` in backend deps, `isAdmin(user)` check or `<AdminGuard>` in frontend.
+- **Migrations:** One file per DB change, numbered sequentially (`NNN_description.py`). Never modify existing
+  migrations.
+- **API client:** All fetch calls in `frontend/src/api/client.ts`. Return types are TypeScript interfaces from
+  `types.ts`.
+- **Sheets:** Bottom-sheet dialogs via `<Sheet open onClose title onSubmit>`. Escape key closes automatically.
+- **Toasts:** Errors via `showToast(message)`.
+- **Store:** Zustand store in `store/app.ts`. Only persists `user` and `activeEveningId`. Other data (penaltyTypes,
+  etc.) is populated at boot and not persisted.
+- **Game loser penalties:** Always created via `finish_game` endpoint (not `add_game`). Identified by
+  `penalty_log.game_id`. On re-edit: old penalties deleted, new ones created.
+
 ## Deployment
 
-Push to Git → Coolify builds Docker Compose. The `docker/entrypoint.sh` auto-runs migrations and admin seed on container start. No manual migration steps needed in production.
+Push to Git → Coolify builds Docker Compose. The `docker/entrypoint.sh` auto-runs migrations and admin seed on container
+start. No manual migration steps needed in production.
+
+## Feature Roadmap
+
+Status: ✅ Done · 🚧 In Progress · ⬜ Planned
+
+| #  | Feature                            | Status | Notes                                                                                                 |
+|----|------------------------------------|--------|-------------------------------------------------------------------------------------------------------|
+| 1  | **Spiele**                         | ✅      | Status-Flow (open→running→finished), König-Flag, Verlierer-Strafen                                    |
+| 2  | **Strafen-Log Anreicherung**       | ✅      | Spiel-Kontext-Label, Spieler-Filter-Chips                                                             |
+| 3  | **Kasse**                          | ✅      | Ranking, Spiele/Getränke, Text-Export (Share/Copy)                                                    |
+| 4  | **Mitglieder-Konten & Abrechnung** | ✅      | member_payment Tabelle, Salden-Endpoint, Zahlungen in MembersPage                                     |
+| 5  | **Historie**                       | ✅      | Detail-Ansicht, Wiedereröffnen, Löschen, Nachtragen-Sheet                                             |
+| 6  | **Eigene Historie / Profil**       | ⬜      | Persönliche Statistiken                                                                               |
+| 7  | **Statistiken & Analyse**          | ⬜      | Charts mit recharts                                                                                   |
+| 8  | **Push Notifications**             | ⬜      | Web Push für Strafen, Abend-Events                                                                    |
+| 9  | **Offline-Sync**                   | ⬜      | IndexedDB-Queue vollständig implementieren                                                            |
+| 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
+| 11 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
+| 12 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
+| 13 | **Präsident**                      | ⬜      | Der Präsident wird auf ein Jahr ausgekegelt und im Verein hinterlegt. Muss nachverfolgbar sien.       |
+| 14 | **Filter**                         | ⬜      | Filter bei listen - Suchfeld das inhalt nach matches in verschiedenen feldern der objecte filtert.    |
+| 15 | **Bonus**                          | ⬜      | Gamification, Ankündigung, Kassenstand                                                                |
+| 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
+| 16 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
+| 17 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |

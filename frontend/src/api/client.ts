@@ -136,6 +136,7 @@ export const api = {
     getEvening: (id: number) => request<Evening>('GET', `/evening/${id}`),
     updateEvening: (id: number, d: { date?: string; venue?: string; note?: string; is_closed?: boolean }) =>
         request<Evening>('PATCH', `/evening/${id}`, d),
+    deleteEvening: (id: number) => request<void>('DELETE', `/evening/${id}`),
 
     // Evening players
     addPlayer: (eid: number, d: { name: string; regular_member_id?: number; team_id?: number }) =>
@@ -181,22 +182,27 @@ export const api = {
         template_id?: number;
         is_opener?: boolean;
         winner_type?: string;
-        winner_ref?: string;
-        winner_name?: string;
-        scores?: Record<string, number>;
         loser_penalty?: number;
+        per_point_penalty?: number;
         note?: string;
         sort_order?: number;
         client_timestamp: number
     }) =>
         request<{ id: number; name: string }>('POST', `/evening/${eid}/games`, d),
+    startGame: (eid: number, gid: number) =>
+        request<void>('POST', `/evening/${eid}/games/${gid}/start`),
+    finishGame: (eid: number, gid: number, d: {
+        winner_ref: string;
+        winner_name: string;
+        scores?: Record<string, number>;
+        loser_penalty?: number;
+    }) =>
+        request<void>('POST', `/evening/${eid}/games/${gid}/finish`, d),
     updateGame: (eid: number, gid: number, d: Partial<{
         name: string;
         is_opener: boolean;
-        winner_ref: string;
-        winner_name: string;
-        scores: Record<string, number>;
         loser_penalty: number;
+        per_point_penalty: number;
         note: string
     }>) =>
         request<void>('PATCH', `/evening/${eid}/games/${gid}`, d),
@@ -213,6 +219,22 @@ export const api = {
     updateDrinkRound: (eid: number, rid: number, d: { variety?: string; participant_ids?: number[] }) =>
         request<void>('PATCH', `/evening/${eid}/drinks/${rid}`, d),
     deleteDrinkRound: (eid: number, rid: number) => request<void>('DELETE', `/evening/${eid}/drinks/${rid}`),
+
+    // Member balances & payments
+    getMemberBalances: () => request<{
+        regular_member_id: number; name: string; nickname: string | null;
+        penalty_total: number; payments_total: number; balance: number
+    }[]>('GET', '/club/member-balances'),
+    getMemberPayments: (mid: number) => request<{
+        id: number; amount: number; note: string | null; created_at: string | null
+    }[]>('GET', `/club/member-payments/${mid}`),
+    getAllPayments: () => request<{
+        id: number; regular_member_id: number; member_name: string;
+        amount: number; note: string | null; created_at: string | null
+    }[]>('GET', '/club/member-payments'),
+    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string }) =>
+        request<{ id: number; amount: number; note: string | null; created_at: string | null }>('POST', '/club/member-payments', d),
+    deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
 
     // Stats
     getYearStats: (year: number) => request<{
