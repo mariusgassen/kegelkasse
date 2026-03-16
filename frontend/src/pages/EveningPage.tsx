@@ -36,6 +36,7 @@ export function EveningPage() {
     const [playerSheet, setPlayerSheet] = useState(false)
     const [guestName, setGuestName] = useState('')
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set())
+    const [addPlayerTeamId, setAddPlayerTeamId] = useState<number | null>(null)
 
     // ── Edit player sheet ──
     const [editPlayerSheet, setEditPlayerSheet] = useState(false)
@@ -159,13 +160,14 @@ export function EveningPage() {
     async function addPlayers() {
         if (selectedMemberIds.size === 0 && !guestName.trim()) return
         const adds: Promise<unknown>[] = []
+        const teamPayload = addPlayerTeamId ? {team_id: addPlayerTeamId} : {}
         for (const id of selectedMemberIds) {
             const rm = regularMembers.find(r => r.id === id)!
-            adds.push(api.addPlayer(evening!.id, {name: rm.nickname || rm.name, regular_member_id: rm.id}))
+            adds.push(api.addPlayer(evening!.id, {name: rm.nickname || rm.name, regular_member_id: rm.id, ...teamPayload}))
         }
         if (guestName.trim()) {
             const saved = await api.createRegularMember({name: guestName.trim(), is_guest: true})
-            adds.push(api.addPlayer(evening!.id, {name: saved.name, regular_member_id: saved.id}))
+            adds.push(api.addPlayer(evening!.id, {name: saved.name, regular_member_id: saved.id, ...teamPayload}))
             api.listRegularMembers().then(d => useAppStore.getState().setRegularMembers(d))
         }
         await Promise.all(adds)
@@ -240,6 +242,7 @@ export function EveningPage() {
                     <button className="btn-secondary btn-xs" onClick={() => {
                         setGuestName('')
                         setSelectedMemberIds(new Set())
+                        setAddPlayerTeamId(teams.length > 0 ? teams[0].id : null)
                         setPlayerSheet(true)
                     }}>+ {t('player.add')}</button>
                 )}
@@ -436,6 +439,29 @@ export function EveningPage() {
             <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')}
                    onSubmit={addPlayers}>
                 <div className="flex flex-col gap-3">
+                    {/* Team selection carousel */}
+                    {teams.length > 0 && (
+                        <div>
+                            <label className="field-label">{t('team.label')}</label>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                                <button
+                                    type="button"
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${addPlayerTeamId === null ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                    onClick={() => setAddPlayerTeamId(null)}>
+                                    {t('player.noTeam')}
+                                </button>
+                                {teams.map(tm => (
+                                    <button
+                                        key={tm.id}
+                                        type="button"
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${addPlayerTeamId === tm.id ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                        onClick={() => setAddPlayerTeamId(tm.id)}>
+                                        {tm.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {(() => {
                         const stamm = regularMembers.filter(rm => !rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
                         const guests = regularMembers.filter(rm => rm.is_guest && !players.some(p => p.regular_member_id === rm.id))

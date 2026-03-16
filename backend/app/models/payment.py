@@ -14,3 +14,14 @@ class MemberPayment(Base):
     note = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ClubExpense(Base):
+    """Club-level expense not tied to any member (e.g. lane rental, bowling trip)."""
+    __tablename__ = "club_expense"
+    id = Column(Integer, primary_key=True, index=True)
+    club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
+    amount = Column(Float, nullable=False)   # positive = money going out of treasury
+    description = Column(String, nullable=False)
+    created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

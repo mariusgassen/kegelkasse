@@ -32,18 +32,36 @@ type MemberPayment = {
     id: number; amount: number; note: string | null; created_at: string | null
 }
 
+type Expense = {
+    id: number; amount: number; description: string; created_at: string | null
+}
+
 export function TreasuryPage() {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const admin = isAdmin(user)
 
-    const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions'>('overview')
+    const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'expenses'>('overview')
 
     // Balances — always loaded (used in overview + accounts tabs)
     const {data: balances = [], refetch: refetchBalances} = useQuery({
         queryKey: ['member-balances'],
         queryFn: api.getMemberBalances,
+        staleTime: 1000 * 30,
+    })
+
+    // Guest balances — always loaded
+    const {data: guestBalances = [], refetch: refetchGuestBalances} = useQuery({
+        queryKey: ['guest-balances'],
+        queryFn: api.getGuestBalances,
+        staleTime: 1000 * 30,
+    })
+
+    // Expenses — loaded for expenses tab + overview
+    const {data: expenses = [], refetch: refetchExpenses} = useQuery({
+        queryKey: ['club-expenses'],
+        queryFn: api.getExpenses,
         staleTime: 1000 * 30,
     })
 
@@ -64,7 +82,7 @@ export function TreasuryPage() {
         staleTime: 1000 * 30,
     })
 
-    // Payment sheet
+    // Payment sheet (for members and guests)
     const [paymentTarget, setPaymentTarget] = useState<{ id: number; name: string } | null>(null)
     const [paymentMode, setPaymentMode] = useState<'deposit' | 'withdrawal'>('deposit')
     const [paymentAmount, setPaymentAmount] = useState('')
@@ -91,6 +109,7 @@ export function TreasuryPage() {
                 note: paymentNote || undefined,
             })
             refetchBalances()
+            refetchGuestBalances()
             qc.invalidateQueries({queryKey: ['member-payments', paymentTarget.id]})
             qc.invalidateQueries({queryKey: ['all-payments']})
             setPaymentTarget(null)
@@ -105,6 +124,7 @@ export function TreasuryPage() {
         try {
             await api.deleteMemberPayment(pid)
             refetchBalances()
+            refetchGuestBalances()
             qc.invalidateQueries({queryKey: ['member-payments', mid]})
             qc.invalidateQueries({queryKey: ['all-payments']})
             refetchAllPayments()
@@ -113,18 +133,59 @@ export function TreasuryPage() {
         }
     }
 
+    // Expense sheet
+    const [expenseSheet, setExpenseSheet] = useState(false)
+    const [expenseAmount, setExpenseAmount] = useState('')
+    const [expenseDesc, setExpenseDesc] = useState('')
+    const [savingExpense, setSavingExpense] = useState(false)
+
+    async function submitExpense() {
+        const abs = parseAmount(expenseAmount)
+        if (!abs || abs <= 0 || !expenseDesc.trim()) return
+        setSavingExpense(true)
+        try {
+            await api.createExpense({amount: abs, description: expenseDesc.trim()})
+            refetchExpenses()
+            setExpenseSheet(false)
+            setExpenseAmount('')
+            setExpenseDesc('')
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSavingExpense(false)
+        }
+    }
+
+    async function deleteExpense(eid: number) {
+        try {
+            await api.deleteExpense(eid)
+            refetchExpenses()
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }
+
     // Derived overview stats
-    const kassenstand = balances.reduce((s, b) => s + b.payments_total, 0)
+    // kassenstand = total deposits (members + guests) minus expenses
+    const memberPaymentsTotal = balances.reduce((s, b) => s + b.payments_total, 0)
+    const guestPaymentsTotal = (guestBalances as Balance[]).reduce((s, b) => s + b.payments_total, 0)
+    const totalExpenses = (expenses as Expense[]).reduce((s, e) => s + e.amount, 0)
+    const kassenstand = memberPaymentsTotal + guestPaymentsTotal - totalExpenses
+
     const totalOutstanding = balances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
     const credits = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
     const exactlySettled = balances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
 
+    const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
+        .sort((a, b) => a.balance - b.balance)
+
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
         {id: 'accounts', label: t('treasury.tab.accounts')},
         {id: 'transactions', label: t('treasury.tab.transactions')},
+        {id: 'expenses', label: t('treasury.tab.expenses')},
     ] as const
 
     return (
@@ -231,6 +292,44 @@ export function TreasuryPage() {
                             + {exactlySettled.length} {t('treasury.settledCount')}
                         </p>
                     )}
+
+                    {/* ── Gäste ausstehend ── */}
+                    {guestDebtors.length > 0 && (
+                        <>
+                            <div className="sec-heading mt-3">{t('treasury.guestsLabel')}</div>
+                            <p className="text-xs text-kce-muted mb-2">{t('treasury.guestsHint')}</p>
+                            {guestDebtors.map(b => (
+                                <div key={b.regular_member_id}
+                                     className="kce-card p-3 mb-2 flex items-center gap-3">
+                                    <span className="text-sm">👤</span>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
+                                        <div className="text-xs text-kce-muted">
+                                            {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                    {admin && (
+                                        <button className="btn-primary btn-sm flex-shrink-0"
+                                                onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                            {t('treasury.payment.settle')}
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </>
+                    )}
+
+                    {/* ── Ausgaben Übersicht ── */}
+                    {totalExpenses > 0 && (
+                        <>
+                            <div className="sec-heading mt-3">{t('treasury.expensesLabel')}</div>
+                            <div className="kce-card p-3 flex items-center justify-between">
+                                <span className="text-sm text-kce-muted">{t('treasury.expensesTotal')}</span>
+                                <span className="font-bold text-orange-400 text-sm">-{fe(totalExpenses)}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -321,6 +420,45 @@ export function TreasuryPage() {
                             )
                         })
                     }
+
+                    {/* Guest accounts section */}
+                    {(guestBalances as Balance[]).length > 0 && (
+                        <>
+                            <div className="sec-heading mt-3">{t('treasury.guestsLabel')}</div>
+                            {(guestBalances as Balance[]).sort((a, b) => a.balance - b.balance).map(b => {
+                                const hasDebt = b.balance < -0.01
+                                return (
+                                    <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0"
+                                             style={{background: hasDebt ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#6b7280,#4b5563)'}}>
+                                            {b.name[0].toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold truncate flex items-center gap-1">
+                                                {b.nickname || b.name}
+                                                <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">{t('player.guestLabel')}</span>
+                                            </div>
+                                            <div className="text-xs text-kce-muted">
+                                                {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            {hasDebt
+                                                ? <div className="font-bold text-sm text-red-400">{fe(b.balance)}</div>
+                                                : <div className="text-sm text-kce-muted">✓</div>
+                                            }
+                                        </div>
+                                        {admin && hasDebt && (
+                                            <button className="btn-primary btn-sm flex-shrink-0"
+                                                    onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                {t('treasury.payment.settle')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </>
+                    )}
                 </div>
             )}
 
@@ -351,6 +489,44 @@ export function TreasuryPage() {
                                 {admin && (
                                     <button className="btn-danger btn-xs flex-shrink-0"
                                             onClick={() => deletePayment(p.id, p.regular_member_id)}>✕</button>
+                                )}
+                            </div>
+                        ))
+                    }
+                </div>
+            )}
+
+            {/* ── Ausgaben ── */}
+            {tab === 'expenses' && (
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <span className="text-xs text-kce-muted">{t('treasury.expensesTotal')}</span>
+                            <div className="font-bold text-orange-400 text-lg">{fe(totalExpenses)}</div>
+                        </div>
+                        {admin && (
+                            <button className="btn-primary btn-sm" onClick={() => {
+                                setExpenseAmount('')
+                                setExpenseDesc('')
+                                setExpenseSheet(true)
+                            }}>
+                                + {t('treasury.expense.add')}
+                            </button>
+                        )}
+                    </div>
+                    {(expenses as Expense[]).length === 0
+                        ? <Empty icon="🧾" text={t('treasury.expense.none')}/>
+                        : (expenses as Expense[]).map(e => (
+                            <div key={e.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                <span className="text-xl flex-shrink-0 text-orange-400">⬇</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold truncate">{e.description}</div>
+                                    <div className="text-xs text-kce-muted">{fDate(e.created_at)}</div>
+                                </div>
+                                <div className="font-bold text-orange-400 text-sm flex-shrink-0">-{fe(e.amount)}</div>
+                                {admin && (
+                                    <button className="btn-danger btn-xs flex-shrink-0"
+                                            onClick={() => deleteExpense(e.id)}>✕</button>
                                 )}
                             </div>
                         ))
@@ -391,6 +567,36 @@ export function TreasuryPage() {
                         <button type="submit" className="btn-primary flex-[2]"
                                 disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
                             ✓ {t('treasury.payment.record')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* Expense sheet */}
+            <Sheet open={expenseSheet} onClose={() => setExpenseSheet(false)}
+                   title={`🧾 ${t('treasury.expense.add')}`} onSubmit={submitExpense}>
+                <div className="flex flex-col gap-3">
+                    <div>
+                        <label className="field-label">{t('treasury.expense.description')}</label>
+                        <input className="kce-input" value={expenseDesc}
+                               onChange={e => setExpenseDesc(e.target.value)}
+                               placeholder={t('treasury.expense.descPlaceholder')} autoFocus/>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
+                                   value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)}
+                                   placeholder="0,00"/>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setExpenseSheet(false)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={savingExpense || !expenseAmount || parseAmount(expenseAmount) <= 0 || !expenseDesc.trim()}>
+                            ✓ {t('action.save')}
                         </button>
                     </div>
                 </div>

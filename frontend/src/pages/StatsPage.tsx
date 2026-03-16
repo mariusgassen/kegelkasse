@@ -221,80 +221,8 @@ export function StatsPage() {
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">{t('stats.title')}</div>
 
-            {/* ── Evening KPIs ── */}
-            <div className="sec-heading text-sm">{t('stats.evening')}</div>
-            {!evening || !eveningStats ? (
-                <Empty icon="📊" text={t('stats.noData')}/>
-            ) : (
-                <>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                        <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
-                        <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
-                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
-                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
-                    </div>
-
-                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
-                    {eveningStats.hallOfFame.map((h, i) => (
-                        <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <span className="text-2xl">{h.icon}</span>
-                            <div className="flex-1">
-                                <div className="text-xs font-bold text-kce-muted">{h.label}</div>
-                                <div className="text-sm font-bold">{h.name}</div>
-                            </div>
-                            <div className="text-kce-amber font-bold text-sm">{h.value}</div>
-                        </div>
-                    ))}
-
-                    {/* ── Timeline charts ── */}
-                    <EveningTimeline evening={evening}/>
-
-                    {/* ── Player cards ── */}
-                    <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
-                    <div className="grid grid-cols-2 gap-2">
-                        {evening.players.map(p => {
-                            const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
-                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
-                            const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
-                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
-                            return (
-                                <div key={p.id} className="kce-card p-3">
-                                    <div
-                                        className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                        style={{
-                                            background: 'linear-gradient(135deg,#c4701a,#e8a020)',
-                                            margin: '0 auto'
-                                        }}>
-                                        {rm?.avatar
-                                            ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                                            : p.name[0].toUpperCase()
-                                        }
-                                    </div>
-                                    <div
-                                        className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
-                                    <div className="flex justify-around text-center">
-                                        <div>
-                                            <div className="text-kce-amber font-bold text-sm">{wins}</div>
-                                            <div className="text-[9px] text-kce-muted">Siege</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                            <div className="text-[9px] text-kce-muted">Strafen</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
-                                            <div className="text-[9px] text-kce-muted">Bier</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </>
-            )}
-
             {/* ── Year stats ── */}
-            <div className="sec-heading text-sm mt-4 flex items-center justify-between">
+            <div className="sec-heading text-sm flex items-center justify-between">
                 <span>{t('stats.year')}</span>
                 <div className="flex gap-1">
                     {[currentYear - 1, currentYear].map(y => (
@@ -307,7 +235,7 @@ export function StatsPage() {
                 </div>
             </div>
 
-            {!yearStats ? (
+            {!yearStats || yearStats.evening_count === 0 ? (
                 <Empty icon="📅" text={`${t('stats.noYearData')} ${year}`}/>
             ) : (
                 <>
@@ -335,7 +263,7 @@ export function StatsPage() {
                                             {isMe && <span className="text-[9px] text-kce-amber font-bold">ICH</span>}
                                         </div>
                                         <div className="text-[10px] text-kce-muted">
-                                            {p.evenings} Abende · {p.game_wins} Siege · 🍺{p.beer_rounds}
+                                            {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
                                         </div>
                                     </div>
                                     <div
@@ -364,44 +292,70 @@ export function StatsPage() {
                 </>
             )}
 
-            {/* Player stats cards */}
-            {evening && evening.players.length > 0 && (
+            {/* ── Evening KPIs (only when active evening exists) ── */}
+            {evening && eveningStats && (
                 <>
-                    <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
-                    <div className="grid grid-cols-2 gap-2">
-                        {evening.players.map(p => {
-                            const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
-                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
-                            const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
-                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
-                            return (
-                                <div key={p.id} className="kce-card p-3">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
-                                        {rm?.avatar
-                                            ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                                            : p.name[0].toUpperCase()
-                                        }
-                                    </div>
-                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
-                                    <div className="flex justify-around text-center">
-                                        <div>
-                                            <div className="text-kce-amber font-bold text-sm">{wins}</div>
-                                            <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                            <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
-                                            <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
+                    <div className="sec-heading text-sm mt-4">{t('stats.evening')}</div>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                        <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
+                        <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
+                        <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
+                        <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
                     </div>
+
+                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
+                    {eveningStats.hallOfFame.map((h, i) => (
+                        <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
+                            <span className="text-2xl">{h.icon}</span>
+                            <div className="flex-1">
+                                <div className="text-xs font-bold text-kce-muted">{h.label}</div>
+                                <div className="text-sm font-bold">{h.name}</div>
+                            </div>
+                            <div className="text-kce-amber font-bold text-sm">{h.value}</div>
+                        </div>
+                    ))}
+
+                    <EveningTimeline evening={evening}/>
+
+                    {evening.players.length > 0 && (
+                        <>
+                            <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {evening.players.map(p => {
+                                    const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
+                                    const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+                                    const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
+                                    const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
+                                    return (
+                                        <div key={p.id} className="kce-card p-3">
+                                            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
+                                                 style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                                {rm?.avatar
+                                                    ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                                    : p.name[0].toUpperCase()
+                                                }
+                                            </div>
+                                            <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                            <div className="flex justify-around text-center">
+                                                <div>
+                                                    <div className="text-kce-amber font-bold text-sm">{wins}</div>
+                                                    <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
+                                                    <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
+                                                    <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </>
+                    )}
                 </>
             )}
         </div>

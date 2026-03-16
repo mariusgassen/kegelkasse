@@ -16,7 +16,7 @@ from core.push import push_to_regular_member
 from models.club import Club, ClubSettings
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
-from models.payment import MemberPayment
+from models.payment import MemberPayment, ClubExpense
 from models.penalty import PenaltyType, PenaltyLog
 from models.user import User, UserRole
 
@@ -567,3 +567,136 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
         "amount": p.amount, "note": p.note,
         "created_at": p.created_at.isoformat() if p.created_at else None,
     } for p, m in payments]
+
+
+# ── Guest balances ──
+
+@router.get("/guest-balances")
+def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Per-guest: total penalties capped per evening, total payments, balance."""
+    club = db.query(Club).filter(Club.id == user.club_id).first()
+    s = club.settings if club else None
+    guest_penalty_cap: float | None = (s.extra or {}).get("guest_penalty_cap") if s else None
+
+    guests = db.query(RegularMember).filter(
+        RegularMember.club_id == user.club_id,
+        RegularMember.is_active == True,
+        RegularMember.is_guest == True,
+    ).order_by(RegularMember.name).all()
+
+    if not guests:
+        return []
+
+    # evening_player_id → (regular_member_id, evening_id)
+    player_rows = (
+        db.query(EveningPlayer.id, EveningPlayer.regular_member_id, EveningPlayer.evening_id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            EveningPlayer.regular_member_id.in_([g.id for g in guests]),
+        )
+        .all()
+    )
+
+    # Maps: player_id → (member_id, evening_id)
+    player_info: dict[int, tuple[int, int]] = {pid: (mid, eid) for pid, mid, eid in player_rows}
+    all_player_ids = list(player_info.keys())
+
+    # Penalty per player
+    penalty_rows = (
+        db.query(PenaltyLog)
+        .filter(PenaltyLog.player_id.in_(all_player_ids), PenaltyLog.is_deleted == False)
+        .all()
+    ) if all_player_ids else []
+
+    # Accumulate penalties per (member_id, evening_id)
+    penalty_per_evening: dict[tuple[int, int], float] = {}
+    for l in penalty_rows:
+        mid, eid = player_info[l.player_id]
+        key = (mid, eid)
+        penalty_per_evening[key] = penalty_per_evening.get(key, 0.0) + _penalty_euro(l)
+
+    # Apply per-evening cap and sum per member
+    penalty_by_member: dict[int, float] = {}
+    for (mid, _eid), total in penalty_per_evening.items():
+        capped = min(total, guest_penalty_cap) if guest_penalty_cap is not None else total
+        penalty_by_member[mid] = penalty_by_member.get(mid, 0.0) + capped
+
+    # Payments (guests can also have payments recorded)
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.club_id == user.club_id,
+        MemberPayment.regular_member_id.in_([g.id for g in guests]),
+    ).all()
+    payments_by_member: dict[int, float] = {}
+    for p in payments:
+        payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
+
+    result = []
+    for g in guests:
+        penalty_total = round(penalty_by_member.get(g.id, 0.0), 2)
+        payments_total = round(payments_by_member.get(g.id, 0.0), 2)
+        if penalty_total == 0.0 and payments_total == 0.0:
+            continue  # skip guests with no activity
+        result.append({
+            "regular_member_id": g.id,
+            "name": g.name,
+            "nickname": g.nickname,
+            "penalty_total": penalty_total,
+            "payments_total": payments_total,
+            "balance": round(payments_total - penalty_total, 2),
+        })
+    return result
+
+
+# ── Club expenses ──
+
+class ExpenseCreate(BaseModel):
+    amount: float
+    description: str
+
+
+@router.get("/expenses")
+def list_expenses(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """All club expenses, newest first."""
+    expenses = (
+        db.query(ClubExpense)
+        .filter(ClubExpense.club_id == user.club_id)
+        .order_by(ClubExpense.created_at.desc())
+        .all()
+    )
+    return [{
+        "id": e.id, "amount": e.amount, "description": e.description,
+        "created_at": e.created_at.isoformat() if e.created_at else None,
+    } for e in expenses]
+
+
+@router.post("/expenses", status_code=201)
+def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    if data.amount <= 0:
+        raise HTTPException(400, "Betrag muss positiv sein")
+    expense = ClubExpense(
+        club_id=user.club_id,
+        amount=data.amount,
+        description=data.description,
+        created_by=user.id,
+    )
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
+    return {
+        "id": expense.id, "amount": expense.amount, "description": expense.description,
+        "created_at": expense.created_at.isoformat() if expense.created_at else None,
+    }
+
+
+@router.delete("/expenses/{eid}", status_code=204)
+def delete_expense(eid: int, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    expense = db.query(ClubExpense).filter(
+        ClubExpense.id == eid, ClubExpense.club_id == user.club_id
+    ).first()
+    if not expense:
+        raise HTTPException(404)
+    db.delete(expense)
+    db.commit()
