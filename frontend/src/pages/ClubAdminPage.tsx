@@ -134,6 +134,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
     const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
+    const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
 
     useEffect(() => {
         if (!club) return
@@ -143,6 +144,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setColor2(club.settings?.secondary_color || '#6b7c5a')
         setBgColor(club.settings?.bg_color || '#1a1410')
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
+        setPaypalMe(club.settings?.paypal_me || '')
     }, [club])
 
     return (
@@ -194,6 +196,16 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.penalty.guestCapHint')}</p>
                 </div>
+                <div className="mb-3">
+                    <label className="field-label">{t('club.paypalMe')}</label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-kce-muted text-xs flex-shrink-0">paypal.me/</span>
+                        <input className="kce-input flex-1" type="text"
+                               value={paypalMe} placeholder={t('club.paypalMePlaceholder')}
+                               onChange={e => setPaypalMe(e.target.value.replace(/^https?:\/\/paypal\.me\//i, '').trim())}/>
+                    </div>
+                    <p className="text-xs text-kce-muted mt-1">{t('club.paypalMeHint')}</p>
+                </div>
                 <button className="btn-primary w-full" onClick={async () => {
                     const cap = guestCap.trim() ? parseAmount(guestCap) : null
                     await api.updateClubSettings({
@@ -202,7 +214,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         primary_color: color1,
                         secondary_color: color2,
                         bg_color: bgColor,
-                        guest_penalty_cap: cap
+                        guest_penalty_cap: cap,
+                        paypal_me: paypalMe.trim() || null
                     })
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     setGuestPenaltyCap(cap)

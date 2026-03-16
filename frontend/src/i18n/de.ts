@@ -356,6 +356,22 @@ export const de = {
     "profile.docs": "📖 Dokumentation",
     "profile.deleteAccount": "Konto löschen",
     "profile.deleteConfirm": "Konto wirklich löschen? Statistiken bleiben erhalten.",
+    "profile.myBalance": "💳 Mein Konto",
+    "profile.balance": "Saldo",
+    "profile.payNow": "Jetzt per PayPal überweisen",
+    "profile.reportPayment": "Zahlung gemeldet ✓",
+    "profile.paymentRequests": "Meine Zahlungsanfragen",
+    "profile.noPaymentRequests": "Noch keine Anfragen.",
+    "paymentRequest.pending": "Ausstehend",
+    "paymentRequest.confirmed": "Bestätigt",
+    "paymentRequest.rejected": "Abgelehnt",
+    "paymentRequest.confirm": "Bestätigen",
+    "paymentRequest.reject": "Ablehnen",
+    "paymentRequest.pendingTitle": "⏳ Zahlungsanfragen",
+    "paymentRequest.none": "Keine offenen Anfragen.",
+    "club.paypalMe": "PayPal.me Handle",
+    "club.paypalMePlaceholder": "z.B. meinverein",
+    "club.paypalMeHint": "Mitglieder können dann direkt aus der App per PayPal überweisen.",
 } as const
 
 export type TranslationKey = keyof typeof de

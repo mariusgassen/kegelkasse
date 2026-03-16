@@ -142,6 +142,31 @@ export function TreasuryPage() {
         }
     }
 
+    // Payment requests (admin only)
+    const {data: paymentRequests = [], refetch: refetchPaymentRequests} = useQuery({
+        queryKey: ['payment-requests'],
+        queryFn: api.getPaymentRequests,
+        enabled: admin,
+        staleTime: 1000 * 30,
+    })
+
+    async function confirmRequest(rid: number, mid: number) {
+        try {
+            await api.confirmPaymentRequest(rid)
+            refetchPaymentRequests()
+            refetchBalances()
+            qc.invalidateQueries({queryKey: ['member-payments', mid]})
+            qc.invalidateQueries({queryKey: ['all-payments']})
+        } catch (e: unknown) { toastError(e) }
+    }
+
+    async function rejectRequest(rid: number) {
+        try {
+            await api.rejectPaymentRequest(rid)
+            refetchPaymentRequests()
+        } catch (e: unknown) { toastError(e) }
+    }
+
     // Expense operations
     async function deleteExpense(eid: number) {
         try {
@@ -248,9 +273,10 @@ export function TreasuryPage() {
         )
         : mergedBookings
 
+    const pendingRequestCount = admin ? paymentRequests.length : 0
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
-        {id: 'accounts', label: t('treasury.tab.accounts')},
+        {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : '')},
         {id: 'bookings', label: t('treasury.tab.bookings')},
     ] as const
 
@@ -405,6 +431,39 @@ export function TreasuryPage() {
             {/* ── Konten ── */}
             {tab === 'accounts' && (
                 <div>
+                    {/* Pending payment requests (admin only) */}
+                    {admin && paymentRequests.length > 0 && (
+                        <div className="mb-4">
+                            <div className="sec-heading">{t('paymentRequest.pendingTitle')}</div>
+                            {paymentRequests.map(r => (
+                                <div key={r.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold truncate">{r.member_name}</div>
+                                        <div className="text-xs text-kce-muted">
+                                            {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'}) : ''}
+                                            {r.note ? ` · ${r.note}` : ''}
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-kce-amber flex-shrink-0">{fe(r.amount)}</span>
+                                    <button
+                                        className="btn-primary btn-sm flex-shrink-0 text-xs px-2 py-1"
+                                        onClick={() => confirmRequest(r.id, r.regular_member_id)}>
+                                        {t('paymentRequest.confirm')}
+                                    </button>
+                                    <button
+                                        className="btn-secondary btn-sm flex-shrink-0 text-xs px-2 py-1"
+                                        onClick={() => rejectRequest(r.id)}>
+                                        {t('paymentRequest.reject')}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {admin && paymentRequests.length === 0 && (
+                        <div className="text-xs text-kce-muted text-center py-2 mb-3">
+                            {t('paymentRequest.none')}
+                        </div>
+                    )}
                     <input
                         className="kce-input mb-3"
                         value={accountSearch}

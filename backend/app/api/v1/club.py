@@ -16,7 +16,7 @@ from core.push import push_to_regular_member
 from models.club import Club, ClubSettings
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
-from models.payment import MemberPayment, ClubExpense
+from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog
 from models.user import User, UserRole
 
@@ -39,6 +39,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
             "secondary_color": s.secondary_color if s else "#6b7c5a",
             "bg_color": (s.extra or {}).get("bg_color") if s else None,
             "guest_penalty_cap": (s.extra or {}).get("guest_penalty_cap") if s else None,
+            "paypal_me": (s.extra or {}).get("paypal_me") if s else None,
         } if s else {}
     }
 
@@ -49,11 +50,12 @@ class ClubSettingsUpdate(BaseModel):
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
+    paypal_me: Optional[str] = None
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me"}
 
 
 @router.patch("/settings")
@@ -700,3 +702,178 @@ def delete_expense(eid: int, db: Session = Depends(get_db),
         raise HTTPException(404)
     db.delete(expense)
     db.commit()
+
+
+# ── My balance (own member) ──
+
+@router.get("/my-balance")
+def get_my_balance(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Return the current user's own balance (debt or credit)."""
+    if not user.regular_member_id:
+        return {"balance": None, "penalty_total": None, "payments_total": None}
+
+    # Player IDs for this member
+    player_rows = (
+        db.query(EveningPlayer.id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == user.regular_member_id)
+        .all()
+    )
+    player_ids = [r[0] for r in player_rows]
+
+    # Penalties via player_id
+    penalty_total = 0.0
+    if player_ids:
+        for l in db.query(PenaltyLog).filter(
+            PenaltyLog.player_id.in_(player_ids), PenaltyLog.is_deleted == False
+        ).all():
+            penalty_total += _penalty_euro(l)
+
+    # Absence penalties
+    for l in db.query(PenaltyLog).join(Evening, Evening.id == PenaltyLog.evening_id).filter(
+        Evening.club_id == user.club_id,
+        PenaltyLog.player_id.is_(None),
+        PenaltyLog.regular_member_id == user.regular_member_id,
+        PenaltyLog.is_deleted == False,
+    ).all():
+        penalty_total += _penalty_euro(l)
+
+    # Payments
+    payments_total = sum(
+        p.amount for p in db.query(MemberPayment).filter(
+            MemberPayment.club_id == user.club_id,
+            MemberPayment.regular_member_id == user.regular_member_id,
+        ).all()
+    )
+
+    return {
+        "regular_member_id": user.regular_member_id,
+        "penalty_total": round(penalty_total, 2),
+        "payments_total": round(payments_total, 2),
+        "balance": round(payments_total - penalty_total, 2),
+    }
+
+
+# ── Payment requests ──
+
+def _fmt_request(r: PaymentRequest, member_name: str) -> dict:
+    return {
+        "id": r.id,
+        "regular_member_id": r.regular_member_id,
+        "member_name": member_name,
+        "amount": r.amount,
+        "note": r.note,
+        "status": r.status.value,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "resolved_at": r.resolved_at.isoformat() if r.resolved_at else None,
+    }
+
+
+@router.get("/payment-requests")
+def list_payment_requests(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: all pending payment requests."""
+    rows = (
+        db.query(PaymentRequest, RegularMember)
+        .join(RegularMember, RegularMember.id == PaymentRequest.regular_member_id)
+        .filter(PaymentRequest.club_id == user.club_id,
+                PaymentRequest.status == PaymentRequestStatus.pending)
+        .order_by(PaymentRequest.created_at.desc())
+        .all()
+    )
+    return [_fmt_request(r, m.nickname or m.name) for r, m in rows]
+
+
+@router.get("/payment-requests/my")
+def list_my_payment_requests(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Current user: own payment requests (all statuses), newest first."""
+    if not user.regular_member_id:
+        return []
+    requests = (
+        db.query(PaymentRequest)
+        .filter(PaymentRequest.club_id == user.club_id,
+                PaymentRequest.regular_member_id == user.regular_member_id)
+        .order_by(PaymentRequest.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    name = user.name
+    return [_fmt_request(r, name) for r in requests]
+
+
+class PaymentRequestCreate(BaseModel):
+    amount: float
+    note: Optional[str] = None
+
+
+@router.post("/payment-requests", status_code=201)
+def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get_db),
+                            user: User = Depends(require_club_member)):
+    """Member: signal that a PayPal transfer has been made."""
+    if not user.regular_member_id:
+        raise HTTPException(400, "Kein Roster-Eintrag verknüpft")
+    if data.amount <= 0:
+        raise HTTPException(400, "Betrag muss positiv sein")
+    req = PaymentRequest(
+        club_id=user.club_id,
+        regular_member_id=user.regular_member_id,
+        amount=round(data.amount, 2),
+        note=data.note,
+        status=PaymentRequestStatus.pending,
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return _fmt_request(req, user.name)
+
+
+@router.patch("/payment-requests/{rid}/confirm", status_code=200)
+def confirm_payment_request(rid: int, db: Session = Depends(get_db),
+                             user: User = Depends(require_club_admin)):
+    """Admin: confirm request → creates a MemberPayment and marks request confirmed."""
+    req = db.query(PaymentRequest).filter(
+        PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
+    ).first()
+    if not req:
+        raise HTTPException(404)
+    if req.status != PaymentRequestStatus.pending:
+        raise HTTPException(400, "Anfrage bereits bearbeitet")
+    payment = MemberPayment(
+        club_id=user.club_id,
+        regular_member_id=req.regular_member_id,
+        amount=req.amount,
+        note=req.note or "PayPal-Überweisung",
+        created_by=user.id,
+    )
+    db.add(payment)
+    req.status = PaymentRequestStatus.confirmed
+    req.resolved_at = datetime.now(timezone.utc)
+    req.resolved_by = user.id
+    db.commit()
+    db.refresh(req)
+    fee = f"{req.amount:.2f}".replace('.', ',')
+    push_to_regular_member(db, req.regular_member_id, "✅ Zahlung bestätigt",
+                           f"{fee}€ wurden in dein Konto eingetragen.")
+    member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
+    return _fmt_request(req, (member.nickname or member.name) if member else "")
+
+
+@router.patch("/payment-requests/{rid}/reject", status_code=200)
+def reject_payment_request(rid: int, db: Session = Depends(get_db),
+                            user: User = Depends(require_club_admin)):
+    """Admin: reject a payment request."""
+    req = db.query(PaymentRequest).filter(
+        PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
+    ).first()
+    if not req:
+        raise HTTPException(404)
+    if req.status != PaymentRequestStatus.pending:
+        raise HTTPException(400, "Anfrage bereits bearbeitet")
+    req.status = PaymentRequestStatus.rejected
+    req.resolved_at = datetime.now(timezone.utc)
+    req.resolved_by = user.id
+    db.commit()
+    db.refresh(req)
+    push_to_regular_member(db, req.regular_member_id, "❌ Zahlung abgelehnt",
+                           f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.")
+    member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
+    return _fmt_request(req, (member.nickname or member.name) if member else "")

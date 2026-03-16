@@ -12,7 +12,8 @@ import {
     PenaltyType,
     RegularMember,
     Team,
-    User
+    User,
+    PaymentRequest
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -106,7 +107,8 @@ export const api = {
     getClub: () => request<Club>('GET', '/club/'),
     updateClubSettings: (d: Partial<ClubSettings> & {
         name?: string;
-        guest_penalty_cap?: number | null
+        guest_penalty_cap?: number | null;
+        paypal_me?: string | null
     }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{
@@ -327,6 +329,24 @@ export const api = {
     createExpense: (d: { amount: number; description: string }) =>
         request<{ id: number; amount: number; description: string; created_at: string | null }>('POST', '/club/expenses', d),
     deleteExpense: (eid: number) => request<void>('DELETE', `/club/expenses/${eid}`),
+
+    // My balance
+    getMyBalance: () => request<{
+        regular_member_id: number | null;
+        penalty_total: number | null;
+        payments_total: number | null;
+        balance: number | null
+    }>('GET', '/club/my-balance'),
+
+    // Payment requests
+    getPaymentRequests: () => request<PaymentRequest[]>('GET', '/club/payment-requests'),
+    getMyPaymentRequests: () => request<PaymentRequest[]>('GET', '/club/payment-requests/my'),
+    createPaymentRequest: (d: { amount: number; note?: string }) =>
+        request<PaymentRequest>('POST', '/club/payment-requests', d),
+    confirmPaymentRequest: (rid: number) =>
+        request<PaymentRequest>('PATCH', `/club/payment-requests/${rid}/confirm`),
+    rejectPaymentRequest: (rid: number) =>
+        request<PaymentRequest>('PATCH', `/club/payment-requests/${rid}/reject`),
 
     // Stats
     getYearStats: (year: number) => request<{
