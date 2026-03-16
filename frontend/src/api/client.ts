@@ -237,6 +237,7 @@ export const api = {
     updateGame: (eid: number, gid: number, d: Partial<{
         name: string;
         is_opener: boolean;
+        winner_type: string;
         loser_penalty: number;
         per_point_penalty: number;
         note: string

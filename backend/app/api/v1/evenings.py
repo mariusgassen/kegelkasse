@@ -534,6 +534,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
 class GameUpdate(BaseModel):
     name: Optional[str] = None
     is_opener: Optional[bool] = None
+    winner_type: Optional[str] = None
     loser_penalty: Optional[float] = None
     per_point_penalty: Optional[float] = None
     note: Optional[str] = None

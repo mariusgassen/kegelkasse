@@ -6,10 +6,195 @@ import {api} from '../api/client'
 import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
+import type {Evening} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
+
+function feShort(v: number) {
+    if (v === 0) return '0'
+    return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 0, maximumFractionDigits: 2})
+}
+
+const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#f97316', '#14b8a6', '#f43f5e']
+
+// ── Cumulative chart ────────────────────────────────────────────────────────
+
+type ChartSeries = {id: number; name: string; color: string; events: {ts: number; delta: number}[]}
+
+const PAD = {top: 12, right: 12, bottom: 22, left: 38}
+const VW = 400, VH = 140
+const IW = VW - PAD.left - PAD.right
+const IH = VH - PAD.top - PAD.bottom
+
+function CumulativeChart({series, yFormat, title}: {
+    series: ChartSeries[]
+    yFormat: (v: number) => string
+    title: string
+}) {
+    const allTs = series.flatMap(s => s.events.map(e => e.ts))
+    const hasData = allTs.length > 0
+    const tMin = hasData ? Math.min(...allTs) : 0
+    const tMax = hasData ? Math.max(...allTs) : 1
+    const tSpan = Math.max(tMax - tMin, 60_000) // at least 1 minute span
+
+    const maxVal = Math.max(
+        0.01,
+        ...series.map(s => s.events.reduce((sum, e) => sum + e.delta, 0))
+    )
+
+    const xS = (t: number) => PAD.left + ((t - tMin) / tSpan) * IW
+    const yS = (v: number) => PAD.top + IH - (v / maxVal) * IH
+
+    function buildPath(events: {ts: number; delta: number}[]) {
+        const sorted = [...events].sort((a, b) => a.ts - b.ts)
+        let cum = 0
+        let d = `M ${xS(tMin)},${yS(0)}`
+        for (const e of sorted) {
+            d += ` H ${xS(e.ts)} V ${yS(cum + e.delta)}`
+            cum += e.delta
+        }
+        d += ` H ${xS(tMin + tSpan)}`
+        return d
+    }
+
+    const yTicks = [0, 0.5, 1].map(f => ({v: f * maxVal, y: yS(f * maxVal)}))
+    const fTime = (ms: number) =>
+        new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
+    const xTicks = hasData
+        ? [tMin, tMin + tSpan / 2, tMin + tSpan].map(t => ({label: fTime(t), x: xS(t)}))
+        : []
+
+    return (
+        <div className="mb-1">
+            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">{title}</div>
+            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{overflow: 'visible', display: 'block'}}>
+                {/* Grid */}
+                {yTicks.filter(t => t.v > 0).map((tick, i) => (
+                    <line key={i} x1={PAD.left} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
+                          stroke="var(--kce-border)" strokeWidth="0.8" strokeDasharray="3,3"/>
+                ))}
+                {/* Y labels */}
+                {yTicks.map((tick, i) => (
+                    <text key={i} x={PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
+                          fontSize="9" fill="var(--kce-muted)">{yFormat(tick.v)}</text>
+                ))}
+                {/* X labels */}
+                {xTicks.map((tick, i) => (
+                    <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
+                          fontSize="9" fill="var(--kce-muted)">{tick.label}</text>
+                ))}
+                {/* Series */}
+                {series.map(s => (
+                    <path key={s.id} d={buildPath(s.events)}
+                          fill="none" stroke={s.color} strokeWidth="2"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          opacity={s.events.length > 0 ? 1 : 0.15}/>
+                ))}
+                {/* Dots */}
+                {series.map(s => {
+                    let cum = 0
+                    return [...s.events].sort((a, b) => a.ts - b.ts).map((e, i) => {
+                        cum += e.delta
+                        return <circle key={i} cx={xS(e.ts)} cy={yS(cum)} r="2.5"
+                                       fill={s.color} stroke="var(--kce-bg)" strokeWidth="1"/>
+                    })
+                })}
+                {/* Axes */}
+                <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + IH}
+                      stroke="var(--kce-border)" strokeWidth="1"/>
+                <line x1={PAD.left} y1={PAD.top + IH} x2={VW - PAD.right} y2={PAD.top + IH}
+                      stroke="var(--kce-border)" strokeWidth="1"/>
+            </svg>
+        </div>
+    )
+}
+
+// ── Evening timeline section ────────────────────────────────────────────────
+
+function EveningTimeline({evening}: {evening: Evening}) {
+    const allIds = evening.players.map(p => p.id)
+    const [selected, setSelected] = useState<number[]>(allIds)
+
+    // Stable color per player (by index in evening.players, not filtered index)
+    const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
+
+    const toggle = (id: number) =>
+        setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+    const activePlayers = evening.players.filter(p => selected.includes(p.id))
+
+    const penaltySeries: ChartSeries[] = activePlayers.map(p => ({
+        id: p.id, name: p.name, color: colorOf(p.id),
+        events: evening.penalty_log
+            .filter(l => l.player_id === p.id && l.mode === 'euro' && !('is_deleted' in l && (l as any).is_deleted))
+            .map(l => ({ts: l.client_timestamp, delta: l.amount})),
+    }))
+
+    const drinkSeries: ChartSeries[] = activePlayers.map(p => ({
+        id: p.id, name: p.name, color: colorOf(p.id),
+        events: evening.drink_rounds
+            .filter(r => r.participant_ids.includes(p.id))
+            .map(r => ({ts: r.client_timestamp, delta: 1})),
+    }))
+
+    const hasAnyPenalty = penaltySeries.some(s => s.events.length > 0)
+    const hasAnyDrink = drinkSeries.some(s => s.events.length > 0)
+
+    if (!hasAnyPenalty && !hasAnyDrink) {
+        return (
+            <div>
+                <div className="sec-heading text-sm mt-4">📈 Verlauf</div>
+                <Empty icon="📈" text="Noch keine Daten"/>
+            </div>
+        )
+    }
+
+    return (
+        <div>
+            <div className="sec-heading text-sm mt-4">📈 Verlauf</div>
+
+            {/* Player filter */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+                {evening.players.map(p => {
+                    const on = selected.includes(p.id)
+                    const col = colorOf(p.id)
+                    return (
+                        <button key={p.id} type="button"
+                                className="chip"
+                                style={on
+                                    ? {borderColor: col, color: col, background: col + '22'}
+                                    : {opacity: 0.4}}
+                                onClick={() => toggle(p.id)}>
+                            {p.is_king ? '👑 ' : ''}{p.name}
+                        </button>
+                    )
+                })}
+            </div>
+
+            <div className="kce-card p-3">
+                {hasAnyPenalty && (
+                    <CumulativeChart series={penaltySeries} yFormat={feShort} title="Strafen €"/>
+                )}
+                {hasAnyDrink && (
+                    <CumulativeChart series={drinkSeries} yFormat={v => `${Math.round(v)}`} title="Getränke"/>
+                )}
+                {/* Legend */}
+                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
+                    {activePlayers.map(p => (
+                        <div key={p.id} className="flex items-center gap-1.5">
+                            <div className="w-4 h-1.5 rounded-full" style={{background: colorOf(p.id)}}/>
+                            <span className="text-[10px] text-kce-muted font-bold">{p.name}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ── Main page ───────────────────────────────────────────────────────────────
 
 export function StatsPage() {
     const {evening} = useActiveEvening()
@@ -36,6 +221,7 @@ export function StatsPage() {
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">{t('stats.title')}</div>
 
+            {/* ── Evening KPIs ── */}
             <div className="sec-heading text-sm">{t('stats.evening')}</div>
             {!evening || !eveningStats ? (
                 <Empty icon="📊" text={t('stats.noData')}/>
@@ -59,6 +245,46 @@ export function StatsPage() {
                             <div className="text-kce-amber font-bold text-sm">{h.value}</div>
                         </div>
                     ))}
+
+                    {/* ── Timeline charts ── */}
+                    <EveningTimeline evening={evening}/>
+
+                    {/* ── Player cards ── */}
+                    <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
+                    <div className="grid grid-cols-2 gap-2">
+                        {evening.players.map(p => {
+                            const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
+                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+                            const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
+                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
+                            return (
+                                <div key={p.id} className="kce-card p-3">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
+                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                        {rm?.avatar
+                                            ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                                            : p.name[0].toUpperCase()
+                                        }
+                                    </div>
+                                    <div className="text-center text-xs font-bold mb-2 truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                    <div className="flex justify-around text-center">
+                                        <div>
+                                            <div className="text-kce-amber font-bold text-sm">{wins}</div>
+                                            <div className="text-[9px] text-kce-muted">Siege</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
+                                            <div className="text-[9px] text-kce-muted">Strafen</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
+                                            <div className="text-[9px] text-kce-muted">Bier</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </>
             )}
 
@@ -108,13 +334,11 @@ export function StatsPage() {
                                     </div>
                                     <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
-                                {/* Bar chart */}
                                 <div className="h-1 rounded-full overflow-hidden" style={{background: 'var(--kce-surface2)'}}>
                                     <div className="h-full rounded-full transition-all"
                                          style={{
                                              width: `${barWidth}%`,
-                                             background: isMe
-                                                 ? 'var(--kce-amber)'
+                                             background: isMe ? 'var(--kce-amber)'
                                                  : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--kce-muted)'
                                          }}/>
                                 </div>
@@ -176,7 +400,7 @@ export function StatsPage() {
     )
 }
 
-function StatBox({value, label}: { value: string; label: string }) {
+function StatBox({value, label}: {value: string; label: string}) {
     return (
         <div className="kce-card p-3 text-center">
             <div className="font-display font-bold text-kce-amber text-xl leading-tight">{value}</div>
@@ -206,9 +430,7 @@ function computeEveningStats(evening: NonNullable<ReturnType<typeof useActiveEve
     const cleanest = [...evening.players].sort((a, b) => strafenTotal(a.id) - strafenTotal(b.id))[0]
 
     const winnersMap: Record<string, number> = {}
-    evening.games.forEach(g => {
-        if (g.winner_name) winnersMap[g.winner_name] = (winnersMap[g.winner_name] || 0) + 1
-    })
+    evening.games.forEach(g => { if (g.winner_name) winnersMap[g.winner_name] = (winnersMap[g.winner_name] || 0) + 1 })
     const topWinner = Object.entries(winnersMap).sort((a, b) => b[1] - a[1])[0]
 
     const hof = [
