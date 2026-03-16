@@ -25,10 +25,6 @@ jobs:
         curl -sSL https://install.python-poetry.org | python3 -
         export PATH="$HOME/.local/bin:$PATH"
 
-    - name: Install dependencies
-      working-directory: backend
-      run: poetry install
-
     - name: Generate poetry.lock
       working-directory: backend
       run: poetry lock
