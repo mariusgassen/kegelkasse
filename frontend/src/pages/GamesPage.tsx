@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {parseAmount} from '@/utils/parse.ts'
 import type {Game, WinnerType} from '@/types.ts'
 
 function fe(v: number) {
@@ -82,6 +83,7 @@ export function GamesPage() {
         setGameName(tmpl.name)
         setIsOpener(tmpl.is_opener && !hasOpener)
         setLoserPenalty(String(tmpl.default_loser_penalty))
+        setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
         setWinnerType(tmpl.winner_type as WinnerType)
     }
 
@@ -131,8 +133,8 @@ export function GamesPage() {
                 template_id: templateId ?? undefined,
                 is_opener: isOpener,
                 winner_type: winnerType,
-                loser_penalty: parseFloat(loserPenalty) || 0,
-                per_point_penalty: parseFloat(perPointPenalty) || 0,
+                loser_penalty: parseAmount(loserPenalty),
+                per_point_penalty: parseAmount(perPointPenalty),
                 note: gameNote.trim() || undefined,
                 sort_order: games.length,
                 client_timestamp: Date.now(),
@@ -167,7 +169,7 @@ export function GamesPage() {
                 winner_ref: winnerRef,
                 winner_name: winnerDisplayName(winnerRef),
                 scores,
-                loser_penalty: parseFloat(finishPenalty) ?? finishTarget.loser_penalty,
+                loser_penalty: parseAmount(finishPenalty) || finishTarget.loser_penalty,
             })
             invalidate()
             setFinishTarget(null)
@@ -185,8 +187,8 @@ export function GamesPage() {
             await api.updateGame(evening!.id, editTarget.id, {
                 name: editName.trim() || undefined,
                 is_opener: editIsOpener,
-                loser_penalty: parseFloat(editLoserPenalty) || 0,
-                per_point_penalty: parseFloat(editPerPointPenalty) || 0,
+                loser_penalty: parseAmount(editLoserPenalty),
+                per_point_penalty: parseAmount(editPerPointPenalty),
                 note: editNote.trim() || undefined,
             })
             invalidate()
@@ -334,7 +336,7 @@ export function GamesPage() {
                         <label className="field-label">{t('game.loserPenalty')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.10" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={loserPenalty} onChange={e => setLoserPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-kce-muted mt-1">{t('game.loserNote')}</p>
@@ -345,7 +347,7 @@ export function GamesPage() {
                         <label className="field-label">{t('game.perPointPenalty')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.01" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={perPointPenalty} onChange={e => setPerPointPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
@@ -443,7 +445,7 @@ export function GamesPage() {
                             <label className="field-label">{t('game.loserPenalty')}</label>
                             <div className="flex items-center gap-2">
                                 <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                                <input className="kce-input flex-1" type="number" step="0.10" min="0"
+                                <input className="kce-input flex-1" type="text" inputMode="decimal"
                                        value={finishPenalty}
                                        onChange={e => setFinishPenalty(e.target.value)}/>
                             </div>
@@ -456,7 +458,7 @@ export function GamesPage() {
                                     {t('game.perPointPreview')} (+{fe(finishTarget.per_point_penalty)}/{t('game.perPointUnit')})
                                 </div>
                                 {(() => {
-                                    const base = parseFloat(finishPenalty) || 0
+                                    const base = parseAmount(finishPenalty)
                                     const ppp = finishTarget.per_point_penalty
                                     const wScore = parseFloat(scoresInput[winnerRef] ?? '') || 0
                                     const isTeamGame = winnerRef.startsWith('t:')
@@ -519,7 +521,7 @@ export function GamesPage() {
                         <label className="field-label">{t('game.loserPenalty')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.10" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editLoserPenalty} onChange={e => setEditLoserPenalty(e.target.value)}/>
                         </div>
                     </div>
@@ -527,7 +529,7 @@ export function GamesPage() {
                         <label className="field-label">{t('game.perPointPenalty')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.01" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editPerPointPenalty} onChange={e => setEditPerPointPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>

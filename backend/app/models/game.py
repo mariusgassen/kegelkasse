@@ -32,6 +32,7 @@ class GameTemplate(Base):
     winner_type = Column(Enum(WinnerType), default=WinnerType.either)
     is_opener = Column(Boolean, default=False)  # marks opening/crown game (Große Hausnummer)
     default_loser_penalty = Column(Float, default=0)
+    per_point_penalty = Column(Float, default=0)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     club = relationship("Club", back_populates="game_templates")

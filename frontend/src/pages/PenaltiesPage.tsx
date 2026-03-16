@@ -9,6 +9,7 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 
 function fe(v: number) {
@@ -42,8 +43,9 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
                     {isEuro ? '€' : '×'}
                 </span>
                 <input className="kce-input flex-1"
-                       type="number"
-                       step={isEuro ? '0.10' : '1'}
+                       type={isEuro ? 'text' : 'number'}
+                       inputMode={isEuro ? 'decimal' : 'numeric'}
+                       step={isEuro ? undefined : '1'}
                        min="0"
                        value={value}
                        placeholder={placeholder}
@@ -172,7 +174,7 @@ export function PenaltiesPage() {
         if (!selectedPenaltyType || playerIds.length === 0) return
         const effectiveAmount = mode === 'count'
             ? (parseInt(amount) || 1)
-            : (parseFloat(amount) || selectedPenaltyType.default_amount)
+            : (parseAmount(amount) || selectedPenaltyType.default_amount)
         setSaving(true)
         try {
             await api.addPenalty(evening!.id, {
@@ -197,7 +199,7 @@ export function PenaltiesPage() {
         if (!customName.trim() || customPlayerIds.length === 0) return
         const effectiveAmount = customMode === 'count'
             ? (parseInt(customAmount) || 1)
-            : (parseFloat(customAmount) || 0)
+            : (parseAmount(customAmount) || 0)
         setSaving(true)
         try {
             await api.addPenalty(evening!.id, {
@@ -251,7 +253,7 @@ export function PenaltiesPage() {
         if (editMode !== editEntry.mode) patch.mode = editMode
         const newAmount = editMode === 'count'
             ? (parseInt(editAmount) || 1)
-            : (parseFloat(editAmount) || (pt?.default_amount ?? editEntry.amount))
+            : (parseAmount(editAmount) || (pt?.default_amount ?? editEntry.amount))
         if (newAmount !== editEntry.amount) patch.amount = newAmount
         setSaving(true)
         try {

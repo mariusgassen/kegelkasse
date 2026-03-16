@@ -122,8 +122,8 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 8  | **Push Notifications**             | ⬜      | Web Push für Strafen, Abend-Events                                                                    |
 | 9  | **Offline-Sync**                   | ⬜      | IndexedDB-Queue vollständig implementieren                                                            |
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
-| 11 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
-| 12 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
+| 11 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
+| 12 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
 | 13 | **Präsident**                      | ⬜      | Der Präsident wird auf ein Jahr ausgekegelt und im Verein hinterlegt. Muss nachverfolgbar sien.       |
 | 14 | **Filter**                         | ⬜      | Filter bei listen - Suchfeld das inhalt nach matches in verschiedenen feldern der objecte filtert.    |
 | 15 | **Bonus**                          | ⬜      | Gamification, Ankündigung, Kassenstand                                                                |

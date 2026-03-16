@@ -103,7 +103,8 @@ export default function App() {
     const {user, setUser, setPenaltyTypes, setRegularMembers, setGameTemplates, setGuestPenaltyCap, activeEveningId, setActiveEveningId} = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const [page, setPage] = usePage<PageId>('evening')
+    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'history', 'stats', 'club']
+    const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     useActiveEvening()
 

@@ -319,6 +319,7 @@ class GameTemplateCreate(BaseModel):
     winner_type: str = "either"
     is_opener: bool = False
     default_loser_penalty: float = 0
+    per_point_penalty: float = 0
     sort_order: int = 0
 
 
@@ -331,13 +332,15 @@ def create_game_template(data: GameTemplateCreate, db: Session = Depends(get_db)
         winner_type=WinnerType(data.winner_type),
         is_opener=data.is_opener,
         default_loser_penalty=data.default_loser_penalty,
+        per_point_penalty=data.per_point_penalty,
         sort_order=data.sort_order
     )
     db.add(gt)
     db.commit()
     db.refresh(gt)
     return {"id": gt.id, "name": gt.name, "is_opener": gt.is_opener,
-            "winner_type": gt.winner_type, "default_loser_penalty": gt.default_loser_penalty}
+            "winner_type": gt.winner_type, "default_loser_penalty": gt.default_loser_penalty,
+            "per_point_penalty": gt.per_point_penalty}
 
 
 @router.put("/game-templates/{gtid}")
@@ -350,6 +353,7 @@ def update_game_template(gtid: int, data: GameTemplateCreate, db: Session = Depe
     gt.winner_type = WinnerType(data.winner_type)
     gt.is_opener = data.is_opener
     gt.default_loser_penalty = data.default_loser_penalty
+    gt.per_point_penalty = data.per_point_penalty
     gt.sort_order = data.sort_order
     db.commit()
     return {"id": gt.id, "name": gt.name}

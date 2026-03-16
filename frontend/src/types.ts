@@ -61,6 +61,7 @@ export interface GameTemplate {
     winner_type: WinnerType
     is_opener: boolean
     default_loser_penalty: number
+    per_point_penalty: number
     sort_order: number
 }
 

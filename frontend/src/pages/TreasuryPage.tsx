@@ -7,6 +7,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {parseAmount} from '@/utils/parse.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -79,7 +80,7 @@ export function TreasuryPage() {
 
     async function submitPayment() {
         if (!paymentTarget) return
-        const abs = parseFloat(paymentAmount)
+        const abs = parseAmount(paymentAmount)
         if (!abs || abs <= 0) return
         const amount = paymentMode === 'deposit' ? abs : -abs
         setSaving(true)
@@ -329,9 +330,9 @@ export function TreasuryPage() {
                         <label className="field-label">{t('treasury.payment.amount')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.50" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
-                                   placeholder="0.00" autoFocus/>
+                                   placeholder="0,00" autoFocus/>
                         </div>
                     </div>
                     <div>
@@ -344,7 +345,7 @@ export function TreasuryPage() {
                         <button type="button" className="btn-secondary flex-1"
                                 onClick={() => setPaymentTarget(null)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !paymentAmount || parseFloat(paymentAmount) <= 0}>
+                                disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
                             ✓ {t('treasury.payment.record')}
                         </button>
                     </div>

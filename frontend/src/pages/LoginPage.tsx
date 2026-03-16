@@ -3,6 +3,7 @@ import {api, authState} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useI18n, useT} from '@/i18n'
 import {AppLogo} from '@/components/Logo.tsx'
+import {clearAuthParams} from '@/hooks/usePage.ts'
 
 export function LoginPage() {
     const [email, setEmail] = useState('')
@@ -44,6 +45,7 @@ export function LoginPage() {
         try {
             const res = await api.login(email, pw)
             authState.setToken(res.access_token)
+            clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
         } catch (e: unknown) {
@@ -62,6 +64,7 @@ export function LoginPage() {
                 import.meta.env.VITE_DEV_PASSWORD ?? 'change_after_first_login',
             )
             authState.setToken(res.access_token)
+            clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
         } catch (e: unknown) {
@@ -78,6 +81,7 @@ export function LoginPage() {
         try {
             const res = await api.register(inviteToken, pw, username, prefilledName ? undefined : name)
             authState.setToken(res.access_token)
+            clearAuthParams()
             setUser(res.user)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Fehler')
@@ -92,6 +96,7 @@ export function LoginPage() {
         setLoading(true)
         try {
             await api.resetPassword(resetToken, pw)
+            clearAuthParams()
             setResetDone(true)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t('auth.reset.invalid'))

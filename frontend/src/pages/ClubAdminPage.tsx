@@ -6,6 +6,7 @@ import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
 import {shareOrCopy} from '@/utils/share.ts'
+import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme} from '@/App.tsx'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -185,14 +186,14 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <label className="field-label">{t('club.penalty.guestCap')}</label>
                     <div className="flex items-center gap-2">
                         <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                        <input className="kce-input flex-1" type="number" step="0.50" min="0"
+                        <input className="kce-input flex-1" type="text" inputMode="decimal"
                                value={guestCap} placeholder={t('club.penalty.guestCapPlaceholder')}
                                onChange={e => setGuestCap(e.target.value)}/>
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.penalty.guestCapHint')}</p>
                 </div>
                 <button className="btn-primary w-full" onClick={async () => {
-                    const cap = guestCap.trim() ? parseFloat(guestCap) : null
+                    const cap = guestCap.trim() ? parseAmount(guestCap) : null
                     await api.updateClubSettings({name: clubName || undefined, home_venue: venue, primary_color: color1, secondary_color: color2, bg_color: bgColor, guest_penalty_cap: cap})
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     setGuestPenaltyCap(cap)
@@ -243,7 +244,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
             <form className="kce-card p-3 mt-2" onSubmit={async e => {
                 e.preventDefault()
                 if (!name.trim()) return
-                await api.createPenaltyType({icon, name, default_amount: parseFloat(amount) || 0, sort_order: 99})
+                await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99})
                 setIcon('⚠️'); setName(''); setAmount('0.50'); onChanged()
             }}>
                 <div className="field-label">{t('club.penalty.newLabel')}</div>
@@ -251,8 +252,8 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     <input className="kce-input w-14 text-center" value={icon} onChange={e => setIcon(e.target.value)}/>
                     <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}
                            placeholder="Name"/>
-                    <input className="kce-input w-20" type="number" value={amount}
-                           onChange={e => setAmount(e.target.value)} step="0.10"/>
+                    <input className="kce-input w-20" type="text" inputMode="decimal" value={amount}
+                           onChange={e => setAmount(e.target.value)}/>
                 </div>
                 <button type="submit" className="btn-primary w-full btn-sm">+ {t('action.add')}</button>
             </form>
@@ -263,7 +264,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                        await api.updatePenaltyType(editPt.id, {
                            icon: editIcon,
                            name: editName,
-                           default_amount: parseFloat(editAmount) || 0,
+                           default_amount: parseAmount(editAmount),
                            sort_order: editPt.sort_order,
                        })
                        setEditPt(null)
@@ -287,7 +288,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                         <label className="field-label">{t('club.penalty.defaultAmount')}</label>
                         <div className="flex items-center gap-2">
                             <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                            <input className="kce-input flex-1" type="number" step="0.10" min="0"
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
                         </div>
                     </div>
@@ -313,6 +314,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
     const [wtype, setWtype] = useState('either')
     const [isOpener, setIsOpener] = useState(false)
     const [penalty, setPenalty] = useState('0')
+    const [perPoint, setPerPoint] = useState('0')
 
     const openNew = () => {
         setEditing(null);
@@ -321,6 +323,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setWtype('either');
         setIsOpener(false);
         setPenalty('0');
+        setPerPoint('0');
         setSheet(true)
     }
     const openEdit = (gt: GameTemplate) => {
@@ -330,13 +333,15 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setWtype(gt.winner_type);
         setIsOpener(gt.is_opener);
         setPenalty(String(gt.default_loser_penalty));
+        setPerPoint(String(gt.per_point_penalty ?? 0));
         setSheet(true)
     }
 
     async function saveTemplate() {
         if (!name.trim()) return
         const d = {name, description: desc || undefined, winner_type: wtype,
-            is_opener: isOpener, default_loser_penalty: parseFloat(penalty) || 0, sort_order: 0}
+            is_opener: isOpener, default_loser_penalty: parseAmount(penalty),
+            per_point_penalty: parseAmount(perPoint), sort_order: 0}
         if (editing) await api.updateGameTemplate(editing.id, d)
         else await api.createGameTemplate(d)
         onChanged(); setSheet(false)
@@ -358,6 +363,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             <span className="text-[10px] text-kce-muted">{gt.winner_type}</span>
                             {gt.default_loser_penalty > 0 &&
                                 <span className="text-[10px] text-red-400">{fe(gt.default_loser_penalty)}</span>}
+                            {(gt.per_point_penalty ?? 0) > 0 &&
+                                <span className="text-[10px] text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
                         </div>
                     </div>
                     <div className="flex gap-1">
@@ -390,8 +397,13 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         </label>
                     </div>
                     <div><label className="field-label">{t('club.template.loserPenalty')}</label>
-                        <input className="kce-input" type="number" value={penalty}
-                               onChange={e => setPenalty(e.target.value)} step="0.50" min="0"/></div>
+                        <input className="kce-input" type="text" inputMode="decimal" value={penalty}
+                               onChange={e => setPenalty(e.target.value)}/></div>
+                    <div><label className="field-label">{t('game.perPointPenalty')}</label>
+                        <input className="kce-input" type="text" inputMode="decimal" value={perPoint}
+                               onChange={e => setPerPoint(e.target.value)}/>
+                        <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
+                    </div>
                     <div className="flex gap-2 mt-1">
                         <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
