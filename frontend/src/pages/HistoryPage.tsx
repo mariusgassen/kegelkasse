@@ -40,6 +40,8 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
     async function doReopen(id: number) {
         try {
             await api.updateEvening(id, {is_closed: false})
+            // Optimistically mark as open so the auto-clear effect in useActiveEvening doesn't fire
+            qc.setQueryData(['evening', id], (old: any) => old ? {...old, is_closed: false} : old)
             setActiveEveningId(id)
             qc.invalidateQueries({queryKey: ['evenings']})
             qc.invalidateQueries({queryKey: ['evening', id]})
