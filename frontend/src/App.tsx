@@ -217,7 +217,7 @@ export default function App() {
                 </div>
 
                 {/* Nav */}
-                <nav className="flex items-stretch gap-1 px-2 py-1.5 mx-1 rounded-xl" style={{background: '#2e2420'}}>
+                <nav className="flex items-stretch gap-1 px-2 mx-1 rounded-xl" style={{background: '#2e2420'}}>
                     {NAV.filter(n => n.id !== 'club' || user?.role === 'admin' || user?.role === 'superadmin').map(n => (
                         <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
                                 onClick={() => setPage(n.id)}>
