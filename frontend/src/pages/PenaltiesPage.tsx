@@ -79,6 +79,7 @@ export function PenaltiesPage() {
     const [customName, setCustomName] = useState('')
     const [customAmount, setCustomAmount] = useState('')
     const [customMode, setCustomMode] = useState<PenaltyMode>('count')
+    const [customUnitAmount, setCustomUnitAmount] = useState('')
     const [customPlayerIds, setCustomPlayerIds] = useState<(number | string)[]>([])
     const [saveAsTemplate, setSaveAsTemplate] = useState(false)
 
@@ -157,6 +158,7 @@ export function PenaltiesPage() {
         setCustomName('')
         setCustomAmount('1')
         setCustomMode('count')
+        setCustomUnitAmount('')
         setCustomPlayerIds([])
         setSaveAsTemplate(false)
         setSheet(true)
@@ -201,6 +203,7 @@ export function PenaltiesPage() {
         const effectiveAmount = customMode === 'count'
             ? (parseInt(customAmount) || 1)
             : (parseAmount(customAmount) || 0)
+        const effectiveUnitAmount = customMode === 'count' ? (parseAmount(customUnitAmount) || undefined) : undefined
         setSaving(true)
         try {
             await api.addPenalty(evening!.id, {
@@ -209,14 +212,14 @@ export function PenaltiesPage() {
                 icon: customIcon,
                 amount: effectiveAmount,
                 mode: customMode,
-                // custom count penalties have no unit price → contribute 0 to total
+                unit_amount: effectiveUnitAmount,
                 client_timestamp: Date.now(),
             })
             if (saveAsTemplate) {
                 const newPt = await api.createPenaltyType({
                     icon: customIcon,
                     name: customName,
-                    default_amount: effectiveAmount,
+                    default_amount: customMode === 'count' ? (effectiveUnitAmount ?? 0) : effectiveAmount,
                     sort_order: 99,
                 })
                 setPenaltyTypes([...penaltyTypes, newPt])
@@ -528,8 +531,21 @@ export function PenaltiesPage() {
                         <div className="border border-kce-border rounded-xl p-3 flex flex-col gap-2">
                             <ModeToggle
                                 options={[{value: 'count', label: t('penalty.mode.count')}, {value: 'euro', label: t('penalty.mode.euro')}]}
-                                value={customMode} onChange={v => { setCustomMode(v as PenaltyMode); setCustomAmount('') }}/>
+                                value={customMode} onChange={v => { setCustomMode(v as PenaltyMode); setCustomAmount(''); setCustomUnitAmount('') }}/>
                             <AmountInput mode={customMode} value={customAmount} onChange={setCustomAmount}/>
+                            {customMode === 'count' && (
+                                <div>
+                                    <label className="field-label">{t('penalty.unitAmount')}</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                                        <input className="kce-input flex-1"
+                                               type="text" inputMode="decimal"
+                                               value={customUnitAmount}
+                                               placeholder="0,50"
+                                               onChange={e => setCustomUnitAmount(e.target.value)}/>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* 4 — Save as template (admin only) */}

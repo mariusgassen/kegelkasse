@@ -71,10 +71,10 @@ export function TreasuryPage() {
     const [paymentNote, setPaymentNote] = useState('')
     const [saving, setSaving] = useState(false)
 
-    function openPaymentSheet(id: number, name: string) {
+    function openPaymentSheet(id: number, name: string, prefillAmount?: number) {
         setPaymentTarget({id, name})
         setPaymentMode('deposit')
-        setPaymentAmount('')
+        setPaymentAmount(prefillAmount ? prefillAmount.toFixed(2) : '')
         setPaymentNote('')
     }
 
@@ -189,6 +189,12 @@ export function TreasuryPage() {
                                         </div>
                                     </div>
                                     <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                    {admin && (
+                                        <button className="btn-primary btn-sm flex-shrink-0"
+                                                onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                            {t('treasury.payment.settle')}
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </>
@@ -281,10 +287,18 @@ export function TreasuryPage() {
                                                 ))
                                             }
                                             {admin && (
-                                                <button className="btn-primary btn-sm w-full mt-2"
-                                                        onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name)}>
-                                                    + {t('treasury.payment.record')}
-                                                </button>
+                                                <div className="flex gap-2 mt-2">
+                                                    {hasDebt && (
+                                                        <button className="btn-primary btn-sm flex-1"
+                                                                onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                            💸 {t('treasury.payment.settle')}
+                                                        </button>
+                                                    )}
+                                                    <button className={`btn-secondary btn-sm ${hasDebt ? '' : 'w-full'}`}
+                                                            onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name)}>
+                                                        + {t('treasury.payment.record')}
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     )}
