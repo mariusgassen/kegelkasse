@@ -1,4 +1,4 @@
-import {type ReactNode, useEffect} from 'react'
+import {type ReactNode, useEffect, useRef, useState} from 'react'
 
 interface SheetProps {
     open: boolean
@@ -9,6 +9,10 @@ interface SheetProps {
 }
 
 export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
+    const [dragY, setDragY] = useState(0)
+    const startYRef = useRef(0)
+    const isDraggingRef = useRef(false)
+
     useEffect(() => {
         if (!open) return
         const handler = (e: KeyboardEvent) => {
@@ -23,7 +27,29 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
         return () => { document.body.style.overflow = '' }
     }, [open])
 
+    useEffect(() => {
+        if (!open) setDragY(0)
+    }, [open])
+
     if (!open) return null
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        startYRef.current = e.touches[0].clientY
+        isDraggingRef.current = true
+    }
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDraggingRef.current) return
+        const delta = e.touches[0].clientY - startYRef.current
+        if (delta > 0) setDragY(delta)
+    }
+    const handleTouchEnd = () => {
+        isDraggingRef.current = false
+        if (dragY > 80) {
+            onClose()
+        } else {
+            setDragY(0)
+        }
+    }
 
     const inner = onSubmit ? (
         <form onSubmit={e => { e.preventDefault(); onSubmit() }}>
@@ -35,9 +61,32 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
         <div className="bottom-sheet" onClick={e => {
             if (e.target === e.currentTarget) onClose()
         }}>
-            <div className="sheet-panel safe-bottom">
-                <div className="sheet-handle"/>
-                <div className="sheet-title">{title}</div>
+            <div
+                className="sheet-panel safe-bottom"
+                style={{
+                    transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+                    transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
+                }}
+            >
+                {/* Drag handle */}
+                <div
+                    className="sheet-handle"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                />
+                {/* Title row with close button */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="sheet-title mb-0">{title}</div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-kce-muted active:opacity-60 flex-shrink-0"
+                        style={{background: 'rgba(255,255,255,0.07)', fontSize: 16, lineHeight: 1}}
+                    >
+                        ✕
+                    </button>
+                </div>
                 {inner}
             </div>
         </div>
