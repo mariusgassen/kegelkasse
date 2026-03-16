@@ -12,7 +12,7 @@ const config: Config = {
   },
 
   url: 'https://your-docs-site.example.com',
-  baseUrl: '/',
+  baseUrl: '/docs/',
 
   organizationName: 'mariusgassen',
   projectName: 'kegelkasse',

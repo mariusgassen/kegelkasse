@@ -63,6 +63,11 @@ def health_check():
     return {"status": "ok", "version": __version__}
 
 
+# Serve Docusaurus docs at /docs
+docs_static_dir = os.path.join(os.path.dirname(__file__), "..", "docs_static")
+if os.path.exists(docs_static_dir):
+    app.mount("/docs", StaticFiles(directory=docs_static_dir, html=True), name="docs")
+
 # Serve React PWA
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.exists(static_dir):
