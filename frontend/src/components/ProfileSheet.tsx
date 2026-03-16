@@ -53,6 +53,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const [avatarLoading, setAvatarLoading] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [pushLoading, setPushLoading] = useState(false)
+    const [pushTesting, setPushTesting] = useState(false)
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const [dragY, setDragY] = useState(0)
@@ -357,12 +358,32 @@ export function ProfileSheet({open, onClose}: Props) {
                                 <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">Benachrichtigungen</span>
                                 {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">Aktiv auf diesem Gerät</div>}
                             </div>
-                            <button
-                                onClick={handlePushToggle}
-                                disabled={pushLoading}
-                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
-                                {pushLoading ? '…' : pushSubscribed ? 'Deaktivieren' : 'Aktivieren'}
-                            </button>
+                            <div className="flex gap-2 items-center">
+                                {pushSubscribed && (
+                                    <button
+                                        onClick={async () => {
+                                            setPushTesting(true)
+                                            try {
+                                                await api.testPush()
+                                                showToast('Test-Benachrichtigung gesendet')
+                                            } catch (e: unknown) {
+                                                showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
+                                            } finally {
+                                                setPushTesting(false)
+                                            }
+                                        }}
+                                        disabled={pushTesting}
+                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all bg-kce-surface2 text-kce-muted">
+                                        {pushTesting ? '…' : 'Test'}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handlePushToggle}
+                                    disabled={pushLoading}
+                                    className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
+                                    {pushLoading ? '…' : pushSubscribed ? 'Deaktivieren' : 'Aktivieren'}
+                                </button>
+                            </div>
                         </div>
                     )}
 

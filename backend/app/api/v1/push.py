@@ -62,3 +62,17 @@ def unsubscribe(endpoint: Optional[str] = None, db: Session = Depends(get_db),
 def status(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     count = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count()
     return {"subscribed": count > 0, "configured": bool(settings.VAPID_PUBLIC_KEY)}
+
+
+@router.post("/test")
+def test_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Send a test push notification to all subscriptions of the current user."""
+    if not settings.VAPID_PRIVATE_KEY:
+        raise HTTPException(503, "Push notifications not configured")
+    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
+    if not subs:
+        raise HTTPException(404, "No push subscription found for this device")
+    from core.push import _send_one
+    for sub in subs:
+        _send_one(db, sub, "Kegelkasse 🎳", "Push-Benachrichtigungen funktionieren!", "/")
+    return {"sent": len(subs)}

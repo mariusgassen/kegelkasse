@@ -378,4 +378,5 @@ export const api = {
         request<{ ok: boolean }>('POST', '/push/subscribe', d),
     unsubscribeFromPush: (endpoint?: string) =>
         request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
+    testPush: () => request<{ sent: number }>('POST', '/push/test'),
 }
