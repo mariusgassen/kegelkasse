@@ -7,6 +7,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
+import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 
@@ -51,6 +52,21 @@ export function TreasuryPage() {
 
     const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
 
+    // Club data (for PayPal handle)
+    const {data: club} = useQuery({
+        queryKey: ['club'],
+        queryFn: api.getClub,
+        staleTime: 1000 * 60,
+    })
+
+    // My pending payment requests (for own PayPal section)
+    const {data: myPaymentRequests = [], refetch: refetchMyPaymentRequests} = useQuery({
+        queryKey: ['my-payment-requests'],
+        queryFn: api.getMyPaymentRequests,
+        enabled: !!user?.regular_member_id,
+        staleTime: 1000 * 30,
+    })
+
     // Balances — always loaded (used in overview + accounts tabs)
     const {data: balances = [], refetch: refetchBalances} = useQuery({
         queryKey: ['member-balances'],
@@ -92,6 +108,9 @@ export function TreasuryPage() {
     })
 
     // Payment sheet (for members and guests)
+    const [reportingMyPayment, setReportingMyPayment] = useState(false)
+    const [myPaymentAmount, setMyPaymentAmount] = useState('')
+
     const [paymentTarget, setPaymentTarget] = useState<{ id: number; name: string } | null>(null)
     const [paymentMode, setPaymentMode] = useState<'deposit' | 'withdrawal'>('deposit')
     const [paymentAmount, setPaymentAmount] = useState('')
@@ -273,6 +292,12 @@ export function TreasuryPage() {
         )
         : mergedBookings
 
+    const paypalHandle = (club as any)?.settings?.paypal_me as string | undefined
+    const myRegularMemberId = user?.regular_member_id
+    const myBalanceEntry = balances.find(b => b.regular_member_id === myRegularMemberId)
+    const myDebtAmount = myBalanceEntry && myBalanceEntry.balance < -0.01 ? Math.abs(myBalanceEntry.balance) : 0
+    const hasPendingMyRequest = myPaymentRequests.some((r: any) => r.status === 'pending')
+
     const pendingRequestCount = admin ? paymentRequests.length : 0
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
@@ -308,7 +333,7 @@ export function TreasuryPage() {
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰
                                 {t('treasury.cashOnHand')}
                             </div>
-                            <div className="font-display font-bold text-kce-amber text-3xl">{fe(kassenstand)}</div>
+                            <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fe(kassenstand)}</div>
                             <div className="text-[10px] text-kce-muted mt-1">{t('treasury.cashOnHandHint')}</div>
                         </div>
                         <span className="text-4xl opacity-20">💰</span>
@@ -472,10 +497,17 @@ export function TreasuryPage() {
                     />
                     {filteredBalances.length === 0
                         ? <Empty icon="👤" text={t('treasury.noData')}/>
-                        : [...filteredBalances].sort((a, b) => a.balance - b.balance).map(b => {
+                        : [...filteredBalances].sort((a, b) => {
+                            if (myRegularMemberId) {
+                                if (a.regular_member_id === myRegularMemberId) return -1
+                                if (b.regular_member_id === myRegularMemberId) return 1
+                            }
+                            return a.balance - b.balance
+                        }).map(b => {
                             const hasDebt = b.balance < -0.01
                             const hasCredit = b.balance > 0.01
                             const isExpanded = expandedMember === b.regular_member_id
+                            const isMe = b.regular_member_id === myRegularMemberId
                             const dotColor = hasDebt
                                 ? 'linear-gradient(135deg,#ef4444,#dc2626)'
                                 : hasCredit
@@ -491,7 +523,10 @@ export function TreasuryPage() {
                                             {b.name[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
+                                            <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                                {b.nickname || b.name}
+                                                {isMe && <span className="text-[9px] text-kce-amber font-bold border border-kce-amber/40 rounded px-1">Du</span>}
+                                            </div>
                                             <div className="text-xs text-kce-muted">
                                                 Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
                                             </div>
@@ -533,6 +568,67 @@ export function TreasuryPage() {
                                                     </div>
                                                 ))
                                             }
+                                            {/* PayPal payment option for own account (non-admin members) */}
+                                            {isMe && !admin && myDebtAmount > 0 && paypalHandle && (
+                                                <div className="mt-2 pt-2 border-t border-kce-border flex flex-col gap-2">
+                                                    {!hasPendingMyRequest ? (
+                                                        !reportingMyPayment ? (
+                                                            <div className="flex gap-2">
+                                                                <a
+                                                                    href={`https://paypal.me/${paypalHandle}/${myDebtAmount.toFixed(2)}EUR`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="btn-primary flex-1 text-center text-sm py-2 no-underline"
+                                                                >
+                                                                    {t('profile.payNow')}
+                                                                </a>
+                                                                <button className="btn-secondary flex-1 btn-sm"
+                                                                        onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
+                                                                    {t('profile.reportPayment')}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                                                    <input
+                                                                        className="kce-input flex-1"
+                                                                        type="text" inputMode="decimal"
+                                                                        value={myPaymentAmount}
+                                                                        placeholder={myDebtAmount.toFixed(2)}
+                                                                        onChange={e => setMyPaymentAmount(e.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button className="btn-secondary flex-1 btn-sm"
+                                                                            onClick={() => { setReportingMyPayment(false); setMyPaymentAmount('') }}>
+                                                                        {t('action.cancel')}
+                                                                    </button>
+                                                                    <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                                        const amt = myPaymentAmount.trim()
+                                                                            ? parseFloat(myPaymentAmount.replace(',', '.'))
+                                                                            : myDebtAmount
+                                                                        if (!amt || amt <= 0) return
+                                                                        try {
+                                                                            await api.createPaymentRequest({amount: amt})
+                                                                            await refetchMyPaymentRequests()
+                                                                            setReportingMyPayment(false)
+                                                                            setMyPaymentAmount('')
+                                                                            showToast(t('profile.reportPayment'))
+                                                                        } catch (e) { toastError(e) }
+                                                                    }}>
+                                                                        {t('profile.reportPayment')}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <div className="text-xs text-kce-amber text-center py-1">
+                                                            ⏳ {t('paymentRequest.pending')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             {admin && (
                                                 <div className="flex gap-2 mt-2">
                                                     {hasDebt && (
