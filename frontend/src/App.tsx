@@ -4,7 +4,7 @@
  * to preserve scroll position and avoid re-fetching.
  */
 import React, {ReactNode, useEffect, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useAppStore} from './store/app'
 import {Locale, useI18n, useT} from './i18n'
 import {api, authState} from './api/client'
@@ -106,7 +106,15 @@ export default function App() {
     const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'history', 'stats', 'club']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
+    const queryClient = useQueryClient()
     useActiveEvening()
+
+    async function handleRefresh() {
+        setRefreshing(true)
+        await queryClient.invalidateQueries()
+        setRefreshing(false)
+    }
 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
 
@@ -183,6 +191,19 @@ export default function App() {
                             🎳 {t('evening.active')}
                         </button>
                     )}
+                    {/* Refresh button */}
+                    <button
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity"
+                        style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
+                        onClick={handleRefresh}
+                        disabled={refreshing}>
+                        <span style={{
+                            display: 'inline-block',
+                            fontSize: 14,
+                            transition: 'transform 0.6s ease',
+                            transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)',
+                        }}>↻</span>
+                    </button>
                     {/* Avatar button */}
                     <button
                         className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
