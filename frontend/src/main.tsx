@@ -5,7 +5,7 @@ import App from './App'
 import './index.css'
 
 const queryClient = new QueryClient({
-    defaultOptions: {queries: {staleTime: 1000 * 30, retry: 1}},
+    defaultOptions: {queries: {staleTime: 1000 * 10, retry: 1, refetchOnWindowFocus: true}},
 })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
