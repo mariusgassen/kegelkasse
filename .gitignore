@@ -11,7 +11,7 @@ __pycache__/
 *.egg-info/
 
 # Poetry
-poetry.lock
+# poetry.lock is intentionally tracked so Docker builds work in CI/CD
 
 # Alembic
 backend/alembic/versions/__pycache__/
