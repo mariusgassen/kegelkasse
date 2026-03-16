@@ -1,5 +1,6 @@
 services:
   app:
+    container_name: kegelkasse_app
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -22,6 +23,7 @@ services:
       retries: 3
 
   db:
+    container_name: kegelkasse_db
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: kegelkasse

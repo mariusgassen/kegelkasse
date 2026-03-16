@@ -12,7 +12,8 @@ from api.deps import require_club_member, require_club_admin
 from core.events import event_bus
 from core.push import push_to_regular_member, push_to_club
 from core.security import decode_token
-from core.database import get_db
+from core.database import get_db, AsyncSessionLocal
+from sqlalchemy import select
 from models.drink import DrinkRound, DrinkType
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, GameStatus, WinnerType
@@ -643,18 +644,28 @@ def delete_drink_round(eid: int, rid: int, db: Session = Depends(get_db),
 async def stream_evening_events(
         eid: int,
         token: str = Query(...),
-        db: Session = Depends(get_db),
 ):
-    """SSE stream — pushes 'updated' whenever the evening changes."""
+    """SSE stream — pushes 'updated' whenever the evening changes.
+
+    The DB session is opened, used for auth, then explicitly closed before
+    entering the infinite streaming loop.  This prevents holding a pool
+    connection for the entire lifetime of the SSE connection (which would
+    exhaust the QueuePool when many clients are connected simultaneously).
+    """
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == payload.get("sub")).first()
-    if not user or not user.is_active or not user.club_id:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    e = db.query(Evening).filter(Evening.id == eid, Evening.club_id == user.club_id).first()
-    if not e:
-        raise HTTPException(status_code=404, detail="Evening not found")
+
+    # Auth check: open a session, validate, then close it immediately so the
+    # pool slot is returned before we start the potentially long-lived stream.
+    async with AsyncSessionLocal() as db:
+        user = (await db.execute(select(User).where(User.id == payload.get("sub")))).scalar_one_or_none()
+        if not user or not user.is_active or not user.club_id:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        e = (await db.execute(select(Evening).where(Evening.id == eid, Evening.club_id == user.club_id))).scalar_one_or_none()
+        if not e:
+            raise HTTPException(status_code=404, detail="Evening not found")
+    # DB session is now closed; pool slot has been returned.
 
     async def event_stream():
         q = event_bus.subscribe(eid)
