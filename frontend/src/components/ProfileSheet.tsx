@@ -1,4 +1,4 @@
-import {useRef, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore} from '@/store/app'
@@ -50,6 +50,31 @@ export function ProfileSheet({open, onClose}: Props) {
     const [saving, setSaving] = useState(false)
     const [avatarLoading, setAvatarLoading] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
+    const [dragY, setDragY] = useState(0)
+    const startYRef = useRef(0)
+    const isDraggingRef = useRef(false)
+
+    useEffect(() => {
+        if (!open) setDragY(0)
+    }, [open])
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        startYRef.current = e.touches[0].clientY
+        isDraggingRef.current = true
+    }
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDraggingRef.current) return
+        const delta = e.touches[0].clientY - startYRef.current
+        if (delta > 0) setDragY(delta)
+    }
+    const handleTouchEnd = () => {
+        isDraggingRef.current = false
+        if (dragY > 80) {
+            onClose()
+        } else {
+            setDragY(0)
+        }
+    }
 
     const year = new Date().getFullYear()
     const {data: myStats} = useQuery({
@@ -101,6 +126,7 @@ export function ProfileSheet({open, onClose}: Props) {
             }
             setCurrentPw(''); setNewPw('')
             showToast(t('club.savedOk'))
+            onClose()
         } catch (e: unknown) {
             showToast(e instanceof Error ? e.message : 'Fehler')
         } finally {
@@ -112,8 +138,20 @@ export function ProfileSheet({open, onClose}: Props) {
 
     return (
         <div className="bottom-sheet" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-            <div className="sheet-panel safe-bottom" style={{maxHeight: '92vh'}}>
-                <div className="sheet-handle"/>
+            <div
+                className="sheet-panel safe-bottom"
+                style={{
+                    maxHeight: '92vh',
+                    transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+                    transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
+                }}
+            >
+                <div
+                    className="sheet-handle"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                />
 
                 {/* Avatar */}
                 <div className="flex flex-col items-center gap-2 mb-5">
