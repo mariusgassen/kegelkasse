@@ -3,7 +3,7 @@ Club management — settings, regular members, penalty types, game templates.
 All write operations require club_admin role.
 Read operations available to all club members.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -247,7 +247,7 @@ def create_member_invite(mid: int, db: Session = Depends(get_db),
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     token_val = _secrets.token_urlsafe(32)
-    expires = datetime.now(datetime.UTC) + timedelta(days=7)
+    expires = datetime.now(timezone.utc) + timedelta(days=7)
     invite = InviteToken(
         token=token_val, club_id=user.club_id,
         created_by=user.id, expires_at=expires,
