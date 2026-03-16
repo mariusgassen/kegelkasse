@@ -4,8 +4,8 @@ from alembic import context
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from core.config import settings
-from core.database import Base
+from app.core.config import settings
+from app.core.database import Base
 import app.models  # noqa: registers all models with Base.metadata
 
 config = context.config
