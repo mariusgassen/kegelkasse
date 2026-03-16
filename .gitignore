@@ -36,4 +36,5 @@ postgres_data/
 postgres_dev_data/
 
 # Logs
-*.log
+*.logdocs/build
+docs/node_modules
