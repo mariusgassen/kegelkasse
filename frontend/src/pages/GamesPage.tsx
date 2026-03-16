@@ -53,6 +53,7 @@ export function GamesPage() {
     const [editTarget, setEditTarget] = useState<Game | null>(null)
     const [editName, setEditName] = useState('')
     const [editIsOpener, setEditIsOpener] = useState(false)
+    const [editWinnerType, setEditWinnerType] = useState<WinnerType>('either')
     const [editLoserPenalty, setEditLoserPenalty] = useState('0')
     const [editPerPointPenalty, setEditPerPointPenalty] = useState('0')
     const [editNote, setEditNote] = useState('')
@@ -104,6 +105,7 @@ export function GamesPage() {
         setEditTarget(game)
         setEditName(game.name)
         setEditIsOpener(game.is_opener)
+        setEditWinnerType(game.winner_type)
         setEditLoserPenalty(String(game.loser_penalty))
         setEditPerPointPenalty(String(game.per_point_penalty ?? 0))
         setEditNote(game.note ?? '')
@@ -187,6 +189,7 @@ export function GamesPage() {
             await api.updateGame(evening!.id, editTarget.id, {
                 name: editName.trim() || undefined,
                 is_opener: editIsOpener,
+                winner_type: editWinnerType,
                 loser_penalty: parseAmount(editLoserPenalty),
                 per_point_penalty: parseAmount(editPerPointPenalty),
                 note: editNote.trim() || undefined,
@@ -330,6 +333,20 @@ export function GamesPage() {
                             {t('game.isOpener')}
                         </button>
                     )}
+
+                    {/* Winner type */}
+                    <div>
+                        <div className="field-label">{t('club.template.winnerType')}</div>
+                        <div className="flex gap-1.5">
+                            {(['either', 'individual', 'team'] as WinnerType[]).map(wt => (
+                                <button key={wt} type="button"
+                                        className={`chip flex-1 text-center ${winnerType === wt ? 'active' : ''}`}
+                                        onClick={() => setWinnerType(wt)}>
+                                    {t(`club.template.winnerType.${wt}` as any)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
                     {/* Loser penalty */}
                     <div>
@@ -517,6 +534,21 @@ export function GamesPage() {
                             {t('game.isOpener')}
                         </button>
                     )}
+
+                    {/* Winner type */}
+                    <div>
+                        <div className="field-label">{t('club.template.winnerType')}</div>
+                        <div className="flex gap-1.5">
+                            {(['either', 'individual', 'team'] as WinnerType[]).map(wt => (
+                                <button key={wt} type="button"
+                                        className={`chip flex-1 text-center ${editWinnerType === wt ? 'active' : ''}`}
+                                        onClick={() => setEditWinnerType(wt)}>
+                                    {t(`club.template.winnerType.${wt}` as any)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div>
                         <label className="field-label">{t('game.loserPenalty')}</label>
                         <div className="flex items-center gap-2">
