@@ -7,6 +7,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import type {RegularMember} from '@/types.ts'
 
@@ -59,7 +60,7 @@ export function MembersPage() {
             setResetUserName(userName)
             setResetCopied(false)
             setResetSheet(true)
-        } catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+        } catch (e: unknown) { toastError(e) }
     }
 
     async function openInvite(m: RegularMember) {
@@ -87,7 +88,7 @@ export function MembersPage() {
             await refetchRoster()
             setSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -95,7 +96,7 @@ export function MembersPage() {
 
     async function remove(m: RegularMember) {
         try { await api.deleteRegularMember(m.id); await refetchRoster() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function addToEvening(m: RegularMember) {
@@ -109,12 +110,12 @@ export function MembersPage() {
 
     async function handleDeactivate(userId: number) {
         try { await api.deactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function handleReactivate(userId: number) {
         try { await api.reactivateMember(userId); refetchUsers() }
-        catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+        catch (e: unknown) { toastError(e) }
     }
 
     async function handleLink(memberId: number) {

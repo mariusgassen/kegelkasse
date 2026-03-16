@@ -4,6 +4,7 @@ import {api, authState} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {Locale, useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
+import {toastError} from '@/utils/error'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -143,7 +144,7 @@ export function ProfileSheet({open, onClose}: Props) {
             showToast(t('club.savedOk'))
             onClose()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         } finally {
             setSaving(false)
         }

@@ -8,6 +8,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import type {EveningPlayer, Team} from '@/types.ts'
 
 export function EveningPage() {
@@ -92,7 +93,7 @@ export function EveningPage() {
                                 setActiveEveningId(ev.id)
                                 invalidate()
                             } catch (e: unknown) {
-                                showToast(e instanceof Error ? e.message : t('error.generic'))
+                                toastError(e)
                             } finally {
                                 setStarting(false)
                             }
@@ -296,7 +297,7 @@ export function EveningPage() {
                         <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
                                 onClick={async () => {
                                     try { await api.applyClubTeamsToEvening(evening.id, false); invalidate() }
-                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+                                    catch (e: unknown) { toastError(e) }
                                 }}>
                             {t('team.fromTemplateBadge')}
                         </button>
@@ -304,7 +305,7 @@ export function EveningPage() {
                                 onClick={async () => {
                                     if (players.length === 0) { showToast(t('team.noPlayers')); return }
                                     try { await api.applyClubTeamsToEvening(evening.id, true); invalidate() }
-                                    catch (e: unknown) { showToast(e instanceof Error ? e.message : t('error.generic')) }
+                                    catch (e: unknown) { toastError(e) }
                                 }}>
                             🎲
                         </button>

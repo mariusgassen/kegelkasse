@@ -7,6 +7,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -48,7 +49,7 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             showToast(t('evening.reopen'))
             onNavigate?.()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         }
     }
 
@@ -59,7 +60,7 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             setConfirmDeleteId(null)
             if (expandedId === id) setExpandedId(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         }
     }
 
@@ -74,7 +75,7 @@ export function HistoryPage({ onNavigate }: { onNavigate?: () => void } = {}) {
             qc.invalidateQueries({queryKey: ['evenings']})
             setBacklogSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         } finally {
             setSaving(false)
         }

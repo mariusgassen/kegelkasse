@@ -7,6 +7,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 
 function fe(v: number) {
@@ -95,7 +96,7 @@ export function TreasuryPage() {
             qc.invalidateQueries({queryKey: ['all-payments']})
             setPaymentTarget(null)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         } finally {
             setSaving(false)
         }
@@ -109,7 +110,7 @@ export function TreasuryPage() {
             qc.invalidateQueries({queryKey: ['all-payments']})
             refetchAllPayments()
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : t('error.generic'))
+            toastError(e)
         }
     }
 
