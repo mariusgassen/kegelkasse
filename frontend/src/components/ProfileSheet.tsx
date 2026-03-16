@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {useI18n, useT} from '@/i18n'
@@ -111,6 +111,7 @@ export function ProfileSheet({open, onClose}: Props) {
         ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
     }, [open, pushSupported])
 
+    const qc = useQueryClient()
     const year = new Date().getFullYear()
     const {data: myStats} = useQuery({
         queryKey: ['my-stats', year],
@@ -118,6 +119,35 @@ export function ProfileSheet({open, onClose}: Props) {
         enabled: open && !!user?.regular_member_id,
         staleTime: 1000 * 60 * 5,
     })
+
+    const {data: myBalance} = useQuery({
+        queryKey: ['my-balance'],
+        queryFn: api.getMyBalance,
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 30,
+    })
+
+    const {data: myRequests = [], refetch: refetchRequests} = useQuery({
+        queryKey: ['my-payment-requests'],
+        queryFn: api.getMyPaymentRequests,
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 30,
+    })
+
+    const {data: club} = useQuery({
+        queryKey: ['club'],
+        queryFn: api.getClub,
+        enabled: open,
+        staleTime: 1000 * 60,
+    })
+
+    const [reportingPayment, setReportingPayment] = useState(false)
+    const [paymentAmount, setPaymentAmount] = useState('')
+
+    const paypalHandle = club?.settings?.paypal_me
+    const debtAmount = myBalance?.balance != null && myBalance.balance < 0 ? Math.abs(myBalance.balance) : 0
+    const hasDebt = debtAmount > 0
+    const hasPendingRequest = myRequests.some(r => r.status === 'pending')
 
     const isFakeEmail = user?.email?.endsWith('@kegelkasse.internal') ?? false
 
@@ -333,6 +363,100 @@ export function ProfileSheet({open, onClose}: Props) {
                                 className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
                                 {pushLoading ? '…' : pushSubscribed ? 'Deaktivieren' : 'Aktivieren'}
                             </button>
+                        </div>
+                    )}
+
+                    {/* Balance & payment link */}
+                    {myBalance?.balance != null && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('profile.myBalance')}
+                            </div>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs text-kce-muted">{t('profile.balance')}</span>
+                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-red-400' : myBalance.balance > 0.01 ? 'text-green-400' : 'text-kce-muted'}`}>
+                                    {myBalance.balance.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
+                                </span>
+                            </div>
+                            {hasDebt && paypalHandle && !hasPendingRequest && (
+                                <div className="flex flex-col gap-2">
+                                    {!reportingPayment ? (
+                                        <div className="flex gap-2">
+                                            <a
+                                                href={`https://paypal.me/${paypalHandle}/${debtAmount.toFixed(2)}EUR`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn-primary flex-1 text-center text-sm py-2"
+                                            >
+                                                {t('profile.payNow')}
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                                <input
+                                                    className="kce-input flex-1"
+                                                    type="text" inputMode="decimal"
+                                                    value={paymentAmount}
+                                                    placeholder={debtAmount.toFixed(2)}
+                                                    onChange={e => setPaymentAmount(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button className="btn-secondary flex-1 btn-sm"
+                                                        onClick={() => { setReportingPayment(false); setPaymentAmount('') }}>
+                                                    {t('action.cancel')}
+                                                </button>
+                                                <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                    const amt = paymentAmount.trim()
+                                                        ? parseFloat(paymentAmount.replace(',', '.'))
+                                                        : debtAmount
+                                                    if (!amt || amt <= 0) return
+                                                    try {
+                                                        await api.createPaymentRequest({amount: amt})
+                                                        await refetchRequests()
+                                                        await qc.invalidateQueries({queryKey: ['payment-requests']})
+                                                        setReportingPayment(false)
+                                                        setPaymentAmount('')
+                                                        showToast(t('profile.reportPayment'))
+                                                    } catch (e) { toastError(e) }
+                                                }}>
+                                                    {t('profile.reportPayment')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!reportingPayment && (
+                                        <button className="btn-secondary w-full text-sm" onClick={() => setReportingPayment(true)}>
+                                            {t('profile.reportPayment')}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {hasPendingRequest && (
+                                <div className="text-xs text-kce-amber text-center py-1">
+                                    ⏳ {t('paymentRequest.pending')}
+                                </div>
+                            )}
+                            {myRequests.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-kce-surface2">
+                                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-2">
+                                        {t('profile.paymentRequests')}
+                                    </div>
+                                    {myRequests.map(r => (
+                                        <div key={r.id} className="flex items-center justify-between py-1 text-xs">
+                                            <span className="text-kce-muted">
+                                                {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) : ''}
+                                            </span>
+                                            <span className="font-bold">{r.amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
+                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-green-400' : r.status === 'rejected' ? 'text-red-400' : 'text-kce-amber'}`}>
+                                                {t(`paymentRequest.${r.status}` as any)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 

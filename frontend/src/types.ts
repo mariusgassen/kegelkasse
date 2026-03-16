@@ -21,6 +21,20 @@ export interface ClubSettings {
     secondary_color: string
     bg_color: string | null
     guest_penalty_cap: number | null
+    paypal_me: string | null
+}
+
+export type PaymentRequestStatus = 'pending' | 'confirmed' | 'rejected'
+
+export interface PaymentRequest {
+    id: number
+    regular_member_id: number
+    member_name: string
+    amount: number
+    note: string | null
+    status: PaymentRequestStatus
+    created_at: string | null
+    resolved_at: string | null
 }
 
 export interface Club {
