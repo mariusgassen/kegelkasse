@@ -55,6 +55,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const [pushLoading, setPushLoading] = useState(false)
     const [pushTesting, setPushTesting] = useState(false)
     const [pushSubscribed, setPushSubscribed] = useState(false)
+    const [pushConfigured, setPushConfigured] = useState(false)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
@@ -110,6 +111,7 @@ export function ProfileSheet({open, onClose}: Props) {
         navigator.serviceWorker.ready.then(reg =>
             reg.pushManager.getSubscription()
         ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
+        api.getPushStatus().then(s => setPushConfigured(s.configured)).catch(() => {})
     }, [open, pushSupported])
 
     const qc = useQueryClient()
@@ -352,7 +354,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     </div>
 
                     {/* Push notifications */}
-                    {pushSupported && (
+                    {pushSupported && pushConfigured && (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
                                 <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">Benachrichtigungen</span>

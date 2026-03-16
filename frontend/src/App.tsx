@@ -214,6 +214,11 @@ export default function App() {
         }
     }, [user?.preferred_locale])
 
+    // Apply club theme whenever club data changes (e.g. after login)
+    useEffect(() => {
+        if (club) applyClubTheme(club)
+    }, [club])
+
     // ── Loading splash ──
     if (!bootDone) {
         return (

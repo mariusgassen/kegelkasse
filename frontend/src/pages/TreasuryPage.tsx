@@ -525,7 +525,7 @@ export function TreasuryPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {b.nickname || b.name}
-                                                {isMe && <span className="text-[9px] text-kce-amber font-bold border border-kce-amber/40 rounded px-1">Du</span>}
+                                                {isMe && <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">Du</span>}
                                             </div>
                                             <div className="text-xs text-kce-muted">
                                                 Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
@@ -568,8 +568,8 @@ export function TreasuryPage() {
                                                     </div>
                                                 ))
                                             }
-                                            {/* PayPal payment option for own account (non-admin members) */}
-                                            {isMe && !admin && myDebtAmount > 0 && paypalHandle && (
+                                            {/* PayPal payment option for own account */}
+                                            {isMe && myDebtAmount > 0 && paypalHandle && (
                                                 <div className="mt-2 pt-2 border-t border-kce-border flex flex-col gap-2">
                                                     {!hasPendingMyRequest ? (
                                                         !reportingMyPayment ? (
