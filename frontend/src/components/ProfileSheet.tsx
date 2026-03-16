@@ -53,28 +53,43 @@ export function ProfileSheet({open, onClose}: Props) {
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
     const isDraggingRef = useRef(false)
+    const dragYRef = useRef(0)
+    const handleRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        if (!open) setDragY(0)
+        if (!open) {
+            setDragY(0)
+            dragYRef.current = 0
+        }
     }, [open])
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        startYRef.current = e.touches[0].clientY
-        isDraggingRef.current = true
-    }
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDraggingRef.current) return
-        const delta = e.touches[0].clientY - startYRef.current
-        if (delta > 0) setDragY(delta)
-    }
-    const handleTouchEnd = () => {
-        isDraggingRef.current = false
-        if (dragY > 80) {
-            onClose()
-        } else {
-            setDragY(0)
+    useEffect(() => {
+        const el = handleRef.current
+        if (!el) return
+        const onStart = (e: TouchEvent) => {
+            startYRef.current = e.touches[0].clientY
+            isDraggingRef.current = true
         }
-    }
+        const onMove = (e: TouchEvent) => {
+            if (!isDraggingRef.current) return
+            e.preventDefault()
+            const delta = e.touches[0].clientY - startYRef.current
+            if (delta > 0) { dragYRef.current = delta; setDragY(delta) }
+        }
+        const onEnd = () => {
+            isDraggingRef.current = false
+            if (dragYRef.current > 80) { onClose() }
+            else { dragYRef.current = 0; setDragY(0) }
+        }
+        el.addEventListener('touchstart', onStart, {passive: true})
+        el.addEventListener('touchmove', onMove, {passive: false})
+        el.addEventListener('touchend', onEnd, {passive: true})
+        return () => {
+            el.removeEventListener('touchstart', onStart)
+            el.removeEventListener('touchmove', onMove)
+            el.removeEventListener('touchend', onEnd)
+        }
+    }, [open, onClose])
 
     const year = new Date().getFullYear()
     const {data: myStats} = useQuery({
@@ -141,16 +156,13 @@ export function ProfileSheet({open, onClose}: Props) {
             <div
                 className="sheet-panel safe-bottom"
                 style={{
-                    maxHeight: '92vh',
                     transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
                     transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
                 }}
             >
                 <div
+                    ref={handleRef}
                     className="sheet-handle"
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
                 />
 
                 {/* Avatar */}
