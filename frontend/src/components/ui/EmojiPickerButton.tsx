@@ -1,6 +1,10 @@
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useT } from '@/i18n'
+
+const PICKER_W = 300
+const PICKER_H = 380
 
 interface EmojiPickerButtonProps {
     value: string
@@ -12,67 +16,93 @@ interface EmojiPickerButtonProps {
 export function EmojiPickerButton({ value, onChange, mode = 'icon' }: EmojiPickerButtonProps) {
     const t = useT()
     const [open, setOpen] = useState(false)
-    const ref = useRef<HTMLDivElement>(null)
+    const [pos, setPos] = useState({ top: 0, left: 0 })
+    const triggerRef = useRef<HTMLButtonElement>(null)
+    const pickerRef = useRef<HTMLDivElement>(null)
+
+    function openPicker() {
+        if (!triggerRef.current) return
+        const rect = triggerRef.current.getBoundingClientRect()
+        const spaceAbove = rect.top
+        const spaceBelow = window.innerHeight - rect.bottom
+        const top = spaceAbove >= PICKER_H + 8 || spaceAbove > spaceBelow
+            ? rect.top - PICKER_H - 8
+            : rect.bottom + 8
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - PICKER_W - 8))
+        setPos({ top, left })
+        setOpen(true)
+    }
 
     useEffect(() => {
         if (!open) return
-        function handler(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+        function onMouseDown(e: MouseEvent) {
+            const target = e.target as Node
+            if (!triggerRef.current?.contains(target) && !pickerRef.current?.contains(target)) {
+                setOpen(false)
+            }
         }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
+        function onScroll() { setOpen(false) }
+        document.addEventListener('mousedown', onMouseDown)
+        document.addEventListener('scroll', onScroll, true)
+        return () => {
+            document.removeEventListener('mousedown', onMouseDown)
+            document.removeEventListener('scroll', onScroll, true)
+        }
     }, [open])
 
     function handlePick(data: EmojiClickData) {
-        if (mode === 'insert') {
-            onChange(value + data.emoji)
-        } else {
-            onChange(data.emoji)
-        }
+        onChange(mode === 'insert' ? value + data.emoji : data.emoji)
         setOpen(false)
     }
 
-    const picker = open && (
-        <div className={`absolute z-50 bottom-full mb-1 ${mode === 'insert' ? 'right-0' : 'left-0'}`}>
+    const portal = open && createPortal(
+        <div
+            ref={pickerRef}
+            style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+        >
             <EmojiPicker
                 onEmojiClick={handlePick}
                 theme={Theme.DARK}
-                height={350}
-                width={300}
+                height={PICKER_H}
+                width={PICKER_W}
+                searchDisabled
                 skinTonesDisabled
                 previewConfig={{ showPreview: false }}
                 lazyLoadEmojis
             />
-        </div>
+        </div>,
+        document.body
     )
 
     if (mode === 'insert') {
         return (
-            <div ref={ref} className="relative flex-shrink-0">
+            <>
                 <button
+                    ref={triggerRef}
                     type="button"
-                    className="btn-secondary btn-xs h-full px-2"
+                    className="btn-secondary btn-xs h-full px-2 flex-shrink-0"
                     title={t('emoji.insert')}
-                    onClick={() => setOpen(o => !o)}
+                    onClick={openPicker}
                 >
                     😀
                 </button>
-                {picker}
-            </div>
+                {portal}
+            </>
         )
     }
 
     return (
-        <div ref={ref} className="relative">
+        <>
             <button
+                ref={triggerRef}
                 type="button"
                 className="kce-input w-14 text-center text-xl cursor-pointer"
                 title={t('emoji.pick')}
-                onClick={() => setOpen(o => !o)}
+                onClick={openPicker}
             >
                 {value || '😀'}
             </button>
-            {picker}
-        </div>
+            {portal}
+        </>
     )
 }
