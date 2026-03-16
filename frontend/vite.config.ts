@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo192.png', 'logo512.png', 'favicon.ico'],
+      includeAssets: ['icon.svg', 'logo192.png', 'logo512.png'],
       manifest: {
         name: 'Kegelkasse',
         short_name: 'Kegelkasse',
@@ -25,8 +25,9 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: 'logo192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'logo512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: 'logo192.png', sizes: '500x500', type: 'image/png' },
+          { src: 'logo512.png', sizes: '500x500', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
