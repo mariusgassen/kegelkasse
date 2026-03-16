@@ -83,6 +83,7 @@ export interface PenaltyLogEntry {
     icon: string
     amount: number
     mode: 'euro' | 'count'
+    unit_amount: number | null
     client_timestamp: number
 }
 

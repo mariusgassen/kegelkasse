@@ -159,12 +159,14 @@ export const api = {
         icon: string;
         amount: number;
         mode: string;
+        unit_amount?: number;
         client_timestamp: number
     }) =>
         request<PenaltyLogEntry[]>('POST', `/evening/${eid}/penalties`, d),
     updatePenalty: (eid: number, lid: number, d: {
         player_id?: number;
         penalty_type_name?: string;
+        icon?: string;
         amount?: number;
         mode?: string
     }) =>

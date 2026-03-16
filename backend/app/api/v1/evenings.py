@@ -34,6 +34,7 @@ def serialize_evening(e: Evening) -> dict:
         "penalty_log": [{"id": l.id, "player_id": l.player_id, "team_id": l.team_id,
                          "player_name": l.player_name, "penalty_type_name": l.penalty_type_name,
                          "icon": l.icon, "amount": l.amount, "mode": l.mode,
+                         "unit_amount": l.unit_amount,
                          "client_timestamp": l.client_timestamp}
                         for l in e.penalty_log if not l.is_deleted],
         "games": [{"id": g.id, "name": g.name, "is_opener": g.is_opener,
@@ -245,6 +246,7 @@ class PenaltyCreate(BaseModel):
     icon: str = "⚠️"
     amount: float
     mode: str = "euro"
+    unit_amount: Optional[float] = None  # default_amount at log time (count mode only)
     client_timestamp: float
 
 
@@ -269,6 +271,7 @@ def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
             player_name=player.name if player else "?",
             penalty_type_name=data.penalty_type_name, icon=data.icon,
             amount=data.amount, mode=PenaltyMode(data.mode),
+            unit_amount=data.unit_amount,
             client_timestamp=data.client_timestamp, created_by=user.id
         )
         db.add(log)
@@ -280,6 +283,7 @@ def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
 class PenaltyUpdate(BaseModel):
     player_id: Optional[int] = None
     penalty_type_name: Optional[str] = None
+    icon: Optional[str] = None
     amount: Optional[float] = None
     mode: Optional[str] = None
 

@@ -179,7 +179,19 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
     const [icon, setIcon] = useState('⚠️')
     const [name, setName] = useState('')
     const [amount, setAmount] = useState('0.50')
-    const [editId, setEditId] = useState<number | null>(null)
+
+    // edit sheet
+    const [editPt, setEditPt] = useState<PenaltyType | null>(null)
+    const [editIcon, setEditIcon] = useState('')
+    const [editName, setEditName] = useState('')
+    const [editAmount, setEditAmount] = useState('')
+
+    function openEdit(pt: PenaltyType) {
+        setEditPt(pt)
+        setEditIcon(pt.icon)
+        setEditName(pt.name)
+        setEditAmount(String(pt.default_amount))
+    }
 
     return (
         <div>
@@ -190,6 +202,9 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                         <div className="text-sm font-bold">{pt.name}</div>
                         <div className="text-xs text-kce-muted">{fe(pt.default_amount)}</div>
                     </div>
+                    <button className="btn-ghost btn-xs text-kce-muted"
+                            onClick={() => openEdit(pt)}>✏️
+                    </button>
                     <button className="btn-danger btn-xs"
                             onClick={() => api.deletePenaltyType(pt.id).then(onChanged)}>✕
                     </button>
@@ -211,6 +226,49 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 </div>
                 <button type="submit" className="btn-primary w-full btn-sm">+ {t('action.add')}</button>
             </form>
+
+            <Sheet open={!!editPt} onClose={() => setEditPt(null)} title={t('club.penalty.editLabel')}
+                   onSubmit={async () => {
+                       if (!editPt || !editName.trim()) return
+                       await api.updatePenaltyType(editPt.id, {
+                           icon: editIcon,
+                           name: editName,
+                           default_amount: parseFloat(editAmount) || 0,
+                           sort_order: editPt.sort_order,
+                       })
+                       setEditPt(null)
+                       onChanged()
+                   }}>
+                <div className="flex flex-col gap-3">
+                    <p className="text-xs text-kce-muted">{t('club.penalty.editHint')}</p>
+                    <div className="flex gap-2">
+                        <div>
+                            <label className="field-label">Icon</label>
+                            <input className="kce-input w-14 text-center" value={editIcon}
+                                   onChange={e => setEditIcon(e.target.value)}/>
+                        </div>
+                        <div className="flex-1">
+                            <label className="field-label">Name</label>
+                            <input className="kce-input" value={editName}
+                                   onChange={e => setEditName(e.target.value)}/>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('club.penalty.defaultAmount')}</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <input className="kce-input flex-1" type="number" step="0.10" min="0"
+                                   value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setEditPt(null)}>{t('action.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={!editName.trim()}>{t('action.save')}</button>
+                    </div>
+                </div>
+            </Sheet>
         </div>
     )
 }
