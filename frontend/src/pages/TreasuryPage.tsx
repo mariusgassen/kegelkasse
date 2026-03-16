@@ -81,6 +81,8 @@ export function TreasuryPage() {
     })
 
     // Per-member payments — loaded when a member is expanded in accounts tab
+    const [accountSearch, setAccountSearch] = useState('')
+    const [bookingSearch, setBookingSearch] = useState('')
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
     const {data: memberPayments = []} = useQuery({
         queryKey: ['member-payments', expandedMember],
@@ -231,6 +233,20 @@ export function TreasuryPage() {
         const tb = b.data.created_at ?? ''
         return tb.localeCompare(ta)
     })
+
+    const aq = accountSearch.trim().toLowerCase()
+    const filteredBalances = aq
+        ? [...balances].filter(b => b.name.toLowerCase().includes(aq) || (b.nickname ?? '').toLowerCase().includes(aq))
+        : balances
+
+    const bq = bookingSearch.trim().toLowerCase()
+    const filteredBookings = bq
+        ? mergedBookings.filter(entry =>
+            entry.kind === 'payment'
+                ? entry.data.member_name.toLowerCase().includes(bq) || (entry.data.note ?? '').toLowerCase().includes(bq)
+                : entry.data.description.toLowerCase().includes(bq)
+        )
+        : mergedBookings
 
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
@@ -389,9 +405,15 @@ export function TreasuryPage() {
             {/* ── Konten ── */}
             {tab === 'accounts' && (
                 <div>
-                    {balances.length === 0
+                    <input
+                        className="kce-input mb-3"
+                        value={accountSearch}
+                        onChange={e => setAccountSearch(e.target.value)}
+                        placeholder={t('treasury.accounts.search')}
+                    />
+                    {filteredBalances.length === 0
                         ? <Empty icon="👤" text={t('treasury.noData')}/>
-                        : [...balances].sort((a, b) => a.balance - b.balance).map(b => {
+                        : [...filteredBalances].sort((a, b) => a.balance - b.balance).map(b => {
                             const hasDebt = b.balance < -0.01
                             const hasCredit = b.balance > 0.01
                             const isExpanded = expandedMember === b.regular_member_id
@@ -518,6 +540,12 @@ export function TreasuryPage() {
             {/* ── Buchungen ── */}
             {tab === 'bookings' && (
                 <div>
+                    <input
+                        className="kce-input mb-3"
+                        value={bookingSearch}
+                        onChange={e => setBookingSearch(e.target.value)}
+                        placeholder={t('treasury.bookings.search')}
+                    />
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-xs text-kce-muted">{t('treasury.expensesTotal')}</span>
@@ -530,9 +558,9 @@ export function TreasuryPage() {
                         )}
                     </div>
 
-                    {mergedBookings.length === 0
+                    {filteredBookings.length === 0
                         ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
-                        : mergedBookings.map((entry, idx) => {
+                        : filteredBookings.map((entry, idx) => {
                             if (entry.kind === 'payment') {
                                 const p = entry.data
                                 return (

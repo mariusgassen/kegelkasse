@@ -18,6 +18,7 @@ export function MembersPage() {
     const admin = isAdmin(user)
 
     const [showInactive, setShowInactive] = useState(false)
+    const [search, setSearch] = useState('')
 
     // App-Nutzer — admins always fetch all so we know if inactive exist
     const {data: appUsers = [], refetch: refetchUsers} = useQuery({
@@ -186,17 +187,35 @@ export function MembersPage() {
     const linkedMemberIds = new Set(appUsers.map(u => u.regular_member_id).filter(Boolean))
     // Unlinked roster = not linked to any active app user
     const activeLinkedIds = new Set(appUsers.filter(u => u.is_active).map(u => u.regular_member_id).filter(Boolean))
-    const unlinkedRoster = regularMembers.filter(m => !m.is_guest && !activeLinkedIds.has(m.id))
-    const savedGuests = regularMembers.filter(m => m.is_guest)
+
+    const q = search.trim().toLowerCase()
+    const matchesMember = (m: RegularMember) =>
+        !q || m.name.toLowerCase().includes(q) || (m.nickname ?? '').toLowerCase().includes(q)
+
+    const unlinkedRoster = regularMembers.filter(m => !m.is_guest && !activeLinkedIds.has(m.id) && matchesMember(m))
+    const savedGuests = regularMembers.filter(m => m.is_guest && matchesMember(m))
 
     // For link sheet: roster members not already linked to someone
     const availableForLink = regularMembers.filter(m => !linkedMemberIds.has(m.id))
 
-    const activeUsers = appUsers.filter(u => u.is_active)
+    const activeUsers = appUsers.filter(u => {
+        if (!u.is_active) return false
+        if (!q) return true
+        const linked = regularMembers.find(m => m.id === u.regular_member_id)
+        return u.name.toLowerCase().includes(q) || (linked?.nickname ?? '').toLowerCase().includes(q)
+    })
     const inactiveUsers = appUsers.filter(u => !u.is_active)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
+
+            {/* ── Suche ── */}
+            <input
+                className="kce-input mb-4"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t('member.search')}
+            />
 
             {/* ── App-Nutzer ── */}
             <div className="flex items-center justify-between mb-3">
