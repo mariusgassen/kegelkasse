@@ -322,6 +322,7 @@ export const de = {
     "member.noOtherEntries": "Keine anderen Einträge vorhanden.",
     "member.inviteHint": "Link senden — sie müssen nur ein Passwort setzen und sind direkt drin. Gültig 7 Tage, einmalig verwendbar.",
     "member.namePlaceholder": "Vorname Nachname",
+    "member.search": "Mitglieder suchen…",
     "stats.yearPenalties": "Jahres-Strafenkasse",
     "stats.wins": "Siege",
     "stats.showLess": "▲ Weniger",

@@ -322,6 +322,7 @@ export const en = {
     "member.noOtherEntries": "No other entries available.",
     "member.inviteHint": "Send link — they just need to set a password. Valid 7 days, single use.",
     "member.namePlaceholder": "First Last",
+    "member.search": "Search members…",
     "stats.yearPenalties": "Annual penalty ranking",
     "stats.wins": "Wins",
     "stats.showLess": "▲ Less",

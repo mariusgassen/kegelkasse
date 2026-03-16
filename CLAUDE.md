@@ -128,5 +128,9 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 14 | **Filter**                         | ⬜      | Filter bei listen - Suchfeld das inhalt nach matches in verschiedenen feldern der objecte filtert.    |
 | 15 | **Bonus**                          | ⬜      | Gamification, Ankündigung, Kassenstand                                                                |
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
-| 16 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
-| 17 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
+| 17 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
+| 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
+| 19 | **Bezahllink**                     | ⬜      | Jedes Mitglied kann einen Bezahllink drücken um Ausstände zu überweisen; Admin konfiguriert PayPal-Konto; Admin bestätigt Zahlung manuell |
+| 20 | **Abwesenheiten verwalten**        | ⬜      | Zukünftige Spieltermine pflegen (i.d.R. feste Termine); Abwesenheiten vorab eintragen; Strafenautomatik bei Fehlen |
+| 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
+| 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
