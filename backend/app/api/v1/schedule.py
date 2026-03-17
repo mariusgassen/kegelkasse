@@ -1,5 +1,5 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from typing import Optional
 
 from babel.dates import format_datetime
@@ -146,7 +146,7 @@ def update_scheduled_evening(
     db.commit()
     db.refresh(se)
     new_date = se.scheduled_at
-    if abs(old_date - new_date) / 60.0 >= 60:
+    if (abs(old_date - new_date) / 60.0).seconds > 60:
         background_tasks.add_task(
         push_to_club,
         db,

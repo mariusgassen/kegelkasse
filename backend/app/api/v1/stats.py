@@ -1,5 +1,6 @@
 """Statistics and analysis endpoints."""
 from collections import defaultdict
+from datetime import datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -16,9 +17,13 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 @router.get("/year/{year}")
 def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Yearly rollup — penalty totals, game wins, drink counts per regular member."""
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year + 1, 1, 1)
+
     evenings = db.query(Evening).filter(
         Evening.club_id == user.club_id,
-        Evening.date.like(f"{year}%")
+        Evening.date >= start_date,
+        Evening.date < end_date,
     ).all()
 
     player_stats: dict = defaultdict(lambda: {"name": "", "regular_member_id": None, "evenings": 0,
@@ -67,9 +72,13 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
 @router.get("/me/{year}")
 def get_my_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Personal stats for the current user in the given year."""
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year + 1, 1, 1)
+
     evenings = db.query(Evening).filter(
         Evening.club_id == user.club_id,
-        Evening.date.like(f"{year}%")
+        Evening.date >= start_date,
+        Evening.date < end_date,
     ).all()
 
     mid = user.regular_member_id
