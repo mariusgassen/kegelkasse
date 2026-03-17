@@ -8,11 +8,15 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from core.push import push_to_regular_member
-from models.evening import RegularMember
-from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
+from models.evening import RegularMember, Evening, EveningPlayer
+from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.user import User
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
+
+
+def _serialize_guest(g: ScheduledEveningGuest) -> dict:
+    return {"id": g.id, "name": g.name, "regular_member_id": g.regular_member_id}
 
 
 def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Optional[int]) -> dict:
@@ -33,10 +37,20 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
         "attending_count": len(attending),
         "absent_count": len(absent),
         "my_rsvp": my_rsvp,
+        "guests": [_serialize_guest(g) for g in se.guests],
     }
 
 
-# ── Scheduled Evening CRUD ──
+def _get_se(sid: int, club_id: int, db: Session) -> ScheduledEvening:
+    se = db.query(ScheduledEvening).filter(
+        ScheduledEvening.id == sid, ScheduledEvening.club_id == club_id
+    ).first()
+    if not se:
+        raise HTTPException(404, "Scheduled evening not found")
+    return se
+
+
+# ── Scheduled Evening CRUD ────────────────────────────────────────────────────
 
 @router.get("/")
 def list_scheduled_evenings(
@@ -81,11 +95,7 @@ def update_scheduled_evening(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
+    se = _get_se(sid, user.club_id, db)
     for k, v in data.model_dump(exclude_none=True).items():
         setattr(se, k, v)
     db.commit()
@@ -99,16 +109,113 @@ def delete_scheduled_evening(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
+    se = _get_se(sid, user.club_id, db)
     db.delete(se)
     db.commit()
 
 
-# ── RSVP ──
+# ── Guests ────────────────────────────────────────────────────────────────────
+
+class GuestCreate(BaseModel):
+    name: str
+    regular_member_id: Optional[int] = None
+
+
+@router.post("/{sid}/guests")
+def add_guest(
+    sid: int,
+    data: GuestCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    se = _get_se(sid, user.club_id, db)
+    guest = ScheduledEveningGuest(
+        scheduled_evening_id=se.id,
+        name=data.name.strip(),
+        regular_member_id=data.regular_member_id,
+    )
+    db.add(guest)
+    db.commit()
+    db.refresh(guest)
+    return _serialize_guest(guest)
+
+
+@router.delete("/{sid}/guests/{gid}", status_code=204)
+def remove_guest(
+    sid: int,
+    gid: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    se = _get_se(sid, user.club_id, db)
+    guest = db.query(ScheduledEveningGuest).filter(
+        ScheduledEveningGuest.id == gid,
+        ScheduledEveningGuest.scheduled_evening_id == se.id,
+    ).first()
+    if not guest:
+        raise HTTPException(404, "Guest not found")
+    db.delete(guest)
+    db.commit()
+
+
+# ── Start evening from scheduled ──────────────────────────────────────────────
+
+class StartEveningBody(BaseModel):
+    import_attending: bool = True
+
+
+@router.post("/{sid}/start")
+def start_evening(
+    sid: int,
+    data: StartEveningBody,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """Create an actual Evening from a ScheduledEvening, optionally importing attending members and planned guests."""
+    se = _get_se(sid, user.club_id, db)
+
+    ev = Evening(
+        club_id=se.club_id,
+        date=se.date,
+        venue=se.venue,
+        note=se.note,
+        scheduled_evening_id=se.id,
+        created_by=user.id,
+    )
+    db.add(ev)
+    db.flush()
+
+    added_member_ids: set[int] = set()
+
+    if data.import_attending:
+        attending_ids = [r.regular_member_id for r in se.rsvps if r.status == RsvpStatus.attending]
+        members = db.query(RegularMember).filter(RegularMember.id.in_(attending_ids)).all()
+        for m in members:
+            db.add(EveningPlayer(
+                evening_id=ev.id,
+                regular_member_id=m.id,
+                name=m.nickname or m.name,
+            ))
+            added_member_ids.add(m.id)
+
+    for guest in se.guests:
+        # Skip if the guest is a known member already added via attending RSVP
+        if guest.regular_member_id and guest.regular_member_id in added_member_ids:
+            continue
+        db.add(EveningPlayer(
+            evening_id=ev.id,
+            regular_member_id=guest.regular_member_id,
+            name=guest.name,
+        ))
+        if guest.regular_member_id:
+            added_member_ids.add(guest.regular_member_id)
+
+    db.commit()
+    db.refresh(ev)
+    return {"id": ev.id, "date": ev.date, "venue": ev.venue}
+
+
+# ── RSVP ──────────────────────────────────────────────────────────────────────
 
 class RsvpSet(BaseModel):
     status: str  # "attending" | "absent"
@@ -121,17 +228,10 @@ def set_rsvp(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_member),
 ):
-    """Set or update the calling user's RSVP for a scheduled evening.
-    Members can set their own RSVP. Admins can set RSVP for any member by including regular_member_id."""
     if data.status not in (RsvpStatus.attending, RsvpStatus.absent):
         raise HTTPException(400, "Invalid status — use 'attending' or 'absent'")
 
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
-
+    _get_se(sid, user.club_id, db)  # verify exists + membership
     if not user.regular_member_id:
         raise HTTPException(400, "No roster entry linked to your account")
 
@@ -139,7 +239,6 @@ def set_rsvp(
         MemberRsvp.scheduled_evening_id == sid,
         MemberRsvp.regular_member_id == user.regular_member_id,
     ).first()
-
     if rsvp:
         rsvp.status = data.status
     else:
@@ -161,16 +260,10 @@ def set_rsvp_for_member(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    """Admin: set RSVP for a specific regular member."""
     if data.status not in (RsvpStatus.attending, RsvpStatus.absent):
         raise HTTPException(400, "Invalid status")
 
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
-
+    _get_se(sid, user.club_id, db)  # verify exists + admin access
     member = db.query(RegularMember).filter(
         RegularMember.id == mid, RegularMember.club_id == user.club_id
     ).first()
@@ -196,7 +289,6 @@ def remove_rsvp(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_member),
 ):
-    """Remove the calling user's RSVP (back to no-response)."""
     if not user.regular_member_id:
         raise HTTPException(400, "No roster entry linked to your account")
     rsvp = db.query(MemberRsvp).filter(
@@ -214,45 +306,31 @@ def list_rsvps(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    """Admin: get all RSVPs and non-responders for a scheduled evening."""
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
-
-    # All active non-guest regular members
+    se = _get_se(sid, user.club_id, db)
     all_members = db.query(RegularMember).filter(
         RegularMember.club_id == user.club_id,
         RegularMember.is_active == True,
         RegularMember.is_guest == False,
     ).all()
-
     rsvp_map = {r.regular_member_id: r.status for r in se.rsvps}
     return [
         {
             "regular_member_id": m.id,
             "name": m.name,
             "nickname": m.nickname,
-            "status": rsvp_map.get(m.id),  # None = no response
+            "status": rsvp_map.get(m.id),
         }
         for m in all_members
     ]
 
 
-@router.post("/{sid}/remind", status_code=200)
+@router.post("/{sid}/remind")
 def send_reminder(
     sid: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    """Admin: send push notification reminder to all members who haven't RSVP'd yet."""
-    se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == user.club_id
-    ).first()
-    if not se:
-        raise HTTPException(404, "Scheduled evening not found")
-
+    se = _get_se(sid, user.club_id, db)
     responded_ids = {r.regular_member_id for r in se.rsvps}
     non_responders = db.query(RegularMember).filter(
         RegularMember.club_id == user.club_id,
@@ -260,7 +338,6 @@ def send_reminder(
         RegularMember.is_guest == False,
         ~RegularMember.id.in_(responded_ids),
     ).all()
-
     venue_str = f" ({se.venue})" if se.venue else ""
     for member in non_responders:
         push_to_regular_member(
@@ -268,5 +345,4 @@ def send_reminder(
             "🎳 Bist du dabei?",
             f"Kegelabend am {se.date}{venue_str} — bitte melde dich an oder ab.",
         )
-
     return {"reminded_count": len(non_responders)}

@@ -27,6 +27,12 @@ export interface ClubSettings {
 
 export type RsvpStatus = 'attending' | 'absent'
 
+export interface ScheduledEveningGuest {
+    id: number
+    name: string
+    regular_member_id: number | null
+}
+
 export interface ScheduledEvening {
     id: number
     date: string
@@ -36,6 +42,7 @@ export interface ScheduledEvening {
     attending_count: number
     absent_count: number
     my_rsvp: RsvpStatus | null
+    guests: ScheduledEveningGuest[]
 }
 
 export interface RsvpEntry {
