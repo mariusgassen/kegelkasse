@@ -518,7 +518,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         {saving ? t('action.saving') : t('action.save')}
                     </button>
                     <a
-                        href="/docs"
+                        href="/docs/index.html"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
@@ -526,27 +526,38 @@ export function ProfileSheet({open, onClose}: Props) {
                         <span>{t('profile.docs')}</span>
                         <span className="text-kce-muted text-xs">↗</span>
                     </a>
-                    <button className="btn-danger w-full py-2.5 text-sm" onClick={() => {
-                        authState.setToken(null)
-                        setUser(null)
-                    }}>
+                    <a
+                        href="/api/docs"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
+                    >
+                        <span>{t('profile.apiDocs')}</span>
+                        <span className="text-kce-muted text-xs">↗</span>
+                    </a>
+                    <button
+                        className="w-full py-2.5 text-sm font-bold text-kce-muted bg-kce-surface2 border border-kce-border rounded-lg transition-all active:scale-95"
+                        onClick={() => {
+                            authState.setToken(null)
+                            setUser(null)
+                        }}>
                         {t('auth.logout')}
                     </button>
 
                     {/* Account delete */}
                     {!confirmDelete ? (
-                        <button className="text-[11px] text-kce-muted text-center py-1 w-full"
+                        <button className="text-[11px] text-kce-muted/50 text-center py-1 w-full"
                                 onClick={() => setConfirmDelete(true)}>
                             {t('profile.deleteAccount')}
                         </button>
                     ) : (
-                        <div className="kce-card p-3 flex flex-col gap-2 border border-red-900/40">
-                            <p className="text-xs text-center text-kce-cream">{t('profile.deleteConfirm')}</p>
+                        <div className="kce-card p-3 flex flex-col gap-2">
+                            <p className="text-xs text-center text-kce-muted">{t('profile.deleteConfirm')}</p>
                             <div className="flex gap-2">
                                 <button className="btn-secondary flex-1 btn-sm"
                                         onClick={() => setConfirmDelete(false)}>{t('action.cancel')}
                                 </button>
-                                <button className="btn-danger flex-1 btn-sm" onClick={async () => {
+                                <button className="btn-secondary flex-1 btn-sm text-red-400/70" onClick={async () => {
                                     await api.deleteAccount()
                                     authState.setToken(null)
                                     setUser(null)
@@ -555,6 +566,8 @@ export function ProfileSheet({open, onClose}: Props) {
                             </div>
                         </div>
                     )}
+
+                    <p className="text-[10px] text-kce-muted/40 text-center py-2">© 2026 Marius Gassen</p>
                 </div>
             </div>
         </div>

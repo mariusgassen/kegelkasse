@@ -25,3 +25,12 @@ ruff = "^0.15.6"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# E701: inline raises are used intentionally throughout the API layer
+# E711/E712: SQLAlchemy filter comparisons (== None, == True, == False) are correct ORM syntax
+# E741: 'l' used for locale in i18n helpers
+ignore = ["E701", "E711", "E712", "E741"]
