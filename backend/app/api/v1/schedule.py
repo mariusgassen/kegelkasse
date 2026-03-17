@@ -2,7 +2,8 @@
 from datetime import datetime, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from babel.dates import format_datetime
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -89,6 +90,7 @@ class ScheduledEveningCreate(BaseModel):
 @router.post("/")
 def create_scheduled_evening(
     data: ScheduledEveningCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
@@ -102,10 +104,12 @@ def create_scheduled_evening(
     db.add(se)
     db.commit()
     db.refresh(se)
-    date_str = se.scheduled_at.astimezone(UTC).strftime('%d.%m.%Y')
+    date_str = format_datetime(se.scheduled_at, locale=user.preferred_locale)
     venue_str = f" · {se.venue}" if se.venue else ""
-    push_to_club(
-        db, user.club_id,
+    background_tasks.add_task(
+    push_to_club,
+        db,
+        user.club_id,
         "📅 Neuer Kegeltermin",
         f"Kegelabend am {date_str}{venue_str} eingetragen.",
         f"/#schedule?event={se.id}",
@@ -125,10 +129,12 @@ class ScheduledEveningUpdate(BaseModel):
 def update_scheduled_evening(
     sid: int,
     data: ScheduledEveningUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
     se = _get_se(sid, user.club_id, db)
+    old_date = se.scheduled_at
     updates = data.model_dump(exclude_none=True)
     if "date" in updates or "time" in updates:
         current_utc = se.scheduled_at.astimezone(UTC)
@@ -139,6 +145,17 @@ def update_scheduled_evening(
         setattr(se, k, v)
     db.commit()
     db.refresh(se)
+    new_date = se.scheduled_at
+    if abs(old_date - new_date) / 60.0 >= 60:
+        background_tasks.add_task(
+        push_to_club,
+        db,
+        user.club_id,
+        "📅 Kegeltermin verschoben",
+        f"Kegelabend verschoben von {format_datetime(old_date, user.preferred_locale)} auf {format_datetime(old_date, user.preferred_locale)}.",
+        f"/#schedule?event={se.id}",
+        category="schedule",
+        )
     return _serialize_scheduled_evening(se, user.regular_member_id)
 
 

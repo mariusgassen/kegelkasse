@@ -196,7 +196,7 @@ export const de = {
     "club.template.winnerType.either": "Beliebig (Team oder Spieler)",
     "club.template.winnerType.team": "Nur Team",
     "club.template.winnerType.individual": "Nur Einzelspieler",
-    "club.template.isOpener": "👑 Eröffnungsspiel / Großes Spiel",
+    "club.template.isOpener": "👑 Eröffnungsspiel",
     "club.template.loserPenalty": "Standard Verlierer-Strafe (€)",
     "club.teams.description": "Standard-Teams für deinen Kegelclub. Beim Abend können alle Teams auf einmal angelegt und die Spieler zufällig verteilt werden.",
     "club.teams.add": "Team",

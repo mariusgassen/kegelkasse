@@ -3,7 +3,8 @@ import asyncio
 from datetime import datetime, UTC
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from babel.dates import format_datetime
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -115,7 +116,10 @@ class EveningUpdate(BaseModel):
 
 
 @router.patch("/{eid}")
-def update_evening(eid: int, data: EveningUpdate, db: Session = Depends(get_db),
+def update_evening(eid: int,
+                   data: EveningUpdate,
+                   background_tasks: BackgroundTasks,
+                   db: Session = Depends(get_db),
                    user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     was_open = not e.is_closed
@@ -128,9 +132,13 @@ def update_evening(eid: int, data: EveningUpdate, db: Session = Depends(get_db),
     if was_open and e.is_closed:
         # Auto-calculate absence penalties on close
         if e.players:
-            _do_calculate_absence_penalties(e, db, user.id)
-        push_to_club(db, e.club_id, "Abend beendet 🎳",
-                     f"Abend vom {e.date.strftime('%d.%m.%Y')} wurde abgeschlossen.", "/", category="evenings")
+            _do_calculate_absence_penalties(e, background_tasks, db, user.id)
+        background_tasks.add(
+            push_to_club,
+            db, e.club_id, "Abend beendet 🎳",
+            f"Abend vom {e.date.strftime('%d.%m.%Y')} wurde abgeschlossen.",
+            "/", category="evenings"
+        )
     return serialize_evening(e)
 
 
@@ -342,7 +350,7 @@ def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
                 fee = f"{data.amount:.2f}".replace('.', ',')
                 push_to_regular_member(db, player.regular_member_id,
                                        f"{data.icon} {data.penalty_type_name}",
-                                       f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#treasury", category="penalties")
+                                       f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening", category="penalties")
     return [{"id": l.id, "player_name": l.player_name, "amount": l.amount} for l in created]
 
 
@@ -366,7 +374,10 @@ def update_penalty(eid: int, lid: int, data: PenaltyUpdate, db: Session = Depend
 
 
 @router.delete("/{eid}/penalties/{lid}")
-def delete_penalty(eid: int, lid: int, db: Session = Depends(get_db),
+def delete_penalty(eid: int,
+                   lid: int,
+                background_tasks: BackgroundTasks,
+                   db: Session = Depends(get_db),
                    user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     l = db.query(PenaltyLog).filter(PenaltyLog.id == lid, PenaltyLog.evening_id == e.id).first()
@@ -383,13 +394,15 @@ def delete_penalty(eid: int, lid: int, db: Session = Depends(get_db),
     if notify_member_id:
         icon = l.icon or "↩️"
         fee = f"{l.amount:.2f}".replace('.', ',')
-        push_to_regular_member(db, notify_member_id, "↩️ Strafe storniert",
-                               f"{icon} {l.penalty_type_name}: {fee}€ wurde rückgängig gemacht.",
-                               "/#treasury", category="penalties")
+        background_tasks.add_task(
+            push_to_regular_member, db,
+            notify_member_id, "↩️ Strafe storniert",
+           f"{icon} {l.penalty_type_name}: {fee}€ wurde rückgängig gemacht.",
+            "/#evening", category="penalties")
     return {"ok": True}
 
 
-def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) -> dict:
+def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTasks, db: Session, created_by: int) -> dict:
     """Calculate absence penalties for an evening, RSVP-aware.
 
     Base fee = average penalty of present players.
@@ -477,18 +490,23 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
         else:
             total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
         fee_str = f"{total_fee:.2f}".replace('.', ',')
-        push_to_regular_member(db, member.id, "🏠 Abwesenheitsstrafe",
-                               f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",
-                               "/#treasury", category="penalties")
+        background_tasks.add(
+            push_to_regular_member,
+            db, member.id, "🏠 Abwesenheitsstrafe",
+           f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",
+           "/#evening", category="penalties"
+        )
     return {"avg": base_fee, "absent_count": len(absent_members)}
 
 
 @router.post("/{eid}/absence-penalties")
-def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
+def calculate_absence_penalties(eid: int,
+background_tasks: BackgroundTasks,
+                                db: Session = Depends(get_db),
                                 user: User = Depends(require_club_admin)):
     """Admin: calculate absence penalties for all absent members. RSVP-aware."""
     e = get_club_evening(eid, user, db)
-    return _do_calculate_absence_penalties(e, db, user.id)
+    return _do_calculate_absence_penalties(e, background_tasks, db, user.id)
 
 
 class MarkCancelledBody(BaseModel):
@@ -641,13 +659,14 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
         if p.regular_member_id:
             fee = f"{total_penalty:.2f}".replace('.', ',')
             push_to_regular_member(db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
-                                   f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#treasury", category="penalties")
+                                   f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening", category="penalties")
 
 
 @router.post("/{eid}/games/{gid}/finish")
 def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_db),
                 user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
+    e_date_str = format_datetime(e.date, locale=user.preferred_locale or "de")
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
     if not g: raise HTTPException(404)
     g.winner_ref = data.winner_ref
@@ -670,8 +689,8 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
                 winner_player.is_king = True
                 if winner_player.regular_member_id:
                     push_to_regular_member(db, winner_player.regular_member_id, "👑 Du bist König!",
-                                           f"Du hast das Eröffnungsspiel am {e.date.strftime('%d.%m.%Y')} gewonnen.",
-                                           "/#", category="games")
+                                           f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
+                                           "/#evening:", category="games")
         except (ValueError, IndexError):
             pass
     # President: president-game with individual winner → upsert ClubPresident for this year
