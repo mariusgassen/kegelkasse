@@ -428,4 +428,5 @@ export const api = {
     unsubscribeFromPush: (endpoint?: string) =>
         request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
     testPush: () => request<{ sent: number }>('POST', '/push/test'),
+    remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
 }

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
-from core.push import push_to_regular_member
+from core.push import push_to_regular_member, push_to_club_admins
 from models.club import Club, ClubSettings, ClubPresident, ClubPin
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
@@ -831,6 +831,15 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
     db.add(req)
     db.commit()
     db.refresh(req)
+    member = db.query(RegularMember).filter(RegularMember.id == user.regular_member_id).first()
+    member_display = (member.nickname or member.name) if member else user.name
+    fee = f"{req.amount:.2f}".replace('.', ',')
+    push_to_club_admins(
+        db, user.club_id,
+        "💸 Neue Zahlungsanfrage",
+        f"{member_display} hat {fee}€ überwiesen und wartet auf Bestätigung.",
+        "/treasury",
+    )
     return _fmt_request(req, user.name)
 
 
@@ -885,6 +894,74 @@ def reject_payment_request(rid: int, db: Session = Depends(get_db),
                            f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.")
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     return _fmt_request(req, (member.nickname or member.name) if member else "")
+
+
+@router.post("/remind-debtors", status_code=200)
+def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: send push notification to every member with outstanding debt."""
+    members = db.query(RegularMember).filter(
+        RegularMember.club_id == user.club_id,
+        RegularMember.is_active == True,
+        RegularMember.is_guest == False,
+    ).all()
+
+    player_rows = (
+        db.query(EveningPlayer.id, EveningPlayer.regular_member_id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
+        .all()
+    )
+    member_player_ids: dict[int, list[int]] = {}
+    for pid, mid in player_rows:
+        member_player_ids.setdefault(mid, []).append(pid)
+
+    all_player_ids = [pid for ids in member_player_ids.values() for pid in ids]
+    penalty_rows = (
+        db.query(PenaltyLog)
+        .filter(PenaltyLog.player_id.in_(all_player_ids), PenaltyLog.is_deleted == False)
+        .all()
+    ) if all_player_ids else []
+    penalty_by_player: dict[int, float] = {}
+    for log in penalty_rows:
+        penalty_by_player[log.player_id] = penalty_by_player.get(log.player_id, 0.0) + _penalty_euro(log)
+
+    absence_rows = (
+        db.query(PenaltyLog)
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            PenaltyLog.player_id.is_(None),
+            PenaltyLog.regular_member_id.isnot(None),
+            PenaltyLog.is_deleted == False,
+        )
+        .all()
+    )
+    absence_by_member: dict[int, float] = {}
+    for log in absence_rows:
+        absence_by_member[log.regular_member_id] = absence_by_member.get(log.regular_member_id, 0.0) + _penalty_euro(log)
+
+    payments = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id).all()
+    payments_by_member: dict[int, float] = {}
+    for p in payments:
+        payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
+
+    reminded = 0
+    for m in members:
+        player_ids = member_player_ids.get(m.id, [])
+        penalty_total = sum(penalty_by_player.get(pid, 0.0) for pid in player_ids)
+        penalty_total += absence_by_member.get(m.id, 0.0)
+        payments_total = payments_by_member.get(m.id, 0.0)
+        balance = round(payments_total - penalty_total, 2)
+        if balance < -0.01:
+            debt_str = f"{abs(balance):.2f}".replace('.', ',')
+            push_to_regular_member(
+                db, m.id,
+                "💳 Offener Betrag",
+                f"Du hast noch {debt_str}€ offen in der Vereinskasse.",
+                "/treasury",
+            )
+            reminded += 1
+    return {"reminded_count": reminded}
 
 
 # ── Club presidents ──

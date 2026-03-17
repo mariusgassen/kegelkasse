@@ -15,6 +15,8 @@ import {OfflineBanner} from './components/ui/OfflineBanner'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
 import {ProfileSheet} from './components/ProfileSheet'
+import {NotificationPanel} from './components/NotificationPanel'
+import {useNotificationStore, unreadCount} from './store/notifications'
 
 // Lazy-loaded page components to keep initial bundle small
 import {EveningHubPage} from './pages/EveningHubPage'
@@ -128,7 +130,10 @@ export default function App() {
     const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'stats', 'club']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
+    const [notifOpen, setNotifOpen] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    const {addNotification, notifications} = useNotificationStore()
+    const badgeCount = unreadCount(notifications)
     // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
     const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
     const [bootNetworkError, setBootNetworkError] = useState(false)
@@ -147,6 +152,19 @@ export default function App() {
             if (wasLoggedIn) showToast(tI18n('error.session'), 'error')
         })
     }, [])
+
+    // Listen for push messages broadcast from the service worker
+    useEffect(() => {
+        if (!('serviceWorker' in navigator)) return
+        const handler = (event: MessageEvent) => {
+            if (event.data?.type === 'push-received') {
+                const {title, body, url} = event.data
+                addNotification({title, body, url: url ?? '/'})
+            }
+        }
+        navigator.serviceWorker.addEventListener('message', handler)
+        return () => navigator.serviceWorker.removeEventListener('message', handler)
+    }, [addNotification])
 
     async function handleRefresh() {
         setRefreshing(true)
@@ -296,6 +314,21 @@ export default function App() {
                             transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)',
                         }}>↻</span>
                     </button>
+                    {/* Notification bell */}
+                    <button
+                        aria-label={t('notifications.title')}
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
+                        style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
+                        onClick={() => setNotifOpen(true)}>
+                        <span style={{fontSize: 14, lineHeight: 1}}>🔔</span>
+                        {badgeCount > 0 && (
+                            <span
+                                className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
+                                style={{background: '#e8a020', color: '#1a0f00'}}>
+                                {badgeCount > 9 ? '9+' : badgeCount}
+                            </span>
+                        )}
+                    </button>
                     {/* Avatar button */}
                     <button
                         aria-label="Profil"
@@ -342,6 +375,7 @@ export default function App() {
 
             <ToastContainer/>
             <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>
+            <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
         </div>
     )
 }

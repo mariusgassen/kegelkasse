@@ -64,14 +64,28 @@ registerRoute(
 
 self.addEventListener('push', (event) => {
     const data = event.data?.json() ?? {}
-    event.waitUntil(
-        self.registration.showNotification(data.title ?? 'Kegelkasse', {
-            body: data.body ?? '',
-            icon: '/icon.svg',
-            badge: '/icon.svg',
-            tag: data.tag ?? 'kegelkasse',
-            data: { url: (data.url as string) ?? '/' },
+    const title = data.title ?? 'Kegelkasse'
+    const body = data.body ?? ''
+    const url = (data.url as string) ?? '/'
+    const tag = data.tag ?? 'kegelkasse'
+
+    // Broadcast to all open app windows so they can add it to the in-app notification list
+    const broadcast = self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clients) => {
+            clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))
         })
+
+    event.waitUntil(
+        Promise.all([
+            broadcast,
+            self.registration.showNotification(title, {
+                body,
+                icon: '/icon.svg',
+                tag,
+                data: { url },
+            }),
+        ])
     )
 })
 
@@ -80,8 +94,12 @@ self.addEventListener('notificationclick', (event) => {
     const url = (event.notification.data?.url as string) ?? '/'
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: readonly WindowClient[]) => {
+            // Find an existing window and navigate it to the target URL
             for (const c of windowClients) {
-                if ('focus' in c) return (c as WindowClient).focus()
+                if ('navigate' in c) {
+                    ;(c as WindowClient).navigate(url)
+                    return (c as WindowClient).focus()
+                }
             }
             return self.clients.openWindow(url)
         })

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
-from core.push import push_to_regular_member
+from core.push import push_to_regular_member, push_to_club
 from models.evening import RegularMember, Evening, EveningPlayer
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.user import User
@@ -79,6 +79,13 @@ def create_scheduled_evening(
     db.add(se)
     db.commit()
     db.refresh(se)
+    venue_str = f" · {se.venue}" if se.venue else ""
+    push_to_club(
+        db, user.club_id,
+        "📅 Neuer Kegeltermin",
+        f"Kegelabend am {se.date}{venue_str} eingetragen.",
+        "/schedule",
+    )
     return _serialize_scheduled_evening(se, user.regular_member_id)
 
 

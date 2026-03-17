@@ -1,5 +1,15 @@
 // ── Domain types — mirrors backend models ──
 
+export interface NotificationItem {
+    id: string
+    title: string
+    body: string
+    url: string
+    receivedAt: string  // ISO timestamp
+    read: boolean
+}
+
+
 export type UserRole = 'superadmin' | 'admin' | 'member'
 
 export interface User {

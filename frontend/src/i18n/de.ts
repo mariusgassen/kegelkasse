@@ -458,6 +458,19 @@ export const de = {
     "club.settings.appearance": "Erscheinungsbild",
     "club.settings.specialPenalties": "Sonderstrafen",
     "club.settings.payments": "Zahlungen",
+    "notifications.title": "Benachrichtigungen",
+    "notifications.empty": "Keine Benachrichtigungen",
+    "notifications.clearAll": "Alle löschen",
+    "push.label": "Benachrichtigungen",
+    "push.activeOnDevice": "Aktiv auf diesem Gerät",
+    "push.activate": "Aktivieren",
+    "push.deactivate": "Deaktivieren",
+    "push.iosInstallTitle": "Push-Benachrichtigungen",
+    "push.iosInstallHint": "Füge die App zum Home-Bildschirm hinzu, um Benachrichtigungen zu erhalten.",
+    "push.iosInstallStep1": "1. Teilen-Symbol antippen",
+    "push.iosInstallStep2": "2. Zum Home-Bildschirm",
+    "treasury.remindDebtors": "Schuldner erinnern",
+    "treasury.remindDebtorsDone": "Erinnerungen gesendet",
 } as const
 
 export type TranslationKey = keyof typeof de

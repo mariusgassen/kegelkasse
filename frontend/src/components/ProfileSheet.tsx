@@ -57,6 +57,9 @@ export function ProfileSheet({open, onClose}: Props) {
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const [pushConfigured, setPushConfigured] = useState(false)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
+    const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+    const isStandalone = typeof window !== 'undefined' &&
+        (window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
     const isDraggingRef = useRef(false)
@@ -357,11 +360,11 @@ export function ProfileSheet({open, onClose}: Props) {
                     </div>
 
                     {/* Push notifications */}
-                    {pushSupported && pushConfigured && (
+                    {pushConfigured && (pushSupported ? (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
-                                <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">Benachrichtigungen</span>
-                                {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">Aktiv auf diesem Gerät</div>}
+                                <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('push.label')}</span>
+                                {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
                                 {pushSubscribed && (
@@ -386,11 +389,21 @@ export function ProfileSheet({open, onClose}: Props) {
                                     onClick={handlePushToggle}
                                     disabled={pushLoading}
                                     className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
-                                    {pushLoading ? '…' : pushSubscribed ? 'Deaktivieren' : 'Aktivieren'}
+                                    {pushLoading ? '…' : pushSubscribed ? t('push.deactivate') : t('push.activate')}
                                 </button>
                             </div>
                         </div>
-                    )}
+                    ) : isIos && !isStandalone ? (
+                        <div className="kce-card p-4">
+                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('push.iosInstallTitle')}</span>
+                            <p className="text-xs text-kce-muted mt-1.5 mb-2">{t('push.iosInstallHint')}</p>
+                            <div className="flex gap-3 text-xs text-kce-muted">
+                                <span>{t('push.iosInstallStep1')}</span>
+                                <span className="text-kce-muted opacity-40">→</span>
+                                <span>{t('push.iosInstallStep2')}</span>
+                            </div>
+                        </div>
+                    ) : null)}
 
                     {/* Balance & payment link */}
                     {myBalance?.balance != null && (
