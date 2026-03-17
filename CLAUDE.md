@@ -102,11 +102,9 @@ service worker + IndexedDB for offline support.
   `penalty_log.game_id`. On re-edit: old penalties deleted, new ones created.
 - **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
-  Keep all three in sync with the implementation.
-- **Ruff (Python linter):** Before committing backend changes, run `ruff check backend/ --fix` and resolve all
-  remaining issues. Add this to the pre-commit checklist.
-- **ESLint (Frontend linter):** Before committing frontend changes, run `cd frontend && npm run lint` and resolve all
-  errors (warnings are informational). ESLint runs in CI via the frontend-build workflow.
+  Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
+- **Linting & build:** Do NOT run `ruff`, `eslint`, or `npm run build` locally. Instead, push the branch and check the
+  **GitHub workflow results** (CI) for linting and build errors. Fix any failures shown there.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
