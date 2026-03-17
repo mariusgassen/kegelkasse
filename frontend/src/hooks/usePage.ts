@@ -7,7 +7,7 @@ import {useEffect, useState} from 'react'
  */
 export function usePage<T extends string>(initial: T, navPages?: T[]): [T, (p: T) => void] {
     const getFromHash = (): T => {
-        const hash = window.location.hash.slice(1).split(':')[0] as T
+        const hash = window.location.hash.slice(1).split(':')[0].split('?')[0] as T
         if (!hash) return initial
         if (navPages && !navPages.includes(hash)) return initial
         return hash
