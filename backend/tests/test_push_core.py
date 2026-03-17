@@ -4,6 +4,7 @@ Unit tests for core/push.py helper functions.
 All outbound HTTP calls (pywebpush.webpush) are mocked so these tests never
 hit the network.
 """
+import base64
 from unittest.mock import MagicMock, patch
 
 from core.config import settings
@@ -11,6 +12,97 @@ from models.push import PushSubscription
 from models.user import User, UserRole
 
 FAKE_PRIVATE_KEY = "fake-private-key"
+
+
+# ---------------------------------------------------------------------------
+# _normalize_vapid_private_key
+# ---------------------------------------------------------------------------
+
+class TestNormalizeVapidPrivateKey:
+    """Tests for all three storage formats and the PEM→raw round-trip."""
+
+    def _raw_b64(self, key_obj) -> str:
+        d = key_obj.private_numbers().private_value
+        raw = d.to_bytes(32, "big")
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    def _gen_key(self):
+        from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, generate_private_key
+        return generate_private_key(SECP256R1())
+
+    def test_raw_base64url_returned_unchanged(self):
+        """A key without PEM headers is returned as-is."""
+        from core.push import _normalize_vapid_private_key
+        raw = "abc123-_XYZ"
+        assert _normalize_vapid_private_key(raw) == raw
+
+    def test_pem_real_newlines_converts_to_raw_b64(self):
+        """PEM with real newlines is converted to raw base64url (32-byte EC scalar)."""
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+        from core.push import _normalize_vapid_private_key
+
+        key = self._gen_key()
+        pem = key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()).decode()
+
+        result = _normalize_vapid_private_key(pem)
+
+        assert result == self._raw_b64(key)
+
+    def test_pem_escaped_newlines_converts_to_raw_b64(self):
+        """PEM stored with literal \\n (Coolify / single-line env var) is also converted."""
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+        from core.push import _normalize_vapid_private_key
+
+        key = self._gen_key()
+        pem = key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()).decode()
+        pem_escaped = pem.replace("\n", "\\n")
+
+        result = _normalize_vapid_private_key(pem_escaped)
+
+        assert result == self._raw_b64(key)
+
+    def test_vapid_pem_round_trip_and_reusability(self):
+        """Generate a real VAPID key pair, normalize PEM → raw, then re-derive
+        the public key from the normalized private key and verify it matches.
+        This is the closest thing to an encryption/decryption round-trip for ECDH keys.
+        """
+        from cryptography.hazmat.primitives.asymmetric.ec import (
+            SECP256R1,
+            derive_private_key,
+        )
+        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+        from py_vapid import Vapid
+
+        from core.push import _normalize_vapid_private_key
+
+        v = Vapid()
+        v.generate_keys()
+
+        pem = v.private_pem().decode()
+        normalized = _normalize_vapid_private_key(pem)
+
+        # Decode normalized → raw bytes → reconstruct private key
+        raw_bytes = base64.urlsafe_b64decode(normalized + "==")
+        assert len(raw_bytes) == 32, "EC P-256 private key must be exactly 32 bytes"
+
+        reconstructed = derive_private_key(int.from_bytes(raw_bytes, "big"), SECP256R1())
+
+        # Re-derive public key and compare to the original
+        original_pub = v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+        reconstructed_pub = reconstructed.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+        assert reconstructed_pub == original_pub, "Re-derived public key must match original"
+
+    def test_pkcs8_pem_round_trip(self):
+        """PKCS#8 PEM (-----BEGIN PRIVATE KEY-----) is also handled correctly."""
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+        from core.push import _normalize_vapid_private_key
+
+        key = self._gen_key()
+        pem_pkcs8 = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()).decode()
+
+        result = _normalize_vapid_private_key(pem_pkcs8)
+
+        assert result == self._raw_b64(key)
 
 
 def _make_sub(db, user_id: int, endpoint: str = "https://push.example.com/sub") -> PushSubscription:
