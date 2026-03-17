@@ -62,12 +62,38 @@ registerRoute(
 
 // ── Push notifications ──
 
+/** Read JWT from the kegelkasse_auth IndexedDB written by the main app. */
+function getStoredToken(): Promise<string | null> {
+    return new Promise((resolve) => {
+        const req = indexedDB.open('kegelkasse_auth', 1)
+        req.onerror = () => resolve(null)
+        req.onupgradeneeded = (e) => {
+            // DB didn't exist yet — create the store so onsuccess fires, then close
+            ;(e.target as IDBOpenDBRequest).result.createObjectStore('tokens')
+        }
+        req.onsuccess = () => {
+            const db = req.result
+            if (!db.objectStoreNames.contains('tokens')) {
+                db.close()
+                resolve(null)
+                return
+            }
+            const tx = db.transaction('tokens', 'readonly')
+            const getReq = tx.objectStore('tokens').get('jwt')
+            getReq.onsuccess = () => { db.close(); resolve((getReq.result as string) ?? null) }
+            getReq.onerror = () => { db.close(); resolve(null) }
+        }
+    })
+}
+
 self.addEventListener('push', (event) => {
     const data = event.data?.json() ?? {}
     const title = data.title ?? 'Kegelkasse'
     const body = data.body ?? ''
     const url = (data.url as string) ?? '/'
-    const tag = data.tag ?? 'kegelkasse'
+    const tag = (data.tag as string) ?? 'kegelkasse'
+    const actions = (data.actions as {action: string; title: string}[]) ?? []
+    const rid = data.rid as number | undefined
 
     // Broadcast to all open app windows so they can add it to the in-app notification list
     const broadcast = self.clients
@@ -83,15 +109,48 @@ self.addEventListener('push', (event) => {
                 body,
                 icon: '/icon.svg',
                 tag,
-                data: { url },
-            }),
+                data: { url, rid },
+                ...(actions.length ? {actions} as object : {}),
+            } as NotificationOptions),
         ])
     )
 })
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close()
-    const url = (event.notification.data?.url as string) ?? '/'
+    const notifData = event.notification.data ?? {}
+    const url = (notifData.url as string) ?? '/'
+    const rid = notifData.rid as number | undefined
+    const action = event.action
+
+    // Handle payment-request action buttons (confirm / reject)
+    if ((action === 'confirm' || action === 'reject') && rid) {
+        event.waitUntil(
+            getStoredToken().then((token) => {
+                if (!token) {
+                    // No token available — open the treasury page so the admin can act manually
+                    return self.clients.openWindow(url)
+                }
+                return fetch(`/api/v1/club/payment-requests/${rid}/${action}`, {
+                    method: 'PATCH',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                }).then(() => {
+                    // Refresh the treasury page if it's open
+                    return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+                        .then((clients) => {
+                            for (const c of clients) {
+                                if ('navigate' in c) {
+                                    ;(c as WindowClient).navigate(url)
+                                    return (c as WindowClient).focus()
+                                }
+                            }
+                        })
+                })
+            })
+        )
+        return
+    }
+
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: readonly WindowClient[]) => {
             // Find an existing window and navigate it to the target URL

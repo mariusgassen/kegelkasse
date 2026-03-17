@@ -5,6 +5,7 @@ import {useAppStore} from '@/store/app'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
+import {PushPreferences} from '@/types'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -108,6 +109,8 @@ export function ProfileSheet({open, onClose}: Props) {
         }
     }, [open, onClose])
 
+    const [pushPrefs, setPushPrefs] = useState<PushPreferences | null>(null)
+
     // Check push status when sheet opens
     useEffect(() => {
         if (!open || !pushSupported) return
@@ -116,6 +119,24 @@ export function ProfileSheet({open, onClose}: Props) {
         ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
         api.getPushStatus().then(s => setPushConfigured(s.configured)).catch(() => {})
     }, [open, pushSupported])
+
+    // Load push preferences when subscribed
+    useEffect(() => {
+        if (!open || !pushSubscribed) return
+        api.getPushPreferences().then(setPushPrefs).catch(() => {})
+    }, [open, pushSubscribed])
+
+    async function togglePushPref(key: keyof PushPreferences) {
+        if (!pushPrefs) return
+        const updated = {...pushPrefs, [key]: !pushPrefs[key]}
+        setPushPrefs(updated)
+        try {
+            await api.updatePushPreferences({[key]: updated[key]})
+        } catch (e) {
+            setPushPrefs(pushPrefs) // revert
+            toastError(e)
+        }
+    }
 
     const qc = useQueryClient()
     const year = new Date().getFullYear()
@@ -404,6 +425,33 @@ export function ProfileSheet({open, onClose}: Props) {
                             </div>
                         </div>
                     ) : null)}
+
+                    {/* Push notification preferences */}
+                    {pushSubscribed && pushPrefs && (
+                        <div className="kce-card p-4 space-y-2">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('push.preferences')}
+                            </div>
+                            {(Object.keys(pushPrefs) as (keyof PushPreferences)[]).map(key => (
+                                <div key={key} className="flex items-center justify-between py-0.5">
+                                    <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
+                                    <button
+                                        onClick={() => togglePushPref(key)}
+                                        className={[
+                                            'relative w-9 h-5 rounded-full transition-colors flex-shrink-0',
+                                            pushPrefs[key] ? 'bg-kce-amber' : 'bg-kce-surface2',
+                                        ].join(' ')}
+                                        aria-pressed={pushPrefs[key]}
+                                    >
+                                        <span className={[
+                                            'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                                            pushPrefs[key] ? 'translate-x-4' : 'translate-x-0.5',
+                                        ].join(' ')}/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Balance & payment link */}
                     {myBalance?.balance != null && (

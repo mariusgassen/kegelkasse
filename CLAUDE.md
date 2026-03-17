@@ -148,7 +148,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 5  | **Historie**                       | ✅      | Detail-Ansicht, Wiedereröffnen, Löschen, Nachtragen-Sheet                                             |
 | 6  | **Eigene Historie / Profil**       | ✅      | Persönliche Jahresstatistiken im Profil (Strafen, Abende, Siege, Bier)                                |
 | 7  | **Statistiken & Analyse**          | ✅      | Jahresranking mit CSS-Balken, Jahresauswahl, alle Mitglieder ein-/ausklappbar                         |
-| 8  | **Push Notifications**             | ✅      | Web Push für Strafen, Abend-Events, Zahlungen; VAPID-Backend, ProfileSheet-Toggle, SW-Handler        |
+| 8  | **Push Notifications**             | ✅      | Web Push mit Deep Links; Kategorien-Präferenzen pro User; 4 neue Trigger (König, Abend start, neue Mitglieder, Strafe storniert); VAPID-Backend, ProfileSheet-Toggle+Prefs, SW-Handler |
 | 9  | **Offline-Sync**                   | ✅      | IndexedDB-Queue für Strafen/Getränke; OfflineQueuedError; Auto-Flush on reconnect; /sync/-Handler    |
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
 | 11 | **Emoji Picker**                   | ✅      | `emoji-picker-react` v4, EmojiPickerButton-Komponente, Icon- & Insert-Modus, 5 Verwendungen         |
@@ -164,3 +164,4 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
 | 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
 | 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar    |
+| 24 | **iCal Export**                    | ✅      | Öffentlicher Abo-Link (webcal://) mit Secret-Token; Uhrzeit pro Termin; Club-Standard 20:00; 3 Migrationen (022–024) |

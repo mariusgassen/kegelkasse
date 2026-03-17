@@ -2,12 +2,14 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club
+from models.club import Club, ClubSettings
 from models.evening import RegularMember, Evening, EveningPlayer
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.user import User
@@ -31,6 +33,7 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
     return {
         "id": se.id,
         "date": se.date,
+        "time": se.time,
         "venue": se.venue,
         "note": se.note,
         "created_at": se.created_at.isoformat() if se.created_at else None,
@@ -65,6 +68,7 @@ def list_scheduled_evenings(
 
 class ScheduledEveningCreate(BaseModel):
     date: str
+    time: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
 
@@ -84,13 +88,15 @@ def create_scheduled_evening(
         db, user.club_id,
         "📅 Neuer Kegeltermin",
         f"Kegelabend am {se.date}{venue_str} eingetragen.",
-        "/schedule",
+        f"/schedule?event={se.id}",
+        category="schedule",
     )
     return _serialize_scheduled_evening(se, user.regular_member_id)
 
 
 class ScheduledEveningUpdate(BaseModel):
     date: Optional[str] = None
+    time: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
 
@@ -221,6 +227,16 @@ def start_evening(
 
     db.commit()
     db.refresh(ev)
+
+    # Notify members who RSVP'd attending
+    attending_rsvps = db.query(MemberRsvp).filter(
+        MemberRsvp.scheduled_evening_id == se.id,
+        MemberRsvp.status == RsvpStatus.attending,
+    ).all()
+    for rsvp in attending_rsvps:
+        push_to_regular_member(db, rsvp.regular_member_id, "🎳 Kegelabend gestartet",
+                               f"Abend vom {ev.date} hat begonnen.", "/", category="evenings")
+
     return {"id": ev.id, "date": ev.date, "venue": ev.venue}
 
 
@@ -353,5 +369,107 @@ def send_reminder(
             db, member.id,
             "🎳 Bist du dabei?",
             f"Kegelabend am {se.date}{venue_str} — bitte melde dich an oder ab.",
+            f"/schedule?event={se.id}",
+            category="schedule",
         )
     return {"reminded_count": len(non_responders)}
+
+
+# ── iCal export ───────────────────────────────────────────────────────────────
+
+def _ical_escape(s: str) -> str:
+    return s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _ical_fold(line: str) -> str:
+    """Fold long lines per RFC 5545 (max 75 octets, continuation with CRLF + space)."""
+    encoded = line.encode("utf-8")
+    if len(encoded) <= 75:
+        return line + "\r\n"
+    result = b""
+    while len(encoded) > 75:
+        result += encoded[:75] + b"\r\n "
+        encoded = encoded[75:]
+    result += encoded + b"\r\n"
+    return result.decode("utf-8")
+
+
+@router.get("/ical/{token}.ics", include_in_schema=False)
+def export_ical(token: str, db: Session = Depends(get_db)):
+    """Public iCal feed — authenticated by secret token stored in club_settings.extra."""
+    import json
+
+    # Find club by ical_token
+    rows = db.query(ClubSettings).all()
+    club_settings = None
+    for s in rows:
+        extra = s.extra or {}
+        if isinstance(extra, str):
+            extra = json.loads(extra)
+        if extra.get("ical_token") == token:
+            club_settings = s
+            break
+
+    if not club_settings:
+        raise HTTPException(404, "Invalid token")
+
+    club = db.query(Club).filter(Club.id == club_settings.club_id).first()
+    if not club:
+        raise HTTPException(404, "Club not found")
+
+    extra = club_settings.extra or {}
+    if isinstance(extra, str):
+        extra = json.loads(extra)
+    default_time = extra.get("default_evening_time") or "20:00"
+
+    evenings = db.query(ScheduledEvening).filter(
+        ScheduledEvening.club_id == club.id,
+    ).order_by(ScheduledEvening.date).all()
+
+    lines: list[str] = [
+        "BEGIN:VCALENDAR\r\n",
+        "VERSION:2.0\r\n",
+        "PRODID:-//Kegelkasse//Kegeltermine//DE\r\n",
+        "CALSCALE:GREGORIAN\r\n",
+        "METHOD:PUBLISH\r\n",
+        _ical_fold(f"X-WR-CALNAME:Kegeltermine – {club.name}"),
+    ]
+
+    for se in evenings:
+        t = se.time or default_time
+        try:
+            h, m = t.split(":")
+            start_h = int(h)
+            start_m = int(m)
+        except (ValueError, AttributeError):
+            start_h, start_m = 20, 0
+        end_h = (start_h + 3) % 24
+
+        date_compact = se.date.replace("-", "")
+        start_str = f"{date_compact}T{start_h:02d}{start_m:02d}00"
+        end_str = f"{date_compact}T{end_h:02d}{start_m:02d}00"
+
+        summary_parts = ["Kegelabend"]
+        if se.venue:
+            summary_parts.append(se.venue)
+        summary = " · ".join(summary_parts)
+
+        lines.append("BEGIN:VEVENT\r\n")
+        lines.append(f"UID:kegelkasse-{se.id}@kegelkasse\r\n")
+        lines.append(f"DTSTART:{start_str}\r\n")
+        lines.append(f"DTEND:{end_str}\r\n")
+        lines.append(_ical_fold(f"SUMMARY:{_ical_escape(summary)}"))
+        if se.venue:
+            lines.append(_ical_fold(f"LOCATION:{_ical_escape(se.venue)}"))
+        if se.note:
+            lines.append(_ical_fold(f"DESCRIPTION:{_ical_escape(se.note)}"))
+        lines.append("END:VEVENT\r\n")
+
+    lines.append("END:VCALENDAR\r\n")
+
+    content = "".join(lines)
+    return Response(
+        content=content,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kegeltermine.ics"'},
+    )

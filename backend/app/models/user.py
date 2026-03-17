@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -26,6 +26,7 @@ class User(Base):
     avatar = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     preferred_locale = Column(String, default="de")
+    push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="members")
