@@ -298,6 +298,7 @@ export default function App() {
                     </button>
                     {/* Avatar button */}
                     <button
+                        aria-label="Profil"
                         className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
                         style={{
                             background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,#c4701a,var(--kce-primary))',
