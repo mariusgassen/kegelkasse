@@ -57,7 +57,7 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
     )
 }
 
-export function PenaltiesPage() {
+export function ProtocolPage() {
     const t = useT()
     const qc = useQueryClient()
     const {evening, invalidate} = useActiveEvening()
@@ -86,6 +86,12 @@ export function PenaltiesPage() {
 
     const [saving, setSaving] = useState(false)
 
+    // Drink sheet
+    const [drinkSheet, setDrinkSheet] = useState(false)
+    const [drinkType, setDrinkType] = useState<'beer' | 'shots'>('beer')
+    const [drinkVariety, setDrinkVariety] = useState('')
+    const [drinkPlayerIds, setDrinkPlayerIds] = useState<(number | string)[]>([])
+
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
@@ -106,7 +112,7 @@ export function PenaltiesPage() {
     if (!evening) {
         return (
             <div className="page-scroll px-3 py-3 pb-24">
-                <div className="sec-heading">⚠️ {t('nav.penalties')}</div>
+                <div className="sec-heading">📋 {t('evening.tab.log')}</div>
                 <Empty icon="⚠️" text={t('evening.noActive')}/>
             </div>
         )
@@ -168,6 +174,13 @@ export function PenaltiesPage() {
         setCustomPlayerIds([])
         setSaveAsTemplate(false)
         setSheet(true)
+    }
+
+    function openDrinkSheet() {
+        setDrinkType('beer')
+        setDrinkVariety('')
+        setDrinkPlayerIds(players.map(p => p.id))
+        setDrinkSheet(true)
     }
 
     function openEditSheet(entry: PenaltyLogEntry) {
@@ -309,7 +322,6 @@ export function PenaltiesPage() {
         | { kind: 'penalty'; entry: typeof log[0]; ts: number }
         | { kind: 'game_started'; game: typeof evening.games[0]; ts: number }
         | { kind: 'game_finished'; game: typeof evening.games[0]; ts: number }
-        | { kind: 'drink_round'; round: typeof evening.drink_rounds[0]; ts: number }
 
     const timeline: TimelineEvent[] = log.map(e => ({kind: 'penalty', entry: e, ts: e.client_timestamp}))
 
@@ -318,51 +330,53 @@ export function PenaltiesPage() {
             if (g.started_at) timeline.push({kind: 'game_started', game: g, ts: new Date(g.started_at).getTime()})
             if (g.finished_at) timeline.push({kind: 'game_finished', game: g, ts: new Date(g.finished_at).getTime()})
         }
-        for (const r of evening.drink_rounds) {
-            timeline.push({kind: 'drink_round', round: r, ts: r.client_timestamp})
-        }
         timeline.sort((a, b) => b.ts - a.ts)
     }
+
+    const drinkRounds = [...evening.drink_rounds].reverse()
     const editPenaltyType = penaltyTypes.find(pt => pt.id === editType)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
-            <div className="sec-heading">⚠️ {t('nav.penalties')}</div>
 
-            {/* Total */}
-            <div className="kce-card p-4 mb-3 flex items-center justify-between">
-                <span className="text-sm font-bold text-kce-muted">{t('penalty.total')}</span>
-                <span className="font-display font-bold text-kce-amber text-xl">{fe(euroTotal)}</span>
-            </div>
-
-            {/* Add button */}
-            <button className="btn-primary w-full mb-2" onClick={openSheet}>
-                + {t('penalty.enter')}
-            </button>
-
-            {/* Absence penalties (admin only) */}
-            {isAdmin(user) && (
-                <div className="mb-4">
-                    <button
-                        className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
-                        onClick={doCalculateAbsence}
-                        disabled={absenceLoading}>
-                        🏠 {hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
+            {/* ── Header: total + action buttons ── */}
+            <div className="kce-card p-3 mb-3">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">📋 {t('evening.tab.log')}</span>
+                    <span className="font-display font-bold text-kce-amber text-xl">{fe(euroTotal)}</span>
+                </div>
+                <div className="flex gap-2">
+                    <button className="btn-primary flex-1" onClick={openSheet}>
+                        ⚠️ + {t('penalty.enter')}
                     </button>
-                    {absenceResult && (
-                        <p className="text-xs text-kce-muted text-center mt-1">
-                            {absenceResult.absent_count} {t('penalty.absence.result')} · Ø {fe(absenceResult.avg)}
-                        </p>
+                    {players.length > 0 && (
+                        <button className="btn-secondary flex-1" onClick={openDrinkSheet}>
+                            🍺 + {t('drinks.add')}
+                        </button>
                     )}
                 </div>
-            )}
+                {isAdmin(user) && (
+                    <div className="mt-2">
+                        <button
+                            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                            onClick={doCalculateAbsence}
+                            disabled={absenceLoading}>
+                            🏠 {hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
+                        </button>
+                        {absenceResult && (
+                            <p className="text-xs text-kce-muted text-center mt-1">
+                                {absenceResult.absent_count} {t('penalty.absence.result')} · Ø {fe(absenceResult.avg)}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
 
-            {/* Player filter chips */}
+            {/* ── Player filter chips ── */}
             {players.length > 1 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                    <button
-                        className={`chip ${filterPlayer === null ? 'active' : ''}`}
-                        onClick={() => setFilterPlayer(null)}>
+                    <button className={`chip ${filterPlayer === null ? 'active' : ''}`}
+                            onClick={() => setFilterPlayer(null)}>
                         {t('action.all')}
                     </button>
                     {players.map(p => (
@@ -374,6 +388,11 @@ export function PenaltiesPage() {
                     ))}
                 </div>
             )}
+
+            {/* ── STRAFEN section heading ── */}
+            <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                ⚠️ {t('nav.penalties')} ({evening.penalty_log.length})
+            </div>
 
             {/* Log */}
             {timeline.length === 0
@@ -400,21 +419,6 @@ export function PenaltiesPage() {
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
-                            </div>
-                        )
-                    }
-                    if (event.kind === 'drink_round') {
-                        const r = event.round
-                        const icon = r.drink_type === 'beer' ? '🍺' : '🥃'
-                        const label = r.drink_type === 'beer' ? t('drinks.beer') : t('drinks.shots')
-                        return (
-                            <div key={`dr-${r.id}`} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-70">
-                                <span className="text-xl flex-shrink-0">{icon}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
-                                    <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')}</div>
-                                </div>
-                                <div className="text-xs text-kce-muted">{fTime(event.ts)}</div>
                             </div>
                         )
                     }
@@ -468,6 +472,33 @@ export function PenaltiesPage() {
                                 <button className="btn-danger btn-xs flex-shrink-0"
                                         onClick={() => setConfirmDeleteId(entry.id)}>✕
                                 </button>
+                            )}
+                        </div>
+                    )
+                })
+            }
+
+            {/* ── GETRÄNKE section ── */}
+            <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider mb-2 mt-5">
+                🍺 {t('drinks.title')} ({drinkRounds.length})
+            </div>
+            {drinkRounds.length === 0
+                ? <Empty icon="🍺" text={t('drinks.noRounds')}/>
+                : drinkRounds.map(r => {
+                    const icon = r.drink_type === 'beer' ? '🍺' : '🥃'
+                    const label = r.drink_type === 'beer' ? t('drinks.beer') : t('drinks.shots')
+                    return (
+                        <div key={r.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                            <span className="text-xl flex-shrink-0">{icon}</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
+                                <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
+                            </div>
+                            {!evening.is_closed && (
+                                <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                    await api.deleteDrinkRound(evening.id, r.id)
+                                    invalidate()
+                                }}>✕</button>
                             )}
                         </div>
                     )
@@ -620,6 +651,49 @@ export function PenaltiesPage() {
                         </div>
                     </div>
                 )}
+            </Sheet>
+
+            {/* Drink sheet */}
+            <Sheet open={drinkSheet} onClose={() => setDrinkSheet(false)} title={t('drinks.round')}>
+                <div className="flex flex-col gap-3">
+                    <div className="flex gap-1">
+                        {(['beer', 'shots'] as const).map(dt => (
+                            <button key={dt} type="button"
+                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    onClick={() => setDrinkType(dt)}>
+                                {dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
+                            </button>
+                        ))}
+                    </div>
+                    <div>
+                        <label className="field-label">{t('drinks.variety')}</label>
+                        <input className="kce-input" value={drinkVariety}
+                               onChange={e => setDrinkVariety(e.target.value)}
+                               placeholder={t('drinks.sortPlaceholder')}/>
+                    </div>
+                    <ChipSelect
+                        label={t('drinks.who')}
+                        options={playerOptions}
+                        selected={drinkPlayerIds}
+                        onChange={setDrinkPlayerIds}
+                        onSelectAll={() => setDrinkPlayerIds(players.map(p => p.id))}
+                        onSelectNone={() => setDrinkPlayerIds([])}/>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setDrinkSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-primary flex-[2]" disabled={drinkPlayerIds.length === 0}
+                                onClick={async () => {
+                                    await api.addDrinkRound(evening!.id, {
+                                        drink_type: drinkType,
+                                        variety: drinkVariety || undefined,
+                                        participant_ids: drinkPlayerIds as number[],
+                                        client_timestamp: Date.now(),
+                                    })
+                                    invalidate()
+                                    setDrinkSheet(false)
+                                }}>{t('action.done')}</button>
+                    </div>
+                </div>
             </Sheet>
 
             {/* Edit penalty sheet */}

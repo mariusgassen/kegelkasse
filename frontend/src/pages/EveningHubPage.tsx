@@ -7,7 +7,7 @@ import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
-import {PenaltiesPage} from './PenaltiesPage'
+import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 
 type SubTab = 'penalties' | 'games'
@@ -103,7 +103,7 @@ export function EveningHubPage({onNavigate}: Props) {
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'penalties' ? 'block' : 'none'}}>
-                    <PenaltiesPage/>
+                    <ProtocolPage/>
                 </div>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
