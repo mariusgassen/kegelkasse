@@ -161,7 +161,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | 🚧      | Spieltermine & RSVP (SchedulePage) fertig; Strafenautomatik beim Start-aus-Termin fehlt noch        |
-| 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
+| 21 | **Schulden-Erinnerungen**          | ✅      | APScheduler (tägl. 09:00); 5 Typen: Schulden wöchentlich, Kegeln in X Tagen (per-user), RSVP, Schulden am Kegeltag, Zahlungsanfragen-Nudge; Toggle-Fix; Broadcast-Push; Admin-Konfiguration in ClubAdminPage |
 | 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
 | 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar    |
 | 24 | **iCal Export**                    | ✅      | Öffentlicher Abo-Link (webcal://) mit Secret-Token; Uhrzeit pro Termin; Club-Standard 20:00; 3 Migrationen (022–024) |

@@ -948,6 +948,75 @@ def reject_payment_request(rid: int, db: Session = Depends(get_db),
     return _fmt_request(req, member_name)
 
 
+_DEFAULT_REMINDER_SETTINGS: dict = {
+    "debt_weekly": {"enabled": False, "weekday": 1, "min_debt": 5.0},
+    "upcoming_evening": {"enabled": False, "days_before": 5},
+    "rsvp_reminder": {"enabled": False, "days_before": 3},
+    "debt_day_of": {"enabled": False},
+    "payment_request_nudge": {"enabled": False, "days_pending": 3},
+}
+
+
+@router.get("/reminder-settings")
+def get_reminder_settings(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Get club-level reminder configuration."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    extra = (s.extra or {}) if s else {}
+    saved = extra.get("reminders", {})
+    result: dict = {}
+    for key, defaults in _DEFAULT_REMINDER_SETTINGS.items():
+        merged = dict(defaults)
+        merged.update(saved.get(key, {}))
+        result[key] = merged
+    return result
+
+
+class ReminderSettingsUpdate(BaseModel):
+    debt_weekly: Optional[dict] = None
+    upcoming_evening: Optional[dict] = None
+    rsvp_reminder: Optional[dict] = None
+    debt_day_of: Optional[dict] = None
+    payment_request_nudge: Optional[dict] = None
+
+
+@router.patch("/reminder-settings")
+def update_reminder_settings(data: ReminderSettingsUpdate, db: Session = Depends(get_db),
+                              user: User = Depends(require_club_admin)):
+    """Admin: update club-level reminder configuration."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    extra = dict(s.extra or {})
+    saved = dict(extra.get("reminders", {}))
+    payload = data.model_dump(exclude_none=True)
+    for key, value in payload.items():
+        if key in _DEFAULT_REMINDER_SETTINGS:
+            existing = dict(_DEFAULT_REMINDER_SETTINGS[key])
+            existing.update(saved.get(key, {}))
+            existing.update(value)
+            saved[key] = existing
+    extra["reminders"] = saved
+    s.extra = extra
+    db.commit()
+    return {"ok": True}
+
+
+class BroadcastPushRequest(BaseModel):
+    title: str
+    body: str
+    url: str = "/"
+
+
+@router.post("/broadcast-push")
+def broadcast_push(data: BroadcastPushRequest, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    """Admin: send a custom push notification to all club members."""
+    from core.push import push_to_club
+    push_to_club(db, user.club_id, data.title, data.body, data.url)
+    return {"ok": True}
+
+
 @router.post("/remind-debtors", status_code=200)
 def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
     """Admin: send push notification to every member with outstanding debt."""

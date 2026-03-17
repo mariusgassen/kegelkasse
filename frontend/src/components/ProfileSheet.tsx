@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
-import {useAppStore} from '@/store/app'
+import {useAppStore, isAdmin} from '@/store/app'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
@@ -9,6 +9,18 @@ import {PushPreferences} from '@/types'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
+}
+
+function PushToggle({value, onChange}: { value: boolean; onChange: () => void }) {
+    return (
+        <button
+            onClick={onChange}
+            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2'].join(' ')}
+            aria-pressed={value}
+        >
+            <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
+        </button>
+    )
 }
 
 function resizeToBase64(file: File, size = 256): Promise<string> {
@@ -432,24 +444,59 @@ export function ProfileSheet({open, onClose}: Props) {
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
                             </div>
-                            {(Object.keys(pushPrefs) as (keyof PushPreferences)[]).map(key => (
+                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
-                                    <button
-                                        onClick={() => togglePushPref(key)}
-                                        className={[
-                                            'relative w-9 h-5 rounded-full transition-colors flex-shrink-0',
-                                            pushPrefs[key] ? 'bg-kce-amber' : 'bg-kce-surface2',
-                                        ].join(' ')}
-                                        aria-pressed={pushPrefs[key]}
-                                    >
-                                        <span className={[
-                                            'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
-                                            pushPrefs[key] ? 'translate-x-4' : 'translate-x-0.5',
-                                        ].join(' ')}/>
-                                    </button>
+                                    <PushToggle value={!!pushPrefs[key]} onChange={() => togglePushPref(key)} />
                                 </div>
                             ))}
+
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider pt-3 pb-1">
+                                {t('push.reminders')}
+                            </div>
+
+                            {/* reminder_debt */}
+                            <div className="flex items-center justify-between py-0.5">
+                                <span className="text-xs text-kce-cream">{t('push.pref.reminder_debt')}</span>
+                                <PushToggle value={!!pushPrefs.reminder_debt} onChange={() => togglePushPref('reminder_debt')} />
+                            </div>
+
+                            {/* reminder_schedule + per-user days_before */}
+                            <div className="flex items-center justify-between py-0.5">
+                                <span className="text-xs text-kce-cream">{t('push.pref.reminder_schedule')}</span>
+                                <PushToggle value={!!pushPrefs.reminder_schedule} onChange={() => togglePushPref('reminder_schedule')} />
+                            </div>
+                            {pushPrefs.reminder_schedule && (
+                                <div className="flex items-center justify-between py-0.5 pl-2">
+                                    <span className="text-xs text-kce-muted">{t('push.reminder_schedule_days')}</span>
+                                    <input
+                                        type="number"
+                                        min={1} max={30}
+                                        className="kce-input w-16 text-right text-xs"
+                                        value={pushPrefs.reminder_schedule_days ?? 5}
+                                        onChange={async e => {
+                                            const days = parseInt(e.target.value)
+                                            if (isNaN(days) || days < 1) return
+                                            const updated = {...pushPrefs, reminder_schedule_days: days}
+                                            setPushPrefs(updated)
+                                            try {
+                                                await api.updatePushPreferences({reminder_schedule_days: days})
+                                            } catch (err) {
+                                                setPushPrefs(pushPrefs)
+                                                toastError(err)
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* reminder_payments — admins only */}
+                            {isAdmin(user) && (
+                                <div className="flex items-center justify-between py-0.5">
+                                    <span className="text-xs text-kce-cream">{t('push.pref.reminder_payments')}</span>
+                                    <PushToggle value={!!pushPrefs.reminder_payments} onChange={() => togglePushPref('reminder_payments')} />
+                                </div>
+                            )}
                         </div>
                     )}
 

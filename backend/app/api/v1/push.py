@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_member
+from api.deps import require_club_admin, require_club_member
 from core.config import settings
 from core.database import get_db
 from models.push import PushSubscription
@@ -19,6 +19,9 @@ _DEFAULT_PREFS = {
     "payments": True,
     "games": True,
     "members": True,
+    "reminder_debt": True,
+    "reminder_schedule": True,
+    "reminder_payments": True,
 }
 
 router = APIRouter(prefix="/push", tags=["push"])
@@ -112,6 +115,10 @@ class PushPreferencesUpdate(BaseModel):
     payments: Optional[bool] = None
     games: Optional[bool] = None
     members: Optional[bool] = None
+    reminder_debt: Optional[bool] = None
+    reminder_schedule: Optional[bool] = None
+    reminder_payments: Optional[bool] = None
+    reminder_schedule_days: Optional[int] = None  # per-user days_before for upcoming evening
 
 
 @router.patch("/preferences")
@@ -146,3 +153,11 @@ def debug_push(db: Session = Depends(get_db), user: User = Depends(require_club_
             for s in subs
         ],
     }
+
+
+@router.post("/trigger-reminders")
+async def trigger_reminders(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: manually trigger all reminder checks now (for testing / catchup)."""
+    from core.reminders import send_all_reminders
+    await send_all_reminders(db)
+    return {"ok": True}
