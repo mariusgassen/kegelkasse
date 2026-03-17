@@ -19,7 +19,7 @@ from models.club import ClubSettings
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
-from models.schedule import ScheduledEvening, MemberRsvp
+from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
 from models.user import User
 
 router = APIRouter(prefix="/evening", tags=["evening"])
@@ -364,8 +364,9 @@ def delete_penalty(eid: int, lid: int, db: Session = Depends(get_db),
 def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) -> dict:
     """Calculate absence penalties for an evening, RSVP-aware.
 
-    Uses club-configured absence_fee if set; otherwise calculates average from present players.
-    Members without an RSVP incur an additional no_rsvp_extra penalty if configured.
+    Base fee = average penalty of present players.
+    Extra fee (no_cancel_fee) applies to absent members who did NOT cancel
+    (status is null or 'attending' — only explicit 'absent' RSVP waives the surcharge).
     """
     # Delete existing absence entries to allow recalculation
     db.query(PenaltyLog).filter(
@@ -375,37 +376,30 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
     ).delete()
 
     present_players = db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).all()
-
     present_regular_ids = {p.regular_member_id for p in present_players if p.regular_member_id}
 
-    # Look up club settings for configured fees
+    # Look up no_cancel_fee from club settings
     settings = db.query(ClubSettings).filter(ClubSettings.club_id == e.club_id).first()
-    extra = (settings.extra or {}) if settings else {}
-    configured_absence_fee: Optional[float] = extra.get("absence_fee")
-    no_rsvp_extra: float = extra.get("no_rsvp_extra") or 0.0
+    no_cancel_fee: float = ((settings.extra or {}).get("no_cancel_fee") or 0.0) if settings else 0.0
 
-    # Determine base absence fee
-    if configured_absence_fee is not None and configured_absence_fee > 0:
-        base_fee = configured_absence_fee
-    elif present_players:
-        # Fallback: average penalty of present players
+    # Base fee = average of present players' penalties
+    if present_players:
         present_player_ids = [p.id for p in present_players]
         penalties = db.query(PenaltyLog).filter(
             PenaltyLog.evening_id == e.id,
             PenaltyLog.is_deleted == False,
             PenaltyLog.player_id.in_(present_player_ids),
         ).all()
-        total = 0.0
-        for pl in penalties:
-            if pl.mode == PenaltyMode.euro:
-                total += pl.amount
-            elif pl.unit_amount is not None:
-                total += pl.amount * pl.unit_amount
+        total = sum(
+            pl.amount if pl.mode == PenaltyMode.euro
+            else (pl.amount * pl.unit_amount if pl.unit_amount else 0)
+            for pl in penalties
+        )
         base_fee = total / len(present_players)
     else:
         base_fee = 0.0
 
-    # Find the ScheduledEvening matching this date (for RSVP lookup)
+    # Find ScheduledEvening matching this date (for RSVP lookup)
     scheduled = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == e.club_id,
         ScheduledEvening.date == e.date,
@@ -425,12 +419,10 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
 
     now_ts = datetime.now(UTC).timestamp() * 1000
     for member in absent_members:
-        # No-RSVP surcharge: absent members who gave no response pay extra
+        # Surcharge waived only if member explicitly RSVP'd absent
         rsvp_status = rsvp_map.get(member.id)
-        has_rsvp = rsvp_status is not None
-        extra_fee = 0.0 if has_rsvp else no_rsvp_extra
+        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
         total_fee = base_fee + extra_fee
-
         db.add(PenaltyLog(
             evening_id=e.id,
             player_id=None,
@@ -449,8 +441,7 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
     db.commit()
     for member in absent_members:
         rsvp_status = rsvp_map.get(member.id)
-        has_rsvp = rsvp_status is not None
-        extra_fee = 0.0 if has_rsvp else no_rsvp_extra
+        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
         total_fee = base_fee + extra_fee
         fee_str = f"{total_fee:.2f}".replace('.', ',')
         push_to_regular_member(db, member.id, "🏠 Abwesenheitsstrafe",

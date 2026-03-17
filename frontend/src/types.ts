@@ -22,8 +22,7 @@ export interface ClubSettings {
     bg_color: string | null
     guest_penalty_cap: number | null
     paypal_me: string | null
-    absence_fee: number | null
-    no_rsvp_extra: number | null
+    no_cancel_fee: number | null
 }
 
 export type RsvpStatus = 'attending' | 'absent'

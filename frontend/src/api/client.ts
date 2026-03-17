@@ -112,8 +112,7 @@ export const api = {
         name?: string;
         guest_penalty_cap?: number | null;
         paypal_me?: string | null;
-        absence_fee?: number | null;
-        no_rsvp_extra?: number | null;
+        no_cancel_fee?: number | null;
     }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{

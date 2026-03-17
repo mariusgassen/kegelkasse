@@ -40,8 +40,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
             "bg_color": (s.extra or {}).get("bg_color") if s else None,
             "guest_penalty_cap": (s.extra or {}).get("guest_penalty_cap") if s else None,
             "paypal_me": (s.extra or {}).get("paypal_me") if s else None,
-            "absence_fee": (s.extra or {}).get("absence_fee") if s else None,
-            "no_rsvp_extra": (s.extra or {}).get("no_rsvp_extra") if s else None,
+            "no_cancel_fee": (s.extra or {}).get("no_cancel_fee") if s else None,
         } if s else {}
     }
 
@@ -53,13 +52,12 @@ class ClubSettingsUpdate(BaseModel):
     bg_color: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
     paypal_me: Optional[str] = None
-    absence_fee: Optional[float] = None  # fixed absence penalty (replaces average-based calc)
-    no_rsvp_extra: Optional[float] = None  # extra penalty for members who did not RSVP
+    no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "absence_fee", "no_rsvp_extra"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee"}
 
 
 @router.patch("/settings")

@@ -135,8 +135,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
     const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
-    const [absenceFee, setAbsenceFee] = useState(club?.settings?.absence_fee != null ? String(club.settings.absence_fee) : '')
-    const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_rsvp_extra != null ? String(club.settings.no_rsvp_extra) : '')
+    const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
 
     useEffect(() => {
         if (!club) return
@@ -147,8 +146,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setBgColor(club.settings?.bg_color || '#1a1410')
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
-        setAbsenceFee(club.settings?.absence_fee != null ? String(club.settings.absence_fee) : '')
-        setNoRsvpExtra(club.settings?.no_rsvp_extra != null ? String(club.settings.no_rsvp_extra) : '')
+        setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
     }, [club])
 
     return (
@@ -211,16 +209,6 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <p className="text-xs text-kce-muted mt-1">{t('club.paypalMeHint')}</p>
                 </div>
                 <div className="mb-3">
-                    <label className="field-label">{t('club.absenceFee')}</label>
-                    <div className="flex items-center gap-2">
-                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                        <input className="kce-input flex-1" type="text" inputMode="decimal"
-                               value={absenceFee} placeholder={t('club.absenceFeePlaceholder')}
-                               onChange={e => setAbsenceFee(e.target.value)}/>
-                    </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.absenceFeeHint')}</p>
-                </div>
-                <div className="mb-3">
                     <label className="field-label">{t('club.noRsvpExtra')}</label>
                     <div className="flex items-center gap-2">
                         <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -232,7 +220,6 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
                 <button className="btn-primary w-full" onClick={async () => {
                     const cap = guestCap.trim() ? parseAmount(guestCap) : null
-                    const absence = absenceFee.trim() ? parseAmount(absenceFee) : null
                     const noRsvp = noRsvpExtra.trim() ? parseAmount(noRsvpExtra) : null
                     await api.updateClubSettings({
                         name: clubName || undefined,
@@ -242,8 +229,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         bg_color: bgColor,
                         guest_penalty_cap: cap,
                         paypal_me: paypalMe.trim() || null,
-                        absence_fee: absence,
-                        no_rsvp_extra: noRsvp,
+                        no_cancel_fee: noRsvp,
                     })
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     setGuestPenaltyCap(cap)
