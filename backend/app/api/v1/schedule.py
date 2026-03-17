@@ -161,7 +161,7 @@ def remove_guest(
 # ── Start evening from scheduled ──────────────────────────────────────────────
 
 class StartEveningBody(BaseModel):
-    import_attending: bool = True
+    member_ids: list[int] = []
 
 
 @router.post("/{sid}/start")
@@ -171,7 +171,7 @@ def start_evening(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    """Create an actual Evening from a ScheduledEvening, optionally importing attending members and planned guests."""
+    """Create an actual Evening from a ScheduledEvening, importing specified members and all planned guests."""
     se = _get_se(sid, user.club_id, db)
 
     ev = Evening(
@@ -187,23 +187,21 @@ def start_evening(
 
     added_member_ids: set[int] = set()
 
-    if data.import_attending:
-        absent_ids = {r.regular_member_id for r in se.rsvps if r.status == RsvpStatus.absent}
-        members = db.query(RegularMember).filter(
+    for mid in data.member_ids:
+        member = db.query(RegularMember).filter(
+            RegularMember.id == mid,
             RegularMember.club_id == se.club_id,
-            RegularMember.is_guest == False,  # noqa: E712
-            ~RegularMember.id.in_(absent_ids),
-        ).all()
-        for m in members:
+        ).first()
+        if member:
             db.add(EveningPlayer(
                 evening_id=ev.id,
-                regular_member_id=m.id,
-                name=m.nickname or m.name,
+                regular_member_id=member.id,
+                name=member.nickname or member.name,
             ))
-            added_member_ids.add(m.id)
+            added_member_ids.add(member.id)
 
     for guest in se.guests:
-        # Skip if the guest is a known member already added via attending RSVP
+        # Skip if the guest is a known member already added
         if guest.regular_member_id and guest.regular_member_id in added_member_ids:
             continue
         db.add(EveningPlayer(

@@ -378,7 +378,7 @@ export const api = {
         request<ScheduledEveningGuest>('POST', `/schedule/${sid}/guests`, d),
     removeScheduledGuest: (sid: number, gid: number) =>
         request<void>('DELETE', `/schedule/${sid}/guests/${gid}`),
-    startEveningFromSchedule: (sid: number, d: { import_attending: boolean }) =>
+    startEveningFromSchedule: (sid: number, d: { member_ids: number[] }) =>
         request<{ id: number; date: string; venue: string | null }>('POST', `/schedule/${sid}/start`, d),
 
     // Presidents
