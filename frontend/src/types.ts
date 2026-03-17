@@ -22,6 +22,28 @@ export interface ClubSettings {
     bg_color: string | null
     guest_penalty_cap: number | null
     paypal_me: string | null
+    absence_fee: number | null
+    no_rsvp_extra: number | null
+}
+
+export type RsvpStatus = 'attending' | 'absent'
+
+export interface ScheduledEvening {
+    id: number
+    date: string
+    venue: string | null
+    note: string | null
+    created_at: string | null
+    attending_count: number
+    absent_count: number
+    my_rsvp: RsvpStatus | null
+}
+
+export interface RsvpEntry {
+    regular_member_id: number
+    name: string
+    nickname: string | null
+    status: RsvpStatus | null  // null = no response
 }
 
 export type PaymentRequestStatus = 'pending' | 'confirmed' | 'rejected'
