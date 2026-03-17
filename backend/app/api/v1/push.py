@@ -12,6 +12,15 @@ from core.database import get_db
 from models.push import PushSubscription
 from models.user import User
 
+_DEFAULT_PREFS = {
+    "penalties": True,
+    "evenings": True,
+    "schedule": True,
+    "payments": True,
+    "games": True,
+    "members": True,
+}
+
 router = APIRouter(prefix="/push", tags=["push"])
 
 
@@ -86,6 +95,37 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
     if errors and sent == 0:
         raise HTTPException(500, f"Push fehlgeschlagen: {errors[0]}")
     return {"sent": sent, "errors": errors}
+
+
+@router.get("/preferences")
+def get_push_preferences(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Return notification category preferences for the current user."""
+    prefs = dict(_DEFAULT_PREFS)
+    prefs.update(user.push_preferences or {})
+    return prefs
+
+
+class PushPreferencesUpdate(BaseModel):
+    penalties: Optional[bool] = None
+    evenings: Optional[bool] = None
+    schedule: Optional[bool] = None
+    payments: Optional[bool] = None
+    games: Optional[bool] = None
+    members: Optional[bool] = None
+
+
+@router.patch("/preferences")
+def update_push_preferences(data: PushPreferencesUpdate, db: Session = Depends(get_db),
+                             user: User = Depends(require_club_member)):
+    """Update notification category preferences (partial — only provided keys are updated)."""
+    prefs = dict(user.push_preferences or {})
+    payload = data.model_dump(exclude_none=True)
+    prefs.update(payload)
+    user.push_preferences = prefs
+    db.commit()
+    result = dict(_DEFAULT_PREFS)
+    result.update(prefs)
+    return result
 
 
 @router.get("/debug")

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import get_current_user
 from core.database import get_db
+from core.push import push_to_club_admins
 from core.security import verify_password, get_password_hash, create_access_token
 from models.user import User, UserRole, InviteToken, PasswordResetToken
 
@@ -247,5 +248,8 @@ def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
     invite.used_at = datetime.now(UTC)
     invite.used_by = user.id
     db.commit()
+    if user.club_id:
+        push_to_club_admins(db, user.club_id, "👋 Neues Mitglied",
+                            f"{user.name} ist dem Verein beigetreten.", "/club", category="members")
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "user": _user_dict(user)}

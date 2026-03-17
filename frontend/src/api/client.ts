@@ -13,6 +13,7 @@ import {
     GameTemplate,
     PenaltyLogEntry,
     PenaltyType,
+    PushPreferences,
     RegularMember,
     RsvpEntry,
     RsvpStatus,
@@ -130,6 +131,7 @@ export const api = {
         paypal_me?: string | null;
         no_cancel_fee?: number | null;
         pin_penalty?: number | null;
+        default_evening_time?: string | null;
     }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{
@@ -377,9 +379,9 @@ export const api = {
 
     // Schedule (planned evenings & RSVP)
     listScheduledEvenings: () => request<ScheduledEvening[]>('GET', '/schedule/'),
-    createScheduledEvening: (d: { date: string; venue?: string; note?: string }) =>
+    createScheduledEvening: (d: { date: string; time?: string; venue?: string; note?: string }) =>
         request<ScheduledEvening>('POST', '/schedule/', d),
-    updateScheduledEvening: (sid: number, d: { date?: string; venue?: string; note?: string }) =>
+    updateScheduledEvening: (sid: number, d: { date?: string; time?: string; venue?: string; note?: string }) =>
         request<ScheduledEvening>('PATCH', `/schedule/${sid}`, d),
     deleteScheduledEvening: (sid: number) => request<void>('DELETE', `/schedule/${sid}`),
     setRsvp: (sid: number, status: RsvpStatus) =>
@@ -443,7 +445,11 @@ export const api = {
     unsubscribeFromPush: (endpoint?: string) =>
         request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
     testPush: () => request<{ sent: number }>('POST', '/push/test'),
+    getPushPreferences: () => request<PushPreferences>('GET', '/push/preferences'),
+    updatePushPreferences: (d: Partial<PushPreferences>) =>
+        request<PushPreferences>('PATCH', '/push/preferences', d),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
+    regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
 }
 
 /**

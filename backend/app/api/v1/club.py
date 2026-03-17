@@ -23,26 +23,45 @@ from models.user import User, UserRole
 router = APIRouter(prefix="/club", tags=["club"])
 
 
+def _serialize_settings(s: ClubSettings) -> dict:
+    extra = s.extra or {}
+    return {
+        "home_venue": s.home_venue,
+        "logo_url": s.logo_url,
+        "primary_color": s.primary_color or "#e8a020",
+        "secondary_color": s.secondary_color or "#6b7c5a",
+        "bg_color": extra.get("bg_color"),
+        "guest_penalty_cap": extra.get("guest_penalty_cap"),
+        "paypal_me": extra.get("paypal_me"),
+        "no_cancel_fee": extra.get("no_cancel_fee"),
+        "pin_penalty": extra.get("pin_penalty"),
+        "default_evening_time": extra.get("default_evening_time"),
+        "ical_token": extra.get("ical_token"),
+    }
+
+
 # ── Club info & settings ──
+
+def _ensure_ical_token(s: ClubSettings, db: Session) -> None:
+    """Lazily generate ical_token for clubs created before migration 023."""
+    import uuid
+    extra = dict(s.extra or {})
+    if not extra.get("ical_token"):
+        extra["ical_token"] = str(uuid.uuid4())
+        s.extra = extra
+        db.commit()
+
 
 @router.get("/")
 def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     club = db.query(Club).filter(Club.id == user.club_id).first()
     if not club: raise HTTPException(404)
     s = club.settings
+    if s:
+        _ensure_ical_token(s, db)
     return {
         "id": club.id, "name": club.name, "slug": club.slug,
-        "settings": {
-            "home_venue": s.home_venue if s else None,
-            "logo_url": s.logo_url if s else None,
-            "primary_color": s.primary_color if s else "#e8a020",
-            "secondary_color": s.secondary_color if s else "#6b7c5a",
-            "bg_color": (s.extra or {}).get("bg_color") if s else None,
-            "guest_penalty_cap": (s.extra or {}).get("guest_penalty_cap") if s else None,
-            "paypal_me": (s.extra or {}).get("paypal_me") if s else None,
-            "no_cancel_fee": (s.extra or {}).get("no_cancel_fee") if s else None,
-            "pin_penalty": (s.extra or {}).get("pin_penalty") if s else None,
-        } if s else {}
+        "settings": _serialize_settings(s) if s else {}
     }
 
 
@@ -55,11 +74,12 @@ class ClubSettingsUpdate(BaseModel):
     paypal_me: Optional[str] = None
     no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
     pin_penalty: Optional[float] = None   # penalty for not bringing pins to an evening
+    default_evening_time: Optional[str] = None  # default start time for scheduled evenings (HH:MM)
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty", "default_evening_time"}
 
 
 @router.patch("/settings")
@@ -84,6 +104,21 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
             s.extra = extra
     db.commit()
     return {"ok": True}
+
+
+@router.post("/settings/regenerate-ical-token")
+def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin only: rotate the iCal feed token (invalidates old links)."""
+    import uuid
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    extra = dict(s.extra or {})
+    extra["ical_token"] = str(uuid.uuid4())
+    s.extra = extra
+    db.commit()
+    return {"ical_token": extra["ical_token"]}
 
 
 @router.get("/members")
@@ -547,7 +582,7 @@ def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
     db.refresh(payment)
     fee = f"{data.amount:.2f}".replace('.', ',')
     push_to_regular_member(db, data.regular_member_id, "💰 Einzahlung erfasst",
-                           f"+{fee}€ in die Kasse eingetragen.")
+                           f"+{fee}€ in die Kasse eingetragen.", "/treasury", category="payments")
     return {"id": payment.id, "amount": payment.amount, "note": payment.note,
             "created_at": payment.created_at.isoformat() if payment.created_at else None}
 
@@ -839,6 +874,7 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
         "💸 Neue Zahlungsanfrage",
         f"{member_display} hat {fee}€ überwiesen und wartet auf Bestätigung.",
         "/treasury",
+        category="payments",
     )
     return _fmt_request(req, user.name)
 
@@ -869,7 +905,7 @@ def confirm_payment_request(rid: int, db: Session = Depends(get_db),
     db.refresh(req)
     fee = f"{req.amount:.2f}".replace('.', ',')
     push_to_regular_member(db, req.regular_member_id, "✅ Zahlung bestätigt",
-                           f"{fee}€ wurden in dein Konto eingetragen.")
+                           f"{fee}€ wurden in dein Konto eingetragen.", "/treasury", category="payments")
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     return _fmt_request(req, (member.nickname or member.name) if member else "")
 
@@ -891,7 +927,8 @@ def reject_payment_request(rid: int, db: Session = Depends(get_db),
     db.commit()
     db.refresh(req)
     push_to_regular_member(db, req.regular_member_id, "❌ Zahlung abgelehnt",
-                           f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.")
+                           f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.",
+                           "/treasury", category="payments")
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     return _fmt_request(req, (member.nickname or member.name) if member else "")
 

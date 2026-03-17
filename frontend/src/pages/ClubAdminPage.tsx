@@ -141,6 +141,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
     const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
     const [pinPenalty, setPinPenalty] = useState(club?.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
+    const [defaultEveningTime, setDefaultEveningTime] = useState(club?.settings?.default_evening_time || '20:00')
 
     useEffect(() => {
         if (!club) return
@@ -153,6 +154,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
         setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
+        setDefaultEveningTime(club.settings?.default_evening_time || '20:00')
     }, [club])
 
     async function handleSave() {
@@ -169,6 +171,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             paypal_me: paypalMe.trim() || null,
             no_cancel_fee: noRsvp,
             pin_penalty: pinP,
+            default_evening_time: defaultEveningTime || undefined,
         })
         applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
         setGuestPenaltyCap(cap)
@@ -186,10 +189,16 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <input className="kce-input" value={clubName} onChange={e => setClubName(e.target.value)}
                            placeholder="Vereinsname"/>
                 </div>
-                <div>
+                <div className="mt-3">
                     <label className="field-label">{t('club.defaultVenue')}</label>
                     <input className="kce-input" value={venue} onChange={e => setVenue(e.target.value)}
                            placeholder={t('club.defaultVenuePlaceholder')}/>
+                </div>
+                <div className="mt-3">
+                    <label className="field-label">{t('schedule.defaultTime')}</label>
+                    <input type="time" className="kce-input" value={defaultEveningTime}
+                           onChange={e => setDefaultEveningTime(e.target.value)}/>
+                    <p className="text-xs text-kce-muted mt-1">{t('schedule.defaultTimeHint')}</p>
                 </div>
             </div>
 

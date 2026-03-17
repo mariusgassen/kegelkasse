@@ -65,27 +65,40 @@ def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str,
         raise
 
 
-def push_to_regular_member(db: Session, regular_member_id: int, title: str, body: str, url: str = '/') -> None:
+def _user_wants(user: User, category: str) -> bool:
+    """Return True if the user has this notification category enabled (default: True)."""
+    prefs = user.push_preferences or {}
+    return bool(prefs.get(category, True))
+
+
+def push_to_regular_member(db: Session, regular_member_id: int, title: str, body: str,
+                            url: str = '/', category: str = '') -> None:
     """Send push to every subscriber linked to a regular member."""
     if not settings.VAPID_PRIVATE_KEY:
         return
     users = db.query(User).filter(User.regular_member_id == regular_member_id, User.is_active == True).all()
     for user in users:
+        if category and not _user_wants(user, category):
+            continue
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url)
 
 
-def push_to_club(db: Session, club_id: int, title: str, body: str, url: str = '/') -> None:
+def push_to_club(db: Session, club_id: int, title: str, body: str,
+                 url: str = '/', category: str = '') -> None:
     """Send push to every subscriber in a club."""
     if not settings.VAPID_PRIVATE_KEY:
         return
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
     for user in users:
+        if category and not _user_wants(user, category):
+            continue
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url)
 
 
-def push_to_club_admins(db: Session, club_id: int, title: str, body: str, url: str = '/') -> None:
+def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
+                        url: str = '/', category: str = '') -> None:
     """Send push to all admin/superadmin subscribers in a club."""
     if not settings.VAPID_PRIVATE_KEY:
         return
@@ -96,5 +109,7 @@ def push_to_club_admins(db: Session, club_id: int, title: str, body: str, url: s
         User.role.in_([UserRole.admin, UserRole.superadmin]),
     ).all()
     for user in users:
+        if category and not _user_wants(user, category):
+            continue
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url)

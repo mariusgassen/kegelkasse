@@ -34,6 +34,8 @@ export interface ClubSettings {
     paypal_me: string | null
     no_cancel_fee: number | null
     pin_penalty: number | null
+    default_evening_time: string | null
+    ical_token: string | null
 }
 
 export type RsvpStatus = 'attending' | 'absent'
@@ -47,6 +49,7 @@ export interface ScheduledEveningGuest {
 export interface ScheduledEvening {
     id: number
     date: string
+    time: string | null
     venue: string | null
     note: string | null
     created_at: string | null
@@ -54,6 +57,15 @@ export interface ScheduledEvening {
     absent_count: number
     my_rsvp: RsvpStatus | null
     guests: ScheduledEveningGuest[]
+}
+
+export interface PushPreferences {
+    penalties: boolean
+    evenings: boolean
+    schedule: boolean
+    payments: boolean
+    games: boolean
+    members: boolean
 }
 
 export interface RsvpEntry {

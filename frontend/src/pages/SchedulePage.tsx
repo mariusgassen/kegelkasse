@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -394,9 +394,10 @@ function StartEveningSheet({se, onClose, onStarted}: {
 }
 
 // ── Upcoming scheduled evening card ──────────────────────────────────────────
-function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted}: {
+function UpcomingCard({se, isAdminUser, displayTime, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted}: {
     se: ScheduledEvening
     isAdminUser: boolean
+    displayTime?: string | null
     onEdit: () => void
     onDelete: () => void
     onViewRsvps: () => void
@@ -426,6 +427,9 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-kce-cream">{fDateLong(se.date)}</div>
+                    {(se.time ?? displayTime) && (
+                        <div className="text-xs text-kce-muted mt-0.5">🕗 {se.time ?? displayTime} {t('schedule.clockSuffix')}</div>
+                    )}
                     {se.venue && <div className="text-xs text-kce-muted mt-0.5 truncate">🏠 {se.venue}</div>}
                     {se.note && <div className="text-xs text-kce-muted mt-0.5 italic truncate">{se.note}</div>}
                 </div>
@@ -533,14 +537,16 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
 }
 
 // ── Schedule edit / create sheet ──────────────────────────────────────────────
-function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
+function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved}: {
     initial?: ScheduledEvening
     defaultVenue: string
+    defaultTime: string
     onClose: () => void
     onSaved: () => void
 }) {
     const t = useT()
     const [date, setDate] = useState(initial?.date ?? TODAY)
+    const [time, setTime] = useState(initial?.time ?? '')
     const [venue, setVenue] = useState(initial?.venue ?? defaultVenue)
     const [note, setNote] = useState(initial?.note ?? '')
     const [saving, setSaving] = useState(false)
@@ -549,8 +555,9 @@ function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
         if (!date) return
         setSaving(true)
         try {
-            if (initial) await api.updateScheduledEvening(initial.id, {date, venue: venue || undefined, note: note || undefined})
-            else await api.createScheduledEvening({date, venue: venue || undefined, note: note || undefined})
+            const payload = {date, time: time || undefined, venue: venue || undefined, note: note || undefined}
+            if (initial) await api.updateScheduledEvening(initial.id, payload)
+            else await api.createScheduledEvening(payload)
             onSaved()
             onClose()
         } catch (e) {
@@ -568,6 +575,10 @@ function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
                     <input type="date" className="kce-input" value={date} onChange={e => setDate(e.target.value)} required/>
                 </div>
                 <div>
+                    <label className="field-label">{t('schedule.time')} <span className="text-kce-muted font-normal">({t('common.optional')}, {t('schedule.defaultIs')} {defaultTime})</span></label>
+                    <input type="time" className="kce-input" value={time} onChange={e => setTime(e.target.value)}/>
+                </div>
+                <div>
                     <label className="field-label">{t('schedule.venue')}</label>
                     <input type="text" className="kce-input" placeholder={t('evening.venuePlaceholder')}
                            value={venue} onChange={e => setVenue(e.target.value)}/>
@@ -578,6 +589,100 @@ function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
                 <button type="submit" className="btn-primary w-full" disabled={saving || !date}>{t('action.save')}</button>
+            </div>
+        </Sheet>
+    )
+}
+
+
+// ── iCal subscribe sheet ───────────────────────────────────────────────────────
+function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName: string; onClose: () => void }) {
+    const t = useT()
+    const [copied, setCopied] = useState(false)
+    const url = `webcal://${window.location.host}/api/v1/schedule/ical/${icalToken}.ics`
+
+    async function copy() {
+        try {
+            await navigator.clipboard.writeText(url)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            showToast(url)
+        }
+    }
+
+    return (
+        <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}>
+            <div className="space-y-3">
+                <p className="text-xs text-kce-muted">{t('schedule.icalHint')}</p>
+                <div className="bg-kce-surface2 rounded-lg p-2.5 text-[11px] font-mono text-kce-cream break-all select-all">
+                    {url}
+                </div>
+                <div className="flex gap-2">
+                    <a href={url} className="flex-1 btn-primary text-center text-sm">
+                        {t('schedule.openInCalendar')}
+                    </a>
+                    <button className="btn-secondary btn-sm flex-shrink-0" onClick={copy}>
+                        {copied ? '✓' : t('schedule.icalCopy')}
+                    </button>
+                </div>
+                <p className="text-[10px] text-kce-muted text-center">{t('schedule.icalFor')} {clubName}</p>
+            </div>
+        </Sheet>
+    )
+}
+
+
+// ── RSVP quick sheet (opened from push notification deep link) ────────────────
+function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose: () => void; onUpdate: () => void }) {
+    const t = useT()
+    const [busy, setBusy] = useState(false)
+
+    async function toggle(status: RsvpStatus) {
+        setBusy(true)
+        try {
+            if (se.my_rsvp === status) await api.removeRsvp(se.id)
+            else await api.setRsvp(se.id, status)
+            onUpdate()
+            onClose()
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    return (
+        <Sheet open onClose={onClose} title={t('schedule.rsvpQuickTitle')}>
+            <div className="space-y-3">
+                <div className="kce-card p-3">
+                    <div className="text-sm font-bold text-kce-cream">{fDateLong(se.date)}</div>
+                    {se.venue && <div className="text-xs text-kce-muted mt-0.5">🏠 {se.venue}</div>}
+                    {se.note && <div className="text-xs text-kce-muted mt-0.5 italic">{se.note}</div>}
+                </div>
+                <p className="text-sm text-kce-muted text-center">{t('schedule.rsvpQuickHint')}</p>
+                <div className="flex gap-3">
+                    <button
+                        disabled={busy}
+                        onClick={() => toggle('attending')}
+                        className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
+                            se.my_rsvp === 'attending'
+                                ? 'bg-green-500/20 text-green-400 border-green-500/40'
+                                : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                        ].join(' ')}>
+                        ✅ {t('rsvp.attending.short')}
+                    </button>
+                    <button
+                        disabled={busy}
+                        onClick={() => toggle('absent')}
+                        className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
+                            se.my_rsvp === 'absent'
+                                ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                        ].join(' ')}>
+                        ❌ {t('rsvp.absent.short')}
+                    </button>
+                </div>
             </div>
         </Sheet>
     )
@@ -908,9 +1013,11 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const isAdminUser = isAdmin(user)
 
-    // Fetch club for home_venue default
+    // Fetch club for home_venue and ical token
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const defaultVenue = club?.settings?.home_venue ?? ''
+    const defaultTime = club?.settings?.default_evening_time ?? '20:00'
+    const icalToken = club?.settings?.ical_token ?? null
 
     const {data: schedules, isLoading} = useQuery<ScheduledEvening[]>({
         queryKey: ['schedule'],
@@ -920,7 +1027,27 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
 
     const [editSheet, setEditSheet] = useState<ScheduledEvening | null | 'new'>(null)
     const [rsvpSheet, setRsvpSheet] = useState<ScheduledEvening | null>(null)
+    const [rsvpQuickSheet, setRsvpQuickSheet] = useState<ScheduledEvening | null>(null)
+    const [icalSheet, setIcalSheet] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+
+    // Deep link: ?event=ID → auto-open RSVP quick sheet (member) or RSVP sheet (admin)
+    const deepLinkHandled = useRef(false)
+    useEffect(() => {
+        if (deepLinkHandled.current || !schedules) return
+        const params = new URLSearchParams(window.location.search)
+        const eventId = params.get('event')
+        if (!eventId) return
+        deepLinkHandled.current = true
+        // Remove the param from URL without page reload
+        const url = new URL(window.location.href)
+        url.searchParams.delete('event')
+        window.history.replaceState({}, '', url.toString())
+        const se = schedules.find(s => s.id === parseInt(eventId, 10))
+        if (!se) return
+        if (isAdminUser) setRsvpSheet(se)
+        else setRsvpQuickSheet(se)
+    }, [schedules, isAdminUser])
 
     function invalidate() {
         qc.invalidateQueries({queryKey: ['schedule']})
@@ -954,12 +1081,20 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
             {/* ── Upcoming ── */}
             <div className="flex items-center justify-between mb-0">
                 <div className="sec-heading flex-1">📅 {t('schedule.upcoming')}</div>
-                {isAdminUser && (
-                    <button className="btn-secondary btn-xs ml-2 mb-3 flex-shrink-0"
-                            onClick={() => setEditSheet('new')}>
-                        + {t('schedule.add')}
-                    </button>
-                )}
+                <div className="flex items-center gap-1.5 ml-2 mb-3 flex-shrink-0">
+                    {icalToken && (
+                        <button className="btn-secondary btn-xs" title={t('schedule.subscribeCalendar')}
+                                onClick={() => setIcalSheet(true)}>
+                            📆
+                        </button>
+                    )}
+                    {isAdminUser && (
+                        <button className="btn-secondary btn-xs"
+                                onClick={() => setEditSheet('new')}>
+                            + {t('schedule.add')}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {isLoading
@@ -972,6 +1107,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
                                 key={se.id}
                                 se={se}
                                 isAdminUser={isAdminUser}
+                                displayTime={defaultTime}
                                 onEdit={() => setEditSheet(se)}
                                 onDelete={() => setConfirmDeleteId(se.id)}
                                 onViewRsvps={() => setRsvpSheet(se)}
@@ -1004,11 +1140,22 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
                 <ScheduleEditSheet
                     initial={editSheet === 'new' ? undefined : editSheet}
                     defaultVenue={defaultVenue}
+                    defaultTime={defaultTime}
                     onClose={() => setEditSheet(null)}
                     onSaved={invalidate}
                 />
             )}
             {rsvpSheet && <RsvpSheet se={rsvpSheet} onClose={() => setRsvpSheet(null)}/>}
+            {rsvpQuickSheet && (
+                <RsvpQuickSheet
+                    se={rsvpQuickSheet}
+                    onClose={() => setRsvpQuickSheet(null)}
+                    onUpdate={invalidate}
+                />
+            )}
+            {icalSheet && club && icalToken && (
+                <IcalSheet icalToken={icalToken} clubName={club.name} onClose={() => setIcalSheet(false)}/>
+            )}
             {confirmDeleteId !== null && (
                 <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('schedule.deleteConfirm')}>
                     <div className="flex gap-3">
