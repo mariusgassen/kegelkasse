@@ -381,7 +381,7 @@ export function TreasuryPage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                     {b.nickname || b.name}
-                                                    {isMe && <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">Du</span>}
+                                                    {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                                 </div>
                                                 <div className="text-xs text-kce-muted">
                                                     Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
@@ -467,10 +467,17 @@ export function TreasuryPage() {
                         <>
                             <div className="sec-heading mt-2">{t('treasury.creditLabel')}</div>
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.creditHint')}</p>
-                            {credits.map(b => (
+                            {[...credits].sort((a, b) => {
+                        if (a.regular_member_id === myRegularMemberId) return -1
+                        if (b.regular_member_id === myRegularMemberId) return 1
+                        return 0
+                    }).map(b => (
                                 <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
+                                        <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                            {b.nickname || b.name}
+                                            {b.regular_member_id === myRegularMemberId && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                        </div>
                                         <div className="text-xs text-kce-muted">
                                             Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
                                         </div>
@@ -600,7 +607,7 @@ export function TreasuryPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {b.nickname || b.name}
-                                                {isMe && <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">Du</span>}
+                                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                             </div>
                                             <div className="text-xs text-kce-muted">
                                                 Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
@@ -800,7 +807,10 @@ export function TreasuryPage() {
                                             {p.amount >= 0 ? '⬆' : '⬇'}
                                         </span>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold truncate">{p.member_name}</div>
+                                            <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                                {p.member_name}
+                                                {p.regular_member_id === myRegularMemberId && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            </div>
                                             <div className="text-xs text-kce-muted truncate">
                                                 {p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}
                                             </div>

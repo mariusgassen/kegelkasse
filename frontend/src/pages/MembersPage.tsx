@@ -193,7 +193,11 @@ export function MembersPage() {
     const matchesMember = (m: RegularMember) =>
         !q || m.name.toLowerCase().includes(q) || (m.nickname ?? '').toLowerCase().includes(q)
 
-    const unlinkedRoster = regularMembers.filter(m => !m.is_guest && !activeLinkedIds.has(m.id) && matchesMember(m))
+    const unlinkedRoster = regularMembers.filter(m => !m.is_guest && !activeLinkedIds.has(m.id) && matchesMember(m)).sort((a, b) => {
+        if (a.id === user?.regular_member_id) return -1
+        if (b.id === user?.regular_member_id) return 1
+        return 0
+    })
     const savedGuests = regularMembers.filter(m => m.is_guest && matchesMember(m))
 
     // For link sheet: roster members not already linked to someone
@@ -204,6 +208,10 @@ export function MembersPage() {
         if (!q) return true
         const linked = regularMembers.find(m => m.id === u.regular_member_id)
         return u.name.toLowerCase().includes(q) || (linked?.nickname ?? '').toLowerCase().includes(q)
+    }).sort((a, b) => {
+        if (a.id === user?.id) return -1
+        if (b.id === user?.id) return 1
+        return 0
     })
     const inactiveUsers = appUsers.filter(u => !u.is_active)
 
@@ -244,7 +252,10 @@ export function MembersPage() {
                                     : u.name[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{linked?.nickname || u.name}</div>
+                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                    {linked?.nickname || u.name}
+                                    {u.id === user?.id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                </div>
                                 {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
                                 {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
                             </div>
@@ -334,7 +345,10 @@ export function MembersPage() {
                                     : (m.nickname || m.name)[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
+                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                    {m.nickname || m.name}
+                                    {m.id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                </div>
                                 {m.nickname && <div className="text-xs text-kce-muted truncate">{m.name}</div>}
                             </div>
                             <div className="flex gap-1.5 flex-shrink-0">

@@ -14,7 +14,7 @@ import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const {setActiveEveningId, regularMembers} = useAppStore()
+    const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
     // ── Start evening form ──
@@ -239,8 +239,26 @@ export function EveningPage() {
                 )}
             </div>
 
-            {/* ── Pins alert ── */}
-            {pins.length > 0 && !evening.is_closed && (
+            {/* ── Pins start reminder (no players yet) ── */}
+            {players.length === 0 && !evening.is_closed && pins.some(p => p.holder_regular_member_id !== null) && (
+                <div className="kce-card p-3 mb-3 border border-kce-amber/40 bg-kce-amber/5">
+                    <div className="text-xs font-bold text-kce-amber mb-2">📌 Pins prüfen</div>
+                    {pins.filter(p => p.holder_regular_member_id !== null).map(pin => {
+                        const holderMember = regularMembers.find(m => m.id === pin.holder_regular_member_id)
+                        const holderName = holderMember ? (holderMember.nickname || holderMember.name) : pin.holder_name
+                        return (
+                            <div key={pin.id} className="flex items-center gap-2 text-xs text-kce-muted mb-1">
+                                <span>{pin.icon}</span>
+                                <span className="font-bold">{pin.name}</span>
+                                <span>→ {holderName}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* ── Pins alert (holders present as players) ── */}
+            {players.length > 0 && pins.length > 0 && !evening.is_closed && (
                 <PinsAlert pins={pins} evening={evening} players={players}
                            regularMembers={regularMembers}
                            pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
@@ -263,7 +281,11 @@ export function EveningPage() {
 
             {players.length === 0
                 ? <Empty icon="👤" text={t('player.noPlayers')}/>
-                : players.map(p => {
+                : [...players].sort((a, b) => {
+                    if (a.regular_member_id === user?.regular_member_id) return -1
+                    if (b.regular_member_id === user?.regular_member_id) return 1
+                    return 0
+                }).map(p => {
                     const team = teams.find(t => t.id === p.team_id)
                     const rm = regularMembers.find(r => r.id === p.regular_member_id)
                     return (
@@ -278,10 +300,11 @@ export function EveningPage() {
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">
+                                    <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                         {p.is_king ? '👑 ' : ''}
                                         {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id ? '🎯 ' : ''}
                                         {p.name}
+                                        {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                     </div>
                                     <div
                                         className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>

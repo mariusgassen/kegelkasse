@@ -110,8 +110,16 @@ service worker + IndexedDB for offline support.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
-  `member.nickname || member.name` everywhere a member name is shown. In components linked to a `User`, look up the
-  linked `RegularMember` via `user.regular_member_id` in the `regularMembers` store to get the nickname.
+  `member.nickname || member.name` everywhere a member name is shown — including dropdowns, select options, filter
+  chips, list cards, alerts, and any other UI that references a member. In components linked to a `User`, look up the
+  linked `RegularMember` via `user.regular_member_id` in the `regularMembers` store to get the nickname. Never display
+  `member.name` alone when a nickname exists.
+- **"Ich" label:** In every list or card that shows members/players, add a small amber `Ich` badge
+  (`<span className="text-[9px] text-kce-amber font-bold">Ich</span>`) next to the current user's entry. Compare
+  `regular_member_id === user?.regular_member_id` (or `user.id` for `AppUser` lists). Exception: pure rankings
+  (e.g. annual penalty ranking) keep their sorted order but still show the `Ich` badge.
+- **Current user first:** In non-ranking lists (players, members, accounts, rosters), always sort the current user's
+  entry to the top. Use `.sort((a, b) => { if (a.xxx === myId) return -1; if (b.xxx === myId) return 1; return 0 })`.
 - **Sync mutations:** After any mutation (create, update, delete), immediately trigger a re-fetch of all affected
   lists/data so other clients (and the current client) see the updated state without manual refresh. Use the existing
   polling mechanism or invalidate relevant queries right after the API call resolves.
