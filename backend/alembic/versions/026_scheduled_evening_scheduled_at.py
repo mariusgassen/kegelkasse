@@ -18,12 +18,14 @@ depends_on = None
 def upgrade():
     op.add_column("scheduled_evening", sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=True))
     op.execute(
-        """
-        UPDATE scheduled_evening
-        SET scheduled_at = (
-            date || ' ' || COALESCE(time, '20:00') || ':00'
-        )::TIMESTAMPTZ
-        """
+        sa.text(
+            """
+            UPDATE scheduled_evening
+            SET scheduled_at = (
+                date || ' ' || COALESCE(time, '20:00') || ':00'
+            )::TIMESTAMPTZ
+            """
+        )
     )
     op.alter_column("scheduled_evening", "scheduled_at", nullable=False)
     op.drop_column("scheduled_evening", "date")
@@ -34,11 +36,13 @@ def downgrade():
     op.add_column("scheduled_evening", sa.Column("date", sa.String, nullable=True))
     op.add_column("scheduled_evening", sa.Column("time", sa.String, nullable=True))
     op.execute(
-        """
-        UPDATE scheduled_evening
-        SET date = TO_CHAR(scheduled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'),
-            time = TO_CHAR(scheduled_at AT TIME ZONE 'UTC', 'HH24:MI')
-        """
+        sa.text(
+            """
+            UPDATE scheduled_evening
+            SET date = TO_CHAR(scheduled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'),
+                time = TO_CHAR(scheduled_at AT TIME ZONE 'UTC', 'HH24:MI')
+            """
+        )
     )
     op.alter_column("scheduled_evening", "date", nullable=False)
     op.drop_column("scheduled_evening", "scheduled_at")
