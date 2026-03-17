@@ -109,6 +109,7 @@ export function EveningPage() {
                 <UnplannedAttendanceSheet
                     eveningId={attendanceEveningId}
                     pins={pins}
+                    pinPenalty={club?.settings?.pin_penalty ?? 0}
                     regularMembers={regularMembers}
                     user={user}
                     onDone={() => {
@@ -579,9 +580,10 @@ export function EveningPage() {
 }
 
 // ── Attendance + pin check for unplanned evenings ─────────────────────────────
-function UnplannedAttendanceSheet({eveningId, pins, regularMembers, user, onDone, onCancel}: {
+function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, user, onDone, onCancel}: {
     eveningId: number
     pins: ClubPin[]
+    pinPenalty: number
     regularMembers: RegularMember[]
     user: { regular_member_id: number | null } | null
     onDone: () => void
@@ -594,6 +596,7 @@ function UnplannedAttendanceSheet({eveningId, pins, regularMembers, user, onDone
     const [checkedIds, setCheckedIds] = useState<Set<number>>(
         () => new Set(activeMembers.map((m: RegularMember) => m.id)),
     )
+    const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
     const [guestName, setGuestName] = useState('')
     const [saving, setSaving] = useState(false)
 
@@ -602,6 +605,15 @@ function UnplannedAttendanceSheet({eveningId, pins, regularMembers, user, onDone
             const next = new Set(prev)
             if (next.has(id)) next.delete(id)
             else next.add(id)
+            return next
+        })
+    }
+
+    function toggleMissingPin(pinId: number) {
+        setMissingPinIds(prev => {
+            const next = new Set(prev)
+            if (next.has(pinId)) next.delete(pinId)
+            else next.add(pinId)
             return next
         })
     }
@@ -625,6 +637,23 @@ function UnplannedAttendanceSheet({eveningId, pins, regularMembers, user, onDone
                 adds.push(api.addPlayer(eveningId, {name: saved.name, regular_member_id: saved.id}))
             }
             await Promise.all(adds)
+            if (missingPinIds.size > 0 && pinPenalty > 0) {
+                const eveningData = await api.getEvening(eveningId)
+                for (const pinId of missingPinIds) {
+                    const pin = pins.find(p => p.id === pinId)
+                    if (!pin || !pin.holder_regular_member_id) continue
+                    const player = eveningData.players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                    if (!player) continue
+                    await api.addPenalty(eveningId, {
+                        player_ids: [player.id],
+                        penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
+                        icon: pin.icon,
+                        amount: pinPenalty,
+                        mode: 'euro',
+                        client_timestamp: Date.now(),
+                    })
+                }
+            }
             onDone()
         } catch (e) {
             toastError(e)
@@ -686,31 +715,33 @@ function UnplannedAttendanceSheet({eveningId, pins, regularMembers, user, onDone
                     />
                 </div>
 
-                {/* Pins info */}
-                {pins.length > 0 && (
+                {/* Pins check — only for pins whose holder is present */}
+                {pins.some((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
                     <div className="pt-2 border-t border-kce-surface2">
                         <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
                             📌 {t('pin.title')}
                         </div>
-                        {pins.map((pin: ClubPin) => {
-                            const holderPresent = pin.holder_regular_member_id
-                                ? checkedIds.has(pin.holder_regular_member_id)
-                                : false
+                        {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
+                            const brought = !missingPinIds.has(pin.id)
                             return (
-                                <div key={pin.id} className="flex items-center gap-2 text-sm mb-1.5">
-                                    <span>{pin.icon}</span>
-                                    <span className="flex-1 text-kce-cream">{pin.name}</span>
-                                    {pin.holder_name ? (
-                                        <span className={[
-                                            'text-xs font-medium',
-                                            holderPresent ? 'text-green-400' : 'text-kce-muted',
-                                        ].join(' ')}>
-                                            {pin.holder_name} {holderPresent ? '✓' : '(absent)'}
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs text-kce-muted">{t('pin.noHolder')}</span>
-                                    )}
-                                </div>
+                                <button
+                                    key={pin.id}
+                                    onClick={() => toggleMissingPin(pin.id)}
+                                    className={[
+                                        'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
+                                        brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                    ].join(' ')}
+                                >
+                                    <span className="text-base flex-shrink-0">{pin.icon}</span>
+                                    <span className="flex-1 text-sm text-kce-cream">{pin.name}</span>
+                                    <span className="text-xs text-kce-muted flex-shrink-0">{pin.holder_name}</span>
+                                    <span className={[
+                                        'text-xs font-bold flex-shrink-0',
+                                        brought ? 'text-green-400' : 'text-red-400',
+                                    ].join(' ')}>
+                                        {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
+                                    </span>
+                                </button>
                             )
                         })}
                     </div>

@@ -447,6 +447,8 @@ export const de = {
     "pin.holderSince": "seit",
     "pin.missingPenalty": "Pins nicht mitgebracht",
     "pin.missingPenaltyConfirm": "Strafe für fehlende Pins eintragen?",
+    "pin.brought": "Dabei",
+    "pin.forgotten": "Vergessen",
     "club.pinPenalty": "Strafe fehlende Pins (€)",
     "club.pinPenaltyPlaceholder": "z.B. 1.00",
     "club.pinPenaltyHint": "Vereinsweit für alle Pins — wird beim Vergessen direkt eingetragen.",
