@@ -14,6 +14,7 @@ import {
     RsvpEntry,
     RsvpStatus,
     ScheduledEvening,
+    ScheduledEveningGuest,
     Team,
     User,
     PaymentRequest
@@ -366,6 +367,12 @@ export const api = {
     removeRsvp: (sid: number) => request<void>('DELETE', `/schedule/${sid}/rsvp`),
     listRsvps: (sid: number) => request<RsvpEntry[]>('GET', `/schedule/${sid}/rsvps`),
     sendReminder: (sid: number) => request<{ reminded_count: number }>('POST', `/schedule/${sid}/remind`),
+    addScheduledGuest: (sid: number, d: { name: string; regular_member_id?: number | null }) =>
+        request<ScheduledEveningGuest>('POST', `/schedule/${sid}/guests`, d),
+    removeScheduledGuest: (sid: number, gid: number) =>
+        request<void>('DELETE', `/schedule/${sid}/guests/${gid}`),
+    startEveningFromSchedule: (sid: number, d: { import_attending: boolean }) =>
+        request<{ id: number; date: string; venue: string | null }>('POST', `/schedule/${sid}/start`, d),
 
     // Stats
     getYearStats: (year: number) => request<{

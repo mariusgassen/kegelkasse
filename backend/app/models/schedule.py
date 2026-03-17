@@ -23,6 +23,7 @@ class ScheduledEvening(Base):
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     rsvps = relationship("MemberRsvp", back_populates="scheduled_evening", cascade="all, delete-orphan")
+    guests = relationship("ScheduledEveningGuest", back_populates="scheduled_evening", cascade="all, delete-orphan")
 
 
 class MemberRsvp(Base):
@@ -36,3 +37,14 @@ class MemberRsvp(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     scheduled_evening = relationship("ScheduledEvening", back_populates="rsvps")
     __table_args__ = (UniqueConstraint("scheduled_evening_id", "regular_member_id", name="uq_rsvp_member_evening"),)
+
+
+class ScheduledEveningGuest(Base):
+    """A guest (known or new) pre-registered for a scheduled evening."""
+    __tablename__ = "scheduled_evening_guest"
+    id = Column(Integer, primary_key=True, index=True)
+    scheduled_evening_id = Column(Integer, ForeignKey("scheduled_evening.id", ondelete="CASCADE"), nullable=False)
+    regular_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="SET NULL"), nullable=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    scheduled_evening = relationship("ScheduledEvening", back_populates="guests")
