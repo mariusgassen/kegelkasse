@@ -11,6 +11,9 @@ import {
     PenaltyLogEntry,
     PenaltyType,
     RegularMember,
+    RsvpEntry,
+    RsvpStatus,
+    ScheduledEvening,
     Team,
     User,
     PaymentRequest
@@ -108,7 +111,8 @@ export const api = {
     updateClubSettings: (d: Partial<ClubSettings> & {
         name?: string;
         guest_penalty_cap?: number | null;
-        paypal_me?: string | null
+        paypal_me?: string | null;
+        no_cancel_fee?: number | null;
     }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{
@@ -347,6 +351,21 @@ export const api = {
         request<PaymentRequest>('PATCH', `/club/payment-requests/${rid}/confirm`),
     rejectPaymentRequest: (rid: number) =>
         request<PaymentRequest>('PATCH', `/club/payment-requests/${rid}/reject`),
+
+    // Schedule (planned evenings & RSVP)
+    listScheduledEvenings: () => request<ScheduledEvening[]>('GET', '/schedule/'),
+    createScheduledEvening: (d: { date: string; venue?: string; note?: string }) =>
+        request<ScheduledEvening>('POST', '/schedule/', d),
+    updateScheduledEvening: (sid: number, d: { date?: string; venue?: string; note?: string }) =>
+        request<ScheduledEvening>('PATCH', `/schedule/${sid}`, d),
+    deleteScheduledEvening: (sid: number) => request<void>('DELETE', `/schedule/${sid}`),
+    setRsvp: (sid: number, status: RsvpStatus) =>
+        request<{ status: RsvpStatus }>('POST', `/schedule/${sid}/rsvp`, {status}),
+    setRsvpForMember: (sid: number, mid: number, status: RsvpStatus) =>
+        request<{ status: RsvpStatus }>('POST', `/schedule/${sid}/rsvp/member/${mid}`, {status}),
+    removeRsvp: (sid: number) => request<void>('DELETE', `/schedule/${sid}/rsvp`),
+    listRsvps: (sid: number) => request<RsvpEntry[]>('GET', `/schedule/${sid}/rsvps`),
+    sendReminder: (sid: number) => request<{ reminded_count: number }>('POST', `/schedule/${sid}/remind`),
 
     // Stats
     getYearStats: (year: number) => request<{

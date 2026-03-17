@@ -15,9 +15,11 @@ from core.security import decode_token
 from core.database import get_db, AsyncSessionLocal
 from sqlalchemy import select
 from models.drink import DrinkRound, DrinkType
+from models.club import ClubSettings
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
+from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
 from models.user import User
 
 router = APIRouter(prefix="/evening", tags=["evening"])
@@ -109,6 +111,9 @@ def update_evening(eid: int, data: EveningUpdate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(e)
     if was_open and e.is_closed:
+        # Auto-calculate absence penalties on close
+        if e.players:
+            _do_calculate_absence_penalties(e, db, user.id)
         push_to_club(db, e.club_id, "Abend beendet 🎳",
                      f"Abend vom {e.date} wurde abgeschlossen.")
     return serialize_evening(e)
@@ -356,12 +361,13 @@ def delete_penalty(eid: int, lid: int, db: Session = Depends(get_db),
     return {"ok": True}
 
 
-@router.post("/{eid}/absence-penalties")
-def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
-                                user: User = Depends(require_club_admin)):
-    """Admin: calculate average penalty of present players and create entries for absent members."""
-    e = get_club_evening(eid, user, db)
+def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) -> dict:
+    """Calculate absence penalties for an evening, RSVP-aware.
 
+    Base fee = average penalty of present players.
+    Extra fee (no_cancel_fee) applies to absent members who did NOT cancel
+    (status is null or 'attending' — only explicit 'absent' RSVP waives the surcharge).
+    """
     # Delete existing absence entries to allow recalculation
     db.query(PenaltyLog).filter(
         PenaltyLog.evening_id == e.id,
@@ -370,27 +376,38 @@ def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
     ).delete()
 
     present_players = db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).all()
-    if not present_players:
-        raise HTTPException(400, "No players present at this evening")
-
     present_regular_ids = {p.regular_member_id for p in present_players if p.regular_member_id}
-    present_player_ids = [p.id for p in present_players]
 
-    # Sum all penalty contributions for present players (full uncapped amounts)
-    penalties = db.query(PenaltyLog).filter(
-        PenaltyLog.evening_id == e.id,
-        PenaltyLog.is_deleted == False,
-        PenaltyLog.player_id.in_(present_player_ids),
-    ).all()
+    # Look up no_cancel_fee from club settings
+    settings = db.query(ClubSettings).filter(ClubSettings.club_id == e.club_id).first()
+    no_cancel_fee: float = ((settings.extra or {}).get("no_cancel_fee") or 0.0) if settings else 0.0
 
-    total = 0.0
-    for pl in penalties:
-        if pl.mode == PenaltyMode.euro:
-            total += pl.amount
-        elif pl.unit_amount is not None:
-            total += pl.amount * pl.unit_amount
+    # Base fee = average of present players' penalties
+    if present_players:
+        present_player_ids = [p.id for p in present_players]
+        penalties = db.query(PenaltyLog).filter(
+            PenaltyLog.evening_id == e.id,
+            PenaltyLog.is_deleted == False,
+            PenaltyLog.player_id.in_(present_player_ids),
+        ).all()
+        total = sum(
+            pl.amount if pl.mode == PenaltyMode.euro
+            else (pl.amount * pl.unit_amount if pl.unit_amount else 0)
+            for pl in penalties
+        )
+        base_fee = total / len(present_players)
+    else:
+        base_fee = 0.0
 
-    avg = total / len(present_players)
+    # Find ScheduledEvening matching this date (for RSVP lookup)
+    scheduled = db.query(ScheduledEvening).filter(
+        ScheduledEvening.club_id == e.club_id,
+        ScheduledEvening.date == e.date,
+    ).first()
+    rsvp_map: dict[int, str] = {}
+    if scheduled:
+        for r in db.query(MemberRsvp).filter(MemberRsvp.scheduled_evening_id == scheduled.id).all():
+            rsvp_map[r.regular_member_id] = r.status
 
     # Absent non-guest RegularMembers
     absent_members = db.query(RegularMember).filter(
@@ -402,6 +419,10 @@ def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
 
     now_ts = datetime.now(UTC).timestamp() * 1000
     for member in absent_members:
+        # Surcharge waived only if member explicitly RSVP'd absent
+        rsvp_status = rsvp_map.get(member.id)
+        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
+        total_fee = base_fee + extra_fee
         db.add(PenaltyLog(
             evening_id=e.id,
             player_id=None,
@@ -410,19 +431,30 @@ def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
             player_name=member.name,
             penalty_type_name="Abwesenheit",
             icon="🏠",
-            amount=avg,
+            amount=total_fee,
             mode=PenaltyMode.euro,
             unit_amount=None,
             client_timestamp=now_ts,
-            created_by=user.id,
+            created_by=created_by,
         ))
 
     db.commit()
     for member in absent_members:
-        fee = f"{avg:.2f}".replace('.', ',')
+        rsvp_status = rsvp_map.get(member.id)
+        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
+        total_fee = base_fee + extra_fee
+        fee_str = f"{total_fee:.2f}".replace('.', ',')
         push_to_regular_member(db, member.id, "🏠 Abwesenheitsstrafe",
-                               f"{fee}€ für {e.date} — du warst nicht dabei.")
-    return {"avg": avg, "absent_count": len(absent_members)}
+                               f"{fee_str}€ für {e.date} — du warst nicht dabei.")
+    return {"base_fee": base_fee, "absent_count": len(absent_members)}
+
+
+@router.post("/{eid}/absence-penalties")
+def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
+                                user: User = Depends(require_club_admin)):
+    """Admin: calculate absence penalties for all absent members. RSVP-aware."""
+    e = get_club_evening(eid, user, db)
+    return _do_calculate_absence_penalties(e, db, user.id)
 
 
 # ── Games ──

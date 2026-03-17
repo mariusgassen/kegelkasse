@@ -20,11 +20,11 @@ import {ProfileSheet} from './components/ProfileSheet'
 import {EveningHubPage} from './pages/EveningHubPage'
 import {EveningPage} from './pages/EveningPage'
 import {TreasuryPage} from './pages/TreasuryPage'
-import {HistoryPage} from './pages/HistoryPage'
 import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
+import {SchedulePage} from './pages/SchedulePage'
 
-type PageId = 'evening' | 'config' | 'treasury' | 'history' | 'stats' | 'club'
+type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule'
 
 function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -107,7 +107,7 @@ export function applyClubTheme(club: {
 const NAV: { id: PageId; icon: string; labelKey: string }[] = [
     {id: 'evening', icon: '🎳', labelKey: 'nav.evening'},
     {id: 'treasury', icon: '💰', labelKey: 'nav.treasury'},
-    {id: 'history', icon: '📚', labelKey: 'nav.history'},
+    {id: 'schedule', icon: '📅', labelKey: 'nav.schedule'},
     {id: 'stats', icon: '📊', labelKey: 'nav.stats'},
     {id: 'club', icon: '⚙️', labelKey: 'nav.club'},
 ]
@@ -125,7 +125,7 @@ export default function App() {
     } = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'history', 'stats', 'club']
+    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'stats', 'club']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
@@ -329,7 +329,7 @@ export default function App() {
                     ['evening', <EveningHubPage onNavigate={() => setPage('config')}/>],
                     ['config', <EveningPage/>],
                     ['treasury', <TreasuryPage/>],
-                    ['history', <HistoryPage onNavigate={() => setPage('evening')}/>],
+                    ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
                     ['stats', <StatsPage/>],
                     ['club', <ClubAdminPage/>],
                 ] as [PageId, ReactNode][]).map(([id, el]) => (
