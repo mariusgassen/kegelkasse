@@ -105,13 +105,22 @@ service worker + IndexedDB for offline support.
   Keep all three in sync with the implementation.
 - **Ruff (Python linter):** Before committing backend changes, run `ruff check backend/ --fix` and resolve all
   remaining issues. Add this to the pre-commit checklist.
+- **ESLint (Frontend linter):** Before committing frontend changes, run `cd frontend && npm run lint` and resolve all
+  errors (warnings are informational). ESLint runs in CI via the frontend-build workflow.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
+- **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
+  `member.nickname || member.name` everywhere a member name is shown. In components linked to a `User`, look up the
+  linked `RegularMember` via `user.regular_member_id` in the `regularMembers` store to get the nickname.
 - **Sync mutations:** After any mutation (create, update, delete), immediately trigger a re-fetch of all affected
   lists/data so other clients (and the current client) see the updated state without manual refresh. Use the existing
   polling mechanism or invalidate relevant queries right after the API call resolves.
 - **UI invalidation:** Whenever a data entry changes, always invalidate and reload the affected list(s) in the UI.
   Never rely on local optimistic state alone — always confirm with a fresh server response.
+- **Data dependency invalidation:** When creating data X that other queries depend on, always invalidate those
+  dependent queries immediately. Examples: creating a `PaymentRequest` → invalidate `['payment-requests']` and
+  `['my-payment-requests']`; confirming a request → also invalidate `['my-balance']` and `['my-payment-requests']` so
+  the member's profile view stays in sync without a manual refresh.
 
 ## Deployment
 

@@ -38,7 +38,7 @@ interface Props {
 export function ProfileSheet({open, onClose}: Props) {
     const t = useT()
     const {locale, setLocale} = useI18n()
-    const {user, setUser} = useAppStore()
+    const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
     const [name, setName] = useState(user?.name || '')
@@ -244,7 +244,9 @@ export function ProfileSheet({open, onClose}: Props) {
         }
     }
 
-    const initials = (user?.name || '?')[0].toUpperCase()
+    const linkedMember = regularMembers.find(m => m.id === user?.regular_member_id)
+    const displayName = linkedMember?.nickname || user?.name || '?'
+    const initials = displayName[0].toUpperCase()
 
     return (
         <div className="bottom-sheet" role="dialog" aria-modal="true" onClick={e => {
@@ -283,7 +285,8 @@ export function ProfileSheet({open, onClose}: Props) {
                         </button>
                     </div>
                     <div className="text-center">
-                        <div className="font-display font-bold text-kce-cream">{user?.name}</div>
+                        <div className="font-display font-bold text-kce-cream">{displayName}</div>
+                        {linkedMember?.nickname && <div className="text-xs text-kce-muted">{user?.name}</div>}
                         {user?.username && <div className="text-xs text-kce-muted">@{user.username}</div>}
                     </div>
                     {user?.avatar && (
@@ -439,7 +442,8 @@ export function ProfileSheet({open, onClose}: Props) {
                                                     try {
                                                         await api.createPaymentRequest({amount: amt})
                                                         await refetchRequests()
-                                                        await qc.invalidateQueries({queryKey: ['payment-requests']})
+                                                        qc.invalidateQueries({queryKey: ['payment-requests']})
+                                                        qc.invalidateQueries({queryKey: ['my-balance']})
                                                         setReportingPayment(false)
                                                         setPaymentAmount('')
                                                         showToast(t('profile.reportPayment'))
