@@ -188,8 +188,12 @@ def start_evening(
     added_member_ids: set[int] = set()
 
     if data.import_attending:
-        attending_ids = [r.regular_member_id for r in se.rsvps if r.status == RsvpStatus.attending]
-        members = db.query(RegularMember).filter(RegularMember.id.in_(attending_ids)).all()
+        absent_ids = {r.regular_member_id for r in se.rsvps if r.status == RsvpStatus.absent}
+        members = db.query(RegularMember).filter(
+            RegularMember.club_id == se.club_id,
+            RegularMember.is_guest == False,  # noqa: E712
+            ~RegularMember.id.in_(absent_ids),
+        ).all()
         for m in members:
             db.add(EveningPlayer(
                 evening_id=ev.id,

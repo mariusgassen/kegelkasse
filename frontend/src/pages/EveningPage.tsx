@@ -69,6 +69,7 @@ export function EveningPage() {
                         <div>
                             <label className="field-label">{t('evening.date')}</label>
                             <input className="kce-input" type="date" value={startDate}
+                                   style={{width: 'auto'}}
                                    onChange={e => setStartDate(e.target.value)}/>
                         </div>
                         <div>
@@ -232,24 +233,6 @@ export function EveningPage() {
                     </div>
                 )}
             </div>
-
-            {/* ── Pins start reminder (no players yet) ── */}
-            {players.length === 0 && !evening.is_closed && pins.some(p => p.holder_regular_member_id !== null) && (
-                <div className="kce-card p-3 mb-3 border border-kce-amber/40 bg-kce-amber/5">
-                    <div className="text-xs font-bold text-kce-amber mb-2">📌 Pins prüfen</div>
-                    {pins.filter(p => p.holder_regular_member_id !== null).map(pin => {
-                        const holderMember = regularMembers.find(m => m.id === pin.holder_regular_member_id)
-                        const holderName = holderMember ? (holderMember.nickname || holderMember.name) : pin.holder_name
-                        return (
-                            <div key={pin.id} className="flex items-center gap-2 text-xs text-kce-muted mb-1">
-                                <span>{pin.icon}</span>
-                                <span className="font-bold">{pin.name}</span>
-                                <span>→ {holderName}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
 
             {/* ── Pins alert (holders present as players) ── */}
             {players.length > 0 && pins.length > 0 && !evening.is_closed && (
