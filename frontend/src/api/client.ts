@@ -1,4 +1,5 @@
 import {t as tl} from '@/i18n'
+import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
 import {
     Club,
     ClubSettings,
@@ -39,6 +40,13 @@ export class NetworkError extends Error {
     }
 }
 
+export class OfflineQueuedError extends Error {
+    constructor() {
+        super(tl('sync.queued'))
+        this.name = 'OfflineQueuedError'
+    }
+}
+
 type UnauthorizedCallback = () => void
 let _unauthorizedCallbacks: UnauthorizedCallback[] = []
 
@@ -68,6 +76,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
             method, headers, body: body ? JSON.stringify(body) : undefined,
         })
     } catch {
+        if (isQueuableMutation(method, path)) {
+            await offlineQueue.enqueue(method, path, body)
+            window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+            throw new OfflineQueuedError()
+        }
         throw new NetworkError()
     }
     if (res.status === 401) {
@@ -431,4 +444,39 @@ export const api = {
         request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
     testPush: () => request<{ sent: number }>('POST', '/push/test'),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
+}
+
+/**
+ * Flush all queued offline mutations in timestamp order.
+ * Returns the number of successfully applied changes and any errors.
+ */
+export async function flushOfflineQueue(): Promise<{ applied: number; errors: number }> {
+    const queued = await offlineQueue.getAll()
+    if (queued.length === 0) return {applied: 0, errors: 0}
+
+    const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
+    let applied = 0
+    let errors = 0
+
+    for (const item of sorted) {
+        try {
+            await request<unknown>(item.method, item.path, item.body)
+            if (item.id !== undefined) await offlineQueue.remove(item.id)
+            applied++
+        } catch (e) {
+            if (e instanceof OfflineQueuedError || e instanceof NetworkError) {
+                // Still offline — stop flushing
+                break
+            }
+            // Server rejected (404, conflict, etc.) — discard and continue
+            if (item.id !== undefined) await offlineQueue.remove(item.id)
+            errors++
+        }
+    }
+
+    window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+    if (applied > 0) {
+        window.dispatchEvent(new CustomEvent('kegelkasse:sync-flushed', {detail: {applied}}))
+    }
+    return {applied, errors}
 }
