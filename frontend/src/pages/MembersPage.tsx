@@ -342,7 +342,7 @@ export function MembersPage() {
                                         className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
                                         disabled={inEvening}
                                         onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : t('member.addToEvening')}
+                                        {inEvening ? '✓' : `+ ${t('member.addToEvening')}`}
                                     </button>
                                 )}
                                 {admin && (
@@ -392,7 +392,7 @@ export function MembersPage() {
                                         className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
                                         disabled={inEvening}
                                         onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : t('member.addToEvening')}
+                                        {inEvening ? '✓' : `+ ${t('member.addToEvening')}`}
                                     </button>
                                 )}
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>

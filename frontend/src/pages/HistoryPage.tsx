@@ -102,7 +102,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                             setBacklogVenue('')
                             setBacklogSheet(true)
                         }}>
-                    {t('history.backlog')}
+                    + {t('history.backlog')}
                 </button>
             )}
 
