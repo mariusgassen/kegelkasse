@@ -1,4 +1,5 @@
 """Web Push subscription endpoints."""
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -65,13 +66,14 @@ def status(db: Session = Depends(get_db), user: User = Depends(require_club_memb
 
 
 @router.post("/test")
-def test_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Send a test push notification to all subscriptions of the current user."""
+async def test_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Send a test push notification to all subscriptions of the current user after a 10s delay."""
     if not settings.VAPID_PRIVATE_KEY:
         raise HTTPException(503, "Push notifications not configured")
     subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
     if not subs:
         raise HTTPException(404, "No push subscription found for this device")
+    await asyncio.sleep(10)
     from core.push import _send_one
     for sub in subs:
         _send_one(db, sub, "Kegelkasse 🎳", "Push-Benachrichtigungen funktionieren!", "/")

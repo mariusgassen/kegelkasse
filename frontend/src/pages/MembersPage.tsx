@@ -166,6 +166,7 @@ export function MembersPage() {
         try {
             await api.mergeRegularMembers(mergeDiscard.id, keepId)
             await Promise.all([refetchUsers(), refetchRoster()])
+            invalidateEvening()
             setMergeSheet(false)
             showToast(t('member.merged'))
         } catch (e: unknown) {
