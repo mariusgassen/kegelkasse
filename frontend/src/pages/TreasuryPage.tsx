@@ -174,6 +174,7 @@ export function TreasuryPage() {
             await api.confirmPaymentRequest(rid)
             refetchPaymentRequests()
             refetchBalances()
+            refetchGuestBalances()
             qc.invalidateQueries({queryKey: ['member-payments', mid]})
             qc.invalidateQueries({queryKey: ['all-payments']})
         } catch (e: unknown) { toastError(e) }
@@ -191,6 +192,8 @@ export function TreasuryPage() {
         try {
             await api.deleteExpense(eid)
             refetchExpenses()
+            refetchBalances()
+            refetchGuestBalances()
         } catch (e: unknown) {
             toastError(e)
         }
