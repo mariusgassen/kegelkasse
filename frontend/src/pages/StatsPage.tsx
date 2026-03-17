@@ -300,7 +300,11 @@ export function StatsPage() {
                                 <>
                                     <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {evening.players.map(p => {
+                                        {[...evening.players].sort((a, b) => {
+                                            if (a.regular_member_id === user?.regular_member_id) return -1
+                                            if (b.regular_member_id === user?.regular_member_id) return 1
+                                            return 0
+                                        }).map(p => {
                                             const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
                                             const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
                                             const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
@@ -314,10 +318,11 @@ export function StatsPage() {
                                                             : p.name[0].toUpperCase()
                                                         }
                                                     </div>
-                                                    <div className="text-center text-xs font-bold mb-2 truncate">
+                                                    <div className="text-center text-xs font-bold mb-2 truncate flex items-center justify-center gap-1">
                                                         {p.is_king ? '👑 ' : ''}
                                                         {presidentForEveningYear?.regular_member_id != null && p.regular_member_id === presidentForEveningYear.regular_member_id ? '🎯 ' : ''}
                                                         {p.name}
+                                                        {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                                     </div>
                                                     <div className="flex justify-around text-center">
                                                         <div>
@@ -403,7 +408,7 @@ export function StatsPage() {
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
                                             {isPresident && <span title={`${t('president.title')} ${year}`}>🎯</span>}
                                             {p.name}
-                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">ICH</span>}
+                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                         </div>
                                         <div className="text-[10px] text-kce-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}

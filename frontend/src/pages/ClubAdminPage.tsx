@@ -790,7 +790,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                         <select className="kce-input" value={holderId ?? ''} onChange={e => setHolderId(e.target.value ? Number(e.target.value) : null)}>
                             <option value="">{t('pin.noHolder')}</option>
                             {regularMembers.filter(m => !m.is_guest).map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
+                                <option key={m.id} value={m.id}>{m.nickname || m.name}</option>
                             ))}
                         </select>
                     </div>

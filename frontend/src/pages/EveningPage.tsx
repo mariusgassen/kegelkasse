@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -14,7 +14,8 @@ import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const {setActiveEveningId, regularMembers} = useAppStore()
+    const qc = useQueryClient()
+    const {setActiveEveningId, regularMembers, user, penaltyTypes} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
     // ── Start evening form ──
@@ -54,6 +55,13 @@ export function EveningPage() {
     const [drinkType, setDrinkType] = useState<'beer' | 'shots'>('beer')
     const [drinkVariety, setDrinkVariety] = useState('')
     const [drinkPlayerIds, setDrinkPlayerIds] = useState<(number | string)[]>([])
+
+    // ── Quick penalty sheet ──
+    const [penaltySheet, setPenaltySheet] = useState(false)
+    const [penaltyTypeId, setPenaltyTypeId] = useState<number | null>(null)
+    const [penaltyPlayerIds, setPenaltyPlayerIds] = useState<(number | string)[]>([])
+    const [penaltyCount, setPenaltyCount] = useState('1')
+    const [penaltySaving, setPenaltySaving] = useState(false)
 
     const [closeConfirm, setCloseConfirm] = useState(false)
     const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
@@ -116,6 +124,40 @@ export function EveningPage() {
     const players = evening.players
     const teams = evening.teams
     const playerOptions = players.map(p => ({id: p.id, label: p.name}))
+
+    function openPenaltySheet() {
+        const first = penaltyTypes[0] ?? null
+        setPenaltyTypeId(first?.id ?? null)
+        setPenaltyPlayerIds([])
+        setPenaltyCount('1')
+        setPenaltySheet(true)
+    }
+
+    async function submitQuickPenalty() {
+        const pt = penaltyTypes.find(p => p.id === penaltyTypeId)
+        if (!pt || penaltyPlayerIds.length === 0) return
+        const count = Math.max(1, parseInt(penaltyCount) || 1)
+        setPenaltySaving(true)
+        try {
+            await api.addPenalty(evening!.id, {
+                player_ids: penaltyPlayerIds as number[],
+                penalty_type_name: pt.name,
+                icon: pt.icon,
+                amount: count,
+                mode: 'count',
+                unit_amount: pt.default_amount,
+                client_timestamp: Date.now(),
+            })
+            invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
+            setPenaltySheet(false)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setPenaltySaving(false)
+        }
+    }
 
     function openEditSheet() {
         setEditDate(evening!.date)
@@ -239,8 +281,26 @@ export function EveningPage() {
                 )}
             </div>
 
-            {/* ── Pins alert ── */}
-            {pins.length > 0 && !evening.is_closed && (
+            {/* ── Pins start reminder (no players yet) ── */}
+            {players.length === 0 && !evening.is_closed && pins.some(p => p.holder_regular_member_id !== null) && (
+                <div className="kce-card p-3 mb-3 border border-kce-amber/40 bg-kce-amber/5">
+                    <div className="text-xs font-bold text-kce-amber mb-2">📌 Pins prüfen</div>
+                    {pins.filter(p => p.holder_regular_member_id !== null).map(pin => {
+                        const holderMember = regularMembers.find(m => m.id === pin.holder_regular_member_id)
+                        const holderName = holderMember ? (holderMember.nickname || holderMember.name) : pin.holder_name
+                        return (
+                            <div key={pin.id} className="flex items-center gap-2 text-xs text-kce-muted mb-1">
+                                <span>{pin.icon}</span>
+                                <span className="font-bold">{pin.name}</span>
+                                <span>→ {holderName}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* ── Pins alert (holders present as players) ── */}
+            {players.length > 0 && pins.length > 0 && !evening.is_closed && (
                 <PinsAlert pins={pins} evening={evening} players={players}
                            regularMembers={regularMembers}
                            pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
@@ -252,18 +312,27 @@ export function EveningPage() {
                     👤 {t('team.members')} ({players.length})
                 </div>
                 {!evening.is_closed && (
-                    <button className="btn-secondary btn-xs" onClick={() => {
-                        setGuestName('')
-                        setSelectedMemberIds(new Set())
-                        setAddPlayerTeamId(teams.length > 0 ? teams[0].id : null)
-                        setPlayerSheet(true)
-                    }}>+ {t('player.add')}</button>
+                    <div className="flex gap-1">
+                        {penaltyTypes.length > 0 && players.length > 0 && (
+                            <button className="btn-primary btn-xs" onClick={openPenaltySheet}>⚠️ + {t('penalty.enter')}</button>
+                        )}
+                        <button className="btn-secondary btn-xs" onClick={() => {
+                            setGuestName('')
+                            setSelectedMemberIds(new Set())
+                            setAddPlayerTeamId(teams.length > 0 ? teams[0].id : null)
+                            setPlayerSheet(true)
+                        }}>+ {t('player.add')}</button>
+                    </div>
                 )}
             </div>
 
             {players.length === 0
                 ? <Empty icon="👤" text={t('player.noPlayers')}/>
-                : players.map(p => {
+                : [...players].sort((a, b) => {
+                    if (a.regular_member_id === user?.regular_member_id) return -1
+                    if (b.regular_member_id === user?.regular_member_id) return 1
+                    return 0
+                }).map(p => {
                     const team = teams.find(t => t.id === p.team_id)
                     const rm = regularMembers.find(r => r.id === p.regular_member_id)
                     return (
@@ -278,10 +347,11 @@ export function EveningPage() {
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">
+                                    <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                         {p.is_king ? '👑 ' : ''}
                                         {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id ? '🎯 ' : ''}
                                         {p.name}
+                                        {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                     </div>
                                     <div
                                         className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
@@ -603,6 +673,49 @@ export function EveningPage() {
                                 onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
                                 disabled={!teamName.trim()}>{t('action.save')}</button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* ── Quick penalty sheet ── */}
+            <Sheet open={penaltySheet} onClose={() => setPenaltySheet(false)} title={`⚠️ ${t('penalty.enter')}`}
+                   onSubmit={submitQuickPenalty}>
+                <div className="flex flex-col gap-3">
+                    <ChipSelect
+                        label={t('penalty.who')}
+                        options={playerOptions}
+                        selected={penaltyPlayerIds}
+                        onChange={setPenaltyPlayerIds}
+                        onSelectAll={() => setPenaltyPlayerIds(players.map(p => p.id))}
+                        onSelectNone={() => setPenaltyPlayerIds([])}/>
+                    <div>
+                        <div className="field-label">{t('penalty.type')}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {penaltyTypes.map(pt => (
+                                <button key={pt.id} type="button"
+                                        className={`chip ${penaltyTypeId === pt.id ? 'active' : ''}`}
+                                        onClick={() => setPenaltyTypeId(pt.id)}>
+                                    {pt.icon} {pt.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('penalty.count.label')}</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">×</span>
+                            <input className="kce-input flex-1" type="number" inputMode="numeric" min="1"
+                                   value={penaltyCount} onChange={e => setPenaltyCount(e.target.value)}/>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                        <button type="button" className="btn-secondary flex-1" onClick={() => setPenaltySheet(false)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button type="submit" className="btn-primary flex-[2]"
+                                disabled={penaltySaving || !penaltyTypeId || penaltyPlayerIds.length === 0}>
+                            {t('penalty.confirm')}
+                        </button>
                     </div>
                 </div>
             </Sheet>
