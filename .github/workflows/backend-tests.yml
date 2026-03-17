@@ -1,0 +1,41 @@
+---
+name: Backend Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies (main + test group)
+        working-directory: backend
+        run: poetry install --no-root --with test
+
+      - name: Run push tests
+        working-directory: backend
+        run: poetry run pytest tests/ -v --tb=short
+        env:
+          # SQLite in-memory is set inside conftest.py, but we still need
+          # a non-empty DATABASE_URL to satisfy pydantic-settings validation.
+          DATABASE_URL: sqlite:///./ci_test.db
+          SECRET_KEY: ci-test-secret-key-min-32-chars-ok

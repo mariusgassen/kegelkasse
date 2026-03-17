@@ -247,7 +247,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const initials = (user?.name || '?')[0].toUpperCase()
 
     return (
-        <div className="bottom-sheet" onClick={e => {
+        <div className="bottom-sheet" role="dialog" aria-modal="true" onClick={e => {
             if (e.target === e.currentTarget) onClose()
         }}>
             <div
