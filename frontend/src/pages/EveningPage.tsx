@@ -9,7 +9,7 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import type {EveningPlayer, Team} from '@/types.ts'
+import type {ClubPin, EveningPlayer, Team} from '@/types.ts'
 
 export function EveningPage() {
     const t = useT()
@@ -57,6 +57,9 @@ export function EveningPage() {
 
     const [closeConfirm, setCloseConfirm] = useState(false)
     const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
+
+    // ── Pins ──
+    const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
 
     // ── No active evening ──
     if (!activeEveningId && !evening) {
@@ -232,6 +235,11 @@ export function EveningPage() {
                     </div>
                 )}
             </div>
+
+            {/* ── Pins alert ── */}
+            {pins.length > 0 && !evening.is_closed && (
+                <PinsAlert pins={pins} evening={evening} players={players} onPenaltyLogged={invalidate}/>
+            )}
 
             {/* ── Players ── */}
             <div className="flex items-center justify-between mb-2">
@@ -643,4 +651,61 @@ function today() {
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString('de-DE', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})
+}
+
+// ── Pins alert component ──
+function PinsAlert({pins, evening, players, onPenaltyLogged}: {
+    pins: ClubPin[]
+    evening: { id: number; penalty_log: { player_name: string; penalty_type_name: string }[] }
+    players: EveningPlayer[]
+    onPenaltyLogged: () => void
+}) {
+    const t = useT()
+    // Only show pins that have a holder who is playing tonight
+    const activePins = pins.filter(pin =>
+        pin.holder_regular_member_id !== null &&
+        players.some(p => p.regular_member_id === pin.holder_regular_member_id)
+    )
+    if (activePins.length === 0) return null
+
+    async function logMissingPins(pin: ClubPin) {
+        const player = players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+        if (!player) return
+        try {
+            await api.addPenalty(evening.id, {
+                player_ids: [player.id],
+                penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
+                icon: pin.icon,
+                amount: pin.penalty_amount,
+                mode: 'euro',
+                client_timestamp: Date.now(),
+            })
+            onPenaltyLogged()
+            showToast(`${pin.icon} ${t('pin.missingPenalty')} → ${player.name}`)
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    return (
+        <div className="mb-3">
+            {activePins.map(pin => (
+                <div key={pin.id}
+                     className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-kce-amber/30 bg-kce-amber/5">
+                    <span className="text-xl flex-shrink-0">{pin.icon}</span>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold">{pin.name}</div>
+                        <div className="text-[10px] text-kce-muted">
+                            {t('pin.holder')}: {pin.holder_name}
+                        </div>
+                    </div>
+                    <button
+                        className="btn-danger btn-xs flex-shrink-0"
+                        onClick={() => logMissingPins(pin)}>
+                        ✕ {t('pin.missingPenalty')}
+                    </button>
+                </div>
+            ))}
+        </div>
+    )
 }

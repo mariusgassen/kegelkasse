@@ -19,6 +19,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const user = useAppStore(s => s.user)
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const {data: evenings, isLoading} = useEveningList()
+    const {data: presidents = []} = useQuery({queryKey: ['presidents'], queryFn: api.listPresidents, staleTime: 60000})
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -116,6 +117,8 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                         const dateStr = new Date(ev.date).toLocaleDateString('de-DE', {
                             day: '2-digit', month: '2-digit', year: 'numeric'
                         })
+                        const evYear = parseInt(ev.date.slice(0, 4))
+                        const presidentForYear = presidents.find(p => p.year === evYear)
                         return (
                             <div key={ev.id} className="kce-card mb-2 overflow-hidden">
                                 {/* Header row */}
@@ -123,7 +126,15 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                         onClick={() => setExpandedId(isExpanded ? null : ev.id)}>
                                     <span className="text-lg">📅</span>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold">{dateStr}</div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="text-sm font-bold">{dateStr}</div>
+                                            {presidentForYear && (
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                      style={{background: 'rgba(34,197,94,.15)', color: '#22c55e'}}>
+                                                    🎯 {presidentForYear.name}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="text-xs text-kce-muted">
                                             {ev.venue ?? '–'} · {ev.player_count} {t('history.players')}
                                         </div>
@@ -186,7 +197,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                             <div key={g.id}
                                                                  className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
                                                                 <span
-                                                                    className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.name}</span>
+                                                                    className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.is_president_game ? '🎯 ' : ''}{g.name}</span>
                                                                 <span
                                                                     className="text-xs text-kce-muted">{g.winner_name ?? '–'}</span>
                                                             </div>

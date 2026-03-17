@@ -136,7 +136,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
 | 11 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
 | 12 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
-| 13 | **Präsident**                      | ⬜      | Der Präsident wird auf ein Jahr ausgekegelt und im Verein hinterlegt. Muss nachverfolgbar sien.       |
+| 13 | **Präsident**                      | ✅      | Jährliches Präsidentenspiel (🎯-Flag), club_president-Tabelle, Historie-Badge, Präsidenten-Tab       |
 | 14 | **Filter**                         | ⬜      | Filter bei listen - Suchfeld das inhalt nach matches in verschiedenen feldern der objecte filtert.    |
 | 15 | **Bonus**                          | ⬜      | Gamification, Ankündigung, Kassenstand                                                                |
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
@@ -146,3 +146,4 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 20 | **Abwesenheiten verwalten**        | ⬜      | Zukünftige Spieltermine pflegen (i.d.R. feste Termine); Abwesenheiten vorab eintragen; Strafenautomatik bei Fehlen |
 | 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
 | 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
+| 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar    |

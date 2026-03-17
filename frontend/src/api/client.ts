@@ -3,6 +3,8 @@ import {
     Club,
     ClubSettings,
     ClubTeam,
+    ClubPresident,
+    ClubPin,
     DrinkRound,
     Evening,
     EveningListItem,
@@ -193,6 +195,7 @@ export const api = {
         description?: string;
         winner_type: string;
         is_opener: boolean;
+        is_president_game: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
         sort_order: number
@@ -203,6 +206,7 @@ export const api = {
         description?: string;
         winner_type: string;
         is_opener: boolean;
+        is_president_game: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
         sort_order: number
@@ -262,6 +266,7 @@ export const api = {
         name: string;
         template_id?: number;
         is_opener?: boolean;
+        is_president_game?: boolean;
         winner_type?: string;
         loser_penalty?: number;
         per_point_penalty?: number;
@@ -282,6 +287,7 @@ export const api = {
     updateGame: (eid: number, gid: number, d: Partial<{
         name: string;
         is_opener: boolean;
+        is_president_game: boolean;
         winner_type: string;
         loser_penalty: number;
         per_point_penalty: number;
@@ -373,6 +379,23 @@ export const api = {
         request<void>('DELETE', `/schedule/${sid}/guests/${gid}`),
     startEveningFromSchedule: (sid: number, d: { import_attending: boolean }) =>
         request<{ id: number; date: string; venue: string | null }>('POST', `/schedule/${sid}/start`, d),
+
+    // Presidents
+    listPresidents: () => request<ClubPresident[]>('GET', '/club/presidents'),
+    getCurrentPresident: () => request<ClubPresident | null>('GET', '/club/presidents/current'),
+
+    // Pins
+    listPins: () => request<ClubPin[]>('GET', '/club/pins'),
+    createPin: (d: { name: string; icon?: string; penalty_amount?: number }) =>
+        request<ClubPin>('POST', '/club/pins', d),
+    updatePin: (id: number, d: {
+        name?: string;
+        icon?: string;
+        penalty_amount?: number;
+        holder_regular_member_id?: number | null
+    }) =>
+        request<ClubPin>('PUT', `/club/pins/${id}`, d),
+    deletePin: (id: number) => request<void>('DELETE', `/club/pins/${id}`),
 
     // Stats
     getYearStats: (year: number) => request<{
