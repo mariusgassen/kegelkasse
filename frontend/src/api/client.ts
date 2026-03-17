@@ -1,5 +1,6 @@
 import {t as tl} from '@/i18n'
 import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
+import {persistTokenForSW} from '@/lib/tokenStore'
 import {
     Club,
     ClubSettings,
@@ -56,6 +57,7 @@ export const authState = {
         _token = t
         if (t) localStorage.setItem('kegelkasse_token', t)
         else localStorage.removeItem('kegelkasse_token')
+        persistTokenForSW(t)
     },
     getToken: () => _token,
     isLoggedIn: () => !!_token,

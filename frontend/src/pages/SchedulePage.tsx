@@ -545,16 +545,18 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
     onSaved: () => void
 }) {
     const t = useT()
-    const [date, setDate] = useState(initial?.date ?? TODAY)
-    const [time, setTime] = useState(initial?.time ?? '')
+    const initialDatetime = `${initial?.date ?? TODAY}T${initial?.time || defaultTime}`
+    const [datetime, setDatetime] = useState(initialDatetime)
     const [venue, setVenue] = useState(initial?.venue ?? defaultVenue)
     const [note, setNote] = useState(initial?.note ?? '')
     const [saving, setSaving] = useState(false)
 
     async function handleSubmit() {
-        if (!date) return
+        if (!datetime) return
         setSaving(true)
         try {
+            const date = datetime.slice(0, 10)
+            const time = datetime.slice(11, 16)
             const payload = {date, time: time || undefined, venue: venue || undefined, note: note || undefined}
             if (initial) await api.updateScheduledEvening(initial.id, payload)
             else await api.createScheduledEvening(payload)
@@ -571,12 +573,9 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
         <Sheet open onClose={onClose} title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="field-label">{t('schedule.date')}</label>
-                    <input type="date" className="kce-input" value={date} onChange={e => setDate(e.target.value)} required/>
-                </div>
-                <div>
-                    <label className="field-label">{t('schedule.time')} <span className="text-kce-muted font-normal">({t('common.optional')}, {t('schedule.defaultIs')} {defaultTime})</span></label>
-                    <input type="time" className="kce-input" value={time} onChange={e => setTime(e.target.value)}/>
+                    <label className="field-label">{t('schedule.date')} &amp; {t('schedule.time')}</label>
+                    <input type="datetime-local" className="kce-input" value={datetime}
+                           onChange={e => setDatetime(e.target.value)} required/>
                 </div>
                 <div>
                     <label className="field-label">{t('schedule.venue')}</label>
@@ -588,7 +587,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
-                <button type="submit" className="btn-primary w-full" disabled={saving || !date}>{t('action.save')}</button>
+                <button type="submit" className="btn-primary w-full" disabled={saving || !datetime}>{t('action.save')}</button>
             </div>
         </Sheet>
     )

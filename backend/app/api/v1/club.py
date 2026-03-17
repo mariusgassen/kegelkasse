@@ -875,6 +875,14 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
         f"{member_display} hat {fee}€ überwiesen und wartet auf Bestätigung.",
         "/treasury",
         category="payments",
+        extra={
+            "rid": req.id,
+            "tag": f"payment-request-{req.id}",
+            "actions": [
+                {"action": "confirm", "title": "✅ Genehmigen"},
+                {"action": "reject", "title": "❌ Ablehnen"},
+            ],
+        },
     )
     return _fmt_request(req, user.name)
 
