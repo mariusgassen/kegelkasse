@@ -67,14 +67,42 @@ def status(db: Session = Depends(get_db), user: User = Depends(require_club_memb
 
 @router.post("/test")
 async def test_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Send a test push notification to all subscriptions of the current user after a 10s delay."""
+    """Send a test push notification to all subscriptions of the current user (3s delay)."""
     if not settings.VAPID_PRIVATE_KEY:
         raise HTTPException(503, "Push notifications not configured")
     subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
     if not subs:
         raise HTTPException(404, "No push subscription found for this device")
-    await asyncio.sleep(10)
-    from core.push import _send_one
+    await asyncio.sleep(3)
+    from core.push import _send_one_raising
+    errors: list[str] = []
+    sent = 0
     for sub in subs:
-        _send_one(db, sub, "Kegelkasse 🎳", "Push-Benachrichtigungen funktionieren!", "/")
-    return {"sent": len(subs)}
+        try:
+            _send_one_raising(db, sub, "Kegelkasse 🎳", "Push-Benachrichtigungen funktionieren!", "/")
+            sent += 1
+        except Exception as exc:
+            errors.append(str(exc))
+    if errors and sent == 0:
+        raise HTTPException(500, f"Push fehlgeschlagen: {errors[0]}")
+    return {"sent": sent, "errors": errors}
+
+
+@router.get("/debug")
+def debug_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Return sanitised subscription info + VAPID config state for debugging."""
+    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
+    return {
+        "vapid_configured": bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY),
+        "vapid_claim_email": settings.VAPID_CLAIM_EMAIL or None,
+        "subscription_count": len(subs),
+        "subscriptions": [
+            {
+                "id": s.id,
+                "endpoint_prefix": s.endpoint[:60] if s.endpoint else None,
+                "p256dh_len": len(s.p256dh) if s.p256dh else 0,
+                "auth_len": len(s.auth) if s.auth else 0,
+            }
+            for s in subs
+        ],
+    }
