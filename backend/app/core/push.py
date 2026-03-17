@@ -12,24 +12,31 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_vapid_private_key(raw: str) -> str:
-    """Return the VAPID private key in a form pywebpush/cryptography can parse.
+    """Return the VAPID private key as raw base64url for pywebpush.
 
-    Handles three storage formats used in practice:
+    Handles all storage formats used in practice:
+    - Raw base64url EC key (no PEM headers) — returned as-is
     - PEM with literal \\n (Coolify / Docker env vars)
-    - PEM with real newlines but no 64-char line-breaks in the body
-    - Raw base64url EC key (no PEM headers) — returned unchanged
+    - PEM with real newlines (multi-line value)
+
+    PEM keys are converted to raw base64url (32-byte EC scalar) to avoid
+    ASN.1 parsing errors from malformed line breaks or unsupported encodings.
     """
+    import base64
+
     key = raw.strip().replace("\\n", "\n")
     if "-----BEGIN" not in key:
-        return key  # raw base64url — pywebpush accepts this directly
+        return key  # already raw base64url — pywebpush accepts this directly
 
-    # Split into header / body / footer and rebuild with proper 64-char wrapping
-    lines = [l.strip() for l in key.splitlines() if l.strip()]
-    header = next((l for l in lines if l.startswith("-----BEGIN")), "")
-    footer = next((l for l in lines if l.startswith("-----END")), "")
-    body = "".join(l for l in lines if not l.startswith("-----"))
-    wrapped = "\n".join(body[i:i + 64] for i in range(0, len(body), 64))
-    return f"{header}\n{wrapped}\n{footer}\n"
+    # Convert PEM → raw base64url to sidestep all ASN.1 / line-wrap issues.
+    # We extract the raw EC private scalar via private_numbers(), which is
+    # compatible across all cryptography versions (no Encoding.Raw needed).
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+    key_obj = load_pem_private_key(key.encode(), password=None)
+    d = key_obj.private_numbers().private_value  # integer EC scalar
+    raw_bytes = d.to_bytes(32, "big")
+    return base64.urlsafe_b64encode(raw_bytes).rstrip(b"=").decode()
 
 
 def _send_one(db: Session, sub: PushSubscription, title: str, body: str, url: str = '/') -> None:
