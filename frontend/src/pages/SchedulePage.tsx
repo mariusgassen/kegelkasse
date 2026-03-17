@@ -78,25 +78,38 @@ function AddGuestForm({se, onAdded, onCancel}: {
     const regularMembers = useAppStore(s => s.regularMembers)
     const knownGuests = regularMembers.filter(m => m.is_guest)
 
-    const [mode, setMode] = useState<'new' | 'known'>('new')
     const [name, setName] = useState('')
-    const [selectedId, setSelectedId] = useState<number | null>(null)
+    const [matchedId, setMatchedId] = useState<number | null>(null)
+    const [showSuggestions, setShowSuggestions] = useState(false)
     const [saving, setSaving] = useState(false)
 
+    const suggestions = name.trim().length > 0
+        ? knownGuests.filter(m => {
+            const q = name.toLowerCase()
+            return (m.nickname ?? '').toLowerCase().includes(q) || m.name.toLowerCase().includes(q)
+        })
+        : []
+
+    function pickSuggestion(m: typeof knownGuests[0]) {
+        setName(m.nickname || m.name)
+        setMatchedId(m.id)
+        setShowSuggestions(false)
+    }
+
+    function handleChange(val: string) {
+        setName(val)
+        setMatchedId(null)
+        setShowSuggestions(true)
+    }
+
     async function submit() {
-        if (mode === 'new' && !name.trim()) return
-        if (mode === 'known' && !selectedId) return
+        if (!name.trim()) return
         setSaving(true)
         try {
-            if (mode === 'known') {
-                const member = regularMembers.find(m => m.id === selectedId)!
-                await api.addScheduledGuest(se.id, {
-                    name: member.nickname || member.name,
-                    regular_member_id: member.id,
-                })
-            } else {
-                await api.addScheduledGuest(se.id, {name: name.trim()})
-            }
+            await api.addScheduledGuest(se.id, {
+                name: name.trim(),
+                regular_member_id: matchedId ?? undefined,
+            })
             onAdded()
         } catch (e) {
             toastError(e)
@@ -107,41 +120,38 @@ function AddGuestForm({se, onAdded, onCancel}: {
 
     return (
         <div className="mt-2 p-2.5 rounded-lg bg-kce-bg border border-kce-border space-y-2">
-            {/* Mode toggle */}
-            <div className="flex gap-1.5">
-                <button onClick={() => setMode('new')}
-                        className={['flex-1 text-[11px] py-1 rounded font-bold border transition-all',
-                            mode === 'new' ? 'bg-kce-amber/20 text-kce-amber border-kce-amber/40' : 'bg-kce-surface2 text-kce-muted border-kce-border'
-                        ].join(' ')}>
-                    {t('schedule.guestNew')}
-                </button>
-                {knownGuests.length > 0 && (
-                    <button onClick={() => setMode('known')}
-                            className={['flex-1 text-[11px] py-1 rounded font-bold border transition-all',
-                                mode === 'known' ? 'bg-kce-amber/20 text-kce-amber border-kce-amber/40' : 'bg-kce-surface2 text-kce-muted border-kce-border'
-                            ].join(' ')}>
-                        {t('schedule.guestKnown')}
-                    </button>
+            <div className="relative">
+                <input
+                    className="kce-input"
+                    placeholder={t('schedule.guestName')}
+                    value={name}
+                    onChange={e => handleChange(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
+                    autoFocus
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute z-20 left-0 right-0 top-full mt-0.5 rounded-lg bg-kce-surface border border-kce-border shadow-lg overflow-hidden">
+                        {suggestions.map(m => (
+                            <button
+                                key={m.id}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-kce-surface2 text-kce-cream flex items-center gap-2"
+                                onMouseDown={() => pickSuggestion(m)}
+                            >
+                                <span className="text-kce-muted text-xs">★</span>
+                                {m.nickname || m.name}
+                                {m.nickname && <span className="text-kce-muted text-xs">({m.name})</span>}
+                            </button>
+                        ))}
+                    </div>
                 )}
             </div>
-
-            {mode === 'new' ? (
-                <input className="kce-input" placeholder={t('schedule.guestName')}
-                       value={name} onChange={e => setName(e.target.value)}
-                       autoFocus/>
-            ) : (
-                <select className="kce-input" value={selectedId ?? ''} onChange={e => setSelectedId(Number(e.target.value))}>
-                    <option value="">{t('schedule.guestKnown')}…</option>
-                    {knownGuests.map(m => (
-                        <option key={m.id} value={m.id}>{m.nickname || m.name}</option>
-                    ))}
-                </select>
+            {matchedId && (
+                <p className="text-[10px] text-green-400">✓ {t('schedule.guestKnown')}</p>
             )}
-
             <div className="flex gap-2">
                 <button className="btn-secondary btn-sm flex-1" onClick={onCancel}>{t('action.cancel')}</button>
-                <button className="btn-primary btn-sm flex-1" disabled={saving || (mode === 'new' ? !name.trim() : !selectedId)}
-                        onClick={submit}>
+                <button className="btn-primary btn-sm flex-1" disabled={saving || !name.trim()} onClick={submit}>
                     {t('action.save')}
                 </button>
             </div>
@@ -311,7 +321,7 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
                                 setShowGuests(true)
                                 setAddingGuest(true)
                             }}>
-                                {t('schedule.addGuest')}
+                                + {t('schedule.addGuest')}
                             </button>
                         )}
                     </div>
@@ -830,6 +840,10 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     }
 
     const upcoming = (schedules ?? []).filter(s => s.date >= TODAY)
+    const VISIBLE = 2
+    const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+    const visibleUpcoming = showAllUpcoming ? upcoming : upcoming.slice(0, VISIBLE)
+    const hiddenCount = upcoming.length - VISIBLE
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -849,18 +863,34 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
                 ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
                 : upcoming.length === 0
                     ? <Empty icon="📅" text={t('schedule.none')}/>
-                    : upcoming.map(se => (
-                        <UpcomingCard
-                            key={se.id}
-                            se={se}
-                            isAdminUser={isAdminUser}
-                            onEdit={() => setEditSheet(se)}
-                            onDelete={() => setConfirmDeleteId(se.id)}
-                            onViewRsvps={() => setRsvpSheet(se)}
-                            onRsvpUpdate={invalidate}
-                            onStarted={handleStarted}
-                        />
-                    ))
+                    : <>
+                        {visibleUpcoming.map(se => (
+                            <UpcomingCard
+                                key={se.id}
+                                se={se}
+                                isAdminUser={isAdminUser}
+                                onEdit={() => setEditSheet(se)}
+                                onDelete={() => setConfirmDeleteId(se.id)}
+                                onViewRsvps={() => setRsvpSheet(se)}
+                                onRsvpUpdate={invalidate}
+                                onStarted={handleStarted}
+                            />
+                        ))}
+                        {hiddenCount > 0 && !showAllUpcoming && (
+                            <button
+                                className="w-full text-xs text-kce-muted py-2 mb-1 border border-dashed border-kce-border rounded-lg hover:text-kce-cream hover:border-kce-cream transition-colors"
+                                onClick={() => setShowAllUpcoming(true)}>
+                                + {hiddenCount} {t('schedule.moreUpcoming')}
+                            </button>
+                        )}
+                        {showAllUpcoming && hiddenCount > 0 && (
+                            <button
+                                className="w-full text-xs text-kce-muted py-1.5 mb-1"
+                                onClick={() => setShowAllUpcoming(false)}>
+                                ▲ {t('schedule.showLess')}
+                            </button>
+                        )}
+                    </>
             }
 
             {/* ── History ── */}
