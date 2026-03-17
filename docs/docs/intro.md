@@ -14,12 +14,16 @@ slug: /
 | Bereich | Beschreibung |
 |---------|-------------|
 | **Abende** | Abende anlegen, Spieler einladen, Teams bilden |
+| **Termine** | Zukünftige Spieltermine planen, RSVP erfassen, Abend direkt starten |
 | **Spiele** | Spiele erfassen, Ergebnisse eintragen, Verliererstrafen automatisch vergeben |
 | **Strafen** | Individuell oder per Team strafen, Drehtrommel für zufällige Auswahl |
 | **Getränke** | Bier- und Schnappsrunden protokollieren |
-| **Kasse** | Finanzübersicht mit Ranking und Mitgliedskonten |
+| **Kasse** | Finanzübersicht mit Ranking, Mitgliedskonten und Bezahllink |
 | **Historie** | Abgeschlossene Abende einsehen und Statistiken auswerten |
 | **Statistiken** | Jahresranking mit Strafen, Siegen, Abenden und Getränken |
+| **Präsident** | Jährliches Präsidentenspiel und Präsidentenhistorie |
+| **Vereinsnadeln** | Nadeln vergeben, Träger verwalten, Strafen per Knopfdruck |
+| **Push** | Web-Push-Benachrichtigungen für Strafen, Abende und Zahlungen |
 
 ## Rollen auf einen Blick
 

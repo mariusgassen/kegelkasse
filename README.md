@@ -27,7 +27,7 @@ npm start   # → http://localhost:3000
 Topics covered:
 - Getting started & registration
 - Role guide: Member, Admin, Superadmin
-- Features: Evenings, Games, Penalties, Drinks, Treasury, History, Statistics
+- Features: Evenings, Games, Penalties, Drinks, Treasury, History, Statistics, Schedule & RSVP
 
 ## Quick start (development)
 
@@ -66,11 +66,13 @@ docker compose exec app python -m app.scripts.create_admin
 
 ### Club administration *(admin only)*
 
-- Club settings: home venue, primary and secondary brand colors
+- Club settings: home venue, primary and secondary brand colors, PayPal.me handle, background color, no-show penalty
 - **Regular members (Stammspieler)**: persistent roster with optional nickname; used to link evening players across sessions for stat tracking
 - **Penalty types**: custom icon (emoji), name, default amount, sort order; soft-deleted when removed
-- **Game templates**: name, description, winner type (`team` / `individual` / `either`), opener flag, default loser penalty, sort order; soft-deleted when removed
+- **Game templates**: name, description, winner type (`team` / `individual` / `either`), opener flag, president-game flag, default loser penalty, sort order; soft-deleted when removed
 - **Teams**: reusable team presets that can be loaded when starting an evening
+- **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry
+- **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge
 
 ### Evening management
 
@@ -104,17 +106,34 @@ docker compose exec app python -m app.scripts.create_admin
 - Track which players participated in each round
 - Soft-delete (undo) without data loss
 
+### Schedule & RSVP
+
+- Plan future bowling evenings with date, venue, and optional notes
+- Members set their RSVP status (attending / absent / no response)
+- Admins send push reminders to non-responders
+- Add known guests to planned evenings
+- Start a real evening directly from a scheduled entry, optionally importing all attending members as players
+
 ### Treasury & accounts
 
 - Per-evening ranking by penalty amount with drinks overview
 - Text export (Share/Copy) for WhatsApp & notes
 - Member accounts: track balances and record payments (admin)
+- Club expenses (e.g. lane rental) tracked separately
+- **Bezahllink**: members request payment via PayPal.me link; admin confirms manually
 
 ### Statistics
 
 - Yearly rollup by regular member: evenings attended, total penalty amount (€), penalty count, game wins, beer rounds, shot rounds
 - Personal stats in user profile
 - Year selector with CSS bar chart visualization
+
+### Push notifications
+
+- Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
+- Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
+- Members subscribe/unsubscribe per device from their profile
+- Falls back silently when VAPID keys are not configured
 
 ### PWA & offline
 

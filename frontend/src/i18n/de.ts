@@ -445,6 +445,10 @@ export const de = {
     "club.pinPenaltyHint": "Vereinsweit für alle Pins — wird beim Vergessen direkt eingetragen.",
     "club.tab.president": "🎯 Präsident",
     "club.tab.pins": "📌 Pins",
+    "club.settings.general": "Allgemein",
+    "club.settings.appearance": "Erscheinungsbild",
+    "club.settings.specialPenalties": "Sonderstrafen",
+    "club.settings.payments": "Zahlungen",
 } as const
 
 export type TranslationKey = keyof typeof de
