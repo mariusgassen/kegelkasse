@@ -1,3 +1,28 @@
+# IntelliJ / JetBrains .idea folder
+
+# User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Generated files
+.idea/**/contentModel.xml
+
+
+# Gradle / build tool integrations
+.idea/**/gradle.xml
+.idea/**/libraries
+
+# Misc
+.idea/**/uiDesigner.xml
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
 # Environment
 backend/.env
 backend/.env.example

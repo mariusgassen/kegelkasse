@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette import status
 
 from api.deps import require_club_member, require_club_admin
 from core.events import event_bus
@@ -796,10 +797,15 @@ async def stream_evening_events(
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
     # Auth check: open a session, validate, then close it immediately so the
     # pool slot is returned before we start the potentially long-lived stream.
     async with AsyncSessionLocal() as db:
-        user = (await db.execute(select(User).where(User.id == payload.get("sub")))).scalar_one_or_none()
+        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if not user or not user.is_active or not user.club_id:
             raise HTTPException(status_code=401, detail="Unauthorized")
         e = (await db.execute(select(Evening).where(Evening.id == eid, Evening.club_id == user.club_id))).scalar_one_or_none()
