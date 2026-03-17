@@ -136,7 +136,7 @@ export function EveningPage() {
     const playerOptions = players.map(p => ({id: p.id, label: p.name}))
 
     function openEditSheet() {
-        setEditDate(evening!.date)
+        setEditDate(evening!.date.slice(0, 10))
         setEditVenue(evening!.venue ?? '')
         setEditNote(evening!.note ?? '')
         setEditSheet(true)

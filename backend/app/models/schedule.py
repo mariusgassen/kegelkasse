@@ -17,8 +17,7 @@ class ScheduledEvening(Base):
     __tablename__ = "scheduled_evening"
     id = Column(Integer, primary_key=True, index=True)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
-    date = Column(String, nullable=False)  # ISO YYYY-MM-DD
-    time = Column(String, nullable=True)   # HH:MM, overrides club default_evening_time
+    scheduled_at = Column(DateTime(timezone=True), nullable=False)
     venue = Column(String, nullable=True)
     note = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
