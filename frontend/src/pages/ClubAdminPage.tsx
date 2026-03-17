@@ -738,14 +738,21 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
         <div>
             <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('pin.add')}</button>
             {pins.length === 0 && <Empty icon="📌" text={t('pin.none')}/>}
-            {pins.map(p => (
+            {pins.map(p => {
+                const holderMember = p.holder_regular_member_id
+                    ? regularMembers.find(m => m.id === p.holder_regular_member_id)
+                    : null
+                const holderDisplayName = holderMember
+                    ? (holderMember.nickname || holderMember.name)
+                    : p.holder_name
+                return (
                 <div key={p.id} className="kce-card p-3 mb-2 flex items-start gap-3">
                     <div className="text-2xl flex-shrink-0">{p.icon}</div>
                     <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm">{p.name}</div>
                         <div className="text-xs mt-0.5">
-                            {p.holder_name
-                                ? <span className="text-kce-amber font-bold">📌 {p.holder_name}</span>
+                            {holderDisplayName
+                                ? <span className="text-kce-amber font-bold">📌 {holderDisplayName}</span>
                                 : <span className="text-kce-muted">{t('pin.noHolder')}</span>
                             }
                             {p.assigned_at && (
@@ -761,21 +768,21 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                                 onClick={() => api.deletePin(p.id).then(() => refetch())}>✕</button>
                     </div>
                 </div>
-            ))}
+                )
+            })}
 
             <Sheet open={sheet} onClose={() => setSheet(false)}
                    title={editing ? t('pin.edit') : t('pin.new')} onSubmit={save}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('pin.name')}</label>
-                        <input className="kce-input" value={pinName} onChange={e => setPinName(e.target.value)}
-                               placeholder="z.B. Vereinsnadel"/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('pin.icon')}</label>
-                        <div className="flex gap-2">
-                            <input className="kce-input flex-1" value={pinIcon} onChange={e => setPinIcon(e.target.value)}/>
-                            <EmojiPickerButton mode="icon" value={pinIcon} onChange={setPinIcon}/>
+                    <div className="flex gap-2">
+                        <div>
+                            <label className="field-label">{t('pin.icon')}</label>
+                            <EmojiPickerButton value={pinIcon} onChange={setPinIcon}/>
+                        </div>
+                        <div className="flex-1">
+                            <label className="field-label">{t('pin.name')}</label>
+                            <input className="kce-input" value={pinName} onChange={e => setPinName(e.target.value)}
+                                   placeholder="z.B. Vereinsnadel"/>
                         </div>
                     </div>
                     <div>

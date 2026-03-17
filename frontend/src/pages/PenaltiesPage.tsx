@@ -196,6 +196,8 @@ export function PenaltiesPage() {
                 client_timestamp: Date.now(),
             })
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
             setSheet(false)
         } catch (e: unknown) {
             toastError(e)
@@ -232,6 +234,8 @@ export function PenaltiesPage() {
                 await qc.invalidateQueries({queryKey: ['penalty-types']})
             }
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
             setSheet(false)
         } catch (e: unknown) {
             toastError(e)
@@ -244,6 +248,8 @@ export function PenaltiesPage() {
         try {
             await api.deletePenalty(evening!.id, lid)
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -269,6 +275,8 @@ export function PenaltiesPage() {
         try {
             await api.updatePenalty(evening!.id, editEntry.id, patch)
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
             setEditEntry(null)
         } catch (e: unknown) {
             toastError(e)
@@ -301,6 +309,7 @@ export function PenaltiesPage() {
         | { kind: 'penalty'; entry: typeof log[0]; ts: number }
         | { kind: 'game_started'; game: typeof evening.games[0]; ts: number }
         | { kind: 'game_finished'; game: typeof evening.games[0]; ts: number }
+        | { kind: 'drink_round'; round: typeof evening.drink_rounds[0]; ts: number }
 
     const timeline: TimelineEvent[] = log.map(e => ({kind: 'penalty', entry: e, ts: e.client_timestamp}))
 
@@ -308,6 +317,9 @@ export function PenaltiesPage() {
         for (const g of evening.games) {
             if (g.started_at) timeline.push({kind: 'game_started', game: g, ts: new Date(g.started_at).getTime()})
             if (g.finished_at) timeline.push({kind: 'game_finished', game: g, ts: new Date(g.finished_at).getTime()})
+        }
+        for (const r of evening.drink_rounds) {
+            timeline.push({kind: 'drink_round', round: r, ts: r.client_timestamp})
         }
         timeline.sort((a, b) => b.ts - a.ts)
     }
@@ -388,6 +400,21 @@ export function PenaltiesPage() {
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
+                            </div>
+                        )
+                    }
+                    if (event.kind === 'drink_round') {
+                        const r = event.round
+                        const icon = r.drink_type === 'beer' ? '🍺' : '🥃'
+                        const label = r.drink_type === 'beer' ? t('drinks.beer') : t('drinks.shots')
+                        return (
+                            <div key={`dr-${r.id}`} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-70">
+                                <span className="text-xl flex-shrink-0">{icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold truncate">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
+                                    <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')}</div>
+                                </div>
+                                <div className="text-xs text-kce-muted">{fTime(event.ts)}</div>
                             </div>
                         )
                     }

@@ -9,7 +9,7 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import type {ClubPin, EveningPlayer, Team} from '@/types.ts'
+import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
     const t = useT()
@@ -242,6 +242,7 @@ export function EveningPage() {
             {/* ── Pins alert ── */}
             {pins.length > 0 && !evening.is_closed && (
                 <PinsAlert pins={pins} evening={evening} players={players}
+                           regularMembers={regularMembers}
                            pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
             )}
 
@@ -662,10 +663,11 @@ function formatDate(iso: string) {
 }
 
 // ── Pins alert component ──
-function PinsAlert({pins, evening, players, pinPenalty, onPenaltyLogged}: {
+function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged}: {
     pins: ClubPin[]
     evening: { id: number; penalty_log: { player_name: string; penalty_type_name: string }[] }
     players: EveningPlayer[]
+    regularMembers: RegularMember[]
     pinPenalty: number
     onPenaltyLogged: () => void
 }) {
@@ -698,14 +700,21 @@ function PinsAlert({pins, evening, players, pinPenalty, onPenaltyLogged}: {
 
     return (
         <div className="mb-3">
-            {activePins.map(pin => (
+            {activePins.map(pin => {
+                const holderMember = pin.holder_regular_member_id
+                    ? regularMembers.find(m => m.id === pin.holder_regular_member_id)
+                    : null
+                const holderDisplayName = holderMember
+                    ? (holderMember.nickname || holderMember.name)
+                    : pin.holder_name
+                return (
                 <div key={pin.id}
                      className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-kce-amber/30 bg-kce-amber/5">
                     <span className="text-xl flex-shrink-0">{pin.icon}</span>
                     <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold">{pin.name}</div>
                         <div className="text-[10px] text-kce-muted">
-                            {t('pin.holder')}: {pin.holder_name}
+                            {t('pin.holder')}: {holderDisplayName}
                         </div>
                     </div>
                     <button
@@ -714,7 +723,8 @@ function PinsAlert({pins, evening, players, pinPenalty, onPenaltyLogged}: {
                         ✕ {t('pin.missingPenalty')}
                     </button>
                 </div>
-            ))}
+                )
+            })}
         </div>
     )
 }

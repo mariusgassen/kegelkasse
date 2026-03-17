@@ -369,28 +369,97 @@ export function TreasuryPage() {
                     {debtors.length > 0 && (
                         <>
                             <div className="sec-heading">{t('treasury.openLabel')}</div>
-                            {debtors.map((b, i) => (
-                                <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                    <span
-                                        className="text-sm font-display font-bold text-kce-muted w-5 text-center flex-shrink-0">
-                                        {i + 1}.
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
-                                        <div className="text-xs text-kce-muted">
-                                            Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
+                            {debtors.map((b, i) => {
+                                const isMe = b.regular_member_id === myRegularMemberId
+                                return (
+                                    <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
+                                        <div className="p-3 flex items-center gap-3">
+                                            <span
+                                                className="text-sm font-display font-bold text-kce-muted w-5 text-center flex-shrink-0">
+                                                {i + 1}.
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                                    {b.nickname || b.name}
+                                                    {isMe && <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">Du</span>}
+                                                </div>
+                                                <div className="text-xs text-kce-muted">
+                                                    Strafen: {fe(b.penalty_total)} · Bezahlt: {fe(b.payments_total)}
+                                                </div>
+                                            </div>
+                                            <span
+                                                className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                            {admin && (
+                                                <button className="btn-primary btn-sm flex-shrink-0"
+                                                        onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                    {t('treasury.payment.settle')}
+                                                </button>
+                                            )}
                                         </div>
+                                        {isMe && myDebtAmount > 0 && paypalHandle && (
+                                            <div className="border-t border-kce-border px-3 pb-3 pt-2">
+                                                {!hasPendingMyRequest ? (
+                                                    !reportingMyPayment ? (
+                                                        <div className="flex gap-2">
+                                                            <a
+                                                                href={`https://paypal.me/${paypalHandle}/${myDebtAmount.toFixed(2)}EUR`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="btn-primary flex-1 text-center text-sm py-2 no-underline"
+                                                            >
+                                                                {t('profile.payNow')}
+                                                            </a>
+                                                            <button className="btn-secondary flex-1 btn-sm"
+                                                                    onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
+                                                                {t('profile.reportPayment')}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                                                <input
+                                                                    className="kce-input flex-1"
+                                                                    type="text" inputMode="decimal"
+                                                                    value={myPaymentAmount}
+                                                                    placeholder={myDebtAmount.toFixed(2)}
+                                                                    onChange={e => setMyPaymentAmount(e.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <button className="btn-secondary flex-1 btn-sm"
+                                                                        onClick={() => { setReportingMyPayment(false); setMyPaymentAmount('') }}>
+                                                                    {t('action.cancel')}
+                                                                </button>
+                                                                <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                                    const amt = myPaymentAmount.trim()
+                                                                        ? parseFloat(myPaymentAmount.replace(',', '.'))
+                                                                        : myDebtAmount
+                                                                    if (!amt || amt <= 0) return
+                                                                    try {
+                                                                        await api.createPaymentRequest({amount: amt})
+                                                                        await refetchMyPaymentRequests()
+                                                                        if (admin) refetchPaymentRequests()
+                                                                        setReportingMyPayment(false)
+                                                                        setMyPaymentAmount('')
+                                                                        showToast(t('profile.reportPayment'))
+                                                                    } catch (e) { toastError(e) }
+                                                                }}>
+                                                                    {t('profile.reportPayment')}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <div className="text-xs text-kce-amber text-center py-1">
+                                                        ⏳ {t('paymentRequest.pending')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <span
-                                        className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
-                                    {admin && (
-                                        <button className="btn-primary btn-sm flex-shrink-0"
-                                                onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
-                                            {t('treasury.payment.settle')}
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                                )
+                            })}
                         </>
                     )}
 
@@ -618,6 +687,7 @@ export function TreasuryPage() {
                                                                         try {
                                                                             await api.createPaymentRequest({amount: amt})
                                                                             await refetchMyPaymentRequests()
+                                                                            if (admin) refetchPaymentRequests()
                                                                             setReportingMyPayment(false)
                                                                             setMyPaymentAmount('')
                                                                             showToast(t('profile.reportPayment'))
