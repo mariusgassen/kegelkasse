@@ -445,4 +445,8 @@ export const en = {
     "club.pinPenaltyHint": "Club-wide for all pins — logged immediately when forgotten.",
     "club.tab.president": "🎯 President",
     "club.tab.pins": "📌 Pins",
+    "club.settings.general": "General",
+    "club.settings.appearance": "Appearance",
+    "club.settings.specialPenalties": "Special penalties",
+    "club.settings.payments": "Payments",
 } as const

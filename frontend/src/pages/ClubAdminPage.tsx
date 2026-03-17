@@ -161,20 +161,48 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
     }, [club])
 
+    async function handleSave() {
+        const cap = guestCap.trim() ? parseAmount(guestCap) : null
+        const noRsvp = noRsvpExtra.trim() ? parseAmount(noRsvpExtra) : null
+        const pinP = pinPenalty.trim() ? parseAmount(pinPenalty) : null
+        await api.updateClubSettings({
+            name: clubName || undefined,
+            home_venue: venue,
+            primary_color: color1,
+            secondary_color: color2,
+            bg_color: bgColor,
+            guest_penalty_cap: cap,
+            paypal_me: paypalMe.trim() || null,
+            no_cancel_fee: noRsvp,
+            pin_penalty: pinP,
+        })
+        applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
+        setGuestPenaltyCap(cap)
+        onSaved()
+    }
+
     return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+
+            {/* ── Allgemein ── */}
             <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.general')}</div>
                 <div className="mb-3">
                     <label className="field-label">{t('club.name.label')}</label>
                     <input className="kce-input" value={clubName} onChange={e => setClubName(e.target.value)}
                            placeholder="Vereinsname"/>
                 </div>
-                <div className="mb-3">
+                <div>
                     <label className="field-label">{t('club.defaultVenue')}</label>
                     <input className="kce-input" value={venue} onChange={e => setVenue(e.target.value)}
                            placeholder={t('club.defaultVenuePlaceholder')}/>
                 </div>
-                <div className="flex gap-3 mb-3">
+            </div>
+
+            {/* ── Erscheinungsbild ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.appearance')}</div>
+                <div className="flex gap-3">
                     <div className="flex-1">
                         <label className="field-label">{t('club.color.primary')}</label>
                         <div className="flex gap-2 items-center">
@@ -200,6 +228,11 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* ── Sonderstrafen ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.specialPenalties')}</div>
                 <div className="mb-3">
                     <label className="field-label">{t('club.penalty.guestCap')}</label>
                     <div className="flex items-center gap-2">
@@ -211,16 +244,6 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <p className="text-xs text-kce-muted mt-1">{t('club.penalty.guestCapHint')}</p>
                 </div>
                 <div className="mb-3">
-                    <label className="field-label">{t('club.paypalMe')}</label>
-                    <div className="flex items-center gap-2">
-                        <span className="text-kce-muted text-xs flex-shrink-0">paypal.me/</span>
-                        <input className="kce-input flex-1" type="text"
-                               value={paypalMe} placeholder={t('club.paypalMePlaceholder')}
-                               onChange={e => setPaypalMe(e.target.value.replace(/^https?:\/\/paypal\.me\//i, '').trim())}/>
-                    </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.paypalMeHint')}</p>
-                </div>
-                <div className="mb-3">
                     <label className="field-label">{t('club.noRsvpExtra')}</label>
                     <div className="flex items-center gap-2">
                         <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -230,7 +253,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.noRsvpExtraHint')}</p>
                 </div>
-                <div className="mb-3">
+                <div>
                     <label className="field-label">{t('club.pinPenalty')}</label>
                     <div className="flex items-center gap-2">
                         <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -240,26 +263,24 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.pinPenaltyHint')}</p>
                 </div>
-                <button className="btn-primary w-full" onClick={async () => {
-                    const cap = guestCap.trim() ? parseAmount(guestCap) : null
-                    const noRsvp = noRsvpExtra.trim() ? parseAmount(noRsvpExtra) : null
-                    const pinP = pinPenalty.trim() ? parseAmount(pinPenalty) : null
-                    await api.updateClubSettings({
-                        name: clubName || undefined,
-                        home_venue: venue,
-                        primary_color: color1,
-                        secondary_color: color2,
-                        bg_color: bgColor,
-                        guest_penalty_cap: cap,
-                        paypal_me: paypalMe.trim() || null,
-                        no_cancel_fee: noRsvp,
-                        pin_penalty: pinP,
-                    })
-                    applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
-                    setGuestPenaltyCap(cap)
-                    onSaved()
-                }}>{t('action.save')}</button>
             </div>
+
+            {/* ── Zahlungen ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.payments')}</div>
+                <div>
+                    <label className="field-label">{t('club.paypalMe')}</label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-kce-muted text-xs flex-shrink-0">paypal.me/</span>
+                        <input className="kce-input flex-1" type="text"
+                               value={paypalMe} placeholder={t('club.paypalMePlaceholder')}
+                               onChange={e => setPaypalMe(e.target.value.replace(/^https?:\/\/paypal\.me\//i, '').trim())}/>
+                    </div>
+                    <p className="text-xs text-kce-muted mt-1">{t('club.paypalMeHint')}</p>
+                </div>
+            </div>
+
+            <button className="btn-primary w-full" onClick={handleSave}>{t('action.save')}</button>
         </div>
     )
 }
