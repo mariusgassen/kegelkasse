@@ -104,6 +104,13 @@ service worker + IndexedDB for offline support.
   and the feature catalog in `README.md`. Keep both in sync with the implementation.
 - **Ruff (Python linter):** Before committing backend changes, run `ruff check backend/ --fix` and resolve all
   remaining issues. Add this to the pre-commit checklist.
+- **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
+  page elements, dialogs, and any new components. Never leave new UI without consistent styling.
+- **Sync mutations:** After any mutation (create, update, delete), immediately trigger a re-fetch of all affected
+  lists/data so other clients (and the current client) see the updated state without manual refresh. Use the existing
+  polling mechanism or invalidate relevant queries right after the API call resolves.
+- **UI invalidation:** Whenever a data entry changes, always invalidate and reload the affected list(s) in the UI.
+  Never rely on local optimistic state alone — always confirm with a fresh server response.
 
 ## Deployment
 
