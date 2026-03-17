@@ -308,7 +308,7 @@ test.describe('Push API endpoints (direct)', () => {
         ]
         for (const { method, path } of endpoints) {
             const res = await request.fetch(`${API_URL}/api/v1${path}`, { method })
-            expect(res.status(), `${method} ${path} should be 403 without auth`).toBe(403)
+            expect(res.status(), `${method} ${path} should be 401 without auth`).toBe(401)
         }
     })
 })

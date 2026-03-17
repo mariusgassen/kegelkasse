@@ -42,7 +42,7 @@ class TestGetVapidKey:
 
     def test_401_without_auth(self, client):
         r = client.get("/api/v1/push/vapid-key")
-        assert r.status_code == 403  # HTTPBearer returns 403 when no credentials
+        assert r.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class TestSubscribe:
 
     def test_401_without_auth(self, client):
         r = client.post("/api/v1/push/subscribe", json=SUBSCRIBE_PAYLOAD)
-        assert r.status_code == 403
+        assert r.status_code == 401
 
     def test_422_missing_fields(self, client, auth_headers):
         r = client.post("/api/v1/push/subscribe", json={"endpoint": "only-endpoint"}, headers=auth_headers)
@@ -125,18 +125,23 @@ class TestUnsubscribe:
         db.add_all([sub1, sub2])
         db.commit()
 
+        # Save strings before the DELETE request invalidates the ORM objects
+        endpoint1 = sub1.endpoint
+        endpoint2 = sub2.endpoint
+
         r = client.delete(
             "/api/v1/push/unsubscribe",
-            params={"endpoint": sub1.endpoint},
+            params={"endpoint": endpoint1},
             headers=auth_headers,
         )
         assert r.status_code == 204
 
         db.expire_all()
-        assert db.query(PushSubscription).filter(PushSubscription.endpoint == sub1.endpoint).first() is None
-        assert db.query(PushSubscription).filter(PushSubscription.endpoint == sub2.endpoint).first() is not None
+        assert db.query(PushSubscription).filter(PushSubscription.endpoint == endpoint1).first() is None
+        remaining = db.query(PushSubscription).filter(PushSubscription.endpoint == endpoint2).first()
+        assert remaining is not None
 
-        db.delete(sub2)
+        db.delete(remaining)
         db.commit()
 
     def test_does_not_delete_other_users_subscriptions(self, client, db, user, second_user):
@@ -198,7 +203,7 @@ class TestStatus:
 
     def test_401_without_auth(self, client):
         r = client.get("/api/v1/push/status")
-        assert r.status_code == 403
+        assert r.status_code == 401
 
 
 # ---------------------------------------------------------------------------
@@ -249,4 +254,4 @@ class TestTestPush:
 
     def test_401_without_auth(self, client):
         r = client.post("/api/v1/push/test")
-        assert r.status_code == 403
+        assert r.status_code == 401

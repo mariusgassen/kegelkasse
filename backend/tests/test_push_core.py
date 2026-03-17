@@ -46,7 +46,7 @@ class TestSendOne:
     def test_calls_webpush_with_correct_args(self, db, user, subscription):
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
              patch.object(settings, "VAPID_CLAIM_EMAIL", "admin@test.de"), \
-             patch("core.push.webpush") as mock_wp:
+             patch("pywebpush.webpush") as mock_wp:
             from core.push import _send_one
             _send_one(db, subscription, "Title", "Body", "/some/url")
 
@@ -63,7 +63,7 @@ class TestSendOne:
     def test_restores_newlines_in_private_key(self, db, user, subscription):
         """Env vars store \\n as literal backslash-n; _send_one must restore them."""
         with patch.object(settings, "VAPID_PRIVATE_KEY", "line1\\nline2"), \
-             patch("core.push.webpush") as mock_wp:
+             patch("pywebpush.webpush") as mock_wp:
             from core.push import _send_one
             _send_one(db, subscription, "T", "B")
 
@@ -81,7 +81,7 @@ class TestSendOne:
         exc = WebPushException("Gone", response=mock_response)
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push.webpush", side_effect=exc):
+             patch("pywebpush.webpush", side_effect=exc):
             from core.push import _send_one
             _send_one(db, sub, "T", "B")
 
@@ -98,7 +98,7 @@ class TestSendOne:
         exc = WebPushException("Not Found", response=mock_response)
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push.webpush", side_effect=exc):
+             patch("pywebpush.webpush", side_effect=exc):
             from core.push import _send_one
             _send_one(db, sub, "T", "B")
 
@@ -115,7 +115,7 @@ class TestSendOne:
         exc = WebPushException("Server Error", response=mock_response)
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push.webpush", side_effect=exc):
+             patch("pywebpush.webpush", side_effect=exc):
             from core.push import _send_one
             _send_one(db, sub, "T", "B")
 
@@ -128,7 +128,7 @@ class TestSendOne:
     def test_handles_generic_exception_gracefully(self, db, user, subscription):
         """Any unexpected exception must be swallowed (just logged)."""
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push.webpush", side_effect=RuntimeError("network gone")):
+             patch("pywebpush.webpush", side_effect=RuntimeError("network gone")):
             from core.push import _send_one
             _send_one(db, subscription, "T", "B")  # must not raise
 
