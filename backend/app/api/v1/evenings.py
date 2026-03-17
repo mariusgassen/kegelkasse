@@ -420,16 +420,19 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
 
     now_ts = datetime.now(UTC).timestamp() * 1000
     for member in absent_members:
-        # Surcharge waived only if member explicitly RSVP'd absent
+        # Either: properly cancelled (RSVP absent) → base_fee (average of present players)
+        # Or: no cancellation → no_cancel_fee only (not additive); fall back to base_fee if unset
         rsvp_status = rsvp_map.get(member.id)
-        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
-        total_fee = base_fee + extra_fee
+        if rsvp_status == RsvpStatus.absent:
+            total_fee = base_fee
+        else:
+            total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
         db.add(PenaltyLog(
             evening_id=e.id,
             player_id=None,
             team_id=None,
             regular_member_id=member.id,
-            player_name=member.name,
+            player_name=member.nickname or member.name,
             penalty_type_name="Abwesenheit",
             icon="🏠",
             amount=total_fee,
@@ -442,12 +445,14 @@ def _do_calculate_absence_penalties(e: Evening, db: Session, created_by: int) ->
     db.commit()
     for member in absent_members:
         rsvp_status = rsvp_map.get(member.id)
-        extra_fee = 0.0 if rsvp_status == RsvpStatus.absent else no_cancel_fee
-        total_fee = base_fee + extra_fee
+        if rsvp_status == RsvpStatus.absent:
+            total_fee = base_fee
+        else:
+            total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
         fee_str = f"{total_fee:.2f}".replace('.', ',')
         push_to_regular_member(db, member.id, "🏠 Abwesenheitsstrafe",
                                f"{fee_str}€ für {e.date} — du warst nicht dabei.")
-    return {"base_fee": base_fee, "absent_count": len(absent_members)}
+    return {"avg": base_fee, "absent_count": len(absent_members)}
 
 
 @router.post("/{eid}/absence-penalties")
