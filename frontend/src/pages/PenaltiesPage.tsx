@@ -86,6 +86,12 @@ export function PenaltiesPage() {
 
     const [saving, setSaving] = useState(false)
 
+    // Drink sheet
+    const [drinkSheet, setDrinkSheet] = useState(false)
+    const [drinkType, setDrinkType] = useState<'beer' | 'shots'>('beer')
+    const [drinkVariety, setDrinkVariety] = useState('')
+    const [drinkPlayerIds, setDrinkPlayerIds] = useState<(number | string)[]>([])
+
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
@@ -168,6 +174,13 @@ export function PenaltiesPage() {
         setCustomPlayerIds([])
         setSaveAsTemplate(false)
         setSheet(true)
+    }
+
+    function openDrinkSheet() {
+        setDrinkType('beer')
+        setDrinkVariety('')
+        setDrinkPlayerIds(players.map(p => p.id))
+        setDrinkSheet(true)
     }
 
     function openEditSheet(entry: PenaltyLogEntry) {
@@ -335,10 +348,17 @@ export function PenaltiesPage() {
                 <span className="font-display font-bold text-kce-amber text-xl">{fe(euroTotal)}</span>
             </div>
 
-            {/* Add button */}
-            <button className="btn-primary w-full mb-2" onClick={openSheet}>
-                + {t('penalty.enter')}
-            </button>
+            {/* Add buttons */}
+            <div className="flex gap-2 mb-2">
+                <button className="btn-primary flex-1" onClick={openSheet}>
+                    ⚠️ + {t('penalty.enter')}
+                </button>
+                {players.length > 0 && (
+                    <button className="btn-secondary flex-1" onClick={openDrinkSheet}>
+                        🍺 + {t('drinks.add')}
+                    </button>
+                )}
+            </div>
 
             {/* Absence penalties (admin only) */}
             {isAdmin(user) && (
@@ -620,6 +640,49 @@ export function PenaltiesPage() {
                         </div>
                     </div>
                 )}
+            </Sheet>
+
+            {/* Drink sheet */}
+            <Sheet open={drinkSheet} onClose={() => setDrinkSheet(false)} title={t('drinks.round')}>
+                <div className="flex flex-col gap-3">
+                    <div className="flex gap-1">
+                        {(['beer', 'shots'] as const).map(dt => (
+                            <button key={dt} type="button"
+                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    onClick={() => setDrinkType(dt)}>
+                                {dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
+                            </button>
+                        ))}
+                    </div>
+                    <div>
+                        <label className="field-label">{t('drinks.variety')}</label>
+                        <input className="kce-input" value={drinkVariety}
+                               onChange={e => setDrinkVariety(e.target.value)}
+                               placeholder={t('drinks.sortPlaceholder')}/>
+                    </div>
+                    <ChipSelect
+                        label={t('drinks.who')}
+                        options={playerOptions}
+                        selected={drinkPlayerIds}
+                        onChange={setDrinkPlayerIds}
+                        onSelectAll={() => setDrinkPlayerIds(players.map(p => p.id))}
+                        onSelectNone={() => setDrinkPlayerIds([])}/>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn-secondary flex-1"
+                                onClick={() => setDrinkSheet(false)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn-primary flex-[2]" disabled={drinkPlayerIds.length === 0}
+                                onClick={async () => {
+                                    await api.addDrinkRound(evening!.id, {
+                                        drink_type: drinkType,
+                                        variety: drinkVariety || undefined,
+                                        participant_ids: drinkPlayerIds as number[],
+                                        client_timestamp: Date.now(),
+                                    })
+                                    invalidate()
+                                    setDrinkSheet(false)
+                                }}>{t('action.done')}</button>
+                    </div>
+                </div>
             </Sheet>
 
             {/* Edit penalty sheet */}
