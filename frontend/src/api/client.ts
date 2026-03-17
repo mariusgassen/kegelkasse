@@ -116,6 +116,7 @@ export const api = {
         guest_penalty_cap?: number | null;
         paypal_me?: string | null;
         no_cancel_fee?: number | null;
+        pin_penalty?: number | null;
     }) => request<void>('PATCH', '/club/settings', d),
     getMembers: (includeInactive = false) =>
         request<{
@@ -386,12 +387,11 @@ export const api = {
 
     // Pins
     listPins: () => request<ClubPin[]>('GET', '/club/pins'),
-    createPin: (d: { name: string; icon?: string; penalty_amount?: number }) =>
+    createPin: (d: { name: string; icon?: string }) =>
         request<ClubPin>('POST', '/club/pins', d),
     updatePin: (id: number, d: {
         name?: string;
         icon?: string;
-        penalty_amount?: number;
         holder_regular_member_id?: number | null
     }) =>
         request<ClubPin>('PUT', `/club/pins/${id}`, d),

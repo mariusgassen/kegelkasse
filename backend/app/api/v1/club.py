@@ -41,6 +41,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
             "guest_penalty_cap": (s.extra or {}).get("guest_penalty_cap") if s else None,
             "paypal_me": (s.extra or {}).get("paypal_me") if s else None,
             "no_cancel_fee": (s.extra or {}).get("no_cancel_fee") if s else None,
+            "pin_penalty": (s.extra or {}).get("pin_penalty") if s else None,
         } if s else {}
     }
 
@@ -53,11 +54,12 @@ class ClubSettingsUpdate(BaseModel):
     guest_penalty_cap: Optional[float] = None
     paypal_me: Optional[str] = None
     no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
+    pin_penalty: Optional[float] = None   # penalty for not bringing pins to an evening
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty"}
 
 
 @router.patch("/settings")
@@ -929,7 +931,6 @@ def _pin_dict(p: ClubPin) -> dict:
         "id": p.id,
         "name": p.name,
         "icon": p.icon,
-        "penalty_amount": p.penalty_amount,
         "holder_regular_member_id": p.holder_regular_member_id,
         "holder_name": p.holder_name,
         "assigned_at": p.assigned_at.isoformat() if p.assigned_at else None,
@@ -946,7 +947,6 @@ def list_pins(db: Session = Depends(get_db), user: User = Depends(require_club_m
 class PinCreate(BaseModel):
     name: str
     icon: Optional[str] = "📌"
-    penalty_amount: Optional[float] = 1.0
 
 
 @router.post("/pins", status_code=201)
@@ -956,7 +956,6 @@ def create_pin(data: PinCreate, db: Session = Depends(get_db),
         club_id=user.club_id,
         name=data.name,
         icon=data.icon or "📌",
-        penalty_amount=data.penalty_amount if data.penalty_amount is not None else 1.0,
     )
     db.add(pin)
     db.commit()
@@ -967,7 +966,6 @@ def create_pin(data: PinCreate, db: Session = Depends(get_db),
 class PinUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
-    penalty_amount: Optional[float] = None
     holder_regular_member_id: Optional[int] = None  # None = clear holder
 
 
@@ -981,8 +979,6 @@ def update_pin(pid: int, data: PinUpdate, db: Session = Depends(get_db),
         pin.name = data.name
     if data.icon is not None:
         pin.icon = data.icon
-    if data.penalty_amount is not None:
-        pin.penalty_amount = data.penalty_amount
     # Assign / clear holder (explicit None clears, missing key = no change)
     payload = data.model_dump(exclude_unset=True)
     if "holder_regular_member_id" in payload:

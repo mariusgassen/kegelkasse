@@ -59,7 +59,6 @@ class ClubPin(Base):
     club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     icon = Column(String, nullable=False, default="📌")
-    penalty_amount = Column(Float, nullable=False, default=1.0)
     holder_regular_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="SET NULL"), nullable=True)
     holder_name = Column(String, nullable=True)  # denormalized
     assigned_at = Column(DateTime(timezone=True), nullable=True)

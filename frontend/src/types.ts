@@ -23,6 +23,7 @@ export interface ClubSettings {
     guest_penalty_cap: number | null
     paypal_me: string | null
     no_cancel_fee: number | null
+    pin_penalty: number | null
 }
 
 export type RsvpStatus = 'attending' | 'absent'
@@ -123,7 +124,6 @@ export interface ClubPin {
     id: number
     name: string
     icon: string
-    penalty_amount: number
     holder_regular_member_id: number | null
     holder_name: string | null
     assigned_at: string | null

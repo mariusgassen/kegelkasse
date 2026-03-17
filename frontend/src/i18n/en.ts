@@ -440,6 +440,9 @@ export const en = {
     "pin.holderSince": "since",
     "pin.missingPenalty": "Pins not brought",
     "pin.missingPenaltyConfirm": "Record penalty for missing pins?",
+    "club.pinPenalty": "Missing pins penalty (€)",
+    "club.pinPenaltyPlaceholder": "e.g. 1.00",
+    "club.pinPenaltyHint": "Club-wide for all pins — logged immediately when forgotten.",
     "club.tab.president": "🎯 President",
     "club.tab.pins": "📌 Pins",
 } as const

@@ -146,6 +146,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
     const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
     const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
+    const [pinPenalty, setPinPenalty] = useState(club?.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
 
     useEffect(() => {
         if (!club) return
@@ -157,6 +158,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
+        setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
     }, [club])
 
     return (
@@ -228,9 +230,20 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.noRsvpExtraHint')}</p>
                 </div>
+                <div className="mb-3">
+                    <label className="field-label">{t('club.pinPenalty')}</label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                        <input className="kce-input flex-1" type="text" inputMode="decimal"
+                               value={pinPenalty} placeholder={t('club.pinPenaltyPlaceholder')}
+                               onChange={e => setPinPenalty(e.target.value)}/>
+                    </div>
+                    <p className="text-xs text-kce-muted mt-1">{t('club.pinPenaltyHint')}</p>
+                </div>
                 <button className="btn-primary w-full" onClick={async () => {
                     const cap = guestCap.trim() ? parseAmount(guestCap) : null
                     const noRsvp = noRsvpExtra.trim() ? parseAmount(noRsvpExtra) : null
+                    const pinP = pinPenalty.trim() ? parseAmount(pinPenalty) : null
                     await api.updateClubSettings({
                         name: clubName || undefined,
                         home_venue: venue,
@@ -240,6 +253,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         guest_penalty_cap: cap,
                         paypal_me: paypalMe.trim() || null,
                         no_cancel_fee: noRsvp,
+                        pin_penalty: pinP,
                     })
                     applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
                     setGuestPenaltyCap(cap)
@@ -672,25 +686,23 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
     const [editing, setEditing] = useState<ClubPin | null>(null)
     const [pinName, setPinName] = useState('')
     const [pinIcon, setPinIcon] = useState('📌')
-    const [penaltyAmt, setPenaltyAmt] = useState('1.00')
     const [holderId, setHolderId] = useState<number | null>(null)
 
     function openNew() {
-        setEditing(null); setPinName(''); setPinIcon('📌'); setPenaltyAmt('1.00'); setHolderId(null); setSheet(true)
+        setEditing(null); setPinName(''); setPinIcon('📌'); setHolderId(null); setSheet(true)
     }
 
     function openEdit(p: ClubPin) {
         setEditing(p);
         setPinName(p.name);
         setPinIcon(p.icon);
-        setPenaltyAmt(String(p.penalty_amount));
         setHolderId(p.holder_regular_member_id);
         setSheet(true)
     }
 
     async function save() {
         if (!pinName.trim()) return
-        const d = {name: pinName.trim(), icon: pinIcon, penalty_amount: parseAmount(penaltyAmt)}
+        const d = {name: pinName.trim(), icon: pinIcon}
         if (editing) {
             await api.updatePin(editing.id, {...d, holder_regular_member_id: holderId})
         } else {
@@ -710,9 +722,6 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                     <div className="text-2xl flex-shrink-0">{p.icon}</div>
                     <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm">{p.name}</div>
-                        <div className="text-xs text-kce-muted">
-                            {t('pin.penaltyAmount')}: {p.penalty_amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
-                        </div>
                         <div className="text-xs mt-0.5">
                             {p.holder_name
                                 ? <span className="text-kce-amber font-bold">📌 {p.holder_name}</span>
@@ -747,11 +756,6 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                             <input className="kce-input flex-1" value={pinIcon} onChange={e => setPinIcon(e.target.value)}/>
                             <EmojiPickerButton mode="replace" value={pinIcon} onChange={setPinIcon}/>
                         </div>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('pin.penaltyAmount')}</label>
-                        <input className="kce-input" type="text" inputMode="decimal"
-                               value={penaltyAmt} onChange={e => setPenaltyAmt(e.target.value)}/>
                     </div>
                     <div>
                         <label className="field-label">{t('pin.assignHolder')}</label>

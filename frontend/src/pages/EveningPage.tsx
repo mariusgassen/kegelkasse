@@ -61,6 +61,9 @@ export function EveningPage() {
     // ── Pins ──
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
 
+    // ── Current president ──
+    const {data: currentPresident} = useQuery({queryKey: ['president-current'], queryFn: api.getCurrentPresident, staleTime: 60000})
+
     // ── No active evening ──
     if (!activeEveningId && !evening) {
         return (
@@ -238,7 +241,8 @@ export function EveningPage() {
 
             {/* ── Pins alert ── */}
             {pins.length > 0 && !evening.is_closed && (
-                <PinsAlert pins={pins} evening={evening} players={players} onPenaltyLogged={invalidate}/>
+                <PinsAlert pins={pins} evening={evening} players={players}
+                           pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
             )}
 
             {/* ── Players ── */}
@@ -273,7 +277,11 @@ export function EveningPage() {
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">{p.is_king ? '👑 ' : ''}{p.name}</div>
+                                    <div className="text-sm font-bold truncate">
+                                        {p.is_king ? '👑 ' : ''}
+                                        {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id ? '🎯 ' : ''}
+                                        {p.name}
+                                    </div>
                                     <div
                                         className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
@@ -654,10 +662,11 @@ function formatDate(iso: string) {
 }
 
 // ── Pins alert component ──
-function PinsAlert({pins, evening, players, onPenaltyLogged}: {
+function PinsAlert({pins, evening, players, pinPenalty, onPenaltyLogged}: {
     pins: ClubPin[]
     evening: { id: number; penalty_log: { player_name: string; penalty_type_name: string }[] }
     players: EveningPlayer[]
+    pinPenalty: number
     onPenaltyLogged: () => void
 }) {
     const t = useT()
@@ -676,7 +685,7 @@ function PinsAlert({pins, evening, players, onPenaltyLogged}: {
                 player_ids: [player.id],
                 penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
                 icon: pin.icon,
-                amount: pin.penalty_amount,
+                amount: pinPenalty,
                 mode: 'euro',
                 client_timestamp: Date.now(),
             })
