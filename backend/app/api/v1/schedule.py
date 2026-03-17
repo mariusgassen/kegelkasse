@@ -1,5 +1,5 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
-from datetime import datetime, UTC, timedelta
+from datetime import UTC
 from typing import Optional
 
 from babel.dates import format_datetime
@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
+from api.v1.evenings import _parse_date
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club
 from models.club import Club, ClubSettings
@@ -18,16 +19,6 @@ from models.user import User
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
-
-def _parse_scheduled_at(date_str: str, time_str: Optional[str]) -> datetime:
-    """Combine YYYY-MM-DD date and optional HH:MM time into a timezone-aware datetime (UTC, default 20:00)."""
-    t = time_str or "20:00"
-    try:
-        h, m = t.split(":")
-    except (ValueError, AttributeError):
-        h, m = "20", "00"
-    d = date_str[:10]
-    return datetime(int(d[:4]), int(d[5:7]), int(d[8:10]), int(h), int(m), 0, tzinfo=UTC)
 
 
 def _serialize_guest(g: ScheduledEveningGuest) -> dict:
@@ -46,8 +37,7 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
     sa_utc = se.scheduled_at.astimezone(UTC) if se.scheduled_at.tzinfo else se.scheduled_at.replace(tzinfo=UTC)
     return {
         "id": se.id,
-        "date": sa_utc.strftime('%Y-%m-%d'),
-        "time": sa_utc.strftime('%H:%M'),
+        "scheduled_at": sa_utc.strftime('%Y-%m-%dT%H:%M'),
         "venue": se.venue,
         "note": se.note,
         "created_at": se.created_at.isoformat() if se.created_at else None,
@@ -81,8 +71,7 @@ def list_scheduled_evenings(
 
 
 class ScheduledEveningCreate(BaseModel):
-    date: str
-    time: Optional[str] = None
+    date: str = None
     venue: Optional[str] = None
     note: Optional[str] = None
 
@@ -97,7 +86,7 @@ def create_scheduled_evening(
     se = ScheduledEvening(
         club_id=user.club_id,
         created_by=user.id,
-        scheduled_at=_parse_scheduled_at(data.date, data.time),
+        scheduled_at=_parse_date(data.date),
         venue=data.venue,
         note=data.note,
     )
@@ -120,7 +109,6 @@ def create_scheduled_evening(
 
 class ScheduledEveningUpdate(BaseModel):
     date: Optional[str] = None
-    time: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
 
@@ -136,11 +124,8 @@ def update_scheduled_evening(
     se = _get_se(sid, user.club_id, db)
     old_date = se.scheduled_at
     updates = data.model_dump(exclude_none=True)
-    if "date" in updates or "time" in updates:
-        current_utc = se.scheduled_at.astimezone(UTC)
-        new_date = updates.pop("date", current_utc.strftime('%Y-%m-%d'))
-        new_time = updates.pop("time", current_utc.strftime('%H:%M'))
-        updates["scheduled_at"] = _parse_scheduled_at(new_date, new_time)
+    if "date" in updates:
+        updates["scheduled_at"] = _parse_date(updates.pop("date"))
     for k, v in updates.items():
         setattr(se, k, v)
     db.commit()

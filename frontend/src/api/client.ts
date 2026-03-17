@@ -381,9 +381,9 @@ export const api = {
 
     // Schedule (planned evenings & RSVP)
     listScheduledEvenings: () => request<ScheduledEvening[]>('GET', '/schedule/'),
-    createScheduledEvening: (d: { date: string; time?: string; venue?: string; note?: string }) =>
+    createScheduledEvening: (d: { date: string; venue?: string; note?: string }) =>
         request<ScheduledEvening>('POST', '/schedule/', d),
-    updateScheduledEvening: (sid: number, d: { date?: string; time?: string; venue?: string; note?: string }) =>
+    updateScheduledEvening: (sid: number, d: { date?: string; venue?: string; note?: string }) =>
         request<ScheduledEvening>('PATCH', `/schedule/${sid}`, d),
     deleteScheduledEvening: (sid: number) => request<void>('DELETE', `/schedule/${sid}`),
     setRsvp: (sid: number, status: RsvpStatus) =>

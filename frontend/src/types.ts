@@ -48,8 +48,7 @@ export interface ScheduledEveningGuest {
 
 export interface ScheduledEvening {
     id: number
-    date: string
-    time: string | null
+    scheduled_at: string  // YYYY-MM-DDTHH:MM (UTC)
     venue: string | null
     note: string | null
     created_at: string | null

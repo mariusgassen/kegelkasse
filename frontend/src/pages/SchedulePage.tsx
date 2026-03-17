@@ -22,6 +22,12 @@ function fDateLong(date: string) {
     })
 }
 
+function fDateTimeLong(scheduledAt: string) {
+    const date = scheduledAt.slice(0, 10)
+    const time = scheduledAt.slice(11, 16)
+    return `${fDateLong(date)} · ${time}`
+}
+
 function fDate(date: string) {
     return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -254,7 +260,7 @@ function StartEveningSheet({se, onClose, onStarted}: {
         <Sheet open onClose={onClose} title={t('schedule.startConfirm')}>
             <div className="space-y-4">
                 <div className="text-sm text-kce-muted">
-                    {fDateLong(se.date)}{se.venue ? ` · ${se.venue}` : ''}
+                    {fDateTimeLong(se.scheduled_at)}{se.venue ? ` · ${se.venue}` : ''}
                 </div>
 
                 {rsvpsLoading ? (
@@ -394,10 +400,9 @@ function StartEveningSheet({se, onClose, onStarted}: {
 }
 
 // ── Upcoming scheduled evening card ──────────────────────────────────────────
-function UpcomingCard({se, isAdminUser, displayTime, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted}: {
+function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted}: {
     se: ScheduledEvening
     isAdminUser: boolean
-    displayTime?: string | null
     onEdit: () => void
     onDelete: () => void
     onViewRsvps: () => void
@@ -410,7 +415,7 @@ function UpcomingCard({se, isAdminUser, displayTime, onEdit, onDelete, onViewRsv
     const [addingGuest, setAddingGuest] = useState(false)
     const [startSheet, setStartSheet] = useState(false)
 
-    const canStart = se.date <= TODAY
+    const canStart = se.scheduled_at.slice(0, 10) <= TODAY
 
     async function removeGuest(gid: number) {
         try {
@@ -426,10 +431,7 @@ function UpcomingCard({se, isAdminUser, displayTime, onEdit, onDelete, onViewRsv
             {/* Header row */}
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-kce-cream">{fDateLong(se.date)}</div>
-                    {(se.time ?? displayTime) && (
-                        <div className="text-xs text-kce-muted mt-0.5">🕗 {se.time ?? displayTime} {t('schedule.clockSuffix')}</div>
-                    )}
+                    <div className="text-sm font-bold text-kce-cream">{fDateTimeLong(se.scheduled_at)}</div>
                     {se.venue && <div className="text-xs text-kce-muted mt-0.5 truncate">🏠 {se.venue}</div>}
                     {se.note && <div className="text-xs text-kce-muted mt-0.5 italic truncate">{se.note}</div>}
                 </div>
@@ -545,7 +547,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
     onSaved: () => void
 }) {
     const t = useT()
-    const initialDatetime = `${initial?.date ?? TODAY}T${initial?.time || defaultTime}`
+    const initialDatetime = initial?.scheduled_at?.slice(0, 16) ?? `${TODAY}T${defaultTime}`
     const [datetime, setDatetime] = useState(initialDatetime)
     const [venue, setVenue] = useState(initial?.venue ?? defaultVenue)
     const [note, setNote] = useState(initial?.note ?? '')
@@ -555,9 +557,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
         if (!datetime) return
         setSaving(true)
         try {
-            const date = datetime.slice(0, 10)
-            const time = datetime.slice(11, 16)
-            const payload = {date, time: time || undefined, venue: venue || undefined, note: note || undefined}
+            const payload = {date: datetime, venue: venue || undefined, note: note || undefined}
             if (initial) await api.updateScheduledEvening(initial.id, payload)
             else await api.createScheduledEvening(payload)
             onSaved()
@@ -573,7 +573,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
         <Sheet open onClose={onClose} title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="field-label">{t('schedule.date')} &amp; {t('schedule.time')}</label>
+                    <label className="field-label">{t('schedule.date')}</label>
                     <input type="datetime-local" className="kce-input" value={datetime}
                            onChange={e => setDatetime(e.target.value)} required/>
                 </div>
@@ -655,7 +655,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
         <Sheet open onClose={onClose} title={t('schedule.rsvpQuickTitle')}>
             <div className="space-y-3">
                 <div className="kce-card p-3">
-                    <div className="text-sm font-bold text-kce-cream">{fDateLong(se.date)}</div>
+                    <div className="text-sm font-bold text-kce-cream">{fDateTimeLong(se.scheduled_at)}</div>
                     {se.venue && <div className="text-xs text-kce-muted mt-0.5">🏠 {se.venue}</div>}
                     {se.note && <div className="text-xs text-kce-muted mt-0.5 italic">{se.note}</div>}
                 </div>
@@ -711,7 +711,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
     const absent = rsvps?.filter(r => r.status === 'absent') ?? []
 
     return (
-        <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${fDateLong(se.date)}`}>
+        <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${fDateTimeLong(se.scheduled_at)}`}>
             <div className="space-y-4">
                 {isLoading && <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>}
                 {!isLoading && rsvps && (
@@ -1068,7 +1068,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
         onNavigate?.()
     }
 
-    const upcoming = (schedules ?? []).filter(s => s.date >= TODAY)
+    const upcoming = (schedules ?? []).filter(s => s.scheduled_at.slice(0, 10) >= TODAY)
     const VISIBLE = 2
     const [showAllUpcoming, setShowAllUpcoming] = useState(false)
     const visibleUpcoming = showAllUpcoming ? upcoming : upcoming.slice(0, VISIBLE)
@@ -1106,7 +1106,6 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
                                 key={se.id}
                                 se={se}
                                 isAdminUser={isAdminUser}
-                                displayTime={defaultTime}
                                 onEdit={() => setEditSheet(se)}
                                 onDelete={() => setConfirmDeleteId(se.id)}
                                 onViewRsvps={() => setRsvpSheet(se)}
