@@ -450,4 +450,7 @@ export const en = {
     "club.settings.appearance": "Appearance",
     "club.settings.specialPenalties": "Special penalties",
     "club.settings.payments": "Payments",
+    "notifications.title": "Notifications",
+    "notifications.empty": "No notifications",
+    "notifications.clearAll": "Clear all",
 } as const

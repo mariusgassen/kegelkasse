@@ -450,6 +450,9 @@ export const de = {
     "club.settings.appearance": "Erscheinungsbild",
     "club.settings.specialPenalties": "Sonderstrafen",
     "club.settings.payments": "Zahlungen",
+    "notifications.title": "Benachrichtigungen",
+    "notifications.empty": "Keine Benachrichtigungen",
+    "notifications.clearAll": "Alle löschen",
 } as const
 
 export type TranslationKey = keyof typeof de
