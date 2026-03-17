@@ -19,7 +19,7 @@ def upgrade():
     op.add_column("scheduled_evening", sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=True))
     op.execute(
         sa.text(
-            r"""
+            """
             UPDATE scheduled_evening
             SET scheduled_at = (
                 date || ' ' || COALESCE(time, '20:00') || '\\:00'
