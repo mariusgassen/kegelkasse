@@ -95,7 +95,7 @@ export const en = {
     "penalty.absence.calculate": "Calculate absence penalties",
     "penalty.absence.recalculate": "Recalculate absence penalties",
     "penalty.absence.result": "absences entered",
-    "penalty.total": "Total treasury",
+    "penalty.total": "Total fines",
     "game.title": "Games",
     "game.add": "Game",
     "game.name": "Game name",

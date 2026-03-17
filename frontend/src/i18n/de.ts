@@ -95,7 +95,7 @@ export const de = {
     "penalty.absence.calculate": "Abwesenheitsstrafen berechnen",
     "penalty.absence.recalculate": "Abwesenheitsstrafen neu berechnen",
     "penalty.absence.result": "Abwesende eingetragen",
-    "penalty.total": "Gesamtkasse",
+    "penalty.total": "Gesamtstrafen",
     "game.title": "Spiele",
     "game.add": "Spiel",
     "game.name": "Spielname",

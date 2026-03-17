@@ -342,16 +342,16 @@ export function ProtocolPage() {
             {/* ── Header: total + action buttons ── */}
             <div className="kce-card p-3 mb-3">
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">📋 {t('evening.tab.log')}</span>
+                    <span className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">{t('penalty.total')}</span>
                     <span className="font-display font-bold text-kce-amber text-xl">{fe(euroTotal)}</span>
                 </div>
                 <div className="flex gap-2">
                     <button className="btn-primary flex-1" onClick={openSheet}>
-                        ⚠️ + {t('penalty.enter')}
+                        ⚠️ + Strafe
                     </button>
                     {players.length > 0 && (
                         <button className="btn-secondary flex-1" onClick={openDrinkSheet}>
-                            🍺 + {t('drinks.add')}
+                            🍺 + Getränk
                         </button>
                     )}
                 </div>
