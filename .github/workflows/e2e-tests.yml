@@ -58,16 +58,16 @@ jobs:
 
       - name: Run migrations
         working-directory: backend
-        run: poetry run alembic upgrade head
+        run: PYTHONPATH=app poetry run alembic upgrade head
 
       - name: Seed superadmin
         working-directory: backend
-        run: poetry run python -m app.scripts.create_admin
+        run: PYTHONPATH=app poetry run python -m app.scripts.create_admin
 
       - name: Start backend
         working-directory: backend
         run: |
-          poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          PYTHONPATH=app poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
             curl -sf http://localhost:8000/api/health && break || sleep 1
