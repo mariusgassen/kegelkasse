@@ -222,8 +222,7 @@ function StartEveningSheet({se, onClose, onStarted}: {
                 )}
 
                 <div className="flex gap-3 pt-1">
-                    <button className="btn-secondary flex-1" onClick={onClose}>{t('action.cancel')}</button>
-                    <button className="btn-primary flex-[2]" disabled={starting} onClick={doStart}>
+                    <button className="btn-primary w-full" disabled={starting} onClick={doStart}>
                         {starting ? t('action.loading') : t('schedule.start')}
                     </button>
                 </div>
@@ -416,10 +415,7 @@ function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
-                <div className="flex gap-2">
-                    <button type="button" className="btn-secondary flex-1" onClick={onClose}>{t('action.cancel')}</button>
-                    <button type="submit" className="btn-primary flex-[2]" disabled={saving || !date}>{t('action.save')}</button>
-                </div>
+                <button type="submit" className="btn-primary w-full" disabled={saving || !date}>{t('action.save')}</button>
             </div>
         </Sheet>
     )
@@ -771,12 +767,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setBacklogSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
                 </div>
             </Sheet>
         </>

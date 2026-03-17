@@ -404,15 +404,10 @@ export function GamesPage() {
                                placeholder="…"/>
                     </div>
 
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setAddSheet(false)}>
-                            {t('action.cancel')}
-                        </button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !gameName.trim()}>
-                            {t('action.add')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full mt-1"
+                            disabled={saving || !gameName.trim()}>
+                        {t('action.add')}
+                    </button>
                 </div>
             </Sheet>
 
@@ -540,15 +535,10 @@ export function GamesPage() {
                             </div>
                         )}
 
-                        <div className="flex gap-2 mt-1">
-                            <button type="button" className="btn-secondary flex-1"
-                                    onClick={() => setFinishTarget(null)}>{t('action.cancel')}
-                            </button>
-                            <button type="submit" className="btn-primary flex-[2]"
-                                    disabled={saving || !winnerRef}>
-                                {finishTarget.status === 'finished' ? t('action.save') : t('game.finish')}
-                            </button>
-                        </div>
+                        <button type="submit" className="btn-primary w-full mt-1"
+                                disabled={saving || !winnerRef}>
+                            {finishTarget.status === 'finished' ? t('action.save') : t('game.finish')}
+                        </button>
                     </div>
                 )}
             </Sheet>
@@ -614,14 +604,9 @@ export function GamesPage() {
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}
                                placeholder="…"/>
                     </div>
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setEditTarget(null)}>{t('action.cancel')}
-                        </button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving}>{t('action.save')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full mt-1"
+                            disabled={saving}>{t('action.save')}
+                    </button>
                 </div>
             </Sheet>
         </div>

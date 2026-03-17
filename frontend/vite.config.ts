@@ -34,7 +34,7 @@ export default defineConfig({
             srcDir: 'src',
             filename: 'sw.ts',
             registerType: 'autoUpdate',
-            includeAssets: ['icon.svg', 'logo192.png', 'logo512.png'],
+            includeAssets: ['icon.svg'],
             manifest: {
                 name: 'Kegelkasse',
                 short_name: 'Kegelkasse',
@@ -45,9 +45,7 @@ export default defineConfig({
                 orientation: 'portrait',
                 start_url: '/',
                 icons: [
-                    {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml'},
-                    {src: 'logo192.png', sizes: '500x500', type: 'image/png'},
-                    {src: 'logo512.png', sizes: '500x500', type: 'image/png', purpose: 'maskable'},
+                    {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},
                 ],
             },
             injectManifest: {

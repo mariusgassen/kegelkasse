@@ -9,7 +9,6 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
-import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
@@ -397,7 +396,7 @@ export function ProtocolPage() {
             {/* Log */}
             {timeline.length === 0
                 ? <Empty icon="⚠️" text={t('penalty.none')}/>
-                : timeline.map((event, idx) => {
+                : timeline.map((event, _idx) => {
                     if (event.kind === 'game_started') {
                         return (
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
@@ -566,15 +565,10 @@ export function ProtocolPage() {
                             )}
                         </div>
 
-                        <div className="flex gap-2 mt-1">
-                            <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
-                                {t('action.cancel')}
-                            </button>
-                            <button type="submit" className="btn-primary flex-[2]"
-                                    disabled={saving || !selectedType || playerIds.length === 0}>
-                                {t('penalty.confirm')}
-                            </button>
-                        </div>
+                        <button type="submit" className="btn-primary w-full"
+                                disabled={saving || !selectedType || playerIds.length === 0}>
+                            {t('penalty.confirm')}
+                        </button>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
@@ -640,15 +634,10 @@ export function ProtocolPage() {
                             </button>
                         )}
 
-                        <div className="flex gap-2 mt-1">
-                            <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
-                                {t('action.cancel')}
-                            </button>
-                            <button type="submit" className="btn-primary flex-[2]"
-                                    disabled={saving || !customName.trim() || customPlayerIds.length === 0}>
-                                {t('penalty.confirm')}
-                            </button>
-                        </div>
+                        <button type="submit" className="btn-primary w-full"
+                                disabled={saving || !customName.trim() || customPlayerIds.length === 0}>
+                            {t('penalty.confirm')}
+                        </button>
                     </div>
                 )}
             </Sheet>
@@ -679,9 +668,7 @@ export function ProtocolPage() {
                         onSelectAll={() => setDrinkPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setDrinkPlayerIds([])}/>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setDrinkSheet(false)}>{t('action.cancel')}</button>
-                        <button type="button" className="btn-primary flex-[2]" disabled={drinkPlayerIds.length === 0}
+                        <button type="button" className="btn-primary w-full" disabled={drinkPlayerIds.length === 0}
                                 onClick={async () => {
                                     await api.addDrinkRound(evening!.id, {
                                         drink_type: drinkType,
@@ -749,14 +736,9 @@ export function ProtocolPage() {
                         </div>
                     </div>
 
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setEditEntry(null)}>
-                            {t('action.cancel')}
-                        </button>
-                        <button type="submit" className="btn-primary flex-[2]" disabled={saving}>
-                            {t('action.save')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full" disabled={saving}>
+                        {t('action.save')}
+                    </button>
                 </div>
             </Sheet>
         </div>

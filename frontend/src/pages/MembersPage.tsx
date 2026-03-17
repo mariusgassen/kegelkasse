@@ -563,13 +563,9 @@ export function MembersPage() {
                         <input className="kce-input" value={nickname} onChange={e => setNickname(e.target.value)}
                                placeholder="z.B. Kapitän, Aufschläger…"/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]" disabled={saving || !name.trim()}>
-                            {t('action.save')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full" disabled={saving || !name.trim()}>
+                        {t('action.save')}
+                    </button>
                 </div>
             </Sheet>
         </div>

@@ -369,12 +369,8 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
                         </div>
                     </div>
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setEditPt(null)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={!editName.trim()}>{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full mt-1"
+                            disabled={!editName.trim()}>{t('action.save')}</button>
                 </div>
             </Sheet>
         </div>
@@ -500,11 +496,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                onChange={e => setPerPoint(e.target.value)}/>
                         <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full mt-1">{t('action.save')}</button>
                 </div>
             </Sheet>
         </div>
@@ -643,12 +635,8 @@ function ClubTeamsTab() {
                         <input className="kce-input w-20" type="number" value={sortOrder}
                                onChange={e => setSortOrder(e.target.value)} min="0"/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={!name.trim()}>{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={!name.trim()}>{t('action.save')}</button>
                 </div>
             </Sheet>
         </div>
@@ -788,12 +776,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                             ))}
                         </select>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1" onClick={() => setSheet(false)}>
-                            {t('action.cancel')}
-                        </button>
-                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                 </div>
             </Sheet>
         </div>

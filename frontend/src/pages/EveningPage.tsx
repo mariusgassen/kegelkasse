@@ -405,11 +405,7 @@ export function EveningPage() {
                         <label className="field-label">{t('evening.note')}</label>
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                 </div>
             </Sheet>
 
@@ -509,14 +505,10 @@ export function EveningPage() {
                             <p className="text-[10px] text-kce-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
-                            {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
+                        {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
+                    </button>
                 </div>
             </Sheet>
 
@@ -534,11 +526,7 @@ export function EveningPage() {
                                 {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                             </select>
                         </div>
-                        <div className="flex gap-2">
-                            <button type="button" className="btn-secondary flex-1"
-                                    onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
-                            <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                        </div>
+                        <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                     </div>
                 )}
             </Sheet>
@@ -559,12 +547,8 @@ export function EveningPage() {
                         onChange={setTeamPlayerIds}
                         onSelectAll={() => setTeamPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={!teamName.trim()}>{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={!teamName.trim()}>{t('action.save')}</button>
                 </div>
             </Sheet>
 
