@@ -149,9 +149,9 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 6  | **Eigene Historie / Profil**       | ✅      | Persönliche Jahresstatistiken im Profil (Strafen, Abende, Siege, Bier)                                |
 | 7  | **Statistiken & Analyse**          | ✅      | Jahresranking mit CSS-Balken, Jahresauswahl, alle Mitglieder ein-/ausklappbar                         |
 | 8  | **Push Notifications**             | ✅      | Web Push für Strafen, Abend-Events, Zahlungen; VAPID-Backend, ProfileSheet-Toggle, SW-Handler        |
-| 9  | **Offline-Sync**                   | 🚧      | SW + IndexedDB + `/sync/`-Delta-Endpoint vorhanden; IndexedDB-Queue noch unvollständig               |
+| 9  | **Offline-Sync**                   | ✅      | IndexedDB-Queue für Strafen/Getränke; OfflineQueuedError; Auto-Flush on reconnect; /sync/-Handler    |
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
-| 11 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
+| 11 | **Emoji Picker**                   | ✅      | `emoji-picker-react` v4, EmojiPickerButton-Komponente, Icon- & Insert-Modus, 5 Verwendungen         |
 | 12 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
 | 13 | **Präsident**                      | ✅      | Jährliches Präsidentenspiel (🎯-Flag), club_president-Tabelle, Historie-Badge, Präsidenten-Tab       |
 | 14 | **Filter**                         | ⬜      | Filter bei listen - Suchfeld das inhalt nach matches in verschiedenen feldern der objecte filtert.    |
