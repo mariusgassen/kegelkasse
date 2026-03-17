@@ -27,7 +27,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'invites' | 'clubs' | 'members' | 'president' | 'pins'>('settings', ['settings', 'penalties', 'templates', 'teams', 'invites', 'clubs', 'members', 'president', 'pins'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'president' | 'pins'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'president', 'pins'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -59,7 +59,6 @@ export function ClubAdminPage() {
         {id: 'penalties', label: t('club.tab.penalties')},
         {id: 'templates', label: t('club.tab.templates')},
         {id: 'teams', label: t('club.tab.teams')},
-        {id: 'invites', label: t('club.tab.invites')},
         {id: 'president', label: t('club.tab.president')},
         {id: 'pins', label: t('club.tab.pins')},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
@@ -110,11 +109,6 @@ export function ClubAdminPage() {
                     {tab === 'teams' && (
                         <AdminGuard>
                             <ClubTeamsTab/>
-                        </AdminGuard>
-                    )}
-                    {tab === 'invites' && (
-                        <AdminGuard>
-                            <InvitesTab/>
                         </AdminGuard>
                     )}
                     {tab === 'president' && (
@@ -807,35 +801,3 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
 }
 
 // ── Invites ──
-function InvitesTab() {
-    const t = useT()
-    const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
-
-    return (
-        <div className="flex flex-col gap-4">
-            <button className="btn-primary" onClick={async () => {
-                const res = await api.createInvite()
-                setInviteUrl(window.location.origin + res.invite_url)
-            }}>{t('club.invite.create')}</button>
-
-            {inviteUrl && (
-                <div className="kce-card p-4">
-                    <div className="field-label">{t('club.invite.link')}</div>
-                    <div
-                        className="bg-kce-bg rounded-lg p-3 text-xs font-mono text-kce-cream break-all mb-3">{inviteUrl}</div>
-                    <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => {
-                            navigator.clipboard.writeText(inviteUrl)
-                            setCopied(true);
-                            setTimeout(() => setCopied(false), 2000)
-                        }}>{copied ? t('auth.invite.copied') : t('club.invite.copy')}</button>
-                        <button className="btn-primary btn-sm flex-1" onClick={async () => {
-                            await shareOrCopy(inviteUrl, 'Kegelkasse Einladung')
-                        }}>📤 {t('share.button')}</button>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
