@@ -100,8 +100,9 @@ service worker + IndexedDB for offline support.
   etc.) is populated at boot and not persisted.
 - **Game loser penalties:** Always created via `finish_game` endpoint (not `add_game`). Identified by
   `penalty_log.game_id`. On re-edit: old penalties deleted, new ones created.
-- **Docs & README:** Whenever a user-facing feature is added or changed, update the relevant page(s) in `docs/docs/`
-  and the feature catalog in `README.md`. Keep both in sync with the implementation.
+- **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
+  `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
+  Keep all three in sync with the implementation.
 - **Ruff (Python linter):** Before committing backend changes, run `ruff check backend/ --fix` and resolve all
   remaining issues. Add this to the pre-commit checklist.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
