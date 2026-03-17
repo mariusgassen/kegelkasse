@@ -5,6 +5,7 @@
 import {useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {useHashTab} from '@/hooks/usePage.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {ProtocolPage} from './ProtocolPage'
@@ -19,7 +20,7 @@ interface Props {
 export function EveningHubPage({onNavigate}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const [subTab, setSubTab] = useState<SubTab>('penalties')
+    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games'])
     const [closeConfirm, setCloseConfirm] = useState(false)
 
     // No active evening — prompt to configure one

@@ -39,7 +39,7 @@ export function usePage<T extends string>(initial: T, navPages?: T[]): [T, (p: T
 export function useHashTab<T extends string>(initial: T, valid: T[]): [T, (t: T) => void] {
     const getFromHash = (): T => {
         const parts = window.location.hash.slice(1).split(':')
-        const sub = parts[1] as T
+        const sub = (parts[1] ?? '').split('?')[0] as T  // strip ?params before matching
         if (!sub || !valid.includes(sub)) return initial
         return sub
     }

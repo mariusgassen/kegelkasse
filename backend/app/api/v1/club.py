@@ -6,7 +6,7 @@ Read operations available to all club members.
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -849,7 +849,9 @@ class PaymentRequestCreate(BaseModel):
 
 
 @router.post("/payment-requests", status_code=201)
-def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get_db),
+def create_payment_request(data: PaymentRequestCreate,
+                           background_tasks: BackgroundTasks,
+                           db: Session = Depends(get_db),
                             user: User = Depends(require_club_member)):
     """Member: signal that a PayPal transfer has been made."""
     if not user.regular_member_id:
@@ -869,11 +871,13 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
     member = db.query(RegularMember).filter(RegularMember.id == user.regular_member_id).first()
     member_display = (member.nickname or member.name) if member else user.name
     fee = f"{req.amount:.2f}".replace('.', ',')
-    push_to_club_admins(
-        db, user.club_id,
+    background_tasks.add_task(
+        push_to_club_admins,
+        db,
+        user.club_id,
         "💸 Neue Zahlungsanfrage",
         f"{member_display} hat {fee}€ überwiesen und wartet auf Bestätigung.",
-        "/#treasury:accounts",
+        f"/#treasury:accounts?rid={req.id}",
         category="payments",
         extra={
             "rid": req.id,
@@ -884,7 +888,7 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
             ],
         },
     )
-    return _fmt_request(req, user.name)
+    return _fmt_request(req, member_display)
 
 
 @router.patch("/payment-requests/{rid}/confirm", status_code=200)

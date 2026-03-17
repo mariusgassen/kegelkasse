@@ -1,11 +1,13 @@
+import {useState} from 'react'
 import {useNotificationStore, unreadCount} from '../store/notifications'
 import {useT} from '../i18n'
+import {api} from '../api/client'
+import {toastError} from '../utils/error'
 import type {NotificationItem} from '../types'
 
 interface Props {
     open: boolean
     onClose: () => void
-    onNavigate?: (url: string) => void
 }
 
 function relativeTime(iso: string): string {
@@ -19,36 +21,133 @@ function relativeTime(iso: string): string {
     return `${days} d`
 }
 
+/** Parse query params from a notification URL like /#treasury:accounts?rid=5 */
+function getNotifParams(url: string): URLSearchParams {
+    const hash = new URL(url, location.href).hash
+    const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
+    return new URLSearchParams(q)
+}
+
 function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => void }) {
+    const t = useT()
     const {dismiss} = useNotificationStore()
+    const [busy, setBusy] = useState(false)
+
+    const params = getNotifParams(n.url)
+    const rid = params.get('rid') ? parseInt(params.get('rid')!, 10) : null
+    const eventId = params.get('event') ? parseInt(params.get('event')!, 10) : null
+
+    function navigate() {
+        window.location.href = n.url
+        dismiss(n.id)
+        onClose()
+    }
+
+    async function handleConfirm() {
+        if (!rid) return
+        setBusy(true)
+        try {
+            await api.confirmPaymentRequest(rid)
+            dismiss(n.id)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    async function handleReject() {
+        if (!rid) return
+        setBusy(true)
+        try {
+            await api.rejectPaymentRequest(rid)
+            dismiss(n.id)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    async function handleRsvp() {
+        if (!eventId) return
+        setBusy(true)
+        try {
+            await api.setRsvp(eventId, 'attending')
+            dismiss(n.id)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
 
     return (
         <div
-            className="flex items-start gap-3 px-3 py-3 rounded-xl transition-colors"
+            className="rounded-xl transition-colors"
             style={{
                 background: n.read ? 'rgba(255,255,255,0.03)' : 'rgba(232,160,32,0.08)',
                 border: `1px solid ${n.read ? 'var(--kce-border)' : 'rgba(232,160,32,0.2)'}`,
             }}
         >
-            {!n.read && (
-                <div
-                    className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
-                    style={{background: '#e8a020'}}
-                />
-            )}
-            {n.read && <div className="w-2 flex-shrink-0"/>}
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-kce-cream leading-snug">{n.title}</p>
-                <p className="text-[11px] text-kce-muted mt-0.5 leading-snug">{n.body}</p>
-                <p className="text-[10px] text-kce-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
-            </div>
-            <button
-                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
-                style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)', fontSize: 12}}
-                onClick={() => dismiss(n.id)}
+            {/* Main row — click to navigate */}
+            <div
+                className="flex items-start gap-3 px-3 py-3 cursor-pointer active:opacity-70"
+                onClick={navigate}
             >
-                ✕
-            </button>
+                {!n.read && (
+                    <div
+                        className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
+                        style={{background: '#e8a020'}}
+                    />
+                )}
+                {n.read && <div className="w-2 flex-shrink-0"/>}
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-kce-cream leading-snug">{n.title}</p>
+                    <p className="text-[11px] text-kce-muted mt-0.5 leading-snug">{n.body}</p>
+                    <p className="text-[10px] text-kce-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
+                </div>
+                <button
+                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
+                    style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)', fontSize: 12}}
+                    onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
+                >
+                    ✕
+                </button>
+            </div>
+
+            {/* Action buttons */}
+            {(rid || eventId) && (
+                <div className="flex gap-2 px-3 pb-3 -mt-1">
+                    {rid && (
+                        <>
+                            <button
+                                disabled={busy}
+                                className="btn-primary btn-sm flex-1 text-xs"
+                                onClick={(e) => { e.stopPropagation(); handleConfirm() }}
+                            >
+                                ✅ {t('paymentRequest.confirm')}
+                            </button>
+                            <button
+                                disabled={busy}
+                                className="btn-secondary btn-sm flex-1 text-xs"
+                                onClick={(e) => { e.stopPropagation(); handleReject() }}
+                            >
+                                ❌ {t('paymentRequest.reject')}
+                            </button>
+                        </>
+                    )}
+                    {eventId && (
+                        <button
+                            disabled={busy}
+                            className="btn-primary btn-sm flex-1 text-xs"
+                            onClick={(e) => { e.stopPropagation(); handleRsvp() }}
+                        >
+                            ✓ {t('rsvp.attending.short')}
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     )
 }

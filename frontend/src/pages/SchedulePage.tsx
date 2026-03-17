@@ -7,6 +7,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 
@@ -1034,14 +1035,11 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const deepLinkHandled = useRef(false)
     useEffect(() => {
         if (deepLinkHandled.current || !schedules) return
-        const params = new URLSearchParams(window.location.search)
+        const params = getHashParams()
         const eventId = params.get('event')
         if (!eventId) return
         deepLinkHandled.current = true
-        // Remove the param from URL without page reload
-        const url = new URL(window.location.href)
-        url.searchParams.delete('event')
-        window.history.replaceState({}, '', url.toString())
+        clearHashParams()
         const se = schedules.find(s => s.id === parseInt(eventId, 10))
         if (!se) return
         if (isAdminUser) setRsvpSheet(se)

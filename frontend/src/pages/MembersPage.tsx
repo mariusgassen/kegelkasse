@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useQuery} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
@@ -18,7 +19,11 @@ export function MembersPage() {
     const admin = isAdmin(user)
 
     const [showInactive, setShowInactive] = useState(false)
-    const [search, setSearch] = useState('')
+    const [search, setSearch] = useState(() => {
+        const v = getHashParams().get('memberName') ?? ''
+        if (v) clearHashParams()
+        return v
+    })
 
     // App-Nutzer — admins always fetch all so we know if inactive exist
     const {data: appUsers = [], refetch: refetchUsers} = useQuery({

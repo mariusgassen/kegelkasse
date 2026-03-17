@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -10,6 +10,7 @@ import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -100,6 +101,28 @@ export function TreasuryPage() {
     const [accountSearch, setAccountSearch] = useState('')
     const [bookingSearch, setBookingSearch] = useState('')
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
+    const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
+
+    // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet
+    const deepLinkHandled = useRef(false)
+    useEffect(() => {
+        if (deepLinkHandled.current) return
+        deepLinkHandled.current = true
+        const params = getHashParams()
+        const memberName = params.get('memberName')
+        const memberId = params.get('member')
+        const rid = params.get('rid')
+        if (memberName) {
+            setBookingSearch(memberName)
+            setAccountSearch(memberName)
+        }
+        if (memberId) setExpandedMember(parseInt(memberId, 10))
+        if (rid) {
+            setTab('accounts' as Parameters<typeof setTab>[0])
+            setDeepLinkRid(parseInt(rid, 10))
+        }
+        clearHashParams()
+    }, [])
     const {data: memberPayments = []} = useQuery({
         queryKey: ['member-payments', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPayments(expandedMember) : null,
@@ -564,7 +587,7 @@ export function TreasuryPage() {
                         <div className="mb-4">
                             <div className="sec-heading">{t('paymentRequest.pendingTitle')}</div>
                             {paymentRequests.map(r => (
-                                <div key={r.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                <div key={r.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${deepLinkRid === r.id ? 'ring-2 ring-kce-amber' : ''}`}>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate">{r.member_name}</div>
                                         <div className="text-xs text-kce-muted">

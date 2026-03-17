@@ -34,10 +34,10 @@ self.addEventListener('activate', (event) => {
     )
 })
 
-// SPA navigation fallback — exclude /docs so those routes reach the server
+// SPA navigation fallback — exclude /api/docs/docs so those routes reach the server
 registerRoute(
     new NavigationRoute(createHandlerBoundToURL('index.html'), {
-        denylist: [/^\/docs(\/.*)?$/],
+        denylist: [/^\/(api\/)?docs(\/.*)?$/],
     })
 )
 

@@ -317,7 +317,7 @@ class PenaltyCreate(BaseModel):
 
 
 @router.post("/{eid}/penalties")
-def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
+def add_penalty(eid: int, data: PenaltyCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
                 user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     target_players: List[int] = []
@@ -348,9 +348,15 @@ def add_penalty(eid: int, data: PenaltyCreate, db: Session = Depends(get_db),
             player = db.query(EveningPlayer).filter(EveningPlayer.id == log.player_id).first()
             if player and player.regular_member_id and data.mode == "euro":
                 fee = f"{data.amount:.2f}".replace('.', ',')
-                push_to_regular_member(db, player.regular_member_id,
-                                       f"{data.icon} {data.penalty_type_name}",
-                                       f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening", category="penalties")
+                background_tasks.add_task(
+                    push_to_regular_member,
+                    db,
+                    player.regular_member_id,
+                    f"{data.icon} {data.penalty_type_name}",
+                    f"{fee}€ — {e.date.strftime('%d.%m.%Y')}",
+                    f"/#evening:penalties?penalty={log.id}&player={log.player_id}&playerName={log.player_name}",
+                    category="penalties",
+                )
     return [{"id": l.id, "player_name": l.player_name, "amount": l.amount} for l in created]
 
 
@@ -398,7 +404,7 @@ def delete_penalty(eid: int,
             push_to_regular_member, db,
             notify_member_id, "↩️ Strafe storniert",
            f"{icon} {l.penalty_type_name}: {fee}€ wurde rückgängig gemacht.",
-            "/#evening", category="penalties")
+            "/#evening:penalties", category="penalties")
     return {"ok": True}
 
 
@@ -494,7 +500,7 @@ def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTask
             push_to_regular_member,
             db, member.id, "🏠 Abwesenheitsstrafe",
            f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",
-           "/#evening", category="penalties"
+           "/#evening:penalties", category="penalties"
         )
     return {"avg": base_fee, "absent_count": len(absent_members)}
 
@@ -659,7 +665,7 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
         if p.regular_member_id:
             fee = f"{total_penalty:.2f}".replace('.', ',')
             push_to_regular_member(db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
-                                   f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening", category="penalties")
+                                   f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening:penalties", category="penalties")
 
 
 @router.post("/{eid}/games/{gid}/finish")
@@ -690,7 +696,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
                 if winner_player.regular_member_id:
                     push_to_regular_member(db, winner_player.regular_member_id, "👑 Du bist König!",
                                            f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
-                                           "/#evening:", category="games")
+                                           "/#evening:games", category="games")
         except (ValueError, IndexError):
             pass
     # President: president-game with individual winner → upsert ClubPresident for this year

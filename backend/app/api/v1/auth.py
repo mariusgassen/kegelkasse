@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -207,7 +207,9 @@ def get_invite_info(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/register")
-def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
+def register_with_invite(req: RegisterRequest,
+                         background_tasks: BackgroundTasks,
+                         db: Session = Depends(get_db)):
     invite = db.query(InviteToken).filter(
         InviteToken.token == req.token,
         InviteToken.used_at == None,
@@ -249,9 +251,14 @@ def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
     invite.used_by = user.id
     db.commit()
     if user.club_id:
-        push_to_club_admins(db, user.club_id, "👋 Neues Mitglied",
-                            f"{user.name} ist dem Verein beigetreten.",
-                            f"/#club:members?member={user.regular_member_id}&memberName={member.nickname or member.name}",
-                            category="members")
+        background_tasks.add_task(
+            push_to_club_admins,
+            db,
+            user.club_id,
+            "👋 Neues Mitglied",
+            f"{user.name} ist dem Verein beigetreten.",
+            f"/#club:members?member={user.regular_member_id}&memberName={member.nickname or member.name}",
+            category="members",
+        )
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "user": _user_dict(user)}

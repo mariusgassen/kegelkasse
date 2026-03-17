@@ -94,8 +94,12 @@ export function ProtocolPage() {
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
-    // Filter
-    const [filterPlayer, setFilterPlayer] = useState<number | null>(null)
+    // Filters
+    const [filterPlayer, setFilterPlayer] = useState<number | null>(() => {
+        const p = new URLSearchParams(window.location.hash.includes('?') ? window.location.hash.slice(window.location.hash.indexOf('?') + 1) : '').get('player')
+        return p ? parseInt(p, 10) : null
+    })
+    const [filterGame, setFilterGame] = useState<number | null>(null)
 
     // Absence penalties
     const [absenceLoading, setAbsenceLoading] = useState(false)
@@ -311,9 +315,17 @@ export function ProtocolPage() {
     }
 
     const allLog = [...evening.penalty_log].reverse()
-    const log = filterPlayer !== null
+    const logByPlayer = filterPlayer !== null
         ? allLog.filter(l => l.player_id === filterPlayer)
         : allLog
+    const log = filterGame !== null
+        ? logByPlayer.filter(l => filterGame === -1 ? l.game_id === null : l.game_id === filterGame)
+        : logByPlayer
+
+    // Games that have at least one associated penalty
+    const gamesWithPenalties = evening.games.filter(g => evening.penalty_log.some(l => l.game_id === g.id))
+    const hasManualPenalties = evening.penalty_log.some(l => l.game_id === null)
+    const showGameFilter = gamesWithPenalties.length > 0
     const hasAbsenceEntries = evening.penalty_log.some(l => l.player_id === null && l.penalty_type_name === 'Abwesenheit')
 
     // Build merged timeline (only when no player filter active)
@@ -385,6 +397,29 @@ export function ProtocolPage() {
                             {p.is_king ? '👑 ' : ''}{p.name}
                         </button>
                     ))}
+                </div>
+            )}
+
+            {/* ── Game filter chips ── */}
+            {showGameFilter && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                    <button className={`chip ${filterGame === null ? 'active' : ''}`}
+                            onClick={() => setFilterGame(null)}>
+                        {t('action.all')}
+                    </button>
+                    {gamesWithPenalties.map((g, i) => (
+                        <button key={g.id}
+                                className={`chip ${filterGame === g.id ? 'active' : ''}`}
+                                onClick={() => setFilterGame(filterGame === g.id ? null : g.id)}>
+                            🏆 {g.template_name || `${t('game.game')} ${i + 1}`}
+                        </button>
+                    ))}
+                    {hasManualPenalties && (
+                        <button className={`chip ${filterGame === -1 ? 'active' : ''}`}
+                                onClick={() => setFilterGame(filterGame === -1 ? null : -1)}>
+                            ✋ {t('penalty.manual')}
+                        </button>
+                    )}
                 </div>
             )}
 
