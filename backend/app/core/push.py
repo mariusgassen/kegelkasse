@@ -52,3 +52,18 @@ def push_to_club(db: Session, club_id: int, title: str, body: str, url: str = '/
     for user in users:
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url)
+
+
+def push_to_club_admins(db: Session, club_id: int, title: str, body: str, url: str = '/') -> None:
+    """Send push to all admin/superadmin subscribers in a club."""
+    if not settings.VAPID_PRIVATE_KEY:
+        return
+    from models.user import UserRole
+    users = db.query(User).filter(
+        User.club_id == club_id,
+        User.is_active == True,
+        User.role.in_([UserRole.admin, UserRole.superadmin]),
+    ).all()
+    for user in users:
+        for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
+            _send_one(db, sub, title, body, url)

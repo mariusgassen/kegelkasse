@@ -116,6 +116,7 @@ export function TreasuryPage() {
     const [paymentAmount, setPaymentAmount] = useState('')
     const [paymentNote, setPaymentNote] = useState('')
     const [saving, setSaving] = useState(false)
+    const [remindingDebtors, setRemindingDebtors] = useState(false)
 
     function openPaymentSheet(id: number, name: string, prefillAmount?: number) {
         setPaymentTarget({id, name})
@@ -368,7 +369,27 @@ export function TreasuryPage() {
 
                     {debtors.length > 0 && (
                         <>
-                            <div className="sec-heading">{t('treasury.openLabel')}</div>
+                            <div className="sec-heading flex items-center justify-between">
+                                <span>{t('treasury.openLabel')}</span>
+                                {admin && (
+                                    <button
+                                        disabled={remindingDebtors}
+                                        onClick={async () => {
+                                            setRemindingDebtors(true)
+                                            try {
+                                                await api.remindDebtors()
+                                                showToast(t('treasury.remindDebtorsDone'))
+                                            } catch (e: unknown) {
+                                                toastError(e)
+                                            } finally {
+                                                setRemindingDebtors(false)
+                                            }
+                                        }}
+                                        className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-kce-surface2 text-kce-muted transition-all">
+                                        {remindingDebtors ? '…' : t('treasury.remindDebtors')}
+                                    </button>
+                                )}
+                            </div>
                             {debtors.map((b, i) => {
                                 const isMe = b.regular_member_id === myRegularMemberId
                                 return (
