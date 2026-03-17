@@ -11,6 +11,27 @@ from models.user import User
 logger = logging.getLogger(__name__)
 
 
+def _normalize_vapid_private_key(raw: str) -> str:
+    """Return the VAPID private key in a form pywebpush/cryptography can parse.
+
+    Handles three storage formats used in practice:
+    - PEM with literal \\n (Coolify / Docker env vars)
+    - PEM with real newlines but no 64-char line-breaks in the body
+    - Raw base64url EC key (no PEM headers) — returned unchanged
+    """
+    key = raw.strip().replace("\\n", "\n")
+    if "-----BEGIN" not in key:
+        return key  # raw base64url — pywebpush accepts this directly
+
+    # Split into header / body / footer and rebuild with proper 64-char wrapping
+    lines = [l.strip() for l in key.splitlines() if l.strip()]
+    header = next((l for l in lines if l.startswith("-----BEGIN")), "")
+    footer = next((l for l in lines if l.startswith("-----END")), "")
+    body = "".join(l for l in lines if not l.startswith("-----"))
+    wrapped = "\n".join(body[i:i + 64] for i in range(0, len(body), 64))
+    return f"{header}\n{wrapped}\n{footer}\n"
+
+
 def _send_one(db: Session, sub: PushSubscription, title: str, body: str, url: str = '/') -> None:
     """Send a single push and silently absorb failures (stale subs are auto-removed)."""
     try:
@@ -22,8 +43,7 @@ def _send_one(db: Session, sub: PushSubscription, title: str, body: str, url: st
 def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str, url: str = '/') -> None:
     """Send a single push; raises on failure (use for test/debug paths)."""
     from pywebpush import WebPushException, webpush
-    # Env vars store PEM newlines as literal \n — restore them before use
-    private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
+    private_key = _normalize_vapid_private_key(settings.VAPID_PRIVATE_KEY)
     try:
         webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
