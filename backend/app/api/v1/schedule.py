@@ -88,7 +88,7 @@ def create_scheduled_evening(
         db, user.club_id,
         "📅 Neuer Kegeltermin",
         f"Kegelabend am {se.date}{venue_str} eingetragen.",
-        f"/schedule?event={se.id}",
+        f"/#schedule?event={se.id}",
         category="schedule",
     )
     return _serialize_scheduled_evening(se, user.regular_member_id)
@@ -369,7 +369,7 @@ def send_reminder(
             db, member.id,
             "🎳 Bist du dabei?",
             f"Kegelabend am {se.date}{venue_str} — bitte melde dich an oder ab.",
-            f"/schedule?event={se.id}",
+            f"/#schedule?event={se.id}",
             category="schedule",
         )
     return {"reminded_count": len(non_responders)}

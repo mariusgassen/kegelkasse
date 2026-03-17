@@ -250,6 +250,6 @@ def register_with_invite(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     if user.club_id:
         push_to_club_admins(db, user.club_id, "👋 Neues Mitglied",
-                            f"{user.name} ist dem Verein beigetreten.", "/club", category="members")
+                            f"{user.name} ist dem Verein beigetreten.", "/#club", category="members")
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "user": _user_dict(user)}

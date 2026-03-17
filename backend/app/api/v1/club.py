@@ -582,7 +582,7 @@ def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
     db.refresh(payment)
     fee = f"{data.amount:.2f}".replace('.', ',')
     push_to_regular_member(db, data.regular_member_id, "💰 Einzahlung erfasst",
-                           f"+{fee}€ in die Kasse eingetragen.", "/treasury", category="payments")
+                           f"+{fee}€ in die Kasse eingetragen.", "/#treasury", category="payments")
     return {"id": payment.id, "amount": payment.amount, "note": payment.note,
             "created_at": payment.created_at.isoformat() if payment.created_at else None}
 
@@ -873,7 +873,7 @@ def create_payment_request(data: PaymentRequestCreate, db: Session = Depends(get
         db, user.club_id,
         "💸 Neue Zahlungsanfrage",
         f"{member_display} hat {fee}€ überwiesen und wartet auf Bestätigung.",
-        "/treasury",
+        "/#treasury",
         category="payments",
         extra={
             "rid": req.id,
@@ -913,7 +913,7 @@ def confirm_payment_request(rid: int, db: Session = Depends(get_db),
     db.refresh(req)
     fee = f"{req.amount:.2f}".replace('.', ',')
     push_to_regular_member(db, req.regular_member_id, "✅ Zahlung bestätigt",
-                           f"{fee}€ wurden in dein Konto eingetragen.", "/treasury", category="payments")
+                           f"{fee}€ wurden in dein Konto eingetragen.", "/#treasury", category="payments")
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     return _fmt_request(req, (member.nickname or member.name) if member else "")
 
@@ -936,7 +936,7 @@ def reject_payment_request(rid: int, db: Session = Depends(get_db),
     db.refresh(req)
     push_to_regular_member(db, req.regular_member_id, "❌ Zahlung abgelehnt",
                            f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.",
-                           "/treasury", category="payments")
+                           "/#treasury", category="payments")
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     return _fmt_request(req, (member.nickname or member.name) if member else "")
 
@@ -1003,7 +1003,7 @@ def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_c
                 db, m.id,
                 "💳 Offener Betrag",
                 f"Du hast noch {debt_str}€ offen in der Vereinskasse.",
-                "/treasury",
+                "/#treasury",
             )
             reminded += 1
     return {"reminded_count": reminded}
