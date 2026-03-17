@@ -20,21 +20,21 @@ import sqlalchemy.ext.asyncio as _sa_async  # noqa: E402
 
 _sa_async.create_async_engine = lambda *a, **kw: MagicMock()  # type: ignore[assignment]
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
 # Import all models so Base.metadata knows every table
-import models  # noqa: F401
+import models  # noqa: E402, F401
 
-from core.database import Base, get_db
-from core.security import create_access_token, get_password_hash
-from main import app
-from models.club import Club
-from models.push import PushSubscription
-from models.user import User, UserRole
+from core.database import Base, get_db  # noqa: E402
+from core.security import create_access_token, get_password_hash  # noqa: E402
+from main import app  # noqa: E402
+from models.club import Club  # noqa: E402
+from models.push import PushSubscription  # noqa: E402
+from models.user import User, UserRole  # noqa: E402
 
 SQLITE_URL = "sqlite://"  # pure in-memory; StaticPool keeps one shared connection
 
