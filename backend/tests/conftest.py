@@ -5,12 +5,20 @@ Sets DATABASE_URL and SECRET_KEY before any app code is imported, so pydantic-se
 picks up the SQLite in-memory URL instead of requiring a running Postgres instance.
 """
 import os
+from unittest.mock import MagicMock
 
 # --- must happen before any app import ---
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_kegelkasse.db")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-min-32-chars-ok-yes")
 os.environ.setdefault("VAPID_PRIVATE_KEY", "")
 os.environ.setdefault("VAPID_PUBLIC_KEY", "")
+
+# core/database.py builds an async engine from DATABASE_URL using asyncpg.
+# SQLite has no async driver in the default install, so we stub the async
+# engine before anything imports core.database.
+import sqlalchemy.ext.asyncio as _sa_async  # noqa: E402
+
+_sa_async.create_async_engine = lambda *a, **kw: MagicMock()  # type: ignore[assignment]
 
 import pytest
 from fastapi.testclient import TestClient
