@@ -25,6 +25,8 @@ export function EveningPage() {
     }, [club?.settings?.home_venue])
     const [startNote, setStartNote] = useState('')
     const [starting, setStarting] = useState(false)
+    // attendance sheet shown after evening is created
+    const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
 
     // ── Edit evening sheet ──
     const [editSheet, setEditSheet] = useState(false)
@@ -61,6 +63,7 @@ export function EveningPage() {
     // ── No active evening ──
     if (!activeEveningId && !evening) {
         return (
+            <>
             <div className="page-scroll px-3 py-3 pb-24">
                 <div className="sec-heading">🎳 {t('nav.evening')}</div>
                 <div className="kce-card p-5">
@@ -92,8 +95,7 @@ export function EveningPage() {
                                     venue: startVenue || undefined,
                                     note: startNote || undefined,
                                 })
-                                setActiveEveningId(ev.id)
-                                invalidate()
+                                setAttendanceEveningId(ev.id)
                             } catch (e: unknown) {
                                 toastError(e)
                             } finally {
@@ -103,6 +105,27 @@ export function EveningPage() {
                     </div>
                 </div>
             </div>
+            {attendanceEveningId !== null && (
+                <UnplannedAttendanceSheet
+                    eveningId={attendanceEveningId}
+                    pins={pins}
+                    pinPenalty={club?.settings?.pin_penalty ?? 0}
+                    regularMembers={regularMembers}
+                    user={user}
+                    onDone={() => {
+                        setActiveEveningId(attendanceEveningId)
+                        setAttendanceEveningId(null)
+                        invalidate()
+                    }}
+                    onCancel={() => {
+                        // Evening already created — open it without players
+                        setActiveEveningId(attendanceEveningId)
+                        setAttendanceEveningId(null)
+                        invalidate()
+                    }}
+                />
+            )}
+            </>
         )
     }
 
@@ -553,6 +576,187 @@ export function EveningPage() {
             </Sheet>
 
         </div>
+    )
+}
+
+// ── Attendance + pin check for unplanned evenings ─────────────────────────────
+function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, user, onDone, onCancel}: {
+    eveningId: number
+    pins: ClubPin[]
+    pinPenalty: number
+    regularMembers: RegularMember[]
+    user: { regular_member_id: number | null } | null
+    onDone: () => void
+    onCancel: () => void
+}) {
+    const t = useT()
+    const activeMembers = regularMembers.filter((m: RegularMember) => !m.is_guest && m.is_active)
+    const myId = user?.regular_member_id
+
+    const [checkedIds, setCheckedIds] = useState<Set<number>>(
+        () => new Set(activeMembers.map((m: RegularMember) => m.id)),
+    )
+    const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
+    const [guestName, setGuestName] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    function toggleMember(id: number) {
+        setCheckedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    function toggleMissingPin(pinId: number) {
+        setMissingPinIds(prev => {
+            const next = new Set(prev)
+            if (next.has(pinId)) next.delete(pinId)
+            else next.add(pinId)
+            return next
+        })
+    }
+
+    const sortedMembers = [...activeMembers].sort((a: RegularMember, b: RegularMember) => {
+        if (a.id === myId) return -1
+        if (b.id === myId) return 1
+        return 0
+    })
+
+    async function handleDone() {
+        setSaving(true)
+        try {
+            const adds: Promise<unknown>[] = []
+            for (const id of checkedIds) {
+                const rm = regularMembers.find((r: RegularMember) => r.id === id)
+                if (rm) adds.push(api.addPlayer(eveningId, {name: rm.nickname || rm.name, regular_member_id: rm.id}))
+            }
+            if (guestName.trim()) {
+                const saved = await api.createRegularMember({name: guestName.trim(), is_guest: true})
+                adds.push(api.addPlayer(eveningId, {name: saved.name, regular_member_id: saved.id}))
+            }
+            await Promise.all(adds)
+            if (missingPinIds.size > 0 && pinPenalty > 0) {
+                const eveningData = await api.getEvening(eveningId)
+                for (const pinId of missingPinIds) {
+                    const pin = pins.find(p => p.id === pinId)
+                    if (!pin || !pin.holder_regular_member_id) continue
+                    const player = eveningData.players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                    if (!player) continue
+                    await api.addPenalty(eveningId, {
+                        player_ids: [player.id],
+                        penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
+                        icon: pin.icon,
+                        amount: pinPenalty,
+                        mode: 'euro',
+                        client_timestamp: Date.now(),
+                    })
+                }
+            }
+            onDone()
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <Sheet open onClose={onCancel} title={t('evening.attendance')}>
+            <div className="space-y-4">
+                <p className="text-xs text-kce-muted">{t('evening.attendanceHint')}</p>
+
+                {/* Attendance checklist */}
+                <div>
+                    <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                        👥 {t('team.members')} ({checkedIds.size}/{activeMembers.length})
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                        {sortedMembers.map((m: RegularMember) => {
+                            const isChecked = checkedIds.has(m.id)
+                            return (
+                                <button
+                                    key={m.id}
+                                    onClick={() => toggleMember(m.id)}
+                                    className={[
+                                        'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors text-left',
+                                        isChecked ? 'bg-green-500/10' : 'bg-kce-surface2/40',
+                                    ].join(' ')}
+                                >
+                                    <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
+                                        {isChecked ? '☑' : '☐'}
+                                    </span>
+                                    <span className={[
+                                        'text-sm flex-1',
+                                        isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
+                                    ].join(' ')}>
+                                        {m.nickname || m.name}
+                                        {m.id === myId && (
+                                            <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
+                                        )}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {/* Guest input */}
+                <div className="pt-2 border-t border-kce-surface2">
+                    <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                        🧑‍🤝‍🧑 {t('player.guest')}
+                    </div>
+                    <input
+                        className="kce-input"
+                        placeholder={t('player.guestName')}
+                        value={guestName}
+                        onChange={e => setGuestName(e.target.value)}
+                    />
+                </div>
+
+                {/* Pins check — only for pins whose holder is present */}
+                {pins.some((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
+                    <div className="pt-2 border-t border-kce-surface2">
+                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                            📌 {t('pin.title')}
+                        </div>
+                        {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
+                            const brought = !missingPinIds.has(pin.id)
+                            return (
+                                <button
+                                    key={pin.id}
+                                    onClick={() => toggleMissingPin(pin.id)}
+                                    className={[
+                                        'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
+                                        brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                    ].join(' ')}
+                                >
+                                    <span className="text-base flex-shrink-0">{pin.icon}</span>
+                                    <span className="flex-1 text-sm text-kce-cream">{pin.name}</span>
+                                    <span className="text-xs text-kce-muted flex-shrink-0">{pin.holder_name}</span>
+                                    <span className={[
+                                        'text-xs font-bold flex-shrink-0',
+                                        brought ? 'text-green-400' : 'text-red-400',
+                                    ].join(' ')}>
+                                        {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                    <button className="btn-secondary flex-1" onClick={onCancel} disabled={saving}>
+                        {t('action.cancel')}
+                    </button>
+                    <button className="btn-primary flex-1" onClick={handleDone} disabled={saving}>
+                        {saving ? t('action.loading') : t('evening.startButton')}
+                    </button>
+                </div>
+            </div>
+        </Sheet>
     )
 }
 

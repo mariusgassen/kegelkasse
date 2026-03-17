@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -8,7 +8,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {useEveningList} from '@/hooks/useEvening.ts'
-import {RsvpEntry, RsvpStatus, ScheduledEvening} from '@/types.ts'
+import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -64,7 +64,7 @@ function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void 
 // ── Add-guest inline form ─────────────────────────────────────────────────────
 function AddGuestForm({se, onAdded, onCancel}: {
     se: ScheduledEvening
-    onAdded: () => void
+    onAdded: (guest: ScheduledEveningGuest) => void
     onCancel: () => void
 }) {
     const t = useT()
@@ -99,11 +99,11 @@ function AddGuestForm({se, onAdded, onCancel}: {
         if (!name.trim()) return
         setSaving(true)
         try {
-            await api.addScheduledGuest(se.id, {
+            const guest = await api.addScheduledGuest(se.id, {
                 name: name.trim(),
                 regular_member_id: matchedId ?? undefined,
             })
-            onAdded()
+            onAdded(guest)
         } catch (e) {
             toastError(e)
         } finally {
@@ -159,15 +159,84 @@ function StartEveningSheet({se, onClose, onStarted}: {
     onStarted: (eveningId: number) => void
 }) {
     const t = useT()
-    const [importAttending, setImportAttending] = useState(true)
+    const qc = useQueryClient()
+    const regularMembers = useAppStore(s => s.regularMembers)
+    const user = useAppStore(s => s.user)
+
+    const {data: rsvps = [], isLoading: rsvpsLoading} = useQuery<RsvpEntry[]>({
+        queryKey: ['rsvps', se.id],
+        queryFn: () => api.listRsvps(se.id),
+        staleTime: 0,
+    })
+    const {data: pins = []} = useQuery<ClubPin[]>({
+        queryKey: ['pins'],
+        queryFn: api.listPins,
+        staleTime: 60000,
+    })
+    const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
+    const pinPenalty = club?.settings?.pin_penalty ?? 0
+
+    const activeMembers = regularMembers.filter(
+        (m: RegularMember) => !m.is_guest && m.is_active,
+    )
+    const absentIds = new Set(rsvps.filter(r => r.status === 'absent').map(r => r.regular_member_id))
+
+    const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set())
+    const [initialized, setInitialized] = useState(false)
+    const [guests, setGuests] = useState<ScheduledEveningGuest[]>([...se.guests])
+    const [addingGuest, setAddingGuest] = useState(false)
+    const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
     const [starting, setStarting] = useState(false)
 
-    const guestCount = se.guests.length
+    // Initialize attendance from RSVPs once loaded
+    useEffect(() => {
+        if (!rsvpsLoading && !initialized) {
+            setCheckedIds(new Set(activeMembers.filter((m: RegularMember) => !absentIds.has(m.id)).map((m: RegularMember) => m.id)))
+            setInitialized(true)
+        }
+    }, [rsvpsLoading, initialized])  // eslint-disable-line react-hooks/exhaustive-deps
+
+    function toggleMember(id: number) {
+        setCheckedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    function toggleMissingPin(pinId: number) {
+        setMissingPinIds(prev => {
+            const next = new Set(prev)
+            if (next.has(pinId)) next.delete(pinId)
+            else next.add(pinId)
+            return next
+        })
+    }
 
     async function doStart() {
         setStarting(true)
         try {
-            const ev = await api.startEveningFromSchedule(se.id, {import_attending: importAttending})
+            const ev = await api.startEveningFromSchedule(se.id, {
+                member_ids: Array.from(checkedIds),
+            })
+            if (missingPinIds.size > 0 && pinPenalty > 0) {
+                const eveningData = await api.getEvening(ev.id)
+                for (const pinId of missingPinIds) {
+                    const pin = pins.find(p => p.id === pinId)
+                    if (!pin || !pin.holder_regular_member_id) continue
+                    const player = eveningData.players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                    if (!player) continue
+                    await api.addPenalty(ev.id, {
+                        player_ids: [player.id],
+                        penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
+                        icon: pin.icon,
+                        amount: pinPenalty,
+                        mode: 'euro',
+                        client_timestamp: Date.now(),
+                    })
+                }
+            }
             showToast(t('schedule.started'))
             onStarted(ev.id)
         } catch (e) {
@@ -177,6 +246,13 @@ function StartEveningSheet({se, onClose, onStarted}: {
         }
     }
 
+    const myId = user?.regular_member_id
+    const sortedMembers = [...activeMembers].sort((a: RegularMember, b: RegularMember) => {
+        if (a.id === myId) return -1
+        if (b.id === myId) return 1
+        return 0
+    })
+
     return (
         <Sheet open onClose={onClose} title={t('schedule.startConfirm')}>
             <div className="space-y-4">
@@ -184,48 +260,137 @@ function StartEveningSheet({se, onClose, onStarted}: {
                     {fDateLong(se.date)}{se.venue ? ` · ${se.venue}` : ''}
                 </div>
 
-                {/* Import members toggle */}
-                <button
-                    onClick={() => setImportAttending(v => !v)}
-                    className={['w-full p-3 rounded-xl border text-left transition-all',
-                        importAttending
-                            ? 'border-green-500/40 bg-green-500/10'
-                            : 'border-kce-border bg-kce-surface2'
-                    ].join(' ')}>
-                    <div className="flex items-center gap-2">
-                        <span className="text-base">{importAttending ? '☑' : '☐'}</span>
+                {rsvpsLoading ? (
+                    <p className="text-sm text-kce-muted text-center py-4">{t('action.loading')}</p>
+                ) : (
+                    <>
+                        {/* Attendance checklist */}
                         <div>
-                            <div className="text-sm font-bold text-kce-cream">{t('schedule.importAttending')}</div>
-                            <div className="text-xs text-kce-muted">
-                                {t('schedule.importAttendingHint')}
-                                {se.absent_count > 0 && ` (${se.absent_count} ${t('schedule.absent')})`}
+                            <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                👥 {t('schedule.attendance')} ({checkedIds.size}/{activeMembers.length})
+                            </div>
+                            <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                                {sortedMembers.map((m: RegularMember) => {
+                                    const isChecked = checkedIds.has(m.id)
+                                    const wasAbsent = absentIds.has(m.id)
+                                    return (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => toggleMember(m.id)}
+                                            className={[
+                                                'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors text-left',
+                                                isChecked ? 'bg-green-500/10' : 'bg-kce-surface2/40',
+                                            ].join(' ')}
+                                        >
+                                            <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
+                                                {isChecked ? '☑' : '☐'}
+                                            </span>
+                                            <span className={[
+                                                'text-sm flex-1',
+                                                isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
+                                            ].join(' ')}>
+                                                {m.nickname || m.name}
+                                                {m.id === myId && (
+                                                    <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
+                                                )}
+                                            </span>
+                                            {wasAbsent && isChecked && (
+                                                <span className="text-[10px] text-yellow-400 font-bold flex-shrink-0">
+                                                    {t('schedule.showedUpAnyway')}
+                                                </span>
+                                            )}
+                                            {wasAbsent && !isChecked && (
+                                                <span className="text-[10px] text-red-400 flex-shrink-0">
+                                                    {t('schedule.absent')}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </div>
-                    </div>
-                </button>
 
-                {/* Pre-planned guests info */}
-                {guestCount > 0 && (
-                    <div className="p-3 rounded-xl border border-kce-border bg-kce-surface2">
-                        <div className="text-xs text-kce-muted mb-1.5 font-bold uppercase tracking-wider">
-                            🧑‍🤝‍🧑 {t('schedule.guests')} ({guestCount})
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                            {se.guests.map(g => (
-                                <span key={g.id} className="text-[11px] px-2 py-0.5 rounded-full bg-kce-surface text-kce-cream">
-                                    {g.name}
-                                </span>
+                        {/* Guests */}
+                        <div className="pt-2 border-t border-kce-surface2">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider">
+                                    🧑‍🤝‍🧑 {t('schedule.guests')}{guests.length > 0 ? ` (${guests.length})` : ''}
+                                </div>
+                                {!addingGuest && (
+                                    <button className="btn-secondary btn-xs" onClick={() => setAddingGuest(true)}>
+                                        + {t('schedule.addGuest')}
+                                    </button>
+                                )}
+                            </div>
+                            {guests.map(g => (
+                                <div key={g.id} className="flex items-center gap-2 text-sm text-kce-cream mb-1 px-1">
+                                    <span className="flex-1">🧑‍🤝‍🧑 {g.name}</span>
+                                    <button
+                                        className="text-kce-muted active:text-red-400 text-xs"
+                                        onClick={async () => {
+                                            try {
+                                                await api.removeScheduledGuest(se.id, g.id)
+                                                setGuests(prev => prev.filter(x => x.id !== g.id))
+                                                qc.invalidateQueries({queryKey: ['schedule']})
+                                            } catch (e) {
+                                                toastError(e)
+                                            }
+                                        }}
+                                    >✕</button>
+                                </div>
                             ))}
+                            {addingGuest && (
+                                <AddGuestForm
+                                    se={se}
+                                    onAdded={(guest) => {
+                                        setGuests(prev => [...prev, guest])
+                                        setAddingGuest(false)
+                                        qc.invalidateQueries({queryKey: ['schedule']})
+                                    }}
+                                    onCancel={() => setAddingGuest(false)}
+                                />
+                            )}
                         </div>
-                        <div className="text-[10px] text-kce-muted mt-1.5">Werden automatisch hinzugefügt.</div>
-                    </div>
-                )}
 
-                <div className="flex gap-3 pt-1">
-                    <button className="btn-primary w-full" disabled={starting} onClick={doStart}>
-                        {starting ? t('action.loading') : t('schedule.start')}
-                    </button>
-                </div>
+                        {/* Pins check — only for pins whose holder is present */}
+                        {pins.some(p => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
+                            <div className="pt-2 border-t border-kce-surface2">
+                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                    📌 {t('pin.title')}
+                                </div>
+                                {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
+                                    const brought = !missingPinIds.has(pin.id)
+                                    return (
+                                        <button
+                                            key={pin.id}
+                                            onClick={() => toggleMissingPin(pin.id)}
+                                            className={[
+                                                'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
+                                                brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                            ].join(' ')}
+                                        >
+                                            <span className="text-base flex-shrink-0">{pin.icon}</span>
+                                            <span className="flex-1 text-sm text-kce-cream">{pin.name}</span>
+                                            <span className="text-xs text-kce-muted flex-shrink-0">{pin.holder_name}</span>
+                                            <span className={[
+                                                'text-xs font-bold flex-shrink-0',
+                                                brought ? 'text-green-400' : 'text-red-400',
+                                            ].join(' ')}>
+                                                {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        <div className="pt-1">
+                            <button className="btn-primary w-full" disabled={starting} onClick={doStart}>
+                                {starting ? t('action.loading') : t('schedule.start')}
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </Sheet>
     )
@@ -430,20 +595,6 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
         queryFn: () => api.listRsvps(se.id),
         staleTime: 10000,
     })
-    const [sendingReminder, setSendingReminder] = useState(false)
-
-    async function remind() {
-        setSendingReminder(true)
-        try {
-            const res = await api.sendReminder(se.id)
-            showToast(`${t('schedule.reminded')} (${res.reminded_count})`)
-        } catch (e) {
-            toastError(e)
-        } finally {
-            setSendingReminder(false)
-        }
-    }
-
     async function setFor(mid: number, status: RsvpStatus) {
         try {
             await api.setRsvpForMember(se.id, mid, status)
@@ -454,9 +605,9 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
         }
     }
 
-    const attending = rsvps?.filter(r => r.status === 'attending') ?? []
+    // Treat null (no response) and explicit 'attending' the same — default is attending
+    const attending = rsvps?.filter(r => r.status !== 'absent') ?? []
     const absent = rsvps?.filter(r => r.status === 'absent') ?? []
-    const noResponse = rsvps?.filter(r => r.status === null) ?? []
 
     return (
         <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${fDateLong(se.date)}`}>
@@ -472,7 +623,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                                 {attending.map(r => (
                                     <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
                                         <span className="flex-1 text-sm text-kce-cream truncate">
-                                            {r.name}{r.nickname ? <span className="text-kce-muted"> · {r.nickname}</span> : ''}
+                                            {r.nickname || r.name}
                                         </span>
                                         <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'absent')}>
                                             → {t('rsvp.absent.short')}
@@ -488,37 +639,14 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                                 </div>
                                 {absent.map(r => (
                                     <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
-                                        <span className="flex-1 text-sm text-kce-cream truncate">
-                                            {r.name}{r.nickname ? <span className="text-kce-muted"> · {r.nickname}</span> : ''}
+                                        <span className="flex-1 text-sm text-kce-muted truncate">
+                                            {r.nickname || r.name}
                                         </span>
                                         <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
                                             → {t('rsvp.attending.short')}
                                         </button>
                                     </div>
                                 ))}
-                            </div>
-                        )}
-                        {noResponse.length > 0 && (
-                            <div>
-                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
-                                    ⏳ {t('schedule.noResponse')} ({noResponse.length})
-                                </div>
-                                {noResponse.map(r => (
-                                    <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
-                                        <span className="flex-1 text-sm text-kce-muted truncate">
-                                            {r.name}{r.nickname ? ` · ${r.nickname}` : ''}
-                                        </span>
-                                        <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
-                                            {t('rsvp.attending.short')}
-                                        </button>
-                                        <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'absent')}>
-                                            {t('rsvp.absent.short')}
-                                        </button>
-                                    </div>
-                                ))}
-                                <button className="btn-secondary w-full mt-2 text-sm" disabled={sendingReminder} onClick={remind}>
-                                    {sendingReminder ? t('action.loading') : t('schedule.remind')}
-                                </button>
                             </div>
                         )}
                     </>
