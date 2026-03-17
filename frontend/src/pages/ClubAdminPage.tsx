@@ -754,7 +754,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                         <label className="field-label">{t('pin.icon')}</label>
                         <div className="flex gap-2">
                             <input className="kce-input flex-1" value={pinIcon} onChange={e => setPinIcon(e.target.value)}/>
-                            <EmojiPickerButton mode="replace" value={pinIcon} onChange={setPinIcon}/>
+                            <EmojiPickerButton mode="icon" value={pinIcon} onChange={setPinIcon}/>
                         </div>
                     </div>
                     <div>

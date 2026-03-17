@@ -131,8 +131,8 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 5  | **Historie**                       | ✅      | Detail-Ansicht, Wiedereröffnen, Löschen, Nachtragen-Sheet                                             |
 | 6  | **Eigene Historie / Profil**       | ✅      | Persönliche Jahresstatistiken im Profil (Strafen, Abende, Siege, Bier)                                |
 | 7  | **Statistiken & Analyse**          | ✅      | Jahresranking mit CSS-Balken, Jahresauswahl, alle Mitglieder ein-/ausklappbar                         |
-| 8  | **Push Notifications**             | ⬜      | Web Push für Strafen, Abend-Events                                                                    |
-| 9  | **Offline-Sync**                   | ⬜      | IndexedDB-Queue vollständig implementieren                                                            |
+| 8  | **Push Notifications**             | ✅      | Web Push für Strafen, Abend-Events, Zahlungen; VAPID-Backend, ProfileSheet-Toggle, SW-Handler        |
+| 9  | **Offline-Sync**                   | 🚧      | SW + IndexedDB + `/sync/`-Delta-Endpoint vorhanden; IndexedDB-Queue noch unvollständig               |
 | 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
 | 11 | **Emoji Picker**                   | ⬜      | Emoji Picker mit library für Emojis in Forms                                                          |
 | 12 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
@@ -142,8 +142,8 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
 | 17 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
 | 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
-| 19 | **Bezahllink**                     | ⬜      | Jedes Mitglied kann einen Bezahllink drücken um Ausstände zu überweisen; Admin konfiguriert PayPal-Konto; Admin bestätigt Zahlung manuell |
-| 20 | **Abwesenheiten verwalten**        | ⬜      | Zukünftige Spieltermine pflegen (i.d.R. feste Termine); Abwesenheiten vorab eintragen; Strafenautomatik bei Fehlen |
+| 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
+| 20 | **Abwesenheiten verwalten**        | 🚧      | Spieltermine & RSVP (SchedulePage) fertig; Strafenautomatik beim Start-aus-Termin fehlt noch        |
 | 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
 | 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
 | 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar    |
