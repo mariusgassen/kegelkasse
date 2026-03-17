@@ -67,8 +67,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
         self.registration.showNotification(data.title ?? 'Kegelkasse', {
             body: data.body ?? '',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
+            icon: '/icon.svg',
+            badge: '/icon.svg',
             tag: data.tag ?? 'kegelkasse',
             data: { url: (data.url as string) ?? '/' },
         })

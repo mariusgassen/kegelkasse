@@ -883,14 +883,10 @@ export function TreasuryPage() {
                                onChange={e => setPaymentNote(e.target.value)}
                                placeholder={t('treasury.payment.notePlaceholder')}/>
                     </div>
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setPaymentTarget(null)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
-                            ✓ {t('treasury.payment.record')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
+                        ✓ {t('treasury.payment.record')}
+                    </button>
                 </div>
             </Sheet>
 
@@ -953,14 +949,10 @@ export function TreasuryPage() {
                                placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
                     </div>
 
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setBookingSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={savingBooking || !bookingValid}>
-                            ✓ {t('action.save')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={savingBooking || !bookingValid}>
+                        ✓ {t('action.save')}
+                    </button>
                 </div>
             </Sheet>
         </div>

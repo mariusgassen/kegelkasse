@@ -69,6 +69,7 @@ export function EveningPage() {
                         <div>
                             <label className="field-label">{t('evening.date')}</label>
                             <input className="kce-input" type="date" value={startDate}
+                                   style={{width: 'auto'}}
                                    onChange={e => setStartDate(e.target.value)}/>
                         </div>
                         <div>
@@ -232,24 +233,6 @@ export function EveningPage() {
                     </div>
                 )}
             </div>
-
-            {/* ── Pins start reminder (no players yet) ── */}
-            {players.length === 0 && !evening.is_closed && pins.some(p => p.holder_regular_member_id !== null) && (
-                <div className="kce-card p-3 mb-3 border border-kce-amber/40 bg-kce-amber/5">
-                    <div className="text-xs font-bold text-kce-amber mb-2">📌 Pins prüfen</div>
-                    {pins.filter(p => p.holder_regular_member_id !== null).map(pin => {
-                        const holderMember = regularMembers.find(m => m.id === pin.holder_regular_member_id)
-                        const holderName = holderMember ? (holderMember.nickname || holderMember.name) : pin.holder_name
-                        return (
-                            <div key={pin.id} className="flex items-center gap-2 text-xs text-kce-muted mb-1">
-                                <span>{pin.icon}</span>
-                                <span className="font-bold">{pin.name}</span>
-                                <span>→ {holderName}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
 
             {/* ── Pins alert (holders present as players) ── */}
             {players.length > 0 && pins.length > 0 && !evening.is_closed && (
@@ -422,11 +405,7 @@ export function EveningPage() {
                         <label className="field-label">{t('evening.note')}</label>
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setEditSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                 </div>
             </Sheet>
 
@@ -526,14 +505,10 @@ export function EveningPage() {
                             <p className="text-[10px] text-kce-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setPlayerSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
-                            {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
+                        {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
+                    </button>
                 </div>
             </Sheet>
 
@@ -551,11 +526,7 @@ export function EveningPage() {
                                 {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                             </select>
                         </div>
-                        <div className="flex gap-2">
-                            <button type="button" className="btn-secondary flex-1"
-                                    onClick={() => setEditPlayerSheet(false)}>{t('action.cancel')}</button>
-                            <button type="submit" className="btn-primary flex-[2]">{t('action.save')}</button>
-                        </div>
+                        <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                     </div>
                 )}
             </Sheet>
@@ -576,12 +547,8 @@ export function EveningPage() {
                         onChange={setTeamPlayerIds}
                         onSelectAll={() => setTeamPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setTeamSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={!teamName.trim()}>{t('action.save')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={!teamName.trim()}>{t('action.save')}</button>
                 </div>
             </Sheet>
 

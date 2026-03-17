@@ -301,12 +301,8 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </div>
-                    <div className="flex gap-2 mt-1">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setBacklogSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
                 </div>
             </Sheet>
         </div>

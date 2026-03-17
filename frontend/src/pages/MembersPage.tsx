@@ -74,6 +74,14 @@ export function MembersPage() {
         setInviteSheet(true)
     }
 
+    async function openGeneralInvite() {
+        const res = await api.createInvite()
+        setInviteUrl(window.location.origin + res.invite_url)
+        setInviteName(t('club.invite.create'))
+        setCopied(false)
+        setInviteSheet(true)
+    }
+
     async function refetchRoster() {
         const d = await api.listRegularMembers()
         setRegularMembers(d)
@@ -229,13 +237,20 @@ export function MembersPage() {
             {/* ── App-Nutzer ── */}
             <div className="flex items-center justify-between mb-3">
                 <div className="sec-heading mb-0">{t('member.appUsers')}</div>
-                {admin && inactiveUsers.length > 0 && (
-                    <button
-                        className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                        onClick={() => setShowInactive(v => !v)}>
-                        {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
-                    </button>
-                )}
+                <div className="flex gap-1">
+                    {admin && (
+                        <button className="btn-secondary btn-xs" onClick={openGeneralInvite}>
+                            📨 {t('club.tab.invites')}
+                        </button>
+                    )}
+                    {admin && inactiveUsers.length > 0 && (
+                        <button
+                            className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            onClick={() => setShowInactive(v => !v)}>
+                            {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {activeUsers.length === 0
@@ -548,13 +563,9 @@ export function MembersPage() {
                         <input className="kce-input" value={nickname} onChange={e => setNickname(e.target.value)}
                                placeholder="z.B. Kapitän, Aufschläger…"/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]" disabled={saving || !name.trim()}>
-                            {t('action.save')}
-                        </button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full" disabled={saving || !name.trim()}>
+                        {t('action.save')}
+                    </button>
                 </div>
             </Sheet>
         </div>

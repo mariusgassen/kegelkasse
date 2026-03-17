@@ -46,23 +46,16 @@ function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void 
         }
     }
 
+    const isAbsent = se.my_rsvp === 'absent'
     return (
-        <div className="flex gap-2 mt-2.5">
-            <button disabled={busy} onClick={() => toggle('attending')}
-                    className={['flex-1 text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
-                        se.my_rsvp === 'attending'
-                            ? 'bg-green-500/20 text-green-400 border-green-500/40'
-                            : 'bg-kce-surface2 text-kce-muted border-kce-border',
-                    ].join(' ')}>
-                {t('rsvp.attending.short')}
-            </button>
+        <div className="mt-2.5">
             <button disabled={busy} onClick={() => toggle('absent')}
-                    className={['flex-1 text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
-                        se.my_rsvp === 'absent'
+                    className={['w-full text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
+                        isAbsent
                             ? 'bg-red-500/20 text-red-400 border-red-500/40'
                             : 'bg-kce-surface2 text-kce-muted border-kce-border',
                     ].join(' ')}>
-                {t('rsvp.absent.short')}
+                {isAbsent ? t('rsvp.absent.active') : t('rsvp.absent.short')}
             </button>
         </div>
     )
@@ -169,7 +162,6 @@ function StartEveningSheet({se, onClose, onStarted}: {
     const [importAttending, setImportAttending] = useState(true)
     const [starting, setStarting] = useState(false)
 
-    const attendingCount = se.attending_count
     const guestCount = se.guests.length
 
     async function doStart() {
@@ -192,26 +184,25 @@ function StartEveningSheet({se, onClose, onStarted}: {
                     {fDateLong(se.date)}{se.venue ? ` · ${se.venue}` : ''}
                 </div>
 
-                {/* Import attending toggle */}
-                {attendingCount > 0 && (
-                    <button
-                        onClick={() => setImportAttending(v => !v)}
-                        className={['w-full p-3 rounded-xl border text-left transition-all',
-                            importAttending
-                                ? 'border-green-500/40 bg-green-500/10'
-                                : 'border-kce-border bg-kce-surface2'
-                        ].join(' ')}>
-                        <div className="flex items-center gap-2">
-                            <span className="text-base">{importAttending ? '☑' : '☐'}</span>
-                            <div>
-                                <div className="text-sm font-bold text-kce-cream">{t('schedule.importAttending')}</div>
-                                <div className="text-xs text-kce-muted">
-                                    {attendingCount} {t('schedule.attending')} {t('schedule.importAttendingHint')}
-                                </div>
+                {/* Import members toggle */}
+                <button
+                    onClick={() => setImportAttending(v => !v)}
+                    className={['w-full p-3 rounded-xl border text-left transition-all',
+                        importAttending
+                            ? 'border-green-500/40 bg-green-500/10'
+                            : 'border-kce-border bg-kce-surface2'
+                    ].join(' ')}>
+                    <div className="flex items-center gap-2">
+                        <span className="text-base">{importAttending ? '☑' : '☐'}</span>
+                        <div>
+                            <div className="text-sm font-bold text-kce-cream">{t('schedule.importAttending')}</div>
+                            <div className="text-xs text-kce-muted">
+                                {t('schedule.importAttendingHint')}
+                                {se.absent_count > 0 && ` (${se.absent_count} ${t('schedule.absent')})`}
                             </div>
                         </div>
-                    </button>
-                )}
+                    </div>
+                </button>
 
                 {/* Pre-planned guests info */}
                 {guestCount > 0 && (
@@ -231,8 +222,7 @@ function StartEveningSheet({se, onClose, onStarted}: {
                 )}
 
                 <div className="flex gap-3 pt-1">
-                    <button className="btn-secondary flex-1" onClick={onClose}>{t('action.cancel')}</button>
-                    <button className="btn-primary flex-[2]" disabled={starting} onClick={doStart}>
+                    <button className="btn-primary w-full" disabled={starting} onClick={doStart}>
                         {starting ? t('action.loading') : t('schedule.start')}
                     </button>
                 </div>
@@ -278,11 +268,6 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
                     {se.note && <div className="text-xs text-kce-muted mt-0.5 italic truncate">{se.note}</div>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-                    {se.attending_count > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">
-                            ✅ {se.attending_count}
-                        </span>
-                    )}
                     {se.absent_count > 0 && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
                             ❌ {se.absent_count}
@@ -430,10 +415,7 @@ function ScheduleEditSheet({initial, defaultVenue, onClose, onSaved}: {
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
-                <div className="flex gap-2">
-                    <button type="button" className="btn-secondary flex-1" onClick={onClose}>{t('action.cancel')}</button>
-                    <button type="submit" className="btn-primary flex-[2]" disabled={saving || !date}>{t('action.save')}</button>
-                </div>
+                <button type="submit" className="btn-primary w-full" disabled={saving || !date}>{t('action.save')}</button>
             </div>
         </Sheet>
     )
@@ -785,12 +767,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </div>
-                    <div className="flex gap-2">
-                        <button type="button" className="btn-secondary flex-1"
-                                onClick={() => setBacklogSheet(false)}>{t('action.cancel')}</button>
-                        <button type="submit" className="btn-primary flex-[2]"
-                                disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
-                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
                 </div>
             </Sheet>
         </>
