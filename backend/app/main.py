@@ -80,5 +80,11 @@ if os.path.exists(static_dir):
     def serve_frontend(full_path: str):
         file_path = os.path.join(static_dir, full_path)
         if full_path and os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(static_dir, "index.html"))
+            resp = FileResponse(file_path)
+            # Service worker must never be stale — browser checks on every load
+            if full_path == "sw.js":
+                resp.headers["Cache-Control"] = "no-cache"
+            return resp
+        resp = FileResponse(os.path.join(static_dir, "index.html"))
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
