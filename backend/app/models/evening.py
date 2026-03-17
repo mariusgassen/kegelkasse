@@ -35,7 +35,7 @@ class Evening(Base):
     __tablename__ = "evening"
     id = Column(Integer, primary_key=True, index=True)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
-    date = Column(String, nullable=False)  # ISO YYYY-MM-DD
+    date = Column(DateTime(timezone=True), nullable=False)
     venue = Column(String, nullable=True)
     note = Column(Text, nullable=True)
     is_closed = Column(Boolean, default=False)  # true = archived in history

@@ -1,4 +1,5 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
+from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +18,17 @@ from models.user import User
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
 
+def _parse_scheduled_at(date_str: str, time_str: Optional[str]) -> datetime:
+    """Combine YYYY-MM-DD date and optional HH:MM time into a timezone-aware datetime (UTC, default 20:00)."""
+    t = time_str or "20:00"
+    try:
+        h, m = t.split(":")
+    except (ValueError, AttributeError):
+        h, m = "20", "00"
+    d = date_str[:10]
+    return datetime(int(d[:4]), int(d[5:7]), int(d[8:10]), int(h), int(m), 0, tzinfo=UTC)
+
+
 def _serialize_guest(g: ScheduledEveningGuest) -> dict:
     return {"id": g.id, "name": g.name, "regular_member_id": g.regular_member_id}
 
@@ -30,10 +42,11 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
             if r.regular_member_id == my_regular_member_id:
                 my_rsvp = r.status
                 break
+    sa_utc = se.scheduled_at.astimezone(UTC) if se.scheduled_at.tzinfo else se.scheduled_at.replace(tzinfo=UTC)
     return {
         "id": se.id,
-        "date": se.date,
-        "time": se.time,
+        "date": sa_utc.strftime('%Y-%m-%d'),
+        "time": sa_utc.strftime('%H:%M'),
         "venue": se.venue,
         "note": se.note,
         "created_at": se.created_at.isoformat() if se.created_at else None,
@@ -62,7 +75,7 @@ def list_scheduled_evenings(
 ):
     items = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == user.club_id,
-    ).order_by(ScheduledEvening.date).all()
+    ).order_by(ScheduledEvening.scheduled_at).all()
     return [_serialize_scheduled_evening(se, user.regular_member_id) for se in items]
 
 
@@ -79,15 +92,22 @@ def create_scheduled_evening(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
-    se = ScheduledEvening(club_id=user.club_id, created_by=user.id, **data.model_dump())
+    se = ScheduledEvening(
+        club_id=user.club_id,
+        created_by=user.id,
+        scheduled_at=_parse_scheduled_at(data.date, data.time),
+        venue=data.venue,
+        note=data.note,
+    )
     db.add(se)
     db.commit()
     db.refresh(se)
+    date_str = se.scheduled_at.astimezone(UTC).strftime('%d.%m.%Y')
     venue_str = f" · {se.venue}" if se.venue else ""
     push_to_club(
         db, user.club_id,
         "📅 Neuer Kegeltermin",
-        f"Kegelabend am {se.date}{venue_str} eingetragen.",
+        f"Kegelabend am {date_str}{venue_str} eingetragen.",
         f"/#schedule?event={se.id}",
         category="schedule",
     )
@@ -109,7 +129,13 @@ def update_scheduled_evening(
     user: User = Depends(require_club_admin),
 ):
     se = _get_se(sid, user.club_id, db)
-    for k, v in data.model_dump(exclude_none=True).items():
+    updates = data.model_dump(exclude_none=True)
+    if "date" in updates or "time" in updates:
+        current_utc = se.scheduled_at.astimezone(UTC)
+        new_date = updates.pop("date", current_utc.strftime('%Y-%m-%d'))
+        new_time = updates.pop("time", current_utc.strftime('%H:%M'))
+        updates["scheduled_at"] = _parse_scheduled_at(new_date, new_time)
+    for k, v in updates.items():
         setattr(se, k, v)
     db.commit()
     db.refresh(se)
@@ -189,7 +215,7 @@ def start_evening(
 
     ev = Evening(
         club_id=se.club_id,
-        date=se.date,
+        date=se.scheduled_at,
         venue=se.venue,
         note=se.note,
         scheduled_evening_id=se.id,
@@ -233,11 +259,12 @@ def start_evening(
         MemberRsvp.scheduled_evening_id == se.id,
         MemberRsvp.status == RsvpStatus.attending,
     ).all()
+    ev_date_str = ev.date.strftime('%d.%m.%Y')
     for rsvp in attending_rsvps:
         push_to_regular_member(db, rsvp.regular_member_id, "🎳 Kegelabend gestartet",
-                               f"Abend vom {ev.date} hat begonnen.", "/", category="evenings")
+                               f"Abend vom {ev_date_str} hat begonnen.", "/", category="evenings")
 
-    return {"id": ev.id, "date": ev.date, "venue": ev.venue}
+    return {"id": ev.id, "date": ev.date.isoformat(), "venue": ev.venue}
 
 
 # ── RSVP ──────────────────────────────────────────────────────────────────────
@@ -363,12 +390,13 @@ def send_reminder(
         RegularMember.is_guest == False,
         ~RegularMember.id.in_(responded_ids),
     ).all()
+    se_date_str = se.scheduled_at.astimezone(UTC).strftime('%d.%m.%Y')
     venue_str = f" ({se.venue})" if se.venue else ""
     for member in non_responders:
         push_to_regular_member(
             db, member.id,
             "🎳 Bist du dabei?",
-            f"Kegelabend am {se.date}{venue_str} — bitte melde dich an oder ab.",
+            f"Kegelabend am {se_date_str}{venue_str} — bitte melde dich an oder ab.",
             f"/#schedule?event={se.id}",
             category="schedule",
         )
@@ -417,14 +445,9 @@ def export_ical(token: str, db: Session = Depends(get_db)):
     if not club:
         raise HTTPException(404, "Club not found")
 
-    extra = club_settings.extra or {}
-    if isinstance(extra, str):
-        extra = json.loads(extra)
-    default_time = extra.get("default_evening_time") or "20:00"
-
     evenings = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == club.id,
-    ).order_by(ScheduledEvening.date).all()
+    ).order_by(ScheduledEvening.scheduled_at).all()
 
     lines: list[str] = [
         "BEGIN:VCALENDAR\r\n",
@@ -436,16 +459,12 @@ def export_ical(token: str, db: Session = Depends(get_db)):
     ]
 
     for se in evenings:
-        t = se.time or default_time
-        try:
-            h, m = t.split(":")
-            start_h = int(h)
-            start_m = int(m)
-        except (ValueError, AttributeError):
-            start_h, start_m = 20, 0
+        sa_utc = se.scheduled_at.astimezone(UTC)
+        start_h = sa_utc.hour
+        start_m = sa_utc.minute
         end_h = (start_h + 3) % 24
 
-        date_compact = se.date.replace("-", "")
+        date_compact = sa_utc.strftime('%Y%m%d')
         start_str = f"{date_compact}T{start_h:02d}{start_m:02d}00"
         end_str = f"{date_compact}T{end_h:02d}{start_m:02d}00"
 
