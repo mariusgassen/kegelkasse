@@ -6,8 +6,21 @@ import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
 import {VitePWA} from 'vite-plugin-pwa'
 import {fileURLToPath, URL} from 'node:url'
+import {execSync} from 'node:child_process'
+
+// Use git commit hash for cache busting; fall back to build timestamp in CI/Docker
+const buildHash: string = (() => {
+    try {
+        return execSync('git rev-parse --short HEAD').toString().trim()
+    } catch {
+        return Date.now().toString(36)
+    }
+})()
 
 export default defineConfig({
+    define: {
+        __BUILD_HASH__: JSON.stringify(buildHash),
+    },
     resolve: {alias: {'@': fileURLToPath(new URL('./src', import.meta.url))}},
     server: {
         proxy: {

@@ -7,6 +7,7 @@ import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
 declare const self: ServiceWorkerGlobalScope
+declare const __BUILD_HASH__: string
 
 // Take control immediately when a new SW version installs — prevents stale UI after deploy
 self.skipWaiting()
@@ -15,6 +16,23 @@ clientsClaim()
 // Precache & route injected by vite-plugin-pwa
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+
+// Delete caches from previous builds (cache names include build hash)
+self.addEventListener('activate', (event) => {
+    const currentCaches = new Set([
+        `google-fonts-${__BUILD_HASH__}`,
+        `api-cache-${__BUILD_HASH__}`,
+    ])
+    event.waitUntil(
+        caches.keys().then((keys) =>
+            Promise.all(
+                keys
+                    .filter((key) => (key.startsWith('google-fonts-') || key.startsWith('api-cache-')) && !currentCaches.has(key))
+                    .map((key) => caches.delete(key))
+            )
+        )
+    )
+})
 
 // SPA navigation fallback — exclude /docs so those routes reach the server
 registerRoute(
@@ -27,7 +45,7 @@ registerRoute(
 registerRoute(
     ({ url }) => url.origin === 'https://fonts.googleapis.com',
     new CacheFirst({
-        cacheName: 'google-fonts',
+        cacheName: `google-fonts-${__BUILD_HASH__}`,
         plugins: [new ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 })],
     })
 )
@@ -36,7 +54,7 @@ registerRoute(
 registerRoute(
     ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.endsWith('/events'),
     new NetworkFirst({
-        cacheName: 'api-cache',
+        cacheName: `api-cache-${__BUILD_HASH__}`,
         networkTimeoutSeconds: 5,
         plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 60 })],
     })
