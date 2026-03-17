@@ -15,7 +15,7 @@ from core.security import decode_token
 from core.database import get_db, AsyncSessionLocal
 from sqlalchemy import select
 from models.drink import DrinkRound, DrinkType
-from models.club import ClubSettings
+from models.club import ClubSettings, ClubPresident
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
@@ -49,6 +49,7 @@ def serialize_evening(e: Evening) -> dict:
                          "client_timestamp": l.client_timestamp}
                         for l in e.penalty_log if not l.is_deleted],
         "games": [{"id": g.id, "name": g.name, "is_opener": g.is_opener,
+                   "is_president_game": g.is_president_game,
                    "winner_type": g.winner_type, "winner_ref": g.winner_ref,
                    "winner_name": g.winner_name, "scores": g.scores,
                    "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "note": g.note,
@@ -463,6 +464,7 @@ class GameCreate(BaseModel):
     name: str
     template_id: Optional[int] = None
     is_opener: bool = False
+    is_president_game: bool = False
     winner_type: str = "either"
     loser_penalty: float = 0
     per_point_penalty: float = 0
@@ -480,6 +482,7 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
         name=data.name,
         template_id=data.template_id,
         is_opener=data.is_opener,
+        is_president_game=data.is_president_game,
         winner_type=WinnerType(data.winner_type),
         loser_penalty=data.loser_penalty,
         per_point_penalty=data.per_point_penalty,
@@ -581,6 +584,34 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
                 winner_player.is_king = True
         except (ValueError, IndexError):
             pass
+    # President: president-game with individual winner → upsert ClubPresident for this year
+    if g.is_president_game and data.winner_ref.startswith("p:"):
+        try:
+            winner_pid = int(data.winner_ref[2:])
+            winner_player = db.query(EveningPlayer).filter(EveningPlayer.id == winner_pid).first()
+            if winner_player:
+                year = int(e.date[:4])
+                existing = db.query(ClubPresident).filter(
+                    ClubPresident.club_id == e.club_id, ClubPresident.year == year
+                ).first()
+                if existing:
+                    existing.regular_member_id = winner_player.regular_member_id
+                    existing.name = winner_player.name
+                    existing.evening_id = e.id
+                    existing.game_id = g.id
+                    existing.determined_at = datetime.now(UTC)
+                else:
+                    db.add(ClubPresident(
+                        club_id=e.club_id,
+                        year=year,
+                        regular_member_id=winner_player.regular_member_id,
+                        name=winner_player.name,
+                        evening_id=e.id,
+                        game_id=g.id,
+                        determined_at=datetime.now(UTC),
+                    ))
+        except (ValueError, IndexError):
+            pass
     db.commit()
     return {"ok": True}
 
@@ -588,6 +619,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
 class GameUpdate(BaseModel):
     name: Optional[str] = None
     is_opener: Optional[bool] = None
+    is_president_game: Optional[bool] = None
     winner_type: Optional[str] = None
     loser_penalty: Optional[float] = None
     per_point_penalty: Optional[float] = None

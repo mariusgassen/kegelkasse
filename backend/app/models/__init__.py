@@ -1,5 +1,5 @@
 # Re-exported for Alembic autogenerate — imports register models with SQLAlchemy's mapper
-from models.club import Club, ClubSettings  # noqa: F401
+from models.club import Club, ClubSettings, ClubPresident, ClubPin  # noqa: F401
 from models.drink import DrinkRound  # noqa: F401
 from models.evening import Evening, EveningPlayer, Team  # noqa: F401
 from models.game import GameTemplate, Game  # noqa: F401

@@ -23,6 +23,7 @@ export interface ClubSettings {
     guest_penalty_cap: number | null
     paypal_me: string | null
     no_cancel_fee: number | null
+    pin_penalty: number | null
 }
 
 export type RsvpStatus = 'attending' | 'absent'
@@ -103,9 +104,29 @@ export interface GameTemplate {
     description: string | null
     winner_type: WinnerType
     is_opener: boolean
+    is_president_game: boolean
     default_loser_penalty: number
     per_point_penalty: number
     sort_order: number
+}
+
+export interface ClubPresident {
+    id: number
+    year: number
+    regular_member_id: number | null
+    name: string
+    evening_id: number | null
+    game_id: number | null
+    determined_at: string | null
+}
+
+export interface ClubPin {
+    id: number
+    name: string
+    icon: string
+    holder_regular_member_id: number | null
+    holder_name: string | null
+    assigned_at: string | null
 }
 
 export interface EveningPlayer {
@@ -143,6 +164,7 @@ export interface Game {
     name: string
     template_id: number | null
     is_opener: boolean
+    is_president_game: boolean
     winner_type: WinnerType
     winner_ref: string | null
     winner_name: string | null

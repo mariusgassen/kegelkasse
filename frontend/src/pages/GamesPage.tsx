@@ -39,6 +39,7 @@ export function GamesPage() {
     const [templateId, setTemplateId] = useState<number | null>(null)
     const [gameName, setGameName] = useState('')
     const [isOpener, setIsOpener] = useState(false)
+    const [isPresidentGame, setIsPresidentGame] = useState(false)
     const [winnerType, setWinnerType] = useState<WinnerType>('either')
     const [loserPenalty, setLoserPenalty] = useState('0')
     const [perPointPenalty, setPerPointPenalty] = useState('0')
@@ -54,6 +55,7 @@ export function GamesPage() {
     const [editTarget, setEditTarget] = useState<Game | null>(null)
     const [editName, setEditName] = useState('')
     const [editIsOpener, setEditIsOpener] = useState(false)
+    const [editIsPresidentGame, setEditIsPresidentGame] = useState(false)
     const [editWinnerType, setEditWinnerType] = useState<WinnerType>('either')
     const [editLoserPenalty, setEditLoserPenalty] = useState('0')
     const [editPerPointPenalty, setEditPerPointPenalty] = useState('0')
@@ -84,6 +86,7 @@ export function GamesPage() {
         setTemplateId(tid)
         setGameName(tmpl.name)
         setIsOpener(tmpl.is_opener && !hasOpener)
+        setIsPresidentGame(tmpl.is_president_game)
         setLoserPenalty(String(tmpl.default_loser_penalty))
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
         setWinnerType(tmpl.winner_type as WinnerType)
@@ -93,6 +96,7 @@ export function GamesPage() {
         setTemplateId(null);
         setGameName('');
         setIsOpener(false)
+        setIsPresidentGame(false)
         setWinnerType('either');
         setLoserPenalty('0');
         setPerPointPenalty('0');
@@ -111,6 +115,7 @@ export function GamesPage() {
         setEditTarget(game)
         setEditName(game.name)
         setEditIsOpener(game.is_opener)
+        setEditIsPresidentGame(game.is_president_game)
         setEditWinnerType(game.winner_type)
         setEditLoserPenalty(String(game.loser_penalty))
         setEditPerPointPenalty(String(game.per_point_penalty ?? 0))
@@ -140,6 +145,7 @@ export function GamesPage() {
                 name: gameName.trim(),
                 template_id: templateId ?? undefined,
                 is_opener: isOpener,
+                is_president_game: isPresidentGame,
                 winner_type: winnerType,
                 loser_penalty: parseAmount(loserPenalty),
                 per_point_penalty: parseAmount(perPointPenalty),
@@ -195,6 +201,7 @@ export function GamesPage() {
             await api.updateGame(evening!.id, editTarget.id, {
                 name: editName.trim() || undefined,
                 is_opener: editIsOpener,
+                is_president_game: editIsPresidentGame,
                 winner_type: editWinnerType,
                 loser_penalty: parseAmount(editLoserPenalty),
                 per_point_penalty: parseAmount(editPerPointPenalty),
@@ -241,7 +248,7 @@ export function GamesPage() {
                             <span
                                 className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[game.status] ?? 'bg-kce-muted'}`}/>
                             <span className="text-sm font-bold flex-1 truncate">
-                                {game.is_opener ? '👑 ' : ''}{game.name}
+                                {game.is_opener ? '👑 ' : ''}{game.is_president_game ? '🎯 ' : ''}{game.name}
                             </span>
                             {game.status === 'running' && game.started_at && (
                                 <span
@@ -317,7 +324,7 @@ export function GamesPage() {
                                     <button key={tmpl.id} type="button"
                                             className={`chip ${templateId === tmpl.id ? 'active' : ''}`}
                                             onClick={() => selectTemplate(tmpl.id)}>
-                                        {tmpl.is_opener ? '👑 ' : ''}{tmpl.name}
+                                        {tmpl.is_opener ? '👑 ' : ''}{tmpl.is_president_game ? '🎯 ' : ''}{tmpl.name}
                                     </button>
                                 ))}
                             </div>
@@ -345,6 +352,14 @@ export function GamesPage() {
                             {t('game.isOpener')}
                         </button>
                     )}
+
+                    {/* is_president_game toggle */}
+                    <button type="button"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${isPresidentGame ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-kce-border text-kce-muted'}`}
+                            onClick={() => setIsPresidentGame(v => !v)}>
+                        <span>{isPresidentGame ? '✓' : '+'}</span>
+                        {t('game.isPresidentGame')}
+                    </button>
 
                     {/* Winner type */}
                     <div>
@@ -555,6 +570,13 @@ export function GamesPage() {
                             {t('game.isOpener')}
                         </button>
                     )}
+
+                    <button type="button"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${editIsPresidentGame ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-kce-border text-kce-muted'}`}
+                            onClick={() => setEditIsPresidentGame(v => !v)}>
+                        <span>{editIsPresidentGame ? '✓' : '+'}</span>
+                        {t('game.isPresidentGame')}
+                    </button>
 
                     {/* Winner type */}
                     <div>
