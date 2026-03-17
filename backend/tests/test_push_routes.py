@@ -234,7 +234,7 @@ class TestTestPush:
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_VAPID_PRIVATE):
             with patch("api.v1.push.asyncio.sleep", return_value=None):
-                with patch("core.push._send_one") as mock_send:
+                with patch("core.push._send_one_raising") as mock_send:
                     r = client.post("/api/v1/push/test", headers=auth_headers)
 
         assert r.status_code == 200
