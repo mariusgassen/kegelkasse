@@ -16,7 +16,7 @@ from core.database import get_db, AsyncSessionLocal
 from sqlalchemy import select
 from models.drink import DrinkRound, DrinkType
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
-from models.game import Game, GameStatus, WinnerType
+from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
 from models.user import User
 

@@ -354,6 +354,7 @@ export const en = {
     "profile.wins": "Wins",
     "profile.beerRounds": "Beer rounds",
     "profile.docs": "📖 Documentation",
+    "profile.apiDocs": "⚙️ API Documentation",
     "profile.deleteAccount": "Delete account",
     "profile.deleteConfirm": "Really delete account? Statistics are preserved.",
     "profile.myBalance": "💳 My account",

@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Kegelkasse',
   tagline: 'Kegelclub-Verwaltung leicht gemacht',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   future: {
     v4: true,
@@ -101,7 +101,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `© ${new Date().getFullYear()} Kegelkasse. Erstellt mit Docusaurus.`,
+      copyright: `© 2026 Marius Gassen — Kegelkasse. Erstellt mit Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

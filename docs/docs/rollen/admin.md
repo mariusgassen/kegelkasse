@@ -150,3 +150,26 @@ Beim Erstellen eines Abends können diese Teams als Startvorlage geladen werden.
 ### Zahlung löschen
 
 Tippe auf eine Zahlung → **Löschen**
+
+---
+
+## PayPal.me konfigurieren
+
+Mitglieder können Schulden direkt per PayPal begleichen, wenn ein PayPal.me-Handle hinterlegt ist.
+
+1. **Verein → Einstellungen** → **PayPal.me Handle**
+2. Gib deinen PayPal.me-Benutzernamen ein (z. B. `meinverein`)
+3. Speichern
+
+Mitglieder sehen dann im Profil unter **Mein Konto** einen direkten PayPal-Link.
+
+---
+
+## Zahlungsanfragen bestätigen
+
+Wenn Mitglieder eine Zahlung über den PayPal-Link melden, erscheint diese als **Zahlungsanfrage**:
+
+1. Gehe zu **Kasse → Konten**
+2. Offene Anfragen erscheinen als ⏳-Badge beim jeweiligen Mitglied
+3. Tippe auf **Bestätigen** (✓) oder **Ablehnen** (✗)
+4. Bei Bestätigung wird der Saldo automatisch aktualisiert

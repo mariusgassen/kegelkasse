@@ -162,3 +162,21 @@ Im Profil findest du deine **persönlichen Jahresstatistiken**:
 :::caution
 Geschlossene Abende können in der Historie wieder geöffnet werden.
 :::
+
+---
+
+## Kontostand & Bezahlen
+
+Falls dein Verein Mitgliedskonten führt, siehst du im Profil unter **💳 Mein Konto** deinen aktuellen Saldo:
+
+- **Grün**: Du hast Guthaben
+- **Rot**: Du hast noch ausstehende Beträge
+
+### Per PayPal bezahlen
+
+Wenn der Admin einen PayPal.me-Link hinterlegt hat:
+
+1. Tippe auf **Jetzt per PayPal überweisen**
+2. Du wirst zu PayPal weitergeleitet
+3. Melde die Zahlung danach über **Zahlung melden**
+4. Der Admin bestätigt — dein Saldo wird aktualisiert

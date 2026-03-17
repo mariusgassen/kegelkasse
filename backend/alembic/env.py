@@ -1,12 +1,13 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-import os, sys
+import os
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.config import settings
 from core.database import Base
-import app.models  # noqa: registers all models with Base.metadata
+import app.models  # noqa: F401 — registers all models with Base.metadata for Alembic autogenerate
 
 config = context.config
 if config.config_file_name:

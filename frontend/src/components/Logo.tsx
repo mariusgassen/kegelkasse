@@ -1,22 +1,18 @@
-/** Kegelkasse squirrel logo — SVG faithful to the real logo's color split */
+/** Kegelkasse bowling pin logo — matches the app icon */
 export function AppLogo({size = 40}: { size?: number }) {
     return (
-        <svg width={size} height={size} viewBox="0 0 100 100" aria-label="Kegelkasse Logo">
-            <circle cx="50" cy="50" r="48" fill="#3d3540"/>
-            <path d="M2 50 A48 48 0 0 1 98 50 Z" fill="#6b7c5a"/>
-            <path d="M2 50 A48 48 0 0 0 98 50 Z" fill="#4a3c38"/>
-            <circle cx="50" cy="50" r="47" fill="none" stroke="#5a4d57" strokeWidth="1.5"/>
-            {/* Squirrel body */}
-            <ellipse cx="38" cy="52" rx="11" ry="14" fill="#b8401a"/>
-            <circle cx="38" cy="36" r="9" fill="#b8401a"/>
-            <ellipse cx="33" cy="28" rx="3" ry="5" fill="#b8401a"/>
-            <ellipse cx="43" cy="28" rx="3" ry="5" fill="#b8401a"/>
-            {/* Tail */}
-            <path d="M49 54 Q70 40 67 61 Q63 77 49 69 Z" fill="#c4501e"/>
-            {/* Bowling setup */}
-            <ellipse cx="70" cy="57" rx="5" ry="7" fill="#f5ede0"/>
-            <ellipse cx="70" cy="50" rx="3" ry="3" fill="#f5ede0"/>
-            <circle cx="62" cy="61" r="5.5" fill="#e8a020"/>
+        <svg width={size} height={size} viewBox="0 0 512 512" aria-label="Kegelkasse Logo">
+            <rect width="512" height="512" rx="110" fill="#3d3540"/>
+            {/* Bowling pin body */}
+            <ellipse cx="256" cy="330" rx="78" ry="96" fill="#e8c882"/>
+            {/* Bowling pin neck */}
+            <rect x="232" y="228" width="48" height="64" fill="#e8c882"/>
+            {/* Bowling pin head */}
+            <circle cx="256" cy="192" r="58" fill="#e8c882"/>
+            {/* Red stripe on body */}
+            <path d="M180,318 Q256,296 332,318" stroke="#c4701a" strokeWidth="14" fill="none" strokeLinecap="round"/>
+            {/* Red stripe on head */}
+            <path d="M204,192 Q256,178 308,192" stroke="#c4701a" strokeWidth="10" fill="none" strokeLinecap="round"/>
         </svg>
     )
 }
