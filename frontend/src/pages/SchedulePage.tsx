@@ -4,6 +4,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {useEveningList} from '@/hooks/useEvening.ts'
@@ -15,27 +16,28 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-function formatDate(date: string): string {
+function fDateLong(date: string) {
     return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
         weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
     })
 }
 
-function formatDateShort(date: string): string {
+function fDate(date: string) {
     return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
         day: '2-digit', month: '2-digit', year: 'numeric',
     })
 }
 
-// ── RSVP Buttons ──
-function RsvpButtons({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void }) {
+// ── RSVP Chip pair ────────────────────────────────────────────────────────────
+function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void }) {
     const t = useT()
     const [busy, setBusy] = useState(false)
 
-    async function set(status: RsvpStatus) {
+    async function toggle(status: RsvpStatus) {
         setBusy(true)
         try {
-            await api.setRsvp(se.id, status)
+            if (se.my_rsvp === status) await api.removeRsvp(se.id)
+            else await api.setRsvp(se.id, status)
             onUpdate()
         } catch (e) {
             toastError(e)
@@ -44,232 +46,79 @@ function RsvpButtons({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => voi
         }
     }
 
-    async function remove() {
-        setBusy(true)
-        try {
-            await api.removeRsvp(se.id)
-            onUpdate()
-        } catch (e) {
-            toastError(e)
-        } finally {
-            setBusy(false)
-        }
-    }
-
-    const current = se.my_rsvp
     return (
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2.5">
             <button
                 disabled={busy}
-                onClick={() => current === 'attending' ? remove() : set('attending')}
-                className="flex-1 text-xs py-1.5 px-2 rounded-lg font-semibold transition-all"
-                style={{
-                    background: current === 'attending' ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.07)',
-                    color: current === 'attending' ? '#4ade80' : 'var(--kce-muted)',
-                    border: current === 'attending' ? '1px solid rgba(74,222,128,0.4)' : '1px solid transparent',
-                }}>
+                onClick={() => toggle('attending')}
+                className={[
+                    'flex-1 text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
+                    se.my_rsvp === 'attending'
+                        ? 'bg-green-500/20 text-green-400 border-green-500/40'
+                        : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                ].join(' ')}>
                 {t('rsvp.attending.short')}
             </button>
             <button
                 disabled={busy}
-                onClick={() => current === 'absent' ? remove() : set('absent')}
-                className="flex-1 text-xs py-1.5 px-2 rounded-lg font-semibold transition-all"
-                style={{
-                    background: current === 'absent' ? 'rgba(248,113,113,0.2)' : 'rgba(255,255,255,0.07)',
-                    color: current === 'absent' ? '#f87171' : 'var(--kce-muted)',
-                    border: current === 'absent' ? '1px solid rgba(248,113,113,0.4)' : '1px solid transparent',
-                }}>
+                onClick={() => toggle('absent')}
+                className={[
+                    'flex-1 text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
+                    se.my_rsvp === 'absent'
+                        ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                        : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                ].join(' ')}>
                 {t('rsvp.absent.short')}
             </button>
         </div>
     )
 }
 
-// ── RSVP Detail Sheet (admin) ──
-function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void }) {
-    const t = useT()
-    const qc = useQueryClient()
-    const {data: rsvps, isLoading} = useQuery<RsvpEntry[]>({
-        queryKey: ['rsvps', se.id],
-        queryFn: () => api.listRsvps(se.id),
-        staleTime: 10000,
-    })
-    const [sendingReminder, setSendingReminder] = useState(false)
-
-    async function handleRemind() {
-        setSendingReminder(true)
-        try {
-            const res = await api.sendReminder(se.id)
-            showToast(`${t('schedule.reminded')} (${res.reminded_count})`)
-        } catch (e) {
-            toastError(e)
-        } finally {
-            setSendingReminder(false)
-        }
-    }
-
-    async function handleSetRsvpForMember(mid: number, status: RsvpStatus) {
-        try {
-            await api.setRsvpForMember(se.id, mid, status)
-            qc.invalidateQueries({queryKey: ['rsvps', se.id]})
-            qc.invalidateQueries({queryKey: ['schedule']})
-        } catch (e) {
-            toastError(e)
-        }
-    }
-
-    const attending = rsvps?.filter(r => r.status === 'attending') ?? []
-    const absent = rsvps?.filter(r => r.status === 'absent') ?? []
-    const noResponse = rsvps?.filter(r => r.status === null) ?? []
-
-    return (
-        <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${formatDate(se.date)}`}>
-            <div className="space-y-4">
-                {isLoading && <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>}
-                {!isLoading && rsvps && (
-                    <>
-                        {attending.length > 0 && (
-                            <div>
-                                <div className="text-xs font-semibold text-kce-muted mb-2 uppercase tracking-wider">
-                                    ✅ {t('schedule.attending')} ({attending.length})
-                                </div>
-                                <div className="space-y-1">
-                                    {attending.map(r => (
-                                        <div key={r.regular_member_id}
-                                             className="flex items-center justify-between text-sm px-3 py-2 rounded-lg"
-                                             style={{background: 'rgba(74,222,128,0.08)'}}>
-                                            <span className="text-kce-cream">
-                                                {r.name}{r.nickname ? ` · ${r.nickname}` : ''}
-                                            </span>
-                                            <button className="text-xs text-kce-muted active:opacity-60"
-                                                    onClick={() => handleSetRsvpForMember(r.regular_member_id, 'absent')}>
-                                                → {t('rsvp.absent.short')}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {absent.length > 0 && (
-                            <div>
-                                <div className="text-xs font-semibold text-kce-muted mb-2 uppercase tracking-wider">
-                                    ❌ {t('schedule.absent')} ({absent.length})
-                                </div>
-                                <div className="space-y-1">
-                                    {absent.map(r => (
-                                        <div key={r.regular_member_id}
-                                             className="flex items-center justify-between text-sm px-3 py-2 rounded-lg"
-                                             style={{background: 'rgba(248,113,113,0.08)'}}>
-                                            <span className="text-kce-cream">
-                                                {r.name}{r.nickname ? ` · ${r.nickname}` : ''}
-                                            </span>
-                                            <button className="text-xs text-kce-muted active:opacity-60"
-                                                    onClick={() => handleSetRsvpForMember(r.regular_member_id, 'attending')}>
-                                                → {t('rsvp.attending.short')}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {noResponse.length > 0 && (
-                            <div>
-                                <div className="text-xs font-semibold text-kce-muted mb-2 uppercase tracking-wider">
-                                    ⏳ {t('schedule.noResponse')} ({noResponse.length})
-                                </div>
-                                <div className="space-y-1">
-                                    {noResponse.map(r => (
-                                        <div key={r.regular_member_id}
-                                             className="flex items-center justify-between text-sm px-3 py-2 rounded-lg"
-                                             style={{background: 'rgba(255,255,255,0.04)'}}>
-                                            <span className="text-kce-muted">
-                                                {r.name}{r.nickname ? ` · ${r.nickname}` : ''}
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <button className="text-xs text-kce-muted active:opacity-60"
-                                                        onClick={() => handleSetRsvpForMember(r.regular_member_id, 'attending')}>
-                                                    {t('rsvp.attending.short')}
-                                                </button>
-                                                <button className="text-xs text-kce-muted active:opacity-60"
-                                                        onClick={() => handleSetRsvpForMember(r.regular_member_id, 'absent')}>
-                                                    {t('rsvp.absent.short')}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {noResponse.length > 0 && (
-                            <button className="w-full btn-secondary text-sm" disabled={sendingReminder}
-                                    onClick={handleRemind}>
-                                {sendingReminder ? t('action.loading') : t('schedule.remind')}
-                            </button>
-                        )}
-                    </>
-                )}
-            </div>
-        </Sheet>
-    )
-}
-
-// ── Scheduled Evening Card (upcoming) ──
-function UpcomingCard({
-    se, onEdit, onDelete, onViewRsvps, onRsvpUpdate, isAdminUser,
-}: {
+// ── Upcoming scheduled evening card ──────────────────────────────────────────
+function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpdate}: {
     se: ScheduledEvening
+    isAdminUser: boolean
     onEdit: () => void
     onDelete: () => void
     onViewRsvps: () => void
     onRsvpUpdate: () => void
-    isAdminUser: boolean
 }) {
     const t = useT()
     return (
-        <div className="rounded-xl p-3"
-             style={{background: 'var(--kce-surface)', border: '1px solid var(--kce-border)'}}>
-            <div className="flex items-start justify-between gap-2">
+        <div className="kce-card p-3 mb-2">
+            <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-kce-cream text-sm leading-tight">
-                        📅 {formatDate(se.date)}
-                    </div>
+                    <div className="text-sm font-bold text-kce-cream">{fDateLong(se.date)}</div>
                     {se.venue && <div className="text-xs text-kce-muted mt-0.5 truncate">🏠 {se.venue}</div>}
-                    {se.note && <div className="text-xs text-kce-muted mt-0.5 truncate italic">{se.note}</div>}
+                    {se.note && <div className="text-xs text-kce-muted mt-0.5 italic truncate">{se.note}</div>}
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+
+                <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                     {se.attending_count > 0 && (
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-                              style={{background: 'rgba(74,222,128,0.15)', color: '#4ade80'}}>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400">
                             ✅ {se.attending_count}
                         </span>
                     )}
                     {se.absent_count > 0 && (
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-                              style={{background: 'rgba(248,113,113,0.15)', color: '#f87171'}}>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
                             ❌ {se.absent_count}
                         </span>
                     )}
                     {isAdminUser && (
-                        <div className="flex gap-1">
-                            <button className="w-7 h-7 flex items-center justify-center rounded-full text-kce-muted active:opacity-60 text-xs"
-                                    style={{background: 'rgba(255,255,255,0.07)'}}
-                                    onClick={onViewRsvps}>👥</button>
-                            <button className="w-7 h-7 flex items-center justify-center rounded-full text-kce-muted active:opacity-60 text-xs"
-                                    style={{background: 'rgba(255,255,255,0.07)'}}
-                                    onClick={onEdit}>✏️</button>
-                            <button className="w-7 h-7 flex items-center justify-center rounded-full active:opacity-60 text-xs"
-                                    style={{background: 'rgba(239,68,68,0.15)', color: '#ef4444'}}
-                                    onClick={onDelete}>✕</button>
-                        </div>
+                        <>
+                            <button className="btn-secondary btn-xs" title={t('schedule.rsvpTitle')} onClick={onViewRsvps}>👥</button>
+                            <button className="btn-secondary btn-xs" onClick={onEdit}>✏️</button>
+                            <button className="btn-danger btn-xs" onClick={onDelete}>✕</button>
+                        </>
                     )}
                 </div>
             </div>
-            <RsvpButtons se={se} onUpdate={onRsvpUpdate}/>
+            <RsvpChips se={se} onUpdate={onRsvpUpdate}/>
         </div>
     )
 }
 
-// ── Schedule Edit/Create Sheet ──
+// ── Schedule edit / create sheet ──────────────────────────────────────────────
 function ScheduleEditSheet({initial, onClose, onSaved}: {
     initial?: ScheduledEvening
     onClose: () => void
@@ -285,11 +134,8 @@ function ScheduleEditSheet({initial, onClose, onSaved}: {
         if (!date) return
         setSaving(true)
         try {
-            if (initial) {
-                await api.updateScheduledEvening(initial.id, {date, venue: venue || undefined, note: note || undefined})
-            } else {
-                await api.createScheduledEvening({date, venue: venue || undefined, note: note || undefined})
-            }
+            if (initial) await api.updateScheduledEvening(initial.id, {date, venue: venue || undefined, note: note || undefined})
+            else await api.createScheduledEvening({date, venue: venue || undefined, note: note || undefined})
             onSaved()
             onClose()
         } catch (e) {
@@ -301,30 +147,142 @@ function ScheduleEditSheet({initial, onClose, onSaved}: {
 
     return (
         <Sheet open onClose={onClose} title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
                 <div>
-                    <label className="label">{t('schedule.date')}</label>
-                    <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} required/>
+                    <label className="field-label">{t('schedule.date')}</label>
+                    <input type="date" className="kce-input" value={date} onChange={e => setDate(e.target.value)} required/>
                 </div>
                 <div>
-                    <label className="label">{t('schedule.venue')}</label>
-                    <input type="text" className="input" placeholder={t('evening.venuePlaceholder')}
+                    <label className="field-label">{t('schedule.venue')}</label>
+                    <input type="text" className="kce-input" placeholder={t('evening.venuePlaceholder')}
                            value={venue} onChange={e => setVenue(e.target.value)}/>
                 </div>
                 <div>
-                    <label className="label">{t('schedule.note')}</label>
-                    <input type="text" className="input" placeholder={t('common.optional')}
+                    <label className="field-label">{t('schedule.note')}</label>
+                    <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
-                <button type="submit" className="btn-primary w-full" disabled={saving || !date}>
-                    {saving ? t('action.saving') : t('action.save')}
-                </button>
+                <div className="flex gap-2">
+                    <button type="button" className="btn-secondary flex-1" onClick={onClose}>{t('action.cancel')}</button>
+                    <button type="submit" className="btn-primary flex-[2]" disabled={saving || !date}>{t('action.save')}</button>
+                </div>
             </div>
         </Sheet>
     )
 }
 
-// ── History Section (closed actual evenings) ──
+// ── RSVP admin detail sheet ───────────────────────────────────────────────────
+function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void }) {
+    const t = useT()
+    const qc = useQueryClient()
+    const {data: rsvps, isLoading} = useQuery<RsvpEntry[]>({
+        queryKey: ['rsvps', se.id],
+        queryFn: () => api.listRsvps(se.id),
+        staleTime: 10000,
+    })
+    const [sendingReminder, setSendingReminder] = useState(false)
+
+    async function remind() {
+        setSendingReminder(true)
+        try {
+            const res = await api.sendReminder(se.id)
+            showToast(`${t('schedule.reminded')} (${res.reminded_count})`)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSendingReminder(false)
+        }
+    }
+
+    async function setFor(mid: number, status: RsvpStatus) {
+        try {
+            await api.setRsvpForMember(se.id, mid, status)
+            qc.invalidateQueries({queryKey: ['rsvps', se.id]})
+            qc.invalidateQueries({queryKey: ['schedule']})
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    const attending = rsvps?.filter(r => r.status === 'attending') ?? []
+    const absent = rsvps?.filter(r => r.status === 'absent') ?? []
+    const noResponse = rsvps?.filter(r => r.status === null) ?? []
+
+    function RsvpRow({r, otherLabel, onSwitch}: {
+        r: RsvpEntry; otherLabel: string; onSwitch: () => void
+    }) {
+        return (
+            <div className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
+                <span className="flex-1 text-sm text-kce-cream truncate">
+                    {r.name}{r.nickname ? <span className="text-kce-muted"> · {r.nickname}</span> : ''}
+                </span>
+                <button className="btn-secondary btn-xs" onClick={onSwitch}>→ {otherLabel}</button>
+            </div>
+        )
+    }
+
+    return (
+        <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${fDateLong(se.date)}`}>
+            <div className="space-y-4">
+                {isLoading && <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>}
+                {!isLoading && rsvps && (
+                    <>
+                        {attending.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                    ✅ {t('schedule.attending')} ({attending.length})
+                                </div>
+                                {attending.map(r => (
+                                    <RsvpRow key={r.regular_member_id} r={r} otherLabel={t('rsvp.absent.short')}
+                                             onSwitch={() => setFor(r.regular_member_id, 'absent')}/>
+                                ))}
+                            </div>
+                        )}
+                        {absent.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                    ❌ {t('schedule.absent')} ({absent.length})
+                                </div>
+                                {absent.map(r => (
+                                    <RsvpRow key={r.regular_member_id} r={r} otherLabel={t('rsvp.attending.short')}
+                                             onSwitch={() => setFor(r.regular_member_id, 'attending')}/>
+                                ))}
+                            </div>
+                        )}
+                        {noResponse.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                    ⏳ {t('schedule.noResponse')} ({noResponse.length})
+                                </div>
+                                {noResponse.map(r => (
+                                    <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
+                                        <span className="flex-1 text-sm text-kce-muted truncate">
+                                            {r.name}{r.nickname ? ` · ${r.nickname}` : ''}
+                                        </span>
+                                        <button className="btn-secondary btn-xs"
+                                                onClick={() => setFor(r.regular_member_id, 'attending')}>
+                                            {t('rsvp.attending.short')}
+                                        </button>
+                                        <button className="btn-secondary btn-xs"
+                                                onClick={() => setFor(r.regular_member_id, 'absent')}>
+                                            {t('rsvp.absent.short')}
+                                        </button>
+                                    </div>
+                                ))}
+                                <button className="btn-secondary w-full mt-2 text-sm" disabled={sendingReminder}
+                                        onClick={remind}>
+                                    {sendingReminder ? t('action.loading') : t('schedule.remind')}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </Sheet>
+    )
+}
+
+// ── History section (closed actual evenings) ──────────────────────────────────
 function HistorySection({onNavigate}: { onNavigate?: () => void }) {
     const t = useT()
     const qc = useQueryClient()
@@ -336,7 +294,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
-    const [backlogDate, setBacklogDate] = useState(() => TODAY)
+    const [backlogDate, setBacklogDate] = useState(TODAY)
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
 
@@ -344,7 +302,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
         queryKey: ['evening', expandedId],
         queryFn: () => expandedId ? api.getEvening(expandedId) : null,
         enabled: !!expandedId,
-        staleTime: 1000 * 60,
+        staleTime: 60000,
     })
 
     const q = search.trim().toLowerCase()
@@ -394,29 +352,27 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
 
     return (
         <>
-            <div className="flex items-center justify-between mt-6 mb-3">
-                <div className="text-xs font-semibold text-kce-muted uppercase tracking-wider">
-                    📚 {t('history.title')}
-                </div>
+            <div className="sec-heading mt-5">📚 {t('history.title')}</div>
+
+            <div className="flex gap-2 mb-3">
+                <input className="kce-input flex-1" value={search} onChange={e => setSearch(e.target.value)}
+                       placeholder={t('history.search')}/>
                 {isAdmin(user) && (
-                    <button className="text-xs text-kce-muted active:opacity-60 font-semibold"
+                    <button className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                             onClick={() => {
                                 setBacklogDate(TODAY)
                                 setBacklogVenue('')
                                 setBacklogSheet(true)
                             }}>
-                        {t('history.backlog')}
+                        + {t('history.backlog')}
                     </button>
                 )}
             </div>
 
-            <input className="kce-input mb-3" value={search} onChange={e => setSearch(e.target.value)}
-                   placeholder={t('history.search')}/>
-
             {isLoading
                 ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
                 : closed.length === 0
-                    ? <p className="text-kce-muted text-sm text-center py-4">{t('history.none')}</p>
+                    ? <Empty icon="📚" text={t('history.none')}/>
                     : closed.map(ev => {
                         const isExpanded = expandedId === ev.id
                         const detail = isExpanded ? expandedEvening : null
@@ -424,19 +380,21 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                             <div key={ev.id} className="kce-card mb-2 overflow-hidden">
                                 <button className="w-full p-3 flex items-center gap-3 text-left"
                                         onClick={() => setExpandedId(isExpanded ? null : ev.id)}>
-                                    <span className="text-lg">📅</span>
+                                    <span className="text-base">📅</span>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold">{formatDateShort(ev.date)}</div>
+                                        <div className="text-sm font-bold">{fDate(ev.date)}</div>
                                         <div className="text-xs text-kce-muted">
                                             {ev.venue ?? '–'} · {ev.player_count} {t('history.players')}
                                         </div>
                                     </div>
                                     <span className="text-kce-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
                                 </button>
+
                                 {isExpanded && (
                                     <div className="border-t border-kce-border px-3 pb-3 pt-2">
                                         {detail ? (
                                             <>
+                                                {/* Stats */}
                                                 <div className="flex gap-4 mb-3 text-sm">
                                                     <div>
                                                         <div className="text-xs text-kce-muted">{t('history.players')}</div>
@@ -453,6 +411,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                {/* Players */}
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
@@ -468,6 +428,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                                         </div>
                                                     </div>
                                                 )}
+
+                                                {/* Games */}
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
@@ -482,27 +444,32 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                                         ))}
                                                     </div>
                                                 )}
+
+                                                {/* Penalties per player */}
                                                 {detail.penalty_log.length > 0 && (() => {
                                                     const totals = new Map<string, { name: string; amount: number }>()
                                                     for (const l of detail.penalty_log) {
                                                         const cur = totals.get(l.player_name) ?? {name: l.player_name, amount: 0}
                                                         totals.set(l.player_name, {...cur, amount: cur.amount + (l.mode === 'euro' ? l.amount : 0)})
                                                     }
-                                                    const sorted = [...totals.values()].sort((a, b) => b.amount - a.amount)
                                                     return (
                                                         <div className="mb-3">
                                                             <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('penalty.title')}
                                                             </div>
-                                                            {sorted.map(({name, amount}) => (
-                                                                <div key={name} className="flex items-center justify-between py-0.5">
-                                                                    <span className="text-xs text-kce-cream">{name}</span>
-                                                                    <span className="text-xs text-red-400 font-bold">{fe(amount)}</span>
-                                                                </div>
-                                                            ))}
+                                                            {[...totals.values()]
+                                                                .sort((a, b) => b.amount - a.amount)
+                                                                .map(({name, amount}) => (
+                                                                    <div key={name} className="flex items-center justify-between py-0.5">
+                                                                        <span className="text-xs text-kce-cream">{name}</span>
+                                                                        <span className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                    </div>
+                                                                ))}
                                                         </div>
                                                     )
                                                 })()}
+
+                                                {/* Drinks */}
                                                 {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1">
@@ -516,6 +483,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                                         </div>
                                                     </div>
                                                 )}
+
+                                                {/* Admin actions */}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
                                                         <button className="btn-secondary btn-sm flex-1"
@@ -525,9 +494,12 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                                         {confirmDeleteId === ev.id ? (
                                                             <div className="flex gap-1 flex-1">
                                                                 <button className="btn-danger btn-sm flex-1"
-                                                                        onClick={() => doDelete(ev.id)}>✓ {t('action.delete')}</button>
+                                                                        onClick={() => doDelete(ev.id)}>
+                                                                    ✓ {t('action.delete')}
+                                                                </button>
                                                                 <button className="btn-secondary btn-sm"
-                                                                        onClick={() => setConfirmDeleteId(null)}>✕</button>
+                                                                        onClick={() => setConfirmDeleteId(null)}>✕
+                                                                </button>
                                                             </div>
                                                         ) : (
                                                             <button className="btn-danger btn-sm flex-1"
@@ -563,7 +535,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </div>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-2">
                         <button type="button" className="btn-secondary flex-1"
                                 onClick={() => setBacklogSheet(false)}>{t('action.cancel')}</button>
                         <button type="submit" className="btn-primary flex-[2]"
@@ -575,14 +547,14 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
     )
 }
 
-// ── Main Page ──
+// ── Main page ─────────────────────────────────────────────────────────────────
 export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const isAdminUser = isAdmin(user)
 
-    const {data: schedules, isLoading: schedulesLoading} = useQuery<ScheduledEvening[]>({
+    const {data: schedules, isLoading} = useQuery<ScheduledEvening[]>({
         queryKey: ['schedule'],
         queryFn: api.listScheduledEvenings,
         staleTime: 30000,
@@ -592,65 +564,62 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [rsvpSheet, setRsvpSheet] = useState<ScheduledEvening | null>(null)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
+    function invalidate() {
+        qc.invalidateQueries({queryKey: ['schedule']})
+    }
+
     async function handleDelete(id: number) {
         try {
             await api.deleteScheduledEvening(id)
-            qc.invalidateQueries({queryKey: ['schedule']})
+            invalidate()
             setConfirmDeleteId(null)
         } catch (e) {
             toastError(e)
         }
     }
 
-    function invalidateSchedule() {
-        qc.invalidateQueries({queryKey: ['schedule']})
-    }
-
     const upcoming = (schedules ?? []).filter(s => s.date >= TODAY)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
-            {/* ── Upcoming scheduled evenings ── */}
-            <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-semibold text-kce-muted uppercase tracking-wider">
-                    {t('schedule.upcoming')}
-                </div>
+
+            {/* ── Upcoming ── */}
+            <div className="flex items-center justify-between mb-0">
+                <div className="sec-heading flex-1">📅 {t('schedule.upcoming')}</div>
                 {isAdminUser && (
-                    <button className="text-xs text-kce-muted active:opacity-60 font-semibold"
+                    <button className="btn-secondary btn-xs ml-2 mb-3 flex-shrink-0"
                             onClick={() => setEditSheet('new')}>
                         + {t('schedule.add')}
                     </button>
                 )}
             </div>
 
-            {schedulesLoading
+            {isLoading
                 ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
                 : upcoming.length === 0
-                    ? <p className="text-kce-muted text-sm text-center py-4">{t('schedule.none')}</p>
-                    : <div className="space-y-2">
-                        {upcoming.map(se => (
-                            <UpcomingCard
-                                key={se.id}
-                                se={se}
-                                isAdminUser={isAdminUser}
-                                onEdit={() => setEditSheet(se)}
-                                onDelete={() => setConfirmDeleteId(se.id)}
-                                onViewRsvps={() => setRsvpSheet(se)}
-                                onRsvpUpdate={invalidateSchedule}
-                            />
-                        ))}
-                    </div>
+                    ? <Empty icon="📅" text={t('schedule.none')}/>
+                    : upcoming.map(se => (
+                        <UpcomingCard
+                            key={se.id}
+                            se={se}
+                            isAdminUser={isAdminUser}
+                            onEdit={() => setEditSheet(se)}
+                            onDelete={() => setConfirmDeleteId(se.id)}
+                            onViewRsvps={() => setRsvpSheet(se)}
+                            onRsvpUpdate={invalidate}
+                        />
+                    ))
             }
 
-            {/* ── Past actual evenings (history) ── */}
+            {/* ── History ── */}
             <HistorySection onNavigate={onNavigate}/>
 
-            {/* Sheets */}
+            {/* ── Sheets ── */}
             {editSheet !== null && (
                 <ScheduleEditSheet
                     initial={editSheet === 'new' ? undefined : editSheet}
                     onClose={() => setEditSheet(null)}
-                    onSaved={invalidateSchedule}
+                    onSaved={invalidate}
                 />
             )}
             {rsvpSheet && <RsvpSheet se={rsvpSheet} onClose={() => setRsvpSheet(null)}/>}
