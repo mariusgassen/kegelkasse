@@ -411,7 +411,7 @@ export function ProtocolPage() {
                         <button key={g.id}
                                 className={`chip ${filterGame === g.id ? 'active' : ''}`}
                                 onClick={() => setFilterGame(filterGame === g.id ? null : g.id)}>
-                            🏆 {g.template_name || `${t('game.game')} ${i + 1}`}
+                            🏆 {g.name || `${t('game.game')} ${i + 1}`}
                         </button>
                     ))}
                     {hasManualPenalties && (
