@@ -388,7 +388,7 @@ export const de = {
     "schedule.venue": "Lokal",
     "schedule.note": "Notiz",
     "schedule.attending": "Zusagen",
-    "schedule.absent": "Absagen",
+    "schedule.absent": "Abgesagt",
     "schedule.noResponse": "Keine Meldung",
     "schedule.rsvpTitle": "Anmeldungen",
     "schedule.remind": "📣 Erinnerung senden",

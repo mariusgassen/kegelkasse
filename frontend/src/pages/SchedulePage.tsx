@@ -70,29 +70,17 @@ function AddGuestForm({se, onAdded, onCancel}: {
     const t = useT()
     const regularMembers = useAppStore(s => s.regularMembers)
     const knownGuests = regularMembers.filter(m => m.is_guest)
+    // Filter out guests already in the scheduled evening
+    const alreadyAdded = new Set(se.guests.map(g => g.regular_member_id).filter(Boolean))
+    const availableKnownGuests = knownGuests.filter(m => !alreadyAdded.has(m.id))
 
     const [name, setName] = useState('')
     const [matchedId, setMatchedId] = useState<number | null>(null)
-    const [showSuggestions, setShowSuggestions] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    const suggestions = name.trim().length > 0
-        ? knownGuests.filter(m => {
-            const q = name.toLowerCase()
-            return (m.nickname ?? '').toLowerCase().includes(q) || m.name.toLowerCase().includes(q)
-        })
-        : []
-
-    function pickSuggestion(m: typeof knownGuests[0]) {
+    function pickKnown(m: RegularMember) {
         setName(m.nickname || m.name)
         setMatchedId(m.id)
-        setShowSuggestions(false)
-    }
-
-    function handleChange(val: string) {
-        setName(val)
-        setMatchedId(null)
-        setShowSuggestions(true)
     }
 
     async function submit() {
@@ -113,35 +101,44 @@ function AddGuestForm({se, onAdded, onCancel}: {
 
     return (
         <div className="mt-2 p-2.5 rounded-lg bg-kce-bg border border-kce-border space-y-2">
-            <div className="relative">
+            {/* Known guest chips */}
+            {availableKnownGuests.length > 0 && (
+                <div>
+                    <div className="text-[10px] text-kce-muted font-bold uppercase tracking-wider mb-1">
+                        {t('player.knownGuests')}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {availableKnownGuests.map(m => (
+                            <button
+                                key={m.id}
+                                type="button"
+                                className={`chip ${matchedId === m.id ? 'active' : ''}`}
+                                onClick={() => pickKnown(m)}
+                            >
+                                {m.nickname || m.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {/* New guest name input */}
+            <div>
+                {availableKnownGuests.length > 0 && (
+                    <div className="text-[10px] text-kce-muted font-bold uppercase tracking-wider mb-1">
+                        {t('player.newGuest')}
+                    </div>
+                )}
                 <input
                     className="kce-input"
                     placeholder={t('schedule.guestName')}
                     value={name}
-                    onChange={e => handleChange(e.target.value)}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
-                    autoFocus
+                    onChange={e => { setName(e.target.value); setMatchedId(null) }}
+                    autoFocus={availableKnownGuests.length === 0}
                 />
-                {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-20 left-0 right-0 top-full mt-0.5 rounded-lg bg-kce-surface border border-kce-border shadow-lg overflow-hidden">
-                        {suggestions.map(m => (
-                            <button
-                                key={m.id}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-kce-surface2 text-kce-cream flex items-center gap-2"
-                                onMouseDown={() => pickSuggestion(m)}
-                            >
-                                <span className="text-kce-muted text-xs">★</span>
-                                {m.nickname || m.name}
-                                {m.nickname && <span className="text-kce-muted text-xs">({m.name})</span>}
-                            </button>
-                        ))}
-                    </div>
+                {matchedId && (
+                    <p className="text-[10px] text-green-400 mt-1">✓ {t('schedule.guestKnown')}</p>
                 )}
             </div>
-            {matchedId && (
-                <p className="text-[10px] text-green-400">✓ {t('schedule.guestKnown')}</p>
-            )}
             <div className="flex gap-2">
                 <button className="btn-secondary btn-sm flex-1" onClick={onCancel}>{t('action.cancel')}</button>
                 <button className="btn-primary btn-sm flex-1" disabled={saving || !name.trim()} onClick={submit}>

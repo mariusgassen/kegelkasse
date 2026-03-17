@@ -261,6 +261,8 @@ export const api = {
     deletePenalty: (eid: number, lid: number) => request<void>('DELETE', `/evening/${eid}/penalties/${lid}`),
     calculateAbsencePenalties: (eid: number) =>
         request<{ avg: number; absent_count: number }>('POST', `/evening/${eid}/absence-penalties`),
+    markCancelled: (eid: number, member_ids: number[]) =>
+        request<{ ok: boolean; count: number }>('POST', `/evening/${eid}/mark-cancelled`, {member_ids}),
 
     // Games
     addGame: (eid: number, d: {

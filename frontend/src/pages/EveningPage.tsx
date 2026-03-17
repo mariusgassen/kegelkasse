@@ -591,17 +591,49 @@ function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, 
 }) {
     const t = useT()
     const activeMembers = regularMembers.filter((m: RegularMember) => !m.is_guest && m.is_active)
+    const knownGuests = regularMembers.filter((m: RegularMember) => m.is_guest)
     const myId = user?.regular_member_id
 
     const [checkedIds, setCheckedIds] = useState<Set<number>>(
         () => new Set(activeMembers.map((m: RegularMember) => m.id)),
     )
+    // Members who explicitly cancelled (abgesagt) — subset of unchecked members
+    const [abgesagtIds, setAbgesagtIds] = useState<Set<number>>(new Set())
+    // Known guests selected as players
+    const [selectedGuestIds, setSelectedGuestIds] = useState<Set<number>>(new Set())
     const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
     const [guestName, setGuestName] = useState('')
     const [saving, setSaving] = useState(false)
 
     function toggleMember(id: number) {
         setCheckedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+                // If re-checked, remove from abgesagt
+                setAbgesagtIds(prev2 => {
+                    const n2 = new Set(prev2)
+                    n2.delete(id)
+                    return n2
+                })
+            }
+            return next
+        })
+    }
+
+    function toggleAbgesagt(id: number) {
+        setAbgesagtIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    function toggleGuest(id: number) {
+        setSelectedGuestIds(prev => {
             const next = new Set(prev)
             if (next.has(id)) next.delete(id)
             else next.add(id)
@@ -632,11 +664,19 @@ function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, 
                 const rm = regularMembers.find((r: RegularMember) => r.id === id)
                 if (rm) adds.push(api.addPlayer(eveningId, {name: rm.nickname || rm.name, regular_member_id: rm.id}))
             }
+            for (const id of selectedGuestIds) {
+                const rm = regularMembers.find((r: RegularMember) => r.id === id)
+                if (rm) adds.push(api.addPlayer(eveningId, {name: rm.nickname || rm.name, regular_member_id: rm.id}))
+            }
             if (guestName.trim()) {
                 const saved = await api.createRegularMember({name: guestName.trim(), is_guest: true})
                 adds.push(api.addPlayer(eveningId, {name: saved.name, regular_member_id: saved.id}))
             }
             await Promise.all(adds)
+            // Record explicitly cancelled members so absence-penalty calc can distinguish them
+            if (abgesagtIds.size > 0) {
+                await api.markCancelled(eveningId, Array.from(abgesagtIds))
+            }
             if (missingPinIds.size > 0 && pinPenalty > 0) {
                 const eveningData = await api.getEvening(eveningId)
                 for (const pinId of missingPinIds) {
@@ -675,37 +715,72 @@ function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, 
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
                         {sortedMembers.map((m: RegularMember) => {
                             const isChecked = checkedIds.has(m.id)
+                            const isAbgesagt = abgesagtIds.has(m.id)
                             return (
-                                <button
+                                <div
                                     key={m.id}
-                                    onClick={() => toggleMember(m.id)}
                                     className={[
-                                        'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors text-left',
-                                        isChecked ? 'bg-green-500/10' : 'bg-kce-surface2/40',
+                                        'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors',
+                                        isChecked ? 'bg-green-500/10' : isAbgesagt ? 'bg-red-500/10' : 'bg-kce-surface2/40',
                                     ].join(' ')}
                                 >
-                                    <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
-                                        {isChecked ? '☑' : '☐'}
-                                    </span>
-                                    <span className={[
-                                        'text-sm flex-1',
-                                        isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
-                                    ].join(' ')}>
-                                        {m.nickname || m.name}
-                                        {m.id === myId && (
-                                            <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
-                                        )}
-                                    </span>
-                                </button>
+                                    <button onClick={() => toggleMember(m.id)} className="flex items-center gap-2.5 flex-1 text-left min-w-0">
+                                        <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
+                                            {isChecked ? '☑' : '☐'}
+                                        </span>
+                                        <span className={[
+                                            'text-sm flex-1',
+                                            isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
+                                        ].join(' ')}>
+                                            {m.nickname || m.name}
+                                            {m.id === myId && (
+                                                <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
+                                            )}
+                                        </span>
+                                    </button>
+                                    {!isChecked && (
+                                        <button
+                                            onClick={() => toggleAbgesagt(m.id)}
+                                            className={[
+                                                'text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 transition-all',
+                                                isAbgesagt
+                                                    ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                    : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                                            ].join(' ')}
+                                        >
+                                            {isAbgesagt ? t('rsvp.absent.active') : t('rsvp.absent.short')}
+                                        </button>
+                                    )}
+                                </div>
                             )
                         })}
                     </div>
                 </div>
 
-                {/* Guest input */}
-                <div className="pt-2 border-t border-kce-surface2">
+                {/* Known guests chips */}
+                {knownGuests.length > 0 && (
+                    <div className="pt-2 border-t border-kce-surface2">
+                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                            🧑‍🤝‍🧑 {t('player.knownGuests')}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {knownGuests.map((m: RegularMember) => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => toggleGuest(m.id)}
+                                    className={`chip ${selectedGuestIds.has(m.id) ? 'active' : ''}`}
+                                >
+                                    {m.nickname || m.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* New guest input */}
+                <div className={knownGuests.length > 0 ? '' : 'pt-2 border-t border-kce-surface2'}>
                     <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
-                        🧑‍🤝‍🧑 {t('player.guest')}
+                        🧑‍🤝‍🧑 {t('player.newGuest')}
                     </div>
                     <input
                         className="kce-input"

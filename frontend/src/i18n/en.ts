@@ -388,7 +388,7 @@ export const en = {
     "schedule.venue": "Venue",
     "schedule.note": "Note",
     "schedule.attending": "Attending",
-    "schedule.absent": "Absent",
+    "schedule.absent": "Cancelled",
     "schedule.noResponse": "No response",
     "schedule.rsvpTitle": "RSVPs",
     "schedule.remind": "📣 Send reminder",

@@ -463,6 +463,59 @@ def calculate_absence_penalties(eid: int, db: Session = Depends(get_db),
     return _do_calculate_absence_penalties(e, db, user.id)
 
 
+class MarkCancelledBody(BaseModel):
+    member_ids: List[int] = []
+
+
+@router.post("/{eid}/mark-cancelled")
+def mark_cancelled(eid: int, data: MarkCancelledBody, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    """Admin: mark members as having properly cancelled for an ad-hoc evening.
+
+    Finds or creates a ScheduledEvening for the evening's date and club,
+    then creates MemberRsvp entries with status='absent' for the given member IDs.
+    This allows the absence-penalty calculation to distinguish cancellations from no-shows.
+    """
+    e = get_club_evening(eid, user, db)
+
+    # Find or create a ScheduledEvening for this date/club
+    scheduled = db.query(ScheduledEvening).filter(
+        ScheduledEvening.club_id == e.club_id,
+        ScheduledEvening.date == e.date,
+    ).first()
+    if not scheduled:
+        scheduled = ScheduledEvening(
+            club_id=e.club_id,
+            date=e.date,
+            venue=e.venue,
+            created_by=user.id,
+        )
+        db.add(scheduled)
+        db.flush()
+
+    for mid in data.member_ids:
+        member = db.query(RegularMember).filter(
+            RegularMember.id == mid, RegularMember.club_id == e.club_id,
+        ).first()
+        if not member:
+            continue
+        rsvp = db.query(MemberRsvp).filter(
+            MemberRsvp.scheduled_evening_id == scheduled.id,
+            MemberRsvp.regular_member_id == mid,
+        ).first()
+        if rsvp:
+            rsvp.status = RsvpStatus.absent
+        else:
+            db.add(MemberRsvp(
+                scheduled_evening_id=scheduled.id,
+                regular_member_id=mid,
+                status=RsvpStatus.absent,
+            ))
+
+    db.commit()
+    return {"ok": True, "count": len(data.member_ids)}
+
+
 # ── Games ──
 
 class GameCreate(BaseModel):
