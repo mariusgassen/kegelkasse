@@ -15,6 +15,7 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_CLAIM_EMAIL: ${VAPID_CLAIM_EMAIL:-}
+      CORS_ALLOW_ORIGIN: '${CORS_ALLOW_ORIGIN:-}'
     depends_on:
       db:
         condition: service_healthy
