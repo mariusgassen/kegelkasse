@@ -1,4 +1,5 @@
-from pydantic_settings import BaseSettings, AnyHttpUrl
+from pydantic import AnyHttpUrl
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     # Web Push (VAPID) — optional; push disabled if not set
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
-    VAPID_CLAIM_EMAIL: str = "admin@kegelkasse.de"
+    VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
     CORS_ALLOW_ORIGIN: List[AnyHttpUrl] = []
     
     class Config:
