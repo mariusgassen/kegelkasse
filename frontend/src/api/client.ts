@@ -47,6 +47,9 @@ export class OfflineQueuedError extends Error {
     }
 }
 
+/** Set to true during flushOfflineQueue to prevent re-queueing replayed requests. */
+let _bypassQueue = false
+
 type UnauthorizedCallback = () => void
 let _unauthorizedCallbacks: UnauthorizedCallback[] = []
 
@@ -76,10 +79,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
             method, headers, body: body ? JSON.stringify(body) : undefined,
         })
     } catch {
-        if (isQueuableMutation(method, path)) {
+        if (!_bypassQueue && isQueuableMutation(method, path)) {
             await offlineQueue.enqueue(method, path, body)
             window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
-            throw new OfflineQueuedError()
+            // Return null so callers treat this as success (sheet closes, etc.)
+            return null as T
         }
         throw new NetworkError()
     }
@@ -458,20 +462,25 @@ export async function flushOfflineQueue(): Promise<{ applied: number; errors: nu
     let applied = 0
     let errors = 0
 
-    for (const item of sorted) {
-        try {
-            await request<unknown>(item.method, item.path, item.body)
-            if (item.id !== undefined) await offlineQueue.remove(item.id)
-            applied++
-        } catch (e) {
-            if (e instanceof OfflineQueuedError || e instanceof NetworkError) {
-                // Still offline — stop flushing
-                break
+    _bypassQueue = true
+    try {
+        for (const item of sorted) {
+            try {
+                await request<unknown>(item.method, item.path, item.body)
+                if (item.id !== undefined) await offlineQueue.remove(item.id)
+                applied++
+            } catch (e) {
+                if (e instanceof NetworkError) {
+                    // Still offline — stop flushing
+                    break
+                }
+                // Server rejected (404, conflict, etc.) — discard and continue
+                if (item.id !== undefined) await offlineQueue.remove(item.id)
+                errors++
             }
-            // Server rejected (404, conflict, etc.) — discard and continue
-            if (item.id !== undefined) await offlineQueue.remove(item.id)
-            errors++
         }
+    } finally {
+        _bypassQueue = false
     }
 
     window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
