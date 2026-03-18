@@ -10,6 +10,7 @@ import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
+import {useQueryClient} from '@tanstack/react-query'
 
 type SubTab = 'penalties' | 'games'
 
@@ -21,6 +22,7 @@ interface Props {
 export function EveningHubPage({onNavigate, onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
+    const qc = useQueryClient()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games'])
     const [closeConfirm, setCloseConfirm] = useState(false)
 
@@ -104,6 +106,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                             await api.updateEvening(evening!.id, {is_closed: true})
                             setCloseConfirm(false)
                             invalidate()
+                            qc.invalidateQueries({queryKey: ['evenings']})
                         } catch (e: unknown) {
                             toastError(e)
                         }
