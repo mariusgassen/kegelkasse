@@ -11,7 +11,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://your-docs-site.example.com',
+  url: 'https://kasse.kc-eichorn.de',
   baseUrl: '/docs/',
 
   organizationName: 'mariusgassen',
