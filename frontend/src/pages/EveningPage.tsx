@@ -119,10 +119,6 @@ export function EveningPage() {
             {attendanceEveningId !== null && (
                 <UnplannedAttendanceSheet
                     eveningId={attendanceEveningId}
-                    pins={pins}
-                    pinPenalty={club?.settings?.pin_penalty ?? 0}
-                    regularMembers={regularMembers}
-                    user={user}
                     onDone={() => {
                         setActiveEveningId(attendanceEveningId)
                         setAttendanceEveningId(null)
@@ -591,16 +587,16 @@ export function EveningPage() {
 }
 
 // ── Attendance + pin check for unplanned evenings ─────────────────────────────
-function UnplannedAttendanceSheet({eveningId, pins, pinPenalty, regularMembers, user, onDone, onCancel}: {
+export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
     eveningId: number
-    pins: ClubPin[]
-    pinPenalty: number
-    regularMembers: RegularMember[]
-    user: { regular_member_id: number | null } | null
     onDone: () => void
     onCancel: () => void
 }) {
     const t = useT()
+    const {regularMembers, user} = useAppStore()
+    const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
+    const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
+    const pinPenalty = club?.settings?.pin_penalty ?? 0
     const activeMembers = regularMembers.filter((m: RegularMember) => !m.is_guest && m.is_active)
     const knownGuests = regularMembers.filter((m: RegularMember) => m.is_guest)
     const myId = user?.regular_member_id

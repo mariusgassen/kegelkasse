@@ -10,6 +10,7 @@ import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
+import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -760,7 +761,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
 }
 
 // ── History section (closed actual evenings) ──────────────────────────────────
-function HistorySection({onNavigate}: { onNavigate?: () => void }) {
+function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => void; defaultVenue?: string }) {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
@@ -774,6 +775,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
     const [backlogDate, setBacklogDate] = useState(TODAY)
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
+    const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
 
     const {data: expandedEvening} = useQuery({
         queryKey: ['evening', expandedId],
@@ -817,9 +819,8 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
         setSaving(true)
         try {
             const ev = await api.createEvening({date: backlogDate, venue: backlogVenue || undefined})
-            setActiveEveningId(ev.id)
-            qc.invalidateQueries({queryKey: ['evenings']})
             setBacklogSheet(false)
+            setAttendanceEveningId(ev.id)
         } catch (e) {
             toastError(e)
         } finally {
@@ -838,7 +839,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                     <button className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
                             onClick={() => {
                                 setBacklogDate(TODAY)
-                                setBacklogVenue('')
+                                setBacklogVenue(defaultVenue)
                                 setBacklogSheet(true)
                             }}>
                         + {t('history.backlog')}
@@ -1002,6 +1003,24 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
                             disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
                 </div>
             </Sheet>
+
+            {attendanceEveningId !== null && (
+                <UnplannedAttendanceSheet
+                    eveningId={attendanceEveningId}
+                    onDone={() => {
+                        setActiveEveningId(attendanceEveningId)
+                        qc.invalidateQueries({queryKey: ['evenings']})
+                        setAttendanceEveningId(null)
+                        onNavigate?.()
+                    }}
+                    onCancel={() => {
+                        setActiveEveningId(attendanceEveningId)
+                        qc.invalidateQueries({queryKey: ['evenings']})
+                        setAttendanceEveningId(null)
+                        onNavigate?.()
+                    }}
+                />
+            )}
         </>
     )
 }
@@ -1135,7 +1154,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
             }
 
             {/* ── History ── */}
-            <HistorySection onNavigate={onNavigate}/>
+            <HistorySection onNavigate={onNavigate} defaultVenue={defaultVenue}/>
 
             {/* ── Sheets ── */}
             {editSheet !== null && (
