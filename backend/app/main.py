@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.v1 import auth, club, evenings, push, schedule, stats, sync, superadmin
+from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
 
@@ -51,7 +52,7 @@ async def notify_evening_on_mutate(request: Request, call_next):
 
 
 # CORS — wide open in development, locked down in production
-cors_origins = ["*"] if os.getenv("ENVIRONMENT") == "development" else []
+cors_origins = ["*"] if os.getenv("ENVIRONMENT") == "development" else settings.CORS_ALLOW_ORIGIN
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
