@@ -360,7 +360,7 @@ export default function App() {
             {/* ── Pages (all mounted, toggled via display) ── */}
             <main style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 {([
-                    ['evening', <EveningHubPage onNavigate={() => setPage('config')}/>],
+                    ['evening', <EveningHubPage onNavigate={() => setPage('config')} onHistory={() => setPage('schedule')}/>],
                     ['config', <EveningPage/>],
                     ['treasury', <TreasuryPage/>],
                     ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],

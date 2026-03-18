@@ -15,9 +15,10 @@ type SubTab = 'penalties' | 'games'
 
 interface Props {
     onNavigate: () => void
+    onHistory?: () => void
 }
 
-export function EveningHubPage({onNavigate}: Props) {
+export function EveningHubPage({onNavigate, onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games'])
@@ -66,18 +67,27 @@ export function EveningHubPage({onNavigate}: Props) {
                     </button>
                 )}
                 {isClosed && evening && (
-                    <button type="button"
-                            className="btn-secondary btn-xs flex-shrink-0"
-                            onClick={async () => {
-                                try {
-                                    await api.updateEvening(evening.id, {is_closed: false})
-                                    invalidate()
-                                } catch (e: unknown) {
-                                    toastError(e)
-                                }
-                            }}>
-                        {t('evening.reopen')}
-                    </button>
+                    <>
+                        <button type="button"
+                                className="btn-secondary btn-xs flex-shrink-0"
+                                onClick={async () => {
+                                    try {
+                                        await api.updateEvening(evening.id, {is_closed: false})
+                                        invalidate()
+                                    } catch (e: unknown) {
+                                        toastError(e)
+                                    }
+                                }}>
+                            {t('evening.reopen')}
+                        </button>
+                        {onHistory && (
+                            <button type="button"
+                                    className="btn-secondary btn-xs flex-shrink-0"
+                                    onClick={onHistory}>
+                                📚 {t('evening.toHistory')}
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
 
