@@ -232,7 +232,7 @@
 
     /* Offline banner */
     .offline-banner {
-        @apply fixed top-0 left-0 right-0 z-[999] text-center text-xs font-bold py-1.5;
+        @apply w-full text-center text-xs font-bold py-1.5 flex-shrink-0;
         background: #c4701a;
         color: var(--kce-cream);
     }
