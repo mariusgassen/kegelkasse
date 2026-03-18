@@ -19,15 +19,24 @@ def _normalize_vapid_private_key(raw: str) -> str:
     - Raw base64url EC key (no PEM headers) — returned as-is
     - PEM with literal \\n (Coolify / Docker env vars)
     - PEM with real newlines (multi-line value)
+    - PEM with a leading EC PARAMETERS block (some py-vapid versions prepend it)
 
     PEM keys are converted to raw base64url (32-byte EC scalar) to avoid
     ASN.1 parsing errors from malformed line breaks or unsupported encodings.
     """
     import base64
+    import re
 
     key = raw.strip().replace("\\n", "\n")
     if "-----BEGIN" not in key:
         return key  # already raw base64url — pywebpush accepts this directly
+
+    # Some py-vapid versions prepend an "EC PARAMETERS" block before the private key.
+    # load_pem_private_key only accepts a single key block, so strip everything
+    # before the first "BEGIN EC PRIVATE KEY" or "BEGIN PRIVATE KEY" header.
+    match = re.search(r"-----BEGIN (EC |)PRIVATE KEY-----.*?-----END (EC |)PRIVATE KEY-----", key, re.DOTALL)
+    if match:
+        key = match.group(0)
 
     # Convert PEM → raw base64url to sidestep all ASN.1 / line-wrap issues.
     # We extract the raw EC private scalar via private_numbers(), which is

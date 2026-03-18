@@ -62,23 +62,26 @@ class TestNormalizeVapidPrivateKey:
         assert result == self._raw_b64(key)
 
     def test_vapid_pem_round_trip_and_reusability(self):
-        """Generate a real VAPID key pair, normalize PEM → raw, then re-derive
+        """Generate a real EC P-256 key pair, normalize PEM → raw, then re-derive
         the public key from the normalized private key and verify it matches.
-        This is the closest thing to an encryption/decryption round-trip for ECDH keys.
+        Uses cryptography's own key generation (named curve, no explicit params)
+        rather than py_vapid which may generate explicit-param keys unsupported by
+        load_pem_private_key.
         """
         from cryptography.hazmat.primitives.asymmetric.ec import (
             SECP256R1,
             derive_private_key,
+            generate_private_key,
         )
-        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-        from py_vapid import Vapid
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding, NoEncryption, PrivateFormat, PublicFormat,
+        )
 
         from core.push import _normalize_vapid_private_key
 
-        v = Vapid()
-        v.generate_keys()
+        key = generate_private_key(SECP256R1())
+        pem = key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()).decode()
 
-        pem = v.private_pem().decode()
         normalized = _normalize_vapid_private_key(pem)
 
         # Decode normalized → raw bytes → reconstruct private key
@@ -88,7 +91,7 @@ class TestNormalizeVapidPrivateKey:
         reconstructed = derive_private_key(int.from_bytes(raw_bytes, "big"), SECP256R1())
 
         # Re-derive public key and compare to the original
-        original_pub = v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+        original_pub = key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         reconstructed_pub = reconstructed.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         assert reconstructed_pub == original_pub, "Re-derived public key must match original"
 
@@ -294,9 +297,10 @@ class TestPushToRegularMember:
 # ---------------------------------------------------------------------------
 
 class TestPushToClub:
+    # push_to_club uses ThreadPoolExecutor + _send_one_no_db (not _send_one)
     def test_noop_when_vapid_not_configured(self, db, club):
         with patch.object(settings, "VAPID_PRIVATE_KEY", ""), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db") as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
         mock_send.assert_not_called()
@@ -308,7 +312,7 @@ class TestPushToClub:
         sub2 = _make_sub(db, u2.id, endpoint="https://push.example.com/club-u2")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "ClubTitle", "ClubBody")
 
@@ -326,7 +330,7 @@ class TestPushToClub:
         sub_other = _make_sub(db, u_other.id, endpoint="https://push.example.com/other-club")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
 
@@ -344,7 +348,7 @@ class TestPushToClub:
         _make_sub(db, inactive.id, endpoint="https://push.example.com/inactive-club")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
 

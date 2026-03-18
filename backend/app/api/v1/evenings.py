@@ -408,12 +408,14 @@ def delete_penalty(eid: int,
     return {"ok": True}
 
 
-def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTasks, db: Session, created_by: int) -> dict:
+def _do_calculate_absence_penalties(
+        e: Evening, background_tasks: BackgroundTasks, db: Session, created_by: int, notify: bool = True) -> dict:
     """Calculate absence penalties for an evening, RSVP-aware.
 
-    Base fee = average penalty of present players.
+    Base fee = average penalty of present players (based on finished games).
     Extra fee (no_cancel_fee) applies to absent members who did NOT cancel
     (status is null or 'attending' — only explicit 'absent' RSVP waives the surcharge).
+    notify: if False, skip sending push notifications (used for mid-evening recalculation).
     """
     # Delete existing absence entries to allow recalculation
     db.query(PenaltyLog).filter(
@@ -489,19 +491,20 @@ def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTask
         ))
 
     db.commit()
-    for member in absent_members:
-        rsvp_status = rsvp_map.get(member.id)
-        if rsvp_status == RsvpStatus.absent:
-            total_fee = base_fee
-        else:
-            total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
-        fee_str = f"{total_fee:.2f}".replace('.', ',')
-        background_tasks.add_task(
-            push_to_regular_member,
-            db, member.id, "🏠 Abwesenheitsstrafe",
-           f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",
-           "/#evening:penalties", category="penalties"
-        )
+    if notify:
+        for member in absent_members:
+            rsvp_status = rsvp_map.get(member.id)
+            if rsvp_status == RsvpStatus.absent:
+                total_fee = base_fee
+            else:
+                total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
+            fee_str = f"{total_fee:.2f}".replace('.', ',')
+            background_tasks.add_task(
+                push_to_regular_member,
+                db, member.id, "🏠 Abwesenheitsstrafe",
+               f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",
+               "/#evening:penalties", category="penalties"
+            )
     return {"avg": base_fee, "absent_count": len(absent_members)}
 
 
@@ -669,8 +672,8 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
 
 
 @router.post("/{eid}/games/{gid}/finish")
-def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_db),
-                user: User = Depends(require_club_member)):
+def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: BackgroundTasks,
+                db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     e_date_str = format_datetime(e.date, locale=user.preferred_locale or "de")
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
@@ -728,6 +731,9 @@ def finish_game(eid: int, gid: int, data: GameFinish, db: Session = Depends(get_
         except (ValueError, IndexError):
             pass
     db.commit()
+    # Auto-recalculate absence penalties after each game finish (silent, no push)
+    if e.players:
+        _do_calculate_absence_penalties(e, background_tasks, db, user.id, notify=False)
     return {"ok": True}
 
 

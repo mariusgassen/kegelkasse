@@ -53,6 +53,7 @@ export const en = {
     "evening.venuePlaceholder": "e.g. Gasthaus Krone",
     "evening.edit": "Edit evening",
     "evening.reopen": "Reopen",
+    "evening.toHistory": "View in history",
     "evening.backlog": "Add past evening",
     "player.add": "Add players",
     "player.guest": "Add guest",

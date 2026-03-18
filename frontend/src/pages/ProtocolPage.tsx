@@ -209,7 +209,7 @@ export function ProtocolPage() {
                 amount: effectiveAmount,
                 mode,
                 unit_amount: mode === 'count' ? selectedPenaltyType.default_amount : undefined,
-                client_timestamp: Date.now(),
+                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
             })
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
@@ -237,7 +237,7 @@ export function ProtocolPage() {
                 amount: effectiveAmount,
                 mode: customMode,
                 unit_amount: effectiveUnitAmount,
-                client_timestamp: Date.now(),
+                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
             })
             if (saveAsTemplate) {
                 const newPt = await api.createPenaltyType({
@@ -709,7 +709,7 @@ export function ProtocolPage() {
                                         drink_type: drinkType,
                                         variety: drinkVariety || undefined,
                                         participant_ids: drinkPlayerIds as number[],
-                                        client_timestamp: Date.now(),
+                                        client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
                                     })
                                     invalidate()
                                     setDrinkSheet(false)

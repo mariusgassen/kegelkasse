@@ -1033,19 +1033,24 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
     // Deep link: ?event=ID → auto-open RSVP quick sheet (member) or RSVP sheet (admin)
-    const deepLinkHandled = useRef(false)
+    // Use a state counter so the effect re-runs on hash changes (e.g. from push notification click)
+    const [hashVersion, setHashVersion] = useState(0)
     useEffect(() => {
-        if (deepLinkHandled.current || !schedules) return
+        const handler = () => setHashVersion(v => v + 1)
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [])
+    useEffect(() => {
+        if (!schedules) return
         const params = getHashParams()
         const eventId = params.get('event')
         if (!eventId) return
-        deepLinkHandled.current = true
         clearHashParams()
         const se = schedules.find(s => s.id === parseInt(eventId, 10))
         if (!se) return
         if (isAdminUser) setRsvpSheet(se)
         else setRsvpQuickSheet(se)
-    }, [schedules, isAdminUser])
+    }, [schedules, isAdminUser, hashVersion])
 
     function invalidate() {
         qc.invalidateQueries({queryKey: ['schedule']})
