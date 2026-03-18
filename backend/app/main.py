@@ -52,7 +52,7 @@ async def notify_evening_on_mutate(request: Request, call_next):
 
 
 # CORS — wide open in development, locked down in production
-cors_origins = ["*"] if os.getenv("ENVIRONMENT") == "development" else settings.CORS_ALLOW_ORIGIN
+cors_origins = ["*"] if os.getenv("ENVIRONMENT") == "development" else []
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,

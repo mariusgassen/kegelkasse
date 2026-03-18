@@ -1,9 +1,5 @@
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
-from typing import List
-import os
-
-print(os.getenv("CORS_ALLOW_ORIGIN"))
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -16,16 +12,9 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
-    CORS_ALLOW_ORIGIN: List[str] = []
-    
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
-    @field_validator("CORS_ALLOW_ORIGIN", mode="before")
-    @classmethod
-    def parse_cors(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
-        
 settings = Settings()
