@@ -1,4 +1,4 @@
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings
 
 from typing import List
