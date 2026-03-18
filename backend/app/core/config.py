@@ -16,18 +16,9 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
-    CORS_ALLOW_ORIGIN: List[string] = []
+    CORS_ALLOW_ORIGIN: List[string] = ["https://kegelkasse.mariusgassen.com", "https://kasse.kc-eichhorn.de"]
     
     class Config:
         env_file = ".env"
-
-    @field_validator("CORS_ALLOW_ORIGIN", mode="before")
-    @classmethod
-    def parse_cors(cls, v):
-        if isinstance(v, str):
-            print(f"Raw: {v}")
-            return [i.strip() for i in v.split(",")]
-         print(f"not string: {v}")
-        return v
         
 settings = Settings()
