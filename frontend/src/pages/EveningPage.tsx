@@ -19,10 +19,12 @@ export function EveningPage() {
 
     // ── Start evening form ──
     const [startDate, setStartDate] = useState(today())
+    const [startTime, setStartTime] = useState('')
     const [startVenue, setStartVenue] = useState('')
     useEffect(() => {
         if (club?.settings?.home_venue && !startVenue) setStartVenue(club.settings.home_venue)
-    }, [club?.settings?.home_venue])
+        if (club?.settings?.default_evening_time && !startTime) setStartTime(club.settings.default_evening_time)
+    }, [club?.settings?.home_venue, club?.settings?.default_evening_time])
     const [startNote, setStartNote] = useState('')
     const [starting, setStarting] = useState(false)
     // attendance sheet shown after evening is created
@@ -69,11 +71,19 @@ export function EveningPage() {
                 <div className="kce-card p-5">
                     <div className="text-sm font-bold text-kce-cream mb-4">{t('evening.start')}</div>
                     <div className="flex flex-col gap-3">
-                        <div>
-                            <label className="field-label">{t('evening.date')}</label>
-                            <input className="kce-input" type="date" value={startDate}
-                                   style={{width: 'auto'}}
-                                   onChange={e => setStartDate(e.target.value)}/>
+                        <div className="flex gap-3">
+                            <div>
+                                <label className="field-label">{t('evening.date')}</label>
+                                <input className="kce-input" type="date" value={startDate}
+                                       style={{width: 'auto'}}
+                                       onChange={e => setStartDate(e.target.value)}/>
+                            </div>
+                            <div>
+                                <label className="field-label">{t('schedule.time')}</label>
+                                <input className="kce-input" type="time" value={startTime}
+                                       style={{width: 'auto'}}
+                                       onChange={e => setStartTime(e.target.value)}/>
+                            </div>
                         </div>
                         <div>
                             <label className="field-label">{t('evening.venue')}</label>
@@ -90,8 +100,9 @@ export function EveningPage() {
                         <button className="btn-primary mt-1" disabled={starting} onClick={async () => {
                             setStarting(true)
                             try {
+                                const date = startTime ? `${startDate}T${startTime}` : startDate
                                 const ev = await api.createEvening({
-                                    date: startDate,
+                                    date,
                                     venue: startVenue || undefined,
                                     note: startNote || undefined,
                                 })

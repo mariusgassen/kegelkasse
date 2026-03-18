@@ -1,6 +1,7 @@
 """Web Push notification helpers. Silently no-ops if VAPID keys are not configured."""
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from sqlalchemy.orm import Session
 
@@ -89,17 +90,54 @@ def push_to_regular_member(db: Session, regular_member_id: int, title: str, body
             _send_one(db, sub, title, body, url, extra=extra)
 
 
+def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
+                    extra: dict | None) -> int | None:
+    """Send push without DB access; return sub.id if it should be deleted (410/404)."""
+    from pywebpush import WebPushException, webpush
+    private_key = _normalize_vapid_private_key(settings.VAPID_PRIVATE_KEY)
+    payload: dict = {"title": title, "body": body, "url": url}
+    if extra:
+        payload.update(extra)
+    try:
+        webpush(
+            subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
+            data=json.dumps(payload),
+            vapid_private_key=private_key,
+            vapid_claims={"sub": f"mailto:{settings.VAPID_CLAIM_EMAIL}"},
+        )
+    except WebPushException as exc:
+        if exc.response and exc.response.status_code in (404, 410):
+            return sub.id
+        logger.warning("Push send failed for sub %s: %s", sub.id, exc, exc_info=True)
+    except Exception as exc:
+        logger.warning("Push send failed for sub %s: %s", sub.id, exc, exc_info=True)
+    return None
+
+
 def push_to_club(db: Session, club_id: int, title: str, body: str,
                  url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Send push to every subscriber in a club."""
+    """Send push to every subscriber in a club (parallelised per subscription)."""
     if not settings.VAPID_PRIVATE_KEY:
         return
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
+    subs = []
     for user in users:
         if category and not _user_wants(user, category):
             continue
-        for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
-            _send_one(db, sub, title, body, url, extra=extra)
+        subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
+    if not subs:
+        return
+    stale_ids: list[int] = []
+    with ThreadPoolExecutor(max_workers=min(len(subs), 20)) as pool:
+        futures = {pool.submit(_send_one_no_db, sub, title, body, url, extra): sub for sub in subs}
+        for f in as_completed(futures):
+            result = f.result()
+            if result is not None:
+                stale_ids.append(result)
+    # Remove stale subscriptions in the main thread (DB-safe)
+    if stale_ids:
+        db.query(PushSubscription).filter(PushSubscription.id.in_(stale_ids)).delete(synchronize_session=False)
+        db.commit()
 
 
 def push_to_club_admins(db: Session, club_id: int, title: str, body: str,

@@ -30,7 +30,8 @@ function fDateTimeLong(scheduledAt: string) {
 }
 
 function fDate(date: string) {
-    return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
+    const dateOnly = date.length > 10 ? date.slice(0, 10) : date
+    return new Date(dateOnly + 'T00:00:00').toLocaleDateString('de-DE', {
         day: '2-digit', month: '2-digit', year: 'numeric',
     })
 }
@@ -828,7 +829,7 @@ function HistorySection({onNavigate}: { onNavigate?: () => void }) {
 
     return (
         <>
-            <div className="sec-heading mt-5">📚 {t('history.title')}</div>
+            <div className="sec-heading mt-5">📚 {t('nav.history')}</div>
 
             <div className="flex gap-2 mb-3">
                 <input className="kce-input flex-1" value={search} onChange={e => setSearch(e.target.value)}

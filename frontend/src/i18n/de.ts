@@ -523,6 +523,8 @@ export const de = {
     "reminders.weekday.sat": "Samstag",
     "reminders.weekday.sun": "Sonntag",
     "reminders.saved": "Erinnerungen gespeichert",
+    "reminders.triggerNow": "Erinnerungen jetzt senden",
+    "reminders.triggered": "Erinnerungen werden gesendet",
     "broadcast.title": "Nachricht an alle senden",
     "broadcast.label": "Titel",
     "broadcast.body": "Nachricht",

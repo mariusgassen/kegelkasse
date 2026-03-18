@@ -108,11 +108,13 @@ docker compose exec app python -m app.scripts.create_admin
 
 ### Schedule & RSVP
 
-- Plan future bowling evenings with date, venue, and optional notes
+- Plan future bowling evenings with date, time, venue, and optional notes
 - Members set their RSVP status (attending / absent / no response)
 - Admins send push reminders to non-responders
 - Add known guests to planned evenings
 - Start a real evening directly from a scheduled entry, optionally importing all attending members as players
+- Absence penalties auto-calculated on evening start for members with explicit RSVP cancellation
+- **iCal export**: subscribe to all planned evenings in Apple Calendar, Google Calendar, or Outlook via a secret per-club token (webcal://); configurable default time
 
 ### Treasury & accounts
 

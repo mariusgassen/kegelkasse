@@ -66,6 +66,22 @@ Wenn der Spieltag kommt, kann direkt aus dem Termin ein echter Abend gestartet w
 Mit **Zusagen importieren** entfällt das manuelle Hinzufügen der Spieler — alle, die zugesagt haben, sind automatisch dabei.
 :::
 
+## iCal-Kalender abonnieren
+
+Alle geplanten Termine können als **iCal-Feed** in externe Kalender-Apps importiert werden (Apple Kalender, Google Calendar, Outlook).
+
+1. Tippe oben rechts auf das Kalender-Symbol 📆
+2. Kopiere den angezeigten Link
+3. Füge ihn in deiner Kalender-App als neuen Kalender ein (Abonnieren / Subscribe)
+
+:::info
+Der Link enthält einen geheimen Token — er ist nur für dich bestimmt. Teile ihn nicht öffentlich. Über **„Im Kalender öffnen"** wird die App-Auswahl direkt gestartet.
+:::
+
+:::tip
+Admins können die Standard-Uhrzeit für Termine in den Einstellungen festlegen. Termine ohne individuelle Uhrzeit verwenden diese als Startzeit im Kalender.
+:::
+
 ## Termin bearbeiten & löschen *(Admin)*
 
 Tippe auf das Bearbeiten-Symbol neben einem Termin, um Datum, Lokal oder Notiz zu ändern, oder lösche den Termin endgültig.

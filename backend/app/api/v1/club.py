@@ -1009,11 +1009,11 @@ class BroadcastPushRequest(BaseModel):
 
 
 @router.post("/broadcast-push")
-def broadcast_push(data: BroadcastPushRequest, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_admin)):
-    """Admin: send a custom push notification to all club members."""
+def broadcast_push(data: BroadcastPushRequest, background_tasks: BackgroundTasks,
+                   db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: send a custom push notification to all club members (async background)."""
     from core.push import push_to_club
-    push_to_club(db, user.club_id, data.title, data.body, data.url)
+    background_tasks.add_task(push_to_club, db, user.club_id, data.title, data.body, data.url)
     return {"ok": True}
 
 

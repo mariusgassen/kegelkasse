@@ -17,6 +17,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
 import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType} from '@/types.ts'
 import {MembersPage} from './MembersPage'
 
@@ -197,7 +198,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
                 <div className="mt-3">
                     <label className="field-label">{t('schedule.defaultTime')}</label>
-                    <input type="time" className="kce-input" value={defaultEveningTime}
+                    <input type="time" className="kce-input" style={{width: 'auto'}} value={defaultEveningTime}
                            onChange={e => setDefaultEveningTime(e.target.value)}/>
                     <p className="text-xs text-kce-muted mt-1">{t('schedule.defaultTimeHint')}</p>
                 </div>
@@ -441,7 +442,15 @@ function ReminderSettingsCard() {
                 )}
             </div>
 
-            <button className="btn-primary w-full" onClick={handleSave}>{t('action.save')}</button>
+            <div className="flex gap-2 mt-0">
+                <button className="btn-primary flex-1" onClick={handleSave}>{t('action.save')}</button>
+                <button className="btn-secondary flex-shrink-0" onClick={async () => {
+                    try {
+                        await api.triggerReminders()
+                        showToast(t('reminders.triggered'))
+                    } catch (e) { toastError(e) }
+                }}>{t('reminders.triggerNow')}</button>
+            </div>
         </div>
     )
 }
