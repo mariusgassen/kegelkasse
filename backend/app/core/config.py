@@ -1,7 +1,9 @@
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings
-
 from typing import List
+import os
+
+print(os.getenv("CORS_ALLOW_ORIGIN"))
 
 class Settings(BaseSettings):
     DATABASE_URL: str
