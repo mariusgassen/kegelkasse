@@ -297,9 +297,10 @@ class TestPushToRegularMember:
 # ---------------------------------------------------------------------------
 
 class TestPushToClub:
+    # push_to_club uses ThreadPoolExecutor + _send_one_no_db (not _send_one)
     def test_noop_when_vapid_not_configured(self, db, club):
         with patch.object(settings, "VAPID_PRIVATE_KEY", ""), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db") as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
         mock_send.assert_not_called()
@@ -311,7 +312,7 @@ class TestPushToClub:
         sub2 = _make_sub(db, u2.id, endpoint="https://push.example.com/club-u2")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "ClubTitle", "ClubBody")
 
@@ -329,7 +330,7 @@ class TestPushToClub:
         sub_other = _make_sub(db, u_other.id, endpoint="https://push.example.com/other-club")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
 
@@ -347,7 +348,7 @@ class TestPushToClub:
         _make_sub(db, inactive.id, endpoint="https://push.example.com/inactive-club")
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_PRIVATE_KEY), \
-             patch("core.push._send_one") as mock_send:
+             patch("core.push._send_one_no_db", return_value=None) as mock_send:
             from core.push import push_to_club
             push_to_club(db, club.id, "T", "B")
 
