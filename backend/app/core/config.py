@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, AnyHttpUrl
 
 
 class Settings(BaseSettings):
@@ -12,7 +12,8 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "admin@kegelkasse.de"
-
+    CORS_ALLOW_ORIGIN: List[AnyHttpUrl] = []
+    
     class Config:
         env_file = ".env"
 
