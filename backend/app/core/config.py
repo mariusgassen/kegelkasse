@@ -20,5 +20,12 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+
+    @field_validator("CORS_ALLOW_ORIGIN", mode="before")
+    @classmethod
+    def parse_cors(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
         
 settings = Settings()
