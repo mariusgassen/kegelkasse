@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
-    CORS_ALLOW_ORIGIN: List[string] = ["https://kegelkasse.mariusgassen.com", "https://kasse.kc-eichhorn.de"]
+    CORS_ALLOW_ORIGIN: List[str] = []
     
     class Config:
         env_file = ".env"
