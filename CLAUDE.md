@@ -102,11 +102,11 @@ service worker + IndexedDB for offline support.
   `penalty_log.game_id`. On re-edit: old penalties deleted, new ones created.
 - **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
-  Keep all three in sync with the implementation.
-- **Ruff (Python linter):** Before committing backend changes, run `ruff check backend/ --fix` and resolve all
-  remaining issues. Add this to the pre-commit checklist.
-- **ESLint (Frontend linter):** Before committing frontend changes, run `cd frontend && npm run lint` and resolve all
-  errors (warnings are informational). ESLint runs in CI via the frontend-build workflow.
+  Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
+- **Linting & build:** Do NOT run `ruff`, `eslint`, or `npm run build` locally. Instead, push the branch and check the
+  **GitHub workflow results** (CI) for linting and build errors. Fix any failures shown there.
+- **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
+  immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
@@ -161,7 +161,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | 🚧      | Spieltermine & RSVP (SchedulePage) fertig; Strafenautomatik beim Start-aus-Termin fehlt noch        |
-| 21 | **Schulden-Erinnerungen**          | ⬜      | Automatische Erinnerungen an ausstehende Schulden / unbezahlte Strafen per Push/E-Mail/WhatsApp-Bot   |
+| 21 | **Schulden-Erinnerungen**          | ✅      | APScheduler (tägl. 09:00); 5 Typen: Schulden wöchentlich, Kegeln in X Tagen (per-user), RSVP, Schulden am Kegeltag, Zahlungsanfragen-Nudge; Toggle-Fix; Broadcast-Push; Admin-Konfiguration in ClubAdminPage |
 | 22 | **Import / Export**                | ⬜      | CSV/Excel-Export und -Import für Kasse, Buchungen und Mitglieder-Konten                               |
 | 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar    |
 | 24 | **iCal Export**                    | ✅      | Öffentlicher Abo-Link (webcal://) mit Secret-Token; Uhrzeit pro Termin; Club-Standard 20:00; 3 Migrationen (022–024) |

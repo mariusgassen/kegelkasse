@@ -128,12 +128,22 @@ docker compose exec app python -m app.scripts.create_admin
 - Personal stats in user profile
 - Year selector with CSS bar chart visualization
 
-### Push notifications
+### Push notifications & reminders
 
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
 - Members subscribe/unsubscribe per device from their profile
+- Per-category notification preferences (penalties, evenings, schedule, payments, games, members, reminders)
 - Falls back silently when VAPID keys are not configured
+- **Automated reminders** (scheduled daily at 09:00 via APScheduler):
+  - Weekly debt reminder — push to members with outstanding balance above a configurable threshold (configurable weekday)
+  - Upcoming evening — push N days before each scheduled event; each user sets their own preferred lead time (default from club settings)
+  - RSVP reminder — push to members who haven't responded N days before an event
+  - Bowling-day debt reminder — push to debtors on the day of a scheduled evening
+  - Pending payment request nudge — push to admins when requests stay unresolved past N days
+- Admins enable/disable and configure each reminder type in the club settings (Einstellungen-Tab)
+- Users opt out per reminder category in their profile
+- **Broadcast push**: admins can send a custom push to all club members from the settings page
 
 ### PWA & offline
 

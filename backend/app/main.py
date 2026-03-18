@@ -5,6 +5,7 @@ Serves the React PWA from /static and exposes REST API under /api/v1.
 import os
 import re
 import tomllib
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -17,13 +18,23 @@ from fastapi.responses import FileResponse
 
 from api.v1 import auth, club, evenings, push, schedule, stats, sync, superadmin
 from core.events import event_bus
+from core.scheduler import start_scheduler, stop_scheduler
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
 
 app = FastAPI(
     title="Kegelkasse API",
     version=__version__,
     docs_url="/api/docs",
     redoc_url=None,
-    openapi_url="/api/openapi.json"
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
 )
 
 _EVENING_PATH_RE = re.compile(r"^/api/v1/evening/(\d+)/.+")

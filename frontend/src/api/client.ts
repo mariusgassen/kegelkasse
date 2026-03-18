@@ -16,6 +16,7 @@ import {
     PenaltyType,
     PushPreferences,
     RegularMember,
+    ReminderSettings,
     RsvpEntry,
     RsvpStatus,
     ScheduledEvening,
@@ -452,6 +453,10 @@ export const api = {
         request<PushPreferences>('PATCH', '/push/preferences', d),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
+    getReminderSettings: () => request<ReminderSettings>('GET', '/club/reminder-settings'),
+    updateReminderSettings: (d: Partial<ReminderSettings>) => request<{ ok: boolean }>('PATCH', '/club/reminder-settings', d),
+    broadcastPush: (d: { title: string; body: string; url?: string }) => request<{ ok: boolean }>('POST', '/club/broadcast-push', d),
+    triggerReminders: () => request<{ ok: boolean }>('POST', '/push/trigger-reminders'),
 }
 
 /**

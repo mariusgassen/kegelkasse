@@ -65,6 +65,26 @@ export interface PushPreferences {
     payments: boolean
     games: boolean
     members: boolean
+    reminder_debt: boolean
+    reminder_schedule: boolean
+    reminder_payments: boolean
+    reminder_schedule_days?: number
+}
+
+export interface ReminderTypeSettings {
+    enabled: boolean
+    weekday?: number      // debt_weekly: 0=Mon … 6=Sun
+    min_debt?: number     // debt_weekly: minimum debt € to trigger
+    days_before?: number  // upcoming_evening / rsvp_reminder
+    days_pending?: number // payment_request_nudge
+}
+
+export interface ReminderSettings {
+    debt_weekly: ReminderTypeSettings
+    upcoming_evening: ReminderTypeSettings
+    rsvp_reminder: ReminderTypeSettings
+    debt_day_of: ReminderTypeSettings
+    payment_request_nudge: ReminderTypeSettings
 }
 
 export interface RsvpEntry {

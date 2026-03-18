@@ -6,6 +6,7 @@ import {useEffect, useState} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
+import type {ReminderSettings, ReminderTypeSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme} from '@/App.tsx'
@@ -284,9 +285,213 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             </div>
 
             <button className="btn-primary w-full" onClick={handleSave}>{t('action.save')}</button>
+
+            <ReminderSettingsCard />
+            <BroadcastPushCard />
         </div>
     )
 }
+
+
+function ReminderToggle({value, onChange}: { value: boolean; onChange: (v: boolean) => void }) {
+    return (
+        <button
+            onClick={() => onChange(!value)}
+            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2'].join(' ')}
+            aria-pressed={value}
+        >
+            <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
+        </button>
+    )
+}
+
+function ReminderSettingsCard() {
+    const t = useT()
+    const {data: saved, isLoading} = useQuery<ReminderSettings>({
+        queryKey: ['reminder-settings'],
+        queryFn: api.getReminderSettings,
+        staleTime: 60000,
+    })
+
+    const [debtWeekly, setDebtWeekly] = useState<ReminderTypeSettings>({enabled: false, weekday: 1, min_debt: 5})
+    const [upcoming, setUpcoming] = useState<ReminderTypeSettings>({enabled: false, days_before: 5})
+    const [rsvp, setRsvp] = useState<ReminderTypeSettings>({enabled: false, days_before: 3})
+    const [dayOf, setDayOf] = useState<ReminderTypeSettings>({enabled: false})
+    const [payNudge, setPayNudge] = useState<ReminderTypeSettings>({enabled: false, days_pending: 3})
+
+    useEffect(() => {
+        if (!saved) return
+        setDebtWeekly(s => ({...s, ...saved.debt_weekly}))
+        setUpcoming(s => ({...s, ...saved.upcoming_evening}))
+        setRsvp(s => ({...s, ...saved.rsvp_reminder}))
+        setDayOf(s => ({...s, ...saved.debt_day_of}))
+        setPayNudge(s => ({...s, ...saved.payment_request_nudge}))
+    }, [saved])
+
+    async function handleSave() {
+        await api.updateReminderSettings({
+            debt_weekly: debtWeekly,
+            upcoming_evening: upcoming,
+            rsvp_reminder: rsvp,
+            debt_day_of: dayOf,
+            payment_request_nudge: payNudge,
+        })
+        showToast(t('reminders.saved'))
+    }
+
+    if (isLoading) return null
+
+    const WEEKDAYS = [
+        {v: 0, label: t('reminders.weekday.mon')},
+        {v: 1, label: t('reminders.weekday.tue')},
+        {v: 2, label: t('reminders.weekday.wed')},
+        {v: 3, label: t('reminders.weekday.thu')},
+        {v: 4, label: t('reminders.weekday.fri')},
+        {v: 5, label: t('reminders.weekday.sat')},
+        {v: 6, label: t('reminders.weekday.sun')},
+    ]
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-4">{t('reminders.title')}</div>
+
+            {/* debt_weekly */}
+            <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.debt_weekly')}</span>
+                    <ReminderToggle value={!!debtWeekly.enabled} onChange={v => setDebtWeekly(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted mb-2">{t('reminders.debt_weekly.hint')}</p>
+                {debtWeekly.enabled && (
+                    <div className="flex gap-3 mt-2">
+                        <div className="flex-1">
+                            <label className="field-label">{t('reminders.weekday')}</label>
+                            <select className="kce-input" value={debtWeekly.weekday ?? 1}
+                                    onChange={e => setDebtWeekly(s => ({...s, weekday: Number(e.target.value)}))}>
+                                {WEEKDAYS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
+                            </select>
+                        </div>
+                        <div className="w-28">
+                            <label className="field-label">{t('reminders.min_debt')}</label>
+                            <input type="number" min={0} step={0.5} className="kce-input"
+                                   value={debtWeekly.min_debt ?? 5}
+                                   onChange={e => setDebtWeekly(s => ({...s, min_debt: Number(e.target.value)}))} />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* upcoming_evening */}
+            <div className="mb-4 border-t border-kce-surface2 pt-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.upcoming_evening')}</span>
+                    <ReminderToggle value={!!upcoming.enabled} onChange={v => setUpcoming(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted mb-2">{t('reminders.upcoming_evening.hint')}</p>
+                {upcoming.enabled && (
+                    <div className="mt-2 w-28">
+                        <label className="field-label">{t('reminders.days_before')}</label>
+                        <input type="number" min={1} max={30} className="kce-input"
+                               value={upcoming.days_before ?? 5}
+                               onChange={e => setUpcoming(s => ({...s, days_before: Number(e.target.value)}))} />
+                    </div>
+                )}
+            </div>
+
+            {/* rsvp_reminder */}
+            <div className="mb-4 border-t border-kce-surface2 pt-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.rsvp_reminder')}</span>
+                    <ReminderToggle value={!!rsvp.enabled} onChange={v => setRsvp(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted mb-2">{t('reminders.rsvp_reminder.hint')}</p>
+                {rsvp.enabled && (
+                    <div className="mt-2 w-28">
+                        <label className="field-label">{t('reminders.days_before')}</label>
+                        <input type="number" min={1} max={14} className="kce-input"
+                               value={rsvp.days_before ?? 3}
+                               onChange={e => setRsvp(s => ({...s, days_before: Number(e.target.value)}))} />
+                    </div>
+                )}
+            </div>
+
+            {/* debt_day_of */}
+            <div className="mb-4 border-t border-kce-surface2 pt-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.debt_day_of')}</span>
+                    <ReminderToggle value={!!dayOf.enabled} onChange={v => setDayOf(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted">{t('reminders.debt_day_of.hint')}</p>
+            </div>
+
+            {/* payment_request_nudge */}
+            <div className="mb-4 border-t border-kce-surface2 pt-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.payment_nudge')}</span>
+                    <ReminderToggle value={!!payNudge.enabled} onChange={v => setPayNudge(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted mb-2">{t('reminders.payment_nudge.hint')}</p>
+                {payNudge.enabled && (
+                    <div className="mt-2 w-28">
+                        <label className="field-label">{t('reminders.days_pending')}</label>
+                        <input type="number" min={1} max={30} className="kce-input"
+                               value={payNudge.days_pending ?? 3}
+                               onChange={e => setPayNudge(s => ({...s, days_pending: Number(e.target.value)}))} />
+                    </div>
+                )}
+            </div>
+
+            <button className="btn-primary w-full" onClick={handleSave}>{t('action.save')}</button>
+        </div>
+    )
+}
+
+
+function BroadcastPushCard() {
+    const t = useT()
+    const [bTitle, setBTitle] = useState('')
+    const [bBody, setBBody] = useState('')
+    const [bUrl, setBUrl] = useState('/')
+    const [sending, setSending] = useState(false)
+
+    async function handleBroadcast() {
+        if (!bTitle.trim() || !bBody.trim()) return
+        setSending(true)
+        try {
+            await api.broadcastPush({title: bTitle.trim(), body: bBody.trim(), url: bUrl.trim() || '/'})
+            showToast(t('broadcast.sent'))
+            setBTitle('')
+            setBBody('')
+            setBUrl('/')
+        } catch {
+            showToast('Fehler beim Senden')
+        } finally {
+            setSending(false)
+        }
+    }
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-3">{t('broadcast.title')}</div>
+            <div className="mb-3">
+                <label className="field-label">{t('broadcast.label')}</label>
+                <input className="kce-input" value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder={t('broadcast.label')}/>
+            </div>
+            <div className="mb-3">
+                <label className="field-label">{t('broadcast.body')}</label>
+                <textarea className="kce-input" rows={2} value={bBody} onChange={e => setBBody(e.target.value)} placeholder={t('broadcast.body')}/>
+            </div>
+            <div className="mb-3">
+                <label className="field-label">{t('broadcast.url')}</label>
+                <input className="kce-input" value={bUrl} onChange={e => setBUrl(e.target.value)} placeholder="/"/>
+            </div>
+            <button className="btn-primary w-full" onClick={handleBroadcast} disabled={sending || !bTitle.trim() || !bBody.trim()}>
+                {sending ? '…' : t('broadcast.send')}
+            </button>
+        </div>
+    )
+}
+
 
 // ── Penalty Types ──
 function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[]; onChanged: () => void }) {
