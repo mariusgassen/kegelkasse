@@ -408,7 +408,8 @@ def delete_penalty(eid: int,
     return {"ok": True}
 
 
-def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTasks, db: Session, created_by: int, notify: bool = True) -> dict:
+def _do_calculate_absence_penalties(
+        e: Evening, background_tasks: BackgroundTasks, db: Session, created_by: int, notify: bool = True) -> dict:
     """Calculate absence penalties for an evening, RSVP-aware.
 
     Base fee = average penalty of present players (based on finished games).
