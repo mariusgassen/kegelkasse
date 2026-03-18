@@ -133,7 +133,7 @@ def update_evening(eid: int,
         # Auto-calculate absence penalties on close
         if e.players:
             _do_calculate_absence_penalties(e, background_tasks, db, user.id)
-        background_tasks.add(
+        background_tasks.add_task(
             push_to_club,
             db, e.club_id, "Abend beendet 🎳",
             f"Abend vom {e.date.strftime('%d.%m.%Y')} wurde abgeschlossen.",
@@ -496,7 +496,7 @@ def _do_calculate_absence_penalties(e: Evening, background_tasks: BackgroundTask
         else:
             total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
         fee_str = f"{total_fee:.2f}".replace('.', ',')
-        background_tasks.add(
+        background_tasks.add_task(
             push_to_regular_member,
             db, member.id, "🏠 Abwesenheitsstrafe",
            f"{fee_str}€ für {e.date.strftime('%d.%m.%Y')} — du warst nicht dabei.",

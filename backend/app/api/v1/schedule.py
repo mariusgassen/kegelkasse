@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
-from api.v1.evenings import _parse_date
+from api.v1.evenings import _parse_date, _do_calculate_absence_penalties
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club
 from models.club import Club, ClubSettings
@@ -209,6 +209,7 @@ class StartEveningBody(BaseModel):
 def start_evening(
     sid: int,
     data: StartEveningBody,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
@@ -255,6 +256,14 @@ def start_evening(
 
     db.commit()
     db.refresh(ev)
+
+    # Auto-create absence penalties for members who explicitly cancelled (RSVP absent)
+    absent_rsvps = db.query(MemberRsvp).filter(
+        MemberRsvp.scheduled_evening_id == se.id,
+        MemberRsvp.status == RsvpStatus.absent,
+    ).all()
+    if absent_rsvps:
+        _do_calculate_absence_penalties(ev, background_tasks, db, user.id)
 
     # Notify members who RSVP'd attending
     attending_rsvps = db.query(MemberRsvp).filter(
