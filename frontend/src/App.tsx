@@ -134,6 +134,9 @@ export default function App() {
     const [refreshing, setRefreshing] = useState(false)
     const {addNotification, notifications} = useNotificationStore()
     const badgeCount = unreadCount(notifications)
+    const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
+    const notificationsActive = pushSupported && typeof Notification !== 'undefined' && Notification.permission === 'granted'
+    const showNotificationBell = notificationsActive || notifications.length > 0
     // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
     const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
     const [bootNetworkError, setBootNetworkError] = useState(false)
@@ -314,21 +317,23 @@ export default function App() {
                             transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)',
                         }}>↻</span>
                     </button>
-                    {/* Notification bell */}
-                    <button
-                        aria-label={t('notifications.title')}
-                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
-                        style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
-                        onClick={() => setNotifOpen(true)}>
-                        <span style={{fontSize: 14, lineHeight: 1}}>🔔</span>
-                        {badgeCount > 0 && (
-                            <span
-                                className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
-                                style={{background: '#e8a020', color: '#1a0f00'}}>
-                                {badgeCount > 9 ? '9+' : badgeCount}
-                            </span>
-                        )}
-                    </button>
+                    {/* Notification bell — only shown when push is active or notifications exist */}
+                    {showNotificationBell && (
+                        <button
+                            aria-label={t('notifications.title')}
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
+                            style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
+                            onClick={() => setNotifOpen(true)}>
+                            <span style={{fontSize: 14, lineHeight: 1}}>🔔</span>
+                            {badgeCount > 0 && (
+                                <span
+                                    className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
+                                    style={{background: '#e8a020', color: '#1a0f00'}}>
+                                    {badgeCount > 9 ? '9+' : badgeCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                     {/* Avatar button */}
                     <button
                         aria-label="Profil"
