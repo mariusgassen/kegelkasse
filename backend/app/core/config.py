@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors(cls, v):
         if isinstance(v, str):
+            print(f"Raw: {v}")
             return [i.strip() for i in v.split(",")]
+         print(f"not string: {v}")
         return v
         
 settings = Settings()
