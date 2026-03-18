@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
-    CORS_ALLOW_ORIGIN: List[AnyHttpUrl] = []
+    CORS_ALLOW_ORIGIN: List[string] = []
     
     class Config:
         env_file = ".env"
