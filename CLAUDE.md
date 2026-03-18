@@ -105,6 +105,8 @@ service worker + IndexedDB for offline support.
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
 - **Linting & build:** Do NOT run `ruff`, `eslint`, or `npm run build` locally. Instead, push the branch and check the
   **GitHub workflow results** (CI) for linting and build errors. Fix any failures shown there.
+- **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
+  immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
