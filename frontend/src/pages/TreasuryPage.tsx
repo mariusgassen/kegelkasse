@@ -395,7 +395,6 @@ export function TreasuryPage() {
                     {/* ── Ausgaben Übersicht ── */}
                     {totalExpenses !== 0 && (
                         <>
-                            <div className="sec-heading mt-3">{t('treasury.expensesLabel')}</div>
                             <div className="kce-card p-3 flex items-center justify-between">
                                 <span className="text-sm text-kce-muted">{t('treasury.netExpenses')}</span>
                                 <span className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-green-400' : 'text-orange-400'}`}>{fe(-totalExpenses)}</span>
