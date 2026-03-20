@@ -34,12 +34,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const user = useAppStore(s => s.user)
 
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
-    // Per-penalty-type counter (for count mode), defaults to 1
-    const [penaltyCounters, setPenaltyCounters] = useState<Record<number, number>>({})
     const [flashingPenaltyId, setFlashingPenaltyId] = useState<number | null>(null)
     const [flashingDrink, setFlashingDrink] = useState<'beer' | 'shots' | null>(null)
     const [loadingPenaltyId, setLoadingPenaltyId] = useState<number | null>(null)
     const [loadingDrink, setLoadingDrink] = useState<'beer' | 'shots' | null>(null)
+    const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
+    const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
     // Sort: current user first, then alphabetical
     const sortedPlayers = useMemo(() =>
@@ -65,7 +65,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Last 8 events mixed (penalties + drinks), newest first
     const recentEvents = useMemo(() => {
         if (!evening) return []
-        type Event = {key: string; icon: string; label: string; time: number}
+        type Event = {key: string; icon: string; label: string; time: number; id: number; type: 'penalty' | 'drink'}
         const events: Event[] = []
         for (const p of evening.penalty_log) {
             const count = p.amount > 1 ? ` ×${p.amount}` : ''
@@ -74,6 +74,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 icon: p.icon,
                 label: `${p.player_name}${count}`,
                 time: p.client_timestamp,
+                id: p.id,
+                type: 'penalty',
             })
         }
         for (const d of evening.drink_rounds) {
@@ -83,6 +85,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 icon,
                 label: `${d.participant_ids.length}×`,
                 time: d.client_timestamp,
+                id: d.id,
+                type: 'drink',
             })
         }
         return events.sort((a, b) => b.time - a.time).slice(0, 8)
@@ -94,17 +98,33 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         )
     }
 
-    function getCounter(ptId: number): number {
-        return penaltyCounters[ptId] ?? 1
-    }
-
-    function setCounter(ptId: number, value: number) {
-        setPenaltyCounters(prev => ({...prev, [ptId]: value}))
+    async function deleteRecentEvent(key: string, id: number, type: 'penalty' | 'drink') {
+        if (deletingKey !== null) return
+        if (confirmingKey !== key) {
+            setConfirmingKey(key)
+            return
+        }
+        setDeletingKey(key)
+        setConfirmingKey(null)
+        try {
+            if (type === 'penalty') {
+                await api.deletePenalty(eveningId, id)
+            } else {
+                await api.deleteDrinkRound(eveningId, id)
+            }
+            invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setDeletingKey(null)
+        }
     }
 
     async function logPenalty(pt: PenaltyType) {
         if (selectedPlayerIds.length === 0 || loadingPenaltyId !== null) return
-        const count = getCounter(pt.id)
+        const count = 1
         setLoadingPenaltyId(pt.id)
         try {
             await api.addPenalty(eveningId, {
@@ -231,50 +251,26 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 {types.map(pt => {
                                     const isFlashing = flashingPenaltyId === pt.id
                                     const isLoading = loadingPenaltyId === pt.id
-                                    const counter = getCounter(pt.id)
                                     return (
-                                        <div key={pt.id} className="flex flex-col gap-1">
-                                            <button
-                                                type="button"
-                                                disabled={noSelection || isLoading}
-                                                className={`px-4 py-3 rounded-xl border font-bold text-sm
-                                                    transition-all active:scale-95
-                                                    disabled:opacity-40 disabled:cursor-not-allowed
-                                                `}
-                                                style={{
-                                                    background: isFlashing
-                                                        ? 'rgba(34,197,94,0.15)'
-                                                        : 'var(--kce-surface2)',
-                                                    borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
-                                                    color: isFlashing ? '#86efac' : 'var(--kce-cream)',
-                                                }}
-                                                onClick={() => logPenalty(pt)}
-                                            >
-                                                {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
-                                            </button>
-                                            {/* Count chips: ×1 ×2 ×3 ×4 ×5 */}
-                                            <div className="flex gap-1">
-                                                {[1, 2, 3, 4, 5].map(n => (
-                                                    <button
-                                                        key={n}
-                                                        type="button"
-                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-all
-                                                            ${counter === n
-                                                                ? 'border-kce-amber text-kce-amber'
-                                                                : 'border-kce-border text-kce-muted'}
-                                                        `}
-                                                        style={{
-                                                            background: counter === n
-                                                                ? 'rgba(232,160,32,0.12)'
-                                                                : 'var(--kce-surface)',
-                                                        }}
-                                                        onClick={() => setCounter(pt.id, n)}
-                                                    >
-                                                        ×{n}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <button
+                                            key={pt.id}
+                                            type="button"
+                                            disabled={noSelection || isLoading}
+                                            className={`px-4 py-3 rounded-xl border font-bold text-sm
+                                                transition-all active:scale-95
+                                                disabled:opacity-40 disabled:cursor-not-allowed
+                                            `}
+                                            style={{
+                                                background: isFlashing
+                                                    ? 'rgba(34,197,94,0.15)'
+                                                    : 'var(--kce-surface2)',
+                                                borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
+                                                color: isFlashing ? '#86efac' : 'var(--kce-cream)',
+                                            }}
+                                            onClick={() => logPenalty(pt)}
+                                        >
+                                            {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
+                                        </button>
                                     )
                                 })}
                             </div>
@@ -326,17 +322,30 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 >
                     <div className="field-label mb-1.5">{t('quickEntry.recent')}</div>
                     <div className="flex gap-2 overflow-x-auto pb-0.5" style={{scrollbarWidth: 'none'}}>
-                        {recentEvents.map(ev => (
-                            <div
-                                key={ev.key}
-                                className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg"
-                                style={{background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)'}}
-                            >
-                                <span className="text-base leading-none">{ev.icon}</span>
-                                <span className="text-[10px] text-kce-cream font-bold whitespace-nowrap">{ev.label}</span>
-                                <span className="text-[9px] text-kce-muted">{fTime(ev.time)}</span>
-                            </div>
-                        ))}
+                        {recentEvents.map(ev => {
+                            const isConfirming = confirmingKey === ev.key
+                            const isDeleting = deletingKey === ev.key
+                            return (
+                                <button
+                                    key={ev.key}
+                                    type="button"
+                                    disabled={isDeleting}
+                                    className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
+                                    style={{
+                                        background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--kce-surface2)',
+                                        border: `1px solid ${isConfirming ? '#dc2626' : 'var(--kce-border)'}`,
+                                    }}
+                                    onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
+                                    onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}
+                                >
+                                    <span className="text-base leading-none">{isConfirming ? '🗑' : ev.icon}</span>
+                                    <span className={`text-[10px] font-bold whitespace-nowrap ${isConfirming ? 'text-red-400' : 'text-kce-cream'}`}>
+                                        {isConfirming ? '✕ löschen?' : ev.label}
+                                    </span>
+                                    <span className="text-[9px] text-kce-muted">{fTime(ev.time)}</span>
+                                </button>
+                            )
+                        })}
                     </div>
                 </div>
             )}
