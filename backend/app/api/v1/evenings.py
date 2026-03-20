@@ -17,7 +17,7 @@ from core.security import decode_token
 from core.database import get_db, AsyncSessionLocal
 from sqlalchemy import select, cast, Date as SQLDate
 from models.drink import DrinkRound, DrinkType
-from models.club import ClubSettings, ClubPresident
+from models.club import ClubSettings
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember, EveningHighlight
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
@@ -736,34 +736,6 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
                     push_to_regular_member(db, winner_player.regular_member_id, "👑 Du bist König!",
                                            f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
                                            "/#evening:games", category="games")
-        except (ValueError, IndexError):
-            pass
-    # President: president-game with individual winner → upsert ClubPresident for this year
-    if g.is_president_game and data.winner_ref.startswith("p:"):
-        try:
-            winner_pid = int(data.winner_ref[2:])
-            winner_player = db.query(EveningPlayer).filter(EveningPlayer.id == winner_pid).first()
-            if winner_player:
-                year = e.date.year
-                existing = db.query(ClubPresident).filter(
-                    ClubPresident.club_id == e.club_id, ClubPresident.year == year
-                ).first()
-                if existing:
-                    existing.regular_member_id = winner_player.regular_member_id
-                    existing.name = winner_player.name
-                    existing.evening_id = e.id
-                    existing.game_id = g.id
-                    existing.determined_at = datetime.now(UTC)
-                else:
-                    db.add(ClubPresident(
-                        club_id=e.club_id,
-                        year=year,
-                        regular_member_id=winner_player.regular_member_id,
-                        name=winner_player.name,
-                        evening_id=e.id,
-                        game_id=g.id,
-                        determined_at=datetime.now(UTC),
-                    ))
         except (ValueError, IndexError):
             pass
     db.commit()

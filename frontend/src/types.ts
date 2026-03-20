@@ -152,16 +152,6 @@ export interface GameTemplate {
     sort_order: number
 }
 
-export interface ClubPresident {
-    id: number
-    year: number
-    regular_member_id: number | null
-    name: string
-    evening_id: number | null
-    game_id: number | null
-    determined_at: string | null
-}
-
 export interface ClubPin {
     id: number
     name: string

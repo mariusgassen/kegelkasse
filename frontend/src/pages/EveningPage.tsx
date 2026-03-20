@@ -9,8 +9,7 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import type {ClubPin, EveningPlayer, RegularMember, ScheduledEvening, Team} from '@/types.ts'
-import {StartEveningSheet} from '@/pages/SchedulePage.tsx'
+import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
     const t = useT()
@@ -30,9 +29,6 @@ export function EveningPage() {
     const [starting, setStarting] = useState(false)
     // attendance sheet shown after evening is created
     const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
-    // quick-start: ScheduledEvening created with "now" for immediate start
-    const [quickStartSe, setQuickStartSe] = useState<ScheduledEvening | null>(null)
-    const [quickStarting, setQuickStarting] = useState(false)
     const qc = useQueryClient()
 
     // ── Highlights ──
@@ -67,9 +63,6 @@ export function EveningPage() {
 
     // ── Pins ──
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
-
-    // ── Current president ──
-    const {data: currentPresident} = useQuery({queryKey: ['president-current'], queryFn: api.getCurrentPresident, staleTime: 60000})
 
     // ── No active evening ──
     if (!activeEveningId && !evening) {
@@ -122,29 +115,6 @@ export function EveningPage() {
                                 setStarting(false)
                             }
                         }}>{t('evening.startButton')}</button>
-
-                        <div className="flex items-center gap-2 my-1">
-                            <div className="flex-1 h-px bg-kce-surface2"/>
-                            <span className="text-[10px] text-kce-muted uppercase tracking-wider">{t('common.or')}</span>
-                            <div className="flex-1 h-px bg-kce-surface2"/>
-                        </div>
-
-                        <button className="btn-secondary" disabled={quickStarting} onClick={async () => {
-                            setQuickStarting(true)
-                            try {
-                                const now = new Date().toISOString().slice(0, 16)
-                                const se = await api.createScheduledEvening({
-                                    date: now,
-                                    venue: startVenue || undefined,
-                                })
-                                qc.invalidateQueries({queryKey: ['schedule']})
-                                setQuickStartSe(se)
-                            } catch (e: unknown) {
-                                toastError(e)
-                            } finally {
-                                setQuickStarting(false)
-                            }
-                        }}>{t('evening.quickStart')}</button>
                     </div>
                 </div>
             </div>
@@ -160,18 +130,6 @@ export function EveningPage() {
                         // Evening already created — open it without players
                         setActiveEveningId(attendanceEveningId)
                         setAttendanceEveningId(null)
-                        invalidate()
-                    }}
-                />
-            )}
-            {quickStartSe && (
-                <StartEveningSheet
-                    se={quickStartSe}
-                    onClose={() => setQuickStartSe(null)}
-                    onStarted={(eveningId) => {
-                        setQuickStartSe(null)
-                        setActiveEveningId(eveningId)
-                        qc.invalidateQueries({queryKey: ['evenings']})
                         invalidate()
                     }}
                 />
@@ -359,7 +317,6 @@ export function EveningPage() {
                                         <span className="truncate">{p.name}</span>
                                         {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                         {p.is_king && <span title="König" className="flex-shrink-0">👑</span>}
-                                        {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id && <span title="Präsident" className="flex-shrink-0">🎯</span>}
                                         {pins.filter(pin => pin.holder_regular_member_id === p.regular_member_id).map(pin => (
                                             <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
                                         ))}
@@ -961,7 +918,7 @@ function formatDate(iso: string) {
 // ── Pins alert component ──
 function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged}: {
     pins: ClubPin[]
-    evening: { id: number; penalty_log: { player_name: string; penalty_type_name: string }[] }
+    evening: { id: number; penalty_log: { id: number; player_name: string; penalty_type_name: string }[] }
     players: EveningPlayer[]
     regularMembers: RegularMember[]
     pinPenalty: number
@@ -994,6 +951,15 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
         }
     }
 
+    async function undoMissingPin(pin: ClubPin, logId: number) {
+        try {
+            await api.deletePenalty(evening.id, logId)
+            onPenaltyLogged()
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
     return (
         <div className="mb-3">
             {activePins.map(pin => {
@@ -1004,13 +970,14 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                     ? (holderMember.nickname || holderMember.name)
                     : pin.holder_name
                 const holderPlayer = players.find(p => p.regular_member_id === pin.holder_regular_member_id)
-                const alreadyLogged = holderPlayer
-                    ? evening.penalty_log.some(l =>
+                const logEntry = holderPlayer
+                    ? evening.penalty_log.find(l =>
                         l.player_name === holderPlayer.name &&
                         l.penalty_type_name.startsWith(pin.icon) &&
                         l.penalty_type_name.includes(pin.name)
                     )
-                    : false
+                    : undefined
+                const alreadyLogged = !!logEntry
                 return (
                 <div key={pin.id}
                      className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-kce-amber/30 bg-kce-amber/5">
@@ -1022,7 +989,11 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                         </div>
                     </div>
                     {alreadyLogged
-                        ? <span className="text-xs text-green-400 font-bold flex-shrink-0">✓ {t('pin.missingPenalty')}</span>
+                        ? <div className="flex items-center gap-1 flex-shrink-0">
+                            <span className="text-xs text-green-400 font-bold">✓ {t('pin.missingPenalty')}</span>
+                            <button className="btn-secondary btn-xs" title={t('action.cancel')}
+                                    onClick={() => undoMissingPin(pin, logEntry!.id)}>↩</button>
+                          </div>
                         : <button
                             className="btn-danger btn-xs flex-shrink-0"
                             onClick={() => logMissingPins(pin)}>

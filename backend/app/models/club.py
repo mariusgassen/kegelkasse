@@ -17,7 +17,6 @@ class Club(Base):
     game_templates = relationship("GameTemplate", back_populates="club")
     evenings = relationship("Evening", back_populates="club")
     settings = relationship("ClubSettings", back_populates="club", uselist=False)
-    presidents = relationship("ClubPresident", back_populates="club", order_by="ClubPresident.year.desc()")
     pins = relationship("ClubPin", back_populates="club")
 
 
@@ -37,19 +36,6 @@ class ClubSettings(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="settings")
 
-
-class ClubPresident(Base):
-    """Tracks the annual president (Präsident) — determined via a president-game each year."""
-    __tablename__ = "club_president"
-    id = Column(Integer, primary_key=True)
-    club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False)
-    year = Column(Integer, nullable=False)
-    regular_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="SET NULL"), nullable=True)
-    name = Column(String, nullable=False)  # denormalized for display
-    evening_id = Column(Integer, ForeignKey("evening.id", ondelete="SET NULL"), nullable=True)
-    game_id = Column(Integer, ForeignKey("game.id", ondelete="SET NULL"), nullable=True)
-    determined_at = Column(DateTime(timezone=True), nullable=True)
-    club = relationship("Club", back_populates="presidents")
 
 
 class ClubPin(Base):

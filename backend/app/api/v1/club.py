@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
-from models.club import Club, ClubSettings, ClubPresident, ClubPin
+from models.club import Club, ClubSettings, ClubPin
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
@@ -1095,43 +1095,6 @@ def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_c
     return {"reminded_count": reminded}
 
 
-# ── Club presidents ──
-
-def _president_dict(p: ClubPresident) -> dict:
-    return {
-        "id": p.id,
-        "year": p.year,
-        "regular_member_id": p.regular_member_id,
-        "name": p.name,
-        "evening_id": p.evening_id,
-        "game_id": p.game_id,
-        "determined_at": p.determined_at.isoformat() if p.determined_at else None,
-    }
-
-
-@router.get("/presidents")
-def list_presidents(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """All yearly presidents for the club, newest first."""
-    rows = (
-        db.query(ClubPresident)
-        .filter(ClubPresident.club_id == user.club_id)
-        .order_by(ClubPresident.year.desc())
-        .all()
-    )
-    return [_president_dict(p) for p in rows]
-
-
-@router.get("/presidents/current")
-def get_current_president(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Current year's president, or null."""
-    from datetime import date
-    year = date.today().year
-    p = db.query(ClubPresident).filter(
-        ClubPresident.club_id == user.club_id, ClubPresident.year == year
-    ).first()
-    return _president_dict(p) if p else None
-
-
 # ── Club pins ──
 
 def _pin_dict(p: ClubPin) -> dict:
@@ -1175,6 +1138,7 @@ class PinUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     holder_regular_member_id: Optional[int] = None  # None = clear holder
+    assigned_at: Optional[str] = None  # ISO date string to override assignment date
 
 
 @router.put("/pins/{pid}")
@@ -1204,6 +1168,12 @@ def update_pin(pid: int, data: PinUpdate, db: Session = Depends(get_db),
             pin.holder_regular_member_id = None
             pin.holder_name = None
             pin.assigned_at = None
+    # Allow explicit override of assigned_at date
+    if data.assigned_at is not None and pin.holder_regular_member_id is not None:
+        try:
+            pin.assigned_at = datetime.fromisoformat(data.assigned_at).replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
     db.commit()
     return _pin_dict(pin)
 

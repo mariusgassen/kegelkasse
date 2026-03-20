@@ -18,8 +18,8 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
+    const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
-    const {data: presidents = []} = useQuery({queryKey: ['presidents'], queryFn: api.listPresidents, staleTime: 60000})
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -38,7 +38,9 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     })
 
     const q = search.trim().toLowerCase()
-    const closed = (evenings ?? []).filter(e => e.is_closed)
+    const allEvenings = evenings ?? []
+    const activeEvening = allEvenings.find(e => !e.is_closed && e.id === activeEveningId)
+    const closed = allEvenings.filter(e => e.is_closed)
         .sort((a, b) => b.date.localeCompare(a.date))
         .filter(e => !q || e.date.includes(q) || (e.venue ?? '').toLowerCase().includes(q))
 
@@ -107,6 +109,35 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                 </button>
             )}
 
+            {/* Active evening at top */}
+            {activeEvening && (
+                <div className="kce-card mb-2 overflow-hidden border border-kce-amber/40">
+                    <button className="w-full p-3 flex items-center gap-3 text-left"
+                            onClick={() => setExpandedId(expandedId === activeEvening.id ? null : activeEvening.id)}>
+                        <span className="text-lg">🎳</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                                <div className="text-sm font-bold">
+                                    {new Date(activeEvening.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})}
+                                </div>
+                                <span className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1 py-0.5">
+                                    {t('evening.active')}
+                                </span>
+                            </div>
+                            <div className="text-xs text-kce-muted">
+                                {activeEvening.venue ?? '–'} · {activeEvening.player_count} {t('history.players')}
+                            </div>
+                        </div>
+                        <span className="text-kce-muted text-xs">{expandedId === activeEvening.id ? '▲' : '▼'}</span>
+                    </button>
+                    {expandedId === activeEvening.id && expandedEvening && (
+                        <div className="border-t border-kce-border px-3 pb-3 pt-2">
+                            <p className="text-xs text-kce-muted py-1">{expandedEvening.players.map(p => p.name).join(', ')}</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {isLoading
                 ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
                 : closed.length === 0
@@ -117,8 +148,6 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                         const dateStr = new Date(ev.date).toLocaleDateString('de-DE', {
                             day: '2-digit', month: '2-digit', year: 'numeric'
                         })
-                        const evYear = parseInt(ev.date.slice(0, 4))
-                        const presidentForYear = presidents.find(p => p.year === evYear)
                         return (
                             <div key={ev.id} className="kce-card mb-2 overflow-hidden">
                                 {/* Header row */}
@@ -128,12 +157,6 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5">
                                             <div className="text-sm font-bold">{dateStr}</div>
-                                            {presidentForYear && (
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                                      style={{background: 'rgba(34,197,94,.15)', color: '#22c55e'}}>
-                                                    🎯 {presidentForYear.name}
-                                                </span>
-                                            )}
                                         </div>
                                         <div className="text-xs text-kce-muted">
                                             {ev.venue ?? '–'} · {ev.player_count} {t('history.players')}
@@ -197,7 +220,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                             <div key={g.id}
                                                                  className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
                                                                 <span
-                                                                    className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.is_president_game ? '🎯 ' : ''}{g.name}</span>
+                                                                    className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.name}</span>
                                                                 <span
                                                                     className="text-xs text-kce-muted">{g.winner_name ?? '–'}</span>
                                                             </div>

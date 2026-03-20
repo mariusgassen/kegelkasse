@@ -7,7 +7,6 @@ import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
 import type {Evening} from '@/types.ts'
-import type {ClubPresident} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -231,14 +230,11 @@ export function StatsPage() {
         staleTime: 1000 * 60 * 5,
     })
 
-    const {data: presidents = []} = useQuery({
-        queryKey: ['presidents'],
-        queryFn: api.listPresidents,
+    const {data: pins = []} = useQuery({
+        queryKey: ['pins'],
+        queryFn: api.listPins,
         staleTime: 1000 * 60 * 5,
     })
-    const presidentForYear = presidents.find((p: ClubPresident) => p.year === year)
-    const eveningYear = evening ? parseInt(evening.date.slice(0, 4)) : null
-    const presidentForEveningYear = presidents.find((p: ClubPresident) => p.year === eveningYear)
 
     const players = yearStats?.players ?? []
     const maxPenalty = players[0]?.penalty_total ?? 1
@@ -320,9 +316,11 @@ export function StatsPage() {
                                                     </div>
                                                     <div className="text-center text-xs font-bold mb-2 truncate flex items-center justify-center gap-1">
                                                         {p.is_king ? '👑 ' : ''}
-                                                        {presidentForEveningYear?.regular_member_id != null && p.regular_member_id === presidentForEveningYear.regular_member_id ? '🎯 ' : ''}
                                                         {p.name}
                                                         {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                                        {pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => (
+                                                            <span key={pin.id} title={pin.name}>{pin.icon}</span>
+                                                        ))}
                                                     </div>
                                                     <div className="flex justify-around text-center">
                                                         <div>
@@ -367,22 +365,6 @@ export function StatsPage() {
                 </div>
             </div>
 
-            {presidentForYear && (
-                <div className="kce-card p-3 mb-3 flex items-center gap-3 border border-kce-amber/30">
-                    <span className="text-2xl flex-shrink-0">🎯</span>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-xs text-kce-muted font-bold uppercase tracking-wider">{t('president.title')} {year}</div>
-                        <div className="text-sm font-bold truncate">{presidentForYear.name}</div>
-                    </div>
-                    {presidentForYear.determined_at && (
-                        <div className="text-[10px] text-kce-muted text-right flex-shrink-0">
-                            {t('president.since')}<br/>
-                            {new Date(presidentForYear.determined_at).toLocaleDateString('de-DE')}
-                        </div>
-                    )}
-                </div>
-            )}
-
             {!yearStats || yearStats.evening_count === 0 ? (
                 <Empty icon="📅" text={`${t('stats.noYearData')} ${year}`}/>
             ) : (
@@ -396,7 +378,6 @@ export function StatsPage() {
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
                     {displayPlayers.map((p, i) => {
                         const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
-                        const isPresident = presidentForYear?.regular_member_id != null && p.regular_member_id === presidentForYear.regular_member_id
                         const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
                         const medals = ['🥇', '🥈', '🥉']
                         return (
@@ -408,9 +389,11 @@ export function StatsPage() {
                                     </span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
-                                            {isPresident && <span title={`${t('president.title')} ${year}`}>🎯</span>}
                                             {p.name}
                                             {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            {pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => (
+                                                <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
+                                            ))}
                                         </div>
                                         <div className="text-[10px] text-kce-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}

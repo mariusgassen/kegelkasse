@@ -29,7 +29,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'president' | 'pins'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'president', 'pins'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -61,7 +61,6 @@ export function ClubAdminPage() {
         {id: 'penalties', label: t('club.tab.penalties')},
         {id: 'templates', label: t('club.tab.templates')},
         {id: 'teams', label: t('club.tab.teams')},
-        {id: 'president', label: t('club.tab.president')},
         {id: 'pins', label: t('club.tab.pins')},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
     ]
@@ -112,9 +111,6 @@ export function ClubAdminPage() {
                         <AdminGuard>
                             <ClubTeamsTab/>
                         </AdminGuard>
-                    )}
-                    {tab === 'president' && (
-                        <PresidentTab regularMembers={regularMembers}/>
                     )}
                     {tab === 'pins' && (
                         <AdminGuard>
@@ -609,7 +605,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
     const [desc, setDesc] = useState('')
     const [wtype, setWtype] = useState('either')
     const [isOpener, setIsOpener] = useState(false)
-    const [isPresidentGame, setIsPresidentGame] = useState(false)
     const [penalty, setPenalty] = useState('0')
     const [perPoint, setPerPoint] = useState('0')
 
@@ -619,7 +614,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setDesc('');
         setWtype('either');
         setIsOpener(false);
-        setIsPresidentGame(false);
         setPenalty('0');
         setPerPoint('0');
         setSheet(true)
@@ -630,7 +624,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setDesc(gt.description || '');
         setWtype(gt.winner_type);
         setIsOpener(gt.is_opener);
-        setIsPresidentGame(gt.is_president_game);
         setPenalty(String(gt.default_loser_penalty));
         setPerPoint(String(gt.per_point_penalty ?? 0));
         setSheet(true)
@@ -640,7 +633,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         if (!name.trim()) return
         const d = {
             name, description: desc || undefined, winner_type: wtype,
-            is_opener: isOpener, is_president_game: isPresidentGame,
+            is_opener: isOpener,
             default_loser_penalty: parseAmount(penalty),
             per_point_penalty: parseAmount(perPoint), sort_order: 0
         }
@@ -659,7 +652,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                     <div className="flex-1">
                         <div className="flex items-center gap-1.5">
                             {gt.is_opener && <span className="text-base">👑</span>}
-                            {gt.is_president_game && <span className="text-base">🎯</span>}
                             <span className="text-sm font-bold">{gt.name}</span>
                         </div>
                         {gt.description && <div className="text-xs text-kce-muted mt-0.5">{gt.description}</div>}
@@ -702,13 +694,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                onChange={e => setIsOpener(e.target.checked)}/>
                         <label htmlFor="is-opener" className="text-sm font-bold cursor-pointer">
                             {t('club.template.isOpener')}
-                        </label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <input type="checkbox" id="is-president-game" checked={isPresidentGame}
-                               onChange={e => setIsPresidentGame(e.target.checked)}/>
-                        <label htmlFor="is-president-game" className="text-sm font-bold cursor-pointer">
-                            {t('game.isPresidentGame')}
                         </label>
                     </div>
                     <div><label className="field-label">{t('club.template.loserPenalty')}</label>
@@ -866,44 +851,6 @@ function ClubTeamsTab() {
     )
 }
 
-// ── President ──
-function PresidentTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
-    const t = useT()
-    const {data: presidents = [], isLoading} = useQuery({
-        queryKey: ['presidents'],
-        queryFn: api.listPresidents,
-    })
-
-    if (isLoading) return <div className="text-kce-muted text-sm py-4">{t('action.loading')}</div>
-
-    return (
-        <div className="flex flex-col gap-3">
-            <div className="kce-card p-4">
-                <div className="sec-heading mb-3">{t('president.history')}</div>
-                {presidents.length === 0 && <Empty icon="🎯" text={t('president.none')}/>}
-                {presidents.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 py-2 border-b border-kce-surface2 last:border-0">
-                        <div className="text-xl flex-shrink-0">🎯</div>
-                        <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm">{p.name}</div>
-                            <div className="text-[10px] text-kce-muted">{p.year}</div>
-                        </div>
-                        {p.determined_at && (
-                            <div className="text-[10px] text-kce-muted text-right flex-shrink-0">
-                                {t('president.determined')}<br/>
-                                {new Date(p.determined_at).toLocaleDateString('de-DE')}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-            <p className="text-xs text-kce-muted px-1">
-                Der Präsident wird automatisch gesetzt, wenn ein Spiel mit dem Flag „🎯 Präsidentenspiel" abgeschlossen wird (Einzelspieler-Gewinner).
-            </p>
-        </div>
-    )
-}
-
 // ── Pins ──
 function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
     const t = useT()
@@ -913,9 +860,11 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
     const [pinName, setPinName] = useState('')
     const [pinIcon, setPinIcon] = useState('📌')
     const [holderId, setHolderId] = useState<number | null>(null)
+    const [pinDate, setPinDate] = useState('')
 
     function openNew() {
-        setEditing(null); setPinName(''); setPinIcon('📌'); setHolderId(null); setSheet(true)
+        setEditing(null); setPinName(''); setPinIcon('📌'); setHolderId(null);
+        setPinDate(new Date().toISOString().slice(0, 10)); setSheet(true)
     }
 
     function openEdit(p: ClubPin) {
@@ -923,6 +872,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
         setPinName(p.name);
         setPinIcon(p.icon);
         setHolderId(p.holder_regular_member_id);
+        setPinDate(p.assigned_at ? new Date(p.assigned_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
         setSheet(true)
     }
 
@@ -930,10 +880,10 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
         if (!pinName.trim()) return
         const d = {name: pinName.trim(), icon: pinIcon}
         if (editing) {
-            await api.updatePin(editing.id, {...d, holder_regular_member_id: holderId})
+            await api.updatePin(editing.id, {...d, holder_regular_member_id: holderId, assigned_at: holderId ? pinDate || null : null})
         } else {
             const created = await api.createPin(d)
-            if (holderId !== null) await api.updatePin(created.id, {holder_regular_member_id: holderId})
+            if (holderId !== null) await api.updatePin(created.id, {holder_regular_member_id: holderId, assigned_at: pinDate || null})
         }
         await refetch()
         setSheet(false)
@@ -999,6 +949,13 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                             ))}
                         </select>
                     </div>
+                    {holderId && (
+                        <div>
+                            <label className="field-label">{t('pin.assignedAt')}</label>
+                            <input type="date" className="kce-input" value={pinDate}
+                                   onChange={e => setPinDate(e.target.value)} style={{width: 'auto'}}/>
+                        </div>
+                    )}
                     <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
                 </div>
             </Sheet>
