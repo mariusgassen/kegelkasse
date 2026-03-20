@@ -18,6 +18,8 @@ export function MembersPage() {
     const {evening, invalidate: invalidateEvening} = useActiveEvening()
     const admin = isAdmin(user)
 
+    const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
+
     const [showInactive, setShowInactive] = useState(false)
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
@@ -275,6 +277,9 @@ export function MembersPage() {
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                     {linked?.nickname || u.name}
                                     {u.id === user?.id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                    {linked && pins.filter((p: any) => p.holder_regular_member_id === linked.id).map((p: any) => (
+                                        <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
+                                    ))}
                                 </div>
                                 {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
                                 {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
@@ -368,6 +373,9 @@ export function MembersPage() {
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                     {m.nickname || m.name}
                                     {m.id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                    {pins.filter((p: any) => p.holder_regular_member_id === m.id).map((p: any) => (
+                                        <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
+                                    ))}
                                 </div>
                                 {m.nickname && <div className="text-xs text-kce-muted truncate">{m.name}</div>}
                             </div>

@@ -806,7 +806,9 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     })
 
     const q = search.trim().toLowerCase()
-    const closed = (evenings ?? [])
+    const allEvenings = evenings ?? []
+    const activeEvening = allEvenings.find(e => !e.is_closed && e.id === activeEveningId)
+    const closed = allEvenings
         .filter(e => e.is_closed)
         .sort((a, b) => b.date.localeCompare(a.date))
         .filter(e => !q || e.date.includes(q) || (e.venue ?? '').toLowerCase().includes(q))
@@ -871,6 +873,27 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                     </button>
                 )}
             </div>
+
+            {/* Active evening at top */}
+            {activeEvening && (
+                <div className="kce-card mb-2 overflow-hidden border border-kce-amber/40">
+                    <button className="w-full p-3 flex items-center gap-3 text-left"
+                            onClick={() => onNavigate?.()}>
+                        <span className="text-base">🎳</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                                <div className="text-sm font-bold">{fDate(activeEvening.date)}</div>
+                                <span className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1 py-0.5">
+                                    {t('evening.active')}
+                                </span>
+                            </div>
+                            <div className="text-xs text-kce-muted">
+                                {activeEvening.venue ?? '–'} · {activeEvening.player_count} {t('history.players')}
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            )}
 
             {isLoading
                 ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>

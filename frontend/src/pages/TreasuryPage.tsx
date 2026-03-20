@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -104,25 +104,30 @@ export function TreasuryPage() {
     const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
 
     // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet
-    const deepLinkHandled = useRef(false)
-    useEffect(() => {
-        if (deepLinkHandled.current) return
-        deepLinkHandled.current = true
+    function handleDeepLink() {
         const params = getHashParams()
         const memberName = params.get('memberName')
         const memberId = params.get('member')
         const rid = params.get('rid')
-        if (memberName) {
-            setBookingSearch(memberName)
-            setAccountSearch(memberName)
+        if (memberName || memberId || rid) {
+            if (memberName) {
+                setBookingSearch(memberName)
+                setAccountSearch(memberName)
+            }
+            if (memberId) setExpandedMember(parseInt(memberId, 10))
+            if (rid) {
+                setTab('accounts' as Parameters<typeof setTab>[0])
+                setDeepLinkRid(parseInt(rid, 10))
+            }
+            clearHashParams()
         }
-        if (memberId) setExpandedMember(parseInt(memberId, 10))
-        if (rid) {
-            setTab('accounts' as Parameters<typeof setTab>[0])
-            setDeepLinkRid(parseInt(rid, 10))
-        }
-        clearHashParams()
-    }, [])
+    }
+    useEffect(() => {
+        handleDeepLink()
+        const onHash = () => handleDeepLink()
+        window.addEventListener('hashchange', onHash)
+        return () => window.removeEventListener('hashchange', onHash)
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
     const {data: memberPayments = []} = useQuery({
         queryKey: ['member-payments', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPayments(expandedMember) : null,
@@ -232,7 +237,7 @@ export function TreasuryPage() {
     const [bookingDirection, setBookingDirection] = useState<'in' | 'out'>('out')
     const [bookingAmount, setBookingAmount] = useState('')
     const [bookingNote, setBookingNote] = useState('')
-    const [bookingDate, setBookingDate] = useState('')
+    const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10))
     const [savingBooking, setSavingBooking] = useState(false)
 
     function openBookingSheet() {
@@ -240,7 +245,7 @@ export function TreasuryPage() {
         setBookingDirection('out')
         setBookingAmount('')
         setBookingNote('')
-        setBookingDate('')
+        setBookingDate(new Date().toISOString().slice(0, 10))
         setBookingSheet(true)
     }
 
@@ -262,7 +267,7 @@ export function TreasuryPage() {
                 await api.createExpense({
                     amount,
                     description: bookingNote.trim(),
-                    ...(bookingDate ? {date: bookingDate} : {}),
+                    date: bookingDate || undefined,
                 })
                 refetchExpenses()
             } else {
@@ -571,12 +576,12 @@ export function TreasuryPage() {
                     )}
 
                     {/* ── Ausgaben Übersicht ── */}
-                    {totalExpenses > 0 && (
+                    {totalExpenses !== 0 && (
                         <>
                             <div className="sec-heading mt-3">{t('treasury.expensesLabel')}</div>
                             <div className="kce-card p-3 flex items-center justify-between">
-                                <span className="text-sm text-kce-muted">{t('treasury.expensesTotal')}</span>
-                                <span className="font-bold text-orange-400 text-sm">-{fe(totalExpenses)}</span>
+                                <span className="text-sm text-kce-muted">{t('treasury.netExpenses')}</span>
+                                <span className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-green-400' : 'text-orange-400'}`}>{fe(-totalExpenses)}</span>
                             </div>
                         </>
                     )}

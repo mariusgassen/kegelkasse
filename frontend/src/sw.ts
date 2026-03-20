@@ -113,21 +113,17 @@ self.addEventListener('push', (event) => {
     const actions = (data.actions as {action: string; title: string}[]) ?? []
     const rid = data.rid as number | undefined
 
-    // Broadcast to all open app windows so they can add it to the in-app notification list.
-    // If no window is open, store to IndexedDB so the app can read it on next boot.
-    const broadcastOrStore = self.clients
-        .matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clients) => {
-            if (clients.length > 0) {
-                clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))
-            } else {
-                return storeMissedPush(title, body, url)
-            }
-        })
+    // Always store in IndexedDB (for when app boots later) AND broadcast to open windows
+    const broadcastAndStore = Promise.all([
+        storeMissedPush(title, body, url),
+        self.clients
+            .matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clients) => clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))),
+    ])
 
     event.waitUntil(
         Promise.all([
-            broadcastOrStore,
+            broadcastAndStore,
             self.registration.showNotification(title, {
                 body,
                 icon: '/icon.svg',

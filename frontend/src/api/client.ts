@@ -5,7 +5,6 @@ import {
     Club,
     ClubSettings,
     ClubTeam,
-    ClubPresident,
     ClubPin,
     DrinkRound,
     Evening,
@@ -407,10 +406,6 @@ export const api = {
     startEveningFromSchedule: (sid: number, d: { member_ids: number[] }) =>
         request<{ id: number; date: string; venue: string | null }>('POST', `/schedule/${sid}/start`, d),
 
-    // Presidents
-    listPresidents: () => request<ClubPresident[]>('GET', '/club/presidents'),
-    getCurrentPresident: () => request<ClubPresident | null>('GET', '/club/presidents/current'),
-
     // Pins
     listPins: () => request<ClubPin[]>('GET', '/club/pins'),
     createPin: (d: { name: string; icon?: string }) =>
@@ -418,7 +413,8 @@ export const api = {
     updatePin: (id: number, d: {
         name?: string;
         icon?: string;
-        holder_regular_member_id?: number | null
+        holder_regular_member_id?: number | null;
+        assigned_at?: string | null
     }) =>
         request<ClubPin>('PUT', `/club/pins/${id}`, d),
     deletePin: (id: number) => request<void>('DELETE', `/club/pins/${id}`),

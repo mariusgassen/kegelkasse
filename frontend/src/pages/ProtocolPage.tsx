@@ -1,5 +1,5 @@
 import {useState} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -65,6 +65,7 @@ export function ProtocolPage() {
     const regularMembers = useAppStore(s => s.regularMembers)
     const guestPenaltyCap = useAppStore(s => s.guestPenaltyCap)
     const user = useAppStore(s => s.user)
+    const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
     const [sheet, setSheet] = useState(false)
     const [tab, setTab] = useState<'quick' | 'custom'>('quick')
 
@@ -399,7 +400,7 @@ export function ProtocolPage() {
                         <button key={p.id}
                                 className={`chip ${filterPlayer === p.id ? 'active' : ''}`}
                                 onClick={() => setFilterPlayer(filterPlayer === p.id ? null : p.id)}>
-                            {p.is_king ? '👑 ' : ''}{p.name}
+                            {p.is_king ? '👑 ' : ''}{p.name}{pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => <span key={pin.id} title={pin.name}>{pin.icon}</span>)}
                         </button>
                     ))}
                 </div>
