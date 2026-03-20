@@ -73,6 +73,7 @@ docker compose exec app python -m app.scripts.create_admin
 - **Teams**: reusable team presets that can be loaded when starting an evening
 - **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry; pin icons shown inline next to player names
 - **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge; 🎯 badge shown inline next to player name
+- **Vergnügungsausschuss (Entertainment Committee)**: designate regular members as VA-members (is_committee flag); committee members can post announcements (with push notification to all) and manage Kegelfahrten (bowling trips); dedicated 🚌 tab for all members; VA management in the admin Verein tab
 
 ### Evening management
 

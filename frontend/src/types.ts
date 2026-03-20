@@ -121,7 +121,25 @@ export interface RegularMember {
     nickname: string | null
     is_guest: boolean
     is_active: boolean
+    is_committee: boolean
     avatar: string | null
+}
+
+export interface ClubAnnouncement {
+    id: number
+    title: string
+    text: string | null
+    created_by_name: string | null
+    created_at: string | null
+}
+
+export interface ClubTrip {
+    id: number
+    date: string  // YYYY-MM-DDTHH:MM (UTC)
+    destination: string
+    note: string | null
+    created_by_name: string | null
+    created_at: string | null
 }
 
 export interface PenaltyType {

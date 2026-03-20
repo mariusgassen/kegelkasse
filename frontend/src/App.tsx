@@ -25,8 +25,9 @@ import {TreasuryPage} from './pages/TreasuryPage'
 import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
 import {SchedulePage} from './pages/SchedulePage'
+import {CommitteePage} from './pages/CommitteePage'
 
-type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule'
+type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee'
 
 function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -110,6 +111,7 @@ const NAV: { id: PageId; icon: string; labelKey: string }[] = [
     {id: 'evening', icon: '🎳', labelKey: 'nav.evening'},
     {id: 'treasury', icon: '💰', labelKey: 'nav.treasury'},
     {id: 'schedule', icon: '📅', labelKey: 'nav.schedule'},
+    {id: 'committee', icon: '🚌', labelKey: 'nav.committee'},
     {id: 'stats', icon: '📊', labelKey: 'nav.stats'},
     {id: 'club', icon: '⚙️', labelKey: 'nav.club'},
 ]
@@ -127,7 +129,7 @@ export default function App() {
     } = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'stats', 'club']
+    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'committee', 'stats', 'club']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
@@ -389,6 +391,7 @@ export default function App() {
                     ['config', <EveningPage/>],
                     ['treasury', <TreasuryPage/>],
                     ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
+                    ['committee', <CommitteePage/>],
                     ['stats', <StatsPage/>],
                     ['club', <ClubAdminPage/>],
                 ] as [PageId, ReactNode][]).map(([id, el]) => (
