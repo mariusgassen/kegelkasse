@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {useNotificationStore, unreadCount} from '../store/notifications'
 import {useT} from '../i18n'
 import {api} from '../api/client'
@@ -155,10 +155,11 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
 export function NotificationPanel({open, onClose}: Props) {
     const t = useT()
     const {notifications, markAllRead, clearAll} = useNotificationStore()
-    const unread = unreadCount(notifications)
 
-    // Mark all read when panel opens
-    if (open && unread > 0) markAllRead()
+    // Mark all read when panel opens — in useEffect to avoid side effects during render
+    useEffect(() => {
+        if (open) markAllRead()
+    }, [open, markAllRead])
 
     if (!open) return null
 

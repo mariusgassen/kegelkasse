@@ -166,3 +166,4 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 23 | **Pins**                           | ✅      | Vereinsnadeln: Träger zuweisen, Abend-Alert bei anwesendem Träger, Strafe per Knopfdruck eintrabar; PinsAlert zeigt ✓ wenn Strafe bereits eingetragen |
 | 24 | **iCal Export**                    | ✅      | Öffentlicher Abo-Link (webcal://) mit Secret-Token; Uhrzeit pro Termin; Club-Standard 20:00; 3 Migrationen (022–024); Soft-Delete von Terminen (STATUS:CANCELLED im Feed, Migration 029) |
 | 25 | **Bug-Fixes Batch 1**              | ✅      | Statistiken-Label, leere Spiele-State, Teamzuordnung, Vergangenheitsdatum, Abend-Doppelstart, Quick-Start, Strafendatum (Admin), Ausgaben-Datum (Migration 028) |
+| 26 | **Bug-Fixes Batch 2**              | ✅      | TreasuryPage Buchungen-Datum konsistent rechts (unter Betrag) für alle Eintragstypen; NotificationPanel markAllRead in useEffect (React-Renderbug); leere-Benachrichtigungen-Hinweis |

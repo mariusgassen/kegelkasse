@@ -887,10 +887,12 @@ export function TreasuryPage() {
                                                 {e.description}
                                                 <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">{t('treasury.booking.club')}</span>
                                             </div>
-                                            <div className="text-xs text-kce-muted">{fDate(e.date ?? e.created_at)}</div>
                                         </div>
-                                        <div className={`font-bold text-sm flex-shrink-0 ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                                            {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
+                                        <div className="text-right flex-shrink-0">
+                                            <div className={`font-bold text-sm ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
+                                            </div>
+                                            <div className="text-xs text-kce-muted">{fDate(e.date ?? e.created_at)}</div>
                                         </div>
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
