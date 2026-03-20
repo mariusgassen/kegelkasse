@@ -475,6 +475,7 @@ export const de = {
     "club.settings.payments": "Zahlungen",
     "notifications.title": "Benachrichtigungen",
     "notifications.empty": "Keine Benachrichtigungen",
+    "notifications.emptyHint": "Benachrichtigungen aktivieren im Profil, um Hinweise zu Spielen, Strafen und Zahlungen zu erhalten.",
     "notifications.clearAll": "Alle löschen",
     "push.label": "Benachrichtigungen",
     "push.activeOnDevice": "Aktiv auf diesem Gerät",

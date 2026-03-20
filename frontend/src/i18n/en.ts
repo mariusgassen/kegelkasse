@@ -475,6 +475,7 @@ export const en = {
     "club.settings.payments": "Payments",
     "notifications.title": "Notifications",
     "notifications.empty": "No notifications",
+    "notifications.emptyHint": "Enable notifications in your profile to receive updates about games, penalties and payments.",
     "notifications.clearAll": "Clear all",
     "push.label": "Notifications",
     "push.activeOnDevice": "Active on this device",

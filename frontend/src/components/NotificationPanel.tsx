@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {useNotificationStore, unreadCount} from '../store/notifications'
 import {useT} from '../i18n'
 import {api} from '../api/client'
@@ -155,10 +155,11 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
 export function NotificationPanel({open, onClose}: Props) {
     const t = useT()
     const {notifications, markAllRead, clearAll} = useNotificationStore()
-    const unread = unreadCount(notifications)
 
-    // Mark all read when panel opens
-    if (open && unread > 0) markAllRead()
+    // Mark all read when panel opens — in useEffect to avoid side effects during render
+    useEffect(() => {
+        if (open) markAllRead()
+    }, [open, markAllRead])
 
     if (!open) return null
 
@@ -199,9 +200,10 @@ export function NotificationPanel({open, onClose}: Props) {
 
                 {/* Notification list */}
                 {notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-kce-muted">
+                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-kce-muted text-center">
                         <span style={{fontSize: 32}}>🔔</span>
                         <p className="text-xs font-bold">{t('notifications.empty')}</p>
+                        <p className="text-[10px] opacity-60 max-w-[220px] leading-relaxed">{t('notifications.emptyHint')}</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
