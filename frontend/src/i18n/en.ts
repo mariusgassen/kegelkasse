@@ -547,4 +547,11 @@ export const en = {
     "highlight.none": "No highlights yet.",
     "evening.noActiveHint": "Start an evening from the Schedule page.",
     "evening.goToSchedule": "📅 Go to Schedule",
+    "quickEntry.title": "Quick Entry",
+    "quickEntry.open": "Quick Entry",
+    "quickEntry.selectPlayer": "Select player…",
+    "quickEntry.selected": "selected",
+    "quickEntry.count": "Count",
+    "quickEntry.recent": "Recent entries",
+    "quickEntry.logged": "✓ Logged",
 } as const
