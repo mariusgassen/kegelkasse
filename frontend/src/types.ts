@@ -146,7 +146,6 @@ export interface GameTemplate {
     description: string | null
     winner_type: WinnerType
     is_opener: boolean
-    is_president_game: boolean
     default_loser_penalty: number
     per_point_penalty: number
     sort_order: number
@@ -196,7 +195,6 @@ export interface Game {
     name: string
     template_id: number | null
     is_opener: boolean
-    is_president_game: boolean
     winner_type: WinnerType
     winner_ref: string | null
     winner_name: string | null
