@@ -39,3 +39,7 @@ Wenn ein Nadel-Träger als Spieler zum Abend hinzugefügt wird, erscheint ein **
 ### Strafe per Knopfdruck eintrafen
 
 Direkt aus dem Nadel-Alert heraus kann die hinterlegte Strafe für den Träger mit einem einzigen Tipp eingetragen werden — ohne die Strafenmaske öffnen zu müssen.
+
+### Pin-Icons neben Spielernamen
+
+Im Spieler-Tab des Abends erscheinen die Icons aller Pins, die ein Spieler trägt, direkt neben seinem Kegelnamen. Ebenso wird das 🎯-Präsidenten-Badge inline angezeigt.

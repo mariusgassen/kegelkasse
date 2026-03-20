@@ -35,6 +35,10 @@ export function EveningPage() {
     const [quickStarting, setQuickStarting] = useState(false)
     const qc = useQueryClient()
 
+    // ── Highlights ──
+    const [highlightText, setHighlightText] = useState('')
+    const [addingHighlight, setAddingHighlight] = useState(false)
+
     // ── Edit evening sheet ──
     const [editSheet, setEditSheet] = useState(false)
     const [editDate, setEditDate] = useState('')
@@ -351,11 +355,14 @@ export function EveningPage() {
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                        {p.is_king ? '👑 ' : ''}
-                                        {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id ? '🎯 ' : ''}
-                                        {p.name}
+                                    <div className="text-sm font-bold truncate flex items-center gap-1">
+                                        <span className="truncate">{p.name}</span>
                                         {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                        {p.is_king && <span title="König" className="flex-shrink-0">👑</span>}
+                                        {currentPresident?.regular_member_id != null && p.regular_member_id === currentPresident.regular_member_id && <span title="Präsident" className="flex-shrink-0">🎯</span>}
+                                        {pins.filter(pin => pin.holder_regular_member_id === p.regular_member_id).map(pin => (
+                                            <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
+                                        ))}
                                     </div>
                                     <div
                                         className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
@@ -460,6 +467,63 @@ export function EveningPage() {
                     )
                 })
             }
+
+            {/* ── Highlights ── */}
+            <div className="flex items-center justify-between mb-2 mt-4">
+                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
+                    {t('highlight.title')} ({evening.highlights.length})
+                </div>
+            </div>
+            {evening.highlights.length === 0
+                ? <Empty icon="✨" text={t('highlight.none')}/>
+                : <div className="flex flex-col gap-1.5 mb-2">
+                    {evening.highlights.map(h => (
+                        <div key={h.id} className="kce-card p-3 flex items-start gap-2">
+                            <span className="text-base flex-shrink-0">✨</span>
+                            <div className="flex-1 text-sm">{h.text}</div>
+                            {!evening.is_closed && (
+                                <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                    try {
+                                        await api.deleteHighlight(evening.id, h.id)
+                                        invalidate()
+                                    } catch (e) { toastError(e) }
+                                }}>✕</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            }
+            {!evening.is_closed && (
+                <div className="flex gap-2 mb-4">
+                    <input
+                        className="kce-input flex-1"
+                        value={highlightText}
+                        onChange={e => setHighlightText(e.target.value)}
+                        placeholder={t('highlight.placeholder')}
+                        onKeyDown={async e => {
+                            if (e.key === 'Enter' && highlightText.trim()) {
+                                e.preventDefault()
+                                setAddingHighlight(true)
+                                try {
+                                    await api.addHighlight(evening.id, {text: highlightText.trim()})
+                                    setHighlightText('')
+                                    invalidate()
+                                } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
+                            }
+                        }}
+                    />
+                    <button className="btn-primary btn-sm flex-shrink-0" disabled={!highlightText.trim() || addingHighlight}
+                        onClick={async () => {
+                            if (!highlightText.trim()) return
+                            setAddingHighlight(true)
+                            try {
+                                await api.addHighlight(evening.id, {text: highlightText.trim()})
+                                setHighlightText('')
+                                invalidate()
+                            } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
+                        }}>+</button>
+                </div>
+            )}
 
             {/* ── Edit evening sheet ── */}
             <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')}

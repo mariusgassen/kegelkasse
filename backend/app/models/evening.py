@@ -49,6 +49,8 @@ class Evening(Base):
     penalty_log = relationship("PenaltyLog", back_populates="evening", cascade="all, delete-orphan")
     games = relationship("Game", back_populates="evening", cascade="all, delete-orphan")
     drink_rounds = relationship("DrinkRound", back_populates="evening", cascade="all, delete-orphan")
+    highlights = relationship("EveningHighlight", back_populates="evening", cascade="all, delete-orphan",
+                              order_by="EveningHighlight.created_at")
 
 
 class EveningPlayer(Base):
@@ -73,3 +75,14 @@ class Team(Base):
     name = Column(String, nullable=False)
     evening = relationship("Evening", back_populates="teams")
     members = relationship("EveningPlayer", back_populates="team")
+
+
+class EveningHighlight(Base):
+    """A memorable moment recorded during a bowling evening."""
+    __tablename__ = "evening_highlight"
+    id = Column(Integer, primary_key=True, index=True)
+    evening_id = Column(Integer, ForeignKey("evening.id", ondelete="CASCADE"), nullable=False)
+    text = Column(String, nullable=False)
+    created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    evening = relationship("Evening", back_populates="highlights")

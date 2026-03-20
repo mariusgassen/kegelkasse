@@ -71,14 +71,16 @@ docker compose exec app python -m app.scripts.create_admin
 - **Penalty types**: custom icon (emoji), name, default amount, sort order; soft-deleted when removed
 - **Game templates**: name, description, winner type (`team` / `individual` / `either`), opener flag, president-game flag, default loser penalty, sort order; soft-deleted when removed
 - **Teams**: reusable team presets that can be loaded when starting an evening
-- **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry
-- **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge
+- **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry; pin icons shown inline next to player names
+- **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge; 🎯 badge shown inline next to player name
 
 ### Evening management
 
+- Evenings are started from a scheduled entry (SchedulePage); no more ad-hoc creation
 - Create evenings with date, optional venue override, and a free-text note
 - Open/close toggle — closing an evening archives it to history
 - Add players ad-hoc or from the regular-member roster (linking them for stats)
+- **Highlights**: record memorable moments (Schuh geworfen, Kugel gegen die Heizung…) as free-text highlights on the evening
 - Create named teams and assign players to them; reassign or dissolve teams at any time
 - 30-second live polling so all connected users see changes without refresh
 

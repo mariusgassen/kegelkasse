@@ -9,6 +9,7 @@ import {
     ClubPin,
     DrinkRound,
     Evening,
+    EveningHighlight,
     EveningListItem,
     EveningPlayer,
     GameTemplate,
@@ -421,6 +422,12 @@ export const api = {
     }) =>
         request<ClubPin>('PUT', `/club/pins/${id}`, d),
     deletePin: (id: number) => request<void>('DELETE', `/club/pins/${id}`),
+
+    // Highlights
+    addHighlight: (eid: number, d: { text: string }) =>
+        request<EveningHighlight>('POST', `/evening/${eid}/highlights`, d),
+    deleteHighlight: (eid: number, hid: number) =>
+        request<void>('DELETE', `/evening/${eid}/highlights/${hid}`),
 
     // Stats
     getYearStats: (year: number) => request<{

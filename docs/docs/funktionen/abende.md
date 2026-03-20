@@ -10,17 +10,22 @@ Ein **Abend** ist der zentrale Container für einen Kegel-Spieltag. Alle Spiele,
 
 ## Abend anlegen
 
-1. Tippe auf **Abend** in der Navigation
-2. Tippe auf **Neuer Abend**
-3. Fülle das Formular aus:
+Abende werden immer über die **Termine-Seite** gestartet – kein Ad-hoc-Start mehr.
 
-| Feld | Beschreibung |
-|------|-------------|
-| **Datum** | Datum des Abends |
-| **Spiellokal** | Optional: Überschreibt das Standard-Spiellokal |
-| **Notiz** | Freitext-Notiz zum Abend |
+1. Erstelle zunächst einen Termin unter **Termine** → **+ Termin**
+2. Starte den Abend am Abendtag mit **▶ Abend starten**
 
-4. Tippe auf **Erstellen**
+:::note
+Nur **Admins** können Abende starten.
+:::
+
+## Highlights erfassen
+
+Unter dem Spieler-/Team-Bereich gibt es einen **✨ Highlights**-Abschnitt:
+
+- Trage denkwürdige Momente des Abends als Freitext ein (z. B. *„Schuh geworfen"*, *„Kugel gegen die Heizung"*)
+- Highlights werden mit dem Abend gespeichert und erscheinen beim nächsten Öffnen
+- Jeder Spieler des Abends kann Highlights eintragen und löschen
 
 ## Spieler verwalten
 
