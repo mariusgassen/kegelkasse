@@ -221,9 +221,7 @@ class TestTestPush:
         db.commit()
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_VAPID_PRIVATE):
-            # Patch asyncio.sleep to avoid 10s wait in tests
-            with patch("api.v1.push.asyncio.sleep", return_value=None):
-                r = client.post("/api/v1/push/test", headers=auth_headers)
+            r = client.post("/api/v1/push/test", headers=auth_headers)
         assert r.status_code == 404
 
     def test_sends_to_all_user_subscriptions(self, client, auth_headers, db, user):
@@ -233,9 +231,8 @@ class TestTestPush:
         db.commit()
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_VAPID_PRIVATE):
-            with patch("api.v1.push.asyncio.sleep", return_value=None):
-                with patch("core.push._send_one_raising") as mock_send:
-                    r = client.post("/api/v1/push/test", headers=auth_headers)
+            with patch("core.push._send_one_raising") as mock_send:
+                r = client.post("/api/v1/push/test", headers=auth_headers)
 
         assert r.status_code == 200
         assert r.json()["sent"] == 2

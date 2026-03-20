@@ -85,7 +85,6 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
     subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
     if not subs:
         raise HTTPException(404, "No push subscription found for this device")
-    await asyncio.sleep(3)
     from core.push import _send_one_raising
     errors: list[str] = []
     sent = 0
