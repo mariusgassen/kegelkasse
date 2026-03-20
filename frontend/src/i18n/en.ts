@@ -299,7 +299,7 @@ export const en = {
     "treasury.guestsHint": "Penalties capped per evening (guest cap).",
     "treasury.accounts.search": "Search member…",
     "treasury.bookings.search": "Search bookings…",
-    "treasury.tab.bookings": "📋 Bookings",
+    "treasury.tab.bookings": "📒 Cashbook",
     "treasury.tab.expenses": "🧾 Expenses",
     "treasury.expensesLabel": "🧾 Expenses",
     "treasury.expensesTotal": "Total expenses",

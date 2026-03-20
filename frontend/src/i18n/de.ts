@@ -299,7 +299,7 @@ export const de = {
     "treasury.guestsHint": "Strafen gedeckelt pro Abend (Gästedeckel).",
     "treasury.accounts.search": "Mitglied suchen…",
     "treasury.bookings.search": "Buchung suchen…",
-    "treasury.tab.bookings": "📋 Buchungen",
+    "treasury.tab.bookings": "📒 Kassenbuch",
     "treasury.tab.expenses": "🧾 Ausgaben",
     "treasury.expensesLabel": "🧾 Ausgaben",
     "treasury.expensesTotal": "Gesamt Ausgaben",
