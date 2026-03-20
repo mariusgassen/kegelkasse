@@ -839,8 +839,8 @@ export function TreasuryPage() {
                     />
                     <div className="flex items-center justify-between mb-3">
                         <div>
-                            <span className="text-xs text-kce-muted">{t('treasury.expensesTotal')}</span>
-                            <div className="font-bold text-orange-400 text-sm">-{fe(totalExpenses)}</div>
+                            <span className="text-xs text-kce-muted">{t('treasury.netExpenses')}</span>
+                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-green-400' : 'text-orange-400'}`}>{fe(-totalExpenses)}</div>
                         </div>
                         {admin && (
                             <button className="btn-primary btn-sm" onClick={openBookingSheet}>
