@@ -136,7 +136,7 @@ export default function App() {
     const badgeCount = unreadCount(notifications)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const notificationsActive = pushSupported && typeof Notification !== 'undefined' && Notification.permission === 'granted'
-    const showNotificationBell = notificationsActive || notifications.length > 0 || !!user
+    const showNotificationBell = notificationsActive || notifications.length > 0
     // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
     const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
     const [bootNetworkError, setBootNetworkError] = useState(false)

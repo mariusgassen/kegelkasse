@@ -200,10 +200,9 @@ export function NotificationPanel({open, onClose}: Props) {
 
                 {/* Notification list */}
                 {notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-kce-muted text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-kce-muted">
                         <span style={{fontSize: 32}}>🔔</span>
                         <p className="text-xs font-bold">{t('notifications.empty')}</p>
-                        <p className="text-[10px] opacity-60 max-w-[220px] leading-relaxed">{t('notifications.emptyHint')}</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
