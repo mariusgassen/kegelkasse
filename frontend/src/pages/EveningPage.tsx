@@ -15,7 +15,7 @@ import {StartEveningSheet} from '@/pages/SchedulePage.tsx'
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const {regularMembers, user} = useAppStore()
+    const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
     // ── Start evening form ──
@@ -948,6 +948,10 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
             </div>
         </Sheet>
     )
+}
+
+function today() {
+    return new Date().toISOString().slice(0, 10)
 }
 
 function formatDate(iso: string) {
