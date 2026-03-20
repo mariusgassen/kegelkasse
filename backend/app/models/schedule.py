@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -22,6 +22,7 @@ class ScheduledEvening(Base):
     note = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_deleted = Column(Boolean, nullable=False, default=False)
     rsvps = relationship("MemberRsvp", back_populates="scheduled_evening", cascade="all, delete-orphan")
     guests = relationship("ScheduledEveningGuest", back_populates="scheduled_evening", cascade="all, delete-orphan")
 

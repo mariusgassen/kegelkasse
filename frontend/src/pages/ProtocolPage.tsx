@@ -111,6 +111,7 @@ export function ProtocolPage() {
     const [editType, setEditType] = useState<number | null>(null)
     const [editMode, setEditMode] = useState<PenaltyMode>('euro')
     const [editAmount, setEditAmount] = useState('')
+    const [editDate, setEditDate] = useState('')
 
     if (!evening) {
         return (
@@ -193,6 +194,8 @@ export function ProtocolPage() {
         setEditType(pt?.id ?? null)
         setEditMode(entry.mode)
         setEditAmount(String(entry.amount))
+        const d = new Date(entry.client_timestamp)
+        setEditDate(d.toISOString().slice(0, 16))
     }
 
     async function submitQuick() {
@@ -287,6 +290,8 @@ export function ProtocolPage() {
             ? (parseInt(editAmount) || 1)
             : (parseAmount(editAmount) || (pt?.default_amount ?? editEntry.amount))
         if (newAmount !== editEntry.amount) patch.amount = newAmount
+        const originalDate = new Date(editEntry.client_timestamp).toISOString().slice(0, 16)
+        if (editDate && editDate !== originalDate) patch.date = editDate
         setSaving(true)
         try {
             await api.updatePenalty(evening!.id, editEntry.id, patch)
@@ -770,6 +775,15 @@ export function ProtocolPage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Date override (admin only) */}
+                    {isAdmin(user) && (
+                        <div>
+                            <label className="field-label">{t('penalty.date')}</label>
+                            <input type="datetime-local" className="kce-input" value={editDate}
+                                   onChange={e => setEditDate(e.target.value)}/>
+                        </div>
+                    )}
 
                     <button type="submit" className="btn-primary w-full" disabled={saving}>
                         {t('action.save')}

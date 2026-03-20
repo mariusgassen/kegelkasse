@@ -277,7 +277,8 @@ export const api = {
         penalty_type_name?: string;
         icon?: string;
         amount?: number;
-        mode?: string
+        mode?: string;
+        date?: string;
     }) =>
         request<void>('PATCH', `/evening/${eid}/penalties/${lid}`, d),
     deletePenalty: (eid: number, lid: number) => request<void>('DELETE', `/evening/${eid}/penalties/${lid}`),
@@ -360,10 +361,10 @@ export const api = {
 
     // Club expenses
     getExpenses: () => request<{
-        id: number; amount: number; description: string; created_at: string | null
+        id: number; amount: number; description: string; created_at: string | null; date: string | null
     }[]>('GET', '/club/expenses'),
-    createExpense: (d: { amount: number; description: string }) =>
-        request<{ id: number; amount: number; description: string; created_at: string | null }>('POST', '/club/expenses', d),
+    createExpense: (d: { amount: number; description: string; date?: string }) =>
+        request<{ id: number; amount: number; description: string; created_at: string | null; date: string | null }>('POST', '/club/expenses', d),
     deleteExpense: (eid: number) => request<void>('DELETE', `/club/expenses/${eid}`),
 
     // My balance

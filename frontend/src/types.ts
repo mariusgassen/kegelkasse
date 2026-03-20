@@ -56,6 +56,7 @@ export interface ScheduledEvening {
     absent_count: number
     my_rsvp: RsvpStatus | null
     guests: ScheduledEveningGuest[]
+    evening_id: number | null  // linked Evening id if already started
 }
 
 export interface PushPreferences {

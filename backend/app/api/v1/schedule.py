@@ -1,5 +1,5 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from babel.dates import format_datetime
@@ -25,7 +25,7 @@ def _serialize_guest(g: ScheduledEveningGuest) -> dict:
     return {"id": g.id, "name": g.name, "regular_member_id": g.regular_member_id}
 
 
-def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Optional[int]) -> dict:
+def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Optional[int], db=None) -> dict:
     attending = [r for r in se.rsvps if r.status == RsvpStatus.attending]
     absent = [r for r in se.rsvps if r.status == RsvpStatus.absent]
     my_rsvp = None
@@ -35,6 +35,14 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
                 my_rsvp = r.status
                 break
     sa_utc = se.scheduled_at.astimezone(UTC) if se.scheduled_at.tzinfo else se.scheduled_at.replace(tzinfo=UTC)
+    # Find the linked Evening (non-closed takes priority, else any linked)
+    linked_evening_id = None
+    if db is not None:
+        linked = db.query(Evening).filter(
+            Evening.scheduled_evening_id == se.id,
+        ).order_by(Evening.is_closed).first()
+        if linked:
+            linked_evening_id = linked.id
     return {
         "id": se.id,
         "scheduled_at": sa_utc.strftime('%Y-%m-%dT%H:%M'),
@@ -45,12 +53,14 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
         "absent_count": len(absent),
         "my_rsvp": my_rsvp,
         "guests": [_serialize_guest(g) for g in se.guests],
+        "evening_id": linked_evening_id,
     }
 
 
 def _get_se(sid: int, club_id: int, db: Session) -> ScheduledEvening:
     se = db.query(ScheduledEvening).filter(
-        ScheduledEvening.id == sid, ScheduledEvening.club_id == club_id
+        ScheduledEvening.id == sid, ScheduledEvening.club_id == club_id,
+        ScheduledEvening.is_deleted == False,
     ).first()
     if not se:
         raise HTTPException(404, "Scheduled evening not found")
@@ -66,8 +76,9 @@ def list_scheduled_evenings(
 ):
     items = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == user.club_id,
+        ScheduledEvening.is_deleted == False,
     ).order_by(ScheduledEvening.scheduled_at).all()
-    return [_serialize_scheduled_evening(se, user.regular_member_id) for se in items]
+    return [_serialize_scheduled_evening(se, user.regular_member_id, db) for se in items]
 
 
 class ScheduledEveningCreate(BaseModel):
@@ -83,10 +94,14 @@ def create_scheduled_evening(
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
+    scheduled_at = _parse_date(data.date)
+    # Allow up to 5 minutes in the past (for quick-start flow where "now" is used)
+    if scheduled_at < datetime.now(UTC) - timedelta(minutes=5):
+        raise HTTPException(400, "Scheduled date must be in the future")
     se = ScheduledEvening(
         club_id=user.club_id,
         created_by=user.id,
-        scheduled_at=_parse_date(data.date),
+        scheduled_at=scheduled_at,
         venue=data.venue,
         note=data.note,
     )
@@ -104,7 +119,7 @@ def create_scheduled_evening(
         f"/#schedule?event={se.id}",
         category="schedule",
     )
-    return _serialize_scheduled_evening(se, user.regular_member_id)
+    return _serialize_scheduled_evening(se, user.regular_member_id, db)
 
 
 class ScheduledEveningUpdate(BaseModel):
@@ -141,7 +156,7 @@ def update_scheduled_evening(
         f"/#schedule?event={se.id}",
         category="schedule",
         )
-    return _serialize_scheduled_evening(se, user.regular_member_id)
+    return _serialize_scheduled_evening(se, user.regular_member_id, db)
 
 
 @router.delete("/{sid}", status_code=204)
@@ -151,7 +166,7 @@ def delete_scheduled_evening(
     user: User = Depends(require_club_admin),
 ):
     se = _get_se(sid, user.club_id, db)
-    db.delete(se)
+    se.is_deleted = True
     db.commit()
 
 
@@ -216,6 +231,14 @@ def start_evening(
     """Create an actual Evening from a ScheduledEvening, importing specified members and all planned guests."""
     se = _get_se(sid, user.club_id, db)
 
+    # Ensure no other evening is currently open for this club
+    other_open = db.query(Evening).filter(
+        Evening.club_id == se.club_id,
+        Evening.is_closed == False,
+    ).first()
+    if other_open:
+        raise HTTPException(400, "Another evening is already active")
+
     ev = Evening(
         club_id=se.club_id,
         date=se.scheduled_at,
@@ -246,13 +269,26 @@ def start_evening(
         # Skip if the guest is a known member already added
         if guest.regular_member_id and guest.regular_member_id in added_member_ids:
             continue
+        rm_id = guest.regular_member_id
+        if not rm_id:
+            # Create a RegularMember record for this guest so evening_player has a proper link
+            rm = RegularMember(
+                club_id=se.club_id,
+                name=guest.name,
+                is_guest=True,
+                is_active=True,
+            )
+            db.add(rm)
+            db.flush()
+            rm_id = rm.id
+            # Link back to the ScheduledEveningGuest so future references work
+            guest.regular_member_id = rm_id
         db.add(EveningPlayer(
             evening_id=ev.id,
-            regular_member_id=guest.regular_member_id,
+            regular_member_id=rm_id,
             name=guest.name,
         ))
-        if guest.regular_member_id:
-            added_member_ids.add(guest.regular_member_id)
+        added_member_ids.add(rm_id)
 
     db.commit()
     db.refresh(ev)
@@ -489,6 +525,8 @@ def export_ical(token: str, db: Session = Depends(get_db)):
         lines.append(f"DTSTART:{start_str}\r\n")
         lines.append(f"DTEND:{end_str}\r\n")
         lines.append(_ical_fold(f"SUMMARY:{_ical_escape(summary)}"))
+        if se.is_deleted:
+            lines.append("STATUS:CANCELLED\r\n")
         if se.venue:
             lines.append(_ical_fold(f"LOCATION:{_ical_escape(se.venue)}"))
         if se.note:

@@ -86,6 +86,24 @@ function getStoredToken(): Promise<string | null> {
     })
 }
 
+/** Store a missed push notification in IndexedDB so the app can pick it up on next boot. */
+function storeMissedPush(title: string, body: string, url: string): Promise<void> {
+    return new Promise((resolve) => {
+        const req = indexedDB.open('kegelkasse_notifications', 1)
+        req.onupgradeneeded = (e) => {
+            ;(e.target as IDBOpenDBRequest).result.createObjectStore('missed', {autoIncrement: true})
+        }
+        req.onsuccess = () => {
+            const db = req.result
+            const tx = db.transaction('missed', 'readwrite')
+            tx.objectStore('missed').add({title, body, url, receivedAt: new Date().toISOString()})
+            tx.oncomplete = () => { db.close(); resolve() }
+            tx.onerror = () => { db.close(); resolve() }
+        }
+        req.onerror = () => resolve()
+    })
+}
+
 self.addEventListener('push', (event) => {
     const data = event.data?.json() ?? {}
     const title = data.title ?? 'Kegelkasse'
@@ -95,16 +113,21 @@ self.addEventListener('push', (event) => {
     const actions = (data.actions as {action: string; title: string}[]) ?? []
     const rid = data.rid as number | undefined
 
-    // Broadcast to all open app windows so they can add it to the in-app notification list
-    const broadcast = self.clients
+    // Broadcast to all open app windows so they can add it to the in-app notification list.
+    // If no window is open, store to IndexedDB so the app can read it on next boot.
+    const broadcastOrStore = self.clients
         .matchAll({ type: 'window', includeUncontrolled: true })
         .then((clients) => {
-            clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))
+            if (clients.length > 0) {
+                clients.forEach((c) => c.postMessage({ type: 'push-received', title, body, url, tag }))
+            } else {
+                return storeMissedPush(title, body, url)
+            }
         })
 
     event.waitUntil(
         Promise.all([
-            broadcast,
+            broadcastOrStore,
             self.registration.showNotification(title, {
                 body,
                 icon: '/icon.svg',

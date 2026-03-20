@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, Float, String, Date, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 import enum
 
@@ -46,3 +46,4 @@ class ClubExpense(Base):
     description = Column(String, nullable=False)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    date = Column(Date(), nullable=True)  # optional backdated date for the entry

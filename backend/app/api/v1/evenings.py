@@ -124,6 +124,15 @@ def update_evening(eid: int,
     e = get_club_evening(eid, user, db)
     was_open = not e.is_closed
     updates = data.model_dump(exclude_none=True)
+    # Reopening: ensure no other evening is currently open for this club
+    if updates.get("is_closed") is False and e.is_closed:
+        other_open = db.query(Evening).filter(
+            Evening.club_id == e.club_id,
+            Evening.id != e.id,
+            Evening.is_closed == False,
+        ).first()
+        if other_open:
+            raise HTTPException(400, "Another evening is already active")
     if "date" in updates:
         updates["date"] = _parse_date(updates["date"])
     for k, v in updates.items(): setattr(e, k, v)
@@ -366,6 +375,7 @@ class PenaltyUpdate(BaseModel):
     icon: Optional[str] = None
     amount: Optional[float] = None
     mode: Optional[str] = None
+    date: Optional[str] = None  # ISO date string for admin date override
 
 
 @router.patch("/{eid}/penalties/{lid}")
@@ -374,7 +384,18 @@ def update_penalty(eid: int, lid: int, data: PenaltyUpdate, db: Session = Depend
     e = get_club_evening(eid, user, db)
     l = db.query(PenaltyLog).filter(PenaltyLog.id == lid, PenaltyLog.evening_id == e.id).first()
     if not l: raise HTTPException(404)
-    for k, v in data.model_dump(exclude_none=True).items(): setattr(l, k, v)
+    updates = data.model_dump(exclude_none=True)
+    # Date override requires admin role
+    if "date" in updates:
+        if user.role not in ("admin", "superadmin"):
+            raise HTTPException(403, "Admin required to change penalty date")
+        date_str = updates.pop("date")
+        try:
+            dt = _parse_date(date_str)
+            l.client_timestamp = dt.timestamp() * 1000
+        except Exception:
+            raise HTTPException(400, "Invalid date format")
+    for k, v in updates.items(): setattr(l, k, v)
     db.commit()
     return {"ok": True}
 
@@ -448,11 +469,17 @@ def _do_calculate_absence_penalties(
     else:
         base_fee = 0.0
 
-    # Find ScheduledEvening matching this date (for RSVP lookup)
-    scheduled = db.query(ScheduledEvening).filter(
-        ScheduledEvening.club_id == e.club_id,
-        cast(ScheduledEvening.scheduled_at, SQLDate) == cast(e.date, SQLDate),
-    ).first()
+    # Find ScheduledEvening for RSVP lookup — prefer direct FK, fall back to date match
+    scheduled = None
+    if e.scheduled_evening_id:
+        scheduled = db.query(ScheduledEvening).filter(
+            ScheduledEvening.id == e.scheduled_evening_id,
+        ).first()
+    else:
+        scheduled = db.query(ScheduledEvening).filter(
+            ScheduledEvening.club_id == e.club_id,
+            cast(ScheduledEvening.scheduled_at, SQLDate) == cast(e.date, SQLDate),
+        ).first()
     rsvp_map: dict[int, str] = {}
     if scheduled:
         for r in db.query(MemberRsvp).filter(MemberRsvp.scheduled_evening_id == scheduled.id).all():
@@ -470,11 +497,15 @@ def _do_calculate_absence_penalties(
     for member in absent_members:
         # Either: properly cancelled (RSVP absent) → base_fee (average of present players)
         # Or: no cancellation → no_cancel_fee only (not additive); fall back to base_fee if unset
+        # For ad-hoc evenings (no ScheduledEvening), always use base_fee — no_cancel_fee only
+        # applies when RSVP was expected (i.e. there was a scheduled evening with RSVPs).
         rsvp_status = rsvp_map.get(member.id)
         if rsvp_status == RsvpStatus.absent:
             total_fee = base_fee
+        elif scheduled and no_cancel_fee > 0:
+            total_fee = no_cancel_fee
         else:
-            total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
+            total_fee = base_fee
         db.add(PenaltyLog(
             evening_id=e.id,
             player_id=None,
@@ -496,8 +527,10 @@ def _do_calculate_absence_penalties(
             rsvp_status = rsvp_map.get(member.id)
             if rsvp_status == RsvpStatus.absent:
                 total_fee = base_fee
+            elif scheduled and no_cancel_fee > 0:
+                total_fee = no_cancel_fee
             else:
-                total_fee = no_cancel_fee if no_cancel_fee > 0 else base_fee
+                total_fee = base_fee
             fee_str = f"{total_fee:.2f}".replace('.', ',')
             background_tasks.add_task(
                 push_to_regular_member,

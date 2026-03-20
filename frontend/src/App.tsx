@@ -169,6 +169,26 @@ export default function App() {
         return () => navigator.serviceWorker.removeEventListener('message', handler)
     }, [addNotification])
 
+    // On boot, read any push notifications missed while the app was closed (stored in IndexedDB by SW)
+    useEffect(() => {
+        const req = indexedDB.open('kegelkasse_notifications', 1)
+        req.onsuccess = () => {
+            const db = req.result
+            if (!db.objectStoreNames.contains('missed')) { db.close(); return }
+            const tx = db.transaction('missed', 'readwrite')
+            const store = tx.objectStore('missed')
+            const allReq = store.getAll()
+            allReq.onsuccess = () => {
+                const items = allReq.result as {title: string; body: string; url: string}[]
+                items.forEach(n => addNotification({title: n.title, body: n.body, url: n.url ?? '/'}))
+                if (items.length > 0) store.clear()
+            }
+            tx.oncomplete = () => db.close()
+            tx.onerror = () => db.close()
+        }
+        req.onerror = () => {}
+    }, [addNotification])
+
     async function handleRefresh() {
         setRefreshing(true)
         await queryClient.invalidateQueries()
