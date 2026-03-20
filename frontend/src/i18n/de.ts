@@ -578,8 +578,8 @@ export const de = {
     "committee.trip.edit": "✏️ Kegelfahrt bearbeiten",
     "committee.members": "Vergnügungsausschuss-Mitglieder",
     "committee.membersHint": "Diese Mitglieder können Ankündigungen und Kegelfahrten einstellen.",
-    "committee.noMembers": "Noch keine VA-Mitglieder ernannt.",
-    "committee.isCommittee": "VA-Mitglied",
+    "committee.noMembers": "Noch keine VGA-Mitglieder ernannt.",
+    "committee.isCommittee": "VGA-Mitglied",
 } as const
 
 export type TranslationKey = keyof typeof de
