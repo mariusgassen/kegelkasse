@@ -74,6 +74,7 @@ export function EveningPage() {
     // ── No active evening ──
     if (!activeEveningId && !evening) {
         return (
+            <>
             <div className="page-scroll px-3 py-3 pb-24">
                 <div className="sec-heading">🎳 {t('nav.evening')}</div>
                 <div className="kce-card p-5">
