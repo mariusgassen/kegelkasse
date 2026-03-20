@@ -29,7 +29,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -62,6 +62,7 @@ export function ClubAdminPage() {
         {id: 'templates', label: t('club.tab.templates')},
         {id: 'teams', label: t('club.tab.teams')},
         {id: 'pins', label: t('club.tab.pins')},
+        {id: 'committee', label: '🚌 VA'},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
     ]
 
@@ -115,6 +116,11 @@ export function ClubAdminPage() {
                     {tab === 'pins' && (
                         <AdminGuard>
                             <PinsTab regularMembers={regularMembers}/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'committee' && (
+                        <AdminGuard>
+                            <CommitteeAdminTab regularMembers={regularMembers} onChanged={refetchRM}/>
                         </AdminGuard>
                     )}
                     {tab === 'clubs' && user?.role === 'superadmin' && (
@@ -964,3 +970,81 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
 }
 
 // ── Invites ──
+
+// ── Committee Admin Tab ───────────────────────────────────────────────────────
+
+function CommitteeAdminTab({regularMembers, onChanged}: {
+    regularMembers: RegularMemberType[]
+    onChanged: () => void
+}) {
+    const t = useT()
+    const [busy, setBusy] = useState<number | null>(null)
+    const activeNonGuests = regularMembers.filter(m => m.is_active && !m.is_guest)
+
+    async function toggle(member: RegularMemberType) {
+        setBusy(member.id)
+        try {
+            await api.setCommitteeMember(member.id, !member.is_committee)
+            await onChanged()
+        } catch (e) {
+            showToast(String(e))
+        } finally {
+            setBusy(null)
+        }
+    }
+
+    const committeeMembers = activeNonGuests.filter(m => m.is_committee)
+    const otherMembers = activeNonGuests.filter(m => !m.is_committee)
+
+    return (
+        <div>
+            <p className="text-kce-muted text-xs mb-4">{t('committee.membersHint')}</p>
+
+            {committeeMembers.length === 0 && (
+                <p className="text-kce-muted text-sm mb-4">{t('committee.noMembers')}</p>
+            )}
+
+            {committeeMembers.length > 0 && (
+                <div className="mb-4">
+                    <p className="sec-heading mb-2">{t('committee.members')}</p>
+                    <div className="flex flex-col gap-2">
+                        {committeeMembers.map(m => (
+                            <div key={m.id}
+                                 className="card p-3 flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-bold text-kce-cream">{m.nickname || m.name}</p>
+                                    {m.nickname && <p className="text-[10px] text-kce-muted">{m.name}</p>}
+                                </div>
+                                <button
+                                    disabled={busy === m.id}
+                                    onClick={() => toggle(m)}
+                                    className="text-xs px-3 py-1 rounded-full font-bold transition-all"
+                                    style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
+                                    VA ✓
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <p className="sec-heading mb-2">{t('member.roster')}</p>
+            <div className="flex flex-col gap-2">
+                {otherMembers.map(m => (
+                    <div key={m.id} className="card p-3 flex items-center justify-between gap-2">
+                        <div>
+                            <p className="text-sm font-bold text-kce-cream">{m.nickname || m.name}</p>
+                            {m.nickname && <p className="text-[10px] text-kce-muted">{m.name}</p>}
+                        </div>
+                        <button
+                            disabled={busy === m.id}
+                            onClick={() => toggle(m)}
+                            className="text-xs px-3 py-1 rounded-full font-bold bg-kce-surface2 text-kce-muted border border-kce-border transition-all">
+                            {t('committee.isCommittee')}
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}

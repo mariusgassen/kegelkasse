@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.security import decode_token
 from models.user import User, UserRole
+from models.evening import RegularMember
 
 security = HTTPBearer()
 
@@ -46,4 +47,21 @@ def require_club_admin(user: User = Depends(get_current_user)) -> User:
 def require_superadmin(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.superadmin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin required")
+    return user
+
+
+def require_committee_or_admin(
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+) -> User:
+    """Committee member (is_committee=True) or club admin/superadmin required."""
+    if user.role in (UserRole.admin, UserRole.superadmin):
+        return user
+    if not user.regular_member_id or not user.club_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Vergnügungsausschuss or admin required")
+    member = db.query(RegularMember).filter(RegularMember.id == user.regular_member_id).first()
+    if not member or not member.is_committee:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Vergnügungsausschuss or admin required")
     return user

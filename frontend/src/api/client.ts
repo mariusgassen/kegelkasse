@@ -3,9 +3,11 @@ import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
 import {persistTokenForSW} from '@/lib/tokenStore'
 import {
     Club,
+    ClubAnnouncement,
     ClubSettings,
     ClubTeam,
     ClubPin,
+    ClubTrip,
     DrinkRound,
     Evening,
     EveningHighlight,
@@ -461,6 +463,17 @@ export const api = {
     updateReminderSettings: (d: Partial<ReminderSettings>) => request<{ ok: boolean }>('PATCH', '/club/reminder-settings', d),
     broadcastPush: (d: { title: string; body: string; url?: string }) => request<{ ok: boolean }>('POST', '/club/broadcast-push', d),
     triggerReminders: () => request<{ ok: boolean }>('POST', '/push/trigger-reminders'),
+
+    // Committee (Vergnügungsausschuss)
+    listAnnouncements: () => request<ClubAnnouncement[]>('GET', '/committee/announcements'),
+    createAnnouncement: (d: { title: string; text?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
+    deleteAnnouncement: (id: number) => request<void>('DELETE', `/committee/announcements/${id}`),
+    listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
+    createTrip: (d: { date: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),
+    updateTrip: (id: number, d: { date?: string; destination?: string; note?: string }) => request<ClubTrip>('PATCH', `/committee/trips/${id}`, d),
+    deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),
+    setCommitteeMember: (memberId: number, isCommittee: boolean) =>
+        request<{ id: number; is_committee: boolean }>('PATCH', `/club/members/${memberId}/committee`, {is_committee: isCommittee}),
 }
 
 /**

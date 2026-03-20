@@ -1186,3 +1186,28 @@ def delete_pin(pid: int, db: Session = Depends(get_db),
         raise HTTPException(404)
     db.delete(pin)
     db.commit()
+
+
+
+# ── Committee member management ───────────────────────────────────────────────
+
+class CommitteeToggle(BaseModel):
+    is_committee: bool
+
+
+@router.patch("/members/{mid}/committee")
+def set_committee_member(
+    mid: int,
+    data: CommitteeToggle,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """Toggle the is_committee flag for a regular member (admin only)."""
+    member = db.query(RegularMember).filter(
+        RegularMember.id == mid, RegularMember.club_id == user.club_id
+    ).first()
+    if not member:
+        raise HTTPException(404, "Member not found")
+    member.is_committee = data.is_committee
+    db.commit()
+    return {"id": member.id, "is_committee": member.is_committee}

@@ -1,0 +1,453 @@
+/**
+ * CommitteePage — Vergnügungsausschuss: Kegelfahrten und Ankündigungen.
+ * Committee members (is_committee) and admins can create/delete entries.
+ * All club members can view.
+ */
+import {useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useHashTab} from '@/hooks/usePage.ts'
+import {useT} from '@/i18n'
+import {api} from '@/api/client.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
+import {Sheet} from '@/components/ui/Sheet.tsx'
+import {Empty} from '@/components/ui/Empty.tsx'
+import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
+import type {ClubAnnouncement, ClubTrip} from '@/types.ts'
+
+function fDate(isoStr: string) {
+    const date = isoStr.length > 10 ? isoStr.slice(0, 10) : isoStr
+    return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
+        weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
+    })
+}
+
+function fDateTime(isoStr: string) {
+    return new Date(isoStr).toLocaleString('de-DE', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    })
+}
+
+function todayStr() {
+    return new Date().toISOString().slice(0, 10)
+}
+
+// ── Announcements Tab ─────────────────────────────────────────────────────────
+
+function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
+    const t = useT()
+    const qc = useQueryClient()
+    const [addOpen, setAddOpen] = useState(false)
+    const [delId, setDelId] = useState<number | null>(null)
+    const [title, setTitle] = useState('')
+    const [text, setText] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    const {data: announcements = [], isLoading} = useQuery({
+        queryKey: ['committee-announcements'],
+        queryFn: api.listAnnouncements,
+    })
+
+    async function handleCreate() {
+        if (!title.trim()) return
+        setSaving(true)
+        try {
+            await api.createAnnouncement({title: title.trim(), text: text.trim() || undefined})
+            await qc.invalidateQueries({queryKey: ['committee-announcements']})
+            setAddOpen(false)
+            setTitle('')
+            setText('')
+            showToast('✓ Ankündigung veröffentlicht')
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleDelete(id: number) {
+        try {
+            await api.deleteAnnouncement(id)
+            await qc.invalidateQueries({queryKey: ['committee-announcements']})
+            setDelId(null)
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    return (
+        <div>
+            {canWrite && (
+                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                    + {t('committee.announcement.add')}
+                </button>
+            )}
+
+            {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
+
+            {!isLoading && announcements.length === 0 && (
+                <Empty icon="📣" label={t('committee.announcement.none')}/>
+            )}
+
+            <div className="flex flex-col gap-3">
+                {announcements.map((a: ClubAnnouncement) => (
+                    <div key={a.id} className="card p-4">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-kce-cream text-sm leading-snug">{a.title}</p>
+                                {a.text && (
+                                    <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
+                                        {a.text}
+                                    </p>
+                                )}
+                                <p className="text-[10px] text-kce-muted mt-2">
+                                    {a.created_by_name && (
+                                        <span>{t('committee.announcement.by')} {a.created_by_name} · </span>
+                                    )}
+                                    {a.created_at && fDateTime(a.created_at)}
+                                </p>
+                            </div>
+                            {canWrite && (
+                                <button
+                                    className="text-kce-muted hover:text-red-400 text-lg leading-none flex-shrink-0 mt-0.5"
+                                    onClick={() => setDelId(a.id)}>
+                                    ×
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Add sheet */}
+            {addOpen && (
+                <Sheet
+                    open
+                    onClose={() => setAddOpen(false)}
+                    title={t('committee.announcement.new')}
+                    onSubmit={handleCreate}
+                    submitLabel={saving ? t('action.saving') : t('action.save')}
+                    submitDisabled={!title.trim() || saving}
+                >
+                    <label className="form-label">{t('committee.announcement.title')}</label>
+                    <input
+                        className="input mb-3"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        placeholder={t('committee.announcement.title')}
+                        autoFocus
+                    />
+                    <label className="form-label">{t('committee.announcement.text')}</label>
+                    <textarea
+                        className="input resize-none"
+                        rows={4}
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        placeholder={t('committee.announcement.text')}
+                    />
+                </Sheet>
+            )}
+
+            {/* Delete confirm */}
+            {delId !== null && (
+                <Sheet
+                    open
+                    onClose={() => setDelId(null)}
+                    title={t('action.delete')}
+                    onSubmit={() => handleDelete(delId)}
+                    submitLabel={t('action.confirmDelete')}
+                    submitDestructive
+                >
+                    <p className="text-kce-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
+                </Sheet>
+            )}
+        </div>
+    )
+}
+
+// ── Trips Tab (Kegelfahrten) ──────────────────────────────────────────────────
+
+function TripsTab({canWrite}: { canWrite: boolean }) {
+    const t = useT()
+    const qc = useQueryClient()
+    const [addOpen, setAddOpen] = useState(false)
+    const [editTrip, setEditTrip] = useState<ClubTrip | null>(null)
+    const [delId, setDelId] = useState<number | null>(null)
+    const [date, setDate] = useState(todayStr())
+    const [destination, setDestination] = useState('')
+    const [note, setNote] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    const {data: trips = [], isLoading} = useQuery({
+        queryKey: ['committee-trips'],
+        queryFn: api.listTrips,
+    })
+
+    function openEdit(trip: ClubTrip) {
+        setEditTrip(trip)
+        setDate(trip.date.slice(0, 10))
+        setDestination(trip.destination)
+        setNote(trip.note || '')
+    }
+
+    function resetForm() {
+        setDate(todayStr())
+        setDestination('')
+        setNote('')
+        setEditTrip(null)
+        setAddOpen(false)
+    }
+
+    async function handleCreate() {
+        if (!destination.trim()) return
+        setSaving(true)
+        try {
+            await api.createTrip({date, destination: destination.trim(), note: note.trim() || undefined})
+            await qc.invalidateQueries({queryKey: ['committee-trips']})
+            resetForm()
+            showToast('✓ Kegelfahrt eingetragen')
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleUpdate() {
+        if (!editTrip || !destination.trim()) return
+        setSaving(true)
+        try {
+            await api.updateTrip(editTrip.id, {date, destination: destination.trim(), note: note.trim() || undefined})
+            await qc.invalidateQueries({queryKey: ['committee-trips']})
+            resetForm()
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleDelete(id: number) {
+        try {
+            await api.deleteTrip(id)
+            await qc.invalidateQueries({queryKey: ['committee-trips']})
+            setDelId(null)
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    const now = new Date()
+    const upcoming = trips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') >= now)
+    const past = trips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') < now)
+
+    return (
+        <div>
+            {canWrite && (
+                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                    + {t('committee.trip.add')}
+                </button>
+            )}
+
+            {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
+
+            {!isLoading && trips.length === 0 && (
+                <Empty icon="🚌" label={t('committee.trip.none')}/>
+            )}
+
+            {upcoming.length > 0 && (
+                <>
+                    <p className="sec-heading mb-2">{t('schedule.upcoming')}</p>
+                    <div className="flex flex-col gap-3 mb-5">
+                        {upcoming.map((tr: ClubTrip) => (
+                            <TripCard key={tr.id} trip={tr} canWrite={canWrite}
+                                      onEdit={() => openEdit(tr)}
+                                      onDelete={() => setDelId(tr.id)}/>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {past.length > 0 && (
+                <>
+                    <p className="sec-heading mb-2">{t('schedule.past')}</p>
+                    <div className="flex flex-col gap-3">
+                        {[...past].reverse().map((tr: ClubTrip) => (
+                            <TripCard key={tr.id} trip={tr} canWrite={canWrite} past
+                                      onEdit={() => openEdit(tr)}
+                                      onDelete={() => setDelId(tr.id)}/>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {/* Add sheet */}
+            {addOpen && (
+                <Sheet
+                    open
+                    onClose={resetForm}
+                    title={t('committee.trip.new')}
+                    onSubmit={handleCreate}
+                    submitLabel={saving ? t('action.saving') : t('action.save')}
+                    submitDisabled={!destination.trim() || saving}
+                >
+                    <TripForm date={date} destination={destination} note={note}
+                              onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                </Sheet>
+            )}
+
+            {/* Edit sheet */}
+            {editTrip && (
+                <Sheet
+                    open
+                    onClose={resetForm}
+                    title={t('committee.trip.edit')}
+                    onSubmit={handleUpdate}
+                    submitLabel={saving ? t('action.saving') : t('action.save')}
+                    submitDisabled={!destination.trim() || saving}
+                >
+                    <TripForm date={date} destination={destination} note={note}
+                              onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                </Sheet>
+            )}
+
+            {/* Delete confirm */}
+            {delId !== null && (
+                <Sheet
+                    open
+                    onClose={() => setDelId(null)}
+                    title={t('action.delete')}
+                    onSubmit={() => handleDelete(delId)}
+                    submitLabel={t('action.confirmDelete')}
+                    submitDestructive
+                >
+                    <p className="text-kce-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
+                </Sheet>
+            )}
+        </div>
+    )
+}
+
+function TripForm({date, destination, note, onDate, onDestination, onNote}: {
+    date: string
+    destination: string
+    note: string
+    onDate: (v: string) => void
+    onDestination: (v: string) => void
+    onNote: (v: string) => void
+}) {
+    const t = useT()
+    return (
+        <>
+            <label className="form-label">{t('committee.trip.date')}</label>
+            <input type="date" className="input mb-3" value={date} onChange={e => onDate(e.target.value)}/>
+            <label className="form-label">{t('committee.trip.destination')}</label>
+            <input
+                className="input mb-3"
+                value={destination}
+                onChange={e => onDestination(e.target.value)}
+                placeholder={t('committee.trip.destinationPlaceholder')}
+                autoFocus
+            />
+            <label className="form-label">{t('committee.trip.note')}</label>
+            <textarea
+                className="input resize-none"
+                rows={3}
+                value={note}
+                onChange={e => onNote(e.target.value)}
+                placeholder={t('common.optional')}
+            />
+        </>
+    )
+}
+
+function TripCard({trip, canWrite, past = false, onEdit, onDelete}: {
+    trip: ClubTrip
+    canWrite: boolean
+    past?: boolean
+    onEdit: () => void
+    onDelete: () => void
+}) {
+    return (
+        <div className={`card p-4 ${past ? 'opacity-60' : ''}`}>
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">🚌</span>
+                        <p className="font-bold text-kce-cream text-sm leading-snug">{trip.destination}</p>
+                    </div>
+                    <p className="text-xs text-kce-amber font-bold">{fDate(trip.date)}</p>
+                    {trip.note && (
+                        <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
+                    )}
+                    {trip.created_by_name && (
+                        <p className="text-[10px] text-kce-muted mt-1.5">von {trip.created_by_name}</p>
+                    )}
+                </div>
+                {canWrite && (
+                    <div className="flex gap-1 flex-shrink-0">
+                        <button
+                            className="text-kce-muted hover:text-kce-amber text-xs px-2 py-1 rounded"
+                            onClick={onEdit}>
+                            ✏️
+                        </button>
+                        <button
+                            className="text-kce-muted hover:text-red-400 text-lg leading-none px-1"
+                            onClick={onDelete}>
+                            ×
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export function CommitteePage() {
+    const t = useT()
+    const user = useAppStore(s => s.user)
+    const regularMembers = useAppStore(s => s.regularMembers)
+    const [tab, setTab] = useHashTab<'announcements' | 'trips'>('announcements', ['announcements', 'trips'])
+
+    // User can write if they are admin OR their regular member has is_committee=true
+    const myMember = regularMembers.find(m => m.id === user?.regular_member_id)
+    const canWrite = isAdmin(user) || !!myMember?.is_committee
+
+    const TABS = [
+        {id: 'announcements', label: t('committee.tab.announcements')},
+        {id: 'trips', label: t('committee.tab.trips')},
+    ]
+
+    return (
+        <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
+            {/* Header */}
+            <div className="flex-shrink-0 px-3 pt-3 pb-0">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="sec-heading">{t('committee.title')}</div>
+                    {canWrite && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                              style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
+                            VA
+                        </span>
+                    )}
+                </div>
+                <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
+                    {TABS.map(tb => (
+                        <button key={tb.id} type="button"
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => setTab(tb.id as any)}>{tb.label}</button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="page-scroll px-3 pb-24">
+                {tab === 'announcements' && <AnnouncementsTab canWrite={canWrite}/>}
+                {tab === 'trips' && <TripsTab canWrite={canWrite}/>}
+            </div>
+        </div>
+    )
+}
