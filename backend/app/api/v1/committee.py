@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.deps import require_club_member, require_committee_or_admin, require_club_admin
+from api.deps import require_club_member, require_committee_or_admin
 from core.database import get_db
 from core.push import push_to_club
 from models.committee import ClubAnnouncement, ClubTrip
