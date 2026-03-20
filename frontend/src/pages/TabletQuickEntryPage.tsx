@@ -1,7 +1,7 @@
 /**
- * Tablet/Landscape Quick Entry overlay — fullscreen panel for fast penalty & drink logging.
- * Two-column layout: players on the left, penalty type buttons (grouped by amount) + drinks on the right.
- * A "recent entries" bar at the bottom shows the last 8 events without leaving the mode.
+ * Quick Entry overlay — fullscreen panel for fast penalty & drink logging.
+ * Three-column layout: players | penalties | drinks (separate).
+ * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
  */
 import {useMemo, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
@@ -124,14 +124,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     async function logPenalty(pt: PenaltyType) {
         if (selectedPlayerIds.length === 0 || loadingPenaltyId !== null) return
-        const count = 1
         setLoadingPenaltyId(pt.id)
         try {
             await api.addPenalty(eveningId, {
                 player_ids: selectedPlayerIds,
                 penalty_type_name: pt.name,
                 icon: pt.icon,
-                amount: count,
+                amount: 1,
                 mode: 'count',
                 unit_amount: pt.default_amount,
                 client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
@@ -169,17 +168,46 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     const noSelection = selectedPlayerIds.length === 0
 
+    // Shared button style helpers
+    function penaltyBtnStyle(isFlashing: boolean) {
+        return {
+            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--kce-surface2)',
+            borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
+            color: isFlashing ? '#86efac' : 'var(--kce-cream)',
+        }
+    }
+
+    function drinkBtnStyle(isFlashing: boolean) {
+        return {
+            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--kce-surface2)',
+            borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
+            color: isFlashing ? '#86efac' : 'var(--kce-cream)',
+        }
+    }
+
     return (
-        <div
-            style={{position: 'fixed', inset: 0, zIndex: 60, background: 'var(--kce-bg)', display: 'flex', flexDirection: 'column'}}
-        >
-            {/* ── Header bar ── */}
+        <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 60,
+            background: 'var(--kce-bg)',
+            display: 'flex',
+            flexDirection: 'column',
+        }}>
+            {/* ── Header — respects top + side safe areas ── */}
             <div
-                className="flex items-center gap-3 px-3 py-2 flex-shrink-0"
-                style={{background: 'var(--kce-surface)', borderBottom: '1px solid var(--kce-border)'}}
+                className="flex items-center gap-2 flex-shrink-0"
+                style={{
+                    background: 'var(--kce-surface)',
+                    borderBottom: '1px solid var(--kce-border)',
+                    paddingTop: 'max(env(safe-area-inset-top), 8px)',
+                    paddingBottom: '8px',
+                    paddingLeft: 'max(env(safe-area-inset-left), 12px)',
+                    paddingRight: 'max(env(safe-area-inset-right), 12px)',
+                }}
             >
                 <span className="font-bold text-kce-amber text-sm">⚡ {t('quickEntry.title')}</span>
-                <span className="text-xs text-kce-muted flex-1">
+                <span className="text-xs text-kce-muted flex-1 truncate">
                     {noSelection
                         ? t('quickEntry.selectPlayer')
                         : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
@@ -203,15 +231,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </button>
             </div>
 
-            {/* ── Two-column body ── */}
-            <div style={{flex: 1, overflow: 'hidden', display: 'flex'}}>
+            {/* ── Three-column body — respects side safe areas ── */}
+            <div style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)',
+            }}>
 
-                {/* Left: player list */}
+                {/* Column 1: Players */}
                 <div
-                    className="overflow-y-auto p-2 flex flex-col gap-1.5"
-                    style={{width: '35%', borderRight: '1px solid var(--kce-border)', flexShrink: 0}}
+                    className="overflow-y-auto p-2 flex flex-col gap-1"
+                    style={{width: '30%', borderRight: '1px solid var(--kce-border)', flexShrink: 0}}
                 >
-                    <div className="field-label px-1">{t('penalty.who')}</div>
+                    <div className="field-label px-1 mb-0.5">{t('penalty.who')}</div>
                     {sortedPlayers.map(p => {
                         const isMe = user?.regular_member_id !== null &&
                             p.regular_member_id === user?.regular_member_id
@@ -220,8 +254,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             <button
                                 key={p.id}
                                 type="button"
-                                className={`w-full text-left px-3 py-2.5 rounded-xl border font-bold text-sm
-                                    transition-all active:scale-95 flex items-center gap-1.5
+                                className={`w-full text-left px-2 py-2 rounded-xl border font-bold text-xs
+                                    transition-all active:scale-95 flex items-center gap-1
                                     ${isSelected
                                         ? 'border-kce-amber text-kce-amber'
                                         : 'border-kce-border text-kce-cream'}
@@ -231,7 +265,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 }}
                                 onClick={() => togglePlayer(p.id)}
                             >
-                                {p.is_king && <span>👑</span>}
+                                {p.is_king && <span className="text-sm">👑</span>}
                                 <span className="flex-1 truncate">{p.name}</span>
                                 {isMe && (
                                     <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
@@ -241,13 +275,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     })}
                 </div>
 
-                {/* Right: penalty groups + drinks */}
-                <div className="flex-1 overflow-y-auto p-3">
-
+                {/* Column 2: Penalties */}
+                <div className="flex-1 overflow-y-auto p-2" style={{borderRight: '1px solid var(--kce-border)'}}>
                     {penaltyGroups.map(([amount, types]) => (
-                        <div key={amount} className="mb-5">
-                            <div className="field-label mb-2">{fe(amount)}</div>
-                            <div className="flex flex-wrap gap-2">
+                        <div key={amount} className="mb-3">
+                            <div className="field-label mb-1.5">{fe(amount)}</div>
+                            <div className="flex flex-wrap gap-1.5">
                                 {types.map(pt => {
                                     const isFlashing = flashingPenaltyId === pt.id
                                     const isLoading = loadingPenaltyId === pt.id
@@ -256,17 +289,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             key={pt.id}
                                             type="button"
                                             disabled={noSelection || isLoading}
-                                            className={`px-4 py-3 rounded-xl border font-bold text-sm
+                                            className={`px-3 py-2 rounded-xl border font-bold text-xs
                                                 transition-all active:scale-95
                                                 disabled:opacity-40 disabled:cursor-not-allowed
                                             `}
-                                            style={{
-                                                background: isFlashing
-                                                    ? 'rgba(34,197,94,0.15)'
-                                                    : 'var(--kce-surface2)',
-                                                borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
-                                                color: isFlashing ? '#86efac' : 'var(--kce-cream)',
-                                            }}
+                                            style={penaltyBtnStyle(isFlashing)}
                                             onClick={() => logPenalty(pt)}
                                         >
                                             {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
@@ -276,52 +303,55 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             </div>
                         </div>
                     ))}
+                </div>
 
-                    {/* Drinks section */}
-                    <div className="mb-5">
-                        <div className="field-label mb-2">{t('drinks.title')}</div>
-                        <div className="flex gap-2">
-                            {(['beer', 'shots'] as const).map(dt => {
-                                const isFlashing = flashingDrink === dt
-                                const isLoading = loadingDrink === dt
-                                return (
-                                    <button
-                                        key={dt}
-                                        type="button"
-                                        disabled={noSelection || isLoading}
-                                        className={`flex-1 px-4 py-3 rounded-xl border font-bold text-sm
-                                            transition-all active:scale-95
-                                            disabled:opacity-40 disabled:cursor-not-allowed
-                                        `}
-                                        style={{
-                                            background: isFlashing
-                                                ? 'rgba(34,197,94,0.15)'
-                                                : 'var(--kce-surface2)',
-                                            borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
-                                            color: isFlashing ? '#86efac' : 'var(--kce-cream)',
-                                        }}
-                                        onClick={() => logDrink(dt)}
-                                    >
-                                        {isFlashing ? '✓ ' : ''}{dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    </div>
+                {/* Column 3: Drinks */}
+                <div
+                    className="overflow-y-auto p-2 flex flex-col gap-2"
+                    style={{width: '22%', flexShrink: 0}}
+                >
+                    <div className="field-label mb-0.5">{t('drinks.title')}</div>
+                    {(['beer', 'shots'] as const).map(dt => {
+                        const isFlashing = flashingDrink === dt
+                        const isLoading = loadingDrink === dt
+                        return (
+                            <button
+                                key={dt}
+                                type="button"
+                                disabled={noSelection || isLoading}
+                                className={`w-full px-2 py-3 rounded-xl border font-bold text-sm
+                                    transition-all active:scale-95 flex flex-col items-center gap-1
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                `}
+                                style={drinkBtnStyle(isFlashing)}
+                                onClick={() => logDrink(dt)}
+                            >
+                                <span className="text-xl leading-none">
+                                    {isFlashing ? '✓' : dt === 'beer' ? '🍺' : '🥃'}
+                                </span>
+                                <span className="text-xs">
+                                    {dt === 'beer' ? t('drinks.beer') : t('drinks.shots')}
+                                </span>
+                            </button>
+                        )
+                    })}
                 </div>
             </div>
 
-            {/* ── Recent entries bar ── */}
+            {/* ── Recent entries bar — respects bottom + side safe areas ── */}
             {recentEvents.length > 0 && (
                 <div
-                    className="flex-shrink-0 px-3 py-2"
+                    className="flex-shrink-0 px-3 pt-2"
                     style={{
                         borderTop: '1px solid var(--kce-border)',
                         background: 'var(--kce-surface)',
+                        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
+                        paddingLeft: 'max(env(safe-area-inset-left), 12px)',
+                        paddingRight: 'max(env(safe-area-inset-right), 12px)',
                     }}
                 >
-                    <div className="field-label mb-1.5">{t('quickEntry.recent')}</div>
-                    <div className="flex gap-2 overflow-x-auto pb-0.5" style={{scrollbarWidth: 'none'}}>
+                    <div className="field-label mb-1">{t('quickEntry.recent')}</div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth: 'none'}}>
                         {recentEvents.map(ev => {
                             const isConfirming = confirmingKey === ev.key
                             const isDeleting = deletingKey === ev.key
@@ -330,7 +360,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     key={ev.key}
                                     type="button"
                                     disabled={isDeleting}
-                                    className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
+                                    className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{
                                         background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--kce-surface2)',
                                         border: `1px solid ${isConfirming ? '#dc2626' : 'var(--kce-border)'}`,
@@ -338,7 +368,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
                                     onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}
                                 >
-                                    <span className="text-base leading-none">{isConfirming ? '🗑' : ev.icon}</span>
+                                    <span className="text-sm leading-none">{isConfirming ? '🗑' : ev.icon}</span>
                                     <span className={`text-[10px] font-bold whitespace-nowrap ${isConfirming ? 'text-red-400' : 'text-kce-cream'}`}>
                                         {isConfirming ? '✕ löschen?' : ev.label}
                                     </span>
