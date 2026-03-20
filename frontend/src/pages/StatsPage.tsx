@@ -269,7 +269,7 @@ export function StatsPage() {
                         })}
                     </div>
 
-                    {evening && eveningStats && evening.games.some(g => g.status === 'finished') ? (
+                    {evening && eveningStats ? (
                         <>
                             <div className="grid grid-cols-2 gap-2 mb-4">
                                 <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.totalEuro')}/>
@@ -278,17 +278,21 @@ export function StatsPage() {
                                 <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
                             </div>
 
-                            <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
-                            {eveningStats.hallOfFame.map((h, i) => (
-                                <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                    <span className="text-2xl">{h.icon}</span>
-                                    <div className="flex-1">
-                                        <div className="text-xs font-bold text-kce-muted">{h.label}</div>
-                                        <div className="text-sm font-bold">{h.name}</div>
-                                    </div>
-                                    <div className="text-kce-amber font-bold text-sm">{h.value}</div>
-                                </div>
-                            ))}
+                            {eveningStats.hallOfFame.length > 0 && (
+                                <>
+                                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
+                                    {eveningStats.hallOfFame.map((h, i) => (
+                                        <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
+                                            <span className="text-2xl">{h.icon}</span>
+                                            <div className="flex-1">
+                                                <div className="text-xs font-bold text-kce-muted">{h.label}</div>
+                                                <div className="text-sm font-bold">{h.name}</div>
+                                            </div>
+                                            <div className="text-kce-amber font-bold text-sm">{h.value}</div>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
 
                             <EveningTimeline evening={evening}/>
 
@@ -343,8 +347,6 @@ export function StatsPage() {
                                 </>
                             )}
                         </>
-                    ) : evening && !evening.games.some(g => g.status === 'finished') ? (
-                        <Empty icon="🎳" text={t('stats.noGames')}/>
                     ) : (
                         <Empty icon="📈" text="Lade..."/>
                     )}
