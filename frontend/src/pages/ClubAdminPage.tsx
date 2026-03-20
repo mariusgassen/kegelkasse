@@ -1020,7 +1020,7 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                                     onClick={() => toggle(m)}
                                     className="text-xs px-3 py-1 rounded-full font-bold transition-all"
                                     style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
-                                    VA ✓
+                                    VGA ✓
                                 </button>
                             </div>
                         ))}
