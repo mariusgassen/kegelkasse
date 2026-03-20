@@ -87,12 +87,12 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
             {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
 
             {!isLoading && announcements.length === 0 && (
-                <Empty icon="📣" label={t('committee.announcement.none')}/>
+                <Empty icon="📣" text={t('committee.announcement.none')}/>
             )}
 
             <div className="flex flex-col gap-3">
                 {announcements.map((a: ClubAnnouncement) => (
-                    <div key={a.id} className="card p-4">
+                    <div key={a.id} className="kce-card p-4">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-kce-cream text-sm leading-snug">{a.title}</p>
@@ -122,44 +122,46 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
 
             {/* Add sheet */}
             {addOpen && (
-                <Sheet
-                    open
-                    onClose={() => setAddOpen(false)}
-                    title={t('committee.announcement.new')}
-                    onSubmit={handleCreate}
-                    submitLabel={saving ? t('action.saving') : t('action.save')}
-                    submitDisabled={!title.trim() || saving}
-                >
-                    <label className="form-label">{t('committee.announcement.title')}</label>
-                    <input
-                        className="input mb-3"
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        placeholder={t('committee.announcement.title')}
-                        autoFocus
-                    />
-                    <label className="form-label">{t('committee.announcement.text')}</label>
-                    <textarea
-                        className="input resize-none"
-                        rows={4}
-                        value={text}
-                        onChange={e => setText(e.target.value)}
-                        placeholder={t('committee.announcement.text')}
-                    />
+                <Sheet open onClose={() => setAddOpen(false)} title={t('committee.announcement.new')}
+                       onSubmit={handleCreate}>
+                    <div className="flex flex-col gap-3">
+                        <div>
+                            <label className="field-label">{t('committee.announcement.title')}</label>
+                            <input
+                                className="kce-input"
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder={t('committee.announcement.title')}
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="field-label">{t('committee.announcement.text')}</label>
+                            <textarea
+                                className="kce-input resize-none"
+                                rows={4}
+                                value={text}
+                                onChange={e => setText(e.target.value)}
+                                placeholder={t('committee.announcement.text')}
+                            />
+                        </div>
+                        <button type="submit" className="btn-primary w-full" disabled={!title.trim() || saving}>
+                            {saving ? t('action.saving') : t('action.save')}
+                        </button>
+                    </div>
                 </Sheet>
             )}
 
             {/* Delete confirm */}
             {delId !== null && (
-                <Sheet
-                    open
-                    onClose={() => setDelId(null)}
-                    title={t('action.delete')}
-                    onSubmit={() => handleDelete(delId)}
-                    submitLabel={t('action.confirmDelete')}
-                    submitDestructive
-                >
-                    <p className="text-kce-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
+                <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-kce-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
+                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                                onClick={() => handleDelete(delId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
                 </Sheet>
             )}
         </div>
@@ -254,7 +256,7 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
             {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
 
             {!isLoading && trips.length === 0 && (
-                <Empty icon="🚌" label={t('committee.trip.none')}/>
+                <Empty icon="🚌" text={t('committee.trip.none')}/>
             )}
 
             {upcoming.length > 0 && (
@@ -285,52 +287,47 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
 
             {/* Add sheet */}
             {addOpen && (
-                <Sheet
-                    open
-                    onClose={resetForm}
-                    title={t('committee.trip.new')}
-                    onSubmit={handleCreate}
-                    submitLabel={saving ? t('action.saving') : t('action.save')}
-                    submitDisabled={!destination.trim() || saving}
-                >
-                    <TripForm date={date} destination={destination} note={note}
-                              onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                <Sheet open onClose={resetForm} title={t('committee.trip.new')} onSubmit={handleCreate}>
+                    <div className="flex flex-col gap-3">
+                        <TripFormFields date={date} destination={destination} note={note}
+                                        onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                        <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
+                            {saving ? t('action.saving') : t('action.save')}
+                        </button>
+                    </div>
                 </Sheet>
             )}
 
             {/* Edit sheet */}
             {editTrip && (
-                <Sheet
-                    open
-                    onClose={resetForm}
-                    title={t('committee.trip.edit')}
-                    onSubmit={handleUpdate}
-                    submitLabel={saving ? t('action.saving') : t('action.save')}
-                    submitDisabled={!destination.trim() || saving}
-                >
-                    <TripForm date={date} destination={destination} note={note}
-                              onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                <Sheet open onClose={resetForm} title={t('committee.trip.edit')} onSubmit={handleUpdate}>
+                    <div className="flex flex-col gap-3">
+                        <TripFormFields date={date} destination={destination} note={note}
+                                        onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                        <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
+                            {saving ? t('action.saving') : t('action.save')}
+                        </button>
+                    </div>
                 </Sheet>
             )}
 
             {/* Delete confirm */}
             {delId !== null && (
-                <Sheet
-                    open
-                    onClose={() => setDelId(null)}
-                    title={t('action.delete')}
-                    onSubmit={() => handleDelete(delId)}
-                    submitLabel={t('action.confirmDelete')}
-                    submitDestructive
-                >
-                    <p className="text-kce-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
+                <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-kce-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
+                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                                onClick={() => handleDelete(delId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
                 </Sheet>
             )}
         </div>
     )
 }
 
-function TripForm({date, destination, note, onDate, onDestination, onNote}: {
+function TripFormFields({date, destination, note, onDate, onDestination, onNote}: {
     date: string
     destination: string
     note: string
@@ -341,24 +338,30 @@ function TripForm({date, destination, note, onDate, onDestination, onNote}: {
     const t = useT()
     return (
         <>
-            <label className="form-label">{t('committee.trip.date')}</label>
-            <input type="date" className="input mb-3" value={date} onChange={e => onDate(e.target.value)}/>
-            <label className="form-label">{t('committee.trip.destination')}</label>
-            <input
-                className="input mb-3"
-                value={destination}
-                onChange={e => onDestination(e.target.value)}
-                placeholder={t('committee.trip.destinationPlaceholder')}
-                autoFocus
-            />
-            <label className="form-label">{t('committee.trip.note')}</label>
-            <textarea
-                className="input resize-none"
-                rows={3}
-                value={note}
-                onChange={e => onNote(e.target.value)}
-                placeholder={t('common.optional')}
-            />
+            <div>
+                <label className="field-label">{t('committee.trip.date')}</label>
+                <input type="date" className="kce-input" value={date} onChange={e => onDate(e.target.value)}/>
+            </div>
+            <div>
+                <label className="field-label">{t('committee.trip.destination')}</label>
+                <input
+                    className="kce-input"
+                    value={destination}
+                    onChange={e => onDestination(e.target.value)}
+                    placeholder={t('committee.trip.destinationPlaceholder')}
+                    autoFocus
+                />
+            </div>
+            <div>
+                <label className="field-label">{t('committee.trip.note')}</label>
+                <textarea
+                    className="kce-input resize-none"
+                    rows={3}
+                    value={note}
+                    onChange={e => onNote(e.target.value)}
+                    placeholder={t('common.optional')}
+                />
+            </div>
         </>
     )
 }
@@ -371,7 +374,7 @@ function TripCard({trip, canWrite, past = false, onEdit, onDelete}: {
     onDelete: () => void
 }) {
     return (
-        <div className={`card p-4 ${past ? 'opacity-60' : ''}`}>
+        <div className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
