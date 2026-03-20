@@ -18,7 +18,7 @@ from core.database import get_db, AsyncSessionLocal
 from sqlalchemy import select, cast, Date as SQLDate
 from models.drink import DrinkRound, DrinkType
 from models.club import ClubSettings, ClubPresident
-from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
+from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember, EveningHighlight
 from models.game import Game, WinnerType
 from models.penalty import PenaltyLog, PenaltyMode
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
@@ -73,6 +73,9 @@ def serialize_evening(e: Evening) -> dict:
                           "participant_ids": r.participant_ids,
                           "client_timestamp": r.client_timestamp}
                          for r in e.drink_rounds if not r.is_deleted],
+        "highlights": [{"id": h.id, "text": h.text,
+                        "created_at": h.created_at.isoformat() if h.created_at else None}
+                       for h in e.highlights],
     }
 
 
@@ -93,7 +96,7 @@ class EveningCreate(BaseModel):
 
 @router.post("/")
 def create_evening(data: EveningCreate, db: Session = Depends(get_db),
-                   user: User = Depends(require_club_member)):
+                   user: User = Depends(require_club_admin)):
     payload = data.model_dump()
     payload["date"] = _parse_date(payload["date"])
     e = Evening(club_id=user.club_id, created_by=user.id, **payload)
@@ -856,6 +859,39 @@ def delete_drink_round(eid: int, rid: int, db: Session = Depends(get_db),
     r.is_deleted = True
     db.commit()
     return {"ok": True}
+
+
+# ── Highlights ──
+
+class HighlightCreate(BaseModel):
+    text: str
+
+
+@router.post("/{eid}/highlights")
+def add_highlight(eid: int, data: HighlightCreate, db: Session = Depends(get_db),
+                  user: User = Depends(require_club_member)):
+    e = get_club_evening(eid, user, db)
+    if e.is_closed:
+        raise HTTPException(400, "Evening is closed")
+    text = data.text.strip()
+    if not text:
+        raise HTTPException(400, "Text is required")
+    h = EveningHighlight(evening_id=eid, text=text, created_by=user.id)
+    db.add(h)
+    db.commit()
+    db.refresh(h)
+    return {"id": h.id, "text": h.text, "created_at": h.created_at.isoformat() if h.created_at else None}
+
+
+@router.delete("/{eid}/highlights/{hid}", status_code=204)
+def delete_highlight(eid: int, hid: int, db: Session = Depends(get_db),
+                     user: User = Depends(require_club_member)):
+    e = get_club_evening(eid, user, db)
+    h = db.query(EveningHighlight).filter(EveningHighlight.id == hid, EveningHighlight.evening_id == e.id).first()
+    if not h:
+        raise HTTPException(404, "Highlight not found")
+    db.delete(h)
+    db.commit()
 
 
 @router.get("/{eid}/events")

@@ -541,6 +541,12 @@ export const de = {
     "broadcast.send": "Push senden",
     "broadcast.sent": "Nachricht gesendet",
     "broadcast.url": "Link (optional)",
+    "highlight.title": "✨ Highlights",
+    "highlight.add": "Highlight eintragen",
+    "highlight.placeholder": "z.B. Schuh geworfen, Kugel gegen die Heizung…",
+    "highlight.none": "Noch keine Highlights.",
+    "evening.noActiveHint": "Starte einen Abend über die Termine-Seite.",
+    "evening.goToSchedule": "📅 Zu den Terminen",
 } as const
 
 export type TranslationKey = keyof typeof de

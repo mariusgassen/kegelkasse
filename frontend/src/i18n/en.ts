@@ -541,4 +541,10 @@ export const en = {
     "broadcast.send": "Send push",
     "broadcast.sent": "Message sent",
     "broadcast.url": "Link (optional)",
+    "highlight.title": "✨ Highlights",
+    "highlight.add": "Add highlight",
+    "highlight.placeholder": "e.g. Shoe thrown, ball hit the heater…",
+    "highlight.none": "No highlights yet.",
+    "evening.noActiveHint": "Start an evening from the Schedule page.",
+    "evening.goToSchedule": "📅 Go to Schedule",
 } as const

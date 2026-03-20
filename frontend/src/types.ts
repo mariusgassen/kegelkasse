@@ -229,6 +229,12 @@ export interface DrinkRound {
     client_timestamp: number
 }
 
+export interface EveningHighlight {
+    id: number
+    text: string
+    created_at: string | null
+}
+
 export interface Evening {
     id: number
     date: string
@@ -240,6 +246,7 @@ export interface Evening {
     penalty_log: PenaltyLogEntry[]
     games: Game[]
     drink_rounds: DrinkRound[]
+    highlights: EveningHighlight[]
 }
 
 // ── Helper types ──
