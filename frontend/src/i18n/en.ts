@@ -303,7 +303,7 @@ export const en = {
     "treasury.tab.expenses": "🧾 Expenses",
     "treasury.expensesLabel": "🧾 Expenses",
     "treasury.expensesTotal": "Total expenses",
-    "treasury.netExpenses": "Net expenses",
+    "treasury.netExpenses": "Income & expenses (balance)",
     "treasury.expense.add": "Record expense",
     "treasury.expense.none": "No expenses yet.",
     "treasury.expense.description": "Description",
