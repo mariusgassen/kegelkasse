@@ -17,7 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.v1 import auth, club, evenings, push, schedule, stats, sync, superadmin
-from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
 
