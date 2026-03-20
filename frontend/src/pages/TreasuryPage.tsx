@@ -36,7 +36,7 @@ type MemberPayment = {
 }
 
 type Expense = {
-    id: number; amount: number; description: string; created_at: string | null
+    id: number; amount: number; description: string; created_at: string | null; date: string | null
 }
 
 // Unified booking entry for the Buchungen tab
@@ -232,6 +232,7 @@ export function TreasuryPage() {
     const [bookingDirection, setBookingDirection] = useState<'in' | 'out'>('out')
     const [bookingAmount, setBookingAmount] = useState('')
     const [bookingNote, setBookingNote] = useState('')
+    const [bookingDate, setBookingDate] = useState('')
     const [savingBooking, setSavingBooking] = useState(false)
 
     function openBookingSheet() {
@@ -239,6 +240,7 @@ export function TreasuryPage() {
         setBookingDirection('out')
         setBookingAmount('')
         setBookingNote('')
+        setBookingDate('')
         setBookingSheet(true)
     }
 
@@ -260,6 +262,7 @@ export function TreasuryPage() {
                 await api.createExpense({
                     amount,
                     description: bookingNote.trim(),
+                    ...(bookingDate ? {date: bookingDate} : {}),
                 })
                 refetchExpenses()
             } else {
@@ -298,13 +301,14 @@ export function TreasuryPage() {
     const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
         .sort((a, b) => a.balance - b.balance)
 
-    // Merged bookings for Buchungen tab — sorted by created_at desc
+    // Merged bookings for Buchungen tab — sorted by effective date desc
+    // For expenses: use `date` field if set, otherwise `created_at`
     const mergedBookings: BookingEntry[] = [
         ...(allPayments as Payment[]).map(p => ({kind: 'payment' as const, data: p})),
         ...(expenses as Expense[]).map(e => ({kind: 'expense' as const, data: e})),
     ].sort((a, b) => {
-        const ta = a.data.created_at ?? ''
-        const tb = b.data.created_at ?? ''
+        const ta = a.kind === 'expense' ? (a.data.date ?? a.data.created_at ?? '') : (a.data.created_at ?? '')
+        const tb = b.kind === 'expense' ? (b.data.date ?? b.data.created_at ?? '') : (b.data.created_at ?? '')
         return tb.localeCompare(ta)
     })
 
@@ -883,7 +887,7 @@ export function TreasuryPage() {
                                                 {e.description}
                                                 <span className="text-[9px] text-kce-muted font-bold border border-kce-border rounded px-1">{t('treasury.booking.club')}</span>
                                             </div>
-                                            <div className="text-xs text-kce-muted">{fDate(e.created_at)}</div>
+                                            <div className="text-xs text-kce-muted">{fDate(e.date ?? e.created_at)}</div>
                                         </div>
                                         <div className={`font-bold text-sm flex-shrink-0 ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
                                             {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
@@ -992,6 +996,15 @@ export function TreasuryPage() {
                                onChange={e => setBookingNote(e.target.value)}
                                placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
                     </div>
+
+                    {/* Date override for club bookings */}
+                    {isClubBooking && (
+                        <div>
+                            <label className="field-label">{t('treasury.expense.date')}</label>
+                            <input type="date" className="kce-input" value={bookingDate}
+                                   onChange={e => setBookingDate(e.target.value)}/>
+                        </div>
+                    )}
 
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingBooking || !bookingValid}>

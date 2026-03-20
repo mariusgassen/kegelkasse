@@ -159,7 +159,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
 }
 
 // ── Start evening confirmation sheet ─────────────────────────────────────────
-function StartEveningSheet({se, onClose, onStarted}: {
+export function StartEveningSheet({se, onClose, onStarted}: {
     se: ScheduledEvening
     onClose: () => void
     onStarted: (eveningId: number) => void
@@ -403,14 +403,16 @@ function StartEveningSheet({se, onClose, onStarted}: {
 }
 
 // ── Upcoming scheduled evening card ──────────────────────────────────────────
-function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted}: {
+function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onViewRsvps, onRsvpUpdate, onStarted, onNavigate}: {
     se: ScheduledEvening
     isAdminUser: boolean
+    activeEveningId: number | null
     onEdit: () => void
     onDelete: () => void
     onViewRsvps: () => void
     onRsvpUpdate: () => void
     onStarted: (eveningId: number) => void
+    onNavigate?: () => void
 }) {
     const t = useT()
     const qc = useQueryClient()
@@ -418,7 +420,8 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
     const [addingGuest, setAddingGuest] = useState(false)
     const [startSheet, setStartSheet] = useState(false)
 
-    const canStart = se.scheduled_at.slice(0, 10) <= TODAY
+    const isAlreadyStarted = se.evening_id !== null
+    const canStart = se.scheduled_at.slice(0, 10) <= TODAY && !isAlreadyStarted
 
     async function removeGuest(gid: number) {
         try {
@@ -514,15 +517,31 @@ function UpcomingCard({se, isAdminUser, onEdit, onDelete, onViewRsvps, onRsvpUpd
             {/* Start button (admin, only on/after date) */}
             {isAdminUser && (
                 <div className="mt-2.5 pt-2.5 border-t border-kce-surface2">
-                    <button
-                        className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
-                        disabled={!canStart}
-                        title={!canStart ? t('schedule.startNotToday') : undefined}
-                        onClick={() => canStart && setStartSheet(true)}>
-                        {t('schedule.start')}
-                    </button>
-                    {!canStart && (
-                        <p className="text-[10px] text-kce-muted text-center mt-1">{t('schedule.startNotToday')}</p>
+                    {isAlreadyStarted ? (
+                        <button
+                            className="btn-primary w-full text-sm"
+                            onClick={() => onNavigate?.()}>
+                            🎳 {t('evening.active')}
+                        </button>
+                    ) : activeEveningId !== null ? (
+                        <button
+                            className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
+                            disabled title={t('evening.alreadyActive')}>
+                            {t('schedule.start')}
+                        </button>
+                    ) : (
+                        <>
+                            <button
+                                className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
+                                disabled={!canStart}
+                                title={!canStart ? t('schedule.startNotToday') : undefined}
+                                onClick={() => canStart && setStartSheet(true)}>
+                                {t('schedule.start')}
+                            </button>
+                            {!canStart && (
+                                <p className="text-[10px] text-kce-muted text-center mt-1">{t('schedule.startNotToday')}</p>
+                            )}
+                        </>
                     )}
                 </div>
             )}
@@ -578,6 +597,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                 <div>
                     <label className="field-label">{t('schedule.date')}</label>
                     <input type="datetime-local" className="kce-input" value={datetime}
+                           min={!initial ? new Date().toISOString().slice(0, 16) : undefined}
                            onChange={e => setDatetime(e.target.value)} required/>
                 </div>
                 <div>
@@ -766,6 +786,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
+    const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
 
     const [search, setSearch] = useState('')
@@ -791,6 +812,10 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
         .filter(e => !q || e.date.includes(q) || (e.venue ?? '').toLowerCase().includes(q))
 
     async function doReopen(id: number) {
+        if (activeEveningId !== null && activeEveningId !== id) {
+            showToast(t('evening.alreadyActive'), 'error')
+            return
+        }
         try {
             await api.updateEvening(id, {is_closed: false})
             qc.setQueryData(['evening', id], (old: any) => old ? {...old, is_closed: false} : old)
@@ -1031,6 +1056,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
+    const activeEveningId = useAppStore(s => s.activeEveningId)
     const isAdminUser = isAdmin(user)
 
     // Fetch club for home_venue and ical token
@@ -1129,11 +1155,13 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
                                 key={se.id}
                                 se={se}
                                 isAdminUser={isAdminUser}
+                                activeEveningId={activeEveningId}
                                 onEdit={() => setEditSheet(se)}
                                 onDelete={() => setConfirmDeleteId(se.id)}
                                 onViewRsvps={() => setRsvpSheet(se)}
                                 onRsvpUpdate={invalidate}
                                 onStarted={handleStarted}
+                                onNavigate={onNavigate}
                             />
                         ))}
                         {hiddenCount > 0 && !showAllUpcoming && (

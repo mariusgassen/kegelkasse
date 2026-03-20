@@ -44,6 +44,7 @@ export function GamesPage() {
     const [loserPenalty, setLoserPenalty] = useState('0')
     const [perPointPenalty, setPerPointPenalty] = useState('0')
     const [gameNote, setGameNote] = useState('')
+    const [autoAddTeams, setAutoAddTeams] = useState(true)
 
     // ── Finish sheet (also used for re-editing finished games) ──
     const [finishTarget, setFinishTarget] = useState<Game | null>(null)
@@ -153,6 +154,10 @@ export function GamesPage() {
                 sort_order: games.length,
                 client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
             })
+            // Auto-add standard teams if toggled and no teams exist yet
+            if (autoAddTeams && teams.length === 0) {
+                try { await api.applyClubTeamsToEvening(evening!.id) } catch {}
+            }
             invalidate()
             setAddSheet(false)
         } catch (e: unknown) {
@@ -403,6 +408,16 @@ export function GamesPage() {
                         <input className="kce-input" value={gameNote} onChange={e => setGameNote(e.target.value)}
                                placeholder="…"/>
                     </div>
+
+                    {/* Auto-add teams toggle (only when no teams exist yet) */}
+                    {teams.length === 0 && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={autoAddTeams}
+                                   onChange={e => setAutoAddTeams(e.target.checked)}
+                                   className="accent-amber-500"/>
+                            <span className="text-xs text-kce-muted">{t('game.autoAddTeams')}</span>
+                        </label>
+                    )}
 
                     <button type="submit" className="btn-primary w-full mt-1"
                             disabled={saving || !gameName.trim()}>

@@ -3,7 +3,7 @@ Club management — settings, regular members, penalty types, game templates.
 All write operations require club_admin role.
 Read operations available to all club members.
 """
-from datetime import datetime, timezone
+from datetime import date as date_type, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -698,6 +698,15 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
 class ExpenseCreate(BaseModel):
     amount: float
     description: str
+    date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
+
+
+def _serialize_expense(e: ClubExpense) -> dict:
+    return {
+        "id": e.id, "amount": e.amount, "description": e.description,
+        "created_at": e.created_at.isoformat() if e.created_at else None,
+        "date": e.date.isoformat() if e.date else None,
+    }
 
 
 @router.get("/expenses")
@@ -709,10 +718,7 @@ def list_expenses(db: Session = Depends(get_db), user: User = Depends(require_cl
         .order_by(ClubExpense.created_at.desc())
         .all()
     )
-    return [{
-        "id": e.id, "amount": e.amount, "description": e.description,
-        "created_at": e.created_at.isoformat() if e.created_at else None,
-    } for e in expenses]
+    return [_serialize_expense(e) for e in expenses]
 
 
 @router.post("/expenses", status_code=201)
@@ -720,19 +726,23 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
                    user: User = Depends(require_club_admin)):
     if data.amount == 0:
         raise HTTPException(400, "Betrag darf nicht 0 sein")
+    parsed_date = None
+    if data.date:
+        try:
+            parsed_date = date_type.fromisoformat(data.date)
+        except ValueError:
+            raise HTTPException(400, "Ungültiges Datum")
     expense = ClubExpense(
         club_id=user.club_id,
         amount=data.amount,
         description=data.description,
         created_by=user.id,
+        date=parsed_date,
     )
     db.add(expense)
     db.commit()
     db.refresh(expense)
-    return {
-        "id": expense.id, "amount": expense.amount, "description": expense.description,
-        "created_at": expense.created_at.isoformat() if expense.created_at else None,
-    }
+    return _serialize_expense(expense)
 
 
 @router.delete("/expenses/{eid}", status_code=204)

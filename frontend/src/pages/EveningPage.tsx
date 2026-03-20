@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -9,7 +9,8 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
+import type {ClubPin, EveningPlayer, RegularMember, ScheduledEvening, Team} from '@/types.ts'
+import {StartEveningSheet} from '@/pages/SchedulePage.tsx'
 
 export function EveningPage() {
     const t = useT()
@@ -29,6 +30,10 @@ export function EveningPage() {
     const [starting, setStarting] = useState(false)
     // attendance sheet shown after evening is created
     const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
+    // quick-start: ScheduledEvening created with "now" for immediate start
+    const [quickStartSe, setQuickStartSe] = useState<ScheduledEvening | null>(null)
+    const [quickStarting, setQuickStarting] = useState(false)
+    const qc = useQueryClient()
 
     // ── Edit evening sheet ──
     const [editSheet, setEditSheet] = useState(false)
@@ -113,6 +118,29 @@ export function EveningPage() {
                                 setStarting(false)
                             }
                         }}>{t('evening.startButton')}</button>
+
+                        <div className="flex items-center gap-2 my-1">
+                            <div className="flex-1 h-px bg-kce-surface2"/>
+                            <span className="text-[10px] text-kce-muted uppercase tracking-wider">{t('common.or')}</span>
+                            <div className="flex-1 h-px bg-kce-surface2"/>
+                        </div>
+
+                        <button className="btn-secondary" disabled={quickStarting} onClick={async () => {
+                            setQuickStarting(true)
+                            try {
+                                const now = new Date().toISOString().slice(0, 16)
+                                const se = await api.createScheduledEvening({
+                                    date: now,
+                                    venue: startVenue || undefined,
+                                })
+                                qc.invalidateQueries({queryKey: ['schedule']})
+                                setQuickStartSe(se)
+                            } catch (e: unknown) {
+                                toastError(e)
+                            } finally {
+                                setQuickStarting(false)
+                            }
+                        }}>{t('evening.quickStart')}</button>
                     </div>
                 </div>
             </div>
@@ -132,6 +160,18 @@ export function EveningPage() {
                     }}
                 />
             )}
+            {quickStartSe && (
+                <StartEveningSheet
+                    se={quickStartSe}
+                    onClose={() => setQuickStartSe(null)}
+                    onStarted={(eveningId) => {
+                        setQuickStartSe(null)
+                        setActiveEveningId(eveningId)
+                        qc.invalidateQueries({queryKey: ['evenings']})
+                        invalidate()
+                    }}
+                />
+            )}
             </>
         )
     }
@@ -141,6 +181,10 @@ export function EveningPage() {
     const players = evening.players
     const teams = evening.teams
     const playerOptions = players.map(p => ({id: p.id, label: p.name}))
+    // For the team sheet: only players not in another team (+ current team's players)
+    const availableForTeam = (currentTeamId: number | null) =>
+        players.filter(p => p.team_id === null || p.team_id === currentTeamId)
+            .map(p => ({id: p.id, label: p.name}))
 
     function openEditSheet() {
         setEditDate(evening!.date.slice(0, 10))
@@ -572,10 +616,10 @@ export function EveningPage() {
                     </div>
                     <ChipSelect
                         label={t('team.members')}
-                        options={playerOptions}
+                        options={availableForTeam(editingTeam?.id ?? null)}
                         selected={teamPlayerIds}
                         onChange={setTeamPlayerIds}
-                        onSelectAll={() => setTeamPlayerIds(players.map(p => p.id))}
+                        onSelectAll={() => setTeamPlayerIds(availableForTeam(editingTeam?.id ?? null).map(o => o.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
                     <button type="submit" className="btn-primary w-full"
                             disabled={!teamName.trim()}>{t('action.save')}</button>
@@ -895,6 +939,14 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                 const holderDisplayName = holderMember
                     ? (holderMember.nickname || holderMember.name)
                     : pin.holder_name
+                const holderPlayer = players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                const alreadyLogged = holderPlayer
+                    ? evening.penalty_log.some(l =>
+                        l.player_name === holderPlayer.name &&
+                        l.penalty_type_name.startsWith(pin.icon) &&
+                        l.penalty_type_name.includes(pin.name)
+                    )
+                    : false
                 return (
                 <div key={pin.id}
                      className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-kce-amber/30 bg-kce-amber/5">
@@ -905,11 +957,14 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                             {t('pin.holder')}: {holderDisplayName}
                         </div>
                     </div>
-                    <button
-                        className="btn-danger btn-xs flex-shrink-0"
-                        onClick={() => logMissingPins(pin)}>
-                        ✕ {t('pin.missingPenalty')}
-                    </button>
+                    {alreadyLogged
+                        ? <span className="text-xs text-green-400 font-bold flex-shrink-0">✓ {t('pin.missingPenalty')}</span>
+                        : <button
+                            className="btn-danger btn-xs flex-shrink-0"
+                            onClick={() => logMissingPins(pin)}>
+                            ✕ {t('pin.missingPenalty')}
+                          </button>
+                    }
                 </div>
                 )
             })}

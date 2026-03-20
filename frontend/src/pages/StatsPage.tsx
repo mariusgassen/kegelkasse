@@ -273,10 +273,10 @@ export function StatsPage() {
                         })}
                     </div>
 
-                    {evening && eveningStats ? (
+                    {evening && eveningStats && evening.games.some(g => g.status === 'finished') ? (
                         <>
                             <div className="grid grid-cols-2 gap-2 mb-4">
-                                <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.title')}/>
+                                <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.totalEuro')}/>
                                 <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
                                 <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
                                 <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
@@ -345,6 +345,8 @@ export function StatsPage() {
                                 </>
                             )}
                         </>
+                    ) : evening && !evening.games.some(g => g.status === 'finished') ? (
+                        <Empty icon="🎳" text={t('stats.noGames')}/>
                     ) : (
                         <Empty icon="📈" text="Lade..."/>
                     )}
