@@ -634,7 +634,6 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         const d = {
             name, description: desc || undefined, winner_type: wtype,
             is_opener: isOpener,
-            is_president_game: editing?.is_president_game ?? false,
             default_loser_penalty: parseAmount(penalty),
             per_point_penalty: parseAmount(perPoint), sort_order: 0
         }

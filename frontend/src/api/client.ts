@@ -218,7 +218,6 @@ export const api = {
         description?: string;
         winner_type: string;
         is_opener: boolean;
-        is_president_game: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
         sort_order: number
@@ -229,7 +228,6 @@ export const api = {
         description?: string;
         winner_type: string;
         is_opener: boolean;
-        is_president_game: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
         sort_order: number
@@ -292,7 +290,6 @@ export const api = {
         name: string;
         template_id?: number;
         is_opener?: boolean;
-        is_president_game?: boolean;
         winner_type?: string;
         loser_penalty?: number;
         per_point_penalty?: number;
@@ -313,7 +310,6 @@ export const api = {
     updateGame: (eid: number, gid: number, d: Partial<{
         name: string;
         is_opener: boolean;
-        is_president_game: boolean;
         winner_type: string;
         loser_penalty: number;
         per_point_penalty: number;
