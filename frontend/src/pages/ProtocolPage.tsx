@@ -56,7 +56,11 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
     )
 }
 
-export function ProtocolPage() {
+interface ProtocolPageProps {
+    onQuickEntry?: () => void
+}
+
+export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const t = useT()
     const qc = useQueryClient()
     const {evening, invalidate} = useActiveEvening()
@@ -368,6 +372,11 @@ export function ProtocolPage() {
                     {players.length > 0 && (
                         <button className="btn-secondary flex-1" onClick={openDrinkSheet}>
                             🍺 + Getränk
+                        </button>
+                    )}
+                    {onQuickEntry && players.length > 0 && (
+                        <button className="btn-secondary flex-shrink-0" onClick={onQuickEntry}>
+                            ⚡ {t('quickEntry.open')}
                         </button>
                     )}
                 </div>

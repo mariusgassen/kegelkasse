@@ -547,6 +547,13 @@ export const de = {
     "highlight.none": "Noch keine Highlights.",
     "evening.noActiveHint": "Starte einen Abend über die Termine-Seite.",
     "evening.goToSchedule": "📅 Zu den Terminen",
+    "quickEntry.title": "Schnellerfassung",
+    "quickEntry.open": "Schnellerfassung",
+    "quickEntry.selectPlayer": "Spieler wählen…",
+    "quickEntry.selected": "ausgewählt",
+    "quickEntry.count": "Anzahl",
+    "quickEntry.recent": "Letzte Einträge",
+    "quickEntry.logged": "✓ Eingetragen",
 } as const
 
 export type TranslationKey = keyof typeof de

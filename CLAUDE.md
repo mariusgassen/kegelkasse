@@ -169,3 +169,4 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 26 | **Bug-Fixes Batch 2**              | ✅      | TreasuryPage Buchungen-Datum konsistent rechts (unter Betrag) für alle Eintragstypen; NotificationPanel markAllRead in useEffect (React-Renderbug); leere-Benachrichtigungen-Hinweis |
 | 27 | **Highlights**                     | ✅      | Abend-Highlights erfassen (✨): evening_highlight-Tabelle, CRUD-Endpoints, Freitext-Input am Abend; Migration 030 |
 | 28 | **Abend nur via Termin starten**   | ✅      | create_evening auf require_club_admin gesetzt; ad-hoc-Formular bleibt für Admins erhalten             |
+| 29 | **Tablet Schnellerfassung**        | ✅      | Vollbild-Overlay (⚡) für Landscape-Modus; Spieler links, Strafen gruppiert nach Betrag rechts; Getränke-Buttons; Zähler ×1–×5 je Strafentyp; letzte Einträge unten; funktioniert auf Tablet und Mobiltelefon im Landscape-Modus |

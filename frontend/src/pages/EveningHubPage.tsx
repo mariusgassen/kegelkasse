@@ -10,6 +10,7 @@ import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
+import {TabletQuickEntryPage} from './TabletQuickEntryPage'
 import {useQueryClient} from '@tanstack/react-query'
 
 type SubTab = 'penalties' | 'games'
@@ -25,6 +26,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const qc = useQueryClient()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games'])
     const [closeConfirm, setCloseConfirm] = useState(false)
+    const [quickEntryOpen, setQuickEntryOpen] = useState(false)
 
     // No active evening — prompt to configure one
     if (!activeEveningId) {
@@ -117,12 +119,25 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'penalties' ? 'block' : 'none'}}>
-                    <ProtocolPage/>
+                    <ProtocolPage
+                        onQuickEntry={!isClosed && (evening?.players.length ?? 0) > 0
+                            ? () => setQuickEntryOpen(true)
+                            : undefined}
+                    />
                 </div>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
                 </div>
             </div>
+
+            {/* Tablet quick-entry overlay */}
+            {quickEntryOpen && evening && !evening.is_closed && (
+                <TabletQuickEntryPage
+                    eveningId={evening.id}
+                    players={evening.players}
+                    onClose={() => setQuickEntryOpen(false)}
+                />
+            )}
         </div>
     )
 }
