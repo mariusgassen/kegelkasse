@@ -5,7 +5,6 @@ The app talks to a lightweight HTTP management server (mgmt_server.py)
 running inside the db container on port 8089 (internal Docker network).
 That server runs pgbackrest as the postgres user and returns JSON.
 """
-import asyncio
 import logging
 
 import httpx

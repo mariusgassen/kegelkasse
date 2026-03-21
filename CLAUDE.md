@@ -104,7 +104,7 @@ service worker + IndexedDB for offline support.
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
 - **Linting & build:** Always run `cd frontend && npm run build` locally before every push to catch TypeScript errors
-  early. Fix all errors before pushing. Do NOT run `ruff` or `eslint` locally — check those via CI after pushing.
+  early. Fix all errors before pushing. Also run `cd backend && poetry run ruff check app/` locally before every push to catch Python linting errors — fix all issues before pushing. Do NOT run `eslint` locally — check that via CI after pushing.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
