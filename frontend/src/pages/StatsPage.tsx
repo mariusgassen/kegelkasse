@@ -128,8 +128,8 @@ function EveningTimeline({evening}: { evening: Evening }) {
     const penaltySeries: ChartSeries[] = activePlayers.map(p => ({
         id: p.id, name: p.name, color: colorOf(p.id),
         events: evening.penalty_log
-            .filter(l => l.player_id === p.id && l.mode === 'euro' && !('is_deleted' in l && (l as any).is_deleted))
-            .map(l => ({ts: l.client_timestamp, delta: l.amount})),
+            .filter(l => l.player_id === p.id && !('is_deleted' in l && (l as any).is_deleted))
+            .map(l => ({ts: l.client_timestamp, delta: l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)})),
     }))
 
     const drinkSeries: ChartSeries[] = activePlayers.map(p => ({
@@ -320,7 +320,7 @@ export function StatsPage() {
                                             return 0
                                         }).map(p => {
                                             const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
-                                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+                                            const pTotal = evening.penalty_log.filter(l => l.player_id === p.id).reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
                                             const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
                                             const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
                                             return (
@@ -453,7 +453,7 @@ function StatBox({value, label}: { value: string; label: string }) {
 }
 
 function computeEveningStats(evening: Evening, myMemberId: number | null | undefined, t: (k: TranslationKey) => string) {
-    const totalEuro = evening.penalty_log.filter(l => l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+    const totalEuro = evening.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
     const penaltyCount = evening.penalty_log.length
     const beerRounds = evening.drink_rounds.filter(r => r.drink_type === 'beer').reduce((s, r) => s + r.participant_ids.length, 0)
     const shotRounds = evening.drink_rounds.filter(r => r.drink_type === 'shots').reduce((s, r) => s + r.participant_ids.length, 0)
@@ -461,7 +461,7 @@ function computeEveningStats(evening: Evening, myMemberId: number | null | undef
     const byPlayer = (fn: (pid: number) => number) =>
         [...evening.players].sort((a, b) => fn(b.id) - fn(a.id))[0]
 
-    const strafenTotal = (pid: number) => evening.penalty_log.filter(l => l.player_id === pid && l.mode === 'euro').reduce((s, l) => s + l.amount, 0)
+    const strafenTotal = (pid: number) => evening.penalty_log.filter(l => l.player_id === pid).reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
     const beerCount = (pid: number) => evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(pid)).length
     const shotCount = (pid: number) => evening.drink_rounds.filter(r => r.drink_type === 'shots' && r.participant_ids.includes(pid)).length
     const nullCount = (pid: number) => evening.penalty_log.filter(l => l.player_id === pid && l.penalty_type_name.toLowerCase().includes('null')).length

@@ -932,7 +932,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                     <div>
                                                         <div className="text-xs text-kce-muted">{t('history.total')}</div>
                                                         <div className="font-bold text-kce-amber">
-                                                            {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : 0), 0))}
+                                                            {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0))}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -969,7 +969,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                     const totals = new Map<string, { name: string; amount: number }>()
                                                     for (const l of detail.penalty_log) {
                                                         const cur = totals.get(l.player_name) ?? {name: l.player_name, amount: 0}
-                                                        totals.set(l.player_name, {...cur, amount: cur.amount + (l.mode === 'euro' ? l.amount : 0)})
+                                                        totals.set(l.player_name, {...cur, amount: cur.amount + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0))})
                                                     }
                                                     return (
                                                         <div className="mb-3">
@@ -1140,7 +1140,10 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
         onNavigate?.()
     }
 
-    const upcoming = (schedules ?? []).filter(s => s.scheduled_at.slice(0, 10) >= TODAY)
+    const upcoming = (schedules ?? []).filter(s =>
+        s.scheduled_at.slice(0, 10) >= TODAY &&
+        (s.evening_id === null || s.evening_id === activeEveningId)
+    )
     const VISIBLE = 2
     const [showAllUpcoming, setShowAllUpcoming] = useState(false)
     const visibleUpcoming = showAllUpcoming ? upcoming : upcoming.slice(0, VISIBLE)
