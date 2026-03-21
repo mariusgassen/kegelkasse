@@ -536,7 +536,7 @@ def _build_pdf(
     month_label_fn,
 ) -> io.BytesIO:
     # Load Liberation Sans — metrically identical to Helvetica, supports € and full Unicode
-    _font_dir = Path(__file__).parent.parent / "fonts"
+    _font_dir = Path(__file__).parent.parent.parent / "fonts"
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_font("Liberation", "", str(_font_dir / "LiberationSans-Regular.ttf"))
     pdf.add_font("Liberation", "B", str(_font_dir / "LiberationSans-Bold.ttf"))
