@@ -3,7 +3,6 @@ import asyncio
 import gzip
 import logging
 import os
-import subprocess
 import time
 import urllib.parse
 from datetime import datetime, timezone
@@ -75,22 +74,19 @@ async def run_backup() -> dict:
 
     logger.info(f"Starting backup: {filename}")
 
-    def _dump() -> None:
-        cmd = ["pg_dump", "-h", host, "-p", str(port), "-U", db_user, "-d", db_name, "--no-owner", "--no-acl"]
-        with gzip.open(str(backup_path), "wb") as gz:
-            proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            while True:
-                chunk = proc.stdout.read(65536)
-                if not chunk:
-                    break
-                gz.write(chunk)
-            proc.wait()
-        if proc.returncode != 0:
-            backup_path.unlink(missing_ok=True)
-            raise RuntimeError(f"pg_dump failed: {proc.stderr.read().decode()}")
+    cmd = ["pg_dump", "-h", host, "-p", str(port), "-U", db_user, "-d", db_name, "--no-owner", "--no-acl"]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
 
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _dump)
+    if proc.returncode != 0:
+        raise RuntimeError(f"pg_dump failed: {stderr.decode()}")
+
+    with gzip.open(str(backup_path), "wb") as gz:
+        gz.write(stdout)
 
     size = backup_path.stat().st_size
     logger.info(f"Backup saved: {backup_path} ({size} bytes)")
@@ -126,7 +122,7 @@ async def _upload_to_s3(backup_path: Path, filename: str) -> str:
         s3.upload_file(str(backup_path), settings.S3_BUCKET, key)
         return f"s3://{settings.S3_BUCKET}/{key}"
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     s3_path = await loop.run_in_executor(None, _upload)
     logger.info(f"Uploaded to S3: {s3_path}")
     return s3_path

@@ -11,6 +11,8 @@ services:
       ENVIRONMENT: development
       FIRST_SUPERADMIN_EMAIL: admin@kegelkasse.de
       FIRST_SUPERADMIN_PASSWORD: admin123
+      BACKUP_SCHEDULE: ""
+      BACKUP_RETAIN_DAYS: 7
     depends_on:
       db:
         condition: service_healthy
@@ -18,6 +20,7 @@ services:
       - ./backend:/app
       - ./frontend/src:/app/static
       - ./backend/docs_static:/app/docs_static:ro
+      - backup_dev_data:/backups
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
   db:
@@ -38,3 +41,4 @@ services:
 
 volumes:
   postgres_dev_data:
+  backup_dev_data:
