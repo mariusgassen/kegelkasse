@@ -259,7 +259,7 @@ export const en = {
     "backup.empty": "No backups yet.",
     "backup.config.title": "Configuration",
     "backup.config.schedule": "Schedule (Cron)",
-    "backup.config.retainDays": "Retention (days)",
+    "backup.config.retainDays": "Retention",
     "backup.config.s3": "S3 upload",
     "backup.config.s3Enabled": "Enabled",
     "backup.config.s3Disabled": "Disabled",
