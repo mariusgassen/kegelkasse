@@ -1146,9 +1146,24 @@ function fmtTs(unix: number): string {
 
 const BACKUP_TYPE_LABEL: Record<string, string> = {full: 'Full', diff: 'Diff', incr: 'Incr'}
 
-function BackupStanzaCard({stanza}: { stanza: PgBackrestStanza }) {
+function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDelete: (label: string) => void }) {
+    const t = useT()
+    const [downloading, setDownloading] = useState<string | null>(null)
+    const [confirmLabel, setConfirmLabel] = useState<string | null>(null)
     const backups = [...stanza.backup].reverse() // newest first
     const archive = stanza.archive[0]
+
+    const handleDownload = async (label: string) => {
+        setDownloading(label)
+        try {
+            await api.downloadBackup(label)
+        } catch (e) {
+            toastError(e as Error)
+        } finally {
+            setDownloading(null)
+        }
+    }
+
     return (
         <div className="space-y-2">
             {/* WAL / PITR window */}
@@ -1170,13 +1185,24 @@ function BackupStanzaCard({stanza}: { stanza: PgBackrestStanza }) {
             {backups.map(b => (
                 <div key={b.label} className="rounded-xl p-3 space-y-1.5"
                      style={{background: 'var(--kce-surface2)'}}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                               style={{background: b.type === 'full' ? 'var(--kce-amber)' : 'var(--kce-surface2)', color: b.type === 'full' ? 'var(--kce-bg)' : 'var(--kce-muted)', border: b.type !== 'full' ? '1px solid var(--kce-border)' : undefined}}>
                             {BACKUP_TYPE_LABEL[b.type] ?? b.type}
                         </span>
                         <span className="text-xs font-mono truncate flex-1">{b.label}</span>
                         {b.error && <span className="text-[10px] text-red-400 font-bold">Fehler</span>}
+                        <button
+                            onClick={() => handleDownload(b.label)}
+                            disabled={!!downloading}
+                            className="text-[11px] text-kce-primary disabled:opacity-40 flex-shrink-0">
+                            {downloading === b.label ? '⏳' : `⬇ ${t('backup.download')}`}
+                        </button>
+                        <button
+                            onClick={() => setConfirmLabel(b.label)}
+                            className="text-[11px] text-red-400 flex-shrink-0">
+                            🗑 {t('backup.delete')}
+                        </button>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 text-[11px] text-kce-muted">
                         <span>Start: <span className="text-kce-primary">{fmtTs(b.timestamp.start)}</span></span>
@@ -1186,6 +1212,19 @@ function BackupStanzaCard({stanza}: { stanza: PgBackrestStanza }) {
                     </div>
                 </div>
             ))}
+            {/* Delete confirm sheet */}
+            {confirmLabel && (
+                <Sheet open onClose={() => setConfirmLabel(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-kce-muted text-sm">{t('backup.delete.confirm')}</p>
+                        <p className="text-xs font-mono text-kce-primary">{confirmLabel}</p>
+                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                                onClick={() => { onDelete(confirmLabel); setConfirmLabel(null) }}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
         </div>
     )
 }
@@ -1205,6 +1244,17 @@ function BackupsTab() {
         },
         onError: (e: Error) => toastError(e),
     })
+
+    const deleteMutation = useMutation({
+        mutationFn: (label: string) => api.deleteBackup(label),
+        onSuccess: () => {
+            qc.invalidateQueries({queryKey: ['backups']})
+            showToast(t('backup.deleted'))
+        },
+        onError: (e: Error) => toastError(e),
+    })
+
+    const isS3 = config?.repo_type === 's3'
 
     return (
         <div className="space-y-4 p-1">
@@ -1237,13 +1287,29 @@ function BackupsTab() {
                         <span className="text-kce-muted">{t('backup.config.retainDays')}</span>
                         <span className="font-bold">{config.retain_full} Full-Backups</span>
                     </div>
+                    {config.repo_type && (
+                        <div className="flex justify-between text-xs">
+                            <span className="text-kce-muted">{t('backup.config.s3')}</span>
+                            <span className="font-bold">
+                                {isS3 ? t('backup.config.s3Enabled') : t('backup.config.s3Disabled')}
+                            </span>
+                        </div>
+                    )}
+                    {isS3 && config.s3_bucket && (
+                        <div className="flex justify-between text-xs">
+                            <span className="text-kce-muted">{t('backup.config.s3Bucket')}</span>
+                            <span className="font-mono font-bold">{config.s3_bucket}</span>
+                        </div>
+                    )}
                 </div>
             )}
 
             {isLoading && <div className="text-xs text-kce-muted">{t('action.loading')}</div>}
 
             {/* Stanza cards */}
-            {stanzas.map(s => <BackupStanzaCard key={s.name} stanza={s}/>)}
+            {stanzas.map(s => (
+                <BackupStanzaCard key={s.name} stanza={s} onDelete={label => deleteMutation.mutate(label)}/>
+            ))}
         </div>
     )
 }

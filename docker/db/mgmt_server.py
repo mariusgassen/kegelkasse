@@ -6,7 +6,10 @@ Runs pgbackrest commands as the 'postgres' user via gosu.
 """
 import http.server
 import json
+import os
+import re
 import subprocess
+import tarfile
 import threading
 import time
 import urllib.parse
@@ -80,6 +83,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json({"error": r.stderr.strip()}, 500)
         elif parsed.path == "/health":
             self._json({"ok": True})
+        elif parsed.path == "/config":
+            repo_type = os.environ.get("PGBACKREST_REPO1_TYPE", "posix")
+            info: dict = {"repo_type": repo_type}
+            if repo_type == "s3":
+                info["s3_bucket"] = os.environ.get("PGBACKREST_REPO1_S3_BUCKET", "")
+                info["s3_region"] = os.environ.get("PGBACKREST_REPO1_S3_REGION", "")
+                info["s3_endpoint"] = os.environ.get("PGBACKREST_REPO1_S3_ENDPOINT", "")
+            self._json(info)
+        elif re.match(r"^/backup/[\w-]+/download$", parsed.path):
+            label = parsed.path.split("/")[2]
+            backup_dir = f"/pgbackrest/backup/{STANZA}/{label}"
+            if not os.path.isdir(backup_dir):
+                self._json({"error": "backup not found"}, 404)
+                return
+            filename = f"{STANZA}-{label}.tar.gz"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/gzip")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.end_headers()
+            with tarfile.open(fileobj=self.wfile, mode="w|gz") as tar:
+                tar.add(backup_dir, arcname=label)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -110,6 +134,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json({"error": r.stderr.strip()}, 500)
         elif parsed.path == "/expire":
             r = pgb("expire")
+            if r.returncode == 0:
+                self._json({"ok": True})
+            else:
+                self._json({"error": r.stderr.strip()}, 500)
+        else:
+            self._json({"error": "not found"}, 404)
+
+    def do_DELETE(self) -> None:
+        parsed = urllib.parse.urlparse(self.path)
+        if re.match(r"^/backup/[\w-]+$", parsed.path):
+            label = parsed.path.split("/")[2]
+            r = pgb("expire", f"--set={label}")
             if r.returncode == 0:
                 self._json({"ok": True})
             else:

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
     # pgbackrest — scheduled backup cron expression + management API URL
     BACKUP_SCHEDULE: str = "0 2 * * *"  # daily full backup at 02:00 UTC
-    BACKUP_RETAIN_FULL: int = 2          # number of full backup sets to retain
+    BACKUP_RETAIN_FULL: int = 7          # number of full backup sets to retain
     PGB_MGMT_URL: str = "http://db:8089"
 
     class Config:

@@ -481,9 +481,32 @@ export const api = {
     // Backups — pgbackrest (superadmin only)
     listBackups: () => request<{
         info: PgBackrestStanza[];
-        config: { schedule: string; retain_full: number; mgmt_url: string };
+        config: {
+            schedule: string; retain_full: number; mgmt_url: string;
+            repo_type?: string; s3_bucket?: string; s3_region?: string; s3_endpoint?: string;
+        };
     }>('GET', '/backups'),
     createBackup: () => request<{ ok: boolean; info: PgBackrestStanza[] }>('POST', '/backups'),
+    deleteBackup: (label: string) => request<{ ok: boolean }>('DELETE', `/backups/${encodeURIComponent(label)}`),
+    downloadBackup: async (label: string): Promise<void> => {
+        const headers: Record<string, string> = {}
+        if (_token) headers['Authorization'] = `Bearer ${_token}`
+        const res = await fetch(`${API_BASE}/backups/${encodeURIComponent(label)}/download`, {headers})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `backup-${label}.tar.gz`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    },
 }
 
 /**
