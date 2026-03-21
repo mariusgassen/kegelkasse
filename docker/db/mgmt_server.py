@@ -49,11 +49,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path == "/backup":
+        if parsed.path == "/stanza-create":
+            r = pgb("stanza-create", "--log-level-stderr=info")
+            if r.returncode == 0:
+                self._json({"ok": True})
+            else:
+                self._json({"error": r.stderr.strip()}, 500)
+        elif parsed.path == "/backup":
             params = urllib.parse.parse_qs(parsed.query)
             btype = params.get("type", ["full"])[0]
             if btype not in ("full", "diff", "incr"):
                 btype = "full"
+            # Auto-create stanza if it has not been initialised yet (idempotent).
+            sc = pgb("stanza-create", "--log-level-stderr=info")
+            if sc.returncode != 0:
+                self._json({"error": f"stanza-create failed: {sc.stderr.strip()}"}, 500)
+                return
             r = pgb("backup", f"--type={btype}")
             if r.returncode == 0:
                 info_r = pgb("info", "--output=json")
