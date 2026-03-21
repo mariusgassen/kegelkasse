@@ -211,18 +211,22 @@ class TestStatus:
 # ---------------------------------------------------------------------------
 
 class TestTestPush:
-    def test_503_when_vapid_not_configured(self, client, auth_headers):
+    def test_200_with_logged_true_when_vapid_not_configured(self, client, auth_headers):
         with patch.object(settings, "VAPID_PRIVATE_KEY", ""):
             r = client.post("/api/v1/push/test", headers=auth_headers)
-        assert r.status_code == 503
+        assert r.status_code == 200
+        assert r.json()["logged"] is True
+        assert r.json()["sent"] == 0
 
-    def test_404_when_no_subscription(self, client, auth_headers, db, user):
+    def test_200_with_logged_true_when_no_subscription(self, client, auth_headers, db, user):
         db.query(PushSubscription).filter(PushSubscription.user_id == user.id).delete()
         db.commit()
 
         with patch.object(settings, "VAPID_PRIVATE_KEY", FAKE_VAPID_PRIVATE):
             r = client.post("/api/v1/push/test", headers=auth_headers)
-        assert r.status_code == 404
+        assert r.status_code == 200
+        assert r.json()["logged"] is True
+        assert r.json()["sent"] == 0
 
     def test_sends_to_all_user_subscriptions(self, client, auth_headers, db, user):
         sub1 = PushSubscription(user_id=user.id, endpoint="https://push.example.com/test-A", p256dh="p1", auth="a1")
