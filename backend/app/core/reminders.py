@@ -21,6 +21,7 @@ _DEFAULT_REMINDER_SETTINGS: dict = {
     "rsvp_reminder": {"enabled": False, "days_before": 3},
     "debt_day_of": {"enabled": False},
     "payment_request_nudge": {"enabled": False, "days_pending": 3},
+    "auto_report": {"enabled": False, "days_before": 1},
 }
 
 
@@ -300,6 +301,31 @@ def send_payment_request_nudge(db: Session, club: Club, settings: dict, today: d
     return count
 
 
+def send_auto_report_reminder(db: Session, club: Club, settings: dict, today: date) -> int:
+    """Auto-report reminder — push to all admins N days before the next scheduled evening."""
+    cfg = settings.get("auto_report", {})
+    if not cfg.get("enabled"):
+        return 0
+
+    days_before = int(cfg.get("days_before", 1))
+    target_date = today + timedelta(days=days_before)
+    upcoming = _upcoming_evenings(db, club.id, today)
+    match = next((v for d, v in upcoming if d == target_date), None)
+    if match is None:
+        return 0
+
+    date_str = target_date.strftime("%-d. %B")
+    venue_suffix = f" · {match}" if match else ""
+    push_to_club_admins(
+        db, club.id,
+        "📊 Kassenbericht",
+        f"Kegelabend in {days_before} Tag{'en' if days_before != 1 else ''} ({date_str}{venue_suffix}). Bericht herunterladen.",
+        "/#treasury",
+        category="payments",
+    )
+    return 1
+
+
 async def send_all_reminders(db: Session) -> None:
     """Run all enabled reminder types for all clubs."""
     today = date.today()
@@ -314,6 +340,7 @@ async def send_all_reminders(db: Session) -> None:
             ("rsvp_reminders", send_rsvp_reminders),
             ("debt_day_of", send_debt_day_of_reminders),
             ("payment_nudge", send_payment_request_nudge),
+            ("auto_report", send_auto_report_reminder),
         ]:
             try:
                 n = fn(db, club, cfg, today)

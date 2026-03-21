@@ -615,4 +615,12 @@ export const en = {
     "committee.membersHint": "These members can post announcements and manage bowling trips.",
     "committee.noMembers": "No committee members assigned yet.",
     "committee.isCommittee": "Committee member",
+    "report.export": "📊 Export",
+    "report.download": "Download Excel report",
+    "report.downloading": "Generating…",
+    "report.year": "Period",
+    "report.yearAll": "All time",
+    "report.downloaded": "Report downloaded",
+    "reminders.auto_report": "📊 Report before evening",
+    "reminders.auto_report.hint": "Admins receive a push notification X days before the next bowling evening as a reminder to download the treasury report.",
 } as const

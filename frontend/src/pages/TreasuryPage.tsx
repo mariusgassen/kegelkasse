@@ -146,6 +146,23 @@ export function TreasuryPage() {
     const [saving, setSaving] = useState(false)
     const [remindingDebtors, setRemindingDebtors] = useState(false)
 
+    const currentYear = new Date().getFullYear()
+    const [exportYear, setExportYear] = useState<number | null>(null)
+    const [exportFormat, setExportFormat] = useState<'xlsx' | 'pdf'>('xlsx')
+    const [exporting, setExporting] = useState(false)
+
+    async function downloadReport() {
+        setExporting(true)
+        try {
+            await api.downloadReport(exportYear ?? undefined, exportFormat)
+            showToast(t('report.downloaded'))
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setExporting(false)
+        }
+    }
+
     function openPaymentSheet(id: number, name: string, prefillAmount?: number) {
         setPaymentTarget({id, name})
         setPaymentMode('deposit')
@@ -350,6 +367,35 @@ export function TreasuryPage() {
     return (
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">💰 {t('nav.treasury')}</div>
+
+            {/* Export row — admin only */}
+            {admin && (
+                <div className="flex items-center gap-2 mb-3">
+                    <select
+                        value={exportYear ?? ''}
+                        onChange={e => setExportYear(e.target.value ? parseInt(e.target.value, 10) : null)}
+                        className="flex-1 bg-kce-surface2 border border-kce-border rounded-lg px-2 py-1.5 text-xs text-kce-text">
+                        <option value="">{t('report.yearAll')}</option>
+                        {Array.from({length: 5}, (_, i) => currentYear - i).map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={exportFormat}
+                        onChange={e => setExportFormat(e.target.value as 'xlsx' | 'pdf')}
+                        className="w-20 bg-kce-surface2 border border-kce-border rounded-lg px-2 py-1.5 text-xs text-kce-text">
+                        <option value="xlsx">Excel</option>
+                        <option value="pdf">PDF</option>
+                    </select>
+                    <button
+                        type="button"
+                        disabled={exporting}
+                        onClick={downloadReport}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-kce-surface2 text-kce-muted hover:bg-kce-surface transition-all disabled:opacity-50">
+                        {exporting ? t('report.downloading') : t('report.export')}
+                    </button>
+                </div>
+            )}
 
             {/* Tab strip */}
             <div className="flex gap-1 mb-4 overflow-x-auto pb-1">

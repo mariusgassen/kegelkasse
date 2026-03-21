@@ -38,12 +38,40 @@ Die Übersicht zeigt die Daten des aktiven Abends:
 
 Am Ende wird die **Gesamtsumme aller Strafen** angezeigt.
 
-### Export
+### Export (Text)
 
 Die Kassenübersicht kann als Text exportiert werden:
 
 1. Tippe auf **Teilen** oder **Kopieren**
 2. Der Inhalt wird als formatierter Text exportiert (z. B. für WhatsApp oder Notizen)
+
+---
+
+## Kassenbericht (Excel / PDF)
+
+Admins können oben in der Kasse einen vollständigen Kassenbericht herunterladen — als **Excel-Datei (.xlsx)** oder **PDF**.
+
+### Inhalte des Berichts
+
+| Blatt / Abschnitt | Inhalt |
+|---|---|
+| **Übersicht** | Vereinsname, Zeitraum, Strafen-/Zahlungs-/Ausgaben-Summe, Kassenstand, Abend- und Mitgliederanzahl |
+| **Mitglieder-Konten** | Pro Mitglied: Strafen, Einzahlungen, Saldo |
+| **Buchungen** | Alle Zahlungen und Ausgaben chronologisch |
+| **Strafen nach Person** | Pro Mitglied: Aufschlüsselung nach Strafen-Typ (Anzahl + Betrag) |
+| **Strafen nach Abend** | Jede Strafe mit Datum, Abend, Mitglied und Typ |
+| **Abende** | Pro Abend: Datum, Ort, Spielerzahl, Spiele, Strafen-Summe, König |
+
+### Bericht herunterladen
+
+1. Öffne die **Kasse** (💰)
+2. Wähle oben den **Zeitraum** (Jahr oder gesamter Zeitraum)
+3. Wähle das **Format** (Excel oder PDF)
+4. Tippe auf **📊 Export**
+
+### Automatischer Bericht vor dem Abend
+
+In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert werden, dass Admins X Tage vor dem nächsten Kegeltermin automatisch eine Push-Benachrichtigung erhalten — als Erinnerung, den Kassenbericht herunterzuladen.
 
 ---
 
