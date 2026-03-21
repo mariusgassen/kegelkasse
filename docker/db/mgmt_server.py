@@ -27,6 +27,8 @@ def pgb(*args: str) -> subprocess.CompletedProcess:
 def _ensure_stanza() -> bool:
     """Run stanza-create; return True on success."""
     r = pgb("stanza-create", "--log-level-stderr=info")
+    if r.returncode != 0:
+        print(f"pgbackrest stanza-create failed:\n{r.stderr.strip()}", flush=True)
     return r.returncode == 0
 
 
@@ -35,12 +37,13 @@ def _startup_stanza_init() -> None:
     Background thread: retry stanza-create until it succeeds.
     Needed for existing volumes where initdb.d scripts never ran.
     """
-    for attempt in range(30):
+    print("pgbackrest startup: waiting for PostgreSQL to accept stanza-create...", flush=True)
+    for attempt in range(60):
         if _ensure_stanza():
-            print("pgbackrest stanza initialised.", flush=True)
+            print(f"pgbackrest stanza initialised (attempt {attempt + 1}).", flush=True)
             return
         time.sleep(5)
-    print("WARNING: pgbackrest stanza-create did not succeed after 30 attempts.", flush=True)
+    print("WARNING: pgbackrest stanza-create did not succeed after 60 attempts.", flush=True)
 
 
 class Handler(http.server.BaseHTTPRequestHandler):

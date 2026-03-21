@@ -47,7 +47,7 @@ services:
       - "-c"
       - "archive_mode=on"
       - "-c"
-      - "archive_command=pgbackrest --stanza=main archive-push %p"
+      - "archive_command=env -u PGBACKREST_MGMT_URL -u PGB_MGMT_URL pgbackrest --stanza=main archive-push %p"
       - "-c"
       - "archive_timeout=300"
       - "-c"
