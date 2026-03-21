@@ -1136,7 +1136,7 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
 function BackupsTab() {
     const t = useT()
     const qc = useQueryClient()
-    const {data, isLoading} = useQuery({queryKey: ['backups'], queryFn: api.listBackups})
+    const {data, isLoading, error} = useQuery({queryKey: ['backups'], queryFn: api.listBackups})
     const backups = data?.backups ?? []
     const config = data?.config
 
@@ -1146,7 +1146,7 @@ function BackupsTab() {
             qc.invalidateQueries({queryKey: ['backups']})
             showToast(t('backup.success'))
         },
-        onError: (e: Error) => showToast(t('backup.error') + ': ' + e.message),
+        onError: (e: Error) => toastError(e),
     })
 
     const deleteMutation = useMutation({
@@ -1155,7 +1155,7 @@ function BackupsTab() {
             qc.invalidateQueries({queryKey: ['backups']})
             showToast(t('backup.deleted'))
         },
-        onError: (e: Error) => showToast(e.message),
+        onError: (e: Error) => toastError(e),
     })
 
     const handleDownload = async (filename: string) => {
@@ -1179,22 +1179,30 @@ function BackupsTab() {
 
     return (
         <div className="space-y-4 p-1">
-            <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-kce-primary">{t('backup.title')}</h3>
-                <button
-                    onClick={() => createMutation.mutate()}
-                    disabled={createMutation.isPending}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-kce-primary text-kce-bg disabled:opacity-50">
-                    {createMutation.isPending ? t('backup.triggering') : t('backup.trigger')}
-                </button>
-            </div>
+            <div className="sec-heading">{t('backup.title')}</div>
+
+            {/* Manual trigger — always visible */}
+            <button
+                onClick={() => createMutation.mutate()}
+                disabled={createMutation.isPending}
+                style={{width: '100%', background: 'var(--kce-amber)', color: 'var(--kce-bg)'}}
+                className="rounded-xl px-4 py-3 font-bold text-sm disabled:opacity-50">
+                {createMutation.isPending ? `⏳ ${t('backup.triggering')}` : `💾 ${t('backup.trigger')}`}
+            </button>
+
+            {error && (
+                <div className="rounded-xl px-3 py-2 text-xs text-red-400 border border-red-400/30"
+                     style={{background: 'var(--kce-surface2)'}}>
+                    {(error as Error).message}
+                </div>
+            )}
 
             {config && (
                 <div className="rounded-xl p-3 space-y-1.5" style={{background: 'var(--kce-surface2)'}}>
                     <div className="text-xs font-bold text-kce-muted mb-2">{t('backup.config.title')}</div>
                     <div className="flex justify-between text-xs">
                         <span className="text-kce-muted">{t('backup.config.schedule')}</span>
-                        <span className="font-mono font-bold">{config.schedule}</span>
+                        <span className="font-mono font-bold">{config.schedule || '—'}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                         <span className="text-kce-muted">{t('backup.config.retainDays')}</span>
@@ -1212,7 +1220,7 @@ function BackupsTab() {
             )}
 
             {isLoading && <div className="text-xs text-kce-muted">{t('action.loading')}</div>}
-            {!isLoading && backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
+            {!isLoading && !error && backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
 
             {backups.length > 0 && (
                 <div className="space-y-2">
