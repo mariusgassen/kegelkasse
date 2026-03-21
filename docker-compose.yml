@@ -18,7 +18,7 @@ services:
       CORS_ALLOW_ORIGIN: '${CORS_ALLOW_ORIGIN:-}'
       # pgbackrest — scheduled full backup cron + management API URL
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
-      PGBACKREST_MGMT_URL: ${PGBACKREST_MGMT_URL:-http://db:8089}
+      PGB_MGMT_URL: ${PGB_MGMT_URL:-http://db:8089}
     depends_on:
       db:
         condition: service_healthy

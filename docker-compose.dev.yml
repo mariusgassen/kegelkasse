@@ -12,7 +12,7 @@ services:
       FIRST_SUPERADMIN_EMAIL: admin@kegelkasse.de
       FIRST_SUPERADMIN_PASSWORD: admin123
       BACKUP_SCHEDULE: ""
-      PGBACKREST_MGMT_URL: http://db:8089
+      PGB_MGMT_URL: http://db:8089
     depends_on:
       db:
         condition: service_healthy

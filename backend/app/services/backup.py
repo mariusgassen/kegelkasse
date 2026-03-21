@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _mgmt_url() -> str:
     from core.config import settings
-    return settings.PGBACKREST_MGMT_URL.rstrip("/")
+    return settings.PGB_MGMT_URL.rstrip("/")
 
 
 async def get_backup_info() -> list[dict]:
