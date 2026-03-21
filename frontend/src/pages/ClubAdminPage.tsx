@@ -1214,8 +1214,7 @@ function BackupsTab() {
             <button
                 onClick={() => createMutation.mutate()}
                 disabled={createMutation.isPending}
-                style={{width: '100%', background: 'var(--kce-amber)', color: 'var(--kce-bg)'}}
-                className="rounded-xl px-4 py-3 font-bold text-sm disabled:opacity-50">
+                className="btn w-full disabled:opacity-50">
                 {createMutation.isPending ? `⏳ ${t('backup.triggering')}` : `💾 ${t('backup.trigger')}`}
             </button>
 
