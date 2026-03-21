@@ -7,6 +7,8 @@ Runs pgbackrest commands as the 'postgres' user via gosu.
 import http.server
 import json
 import subprocess
+import threading
+import time
 import urllib.parse
 
 STANZA = "main"
@@ -20,6 +22,25 @@ def pgb(*args: str) -> subprocess.CompletedProcess:
         capture_output=True,
         text=True,
     )
+
+
+def _ensure_stanza() -> bool:
+    """Run stanza-create; return True on success."""
+    r = pgb("stanza-create", "--log-level-stderr=info")
+    return r.returncode == 0
+
+
+def _startup_stanza_init() -> None:
+    """
+    Background thread: retry stanza-create until it succeeds.
+    Needed for existing volumes where initdb.d scripts never ran.
+    """
+    for attempt in range(30):
+        if _ensure_stanza():
+            print("pgbackrest stanza initialised.", flush=True)
+            return
+        time.sleep(5)
+    print("WARNING: pgbackrest stanza-create did not succeed after 30 attempts.", flush=True)
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -38,8 +59,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/info":
             r = pgb("info", "--output=json")
-            if r.returncode == 0:
+            if r.returncode == 0 and r.stdout.strip():
                 self._json(json.loads(r.stdout))
+            elif r.returncode == 0:
+                self._json([])
             else:
                 self._json({"error": r.stderr.strip()}, 500)
         elif parsed.path == "/health":
@@ -68,7 +91,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             r = pgb("backup", f"--type={btype}")
             if r.returncode == 0:
                 info_r = pgb("info", "--output=json")
-                info = json.loads(info_r.stdout) if info_r.returncode == 0 else []
+                info = json.loads(info_r.stdout) if info_r.returncode == 0 and info_r.stdout.strip() else []
                 self._json({"ok": True, "info": info})
             else:
                 self._json({"error": r.stderr.strip()}, 500)
@@ -83,6 +106,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    # Try to initialise the pgbackrest stanza in the background so WAL
+    # archiving works as soon as PostgreSQL is ready, even on existing volumes.
+    threading.Thread(target=_startup_stanza_init, daemon=True).start()
+
     server = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
     print(f"pgbackrest management server listening on :{PORT}", flush=True)
     server.serve_forever()
