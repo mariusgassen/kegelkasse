@@ -221,11 +221,16 @@ export default function App() {
                 setGameTemplates(gt)
                 setGuestPenaltyCap(club.settings?.guest_penalty_cap ?? null)
                 applyClubTheme(club)
-                // Auto-select the single open evening for new/other-device users
-                if (!activeEveningId) {
-                    const evenings = await api.listEvenings()
-                    const open = evenings.filter((e: any) => !e.is_closed)
-                    if (open.length === 1) setActiveEveningId(open[0].id)
+                // Validate persisted activeEveningId and auto-select if needed
+                const evenings = await api.listEvenings()
+                const open = evenings.filter((e: any) => !e.is_closed)
+                const currentActiveId = useAppStore.getState().activeEveningId
+                if (currentActiveId) {
+                    // Clear stale ID if evening no longer exists or is already closed
+                    const stillOpen = open.find((e: any) => e.id === currentActiveId)
+                    if (!stillOpen) setActiveEveningId(null)
+                } else if (open.length === 1) {
+                    setActiveEveningId(open[0].id)
                 }
                 setBootNetworkError(false)
                 setBootDone(true)

@@ -9,13 +9,14 @@ export function useActiveEvening() {
     const qc = useQueryClient()
     const esRef = useRef<EventSource | null>(null)
 
-    const {data: evening, isLoading} = useQuery({
+    const {data: evening, isLoading, isError} = useQuery({
         queryKey: ['evening', activeEveningId],
         queryFn: () => activeEveningId ? api.getEvening(activeEveningId) : null,
         enabled: !!activeEveningId,
         staleTime: 1000 * 15,
         // 30s polling as fallback when SSE is unavailable
         refetchInterval: 1000 * 30,
+        retry: false,
     })
 
     // SSE subscription — invalidates query instantly when server signals a change.
@@ -64,10 +65,14 @@ export function useActiveEvening() {
         }
     }, [activeEveningId])
 
-    // Clear stale activeEveningId when the evening has been closed
+    // Clear stale activeEveningId when the evening has been closed or is no longer reachable (e.g. deleted)
     useEffect(() => {
         if (evening?.is_closed) setActiveEveningId(null)
     }, [evening?.is_closed])
+
+    useEffect(() => {
+        if (isError) setActiveEveningId(null)
+    }, [isError])
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
 
