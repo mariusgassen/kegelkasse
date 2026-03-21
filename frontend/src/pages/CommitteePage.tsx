@@ -434,7 +434,7 @@ export function CommitteePage() {
                     {canWrite && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
                               style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
-                            VA
+                            VGA
                         </span>
                     )}
                 </div>

@@ -578,7 +578,7 @@ export const de = {
     "committee.trip.edit": "✏️ Kegelfahrt bearbeiten",
     "committee.members": "Vergnügungsausschuss-Mitglieder",
     "committee.membersHint": "Diese Mitglieder können Ankündigungen und Kegelfahrten einstellen.",
-    "committee.noMembers": "Noch keine VGA-Mitglieder ernannt.",
+    "committee.noMembers": "Noch keine Vergnügungsausschuss-Mitglieder ernannt.",
     "committee.isCommittee": "VGA-Mitglied",
 } as const
 
