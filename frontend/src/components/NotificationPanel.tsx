@@ -38,7 +38,13 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
     const eventId = params.get('event') ? parseInt(params.get('event')!, 10) : null
 
     function navigate() {
-        window.location.href = n.url
+        // Extract the hash portion so we can set it without a full navigation
+        const targetHash = new URL(n.url, window.location.href).hash
+        if (targetHash) {
+            window.location.hash = targetHash.slice(1) // triggers hashchange
+        } else {
+            window.location.href = n.url
+        }
         dismiss(n.id)
         onClose()
     }

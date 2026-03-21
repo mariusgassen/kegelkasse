@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from models.push import PushSubscription
+from models.push import NotificationLog, PushSubscription
 from models.user import User
 
 logger = logging.getLogger(__name__)
@@ -86,14 +86,26 @@ def _user_wants(user: User, category: str) -> bool:
     return bool(prefs.get(category, True))
 
 
+def _log_notification(db: Session, user_id: int, title: str, body: str, url: str) -> None:
+    """Persist a notification to the server-side log (best-effort, never raises)."""
+    try:
+        db.add(NotificationLog(user_id=user_id, title=title, body=body, url=url))
+        db.commit()
+    except Exception as exc:
+        logger.warning("Failed to save notification log for user %s: %s", user_id, exc)
+        db.rollback()
+
+
 def push_to_regular_member(db: Session, regular_member_id: int, title: str, body: str,
                             url: str = '/', category: str = '', extra: dict | None = None) -> None:
     """Send push to every subscriber linked to a regular member."""
-    if not settings.VAPID_PRIVATE_KEY:
-        return
     users = db.query(User).filter(User.regular_member_id == regular_member_id, User.is_active == True).all()
     for user in users:
         if category and not _user_wants(user, category):
+            continue
+        # Always log so the app can fetch it even without a push subscription
+        _log_notification(db, user.id, title, body, url)
+        if not settings.VAPID_PRIVATE_KEY:
             continue
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url, extra=extra)
@@ -126,14 +138,15 @@ def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
 def push_to_club(db: Session, club_id: int, title: str, body: str,
                  url: str = '/', category: str = '', extra: dict | None = None) -> None:
     """Send push to every subscriber in a club (parallelised per subscription)."""
-    if not settings.VAPID_PRIVATE_KEY:
-        return
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
     subs = []
     for user in users:
         if category and not _user_wants(user, category):
             continue
-        subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
+        # Always log for hybrid loading
+        _log_notification(db, user.id, title, body, url)
+        if settings.VAPID_PRIVATE_KEY:
+            subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
     if not subs:
         return
     stale_ids: list[int] = []
@@ -152,8 +165,6 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
 def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
                         url: str = '/', category: str = '', extra: dict | None = None) -> None:
     """Send push to all admin/superadmin subscribers in a club."""
-    if not settings.VAPID_PRIVATE_KEY:
-        return
     from models.user import UserRole
     users = db.query(User).filter(
         User.club_id == club_id,
@@ -162,6 +173,10 @@ def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
     ).all()
     for user in users:
         if category and not _user_wants(user, category):
+            continue
+        # Always log for hybrid loading
+        _log_notification(db, user.id, title, body, url)
+        if not settings.VAPID_PRIVATE_KEY:
             continue
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url, extra=extra)

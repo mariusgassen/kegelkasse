@@ -136,9 +136,8 @@ export default function App() {
     const [refreshing, setRefreshing] = useState(false)
     const {addNotification, notifications} = useNotificationStore()
     const badgeCount = unreadCount(notifications)
-    const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
-    const notificationsActive = pushSupported && typeof Notification !== 'undefined' && Notification.permission === 'granted'
-    const showNotificationBell = notificationsActive || notifications.length > 0
+    // Always show bell for logged-in users — server-side hybrid loading means notifications appear even without push
+    const showNotificationBell = true
     // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
     const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
     const [bootNetworkError, setBootNetworkError] = useState(false)
@@ -190,6 +189,20 @@ export default function App() {
         }
         req.onerror = () => {}
     }, [addNotification])
+
+    // Hybrid: fetch recent notifications from server on boot (works even without PWA/SW)
+    useEffect(() => {
+        if (!user) return
+        api.getRecentNotifications().then((items) => {
+            items.forEach(n => addNotification({
+                title: n.title,
+                body: n.body,
+                url: n.url ?? '/',
+                serverLogId: n.id,
+                serverCreatedAt: n.created_at,
+            }))
+        }).catch(() => {/* ignore — server may not have the endpoint yet */})
+    }, [user?.id, addNotification])
 
     async function handleRefresh() {
         setRefreshing(true)
