@@ -401,24 +401,6 @@ export function ProfileSheet({open, onClose}: Props) {
                                 {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
-                                {pushSubscribed && (
-                                    <button
-                                        onClick={async () => {
-                                            setPushTesting(true)
-                                            try {
-                                                await api.testPush()
-                                                showToast('Test-Benachrichtigung gesendet')
-                                            } catch (e: unknown) {
-                                                showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
-                                            } finally {
-                                                setPushTesting(false)
-                                            }
-                                        }}
-                                        disabled={pushTesting}
-                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all bg-kce-surface2 text-kce-muted">
-                                        {pushTesting ? '…' : 'Test'}
-                                    </button>
-                                )}
                                 <button
                                     onClick={handlePushToggle}
                                     disabled={pushLoading}
@@ -503,6 +485,27 @@ export function ProfileSheet({open, onClose}: Props) {
                                     <PushToggle value={!!pushPrefs.reminder_payments} onChange={() => togglePushPref('reminder_payments')} />
                                 </div>
                             )}
+
+                            {/* Test button — works even without VAPID (logs to bell panel) */}
+                            <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
+                                <span className="text-xs text-kce-muted">{t('push.testLabel')}</span>
+                                <button
+                                    onClick={async () => {
+                                        setPushTesting(true)
+                                        try {
+                                            await api.testPush()
+                                            showToast(t('push.testSent'))
+                                        } catch (e: unknown) {
+                                            showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
+                                        } finally {
+                                            setPushTesting(false)
+                                        }
+                                    }}
+                                    disabled={pushTesting}
+                                    className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-surface2 text-kce-muted active:opacity-60">
+                                    {pushTesting ? '…' : 'Test'}
+                                </button>
+                            </div>
                         </div>
                     )}
 

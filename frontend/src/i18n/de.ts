@@ -518,6 +518,8 @@ export const de = {
     "push.pref.games": "Spielergebnisse",
     "push.pref.members": "Neue Mitglieder",
     "push.pref.committee": "Ankündigungen (immer an)",
+    "push.testLabel": "Test-Benachrichtigung",
+    "push.testSent": "Test-Benachrichtigung gesendet",
     "push.reminders": "Automatische Erinnerungen",
     "push.pref.reminder_debt": "Schulden-Erinnerungen",
     "push.pref.reminder_schedule": "Termin-Erinnerungen",
