@@ -259,7 +259,7 @@ export const de = {
     "backup.empty": "Noch keine Backups vorhanden.",
     "backup.config.title": "Konfiguration",
     "backup.config.schedule": "Zeitplan (Cron)",
-    "backup.config.retainDays": "Aufbewahrung (Tage)",
+    "backup.config.retainDays": "Aufbewahrung",
     "backup.config.s3": "S3-Upload",
     "backup.config.s3Enabled": "Aktiviert",
     "backup.config.s3Disabled": "Deaktiviert",
