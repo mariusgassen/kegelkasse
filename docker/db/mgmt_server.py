@@ -8,7 +8,6 @@ import http.server
 import json
 import os
 import re
-import shutil
 import subprocess
 import tarfile
 import threading
@@ -146,25 +145,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if re.match(r"^/backup/[\w-]+$", parsed.path):
             label = parsed.path.split("/")[2]
-            # Primary: pgbackrest expire --set (requires pgbackrest ≥ 2.41)
-            r = pgb("expire", f"--set={label}", "--log-level-stderr=warn")
+            # Strip RETENTION env vars — they can interfere with expire --set
+            # (pgbackrest inherits the container env which includes
+            # PGBACKREST_REPO1_RETENTION_FULL etc. from docker-compose).
+            env = {k: v for k, v in os.environ.items()
+                   if "RETENTION" not in k.upper()}
+            r = subprocess.run(
+                ["gosu", "postgres", "pgbackrest",
+                 f"--stanza={STANZA}", "expire", f"--set={label}"],
+                capture_output=True, text=True, env=env,
+            )
             if r.returncode == 0:
                 self._json({"ok": True})
                 return
-            # Fallback for posix repos (server runs as root so rmtree works):
-            # delete the directory directly, then expire to clean up WAL.
-            repo_type = os.environ.get("PGBACKREST_REPO1_TYPE", "posix")
-            if repo_type not in ("s3",):
-                backup_dir = f"/pgbackrest/backup/{STANZA}/{label}"
-                if not os.path.isdir(backup_dir):
-                    self._json({"error": f"backup {label} not found"}, 404)
-                    return
-                shutil.rmtree(backup_dir)
-                pgb("expire")  # best-effort WAL cleanup
-                self._json({"ok": True})
-            else:
-                err = (r.stderr or r.stdout or "pgbackrest expire --set failed").strip()
-                self._json({"error": err}, 500)
+            # Log to Docker stdout so it shows up in `docker logs`
+            err_detail = (r.stderr or r.stdout or "no output").strip()
+            print(f"[mgmt] expire --set={label} failed (rc={r.returncode}): {err_detail}", flush=True)
+            self._json({"error": err_detail}, 500)
         else:
             self._json({"error": "not found"}, 404)
 
