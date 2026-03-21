@@ -9,7 +9,7 @@ import {api, authState} from '@/api/client.ts'
 import type {ReminderSettings, ReminderTypeSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
-import {applyClubTheme} from '@/App.tsx'
+import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
@@ -133,6 +133,17 @@ export function ClubAdminPage() {
 }
 
 // ── Club Settings ──
+type Palette = { label: string; primary: string; secondary: string; bg: string }
+
+function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
+    return [
+        {label: t('club.palette.warm'), primary: hslToHex(h, 78, 56), secondary: hslToHex((h + 25) % 360, 45, 42), bg: hslToHex(h, 22, 9)},
+        {label: t('club.palette.contrast'), primary: hslToHex(h, 75, 58), secondary: hslToHex((h + 180) % 360, 38, 42), bg: hslToHex(h, 18, 8)},
+        {label: t('club.palette.triadic'), primary: hslToHex(h, 70, 58), secondary: hslToHex((h + 120) % 360, 42, 42), bg: hslToHex(h, 25, 9)},
+        {label: t('club.palette.soft'), primary: hslToHex(h, 58, 60), secondary: hslToHex((h + 40) % 360, 32, 40), bg: hslToHex(h, 15, 11)},
+    ]
+}
+
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
     const setGuestPenaltyCap = useAppStore(s => s.setGuestPenaltyCap)
@@ -141,6 +152,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [color1, setColor1] = useState(club?.settings?.primary_color || '#e8a020')
     const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
     const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
+    const [paletteBase, setPaletteBase] = useState('#e8a020')
+    const [suggestions, setSuggestions] = useState<Palette[]>([])
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
     const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
     const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
@@ -160,6 +173,25 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
         setDefaultEveningTime(club.settings?.default_evening_time || '20:00')
     }, [club])
+
+    function applyPalette(p: Palette) {
+        setColor1(p.primary)
+        setColor2(p.secondary)
+        setBgColor(p.bg)
+        applyClubTheme({settings: {primary_color: p.primary, secondary_color: p.secondary, bg_color: p.bg}})
+    }
+
+    function handleSuggest(hex: string) {
+        const [h] = hexToHsl(hex)
+        setSuggestions(buildPalettes(h, t))
+    }
+
+    function handleRandomPalette() {
+        const h = Math.random() * 360
+        const palettes = buildPalettes(h, t)
+        applyPalette(palettes[Math.floor(Math.random() * palettes.length)])
+        setSuggestions(palettes)
+    }
 
     async function handleSave() {
         const cap = guestCap.trim() ? parseAmount(guestCap) : null
@@ -213,27 +245,74 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <div className="flex-1">
                         <label className="field-label">{t('club.color.primary')}</label>
                         <div className="flex gap-2 items-center">
-                            <input type="color" value={color1} onChange={e => setColor1(e.target.value)}
-                                   className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
+                            <input type="color" value={color1} onChange={e => {
+                                setColor1(e.target.value)
+                                applyClubTheme({settings: {primary_color: e.target.value, secondary_color: color2, bg_color: bgColor}})
+                            }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-kce-muted text-xs font-mono">{color1}</span>
                         </div>
                     </div>
                     <div className="flex-1">
                         <label className="field-label">{t('club.color.secondary')}</label>
                         <div className="flex gap-2 items-center">
-                            <input type="color" value={color2} onChange={e => setColor2(e.target.value)}
-                                   className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
+                            <input type="color" value={color2} onChange={e => {
+                                setColor2(e.target.value)
+                                applyClubTheme({settings: {primary_color: color1, secondary_color: e.target.value, bg_color: bgColor}})
+                            }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-kce-muted text-xs font-mono">{color2}</span>
                         </div>
                     </div>
                     <div className="flex-1">
                         <label className="field-label">{t('club.color.bg')}</label>
                         <div className="flex gap-2 items-center">
-                            <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)}
-                                   className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
+                            <input type="color" value={bgColor} onChange={e => {
+                                setBgColor(e.target.value)
+                                applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: e.target.value}})
+                            }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-kce-muted text-xs font-mono">{bgColor}</span>
                         </div>
                     </div>
+                </div>
+
+                {/* ── Palette generator ── */}
+                <div className="mt-4 pt-4 border-t border-kce-border">
+                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                        {t('club.palette.title')}
+                    </div>
+                    <div className="flex gap-2 items-end">
+                        <div>
+                            <label className="field-label">{t('club.palette.baseColor')}</label>
+                            <input type="color" value={paletteBase}
+                                   onChange={e => setPaletteBase(e.target.value)}
+                                   className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
+                        </div>
+                        <button className="btn-secondary text-xs px-3 py-2"
+                                onClick={() => handleSuggest(paletteBase)}>
+                            {t('club.palette.suggest')}
+                        </button>
+                        <button className="btn-secondary text-xs px-3 py-2"
+                                onClick={handleRandomPalette}>
+                            ✨ {t('club.palette.random')}
+                        </button>
+                    </div>
+                    {suggestions.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                            {suggestions.map((p, i) => (
+                                <button key={i} onClick={() => applyPalette(p)}
+                                        className="flex items-center gap-2 p-2.5 rounded-lg border border-kce-border hover:border-kce-amber active:scale-95 transition-all text-left">
+                                    <div className="flex gap-0.5 flex-shrink-0">
+                                        <div className="w-5 h-5 rounded-full border border-white/10"
+                                             style={{background: p.bg}}/>
+                                        <div className="w-5 h-5 rounded-full border border-white/10"
+                                             style={{background: p.primary}}/>
+                                        <div className="w-5 h-5 rounded-full border border-white/10"
+                                             style={{background: p.secondary}}/>
+                                    </div>
+                                    <span className="text-xs text-kce-muted">{p.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

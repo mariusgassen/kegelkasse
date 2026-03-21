@@ -29,7 +29,7 @@ import {CommitteePage} from './pages/CommitteePage'
 
 type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee'
 
-function hexToHsl(hex: string): [number, number, number] {
+export function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
     const g = parseInt(hex.slice(3, 5), 16) / 255
     const b = parseInt(hex.slice(5, 7), 16) / 255
@@ -54,7 +54,7 @@ function hexToHsl(hex: string): [number, number, number] {
     return [h * 360, s * 100, l * 100]
 }
 
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
     h /= 360;
     s /= 100;
     l /= 100
@@ -306,7 +306,7 @@ export default function App() {
             <header style={{
                 flexShrink: 0,
                 background: 'linear-gradient(180deg, var(--kce-bg), var(--kce-bg))',
-                borderBottom: '1px solid #3d2e28',
+                borderBottom: '1px solid var(--kce-border)',
                 paddingTop: 'env(safe-area-inset-top, 8px)',
                 zIndex: 50,
             }}>
@@ -321,7 +321,7 @@ export default function App() {
                     {activeEveningId && (
                         <button
                             className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
-                            style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}
+                            style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)', border: '1px solid color-mix(in srgb, var(--kce-primary) 60%, transparent)'}}
                             onClick={() => setPage('config')}>
                             🎳 {t('evening.active')}
                         </button>
@@ -350,7 +350,7 @@ export default function App() {
                             {badgeCount > 0 && (
                                 <span
                                     className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
-                                    style={{background: '#e8a020', color: '#1a0f00'}}>
+                                    style={{background: 'var(--kce-primary)', color: 'var(--kce-bg)'}}>
                                     {badgeCount > 9 ? '9+' : badgeCount}
                                 </span>
                             )}
@@ -373,7 +373,7 @@ export default function App() {
                 </div>
 
                 {/* Nav */}
-                <nav className="flex items-stretch gap-1 px-2 mx-1 rounded-xl" style={{background: '#2e2420'}}>
+                <nav className="flex items-stretch gap-1 px-2 mx-1 rounded-xl" style={{background: 'var(--kce-surface2)'}}>
                     {NAV.filter(n => n.id !== 'club' || user?.role === 'admin' || user?.role === 'superadmin').map(n => (
                         <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
                                 onClick={() => setPage(n.id)}>
