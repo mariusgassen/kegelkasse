@@ -647,8 +647,9 @@ export const de = {
     "camera.globes": "Globen",
     "camera.display": "Anzeige",
     "camera.detectedScore": "Erkannter Score",
-    "camera.selectGame": "Spiel wählen",
+    "camera.selectGame": "Aktuelles Spiel",
     "camera.noRunningGame": "Kein laufendes Spiel.",
+    "camera.syncActive": "Würfe werden live synchronisiert",
 } as const
 
 export type TranslationKey = keyof typeof de

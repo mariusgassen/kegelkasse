@@ -210,6 +210,14 @@ export interface PenaltyLogEntry {
 
 export type GameStatus = 'open' | 'running' | 'finished'
 
+export interface GameThrowLog {
+    id: number
+    throw_num: number
+    pins: number
+    cumulative: number | null
+    pin_states: boolean[]
+}
+
 export interface Game {
     id: number
     name: string
@@ -227,6 +235,7 @@ export interface Game {
     started_at: string | null
     finished_at: string | null
     client_timestamp: number
+    throws: GameThrowLog[]
 }
 
 export interface DrinkRound {

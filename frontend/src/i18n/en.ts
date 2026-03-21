@@ -647,6 +647,7 @@ export const en = {
     "camera.globes": "Globes",
     "camera.display": "Display",
     "camera.detectedScore": "Detected score",
-    "camera.selectGame": "Select game",
+    "camera.selectGame": "Current game",
     "camera.noRunningGame": "No running game.",
+    "camera.syncActive": "Throws are being synced live",
 } as const

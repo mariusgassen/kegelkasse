@@ -266,6 +266,27 @@ export function GamesPage() {
                             )}
                         </div>
 
+                        {/* Live camera throw indicator */}
+                        {game.status === 'running' && game.throws && game.throws.length > 0 && (() => {
+                            const last = game.throws[game.throws.length - 1]
+                            return (
+                                <div className="flex items-center gap-1.5 mb-2">
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                          style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)'}}>
+                                        📷
+                                    </span>
+                                    <span className="text-xs text-kce-muted">
+                                        {t('camera.throw')} #{last.throw_num} &nbsp;·&nbsp;
+                                        <span className="font-bold text-kce-cream font-mono">{last.pins}</span>
+                                        {' '}{t('camera.pins')}
+                                        {last.cumulative !== null && (
+                                            <> &nbsp;·&nbsp; Σ <span className="font-bold text-kce-cream font-mono">{last.cumulative}</span></>
+                                        )}
+                                    </span>
+                                </div>
+                            )
+                        })()}
+
                         {/* Winner / status info */}
                         {game.status === 'finished' && game.winner_ref && (
                             <div className="flex items-center gap-2 mb-2">

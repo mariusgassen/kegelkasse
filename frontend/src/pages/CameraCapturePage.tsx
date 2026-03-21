@@ -5,8 +5,10 @@
  *   calibrating — live video + draggable ROI boxes + brightness slider
  *   detecting   — live readings, throw history, auto-confirm overlay, game finish
  *
- * Calibration is persisted in localStorage. No backend changes needed;
- * the detected score pre-fills the existing finishGame API call.
+ * Confirmed throws are POSTed to the backend in real-time, which broadcasts
+ * an SSE event so all connected clients see live throw progress.
+ *
+ * Calibration is persisted in localStorage. Uses existing api.finishGame().
  */
 import React, {useCallback, useEffect, useRef, useState} from 'react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
@@ -39,9 +41,9 @@ interface ThrowEntry {
 interface DragState {
     field: RoiField
     handle: 'move' | 'nw' | 'se'
-    ptrX: number   // pointer x in 0-1 SVG space at drag start
+    ptrX: number
     ptrY: number
-    startX: number // roi.x at drag start
+    startX: number
     startY: number
     startW: number
     startH: number
@@ -74,37 +76,43 @@ export function CameraCapturePage({onClose}: Props) {
     const {evening, invalidate} = useActiveEvening()
     const user = useAppStore(s => s.user)
 
+    // DOM refs
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const svgRef = useRef<SVGSVGElement>(null)
     const rafRef = useRef<number>(0)
     const dragRef = useRef<DragState | null>(null)
 
-    // Refs for RAF loop (avoid stale closures)
+    // Refs for RAF loop and callbacks (avoid stale closures)
     const calRef = useRef<CalibrationData>(DEFAULT_CALIBRATION)
     const pendingRef = useRef<FrameReading | null>(null)
     const lastThrowNumRef = useRef<number | null>(null)
+    const selectedGameIdRef = useRef<number | null>(null)
+    const eveningIdRef = useRef<number | null>(null)
 
+    // UI state
     const [mode, setMode] = useState<Mode>('detecting')
     const [cameraError, setCameraError] = useState<string | null>(null)
-    const [videoW, setVideoW] = useState(640)
-    const [videoH, setVideoH] = useState(480)
     const [videoReady, setVideoReady] = useState(false)
 
+    // Calibration
     const [calibration, setCalibration] = useState<CalibrationData>(loadCalibration)
+
+    // Detection
     const [currentReading, setCurrentReading] = useState<FrameReading | null>(null)
     const [pendingThrow, setPendingThrow] = useState<FrameReading | null>(null)
     const [countdown, setCountdown] = useState(CONFIRM_SECONDS)
     const [throws, setThrows] = useState<ThrowEntry[]>([])
 
+    // Game finish
     const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
     const [winnerRef, setWinnerRef] = useState('')
     const [saving, setSaving] = useState(false)
 
-    // Keep calRef in sync with calibration state
-    useEffect(() => {
-        calRef.current = calibration
-    }, [calibration])
+    // Keep refs in sync
+    useEffect(() => { calRef.current = calibration }, [calibration])
+    useEffect(() => { selectedGameIdRef.current = selectedGameId }, [selectedGameId])
+    useEffect(() => { eveningIdRef.current = evening?.id ?? null }, [evening?.id])
 
     // Start camera on mount
     useEffect(() => {
@@ -122,7 +130,7 @@ export function CameraCapturePage({onClose}: Props) {
         return () => stream?.getTracks().forEach(t => t.stop())
     }, [])
 
-    // RAF analysis loop — only runs in detecting mode
+    // RAF analysis loop
     useEffect(() => {
         if (mode !== 'detecting') return
 
@@ -140,7 +148,6 @@ export function CameraCapturePage({onClose}: Props) {
                 const reading = readFrame(imageData, calRef.current)
                 setCurrentReading({...reading})
 
-                // Throw detection: fire when throwNum changes and nothing is pending
                 if (
                     reading.throwNum !== null &&
                     reading.throwNum !== lastThrowNumRef.current &&
@@ -159,7 +166,7 @@ export function CameraCapturePage({onClose}: Props) {
         return () => cancelAnimationFrame(rafRef.current)
     }, [mode])
 
-    // 5-second countdown for pending throw auto-confirm
+    // 5s countdown auto-confirm
     useEffect(() => {
         if (!pendingThrow) return
         setCountdown(CONFIRM_SECONDS)
@@ -167,17 +174,7 @@ export function CameraCapturePage({onClose}: Props) {
             setCountdown(prev => {
                 if (prev <= 1) {
                     clearInterval(interval)
-                    const r = pendingRef.current
-                    if (r && r.throwPins !== null && r.throwNum !== null) {
-                        setThrows(prev => [...prev, {
-                            throwNum: r.throwNum!,
-                            pins: r.throwPins!,
-                            cumulative: r.cumulative,
-                            pinStates: r.pinStates,
-                        }])
-                    }
-                    pendingRef.current = null
-                    setPendingThrow(null)
+                    _doConfirm(pendingRef.current)
                     return CONFIRM_SECONDS
                 }
                 return prev - 1
@@ -186,20 +183,42 @@ export function CameraCapturePage({onClose}: Props) {
         return () => clearInterval(interval)
     }, [pendingThrow])
 
-    function confirmThrow() {
-        const r = pendingRef.current
+    // Submit a confirmed throw: add to local list + POST to backend
+    function _doConfirm(r: FrameReading | null) {
         if (r && r.throwPins !== null && r.throwNum !== null) {
-            setThrows(prev => [...prev, {
-                throwNum: r.throwNum!,
-                pins: r.throwPins!,
+            const entry: ThrowEntry = {
+                throwNum: r.throwNum,
+                pins: r.throwPins,
                 cumulative: r.cumulative,
                 pinStates: r.pinStates,
-            }])
+            }
+            setThrows(prev => {
+                // Upsert by throwNum
+                const idx = prev.findIndex(t => t.throwNum === entry.throwNum)
+                if (idx >= 0) {
+                    const next = [...prev]
+                    next[idx] = entry
+                    return next
+                }
+                return [...prev, entry]
+            })
+            // Fire-and-forget POST to backend (if game selected)
+            const gid = selectedGameIdRef.current
+            const eid = eveningIdRef.current
+            if (gid && eid) {
+                api.addCameraThrow(eid, gid, {
+                    throw_num: r.throwNum,
+                    pins: r.throwPins,
+                    cumulative: r.cumulative ?? undefined,
+                    pin_states: r.pinStates,
+                }).catch(() => {}) // silent — local state is the source of truth
+            }
         }
         pendingRef.current = null
         setPendingThrow(null)
     }
 
+    function confirmThrow() { _doConfirm(pendingRef.current) }
     function dismissThrow() {
         pendingRef.current = null
         setPendingThrow(null)
@@ -210,7 +229,7 @@ export function CameraCapturePage({onClose}: Props) {
         setMode('detecting')
     }
 
-    // ── ROI drag (pointer events on SVG) ─────────────────────────────────────
+    // ── ROI drag ─────────────────────────────────────────────────────────────
 
     function getSvgCoords(e: React.PointerEvent): [number, number] {
         const svg = svgRef.current!
@@ -233,7 +252,6 @@ export function CameraCapturePage({onClose}: Props) {
         const dx = px - drag.ptrX
         const dy = py - drag.ptrY
         const MIN = 0.04
-
         setCalibration(prev => {
             const roi = {...prev[drag.field]} as {x: number; y: number; w: number; h: number; digits?: 1 | 2 | 3; version?: 1}
             if (drag.handle === 'move') {
@@ -242,7 +260,7 @@ export function CameraCapturePage({onClose}: Props) {
             } else if (drag.handle === 'se') {
                 roi.w = Math.max(MIN, drag.startW + dx)
                 roi.h = Math.max(MIN, drag.startH + dy)
-            } else if (drag.handle === 'nw') {
+            } else {
                 const nw = Math.max(MIN, drag.startW - dx)
                 const nh = Math.max(MIN, drag.startH - dy)
                 roi.x = drag.startX + drag.startW - nw
@@ -254,14 +272,12 @@ export function CameraCapturePage({onClose}: Props) {
         })
     }, [])
 
-    const onSvgPointerUp = useCallback(() => {
-        dragRef.current = null
-    }, [])
+    const onSvgPointerUp = useCallback(() => { dragRef.current = null }, [])
 
-    // ── Game finish ──────────────────────────────────────────────────────────
+    // ── Game finish ───────────────────────────────────────────────────────────
 
     const runningGames = evening?.games.filter(g => g.status === 'running' && !(g as any).is_deleted) ?? []
-    const selectedGame = runningGames.find(g => g.id === selectedGameId) ?? null
+    const selectedGame = runningGames.find((g: Game) => g.id === selectedGameId) ?? null
     const players = evening?.players ?? []
     const teams = evening?.teams ?? []
     const latestCumulative = throws.length > 0 ? throws[throws.length - 1].cumulative : null
@@ -271,7 +287,10 @@ export function CameraCapturePage({onClose}: Props) {
     }
 
     function winnerName(ref: string): string {
-        if (ref.startsWith('p:')) return playerLabel(players.find(p => p.id === parseInt(ref.slice(2)))!) || ref
+        if (ref.startsWith('p:')) {
+            const p = players.find(p => p.id === parseInt(ref.slice(2)))
+            return p ? playerLabel(p) : ref
+        }
         if (ref.startsWith('t:')) return teams.find(t => t.id === parseInt(ref.slice(2)))?.name ?? ref
         return ref
     }
@@ -297,14 +316,7 @@ export function CameraCapturePage({onClose}: Props) {
         }
     }
 
-    // ── Pin globe validation ─────────────────────────────────────────────────
-
-    function globeMatchesDisplay(reading: FrameReading): boolean | null {
-        if (reading.throwPins === null) return null
-        return reading.pinStates.filter(Boolean).length === reading.throwPins
-    }
-
-    // ── ROI label helpers ────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────────────
 
     const roiLabel = (f: RoiField) => ({
         displayLeft: t('camera.displayLeft'),
@@ -312,8 +324,6 @@ export function CameraCapturePage({onClose}: Props) {
         displayRight: t('camera.displayRight'),
         pinArea: t('camera.pinArea'),
     }[f])
-
-    // ── Render ───────────────────────────────────────────────────────────────
 
     const fields: RoiField[] = ['displayLeft', 'displayMiddle', 'displayRight', 'pinArea']
 
@@ -331,24 +341,22 @@ export function CameraCapturePage({onClose}: Props) {
                 borderBottom: '1px solid var(--kce-border)',
                 background: 'var(--kce-surface)',
             }}>
-                <button
-                    onClick={onClose}
-                    style={{color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer', padding: 4}}>
-                    ✕
-                </button>
+                <button onClick={onClose} style={{
+                    color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1,
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                }}>✕</button>
                 <span style={{fontWeight: 'bold', color: 'var(--kce-cream)', flex: 1, fontSize: 14}}>
                     📷 {t('camera.title')}
                 </span>
-                <button
-                    className="btn-secondary btn-sm"
-                    onClick={() => setMode(mode === 'calibrating' ? 'detecting' : 'calibrating')}>
+                <button className="btn-secondary btn-sm"
+                        onClick={() => setMode(mode === 'calibrating' ? 'detecting' : 'calibrating')}>
                     {mode === 'calibrating' ? '▶ ' + t('camera.detecting') : '⚙ ' + t('camera.calibrate')}
                 </button>
             </div>
 
             {/* Camera error */}
             {cameraError && (
-                <div style={{padding: '12px 16px', color: '#f87171', fontSize: 13, textAlign: 'center'}}>
+                <div style={{padding: '10px 16px', color: '#f87171', fontSize: 12, textAlign: 'center'}}>
                     ⚠️ {t('camera.noCamera')}<br/>
                     <span style={{opacity: 0.7, fontSize: 11}}>{cameraError}</span>
                 </div>
@@ -356,110 +364,66 @@ export function CameraCapturePage({onClose}: Props) {
 
             {/* Video + SVG overlay */}
             <div style={{
-                position: 'relative', flexShrink: 0,
-                background: '#000',
-                maxHeight: '45vh',
+                position: 'relative', flexShrink: 0, background: '#000',
+                maxHeight: '45vh', overflow: 'hidden',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                overflow: 'hidden',
             }}>
-                <video
-                    ref={videoRef}
-                    muted playsInline
-                    style={{width: '100%', height: '100%', objectFit: 'contain', display: 'block'}}
-                    onLoadedMetadata={() => {
-                        const v = videoRef.current!
-                        setVideoW(v.videoWidth)
-                        setVideoH(v.videoHeight)
-                        setVideoReady(true)
-                    }}
-                />
+                <video ref={videoRef} muted playsInline
+                       style={{width: '100%', height: '100%', objectFit: 'contain', display: 'block'}}
+                       onLoadedMetadata={() => setVideoReady(true)}/>
                 <canvas ref={canvasRef} style={{display: 'none'}}/>
 
-                {/* SVG ROI overlay */}
                 {videoReady && (
-                    <svg
-                        ref={svgRef}
-                        viewBox="0 0 1 1"
-                        preserveAspectRatio="none"
-                        style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible'}}
-                        onPointerMove={onSvgPointerMove}
-                        onPointerUp={onSvgPointerUp}
-                    >
+                    <svg ref={svgRef} viewBox="0 0 1 1" preserveAspectRatio="none"
+                         style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible'}}
+                         onPointerMove={onSvgPointerMove} onPointerUp={onSvgPointerUp}>
                         {fields.map(field => {
                             const roi = calibration[field]
                             const color = ROI_COLORS[field]
                             const isPin = field === 'pinArea'
                             const digits = isPin ? 0 : (roi as any).digits as number
-
                             return (
                                 <g key={field}>
-                                    {/* Main box (drag to move) */}
-                                    <rect
-                                        x={roi.x} y={roi.y} width={roi.w} height={roi.h}
-                                        fill="rgba(0,0,0,0.1)"
-                                        stroke={color} strokeWidth="0.003"
-                                        style={{cursor: 'move'}}
-                                        onPointerDown={e => startDrag(e as any, field, 'move')}
-                                    />
-
-                                    {/* Label */}
-                                    <text
-                                        x={roi.x + 0.005} y={roi.y + roi.h + 0.025}
-                                        fill={color} fontSize="0.022" fontFamily="monospace">
+                                    <rect x={roi.x} y={roi.y} width={roi.w} height={roi.h}
+                                          fill="rgba(0,0,0,0.08)" stroke={color} strokeWidth="0.003"
+                                          style={{cursor: 'move'}}
+                                          onPointerDown={e => startDrag(e as any, field, 'move')}/>
+                                    <text x={roi.x + 0.005} y={roi.y + roi.h + 0.025}
+                                          fill={color} fontSize="0.022" fontFamily="monospace">
                                         {roiLabel(field)}
                                     </text>
-
-                                    {/* Current reading inside display ROIs */}
                                     {!isPin && currentReading && mode === 'detecting' && (
-                                        <text
-                                            x={roi.x + roi.w / 2} y={roi.y + roi.h / 2 + 0.01}
-                                            fill={color} fontSize="0.05" fontFamily="monospace"
-                                            textAnchor="middle" dominantBaseline="middle"
-                                            style={{pointerEvents: 'none'}}>
+                                        <text x={roi.x + roi.w / 2} y={roi.y + roi.h / 2 + 0.01}
+                                              fill={color} fontSize="0.05" fontFamily="monospace"
+                                              textAnchor="middle" dominantBaseline="middle"
+                                              style={{pointerEvents: 'none'}}>
                                             {field === 'displayLeft' ? (currentReading.throwNum ?? '?') :
                                                 field === 'displayMiddle' ? (currentReading.throwPins ?? '?') :
                                                     (currentReading.cumulative ?? '?')}
                                         </text>
                                     )}
-
-                                    {/* Digit sub-divisions */}
                                     {!isPin && digits > 1 && Array.from({length: digits - 1}, (_, d) => {
                                         const x = roi.x + (d + 1) * (roi.w / digits)
-                                        return (
-                                            <line key={d} x1={x} y1={roi.y} x2={x} y2={roi.y + roi.h}
-                                                  stroke={color} strokeWidth="0.001" strokeDasharray="0.005 0.003"/>
-                                        )
+                                        return <line key={d} x1={x} y1={roi.y} x2={x} y2={roi.y + roi.h}
+                                                     stroke={color} strokeWidth="0.001" strokeDasharray="0.005 0.003"/>
                                     })}
-
-                                    {/* Pin globe positions */}
                                     {isPin && PIN_POSITIONS.map(([px, py], i) => {
                                         const cx = roi.x + px * roi.w
                                         const cy = roi.y + py * roi.h
                                         const fallen = currentReading?.pinStates[i] ?? false
-                                        return (
-                                            <circle key={i} cx={cx} cy={cy} r="0.014"
-                                                    fill={fallen ? '#ffffff' : 'transparent'}
-                                                    stroke={fallen ? '#ffffff' : color}
-                                                    strokeWidth="0.002"
-                                                    style={{pointerEvents: 'none'}}/>
-                                        )
+                                        return <circle key={i} cx={cx} cy={cy} r="0.014"
+                                                       fill={fallen ? '#fff' : 'transparent'}
+                                                       stroke={fallen ? '#fff' : color} strokeWidth="0.002"
+                                                       style={{pointerEvents: 'none'}}/>
                                     })}
-
-                                    {/* NW resize handle */}
-                                    <circle
-                                        cx={roi.x} cy={roi.y} r="0.014"
-                                        fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
-                                        style={{cursor: 'nw-resize'}}
-                                        onPointerDown={e => startDrag(e as any, field, 'nw')}
-                                    />
-
-                                    {/* SE resize handle */}
-                                    <circle
-                                        cx={roi.x + roi.w} cy={roi.y + roi.h} r="0.014"
-                                        fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
-                                        style={{cursor: 'se-resize'}}
-                                        onPointerDown={e => startDrag(e as any, field, 'se')}
-                                    />
+                                    <circle cx={roi.x} cy={roi.y} r="0.014"
+                                            fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
+                                            style={{cursor: 'nw-resize'}}
+                                            onPointerDown={e => startDrag(e as any, field, 'nw')}/>
+                                    <circle cx={roi.x + roi.w} cy={roi.y + roi.h} r="0.014"
+                                            fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
+                                            style={{cursor: 'se-resize'}}
+                                            onPointerDown={e => startDrag(e as any, field, 'se')}/>
                                 </g>
                             )
                         })}
@@ -473,11 +437,7 @@ export function CameraCapturePage({onClose}: Props) {
                 {/* ── CALIBRATION MODE ── */}
                 {mode === 'calibrating' && (
                     <div style={{display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4}}>
-                        <p style={{color: 'var(--kce-muted)', fontSize: 12, margin: 0}}>
-                            {t('camera.calibrateHint')}
-                        </p>
-
-                        {/* Digit count per display */}
+                        <p style={{color: 'var(--kce-muted)', fontSize: 12, margin: 0}}>{t('camera.calibrateHint')}</p>
                         {(['displayLeft', 'displayMiddle', 'displayRight'] as const).map(field => (
                             <div key={field} style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
                                 <span style={{color: ROI_COLORS[field], fontSize: 12, flex: 1, minWidth: 80}}>
@@ -488,36 +448,28 @@ export function CameraCapturePage({onClose}: Props) {
                                     <button key={n} type="button"
                                             className={`chip ${calibration[field].digits === n ? 'active' : ''}`}
                                             onClick={() => setCalibration(prev => ({
-                                                ...prev,
-                                                [field]: {...prev[field], digits: n},
+                                                ...prev, [field]: {...prev[field], digits: n},
                                             }))}>
                                         {n}
                                     </button>
                                 ))}
                             </div>
                         ))}
-
-                        {/* Brightness threshold */}
                         <div>
                             <label style={{color: 'var(--kce-cream)', fontSize: 12, display: 'block', marginBottom: 4}}>
                                 {t('camera.brightness')}: <strong>{calibration.brightness}</strong>
                             </label>
-                            <input
-                                type="range" min="10" max="200" step="5"
-                                value={calibration.brightness}
-                                onChange={e => setCalibration(prev => ({...prev, brightness: parseInt(e.target.value)}))}
-                                style={{width: '100%'}}
-                            />
+                            <input type="range" min="10" max="200" step="5"
+                                   value={calibration.brightness}
+                                   onChange={e => setCalibration(prev => ({...prev, brightness: parseInt(e.target.value)}))}
+                                   style={{width: '100%'}}/>
                         </div>
-
                         <div style={{display: 'flex', gap: 8}}>
                             <button className="btn-primary" style={{flex: 1}} onClick={saveCalibration}>
                                 💾 {t('camera.saveCalibration')}
                             </button>
                             <button className="btn-secondary" title={t('camera.resetCalibration')}
-                                    onClick={() => setCalibration({...DEFAULT_CALIBRATION})}>
-                                ↩
-                            </button>
+                                    onClick={() => setCalibration({...DEFAULT_CALIBRATION})}>↩</button>
                         </div>
                     </div>
                 )}
@@ -526,38 +478,72 @@ export function CameraCapturePage({onClose}: Props) {
                 {mode === 'detecting' && (
                     <div style={{display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4}}>
 
-                        {/* Live readings row */}
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6}}>
-                            {(
-                                [
-                                    ['camera.displayLeft', currentReading?.throwNum, 'displayLeft'],
-                                    ['camera.displayMiddle', currentReading?.throwPins, 'displayMiddle'],
-                                    ['camera.displayRight', currentReading?.cumulative, 'displayRight'],
-                                ] as const
-                            ).map(([key, val, field]) => (
-                                <div key={field} className="kce-card p-2 text-center">
-                                    <div style={{fontSize: 9, color: ROI_COLORS[field as RoiField], marginBottom: 2, fontWeight: 'bold'}}>
-                                        {t(key as any)}
+                        {/* 1. Game selector (top — required for backend sync) */}
+                        {isAdmin(user) && (
+                            <div style={{
+                                padding: '8px 10px', borderRadius: 10,
+                                border: `1px solid ${selectedGame ? 'var(--kce-primary)' : 'var(--kce-border)'}`,
+                                background: selectedGame
+                                    ? 'color-mix(in srgb, var(--kce-primary) 10%, transparent)'
+                                    : 'var(--kce-surface)',
+                            }}>
+                                <div className="field-label" style={{marginBottom: 6}}>{t('camera.selectGame')}</div>
+                                {runningGames.length === 0
+                                    ? <p style={{color: 'var(--kce-muted)', fontSize: 12, margin: 0}}>{t('camera.noRunningGame')}</p>
+                                    : <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
+                                        {runningGames.map((g: Game) => (
+                                            <button key={g.id} type="button"
+                                                    className={`chip ${selectedGameId === g.id ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        setSelectedGameId(g.id)
+                                                        setWinnerRef('')
+                                                        setThrows([])
+                                                    }}>
+                                                {g.name}
+                                            </button>
+                                        ))}
                                     </div>
-                                    <div style={{
-                                        fontSize: 26, fontFamily: 'monospace', fontWeight: 'bold',
-                                        color: val !== null ? 'var(--kce-cream)' : 'var(--kce-muted)',
-                                        lineHeight: 1,
-                                    }}>
-                                        {val ?? '—'}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                }
+                                {selectedGame && (
+                                    <p style={{fontSize: 10, color: 'var(--kce-primary)', margin: '4px 0 0', fontWeight: 'bold'}}>
+                                        ✓ {t('camera.syncActive')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
-                        {/* Pin state grid (Vollmer diamond layout) */}
+                        {/* 2. Live readings */}
+                        {currentReading && (
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6}}>
+                                {(
+                                    [
+                                        ['camera.displayLeft', currentReading.throwNum, 'displayLeft'],
+                                        ['camera.displayMiddle', currentReading.throwPins, 'displayMiddle'],
+                                        ['camera.displayRight', currentReading.cumulative, 'displayRight'],
+                                    ] as const
+                                ).map(([key, val, field]) => (
+                                    <div key={field} className="kce-card p-2 text-center">
+                                        <div style={{fontSize: 9, color: ROI_COLORS[field as RoiField], marginBottom: 2, fontWeight: 'bold'}}>
+                                            {t(key as any)}
+                                        </div>
+                                        <div style={{
+                                            fontSize: 26, fontFamily: 'monospace', fontWeight: 'bold',
+                                            color: val !== null ? 'var(--kce-cream)' : 'var(--kce-muted)', lineHeight: 1,
+                                        }}>
+                                            {val ?? '—'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 3. Pin diamond */}
                         {currentReading && (
                             <div style={{position: 'relative', width: 110, height: 90, margin: '0 auto', flexShrink: 0}}>
                                 {PIN_POSITIONS.map(([px, py], i) => (
                                     <div key={i} style={{
                                         position: 'absolute',
-                                        left: `${px * 100}%`,
-                                        top: `${py * 100}%`,
+                                        left: `${px * 100}%`, top: `${py * 100}%`,
                                         transform: 'translate(-50%, -50%)',
                                         width: 18, height: 18, borderRadius: '50%',
                                         background: currentReading.pinStates[i] ? '#e5e7eb' : 'transparent',
@@ -568,7 +554,7 @@ export function CameraCapturePage({onClose}: Props) {
                             </div>
                         )}
 
-                        {/* Throw history */}
+                        {/* 4. Throw history */}
                         <div>
                             <div className="sec-heading" style={{fontSize: 11, marginBottom: 4}}>
                                 {t('camera.throwHistory')}
@@ -582,21 +568,19 @@ export function CameraCapturePage({onClose}: Props) {
                                                 <span style={{color: 'var(--kce-muted)', fontSize: 11, minWidth: 44}}>
                                                     {t('camera.throw')} #{th.throwNum}
                                                 </span>
-                                                <span style={{
-                                                    fontFamily: 'monospace', fontWeight: 'bold',
-                                                    fontSize: 18, color: 'var(--kce-amber)',
-                                                }}>
+                                                <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--kce-amber)'}}>
                                                     {th.pins}
                                                 </span>
                                                 <span style={{color: 'var(--kce-muted)', fontSize: 11}}>
                                                     {t('camera.pins')}
                                                 </span>
                                                 {th.cumulative !== null && (
-                                                    <span style={{
-                                                        color: 'var(--kce-muted)', fontSize: 11, marginLeft: 'auto',
-                                                    }}>
+                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11, marginLeft: 'auto'}}>
                                                         Σ {th.cumulative}
                                                     </span>
+                                                )}
+                                                {selectedGame && (
+                                                    <span style={{fontSize: 9, color: '#4ade80'}}>✓</span>
                                                 )}
                                             </div>
                                         ))}
@@ -604,64 +588,38 @@ export function CameraCapturePage({onClose}: Props) {
                                 )}
                         </div>
 
-                        {/* Game finish section (admins only, with running game) */}
-                        {isAdmin(user) && (
-                            <div style={{borderTop: '1px solid var(--kce-border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8}}>
-                                {runningGames.length === 0
-                                    ? <p style={{color: 'var(--kce-muted)', fontSize: 12}}>{t('camera.noRunningGame')}</p>
-                                    : (
-                                        <>
-                                            <div className="field-label">{t('camera.selectGame')}</div>
-                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
-                                                {runningGames.map((g: Game) => (
-                                                    <button key={g.id} type="button"
-                                                            className={`chip ${selectedGameId === g.id ? 'active' : ''}`}
-                                                            onClick={() => {
-                                                                setSelectedGameId(g.id)
-                                                                setWinnerRef('')
-                                                            }}>
-                                                        {g.name}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            {selectedGame && (
-                                                <>
-                                                    <div className="field-label">{t('game.winner')}</div>
-                                                    <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
-                                                        {teams.map(team => (
-                                                            <button key={team.id} type="button"
-                                                                    className={`chip ${winnerRef === `t:${team.id}` ? 'active' : ''}`}
-                                                                    onClick={() => setWinnerRef(`t:${team.id}`)}>
-                                                                {team.name}
-                                                            </button>
-                                                        ))}
-                                                        {players.map(p => (
-                                                            <button key={p.id} type="button"
-                                                                    className={`chip ${winnerRef === `p:${p.id}` ? 'active' : ''}`}
-                                                                    onClick={() => setWinnerRef(`p:${p.id}`)}>
-                                                                {playerLabel(p)}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-
-                                                    {latestCumulative !== null && (
-                                                        <p style={{fontSize: 12, color: 'var(--kce-muted)', margin: 0}}>
-                                                            {t('camera.detectedScore')}: <strong
-                                                            style={{color: 'var(--kce-cream)'}}>{latestCumulative}</strong>
-                                                        </p>
-                                                    )}
-
-                                                    <button
-                                                        className="btn-primary"
-                                                        onClick={handleFinishGame}
-                                                        disabled={saving || !winnerRef}>
-                                                        🏁 {t('game.finish')}
-                                                    </button>
-                                                </>
-                                            )}
-                                        </>
-                                    )}
+                        {/* 5. Winner + finish (when game selected) */}
+                        {isAdmin(user) && selectedGame && (
+                            <div style={{
+                                borderTop: '1px solid var(--kce-border)', paddingTop: 10,
+                                display: 'flex', flexDirection: 'column', gap: 8,
+                            }}>
+                                <div className="field-label">{t('game.winner')}</div>
+                                <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
+                                    {teams.map(team => (
+                                        <button key={team.id} type="button"
+                                                className={`chip ${winnerRef === `t:${team.id}` ? 'active' : ''}`}
+                                                onClick={() => setWinnerRef(`t:${team.id}`)}>
+                                            {team.name}
+                                        </button>
+                                    ))}
+                                    {players.map(p => (
+                                        <button key={p.id} type="button"
+                                                className={`chip ${winnerRef === `p:${p.id}` ? 'active' : ''}`}
+                                                onClick={() => setWinnerRef(`p:${p.id}`)}>
+                                            {playerLabel(p)}
+                                        </button>
+                                    ))}
+                                </div>
+                                {latestCumulative !== null && (
+                                    <p style={{fontSize: 12, color: 'var(--kce-muted)', margin: 0}}>
+                                        {t('camera.detectedScore')}: <strong style={{color: 'var(--kce-cream)'}}>{latestCumulative}</strong>
+                                    </p>
+                                )}
+                                <button className="btn-primary" onClick={handleFinishGame}
+                                        disabled={saving || !winnerRef}>
+                                    🏁 {t('game.finish')}
+                                </button>
                             </div>
                         )}
                     </div>
@@ -678,35 +636,28 @@ export function CameraCapturePage({onClose}: Props) {
                     <div style={{
                         background: 'var(--kce-surface)',
                         borderRadius: 16, padding: '24px 20px',
-                        maxWidth: 300, width: '90%',
-                        textAlign: 'center',
+                        maxWidth: 300, width: '90%', textAlign: 'center',
                         border: '1px solid var(--kce-border)',
                     }}>
-                        {/* Big score */}
                         <div style={{
                             fontSize: 56, fontFamily: 'monospace', fontWeight: 'bold',
                             color: 'var(--kce-amber)', lineHeight: 1, marginBottom: 4,
                         }}>
                             {pendingThrow.throwPins ?? '?'}
                         </div>
-
                         <div style={{fontSize: 12, color: 'var(--kce-muted)', marginBottom: 8}}>
                             {t('camera.throw')} #{pendingThrow.throwNum}
                             {pendingThrow.cumulative !== null && (
-                                <> &nbsp;·&nbsp; {t('camera.cumulative')}: <strong style={{color: 'var(--kce-cream)'}}>{pendingThrow.cumulative}</strong></>
+                                <> · {t('camera.cumulative')}: <strong style={{color: 'var(--kce-cream)'}}>{pendingThrow.cumulative}</strong></>
                             )}
                         </div>
 
                         {/* Globe validation */}
                         {pendingThrow.throwPins !== null && (() => {
-                            const match = globeMatchesDisplay(pendingThrow)
                             const globeCount = pendingThrow.pinStates.filter(Boolean).length
+                            const match = globeCount === pendingThrow.throwPins
                             return (
-                                <div style={{
-                                    fontSize: 11,
-                                    color: match ? '#4ade80' : '#f87171',
-                                    marginBottom: 12,
-                                }}>
+                                <div style={{fontSize: 11, color: match ? '#4ade80' : '#f87171', marginBottom: 12}}>
                                     {match
                                         ? `✓ ${t('camera.globeMatch')}`
                                         : `⚠ ${t('camera.globeMismatch')} (${t('camera.globes')}: ${globeCount}, ${t('camera.display')}: ${pendingThrow.throwPins})`}
@@ -714,8 +665,7 @@ export function CameraCapturePage({onClose}: Props) {
                             )
                         })()}
 
-                        {/* Countdown */}
-                        <div style={{fontSize: 12, color: 'var(--kce-muted)', marginBottom: 16}}>
+                        <div style={{fontSize: 12, color: 'var(--kce-muted)', marginBottom: 14}}>
                             {t('camera.autoConfirm').replace('{s}', String(countdown))}
                         </div>
 

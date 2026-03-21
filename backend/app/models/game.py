@@ -64,3 +64,19 @@ class Game(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     evening = relationship("Evening", back_populates="games")
     template = relationship("GameTemplate")
+    throws = relationship("GameThrowLog", back_populates="game",
+                          order_by="GameThrowLog.throw_num",
+                          cascade="all, delete-orphan")
+
+
+class GameThrowLog(Base):
+    """Per-throw data captured by the camera recognition system."""
+    __tablename__ = "game_throw_log"
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(Integer, ForeignKey("game.id", ondelete="CASCADE"), nullable=False)
+    throw_num = Column(Integer, nullable=False)
+    pins = Column(Integer, nullable=False)
+    cumulative = Column(Integer, nullable=True)
+    pin_states = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    game = relationship("Game", back_populates="throws")
