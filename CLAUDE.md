@@ -103,8 +103,8 @@ service worker + IndexedDB for offline support.
 - **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
-- **Linting & build:** Do NOT run `ruff`, `eslint`, or `npm run build` locally. Instead, push the branch and check the
-  **GitHub workflow results** (CI) for linting and build errors. Fix any failures shown there.
+- **Linting & build:** Always run `cd frontend && npm run build` locally before every push to catch TypeScript errors
+  early. Fix all errors before pushing. Do NOT run `ruff` or `eslint` locally — check those via CI after pushing.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
