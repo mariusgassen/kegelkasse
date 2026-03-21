@@ -535,12 +535,14 @@ def _build_pdf(
     month_label_fn,
 ) -> io.BytesIO:
     def _s(txt: str) -> str:
-        """Replace non-cp1252 chars so fpdf built-in fonts don't crash."""
+        """Sanitise text for fpdf built-in Helvetica (Latin-1 glyph set).
+        Replace characters the font cannot render so the PDF never crashes."""
         return (txt
                 .replace("\u2014", "-").replace("\u2013", "-")  # em/en dash
                 .replace("\u2018", "'").replace("\u2019", "'")  # curly apostrophes
                 .replace("\u201c", '"').replace("\u201d", '"')  # curly quotes
-                .encode("cp1252", errors="replace").decode("cp1252"))
+                .replace("\u20ac", "EUR")                       # € — not in Helvetica
+                .encode("latin-1", errors="replace").decode("latin-1"))
 
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
