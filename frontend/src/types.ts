@@ -267,3 +267,26 @@ export interface EveningListItem {
     is_closed: boolean
     player_count: number
 }
+
+// pgbackrest info output types
+export interface PgBackrestBackup {
+    label: string           // e.g. "20260321-020000F"
+    type: 'full' | 'diff' | 'incr'
+    timestamp: { start: number; stop: number }
+    info: { size: number; delta: number; repository: { size: number; delta: number } }
+    archive: { start: string; stop: string }
+    error: boolean
+}
+
+export interface PgBackrestArchive {
+    id: string
+    min: string
+    max: string
+}
+
+export interface PgBackrestStanza {
+    name: string
+    status: { code: number; message: string }
+    backup: PgBackrestBackup[]
+    archive: PgBackrestArchive[]
+}

@@ -5,7 +5,7 @@
 import {useEffect, useState} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {api, authState, downloadBackup} from '@/api/client.ts'
+import {api, authState} from '@/api/client.ts'
 import type {ReminderSettings, ReminderTypeSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
@@ -18,7 +18,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType} from '@/types.ts'
+import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
 import {MembersPage} from './MembersPage'
 
 function fe(v: number) {
@@ -1132,12 +1132,69 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
     )
 }
 
-// ── Superadmin: Database Backups ──
+// ── Superadmin: Database Backups (pgbackrest) ──
+function fmtBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+}
+
+function fmtTs(unix: number): string {
+    return new Date(unix * 1000).toLocaleString()
+}
+
+const BACKUP_TYPE_LABEL: Record<string, string> = {full: 'Full', diff: 'Diff', incr: 'Incr'}
+
+function BackupStanzaCard({stanza}: { stanza: PgBackrestStanza }) {
+    const backups = [...stanza.backup].reverse() // newest first
+    const archive = stanza.archive[0]
+    return (
+        <div className="space-y-2">
+            {/* WAL / PITR window */}
+            {archive && (
+                <div className="rounded-xl p-3 text-xs space-y-1" style={{background: 'var(--kce-surface2)'}}>
+                    <div className="font-bold text-kce-muted mb-1">PITR-Fenster (WAL-Archiv)</div>
+                    <div className="flex justify-between">
+                        <span className="text-kce-muted">Von</span>
+                        <span className="font-mono">{archive.min.slice(0, 8)}…</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-kce-muted">Bis</span>
+                        <span className="font-mono">{archive.max.slice(0, 8)}…</span>
+                    </div>
+                </div>
+            )}
+            {/* Backup list */}
+            {backups.length === 0 && <Empty icon="💾" text="Noch keine Backups vorhanden."/>}
+            {backups.map(b => (
+                <div key={b.label} className="rounded-xl p-3 space-y-1.5"
+                     style={{background: 'var(--kce-surface2)'}}>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                              style={{background: b.type === 'full' ? 'var(--kce-amber)' : 'var(--kce-surface2)', color: b.type === 'full' ? 'var(--kce-bg)' : 'var(--kce-muted)', border: b.type !== 'full' ? '1px solid var(--kce-border)' : undefined}}>
+                            {BACKUP_TYPE_LABEL[b.type] ?? b.type}
+                        </span>
+                        <span className="text-xs font-mono truncate flex-1">{b.label}</span>
+                        {b.error && <span className="text-[10px] text-red-400 font-bold">Fehler</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 text-[11px] text-kce-muted">
+                        <span>Start: <span className="text-kce-primary">{fmtTs(b.timestamp.start)}</span></span>
+                        <span>Ende: <span className="text-kce-primary">{fmtTs(b.timestamp.stop)}</span></span>
+                        <span>Größe: <span className="text-kce-primary">{fmtBytes(b.info.size)}</span></span>
+                        <span>Repo: <span className="text-kce-primary">{fmtBytes(b.info.repository.size)}</span></span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
 function BackupsTab() {
     const t = useT()
     const qc = useQueryClient()
     const {data, isLoading, error} = useQuery({queryKey: ['backups'], queryFn: api.listBackups})
-    const backups = data?.backups ?? []
+    const stanzas: PgBackrestStanza[] = data?.info ?? []
     const config = data?.config
 
     const createMutation = useMutation({
@@ -1149,39 +1206,11 @@ function BackupsTab() {
         onError: (e: Error) => toastError(e),
     })
 
-    const deleteMutation = useMutation({
-        mutationFn: (filename: string) => api.deleteBackup(filename),
-        onSuccess: () => {
-            qc.invalidateQueries({queryKey: ['backups']})
-            showToast(t('backup.deleted'))
-        },
-        onError: (e: Error) => toastError(e),
-    })
-
-    const handleDownload = async (filename: string) => {
-        try {
-            await downloadBackup(filename)
-        } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : String(e))
-        }
-    }
-
-    const handleDelete = (filename: string) => {
-        if (!confirm(t('backup.delete.confirm'))) return
-        deleteMutation.mutate(filename)
-    }
-
-    const fmt = (bytes: number) => {
-        if (bytes < 1024) return `${bytes} B`
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-        return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-    }
-
     return (
         <div className="space-y-4 p-1">
             <div className="sec-heading">{t('backup.title')}</div>
 
-            {/* Manual trigger — always visible */}
+            {/* Manual trigger */}
             <button
                 onClick={() => createMutation.mutate()}
                 disabled={createMutation.isPending}
@@ -1197,6 +1226,7 @@ function BackupsTab() {
                 </div>
             )}
 
+            {/* Config */}
             {config && (
                 <div className="rounded-xl p-3 space-y-1.5" style={{background: 'var(--kce-surface2)'}}>
                     <div className="text-xs font-bold text-kce-muted mb-2">{t('backup.config.title')}</div>
@@ -1206,51 +1236,15 @@ function BackupsTab() {
                     </div>
                     <div className="flex justify-between text-xs">
                         <span className="text-kce-muted">{t('backup.config.retainDays')}</span>
-                        <span className="font-bold">{config.retain_days}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                        <span className="text-kce-muted">{t('backup.config.s3')}</span>
-                        <span className={`font-bold ${config.s3_enabled ? 'text-green-500' : 'text-kce-muted'}`}>
-                            {config.s3_enabled
-                                ? `${t('backup.config.s3Enabled')} — ${config.s3_bucket}`
-                                : t('backup.config.s3Disabled')}
-                        </span>
+                        <span className="font-bold">{config.retain_full} Full-Backups</span>
                     </div>
                 </div>
             )}
 
             {isLoading && <div className="text-xs text-kce-muted">{t('action.loading')}</div>}
-            {!isLoading && !error && backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
 
-            {backups.length > 0 && (
-                <div className="space-y-2">
-                    {backups.map(b => (
-                        <div key={b.filename}
-                             className="rounded-xl p-3 flex items-center gap-3"
-                             style={{background: 'var(--kce-surface2)'}}>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-xs font-mono truncate">{b.filename}</div>
-                                <div className="text-[11px] text-kce-muted mt-0.5">
-                                    {fmt(b.size_bytes)} · {new Date(b.created_at).toLocaleString()}
-                                </div>
-                            </div>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                                <button
-                                    onClick={() => handleDownload(b.filename)}
-                                    className="px-2 py-1 rounded-lg text-[11px] font-bold bg-kce-surface2 border border-kce-border">
-                                    ⬇️
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(b.filename)}
-                                    disabled={deleteMutation.isPending}
-                                    className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-400 bg-kce-surface2 border border-kce-border disabled:opacity-50">
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            {/* Stanza cards */}
+            {stanzas.map(s => <BackupStanzaCard key={s.name} stanza={s}/>)}
         </div>
     )
 }
