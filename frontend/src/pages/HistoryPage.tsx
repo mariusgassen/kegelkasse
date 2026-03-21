@@ -186,7 +186,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                         <div
                                                             className="text-xs text-kce-muted">{t('history.total')}</div>
                                                         <div className="font-bold text-kce-amber">
-                                                            {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : 0), 0))}
+                                                            {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0))}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -236,7 +236,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                         const cur = totals.get(key) ?? {name: l.player_name, amount: 0}
                                                         totals.set(key, {
                                                             ...cur,
-                                                            amount: cur.amount + (l.mode === 'euro' ? l.amount : 0)
+                                                            amount: cur.amount + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0))
                                                         })
                                                     }
                                                     const sorted = [...totals.values()].sort((a, b) => b.amount - a.amount)
