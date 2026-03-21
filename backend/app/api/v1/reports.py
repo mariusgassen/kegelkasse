@@ -6,6 +6,7 @@ Supports optional year filtering (omit for all-time).
 import io
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -534,35 +535,35 @@ def _build_pdf(
     guest_members: list,
     month_label_fn,
 ) -> io.BytesIO:
-    def _s(txt: str) -> str:
-        """Replace non-cp1252 chars so fpdf built-in fonts don't crash."""
-        return (txt
-                .replace("\u2014", "-").replace("\u2013", "-")  # em/en dash
-                .replace("\u2018", "'").replace("\u2019", "'")  # curly apostrophes
-                .replace("\u201c", '"').replace("\u201d", '"')  # curly quotes
-                .encode("cp1252", errors="replace").decode("cp1252"))
-
+    # Load Liberation Sans — metrically identical to Helvetica, supports € and full Unicode
+    _font_dir = Path(__file__).parent.parent / "fonts"
     pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.add_font("Liberation", "", str(_font_dir / "LiberationSans-Regular.ttf"))
+    pdf.add_font("Liberation", "B", str(_font_dir / "LiberationSans-Bold.ttf"))
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_margins(15, 15, 15)
 
+    def _s(txt: str) -> str:
+        """Pass-through; Liberation Sans is a Unicode font — no sanitisation needed."""
+        return str(txt)
+
     def _h1(txt: str) -> None:
-        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_font("Liberation", "B", 14)
         pdf.set_text_color(232, 160, 32)  # amber
-        pdf.cell(0, 8, _s(txt), ln=True)
+        pdf.cell(0, 8, _s(txt), new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
     def _h2(txt: str) -> None:
-        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_font("Liberation", "B", 10)
         pdf.set_fill_color(30, 41, 59)
         pdf.set_text_color(226, 232, 240)
-        pdf.cell(0, 7, _s(f"  {txt}"), ln=True, fill=True)
+        pdf.cell(0, 7, _s(f"  {txt}"), new_x="LMARGIN", new_y="NEXT", fill=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(1)
 
     def _row(cols: list[tuple[str, float]], fill: bool = False) -> None:
-        pdf.set_font("Helvetica", size=8)
+        pdf.set_font("Liberation", size=8)
         if fill:
             pdf.set_fill_color(240, 240, 240)
         for txt, w in cols:
@@ -570,7 +571,7 @@ def _build_pdf(
         pdf.ln()
 
     def _header_row(cols: list[tuple[str, float]]) -> None:
-        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_font("Liberation", "B", 8)
         pdf.set_fill_color(30, 41, 59)
         pdf.set_text_color(226, 232, 240)
         for txt, w in cols:
@@ -581,11 +582,11 @@ def _build_pdf(
     # ── Cover / Summary ──────────────────────────────────────────────────────
     pdf.add_page()
     _h1(f"Kassenbericht - {club_name}")
-    pdf.set_font("Helvetica", size=9)
-    pdf.cell(50, 6, "Zeitraum:", ln=False)
-    pdf.cell(0, 6, _s(period_label), ln=True)
-    pdf.cell(50, 6, "Erstellt am:", ln=False)
-    pdf.cell(0, 6, datetime.now().strftime("%d.%m.%Y %H:%M"), ln=True)
+    pdf.set_font("Liberation", size=9)
+    pdf.cell(50, 6, "Zeitraum:")
+    pdf.cell(0, 6, _s(period_label), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(50, 6, "Erstellt am:")
+    pdf.cell(0, 6, datetime.now().strftime("%d.%m.%Y %H:%M"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
     summary = [
@@ -597,10 +598,10 @@ def _build_pdf(
         ("Mitglieder (aktiv)", str(len(regular_members))),
     ]
     for label, value in summary:
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(65, 6, _s(label + ":"), ln=False)
-        pdf.set_font("Helvetica", size=9)
-        pdf.cell(0, 6, _s(value), ln=True)
+        pdf.set_font("Liberation", "B", 9)
+        pdf.cell(65, 6, _s(label + ":"))
+        pdf.set_font("Liberation", size=9)
+        pdf.cell(0, 6, _s(value), new_x="LMARGIN", new_y="NEXT")
 
     # ── Mitglieder-Konten ────────────────────────────────────────────────────
     pdf.ln(4)
@@ -621,7 +622,7 @@ def _build_pdf(
     # Totals
     tot_pen = round(sum(member_penalty_total(m.id) for m in regular_members), 2)
     tot_pay = round(sum(payments_by_member.get(m.id, 0.0) for m in regular_members), 2)
-    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_font("Liberation", "B", 8)
     pdf.set_fill_color(30, 41, 59)
     pdf.set_text_color(241, 245, 249)
     for txt, w in [("GESAMT", 95), (_fmt_euro(tot_pen), 30), (_fmt_euro(tot_pay), 30), (_fmt_euro(tot_pay - tot_pen), 25)]:
@@ -699,9 +700,9 @@ def _build_pdf(
 
         # Stammspieler
         if regular_members:
-            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_font("Liberation", "B", 8)
             pdf.set_text_color(232, 160, 32)
-            pdf.cell(0, 6, _s("Stammspieler"), ln=True)
+            pdf.cell(0, 6, _s("Stammspieler"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(0, 0, 0)
             for i, m in enumerate(regular_members):
                 _monthly_member_row(m, fill=(i % 2 == 1))
@@ -709,9 +710,9 @@ def _build_pdf(
         # Guests
         if guest_members:
             pdf.ln(2)
-            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_font("Liberation", "B", 8)
             pdf.set_text_color(232, 160, 32)
-            pdf.cell(0, 6, _s("Gaste"), ln=True)
+            pdf.cell(0, 6, _s("Gäste"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(0, 0, 0)
             for i, m in enumerate(guest_members):
                 _monthly_member_row(m, fill=(i % 2 == 1))
