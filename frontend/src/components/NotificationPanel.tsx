@@ -38,10 +38,10 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
     const eventId = params.get('event') ? parseInt(params.get('event')!, 10) : null
 
     function navigate() {
-        // Extract the hash portion so we can set it without a full navigation
+        if (n.serverLogId) api.markNotificationsRead([n.serverLogId]).catch(() => {})
         const targetHash = new URL(n.url, window.location.href).hash
         if (targetHash) {
-            window.location.hash = targetHash.slice(1) // triggers hashchange
+            window.location.hash = targetHash.slice(1)
         } else {
             window.location.href = n.url
         }
@@ -116,7 +116,11 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                 <button
                     className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
                     style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)', fontSize: 12}}
-                    onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        if (n.serverLogId) api.markNotificationsRead([n.serverLogId]).catch(() => {})
+                        dismiss(n.id)
+                    }}
                 >
                     ✕
                 </button>
@@ -162,10 +166,17 @@ export function NotificationPanel({open, onClose}: Props) {
     const t = useT()
     const {notifications, markAllRead, clearAll} = useNotificationStore()
 
-    // Mark all read when panel opens — in useEffect to avoid side effects during render
+    // Mark all read (local + server) when panel opens
     useEffect(() => {
-        if (open) markAllRead()
+        if (!open) return
+        markAllRead()
+        api.markNotificationsRead().catch(() => {})
     }, [open, markAllRead])
+
+    function handleClearAll() {
+        api.markNotificationsRead().catch(() => {})
+        clearAll()
+    }
 
     if (!open) return null
 
@@ -186,7 +197,7 @@ export function NotificationPanel({open, onClose}: Props) {
                         {notifications.length > 0 && (
                             <button
                                 type="button"
-                                onClick={clearAll}
+                                onClick={handleClearAll}
                                 className="text-[10px] font-bold text-kce-muted active:opacity-60 px-2 py-1 rounded-lg"
                                 style={{background: 'rgba(255,255,255,0.07)'}}
                             >

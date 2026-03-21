@@ -459,6 +459,8 @@ export const api = {
         request<PushPreferences>('PATCH', '/push/preferences', d),
     getRecentNotifications: () =>
         request<{id: number; title: string; body: string; url: string; created_at: string}[]>('GET', '/push/recent'),
+    markNotificationsRead: (ids?: number[]) =>
+        request<void>('POST', '/push/notifications/read', ids ? {ids} : {}),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
     getReminderSettings: () => request<ReminderSettings>('GET', '/club/reminder-settings'),
