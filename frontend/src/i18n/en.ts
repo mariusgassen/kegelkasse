@@ -517,6 +517,7 @@ export const en = {
     "push.pref.payments": "Payments",
     "push.pref.games": "Game results",
     "push.pref.members": "New members",
+    "push.pref.committee": "Announcements (always on)",
     "push.reminders": "Automatic reminders",
     "push.pref.reminder_debt": "Debt reminders",
     "push.pref.reminder_schedule": "Event reminders",

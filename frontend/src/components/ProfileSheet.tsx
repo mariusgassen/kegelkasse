@@ -11,12 +11,13 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-function PushToggle({value, onChange}: { value: boolean; onChange: () => void }) {
+function PushToggle({value, onChange, disabled}: { value: boolean; onChange: () => void; disabled?: boolean }) {
     return (
         <button
-            onClick={onChange}
-            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2'].join(' ')}
+            onClick={disabled ? undefined : onChange}
+            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2', disabled ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
             aria-pressed={value}
+            disabled={disabled}
         >
             <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
         </button>
@@ -443,6 +444,11 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div className="kce-card p-4 space-y-2">
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
+                            </div>
+                            {/* Announcements are always on — not toggleable */}
+                            <div className="flex items-center justify-between py-0.5">
+                                <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
+                                <PushToggle value={true} onChange={() => {}} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
