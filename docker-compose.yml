@@ -16,18 +16,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_CLAIM_EMAIL: ${VAPID_CLAIM_EMAIL:-}
       CORS_ALLOW_ORIGIN: '${CORS_ALLOW_ORIGIN:-}'
-      # Database backups
+      # pgbackrest — scheduled full backup cron + management API URL
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
-      BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-7}
-      # S3-compatible storage — leave S3_BUCKET empty to disable S3 uploads
-      S3_BUCKET: ${S3_BUCKET:-}
-      S3_PREFIX: ${S3_PREFIX:-kegelkasse/backups}
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
-    volumes:
-      - backup_data:/backups
+      PGBACKREST_MGMT_URL: ${PGBACKREST_MGMT_URL:-http://db:8089}
     depends_on:
       db:
         condition: service_healthy
@@ -40,13 +31,30 @@ services:
 
   db:
     container_name: kegelkasse_db
-    image: postgres:16-alpine
+    build:
+      context: docker/db
     environment:
       POSTGRES_USER: kegelkasse
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: kegelkasse
+      # pgbackrest retention (overrides pgbackrest.conf default of 2)
+      PGBACKREST_REPO1_RETENTION_FULL: ${BACKUP_RETAIN_FULL:-2}
+      # S3-compatible repo (optional — leave S3_BUCKET empty to use local volume)
+      # To enable: set PGBACKREST_REPO1_TYPE=s3, PGBACKREST_REPO1_S3_BUCKET, etc.
+      # See: https://pgbackrest.org/configuration.html#section-repository/option-repo-type
+    command:
+      - "postgres"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=pgbackrest --stanza=main archive-push %p"
+      - "-c"
+      - "archive_timeout=300"
+      - "-c"
+      - "wal_level=replica"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - pgbackrest_repo:/pgbackrest
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kegelkasse"]
@@ -56,4 +64,4 @@ services:
 
 volumes:
   postgres_data:
-  backup_data:
+  pgbackrest_repo:

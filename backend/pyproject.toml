@@ -24,7 +24,6 @@ ruff = "^0.15.6"
 greenlet = "^3.3.2"
 babel = "^2.18.0"
 apscheduler = "^3.10"
-boto3 = "^1.35"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"

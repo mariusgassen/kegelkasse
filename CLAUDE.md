@@ -104,7 +104,7 @@ service worker + IndexedDB for offline support.
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
 - **Linting & build:** Always run `cd frontend && npm run build` locally before every push to catch TypeScript errors
-  early. Fix all errors before pushing. Do NOT run `ruff` or `eslint` locally — check those via CI after pushing.
+  early. Fix all errors before pushing. Also run `cd backend && poetry run ruff check app/` locally before every push to catch Python linting errors — fix all issues before pushing. Do NOT run `eslint` locally — check that via CI after pushing.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
@@ -159,7 +159,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 30 | **Vergnügungsausschuss**           | ✅      | VA-Mitglieder (is_committee Flag), Kegelfahrten (club_trip), Ankündigungen (club_announcement) mit Push; Migrationen 032–034; 🚌-Tab für alle; VA-Verwaltung im Verein-Tab |
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
 | 17 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
-| 32 | **Datenbank-Backups**              | ✅      | pg_dump in app-Container (postgresql-client + boto3); APScheduler-Cron-Job; /backups-Volume (Disk); optionaler S3-Upload (S3-kompatibel); Superadmin-Tab in Vereinsseite: Liste, Manuell auslösen, Herunterladen, Löschen; Konfig-Anzeige (Schedule, Retention, S3); env-vars in .env.example |
+| 32 | **Datenbank-Backups**              | ✅      | pgbackrest in custom db-Image (postgres:16 + pgbackrest + Python mgmt-server auf :8089); WAL-Archivierung → PITR; APScheduler-Cron-Job Full-Backup; Superadmin-Tab: Backup-Liste (Label, Typ, Größe, PITR-Fenster), Manuell auslösen; Retention per PGBACKREST_REPO1_RETENTION_FULL; S3 via PGBACKREST_REPO1_* env-vars |
 | 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | ✅      | Spieltermine & RSVP (SchedulePage); Abwesenheitsstrafen auto beim Start-aus-Termin; no_cancel_fee nur wenn RSVP vorhanden; Gäste ohne regular_member_id werden beim Start automatisch als RegularMember angelegt |

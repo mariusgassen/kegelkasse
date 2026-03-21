@@ -31,12 +31,12 @@ def stop_scheduler() -> None:
 
 
 async def run_scheduled_backup() -> None:
-    """Entry point for the scheduled database backup job."""
+    """Entry point for the scheduled pgbackrest full backup job."""
     from services.backup import run_backup
-    logger.info("Running scheduled database backup")
+    logger.info("Running scheduled pgbackrest full backup")
     try:
-        result = await run_backup()
-        logger.info(f"Scheduled backup complete: {result['filename']} ({result['size_bytes']} bytes)")
+        await run_backup("full")
+        logger.info("Scheduled pgbackrest backup completed")
     except Exception as e:
         logger.error(f"Scheduled backup failed: {e}")
 

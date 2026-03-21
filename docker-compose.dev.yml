@@ -11,6 +11,8 @@ services:
       ENVIRONMENT: development
       FIRST_SUPERADMIN_EMAIL: admin@kegelkasse.de
       FIRST_SUPERADMIN_PASSWORD: admin123
+      BACKUP_SCHEDULE: ""
+      PGBACKREST_MGMT_URL: http://db:8089
     depends_on:
       db:
         condition: service_healthy
@@ -22,14 +24,27 @@ services:
 
   db:
     container_name: kegelkasse_db_dev
-    image: postgres:17-alpine
+    build:
+      context: docker/db
     environment:
       POSTGRES_USER: kegelkasse
       POSTGRES_PASSWORD: kegelkassepw
       POSTGRES_DB: kegelkasse
+      PGBACKREST_REPO1_RETENTION_FULL: "2"
+    command:
+      - "postgres"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=pgbackrest --stanza=main archive-push %p"
+      - "-c"
+      - "archive_timeout=300"
+      - "-c"
+      - "wal_level=replica"
     ports: ["5432:5432"]
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
+      - pgbackrest_dev_repo:/pgbackrest
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kegelkasse"]
       interval: 5s
@@ -38,3 +53,4 @@ services:
 
 volumes:
   postgres_dev_data:
+  pgbackrest_dev_repo:
