@@ -308,8 +308,9 @@ def start_evening(
     ).all()
     ev_date_str = ev.date.strftime('%d.%m.%Y')
     for rsvp in attending_rsvps:
-        push_to_regular_member(db, rsvp.regular_member_id, "🎳 Kegelabend gestartet",
-                               f"Abend vom {ev_date_str} hat begonnen.", "/", category="evenings")
+        background_tasks.add_task(
+            push_to_regular_member, db, rsvp.regular_member_id, "🎳 Kegelabend gestartet",
+            f"Abend vom {ev_date_str} hat begonnen.", "/", "evenings")
 
     return {"id": ev.id, "date": ev.date.isoformat(), "venue": ev.venue}
 
@@ -426,6 +427,7 @@ def list_rsvps(
 @router.post("/{sid}/remind")
 def send_reminder(
     sid: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_admin),
 ):
@@ -440,12 +442,11 @@ def send_reminder(
     se_date_str = se.scheduled_at.astimezone(UTC).strftime('%d.%m.%Y')
     venue_str = f" ({se.venue})" if se.venue else ""
     for member in non_responders:
-        push_to_regular_member(
-            db, member.id,
+        background_tasks.add_task(
+            push_to_regular_member, db, member.id,
             "🎳 Bist du dabei?",
             f"Kegelabend am {se_date_str}{venue_str} — bitte melde dich an oder ab.",
-            f"/#schedule?event={se.id}",
-            category="schedule",
+            f"/#schedule?event={se.id}", "schedule",
         )
     return {"reminded_count": len(non_responders)}
 
