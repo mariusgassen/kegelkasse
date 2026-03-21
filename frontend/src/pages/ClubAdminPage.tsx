@@ -404,6 +404,7 @@ function ReminderSettingsCard() {
     const [rsvp, setRsvp] = useState<ReminderTypeSettings>({enabled: false, days_before: 3})
     const [dayOf, setDayOf] = useState<ReminderTypeSettings>({enabled: false})
     const [payNudge, setPayNudge] = useState<ReminderTypeSettings>({enabled: false, days_pending: 3})
+    const [autoReport, setAutoReport] = useState<ReminderTypeSettings>({enabled: false, days_before: 1})
 
     useEffect(() => {
         if (!saved) return
@@ -412,6 +413,7 @@ function ReminderSettingsCard() {
         setRsvp(s => ({...s, ...saved.rsvp_reminder}))
         setDayOf(s => ({...s, ...saved.debt_day_of}))
         setPayNudge(s => ({...s, ...saved.payment_request_nudge}))
+        setAutoReport(s => ({...s, ...saved.auto_report}))
     }, [saved])
 
     async function handleSave() {
@@ -421,6 +423,7 @@ function ReminderSettingsCard() {
             rsvp_reminder: rsvp,
             debt_day_of: dayOf,
             payment_request_nudge: payNudge,
+            auto_report: autoReport,
         })
         showToast(t('reminders.saved'))
     }
@@ -523,6 +526,23 @@ function ReminderSettingsCard() {
                         <input type="number" min={1} max={30} className="kce-input"
                                value={payNudge.days_pending ?? 3}
                                onChange={e => setPayNudge(s => ({...s, days_pending: Number(e.target.value)}))} />
+                    </div>
+                )}
+            </div>
+
+            {/* auto_report */}
+            <div className="mb-4 border-t border-kce-surface2 pt-4">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-kce-cream">{t('reminders.auto_report')}</span>
+                    <ReminderToggle value={!!autoReport.enabled} onChange={v => setAutoReport(s => ({...s, enabled: v}))} />
+                </div>
+                <p className="text-xs text-kce-muted mb-2">{t('reminders.auto_report.hint')}</p>
+                {autoReport.enabled && (
+                    <div className="mt-2 w-28">
+                        <label className="field-label">{t('reminders.days_before')}</label>
+                        <input type="number" min={0} max={7} className="kce-input"
+                               value={autoReport.days_before ?? 1}
+                               onChange={e => setAutoReport(s => ({...s, days_before: Number(e.target.value)}))} />
                     </div>
                 )}
             </div>

@@ -87,6 +87,7 @@ export interface ReminderSettings {
     rsvp_reminder: ReminderTypeSettings
     debt_day_of: ReminderTypeSettings
     payment_request_nudge: ReminderTypeSettings
+    auto_report: ReminderTypeSettings
 }
 
 export interface RsvpEntry {

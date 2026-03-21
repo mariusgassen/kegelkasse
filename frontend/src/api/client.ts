@@ -480,6 +480,32 @@ export const api = {
     setCommitteeMember: (memberId: number, isCommittee: boolean) =>
         request<{ id: number; is_committee: boolean }>('PATCH', `/club/members/${memberId}/committee`, {is_committee: isCommittee}),
 
+    // Reports — Excel/PDF export (admin only)
+    downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
+        const headers: Record<string, string> = {}
+        if (_token) headers['Authorization'] = `Bearer ${_token}`
+        const params = new URLSearchParams()
+        if (year) params.set('year', String(year))
+        if (format !== 'xlsx') params.set('format', format)
+        const qs = params.toString() ? `?${params}` : ''
+        const res = await fetch(`${API_BASE}/reports/export${qs}`, {headers})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const suffix = year ? `_${year}` : ''
+        a.download = `kegelkasse_report${suffix}.${format}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    },
+
     // Backups — pgbackrest (superadmin only)
     listBackups: () => request<{
         info: PgBackrestStanza[];

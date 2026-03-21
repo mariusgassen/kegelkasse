@@ -615,6 +615,14 @@ export const de = {
     "committee.membersHint": "Diese Mitglieder können Ankündigungen und Kegelfahrten einstellen.",
     "committee.noMembers": "Noch keine Vergnügungsausschuss-Mitglieder ernannt.",
     "committee.isCommittee": "VGA-Mitglied",
+    "report.export": "📊 Export",
+    "report.download": "Excel-Bericht herunterladen",
+    "report.downloading": "Wird erstellt…",
+    "report.year": "Zeitraum",
+    "report.yearAll": "Gesamter Zeitraum",
+    "report.downloaded": "Bericht heruntergeladen",
+    "reminders.auto_report": "📊 Kassenbericht vor Abend",
+    "reminders.auto_report.hint": "Admins bekommen X Tage vor dem nächsten Kegeltermin eine Push-Benachrichtigung mit dem Hinweis, den Kassenbericht herunterzuladen.",
 } as const
 
 export type TranslationKey = keyof typeof de

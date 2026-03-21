@@ -971,6 +971,7 @@ _DEFAULT_REMINDER_SETTINGS: dict = {
     "rsvp_reminder": {"enabled": False, "days_before": 3},
     "debt_day_of": {"enabled": False},
     "payment_request_nudge": {"enabled": False, "days_pending": 3},
+    "auto_report": {"enabled": False, "days_before": 1},
 }
 
 
@@ -994,6 +995,7 @@ class ReminderSettingsUpdate(BaseModel):
     rsvp_reminder: Optional[dict] = None
     debt_day_of: Optional[dict] = None
     payment_request_nudge: Optional[dict] = None
+    auto_report: Optional[dict] = None
 
 
 @router.patch("/reminder-settings")
