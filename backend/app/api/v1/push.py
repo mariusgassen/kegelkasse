@@ -156,11 +156,15 @@ def debug_push(db: Session = Depends(get_db), user: User = Depends(require_club_
 
 @router.get("/recent")
 def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Return notifications from the last 30 days for the current user (hybrid loading)."""
+    """Return unread notifications from the last 30 days for the current user (hybrid loading)."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     logs = (
         db.query(NotificationLog)
-        .filter(NotificationLog.user_id == user.id, NotificationLog.created_at >= cutoff)
+        .filter(
+            NotificationLog.user_id == user.id,
+            NotificationLog.created_at >= cutoff,
+            NotificationLog.is_read == False,  # noqa: E712
+        )
         .order_by(NotificationLog.created_at.desc())
         .limit(50)
         .all()
@@ -175,6 +179,25 @@ def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends
         }
         for log in logs
     ]
+
+
+class MarkReadRequest(BaseModel):
+    ids: Optional[list[int]] = None  # None = mark all unread as read
+
+
+@router.post("/notifications/read", status_code=204)
+def mark_notifications_read(data: MarkReadRequest = MarkReadRequest(),
+                             db: Session = Depends(get_db),
+                             user: User = Depends(require_club_member)):
+    """Mark notifications as read server-side. Pass ids to mark specific ones, omit to mark all."""
+    q = db.query(NotificationLog).filter(
+        NotificationLog.user_id == user.id,
+        NotificationLog.is_read == False,  # noqa: E712
+    )
+    if data.ids:
+        q = q.filter(NotificationLog.id.in_(data.ids))
+    q.update({"is_read": True}, synchronize_session=False)
+    db.commit()
 
 
 @router.post("/trigger-reminders")

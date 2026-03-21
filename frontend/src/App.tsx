@@ -190,18 +190,23 @@ export default function App() {
         req.onerror = () => {}
     }, [addNotification])
 
-    // Hybrid: fetch recent notifications from server on boot (works even without PWA/SW)
+    // Hybrid: fetch unread notifications from server — on boot and every 30 s
     useEffect(() => {
         if (!user) return
-        api.getRecentNotifications().then((items) => {
-            items.forEach(n => addNotification({
-                title: n.title,
-                body: n.body,
-                url: n.url ?? '/',
-                serverLogId: n.id,
-                serverCreatedAt: n.created_at,
-            }))
-        }).catch(() => {/* ignore — server may not have the endpoint yet */})
+        function fetchNotifications() {
+            api.getRecentNotifications().then((items) => {
+                items.forEach(n => addNotification({
+                    title: n.title,
+                    body: n.body,
+                    url: n.url ?? '/',
+                    serverLogId: n.id,
+                    serverCreatedAt: n.created_at,
+                }))
+            }).catch(() => {})
+        }
+        fetchNotifications()
+        const timer = setInterval(fetchNotifications, 30_000)
+        return () => clearInterval(timer)
     }, [user?.id, addNotification])
 
     async function handleRefresh() {
