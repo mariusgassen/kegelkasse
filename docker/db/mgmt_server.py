@@ -17,6 +17,30 @@ import urllib.parse
 STANZA = "main"
 PORT = 8089
 
+# PGBACKREST_* env vars that are valid to pass through to pgbackrest.
+# Everything else (RETENTION_*, MGMT_URL, etc.) is stripped to avoid
+# "invalid option" warnings/errors. Retention is configured via pgbackrest.conf.
+_PGB_ENV_KEEP_PREFIXES = (
+    "PGBACKREST_REPO1_TYPE",
+    "PGBACKREST_REPO1_PATH",
+    "PGBACKREST_REPO1_S3_",
+    "PGBACKREST_REPO1_AZURE_",
+    "PGBACKREST_REPO1_GCS_",
+)
+
+
+def _pgb_env() -> dict:
+    """Build a clean environment for pgbackrest subprocesses."""
+    result = {}
+    for k, v in os.environ.items():
+        if k.startswith("PGBACKREST_"):
+            if any(k.startswith(p) for p in _PGB_ENV_KEEP_PREFIXES):
+                result[k] = v
+            # else: strip — invalid or retention-only options
+        else:
+            result[k] = v
+    return result
+
 
 def pgb(*args: str) -> subprocess.CompletedProcess:
     """Run a pgbackrest command as the postgres user."""
@@ -24,6 +48,7 @@ def pgb(*args: str) -> subprocess.CompletedProcess:
         ["gosu", "postgres", "pgbackrest", f"--stanza={STANZA}", *args],
         capture_output=True,
         text=True,
+        env=_pgb_env(),
     )
 
 
@@ -145,20 +170,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if re.match(r"^/backup/[\w-]+$", parsed.path):
             label = parsed.path.split("/")[2]
-            # Strip RETENTION env vars — they can interfere with expire --set
-            # (pgbackrest inherits the container env which includes
-            # PGBACKREST_REPO1_RETENTION_FULL etc. from docker-compose).
-            env = {k: v for k, v in os.environ.items()
-                   if "RETENTION" not in k.upper()}
-            r = subprocess.run(
-                ["gosu", "postgres", "pgbackrest",
-                 f"--stanza={STANZA}", "expire", f"--set={label}"],
-                capture_output=True, text=True, env=env,
-            )
+            r = pgb("expire", f"--set={label}")
             if r.returncode == 0:
                 self._json({"ok": True})
                 return
-            # Log to Docker stdout so it shows up in `docker logs`
             err_detail = (r.stderr or r.stdout or "no output").strip()
             print(f"[mgmt] expire --set={label} failed (rc={r.returncode}): {err_detail}", flush=True)
             self._json({"error": err_detail}, 500)
