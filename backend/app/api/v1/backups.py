@@ -21,7 +21,7 @@ async def get_backups(user: User = Depends(require_superadmin)):
         "config": {
             "schedule": settings.BACKUP_SCHEDULE,
             "retain_full": settings.BACKUP_RETAIN_FULL,
-            "mgmt_url": settings.PGBACKREST_MGMT_URL,
+            "mgmt_url": settings.PGB_MGMT_URL,
         },
     }
 
