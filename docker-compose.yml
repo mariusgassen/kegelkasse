@@ -40,7 +40,7 @@ services:
 
   db:
     container_name: kegelkasse_db
-    image: postgres:17-alpine
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: kegelkasse
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
