@@ -4,6 +4,7 @@ covering member accounts, penalties, transactions, and evening summaries.
 Supports optional year filtering (omit for all-time).
 """
 import io
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -25,6 +26,8 @@ from models.penalty import PenaltyLog
 from models.user import User
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+_MONTH_ABB_DE = ["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
 
 # ── Styling helpers ──────────────────────────────────────────────────────────
 
@@ -235,6 +238,35 @@ def export_report(
         cnt, tot = pen_by_member_type.get(key, (0, 0.0))
         pen_by_member_type[key] = (cnt + 1, round(tot + _penalty_euro(log), 2))
 
+    # Monthly penalties per member: {member_id: {(year, month): total_euro}}
+    monthly_pen_by_member: dict[int, dict[tuple[int, int], float]] = defaultdict(lambda: defaultdict(float))
+    for log in penalty_logs:
+        ev = evening_by_id.get(log.evening_id)
+        if ev is None:
+            continue
+        ym = (ev.date.year, ev.date.month)
+        euro = _penalty_euro(log)
+        if log.player_id is not None:
+            ep = player_by_id.get(log.player_id)
+            mid = ep.regular_member_id if ep else None
+        else:
+            mid = log.regular_member_id
+        if mid is not None:
+            monthly_pen_by_member[mid][ym] += euro
+
+    all_months_set: set[tuple[int, int]] = set()
+    for by_month in monthly_pen_by_member.values():
+        all_months_set.update(by_month.keys())
+    sorted_months = sorted(all_months_set)
+    single_year = len({ym[0] for ym in sorted_months}) <= 1
+
+    def _month_label(ym: tuple[int, int]) -> str:
+        label = _MONTH_ABB_DE[ym[1] - 1]
+        return label if single_year else f"{label} '{ym[0] % 100:02d}"
+
+    # Guests with any penalty activity in scope
+    guest_members = [m for m in members if m.is_guest and m.id in monthly_pen_by_member]
+
     year_suffix = f"_{year}" if year else ""
 
     if fmt == "pdf":
@@ -256,6 +288,10 @@ def export_report(
             players_per_evening=players_per_evening,
             games_per_evening=games_per_evening,
             king_per_evening=king_per_evening,
+            monthly_pen_by_member=monthly_pen_by_member,
+            sorted_months=sorted_months,
+            guest_members=guest_members,
+            month_label_fn=_month_label,
         )
         filename = f"kegelkasse_report{year_suffix}.pdf"
         return StreamingResponse(
@@ -415,6 +451,51 @@ def export_report(
 
     _auto_width(ws6)
 
+    # ── Sheet 7: Monatsübersicht ──────────────────────────────────────────────
+
+    ws7 = wb.create_sheet("Monatsübersicht")
+    ws7.freeze_panes = "B2"
+    month_cols = [_month_label(ym) for ym in sorted_months]
+    _write_header(ws7, ["Spieler"] + month_cols + ["Strafen Ges.", "Einzahlungen", "Kontostand"])
+
+    def _write_monthly_row(ws, ri: int, m, label_override: str = "") -> None:
+        display = label_override or (m.nickname or m.name)
+        ws.cell(ri, 1, display)
+        for ci, ym in enumerate(sorted_months, start=2):
+            v = round(monthly_pen_by_member[m.id].get(ym, 0.0), 2)
+            cell = ws.cell(ri, ci, v if v else "")
+            if v:
+                cell.number_format = '#,##0.00 "€"'
+        base = len(sorted_months)
+        pen = member_penalty_total(m.id)
+        pay = round(payments_by_member.get(m.id, 0.0), 2)
+        ws.cell(ri, base + 2, pen).number_format = '#,##0.00 "€"'
+        ws.cell(ri, base + 3, pay).number_format = '#,##0.00 "€"'
+        ws.cell(ri, base + 4, round(pay - pen, 2)).number_format = '#,##0.00 "€"'
+
+    ri7 = 2
+    # Stammspieler section header
+    if regular_members:
+        h_cell = ws7.cell(ri7, 1, "— Stammspieler —")
+        h_cell.font = Font(bold=True, color="E8A020")
+        ri7 += 1
+        for m in regular_members:
+            _write_monthly_row(ws7, ri7, m)
+            ri7 += 1
+
+    # Guests section header
+    if guest_members:
+        ws7.cell(ri7, 1, "")
+        ri7 += 1
+        h_cell = ws7.cell(ri7, 1, "— Gäste —")
+        h_cell.font = Font(bold=True, color="E8A020")
+        ri7 += 1
+        for m in guest_members:
+            _write_monthly_row(ws7, ri7, m)
+            ri7 += 1
+
+    _auto_width(ws7)
+
     # ── Stream Excel ──────────────────────────────────────────────────────────
     buf = io.BytesIO()
     wb.save(buf)
@@ -448,14 +529,18 @@ def _build_pdf(
     players_per_evening: dict,
     games_per_evening: dict,
     king_per_evening: dict,
+    monthly_pen_by_member: dict,
+    sorted_months: list,
+    guest_members: list,
+    month_label_fn,
 ) -> io.BytesIO:
     def _s(txt: str) -> str:
-        """Replace non-Latin-1 chars so fpdf built-in fonts don't crash."""
+        """Replace non-cp1252 chars so fpdf built-in fonts don't crash."""
         return (txt
                 .replace("\u2014", "-").replace("\u2013", "-")  # em/en dash
                 .replace("\u2018", "'").replace("\u2019", "'")  # curly apostrophes
                 .replace("\u201c", '"').replace("\u201d", '"')  # curly quotes
-                .encode("latin-1", errors="replace").decode("latin-1"))
+                .encode("cp1252", errors="replace").decode("cp1252"))
 
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -583,6 +668,53 @@ def _build_pdf(
             (_fmt_euro(penalty_per_evening.get(ev.id, 0.0)), 25),
             ((king_per_evening.get(ev.id, ""))[:12], 22),
         ], fill=(i % 2 == 1))
+
+    # ── Monatsübersicht ───────────────────────────────────────────────────────
+    if sorted_months:
+        pdf.add_page(orientation="L")  # landscape for wide table
+        _h2("Monatsübersicht")
+
+        # Calculate column widths to fit landscape page (267mm usable)
+        name_w = 45.0
+        fixed_w = 25.0 + 25.0 + 25.0  # Strafen Ges. + Einzahlungen + Kontostand
+        available_w = 267.0 - name_w - fixed_w
+        n_months = len(sorted_months)
+        mon_w = min(22.0, round(available_w / n_months, 1)) if n_months else 20.0
+
+        # Header
+        h_cols = [("Spieler", name_w)] + [(month_label_fn(ym), mon_w) for ym in sorted_months]
+        h_cols += [("Strafen Ges.", 25), ("Einzahlungen", 25), ("Kontostand", 25)]
+        _header_row(h_cols)
+
+        def _monthly_member_row(m, fill: bool) -> None:
+            display = m.nickname or m.name
+            pen = member_penalty_total(m.id)
+            pay = round(payments_by_member.get(m.id, 0.0), 2)
+            cols = [(display[:20], name_w)]
+            for ym in sorted_months:
+                v = monthly_pen_by_member[m.id].get(ym, 0.0)
+                cols.append((_fmt_euro(v) if v else "", mon_w))
+            cols += [(_fmt_euro(pen), 25), (_fmt_euro(pay), 25), (_fmt_euro(pay - pen), 25)]
+            _row(cols, fill=fill)
+
+        # Stammspieler
+        if regular_members:
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(232, 160, 32)
+            pdf.cell(0, 6, _s("Stammspieler"), ln=True)
+            pdf.set_text_color(0, 0, 0)
+            for i, m in enumerate(regular_members):
+                _monthly_member_row(m, fill=(i % 2 == 1))
+
+        # Guests
+        if guest_members:
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(232, 160, 32)
+            pdf.cell(0, 6, _s("Gaste"), ln=True)
+            pdf.set_text_color(0, 0, 0)
+            for i, m in enumerate(guest_members):
+                _monthly_member_row(m, fill=(i % 2 == 1))
 
     buf = io.BytesIO(pdf.output())
     buf.seek(0)
