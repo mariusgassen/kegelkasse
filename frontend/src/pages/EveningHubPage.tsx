@@ -50,7 +50,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const TABS: { id: SubTab; label: string }[] = [
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
-        {id: 'highlights', label: t('evening.tab.highlights')},
+        {id: 'highlights', label: `✨ ${t('evening.tab.highlights')}`},
     ]
 
     const isClosed = evening?.is_closed ?? false
@@ -62,63 +62,12 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                  style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
-                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
                         {tb.label}
                     </button>
                 ))}
-                {!isClosed && evening && (
-                    <button type="button"
-                            className="btn-danger btn-xs flex-shrink-0"
-                            onClick={() => setCloseConfirm(true)}>
-                        {t('evening.end')}
-                    </button>
-                )}
-                {isClosed && evening && (
-                    <>
-                        <button type="button"
-                                className="btn-secondary btn-xs flex-shrink-0"
-                                onClick={async () => {
-                                    try {
-                                        await api.updateEvening(evening.id, {is_closed: false})
-                                        invalidate()
-                                    } catch (e: unknown) {
-                                        toastError(e)
-                                    }
-                                }}>
-                            {t('evening.reopen')}
-                        </button>
-                        {onHistory && (
-                            <button type="button"
-                                    className="btn-secondary btn-xs flex-shrink-0"
-                                    onClick={onHistory}>
-                                📚 {t('evening.toHistory')}
-                            </button>
-                        )}
-                    </>
-                )}
             </div>
-
-            {/* Close confirm bar */}
-            {closeConfirm && (
-                <div className="px-2 py-2 flex-shrink-0 flex items-center gap-2"
-                     style={{background: 'var(--kce-surface)', borderBottom: '1px solid var(--kce-border)'}}>
-                    <p className="text-xs text-kce-muted flex-1">{t('evening.endConfirm')}</p>
-                    <button className="btn-secondary btn-xs" onClick={() => setCloseConfirm(false)}>
-                        {t('action.cancel')}
-                    </button>
-                    <button className="btn-danger btn-xs" onClick={async () => {
-                        try {
-                            await api.updateEvening(evening!.id, {is_closed: true})
-                            setCloseConfirm(false)
-                            invalidate()
-                            qc.invalidateQueries({queryKey: ['evenings']})
-                        } catch (e: unknown) {
-                            toastError(e)
-                        }
-                    }}>{t('action.done')}</button>
-                </div>
-            )}
 
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
@@ -187,6 +136,53 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                             }}>+</button>
                                 </div>
                             )}
+
+                            {/* End / reopen evening */}
+                            <div className="mt-4 pt-4 border-t border-kce-surface2 flex flex-col gap-2">
+                                {!evening.is_closed ? (
+                                    <>
+                                        {!closeConfirm ? (
+                                            <button className="btn-danger w-full"
+                                                    onClick={() => setCloseConfirm(true)}>
+                                                {t('evening.end')}
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <p className="text-xs text-kce-muted text-center">{t('evening.endConfirm')}</p>
+                                                <div className="flex gap-2">
+                                                    <button className="btn-secondary flex-1"
+                                                            onClick={() => setCloseConfirm(false)}>
+                                                        {t('action.cancel')}
+                                                    </button>
+                                                    <button className="btn-danger flex-1" onClick={async () => {
+                                                        try {
+                                                            await api.updateEvening(evening.id, {is_closed: true})
+                                                            setCloseConfirm(false)
+                                                            invalidate()
+                                                            qc.invalidateQueries({queryKey: ['evenings']})
+                                                        } catch (e: unknown) { toastError(e) }
+                                                    }}>{t('action.done')}</button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <button className="btn-secondary flex-1" onClick={async () => {
+                                            try {
+                                                await api.updateEvening(evening.id, {is_closed: false})
+                                                invalidate()
+                                            } catch (e: unknown) { toastError(e) }
+                                        }}>{t('evening.reopen')}</button>
+                                        {onHistory && (
+                                            <button className="btn-secondary flex-1"
+                                                    onClick={onHistory}>
+                                                📚 {t('evening.toHistory')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>

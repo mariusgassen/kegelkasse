@@ -296,6 +296,20 @@ export function StatsPage() {
 
                             <EveningTimeline evening={evening}/>
 
+                            {evening.highlights.length > 0 && (
+                                <>
+                                    <div className="sec-heading text-sm mt-4">✨ {t('highlight.title').replace('✨ ', '')}</div>
+                                    <div className="flex flex-col gap-1.5 mb-2">
+                                        {evening.highlights.map(h => (
+                                            <div key={h.id} className="kce-card p-3 flex items-start gap-2">
+                                                <span className="text-base flex-shrink-0">✨</span>
+                                                <div className="text-sm">{h.text}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+
                             {evening.players.length > 0 && (
                                 <>
                                     <div className="sec-heading text-sm mt-4">🃏 Spieler-Karten</div>
