@@ -132,11 +132,11 @@ export function ProfileSheet({open, onClose}: Props) {
         api.getPushStatus().then(s => setPushConfigured(s.configured)).catch(() => {})
     }, [open, pushSupported])
 
-    // Load push preferences when subscribed
+    // Load push preferences whenever the sheet opens (independent of subscription status)
     useEffect(() => {
-        if (!open || !pushSubscribed) return
+        if (!open) return
         api.getPushPreferences().then(setPushPrefs).catch(() => {})
-    }, [open, pushSubscribed])
+    }, [open])
 
     async function togglePushPref(key: keyof PushPreferences) {
         if (!pushPrefs) return
@@ -438,8 +438,8 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     ) : null)}
 
-                    {/* Push notification preferences */}
-                    {pushSubscribed && pushPrefs && (
+                    {/* Push notification preferences — shown whenever prefs loaded, not just when subscribed */}
+                    {pushPrefs && (
                         <div className="kce-card p-4 space-y-2">
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
