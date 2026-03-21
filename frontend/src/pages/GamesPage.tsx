@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
-import {useAppStore} from '@/store/app.ts'
+import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -9,6 +9,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, WinnerType} from '@/types.ts'
+import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -62,6 +63,7 @@ export function GamesPage() {
 
     const [saving, setSaving] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+    const [cameraOpen, setCameraOpen] = useState(false)
 
     if (!evening) {
         return (
@@ -233,9 +235,16 @@ export function GamesPage() {
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">🏆 {t('nav.games')}</div>
 
-            <button className="btn-primary w-full mb-4" onClick={openAddSheet}>
-                + {t('game.add')}
-            </button>
+            <div className="flex gap-2 mb-4">
+                <button className="btn-primary flex-1" onClick={openAddSheet}>
+                    + {t('game.add')}
+                </button>
+                {isAdmin(user) && (
+                    <button className="btn-secondary" title={t('camera.title')} onClick={() => setCameraOpen(true)}>
+                        📷
+                    </button>
+                )}
+            </div>
 
             {games.length === 0
                 ? <Empty icon="🏆" text={t('game.none')}/>
@@ -256,6 +265,27 @@ export function GamesPage() {
                                 <span className="text-xs text-kce-muted flex-shrink-0">{fTime(game.finished_at)}</span>
                             )}
                         </div>
+
+                        {/* Live camera throw indicator */}
+                        {game.status === 'running' && game.throws && game.throws.length > 0 && (() => {
+                            const last = game.throws[game.throws.length - 1]
+                            return (
+                                <div className="flex items-center gap-1.5 mb-2">
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                          style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)'}}>
+                                        📷
+                                    </span>
+                                    <span className="text-xs text-kce-muted">
+                                        {t('camera.throw')} #{last.throw_num} &nbsp;·&nbsp;
+                                        <span className="font-bold text-kce-cream font-mono">{last.pins}</span>
+                                        {' '}{t('camera.pins')}
+                                        {last.cumulative !== null && (
+                                            <> &nbsp;·&nbsp; Σ <span className="font-bold text-kce-cream font-mono">{last.cumulative}</span></>
+                                        )}
+                                    </span>
+                                </div>
+                            )
+                        })()}
 
                         {/* Winner / status info */}
                         {game.status === 'finished' && game.winner_ref && (
@@ -542,6 +572,9 @@ export function GamesPage() {
                     </div>
                 )}
             </Sheet>
+
+            {/* ── Camera overlay ── */}
+            {cameraOpen && <CameraCapturePage onClose={() => setCameraOpen(false)}/>}
 
             {/* ── Edit metadata sheet (open/running games) ── */}
             <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')}

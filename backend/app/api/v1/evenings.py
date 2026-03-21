@@ -19,7 +19,7 @@ from sqlalchemy import select, cast, Date as SQLDate
 from models.drink import DrinkRound, DrinkType
 from models.club import ClubSettings
 from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember, EveningHighlight
-from models.game import Game, WinnerType
+from models.game import Game, WinnerType, GameThrowLog
 from models.penalty import PenaltyLog, PenaltyMode
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
 from models.user import User
@@ -67,7 +67,10 @@ def serialize_evening(e: Evening) -> dict:
                    "status": g.status,
                    "started_at": g.started_at.isoformat() if g.started_at else None,
                    "finished_at": g.finished_at.isoformat() if g.finished_at else None,
-                   "client_timestamp": g.client_timestamp}
+                   "client_timestamp": g.client_timestamp,
+                   "throws": [{"id": t.id, "throw_num": t.throw_num, "pins": t.pins,
+                                "cumulative": t.cumulative, "pin_states": t.pin_states}
+                               for t in g.throws]}
                   for g in e.games if not g.is_deleted],
         "drink_rounds": [{"id": r.id, "drink_type": r.drink_type, "variety": r.variety,
                           "participant_ids": r.participant_ids,
@@ -655,7 +658,64 @@ def start_game(eid: int, gid: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Game is not in open state")
     g.status = "running"
     g.started_at = datetime.now(UTC)
+    # Clear any stale camera throws from a previous run
+    db.query(GameThrowLog).filter(GameThrowLog.game_id == gid).delete()
     db.commit()
+    return {"ok": True}
+
+
+# ── Camera throw log ──
+
+class CameraThrowCreate(BaseModel):
+    throw_num: int
+    pins: int
+    cumulative: Optional[int] = None
+    pin_states: list = []
+
+
+@router.post("/{eid}/games/{gid}/throws")
+def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
+                     background_tasks: BackgroundTasks,
+                     db: Session = Depends(get_db),
+                     user: User = Depends(require_club_admin)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
+    if not g:
+        raise HTTPException(404, "Game not found")
+    # Upsert — update if throw_num already exists, otherwise insert
+    existing = db.query(GameThrowLog).filter(
+        GameThrowLog.game_id == gid,
+        GameThrowLog.throw_num == data.throw_num,
+    ).first()
+    if existing:
+        existing.pins = data.pins
+        existing.cumulative = data.cumulative
+        existing.pin_states = data.pin_states
+    else:
+        db.add(GameThrowLog(
+            game_id=gid,
+            throw_num=data.throw_num,
+            pins=data.pins,
+            cumulative=data.cumulative,
+            pin_states=data.pin_states,
+        ))
+    db.commit()
+    background_tasks.add_task(event_bus.publish, eid)
+    return {"ok": True}
+
+
+@router.delete("/{eid}/games/{gid}/throws")
+def clear_camera_throws(eid: int, gid: int,
+                        background_tasks: BackgroundTasks,
+                        db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
+    if not g:
+        raise HTTPException(404, "Game not found")
+    db.query(GameThrowLog).filter(GameThrowLog.game_id == gid).delete()
+    db.commit()
+    background_tasks.add_task(event_bus.publish, eid)
     return {"ok": True}
 
 

@@ -320,6 +320,14 @@ export const api = {
     }>) =>
         request<void>('PATCH', `/evening/${eid}/games/${gid}`, d),
     deleteGame: (eid: number, gid: number) => request<void>('DELETE', `/evening/${eid}/games/${gid}`),
+    addCameraThrow: (eid: number, gid: number, d: {
+        throw_num: number;
+        pins: number;
+        cumulative?: number;
+        pin_states: boolean[]
+    }) => request<{ok: boolean}>('POST', `/evening/${eid}/games/${gid}/throws`, d),
+    clearCameraThrows: (eid: number, gid: number) =>
+        request<{ok: boolean}>('DELETE', `/evening/${eid}/games/${gid}/throws`),
 
     // Drinks
     addDrinkRound: (eid: number, d: {
