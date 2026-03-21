@@ -37,8 +37,10 @@ services:
       POSTGRES_USER: kegelkasse
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: kegelkasse
-      # pgbackrest retention (overrides pgbackrest.conf default of 2)
-      PGBACKREST_REPO1_RETENTION_FULL: ${BACKUP_RETAIN_FULL:-2}
+      # pgbackrest retention (overrides pgbackrest.conf defaults)
+      PGBACKREST_REPO1_RETENTION_FULL: ${BACKUP_RETAIN_FULL:-7}
+      PGBACKREST_REPO1_RETENTION_ARCHIVE_TYPE: ${BACKUP_RETAIN_ARCHIVE_TYPE:-time}
+      PGBACKREST_REPO1_RETENTION_ARCHIVE: ${BACKUP_RETAIN_ARCHIVE:-30}
       # S3-compatible repo (optional — leave S3_BUCKET empty to use local volume)
       # To enable: set PGBACKREST_REPO1_TYPE=s3, PGBACKREST_REPO1_S3_BUCKET, etc.
       # See: https://pgbackrest.org/configuration.html#section-repository/option-repo-type
