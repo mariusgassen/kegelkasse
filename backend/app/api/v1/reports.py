@@ -449,6 +449,14 @@ def _build_pdf(
     games_per_evening: dict,
     king_per_evening: dict,
 ) -> io.BytesIO:
+    def _s(txt: str) -> str:
+        """Replace non-Latin-1 chars so fpdf built-in fonts don't crash."""
+        return (txt
+                .replace("\u2014", "-").replace("\u2013", "-")  # em/en dash
+                .replace("\u2018", "'").replace("\u2019", "'")  # curly apostrophes
+                .replace("\u201c", '"').replace("\u201d", '"')  # curly quotes
+                .encode("latin-1", errors="replace").decode("latin-1"))
+
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_margins(15, 15, 15)
@@ -456,7 +464,7 @@ def _build_pdf(
     def _h1(txt: str) -> None:
         pdf.set_font("Helvetica", "B", 14)
         pdf.set_text_color(232, 160, 32)  # amber
-        pdf.cell(0, 8, txt, ln=True)
+        pdf.cell(0, 8, _s(txt), ln=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
@@ -464,7 +472,7 @@ def _build_pdf(
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_fill_color(30, 41, 59)
         pdf.set_text_color(226, 232, 240)
-        pdf.cell(0, 7, f"  {txt}", ln=True, fill=True)
+        pdf.cell(0, 7, _s(f"  {txt}"), ln=True, fill=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(1)
 
@@ -473,7 +481,7 @@ def _build_pdf(
         if fill:
             pdf.set_fill_color(240, 240, 240)
         for txt, w in cols:
-            pdf.cell(w, 6, str(txt), border=0, fill=fill)
+            pdf.cell(w, 6, _s(str(txt)), border=0, fill=fill)
         pdf.ln()
 
     def _header_row(cols: list[tuple[str, float]]) -> None:
@@ -481,16 +489,16 @@ def _build_pdf(
         pdf.set_fill_color(30, 41, 59)
         pdf.set_text_color(226, 232, 240)
         for txt, w in cols:
-            pdf.cell(w, 7, txt, border=0, fill=True)
+            pdf.cell(w, 7, _s(txt), border=0, fill=True)
         pdf.ln()
         pdf.set_text_color(0, 0, 0)
 
     # ── Cover / Summary ──────────────────────────────────────────────────────
     pdf.add_page()
-    _h1(f"Kassenbericht — {club_name}")
+    _h1(f"Kassenbericht - {club_name}")
     pdf.set_font("Helvetica", size=9)
     pdf.cell(50, 6, "Zeitraum:", ln=False)
-    pdf.cell(0, 6, period_label, ln=True)
+    pdf.cell(0, 6, _s(period_label), ln=True)
     pdf.cell(50, 6, "Erstellt am:", ln=False)
     pdf.cell(0, 6, datetime.now().strftime("%d.%m.%Y %H:%M"), ln=True)
     pdf.ln(4)
@@ -505,9 +513,9 @@ def _build_pdf(
     ]
     for label, value in summary:
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(65, 6, label + ":", ln=False)
+        pdf.cell(65, 6, _s(label + ":"), ln=False)
         pdf.set_font("Helvetica", size=9)
-        pdf.cell(0, 6, value, ln=True)
+        pdf.cell(0, 6, _s(value), ln=True)
 
     # ── Mitglieder-Konten ────────────────────────────────────────────────────
     pdf.ln(4)
@@ -532,7 +540,7 @@ def _build_pdf(
     pdf.set_fill_color(30, 41, 59)
     pdf.set_text_color(241, 245, 249)
     for txt, w in [("GESAMT", 95), (_fmt_euro(tot_pen), 30), (_fmt_euro(tot_pay), 30), (_fmt_euro(tot_pay - tot_pen), 25)]:
-        pdf.cell(w, 7, txt, fill=True)
+        pdf.cell(w, 7, _s(txt), fill=True)
     pdf.ln()
     pdf.set_text_color(0, 0, 0)
 
