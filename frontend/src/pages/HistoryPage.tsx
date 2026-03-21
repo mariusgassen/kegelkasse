@@ -275,6 +275,24 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                     </div>
                                                 )}
 
+                                                {/* Highlights */}
+                                                {detail.highlights.length > 0 && (
+                                                    <div className="mb-3">
+                                                        <div
+                                                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            ✨ {t('highlight.title').replace('✨ ', '')}
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            {detail.highlights.map(h => (
+                                                                <div key={h.id} className="text-xs text-kce-cream flex items-start gap-1.5">
+                                                                    <span className="flex-shrink-0">✨</span>
+                                                                    <span>{h.text}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">

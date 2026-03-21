@@ -8,12 +8,13 @@ import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
+import {Empty} from '@/components/ui/Empty.tsx'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 import {TabletQuickEntryPage} from './TabletQuickEntryPage'
 import {useQueryClient} from '@tanstack/react-query'
 
-type SubTab = 'penalties' | 'games'
+type SubTab = 'penalties' | 'games' | 'highlights'
 
 interface Props {
     onNavigate: () => void
@@ -24,9 +25,11 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const qc = useQueryClient()
-    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games'])
+    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights'])
     const [closeConfirm, setCloseConfirm] = useState(false)
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
+    const [highlightText, setHighlightText] = useState('')
+    const [addingHighlight, setAddingHighlight] = useState(false)
 
     // No active evening — prompt to configure one
     if (!activeEveningId) {
@@ -47,6 +50,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const TABS: { id: SubTab; label: string }[] = [
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
+        {id: 'highlights', label: t('evening.tab.highlights')},
     ]
 
     const isClosed = evening?.is_closed ?? false
@@ -127,6 +131,64 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 </div>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
+                </div>
+                <div style={{position: 'absolute', inset: 0, display: subTab === 'highlights' ? 'block' : 'none', overflowY: 'auto'}}
+                     className="px-3 py-3 pb-24">
+                    {evening && (
+                        <>
+                            {evening.highlights.length === 0
+                                ? <Empty icon="✨" text={t('highlight.none')}/>
+                                : <div className="flex flex-col gap-1.5 mb-2">
+                                    {evening.highlights.map(h => (
+                                        <div key={h.id} className="kce-card p-3 flex items-start gap-2">
+                                            <span className="text-base flex-shrink-0">✨</span>
+                                            <div className="flex-1 text-sm">{h.text}</div>
+                                            {!evening.is_closed && (
+                                                <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                                    try {
+                                                        await api.deleteHighlight(evening.id, h.id)
+                                                        invalidate()
+                                                    } catch (e) { toastError(e) }
+                                                }}>✕</button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            }
+                            {!evening.is_closed && (
+                                <div className="flex gap-2">
+                                    <input
+                                        className="kce-input flex-1"
+                                        value={highlightText}
+                                        onChange={e => setHighlightText(e.target.value)}
+                                        placeholder={t('highlight.placeholder')}
+                                        onKeyDown={async e => {
+                                            if (e.key === 'Enter' && highlightText.trim()) {
+                                                e.preventDefault()
+                                                setAddingHighlight(true)
+                                                try {
+                                                    await api.addHighlight(evening.id, {text: highlightText.trim()})
+                                                    setHighlightText('')
+                                                    invalidate()
+                                                } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
+                                            }
+                                        }}
+                                    />
+                                    <button className="btn-primary btn-sm flex-shrink-0"
+                                            disabled={!highlightText.trim() || addingHighlight}
+                                            onClick={async () => {
+                                                if (!highlightText.trim()) return
+                                                setAddingHighlight(true)
+                                                try {
+                                                    await api.addHighlight(evening.id, {text: highlightText.trim()})
+                                                    setHighlightText('')
+                                                    invalidate()
+                                                } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
+                                            }}>+</button>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 
