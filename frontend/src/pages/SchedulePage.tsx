@@ -1137,6 +1137,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     function handleStarted(eveningId: number) {
         setActiveEveningId(eveningId)
         qc.invalidateQueries({queryKey: ['evenings']})
+        qc.invalidateQueries({queryKey: ['schedule']})
         onNavigate?.()
     }
 

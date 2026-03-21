@@ -263,6 +263,9 @@ export function EveningPage() {
                             <button className="btn-danger btn-sm flex-1" onClick={async () => {
                                 await api.updateEvening(evening.id, {is_closed: true})
                                 setCloseConfirm(false)
+                                setActiveEveningId(null)
+                                qc.invalidateQueries({queryKey: ['evenings']})
+                                qc.invalidateQueries({queryKey: ['schedule']})
                                 invalidate()
                             }}>{t('action.done')}</button>
                         </div>
