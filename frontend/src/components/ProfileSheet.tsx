@@ -11,12 +11,13 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-function PushToggle({value, onChange}: { value: boolean; onChange: () => void }) {
+function PushToggle({value, onChange, disabled}: { value: boolean; onChange: () => void; disabled?: boolean }) {
     return (
         <button
-            onClick={onChange}
-            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2'].join(' ')}
+            onClick={disabled ? undefined : onChange}
+            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2', disabled ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
             aria-pressed={value}
+            disabled={disabled}
         >
             <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
         </button>
@@ -400,24 +401,6 @@ export function ProfileSheet({open, onClose}: Props) {
                                 {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
-                                {pushSubscribed && (
-                                    <button
-                                        onClick={async () => {
-                                            setPushTesting(true)
-                                            try {
-                                                await api.testPush()
-                                                showToast('Test-Benachrichtigung gesendet')
-                                            } catch (e: unknown) {
-                                                showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
-                                            } finally {
-                                                setPushTesting(false)
-                                            }
-                                        }}
-                                        disabled={pushTesting}
-                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all bg-kce-surface2 text-kce-muted">
-                                        {pushTesting ? '…' : 'Test'}
-                                    </button>
-                                )}
                                 <button
                                     onClick={handlePushToggle}
                                     disabled={pushLoading}
@@ -443,6 +426,11 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div className="kce-card p-4 space-y-2">
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
+                            </div>
+                            {/* Announcements are always on — not toggleable */}
+                            <div className="flex items-center justify-between py-0.5">
+                                <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
+                                <PushToggle value={true} onChange={() => {}} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
@@ -497,6 +485,27 @@ export function ProfileSheet({open, onClose}: Props) {
                                     <PushToggle value={!!pushPrefs.reminder_payments} onChange={() => togglePushPref('reminder_payments')} />
                                 </div>
                             )}
+
+                            {/* Test button — works even without VAPID (logs to bell panel) */}
+                            <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
+                                <span className="text-xs text-kce-muted">{t('push.testLabel')}</span>
+                                <button
+                                    onClick={async () => {
+                                        setPushTesting(true)
+                                        try {
+                                            await api.testPush()
+                                            showToast(t('push.testSent'))
+                                        } catch (e: unknown) {
+                                            showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
+                                        } finally {
+                                            setPushTesting(false)
+                                        }
+                                    }}
+                                    disabled={pushTesting}
+                                    className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-surface2 text-kce-muted active:opacity-60">
+                                    {pushTesting ? '…' : 'Test'}
+                                </button>
+                            </div>
                         </div>
                     )}
 

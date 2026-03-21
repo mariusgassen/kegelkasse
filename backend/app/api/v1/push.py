@@ -79,13 +79,18 @@ def status(db: Session = Depends(get_db), user: User = Depends(require_club_memb
 
 @router.post("/test")
 async def test_push(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Send a test push notification to all subscriptions of the current user (3s delay)."""
+    """Send a test push notification to the current user.
+
+    Always logs to notification_log (visible in the bell panel).
+    Also sends a Web Push if VAPID is configured and the user has a subscription.
+    """
+    from core.push import _log_notification, _send_one_raising
+    _log_notification(db, user.id, "Kegelkasse 🎳", "Push-Benachrichtigungen funktionieren!", "/")
     if not settings.VAPID_PRIVATE_KEY:
-        raise HTTPException(503, "Push notifications not configured")
+        return {"sent": 0, "logged": True, "errors": ["VAPID not configured — notification logged only"]}
     subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
     if not subs:
-        raise HTTPException(404, "No push subscription found for this device")
-    from core.push import _send_one_raising
+        return {"sent": 0, "logged": True, "errors": ["No push subscription — notification logged only"]}
     errors: list[str] = []
     sent = 0
     for sub in subs:
@@ -96,7 +101,7 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
             errors.append(str(exc))
     if errors and sent == 0:
         raise HTTPException(500, f"Push fehlgeschlagen: {errors[0]}")
-    return {"sent": sent, "errors": errors}
+    return {"sent": sent, "logged": True, "errors": errors}
 
 
 @router.get("/preferences")

@@ -97,7 +97,7 @@ def create_announcement(
         f"📣 {data.title.strip()}",
         push_body,
         "/#committee",
-        category="committee",
+        # No category — announcements are always delivered, not filterable
     )
     return _serialize_announcement(ann, author)
 
