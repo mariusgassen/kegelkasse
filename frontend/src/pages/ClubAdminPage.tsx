@@ -4,8 +4,8 @@
  */
 import {useEffect, useState} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {api, authState} from '@/api/client.ts'
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
+import {api, authState, downloadBackup} from '@/api/client.ts'
 import type {ReminderSettings, ReminderTypeSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
@@ -29,7 +29,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee', 'backups'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -64,6 +64,7 @@ export function ClubAdminPage() {
         {id: 'pins', label: t('club.tab.pins')},
         {id: 'committee', label: '🚌 VGA'},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
+        ...(user?.role === 'superadmin' ? [{id: 'backups', label: t('club.tab.backups')}] : []),
     ]
 
     return (
@@ -125,6 +126,9 @@ export function ClubAdminPage() {
                     )}
                     {tab === 'clubs' && user?.role === 'superadmin' && (
                         <SuperadminClubsTab qc={qc}/>
+                    )}
+                    {tab === 'backups' && user?.role === 'superadmin' && (
+                        <BackupsTab/>
                     )}
                 </div>
             )}
@@ -1124,6 +1128,121 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                     </div>
                 ))}
             </div>
+        </div>
+    )
+}
+
+// ── Superadmin: Database Backups ──
+function BackupsTab() {
+    const t = useT()
+    const qc = useQueryClient()
+    const {data, isLoading} = useQuery({queryKey: ['backups'], queryFn: api.listBackups})
+    const backups = data?.backups ?? []
+    const config = data?.config
+
+    const createMutation = useMutation({
+        mutationFn: api.createBackup,
+        onSuccess: () => {
+            qc.invalidateQueries({queryKey: ['backups']})
+            showToast(t('backup.success'))
+        },
+        onError: (e: Error) => showToast(t('backup.error') + ': ' + e.message),
+    })
+
+    const deleteMutation = useMutation({
+        mutationFn: (filename: string) => api.deleteBackup(filename),
+        onSuccess: () => {
+            qc.invalidateQueries({queryKey: ['backups']})
+            showToast(t('backup.deleted'))
+        },
+        onError: (e: Error) => showToast(e.message),
+    })
+
+    const handleDownload = async (filename: string) => {
+        try {
+            await downloadBackup(filename)
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : String(e))
+        }
+    }
+
+    const handleDelete = (filename: string) => {
+        if (!confirm(t('backup.delete.confirm'))) return
+        deleteMutation.mutate(filename)
+    }
+
+    const fmt = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    }
+
+    return (
+        <div className="space-y-4 p-1">
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-kce-primary">{t('backup.title')}</h3>
+                <button
+                    onClick={() => createMutation.mutate()}
+                    disabled={createMutation.isPending}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-kce-primary text-kce-bg disabled:opacity-50">
+                    {createMutation.isPending ? t('backup.triggering') : t('backup.trigger')}
+                </button>
+            </div>
+
+            {config && (
+                <div className="rounded-xl p-3 space-y-1.5" style={{background: 'var(--kce-surface2)'}}>
+                    <div className="text-xs font-bold text-kce-muted mb-2">{t('backup.config.title')}</div>
+                    <div className="flex justify-between text-xs">
+                        <span className="text-kce-muted">{t('backup.config.schedule')}</span>
+                        <span className="font-mono font-bold">{config.schedule}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                        <span className="text-kce-muted">{t('backup.config.retainDays')}</span>
+                        <span className="font-bold">{config.retain_days}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                        <span className="text-kce-muted">{t('backup.config.s3')}</span>
+                        <span className={`font-bold ${config.s3_enabled ? 'text-green-500' : 'text-kce-muted'}`}>
+                            {config.s3_enabled
+                                ? `${t('backup.config.s3Enabled')} — ${config.s3_bucket}`
+                                : t('backup.config.s3Disabled')}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {isLoading && <div className="text-xs text-kce-muted">{t('action.loading')}</div>}
+            {!isLoading && backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
+
+            {backups.length > 0 && (
+                <div className="space-y-2">
+                    {backups.map(b => (
+                        <div key={b.filename}
+                             className="rounded-xl p-3 flex items-center gap-3"
+                             style={{background: 'var(--kce-surface2)'}}>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-xs font-mono truncate">{b.filename}</div>
+                                <div className="text-[11px] text-kce-muted mt-0.5">
+                                    {fmt(b.size_bytes)} · {new Date(b.created_at).toLocaleString()}
+                                </div>
+                            </div>
+                            <div className="flex gap-1.5 flex-shrink-0">
+                                <button
+                                    onClick={() => handleDownload(b.filename)}
+                                    className="px-2 py-1 rounded-lg text-[11px] font-bold bg-kce-surface2 border border-kce-border">
+                                    ⬇️
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(b.filename)}
+                                    disabled={deleteMutation.isPending}
+                                    className="px-2 py-1 rounded-lg text-[11px] font-bold text-red-400 bg-kce-surface2 border border-kce-border disabled:opacity-50">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

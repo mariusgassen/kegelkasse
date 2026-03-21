@@ -16,6 +16,18 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_CLAIM_EMAIL: ${VAPID_CLAIM_EMAIL:-}
       CORS_ALLOW_ORIGIN: '${CORS_ALLOW_ORIGIN:-}'
+      # Database backups
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
+      BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-7}
+      # S3-compatible storage — leave S3_BUCKET empty to disable S3 uploads
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-kegelkasse/backups}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+    volumes:
+      - backup_data:/backups
     depends_on:
       db:
         condition: service_healthy
@@ -28,7 +40,7 @@ services:
 
   db:
     container_name: kegelkasse_db
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: kegelkasse
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -44,3 +56,4 @@ services:
 
 volumes:
   postgres_data:
+  backup_data:
