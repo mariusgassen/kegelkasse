@@ -1,4 +1,4 @@
-"""APScheduler setup — daily reminder job."""
+"""APScheduler setup — daily reminder and database backup jobs."""
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -11,6 +11,16 @@ scheduler = AsyncIOScheduler()
 
 def start_scheduler() -> None:
     scheduler.add_job(run_daily_reminders, CronTrigger(hour=9, minute=0), id="daily_reminders", replace_existing=True)
+
+    from core.config import settings
+    if settings.BACKUP_SCHEDULE:
+        try:
+            trigger = CronTrigger.from_crontab(settings.BACKUP_SCHEDULE)
+            scheduler.add_job(run_scheduled_backup, trigger, id="db_backup", replace_existing=True)
+            logger.info(f"Backup job scheduled: {settings.BACKUP_SCHEDULE}")
+        except Exception as e:
+            logger.warning(f"Invalid BACKUP_SCHEDULE '{settings.BACKUP_SCHEDULE}': {e} — backup job not scheduled")
+
     scheduler.start()
     logger.info("Scheduler started — daily reminders at 09:00")
 
@@ -18,6 +28,17 @@ def start_scheduler() -> None:
 def stop_scheduler() -> None:
     scheduler.shutdown(wait=False)
     logger.info("Scheduler stopped")
+
+
+async def run_scheduled_backup() -> None:
+    """Entry point for the scheduled database backup job."""
+    from services.backup import run_backup
+    logger.info("Running scheduled database backup")
+    try:
+        result = await run_backup()
+        logger.info(f"Scheduled backup complete: {result['filename']} ({result['size_bytes']} bytes)")
+    except Exception as e:
+        logger.error(f"Scheduled backup failed: {e}")
 
 
 async def run_daily_reminders() -> None:

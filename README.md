@@ -47,6 +47,23 @@ docker compose exec app python -m app.scripts.create_admin
 3. Set env vars (see `.env.example`)
 4. Deploy — migrations + admin seed run automatically
 
+### Database backups
+
+Automatic backups run on a configurable cron schedule (default: daily at 02:00 UTC) via APScheduler inside the app container. Backups are stored in a Docker volume (`backup_data`) mounted at `/backups`.
+
+Optional S3 upload to any S3-compatible storage (AWS S3, Hetzner Object Storage, MinIO, etc.) — configure via env vars:
+
+```env
+BACKUP_SCHEDULE=0 2 * * *
+BACKUP_RETAIN_DAYS=7
+S3_BUCKET=my-bucket
+S3_ENDPOINT_URL=https://fsn1.your-objectstorage.com   # Hetzner example
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+Superadmins can list, trigger, download, and delete backups in the app under **Verein → 💾 Backups**.
+
 ## Roles
 
 | Role       | Access                                   |

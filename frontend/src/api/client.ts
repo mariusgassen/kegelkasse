@@ -476,6 +476,32 @@ export const api = {
     deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),
     setCommitteeMember: (memberId: number, isCommittee: boolean) =>
         request<{ id: number; is_committee: boolean }>('PATCH', `/club/members/${memberId}/committee`, {is_committee: isCommittee}),
+
+    // Backups (superadmin only)
+    listBackups: () => request<{
+        backups: { filename: string; size_bytes: number; created_at: string }[];
+        config: { schedule: string; retain_days: number; s3_enabled: boolean; s3_bucket: string | null; s3_prefix: string; backup_dir: string };
+    }>('GET', '/backups'),
+    createBackup: () => request<{ filename: string; size_bytes: number; created_at: string; s3_path: string | null }>('POST', '/backups'),
+    deleteBackup: (filename: string) => request<{ ok: boolean }>('DELETE', `/backups/${encodeURIComponent(filename)}`),
+}
+
+/**
+ * Download a backup file by triggering a browser download.
+ * Uses auth header since the endpoint is protected.
+ */
+export async function downloadBackup(filename: string): Promise<void> {
+    const headers: Record<string, string> = {}
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(`${API_BASE}/backups/${encodeURIComponent(filename)}/download`, {headers})
+    if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
 }
 
 /**

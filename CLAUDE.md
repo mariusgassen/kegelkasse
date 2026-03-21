@@ -159,6 +159,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 30 | **Vergnügungsausschuss**           | ✅      | VA-Mitglieder (is_committee Flag), Kegelfahrten (club_trip), Ankündigungen (club_announcement) mit Push; Migrationen 032–034; 🚌-Tab für alle; VA-Verwaltung im Verein-Tab |
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
 | 17 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
+| 32 | **Datenbank-Backups**              | ✅      | pg_dump in app-Container (postgresql-client + boto3); APScheduler-Cron-Job; /backups-Volume (Disk); optionaler S3-Upload (S3-kompatibel); Superadmin-Tab in Vereinsseite: Liste, Manuell auslösen, Herunterladen, Löschen; Konfig-Anzeige (Schedule, Retention, S3); env-vars in .env.example |
 | 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | ✅      | Spieltermine & RSVP (SchedulePage); Abwesenheitsstrafen auto beim Start-aus-Termin; no_cancel_fee nur wenn RSVP vorhanden; Gäste ohne regular_member_id werden beim Start automatisch als RegularMember angelegt |
