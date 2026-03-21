@@ -24,6 +24,18 @@ def pgb(*args: str) -> subprocess.CompletedProcess:
     )
 
 
+def _extract_json(output: str) -> list:
+    """
+    Extract the JSON array from pgbackrest output.
+    pgbackrest may emit log/warning lines before the JSON when env vars like
+    PGBACKREST_MGMT_URL are present — we skip those and find the first '['.
+    """
+    idx = output.find("[")
+    if idx >= 0:
+        return json.loads(output[idx:])
+    return []
+
+
 def _ensure_stanza() -> bool:
     """Run stanza-create; return True on success."""
     r = pgb("stanza-create", "--log-level-stderr=info")
@@ -62,10 +74,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/info":
             r = pgb("info", "--output=json")
-            if r.returncode == 0 and r.stdout.strip():
-                self._json(json.loads(r.stdout))
-            elif r.returncode == 0:
-                self._json([])
+            if r.returncode == 0:
+                self._json(_extract_json(r.stdout))
             else:
                 self._json({"error": r.stderr.strip()}, 500)
         elif parsed.path == "/health":
@@ -94,7 +104,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             r = pgb("backup", f"--type={btype}")
             if r.returncode == 0:
                 info_r = pgb("info", "--output=json")
-                info = json.loads(info_r.stdout) if info_r.returncode == 0 and info_r.stdout.strip() else []
+                info = _extract_json(info_r.stdout) if info_r.returncode == 0 else []
                 self._json({"ok": True, "info": info})
             else:
                 self._json({"error": r.stderr.strip()}, 500)
