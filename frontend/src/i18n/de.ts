@@ -557,7 +557,7 @@ export const de = {
     "quickEntry.recent": "Letzte Einträge",
     "quickEntry.logged": "✓ Eingetragen",
     "nav.committee": "Ausflug",
-    "committee.title": "VGA",
+    "committee.title": "Vergnügungsausschuss",
     "committee.tab.announcements": "📣 Ankündigungen",
     "committee.tab.trips": "🚌 Kegelfahrten",
     "committee.announcement.new": "📣 Neue Ankündigung",
@@ -576,9 +576,9 @@ export const de = {
     "committee.trip.none": "Noch keine Kegelfahrten geplant.",
     "committee.trip.deleteConfirm": "Kegelfahrt wirklich löschen?",
     "committee.trip.edit": "✏️ Kegelfahrt bearbeiten",
-    "committee.members": "VGA-Mitglieder",
+    "committee.members": "Vergnügungsausschuss-Mitglieder",
     "committee.membersHint": "Diese Mitglieder können Ankündigungen und Kegelfahrten einstellen.",
-    "committee.noMembers": "Noch keine VGA-Mitglieder ernannt.",
+    "committee.noMembers": "Noch keine Vergnügungsausschuss-Mitglieder ernannt.",
     "committee.isCommittee": "VGA-Mitglied",
 } as const
 
