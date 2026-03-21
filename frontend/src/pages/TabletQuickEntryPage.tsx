@@ -50,11 +50,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             return a.name.localeCompare(b.name)
         }), [players, user?.regular_member_id])
 
-    // Group penalty types by default_amount, sort groups ascending by amount
+    // Group penalty types by default_amount, sort groups ascending by amount; skip 0€ groups
     const penaltyGroups = useMemo(() => {
         const map = new Map<number, PenaltyType[]>()
         const sorted = [...penaltyTypes].sort((a, b) => a.sort_order - b.sort_order)
         for (const pt of sorted) {
+            if (pt.default_amount === 0) continue
             const key = pt.default_amount
             if (!map.has(key)) map.set(key, [])
             map.get(key)!.push(pt)
@@ -276,11 +277,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </div>
 
                 {/* Column 2: Penalties */}
-                <div className="flex-1 overflow-y-auto p-2" style={{borderRight: '1px solid var(--kce-border)'}}>
+                <div className="flex-1 overflow-y-auto p-3" style={{borderRight: '1px solid var(--kce-border)'}}>
                     {penaltyGroups.map(([amount, types]) => (
-                        <div key={amount} className="mb-3">
-                            <div className="field-label mb-1.5">{fe(amount)}</div>
-                            <div className="flex flex-wrap gap-1.5">
+                        <div key={amount} className="mb-4">
+                            <div className="field-label mb-2">{fe(amount)}</div>
+                            <div className="flex flex-wrap gap-2">
                                 {types.map(pt => {
                                     const isFlashing = flashingPenaltyId === pt.id
                                     const isLoading = loadingPenaltyId === pt.id
@@ -289,7 +290,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             key={pt.id}
                                             type="button"
                                             disabled={noSelection || isLoading}
-                                            className={`px-3 py-2 rounded-xl border font-bold text-xs
+                                            className={`px-4 py-3 rounded-xl border font-bold text-sm
                                                 transition-all active:scale-95
                                                 disabled:opacity-40 disabled:cursor-not-allowed
                                             `}
@@ -305,12 +306,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     ))}
                 </div>
 
-                {/* Column 3: Drinks */}
+                {/* Column 3: Drinks — compact icon-only buttons */}
                 <div
-                    className="overflow-y-auto p-2 flex flex-col gap-2"
-                    style={{width: '22%', flexShrink: 0}}
+                    className="overflow-y-auto p-2 flex flex-col gap-2 items-center"
+                    style={{width: '13%', flexShrink: 0}}
                 >
-                    <div className="field-label mb-0.5">{t('drinks.title')}</div>
+                    <div className="field-label mb-0.5 text-center w-full">{t('drinks.title')}</div>
                     {(['beer', 'shots'] as const).map(dt => {
                         const isFlashing = flashingDrink === dt
                         const isLoading = loadingDrink === dt
@@ -319,18 +320,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 key={dt}
                                 type="button"
                                 disabled={noSelection || isLoading}
-                                className={`w-full px-2 py-3 rounded-xl border font-bold text-sm
-                                    transition-all active:scale-95 flex flex-col items-center gap-1
+                                className={`w-full px-1 py-3 rounded-xl border font-bold
+                                    transition-all active:scale-95 flex flex-col items-center gap-0.5
                                     disabled:opacity-40 disabled:cursor-not-allowed
                                 `}
                                 style={drinkBtnStyle(isFlashing)}
                                 onClick={() => logDrink(dt)}
+                                title={dt === 'beer' ? t('drinks.beer') : t('drinks.shots')}
                             >
-                                <span className="text-xl leading-none">
+                                <span className="text-2xl leading-none">
                                     {isFlashing ? '✓' : dt === 'beer' ? '🍺' : '🥃'}
-                                </span>
-                                <span className="text-xs">
-                                    {dt === 'beer' ? t('drinks.beer') : t('drinks.shots')}
                                 </span>
                             </button>
                         )
