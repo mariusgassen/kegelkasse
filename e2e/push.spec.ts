@@ -210,9 +210,11 @@ test.describe('Unsubscribe flow', () => {
         await openProfileSheet(page)
 
         const unsubscribeBtn = page.getByRole('button', { name: /deaktivier|disable|abbestellen/i })
-        await unsubscribeBtn.click()
+        await expect(unsubscribeBtn).toBeVisible({ timeout: 10_000 })
 
-        await page.waitForResponse('**/push/unsubscribe**', { timeout: 10_000 })
+        const responsePromise = page.waitForResponse('**/push/unsubscribe**', { timeout: 10_000 })
+        await unsubscribeBtn.click()
+        await responsePromise
         expect(unsubscribeCalled).toBe(true)
     })
 })
