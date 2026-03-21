@@ -142,13 +142,15 @@ self.addEventListener('notificationclick', (event) => {
     const rid = notifData.rid as number | undefined
     const action = event.action
 
+    const absoluteActionUrl = url.startsWith('http') ? url : new URL(url, self.location.origin).href
+
     // Handle payment-request action buttons (confirm / reject)
     if ((action === 'confirm' || action === 'reject') && rid) {
         event.waitUntil(
             getStoredToken().then((token) => {
                 if (!token) {
                     // No token available — open the treasury page so the admin can act manually
-                    return self.clients.openWindow(url)
+                    return self.clients.openWindow(absoluteActionUrl)
                 }
                 return fetch(`/api/v1/club/payment-requests/${rid}/${action}`, {
                     method: 'PATCH',
@@ -159,10 +161,11 @@ self.addEventListener('notificationclick', (event) => {
                         .then((clients) => {
                             for (const c of clients) {
                                 if ('navigate' in c) {
-                                    ;(c as WindowClient).navigate(url)
-                                    return (c as WindowClient).focus()
+                                    return (c as WindowClient).navigate(absoluteActionUrl)
+                                        .then((client) => (client ?? c).focus())
                                 }
                             }
+                            return self.clients.openWindow(absoluteActionUrl)
                         })
                 })
             })
@@ -170,16 +173,17 @@ self.addEventListener('notificationclick', (event) => {
         return
     }
 
+    // WindowClient.navigate() requires an absolute URL in most browsers
+    const absoluteUrl = url.startsWith('http') ? url : new URL(url, self.location.origin).href
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: readonly WindowClient[]) => {
             // Find an existing window and navigate it to the target URL
             for (const c of windowClients) {
                 if ('navigate' in c) {
-                    ;(c as WindowClient).navigate(url)
-                    return (c as WindowClient).focus()
+                    return (c as WindowClient).navigate(absoluteUrl).then((client) => (client ?? c).focus())
                 }
             }
-            return self.clients.openWindow(url)
+            return self.clients.openWindow(absoluteUrl)
         })
     )
 })

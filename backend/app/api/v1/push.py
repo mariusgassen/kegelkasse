@@ -1,4 +1,5 @@
 """Web Push subscription endpoints."""
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_admin, require_club_member
 from core.config import settings
 from core.database import get_db
-from models.push import PushSubscription
+from models.push import NotificationLog, PushSubscription
 from models.user import User
 
 _DEFAULT_PREFS = {
@@ -151,6 +152,29 @@ def debug_push(db: Session = Depends(get_db), user: User = Depends(require_club_
             for s in subs
         ],
     }
+
+
+@router.get("/recent")
+def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Return notifications from the last 30 days for the current user (hybrid loading)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    logs = (
+        db.query(NotificationLog)
+        .filter(NotificationLog.user_id == user.id, NotificationLog.created_at >= cutoff)
+        .order_by(NotificationLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": log.id,
+            "title": log.title,
+            "body": log.body,
+            "url": log.url,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]
 
 
 @router.post("/trigger-reminders")

@@ -565,7 +565,8 @@ class PaymentCreate(BaseModel):
 
 
 @router.post("/member-payments", status_code=201)
-def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
+def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks,
+                           db: Session = Depends(get_db),
                            user: User = Depends(require_club_admin)):
     member = db.query(RegularMember).filter(
         RegularMember.id == data.regular_member_id, RegularMember.club_id == user.club_id
@@ -582,8 +583,9 @@ def create_member_payment(data: PaymentCreate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(payment)
     fee = f"{data.amount:.2f}".replace('.', ',')
-    push_to_regular_member(db, data.regular_member_id, "💰 Einzahlung erfasst",
-                           f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
+    background_tasks.add_task(
+        push_to_regular_member, db, data.regular_member_id, "💰 Einzahlung erfasst",
+        f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
     return {"id": payment.id, "amount": payment.amount, "note": payment.note,
             "created_at": payment.created_at.isoformat() if payment.created_at else None}
 
@@ -903,7 +905,8 @@ def create_payment_request(data: PaymentRequestCreate,
 
 
 @router.patch("/payment-requests/{rid}/confirm", status_code=200)
-def confirm_payment_request(rid: int, db: Session = Depends(get_db),
+def confirm_payment_request(rid: int, background_tasks: BackgroundTasks,
+                             db: Session = Depends(get_db),
                              user: User = Depends(require_club_admin)):
     """Admin: confirm request → creates a MemberPayment and marks request confirmed."""
     req = db.query(PaymentRequest).filter(
@@ -929,14 +932,16 @@ def confirm_payment_request(rid: int, db: Session = Depends(get_db),
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     member_name = (member.nickname or member.name) if member else ""
     fee = f"{req.amount:.2f}".replace('.', ',')
-    push_to_regular_member(db, req.regular_member_id, "✅ Zahlung bestätigt",
-                           f"{fee}€ wurden in dein Konto eingetragen.",
-                           f"/#treasury:bookings?memberName={member_name}", category="payments")
+    background_tasks.add_task(
+        push_to_regular_member, db, req.regular_member_id, "✅ Zahlung bestätigt",
+        f"{fee}€ wurden in dein Konto eingetragen.",
+        f"/#treasury:bookings?memberName={member_name}", "payments")
     return _fmt_request(req, member_name)
 
 
 @router.patch("/payment-requests/{rid}/reject", status_code=200)
-def reject_payment_request(rid: int, db: Session = Depends(get_db),
+def reject_payment_request(rid: int, background_tasks: BackgroundTasks,
+                            db: Session = Depends(get_db),
                             user: User = Depends(require_club_admin)):
     """Admin: reject a payment request."""
     req = db.query(PaymentRequest).filter(
@@ -953,9 +958,10 @@ def reject_payment_request(rid: int, db: Session = Depends(get_db),
     db.refresh(req)
     member = db.query(RegularMember).filter(RegularMember.id == req.regular_member_id).first()
     member_name = (member.nickname or member.name) if member else ""
-    push_to_regular_member(db, req.regular_member_id, "❌ Zahlung abgelehnt",
-                           f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.",
-                           f"/#treasury:accounts?member={member.id}&memberName={member_name}", category="payments")
+    background_tasks.add_task(
+        push_to_regular_member, db, req.regular_member_id, "❌ Zahlung abgelehnt",
+        f"Deine Zahlungsanfrage über {req.amount:.2f}€ wurde abgelehnt.",
+        f"/#treasury:accounts?member={member.id}&memberName={member_name}", "payments")
     return _fmt_request(req, member_name)
 
 
@@ -1029,7 +1035,7 @@ def broadcast_push(data: BroadcastPushRequest, background_tasks: BackgroundTasks
 
 
 @router.post("/remind-debtors", status_code=200)
-def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def remind_debtors(background_tasks: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
     """Admin: send push notification to every member with outstanding debt."""
     members = db.query(RegularMember).filter(
         RegularMember.club_id == user.club_id,
@@ -1086,8 +1092,8 @@ def remind_debtors(db: Session = Depends(get_db), user: User = Depends(require_c
         balance = round(payments_total - penalty_total, 2)
         if balance < -0.01:
             debt_str = f"{abs(balance):.2f}".replace('.', ',')
-            push_to_regular_member(
-                db, m.id,
+            background_tasks.add_task(
+                push_to_regular_member, db, m.id,
                 "💳 Offener Betrag",
                 f"Du hast noch {debt_str}€ offen in der Vereinskasse.",
                 f"/#treasury:accounts?member={m.id}&memberName={m.nickname or m.name}",

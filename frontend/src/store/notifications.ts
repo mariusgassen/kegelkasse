@@ -4,7 +4,7 @@ import type {NotificationItem} from '../types'
 
 interface NotificationState {
     notifications: NotificationItem[]
-    addNotification: (item: Omit<NotificationItem, 'id' | 'receivedAt' | 'read'>) => void
+    addNotification: (item: Omit<NotificationItem, 'id' | 'receivedAt' | 'read'> & {serverCreatedAt?: string}) => void
     markAllRead: () => void
     dismiss: (id: string) => void
     clearAll: () => void
@@ -14,21 +14,25 @@ export const useNotificationStore = create<NotificationState>()(
     persist(
         (set) => ({
             notifications: [],
-            addNotification: (item) => set((s) => {
-                // Deduplicate: skip if same title+body+url already added within last 60 seconds
-                const cutoff = Date.now() - 60_000
-                const isDupe = s.notifications.some(n =>
-                    n.title === item.title &&
-                    n.body === item.body &&
-                    n.url === item.url &&
-                    new Date(n.receivedAt).getTime() > cutoff
-                )
-                if (isDupe) return s
+            addNotification: ({serverCreatedAt, ...item}) => set((s) => {
+                // Deduplicate by serverLogId (server-fetched) or by title+body+url within 60s (SW/live)
+                if (item.serverLogId != null) {
+                    if (s.notifications.some(n => n.serverLogId === item.serverLogId)) return s
+                } else {
+                    const cutoff = Date.now() - 60_000
+                    const isDupe = s.notifications.some(n =>
+                        n.title === item.title &&
+                        n.body === item.body &&
+                        n.url === item.url &&
+                        new Date(n.receivedAt).getTime() > cutoff
+                    )
+                    if (isDupe) return s
+                }
                 return {
                     notifications: [{
                         ...item,
                         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                        receivedAt: new Date().toISOString(),
+                        receivedAt: serverCreatedAt ?? new Date().toISOString(),
                         read: false,
                     }, ...s.notifications].slice(0, 50),
                 }

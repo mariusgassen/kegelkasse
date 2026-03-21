@@ -666,7 +666,8 @@ class GameFinish(BaseModel):
     loser_penalty: Optional[float] = None  # override game default
 
 
-def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, user: User):
+def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, user: User,
+                          background_tasks: BackgroundTasks = None):
     """Delete existing auto-penalties for this game, then recreate."""
     db.query(PenaltyLog).filter(
         PenaltyLog.game_id == g.id,
@@ -703,8 +704,14 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
         ))
         if p.regular_member_id:
             fee = f"{total_penalty:.2f}".replace('.', ',')
-            push_to_regular_member(db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
-                                   f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening:penalties", category="penalties")
+            if background_tasks:
+                background_tasks.add_task(
+                    push_to_regular_member, db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
+                    f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening:penalties", "penalties")
+            else:
+                push_to_regular_member(db, p.regular_member_id, f"🏆 Spielstrafe: {g.name}",
+                                       f"{fee}€ — {e.date.strftime('%d.%m.%Y')}", "/#evening:penalties",
+                                       category="penalties")
 
 
 @router.post("/{eid}/games/{gid}/finish")
@@ -722,7 +729,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
     if g.status != "finished":
         g.status = "finished"
         g.finished_at = datetime.now(UTC)
-    _apply_game_penalties(e, g, data.winner_ref, db, user)
+    _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
     # King: opener game with individual winner → set king flag
     if g.is_opener and data.winner_ref.startswith("p:"):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
@@ -733,9 +740,10 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             if winner_player:
                 winner_player.is_king = True
                 if winner_player.regular_member_id:
-                    push_to_regular_member(db, winner_player.regular_member_id, "👑 Du bist König!",
-                                           f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
-                                           "/#evening:games", category="games")
+                    background_tasks.add_task(
+                        push_to_regular_member, db, winner_player.regular_member_id, "👑 Du bist König!",
+                        f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
+                        "/#evening:games", "games")
         except (ValueError, IndexError):
             pass
     db.commit()

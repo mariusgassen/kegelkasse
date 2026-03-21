@@ -7,6 +7,7 @@ export interface NotificationItem {
     url: string
     receivedAt: string  // ISO timestamp
     read: boolean
+    serverLogId?: number  // set when loaded from the server notification log (for deduplication)
 }
 
 
