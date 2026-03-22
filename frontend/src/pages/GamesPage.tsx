@@ -93,6 +93,7 @@ export function GamesPage() {
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
         const wt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
         setWinnerType(wt)
+        if (tmpl.turn_mode) setTurnMode(tmpl.turn_mode)
     }
 
     function openAddSheet() {

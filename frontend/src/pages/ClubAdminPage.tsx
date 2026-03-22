@@ -712,7 +712,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
     const [editing, setEditing] = useState<GameTemplate | null>(null)
     const [name, setName] = useState('')
     const [desc, setDesc] = useState('')
-    const [wtype, setWtype] = useState('either')
+    const [wtype, setWtype] = useState('individual')
+    const [tmMode, setTmMode] = useState('alternating')
     const [isOpener, setIsOpener] = useState(false)
     const [penalty, setPenalty] = useState('0')
     const [perPoint, setPerPoint] = useState('0')
@@ -721,7 +722,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setEditing(null);
         setName('');
         setDesc('');
-        setWtype('either');
+        setWtype('individual');
+        setTmMode('alternating');
         setIsOpener(false);
         setPenalty('0');
         setPerPoint('0');
@@ -732,6 +734,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setName(gt.name);
         setDesc(gt.description || '');
         setWtype(gt.winner_type);
+        setTmMode(gt.turn_mode ?? 'alternating');
         setIsOpener(gt.is_opener);
         setPenalty(String(gt.default_loser_penalty));
         setPerPoint(String(gt.per_point_penalty ?? 0));
@@ -742,6 +745,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         if (!name.trim()) return
         const d = {
             name, description: desc || undefined, winner_type: wtype,
+            turn_mode: wtype === 'team' ? tmMode : null,
             is_opener: isOpener,
             default_loser_penalty: parseAmount(penalty),
             per_point_penalty: parseAmount(perPoint), sort_order: 0
@@ -765,7 +769,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         </div>
                         {gt.description && <div className="text-xs text-kce-muted mt-0.5">{gt.description}</div>}
                         <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] text-kce-muted">{gt.winner_type}</span>
+                            <span className="text-[10px] text-kce-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
                             {gt.default_loser_penalty > 0 &&
                                 <span className="text-[10px] text-red-400">{fe(gt.default_loser_penalty)}</span>}
                             {(gt.per_point_penalty ?? 0) > 0 &&
@@ -797,6 +801,20 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             <option value="individual">{t('club.template.winnerType.individual')}</option>
                             <option value="team">{t('club.template.winnerType.team')}</option>
                         </select></div>
+                    {wtype === 'team' && (
+                        <div>
+                            <div className="field-label">{t('game.turnMode')}</div>
+                            <div className="flex gap-1.5">
+                                {(['alternating', 'block'] as const).map(tm => (
+                                    <button key={tm} type="button"
+                                            className={`chip flex-1 text-center ${tmMode === tm ? 'active' : ''}`}
+                                            onClick={() => setTmMode(tm)}>
+                                        {t(`game.turnMode.${tm}` as any)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="flex items-center gap-3">
                         <input type="checkbox" id="is-opener" checked={isOpener}
                                onChange={e => setIsOpener(e.target.checked)}/>

@@ -545,14 +545,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 )}
                             </div>
                             <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
-                                {evening!.teams.map(team => (
+                                {activeGame.winner_type === 'team' && evening!.teams.map(team => (
                                     <button key={team.id} type="button"
                                             className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
                                             onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
                                         {team.name}
                                     </button>
                                 ))}
-                                {evening!.players.map(p => (
+                                {activeGame.winner_type === 'individual' && evening!.players.map(p => (
                                     <button key={p.id} type="button"
                                             className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
                                             onClick={() => setFinishWinnerRef(`p:${p.id}`)}>

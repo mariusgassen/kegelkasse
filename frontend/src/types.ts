@@ -166,6 +166,7 @@ export interface GameTemplate {
     name: string
     description: string | null
     winner_type: WinnerType
+    turn_mode: TurnMode | null
     is_opener: boolean
     default_loser_penalty: number
     per_point_penalty: number
