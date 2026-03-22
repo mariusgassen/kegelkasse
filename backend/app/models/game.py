@@ -16,7 +16,7 @@ class GameStatus(str, enum.Enum):
 class WinnerType(str, enum.Enum):
     team = "team"
     individual = "individual"
-    either = "either"  # template accepts both
+    # Note: 'either' kept in DB enum for legacy rows; data migrated via 039
 
 
 class GameTemplate(Base):
@@ -49,7 +49,8 @@ class Game(Base):
     name = Column(String, nullable=False)
     is_opener = Column(Boolean, default=False)  # opening/crown game flag
     is_president_game = Column(Boolean, default=False)  # winner becomes president for this year
-    winner_type = Column(Enum(WinnerType), default=WinnerType.either)
+    winner_type = Column(Enum(WinnerType), default=WinnerType.individual)
+    turn_mode = Column(String(20), nullable=True)  # 'alternating' | 'block' (team games only)
     winner_ref = Column(String, nullable=True)  # "t:{team_id}" or "p:{player_id}"
     winner_name = Column(String, nullable=True)
     scores = Column(JSON, default=dict)  # {"t:1": 42, "p:3": 38}

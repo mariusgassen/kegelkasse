@@ -158,7 +158,8 @@ export interface ClubTeam {
     sort_order: number
 }
 
-export type WinnerType = 'team' | 'individual' | 'either'
+export type WinnerType = 'team' | 'individual'
+export type TurnMode = 'alternating' | 'block'
 
 export interface GameTemplate {
     id: number
@@ -225,6 +226,7 @@ export interface Game {
     template_id: number | null
     is_opener: boolean
     winner_type: WinnerType
+    turn_mode: TurnMode | null
     winner_ref: string | null
     winner_name: string | null
     scores: Record<string, number>

@@ -73,8 +73,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
     const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
-    // Turn order state
-    const [turnMode, setTurnMode] = useState<'alternating' | 'block'>('alternating')
+    // Turn order state (mode comes from the game's turn_mode field)
     const [blockTeamIdx, setBlockTeamIdx] = useState(0)
     const [currentTurnIdx, setCurrentTurnIdx] = useState(0)
 
@@ -136,17 +135,20 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         return events.sort((a, b) => b.time - a.time).slice(0, 8)
     }, [evening])
 
-    // Running game + throw data (live via SSE)
-    const runningGame: Game | undefined = useMemo(() =>
-        evening?.games.find(g => g.status === 'running' && !(g as any).is_deleted),
+    // Active game for the strip: show for any open or running game (turn order is useful pre-start too)
+    const activeGame: Game | undefined = useMemo(() =>
+        evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted),
         [evening])
-    const liveThrows = runningGame?.throws ?? []
+    // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
+    const runningGame = activeGame?.status === 'running' ? activeGame : undefined
+    const liveThrows = activeGame?.throws ?? []
 
-    // Turn order for current running game
+    // Turn order — mode is fixed on the game, not a runtime choice
     const teams = evening?.teams ?? []
+    const gameTurnMode = activeGame?.turn_mode ?? 'alternating'
     const turnOrder = useMemo(() =>
-        buildTurnOrder(players, teams, turnMode, blockTeamIdx),
-        [players, teams, turnMode, blockTeamIdx])
+        buildTurnOrder(players, teams, gameTurnMode, blockTeamIdx),
+        [players, teams, gameTurnMode, blockTeamIdx])
     const currentPlayer = turnOrder.length > 0
         ? turnOrder[currentTurnIdx % turnOrder.length]
         : null
@@ -349,8 +351,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </button>
             </div>
 
-            {/* ── Camera throw strip + turn order (when game is running) ── */}
-            {runningGame && (
+            {/* ── Teams required warning ── */}
+            {teams.length === 0 && (
+                <div style={{
+                    flexShrink: 0, padding: '8px 12px',
+                    background: 'rgba(239,68,68,0.1)',
+                    borderBottom: '1px solid rgba(239,68,68,0.3)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                    <span style={{fontSize: 12}}>⚠️</span>
+                    <span style={{fontSize: 11, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
+                </div>
+            )}
+
+            {/* ── Camera throw strip + turn order (for any active game) ── */}
+            {activeGame && (
                 <div style={{
                     flexShrink: 0,
                     background: 'color-mix(in srgb, var(--kce-primary) 8%, var(--kce-surface))',
@@ -366,29 +381,24 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             fontSize: 10, fontWeight: 'bold',
                             color: 'var(--kce-primary)', flexShrink: 0,
                         }}>
-                            🎳 {runningGame.name}
+                            🎳 {activeGame.name}
+                            {activeGame.status === 'open' && (
+                                <span style={{fontSize: 9, color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 4}}>
+                                    (offen)
+                                </span>
+                            )}
                         </span>
 
-                        {/* Turn mode chips */}
-                        {teams.length > 1 && (
-                            <>
-                                <button
-                                    type="button"
-                                    className={`chip ${turnMode === 'alternating' ? 'active' : ''}`}
-                                    style={{fontSize: 9, padding: '1px 6px'}}
-                                    onClick={() => { setTurnMode('alternating'); resetTurn() }}
-                                >
-                                    {t('quickEntry.modeAlternating')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`chip ${turnMode === 'block' ? 'active' : ''}`}
-                                    style={{fontSize: 9, padding: '1px 6px'}}
-                                    onClick={() => { setTurnMode('block'); resetTurn() }}
-                                >
-                                    {t('quickEntry.modeBlock')}
-                                </button>
-                            </>
+                        {/* Turn mode badge — read-only, set on the game */}
+                        {activeGame.turn_mode && (
+                            <span style={{
+                                fontSize: 9, padding: '1px 6px',
+                                borderRadius: 6, border: '1px solid var(--kce-border)',
+                                color: 'var(--kce-muted)', background: 'var(--kce-surface2)',
+                                flexShrink: 0,
+                            }}>
+                                {t(`game.turnMode.${activeGame.turn_mode}` as any)}
+                            </span>
                         )}
 
                         <div style={{flex: 1}}/>
@@ -439,7 +449,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             <div style={{flex: 1}}/>
 
                             {/* Block mode: switch team button */}
-                            {turnMode === 'block' && teams.length > 1 && (
+                            {gameTurnMode === 'block' && teams.length > 1 && (
                                 <button
                                     type="button"
                                     className="btn-secondary btn-xs"
@@ -504,7 +514,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                                 opacity: voidingThrowId === th.id ? 0.4 : 1,
                                             }}
                                             title={t('quickEntry.voidThrow')}
-                                            onClick={() => handleVoidThrow(runningGame.id, th.id)}
+                                            onClick={() => handleVoidThrow(activeGame.id, th.id)}
                                         >
                                             ✕
                                         </button>
@@ -527,7 +537,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 fontSize: 11, fontWeight: 'bold',
                                 color: 'var(--kce-cream)', marginBottom: 8,
                             }}>
-                                🏁 {runningGame.name} — {t('quickEntry.selectWinner')}
+                                🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
                                 {lastThrow?.cumulative != null && (
                                     <span style={{color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 8}}>
                                         {t('quickEntry.gameScore')}: <strong style={{color: 'var(--kce-cream)'}}>{lastThrow.cumulative}</strong>

@@ -794,9 +794,8 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
                     <div><label className="field-label">{t('club.template.winnerType')}</label>
                         <select className="kce-input" value={wtype} onChange={e => setWtype(e.target.value)}>
-                            <option value="either">{t('club.template.winnerType.either')}</option>
-                            <option value="team">{t('club.template.winnerType.team')}</option>
                             <option value="individual">{t('club.template.winnerType.individual')}</option>
+                            <option value="team">{t('club.template.winnerType.team')}</option>
                         </select></div>
                     <div className="flex items-center gap-3">
                         <input type="checkbox" id="is-opener" checked={isOpener}
