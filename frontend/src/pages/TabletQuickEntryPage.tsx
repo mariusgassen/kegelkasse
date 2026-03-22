@@ -453,8 +453,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </span>
                             </div>
 
-                            {/* Next 3 in queue */}
-                            {turnOrder.length > 1 && Array.from({length: Math.min(3, turnOrder.length - 1)}, (_, i) => {
+                            {/* Next 3 in queue — always show 3 slots using modulo so cycle is visible */}
+                            {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
                                 const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
                                 return (
                                     <span key={i} style={{
