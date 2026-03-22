@@ -319,7 +319,7 @@ export default function App() {
         )
     }
 
-    if (!user) return <LoginPage/>
+    if (!user) return <LoginPage onLogin={() => retryBoot()} />
 
     return (
         <div style={{display: 'flex', flexDirection: 'column', height: '100%', maxWidth: 640, margin: '0 auto'}}>
