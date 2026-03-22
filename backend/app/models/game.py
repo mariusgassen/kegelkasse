@@ -29,7 +29,7 @@ class GameTemplate(Base):
     club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    winner_type = Column(Enum(WinnerType), default=WinnerType.either)
+    winner_type = Column(Enum(WinnerType), default=WinnerType.individual)
     is_opener = Column(Boolean, default=False)  # marks opening/crown game (Große Hausnummer)
     is_president_game = Column(Boolean, default=False)  # winner becomes club president for the year
     default_loser_penalty = Column(Float, default=0)
