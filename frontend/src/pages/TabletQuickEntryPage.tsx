@@ -6,7 +6,7 @@
  * Camera strip (top): shows live throws for the running game, with per-throw
  * void and turn-order management (alternating teams / block mode).
  */
-import {useMemo, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
@@ -152,6 +152,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const currentPlayer = turnOrder.length > 0
         ? turnOrder[currentTurnIdx % turnOrder.length]
         : null
+
+    // Sync active player to backend whenever currentPlayer or activeGame changes
+    // so the kiosk knows who is throwing without manual selection.
+    useEffect(() => {
+        if (!activeGame || activeGame.status !== 'running' || !eveningId) return
+        const pid = currentPlayer?.id ?? null
+        api.setActivePlayer(eveningId, activeGame.id, pid).catch(() => {})
+    }, [currentPlayer?.id, activeGame?.id, activeGame?.status, eveningId])
 
     function advanceTurn() {
         setCurrentTurnIdx(prev => prev + 1)

@@ -69,6 +69,7 @@ def serialize_evening(e: Evening) -> dict:
                    "finished_at": g.finished_at.isoformat() if g.finished_at else None,
                    "client_timestamp": g.client_timestamp,
                    "turn_mode": g.turn_mode,
+                   "active_player_id": g.active_player_id,
                    "throws": [{"id": t.id, "throw_num": t.throw_num, "pins": t.pins,
                                 "cumulative": t.cumulative, "pin_states": t.pin_states,
                                 "player_id": t.player_id}
@@ -691,6 +692,8 @@ def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
     if not g:
         raise HTTPException(404, "Game not found")
+    # Fall back to the game's active_player_id when no explicit player_id is sent (kiosk mode)
+    effective_player_id = data.player_id if data.player_id is not None else g.active_player_id
     # Upsert — update if throw_num already exists, otherwise insert
     existing = db.query(GameThrowLog).filter(
         GameThrowLog.game_id == gid,
@@ -700,12 +703,12 @@ def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
         existing.pins = data.pins
         existing.cumulative = data.cumulative
         existing.pin_states = data.pin_states
-        if data.player_id is not None:
-            existing.player_id = data.player_id
+        if effective_player_id is not None:
+            existing.player_id = effective_player_id
     else:
         db.add(GameThrowLog(
             game_id=gid,
-            player_id=data.player_id,
+            player_id=effective_player_id,
             throw_num=data.throw_num,
             pins=data.pins,
             cumulative=data.cumulative,
@@ -744,6 +747,26 @@ def delete_camera_throw(eid: int, gid: int, tid: int,
     if not throw:
         raise HTTPException(404, "Throw not found")
     db.delete(throw)
+    db.commit()
+    background_tasks.add_task(event_bus.publish, eid)
+    return {"ok": True}
+
+
+class ActivePlayerUpdate(BaseModel):
+    player_id: Optional[int] = None  # None clears the active player
+
+
+@router.patch("/{eid}/games/{gid}/active-player")
+def set_active_player(eid: int, gid: int, data: ActivePlayerUpdate,
+                      background_tasks: BackgroundTasks,
+                      db: Session = Depends(get_db),
+                      user: User = Depends(require_club_member)):
+    """Set the currently-throwing player for a game so the kiosk can auto-assign throws."""
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
+    if not g:
+        raise HTTPException(404, "Game not found")
+    g.active_player_id = data.player_id
     db.commit()
     background_tasks.add_task(event_bus.publish, eid)
     return {"ok": True}

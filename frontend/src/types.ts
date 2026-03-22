@@ -239,6 +239,7 @@ export interface Game {
     started_at: string | null
     finished_at: string | null
     client_timestamp: number
+    active_player_id: number | null
     throws: GameThrowLog[]
 }
 

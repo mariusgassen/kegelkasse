@@ -55,6 +55,7 @@ class Game(Base):
     winner_ref = Column(String, nullable=True)  # "t:{team_id}" or "p:{player_id}"
     winner_name = Column(String, nullable=True)
     scores = Column(JSON, default=dict)  # {"t:1": 42, "p:3": 38}
+    active_player_id = Column(Integer, ForeignKey("evening_player.id", ondelete="SET NULL"), nullable=True)
     loser_penalty = Column(Float, default=0)
     per_point_penalty = Column(Float, default=0)  # extra penalty per point diff from winner
     note = Column(Text, nullable=True)

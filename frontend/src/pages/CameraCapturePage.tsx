@@ -88,6 +88,7 @@ export function CameraCapturePage({onClose}: Props) {
     const pendingRef = useRef<FrameReading | null>(null)
     const lastThrowNumRef = useRef<number | null>(null)
     const selectedGameIdRef = useRef<number | null>(null)
+    const activePlayerIdRef = useRef<number | null>(null)
     const eveningIdRef = useRef<number | null>(null)
 
     // UI state
@@ -109,9 +110,20 @@ export function CameraCapturePage({onClose}: Props) {
     const [winnerRef, setWinnerRef] = useState('')
     const [saving, setSaving] = useState(false)
 
+    // Auto-select the running/open game from the evening (same logic as tablet manager)
+    const activeGame = evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted) ?? null
+    useEffect(() => {
+        if (activeGame && selectedGameId !== activeGame.id) {
+            setSelectedGameId(activeGame.id)
+            setWinnerRef('')
+            setThrows([])
+        }
+    }, [activeGame?.id])
+
     // Keep refs in sync
     useEffect(() => { calRef.current = calibration }, [calibration])
     useEffect(() => { selectedGameIdRef.current = selectedGameId }, [selectedGameId])
+    useEffect(() => { activePlayerIdRef.current = activeGame?.active_player_id ?? null }, [activeGame?.active_player_id])
     useEffect(() => { eveningIdRef.current = evening?.id ?? null }, [evening?.id])
 
     // Start camera on mount
@@ -175,6 +187,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 throw_num: r.throwNum!, pins: r.throwPins!,
                                 cumulative: r.cumulative ?? undefined,
                                 pin_states: r.pinStates,
+                                player_id: activePlayerIdRef.current,
                             }).catch(() => {})
                         }
                     } else {
@@ -235,6 +248,7 @@ export function CameraCapturePage({onClose}: Props) {
                     pins: r.throwPins,
                     cumulative: r.cumulative ?? undefined,
                     pin_states: r.pinStates,
+                    player_id: activePlayerIdRef.current,
                 }).catch(() => {}) // silent — local state is the source of truth
             }
         }
