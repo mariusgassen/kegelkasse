@@ -359,7 +359,8 @@ def list_game_templates(db: Session = Depends(get_db), user: User = Depends(requ
 class GameTemplateCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    winner_type: str = "either"
+    winner_type: str = "individual"
+    turn_mode: Optional[str] = None
     is_opener: bool = False
     is_president_game: bool = False
     default_loser_penalty: float = 0
@@ -367,13 +368,26 @@ class GameTemplateCreate(BaseModel):
     sort_order: int = 0
 
 
+def _template_dict(gt: GameTemplate) -> dict:
+    return {
+        "id": gt.id, "name": gt.name, "is_opener": gt.is_opener,
+        "is_president_game": gt.is_president_game,
+        "winner_type": gt.winner_type,
+        "turn_mode": gt.turn_mode,
+        "default_loser_penalty": gt.default_loser_penalty,
+        "per_point_penalty": gt.per_point_penalty,
+    }
+
+
 @router.post("/game-templates")
 def create_game_template(data: GameTemplateCreate, db: Session = Depends(get_db),
                          user: User = Depends(require_club_admin)):
+    wt = data.winner_type if data.winner_type in ("team", "individual") else "individual"
     gt = GameTemplate(
         club_id=user.club_id,
         name=data.name, description=data.description,
-        winner_type=WinnerType(data.winner_type),
+        winner_type=WinnerType(wt),
+        turn_mode=data.turn_mode if wt == "team" else None,
         is_opener=data.is_opener,
         is_president_game=data.is_president_game,
         default_loser_penalty=data.default_loser_penalty,
@@ -383,10 +397,7 @@ def create_game_template(data: GameTemplateCreate, db: Session = Depends(get_db)
     db.add(gt)
     db.commit()
     db.refresh(gt)
-    return {"id": gt.id, "name": gt.name, "is_opener": gt.is_opener,
-            "is_president_game": gt.is_president_game,
-            "winner_type": gt.winner_type, "default_loser_penalty": gt.default_loser_penalty,
-            "per_point_penalty": gt.per_point_penalty}
+    return _template_dict(gt)
 
 
 @router.put("/game-templates/{gtid}")
@@ -394,16 +405,18 @@ def update_game_template(gtid: int, data: GameTemplateCreate, db: Session = Depe
                          user: User = Depends(require_club_admin)):
     gt = db.query(GameTemplate).filter(GameTemplate.id == gtid, GameTemplate.club_id == user.club_id).first()
     if not gt: raise HTTPException(404)
+    wt = data.winner_type if data.winner_type in ("team", "individual") else "individual"
     gt.name = data.name
     gt.description = data.description
-    gt.winner_type = WinnerType(data.winner_type)
+    gt.winner_type = WinnerType(wt)
+    gt.turn_mode = data.turn_mode if wt == "team" else None
     gt.is_opener = data.is_opener
     gt.is_president_game = data.is_president_game
     gt.default_loser_penalty = data.default_loser_penalty
     gt.per_point_penalty = data.per_point_penalty
     gt.sort_order = data.sort_order
     db.commit()
-    return {"id": gt.id, "name": gt.name}
+    return _template_dict(gt)
 
 
 @router.delete("/game-templates/{gtid}")

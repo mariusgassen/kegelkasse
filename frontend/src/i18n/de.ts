@@ -63,6 +63,8 @@ export const de = {
     "player.guestName": "Gast-Name",
     "player.edit": "Spieler bearbeiten",
     "player.noTeam": "Ohne Team",
+    "player.teamRequired": "Bitte ein Team auswählen.",
+    "player.noTeamsYet": "Erst Teams anlegen, dann Spieler hinzufügen.",
     "player.noPlayers": "Noch keine Spieler. Tippe auf + Spieler.",
     "player.removeConfirm": "Spieler entfernen?",
     "player.removeWarning": "Alle Strafen und Spieleinträge dieses Spielers werden ebenfalls gelöscht.",

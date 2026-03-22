@@ -166,6 +166,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         setCurrentTurnIdx(0)
     }
 
+    async function handleStartGame() {
+        if (!activeGame || activeGame.status !== 'open' || !evening) return
+        try {
+            await api.startGame(evening.id, activeGame.id)
+            invalidate()
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }
+
     function togglePlayer(id: number) {
         setSelectedPlayerIds(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -403,8 +413,20 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                         <div style={{flex: 1}}/>
 
-                        {/* Finish game button (admin only) */}
-                        {isAdmin(user) && (
+                        {/* Start game button — open games only */}
+                        {activeGame.status === 'open' && isAdmin(user) && (
+                            <button
+                                type="button"
+                                className="btn-primary btn-xs"
+                                style={{flexShrink: 0, fontSize: 10}}
+                                onClick={handleStartGame}
+                            >
+                                ▶ {t('game.start')}
+                            </button>
+                        )}
+
+                        {/* Finish game button (admin only, running games only) */}
+                        {activeGame.status === 'running' && isAdmin(user) && (
                             <button
                                 type="button"
                                 className="btn-secondary btn-xs"
@@ -431,8 +453,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </span>
                             </div>
 
-                            {/* Next 3 in queue */}
-                            {turnOrder.length > 1 && Array.from({length: Math.min(3, turnOrder.length - 1)}, (_, i) => {
+                            {/* Next 3 in queue — always show 3 slots using modulo so cycle is visible */}
+                            {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
                                 const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
                                 return (
                                     <span key={i} style={{
@@ -449,14 +471,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             <div style={{flex: 1}}/>
 
                             {/* Block mode: switch team button */}
-                            {gameTurnMode === 'block' && teams.length > 1 && (
+                            {gameTurnMode === 'block' && teams.length >= 1 && (
                                 <button
                                     type="button"
-                                    className="btn-secondary btn-xs"
+                                    className="btn-primary btn-xs"
                                     style={{fontSize: 10, flexShrink: 0}}
                                     onClick={switchTeam}
                                 >
-                                    ⇄ {t('quickEntry.switchTeam')} ({(teams[blockTeamIdx % teams.length])?.name ?? ''})
+                                    ⇄ {t('quickEntry.switchTeam')}
+                                    {teams.length > 1 && (
+                                        <span style={{opacity: 0.75, marginLeft: 4}}>
+                                            → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
+                                        </span>
+                                    )}
                                 </button>
                             )}
 
@@ -545,14 +572,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 )}
                             </div>
                             <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
-                                {evening!.teams.map(team => (
+                                {activeGame.winner_type === 'team' && evening!.teams.map(team => (
                                     <button key={team.id} type="button"
                                             className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
                                             onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
                                         {team.name}
                                     </button>
                                 ))}
-                                {evening!.players.map(p => (
+                                {activeGame.winner_type === 'individual' && evening!.players.map(p => (
                                     <button key={p.id} type="button"
                                             className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
                                             onClick={() => setFinishWinnerRef(`p:${p.id}`)}>

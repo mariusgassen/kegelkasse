@@ -179,6 +179,9 @@ class PlayerCreate(BaseModel):
 def add_player(eid: int, data: PlayerCreate, db: Session = Depends(get_db),
                user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
+    teams_exist = db.query(Team).filter(Team.evening_id == e.id).first() is not None
+    if teams_exist and data.team_id is None:
+        raise HTTPException(400, "team_id is required when the evening has teams")
     p = EveningPlayer(evening_id=e.id, **data.model_dump())
     db.add(p)
     db.commit()

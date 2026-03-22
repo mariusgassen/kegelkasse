@@ -157,7 +157,8 @@ export function EveningPage() {
 
     function openEditPlayer(p: EveningPlayer) {
         setEditingPlayer(p)
-        setEditPlayerTeam(p.team_id)
+        // Default to first team if player has no team yet (legacy data)
+        setEditPlayerTeam(p.team_id ?? (teams.length > 0 ? teams[0].id : null))
         setEditPlayerSheet(true)
     }
 
@@ -511,17 +512,16 @@ export function EveningPage() {
             <Sheet open={playerSheet} onClose={() => setPlayerSheet(false)} title={t('player.add')}
                    onSubmit={addPlayers}>
                 <div className="flex flex-col gap-3">
-                    {/* Team selection carousel */}
-                    {teams.length > 0 && (
+                    {/* Team selection — required */}
+                    {teams.length === 0 ? (
+                        <div className="rounded-lg px-3 py-2 text-xs text-red-400"
+                             style={{background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)'}}>
+                            ⚠️ {t('player.noTeamsYet')}
+                        </div>
+                    ) : (
                         <div>
                             <label className="field-label">{t('team.label')}</label>
                             <div className="flex gap-2 overflow-x-auto pb-1">
-                                <button
-                                    type="button"
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${addPlayerTeamId === null ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                    onClick={() => setAddPlayerTeamId(null)}>
-                                    {t('player.noTeam')}
-                                </button>
                                 {teams.map(tm => (
                                     <button
                                         key={tm.id}
@@ -604,7 +604,7 @@ export function EveningPage() {
                         )}
                     </div>
                     <button type="submit" className="btn-primary w-full"
-                            disabled={selectedMemberIds.size === 0 && !guestName.trim()}>
+                            disabled={(selectedMemberIds.size === 0 && !guestName.trim()) || teams.length === 0 || addPlayerTeamId === null}>
                         {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
                     </button>
                 </div>
@@ -620,11 +620,14 @@ export function EveningPage() {
                             <label className="field-label">{t('team.label')}</label>
                             <select className="kce-input" value={editPlayerTeam ?? ''}
                                     onChange={e => setEditPlayerTeam(e.target.value ? Number(e.target.value) : null)}>
-                                <option value="">{t('player.noTeam')}</option>
+                                {teams.length === 0 && <option value="">{t('player.noTeam')}</option>}
                                 {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                             </select>
                         </div>
-                        <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
+                        <button type="submit" className="btn-primary w-full"
+                                disabled={teams.length > 0 && !editPlayerTeam}>
+                            {t('action.save')}
+                        </button>
                     </div>
                 )}
             </Sheet>
@@ -748,6 +751,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                 adds.push(api.addPlayer(eveningId, {name: saved.name, regular_member_id: saved.id}))
             }
             await Promise.all(adds)
+            // Auto-assign players to club teams (distributes randomly) — ignore if no club teams configured
+            try { await api.applyClubTeamsToEvening(eveningId) } catch {}
             // Record explicitly cancelled members so absence-penalty calc can distinguish them
             if (abgesagtIds.size > 0) {
                 await api.markCancelled(eveningId, Array.from(abgesagtIds))

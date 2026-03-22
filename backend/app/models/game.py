@@ -32,6 +32,7 @@ class GameTemplate(Base):
     winner_type = Column(Enum(WinnerType), default=WinnerType.individual)
     is_opener = Column(Boolean, default=False)  # marks opening/crown game (Große Hausnummer)
     is_president_game = Column(Boolean, default=False)  # winner becomes club president for the year
+    turn_mode = Column(String(20), nullable=True)  # 'alternating' | 'block' (team games only)
     default_loser_penalty = Column(Float, default=0)
     per_point_penalty = Column(Float, default=0)
     sort_order = Column(Integer, default=0)
