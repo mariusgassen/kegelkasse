@@ -28,7 +28,7 @@ import {
 const STORAGE_KEY = 'kce_camera_cal_v1'
 const CONFIRM_SECONDS = 5
 
-type Mode = 'calibrating' | 'detecting'
+type Mode = 'calibrating' | 'detecting' | 'kiosk'
 type RoiField = 'displayLeft' | 'displayMiddle' | 'displayRight' | 'pinArea'
 
 interface ThrowEntry {
@@ -130,9 +130,10 @@ export function CameraCapturePage({onClose}: Props) {
         return () => stream?.getTracks().forEach(t => t.stop())
     }, [])
 
-    // RAF analysis loop
+    // RAF analysis loop — runs in both detecting and kiosk modes
     useEffect(() => {
-        if (mode !== 'detecting') return
+        if (mode !== 'detecting' && mode !== 'kiosk') return
+        const isKiosk = mode === 'kiosk'
 
         const loop = () => {
             const video = videoRef.current
@@ -155,8 +156,31 @@ export function CameraCapturePage({onClose}: Props) {
                     reading.throwPins !== null
                 ) {
                     lastThrowNumRef.current = reading.throwNum
-                    pendingRef.current = reading
-                    setPendingThrow({...reading})
+                    if (isKiosk) {
+                        // Kiosk: immediate submission, no confirmation overlay
+                        const r = reading
+                        setThrows(prev => {
+                            const entry: ThrowEntry = {
+                                throwNum: r.throwNum!, pins: r.throwPins!,
+                                cumulative: r.cumulative, pinStates: r.pinStates,
+                            }
+                            const idx = prev.findIndex(t => t.throwNum === entry.throwNum)
+                            if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
+                            return [...prev, entry]
+                        })
+                        const gid = selectedGameIdRef.current
+                        const eid = eveningIdRef.current
+                        if (gid && eid) {
+                            api.addCameraThrow(eid, gid, {
+                                throw_num: r.throwNum!, pins: r.throwPins!,
+                                cumulative: r.cumulative ?? undefined,
+                                pin_states: r.pinStates,
+                            }).catch(() => {})
+                        }
+                    } else {
+                        pendingRef.current = reading
+                        setPendingThrow({...reading})
+                    }
                 }
             }
             rafRef.current = requestAnimationFrame(loop)
@@ -334,25 +358,27 @@ export function CameraCapturePage({onClose}: Props) {
             display: 'flex', flexDirection: 'column',
             paddingTop: 'env(safe-area-inset-top, 0px)',
         }}>
-            {/* Header */}
-            <div style={{
-                flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 12px',
-                borderBottom: '1px solid var(--kce-border)',
-                background: 'var(--kce-surface)',
-            }}>
-                <button onClick={onClose} style={{
-                    color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1,
-                    background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-                }}>✕</button>
-                <span style={{fontWeight: 'bold', color: 'var(--kce-cream)', flex: 1, fontSize: 14}}>
-                    📷 {t('camera.title')}
-                </span>
-                <button className="btn-secondary btn-sm"
-                        onClick={() => setMode(mode === 'calibrating' ? 'detecting' : 'calibrating')}>
-                    {mode === 'calibrating' ? '▶ ' + t('camera.detecting') : '⚙ ' + t('camera.calibrate')}
-                </button>
-            </div>
+            {/* Header — hidden in kiosk mode */}
+            {mode !== 'kiosk' && (
+                <div style={{
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px',
+                    borderBottom: '1px solid var(--kce-border)',
+                    background: 'var(--kce-surface)',
+                }}>
+                    <button onClick={onClose} style={{
+                        color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1,
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                    }}>✕</button>
+                    <span style={{fontWeight: 'bold', color: 'var(--kce-cream)', flex: 1, fontSize: 14}}>
+                        📷 {t('camera.title')}
+                    </span>
+                    <button className="btn-secondary btn-sm"
+                            onClick={() => setMode(mode === 'calibrating' ? 'detecting' : 'calibrating')}>
+                        {mode === 'calibrating' ? '▶ ' + t('camera.detecting') : '⚙ ' + t('camera.calibrate')}
+                    </button>
+                </div>
+            )}
 
             {/* Camera error */}
             {cameraError && (
@@ -364,9 +390,11 @@ export function CameraCapturePage({onClose}: Props) {
 
             {/* Video + SVG overlay */}
             <div style={{
-                position: 'relative', flexShrink: 0, background: '#000',
-                maxHeight: '45vh', overflow: 'hidden',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative', background: '#000',
+                ...(mode === 'kiosk'
+                    ? {flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}
+                    : {flexShrink: 0, maxHeight: '45vh', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}
+                ),
             }}>
                 <video ref={videoRef} muted playsInline
                        style={{width: '100%', height: '100%', objectFit: 'contain', display: 'block'}}
@@ -429,10 +457,46 @@ export function CameraCapturePage({onClose}: Props) {
                         })}
                     </svg>
                 )}
+
+                {/* Kiosk status overlay — shown inside video area when in kiosk mode */}
+                {mode === 'kiosk' && (
+                    <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
+                        background: 'rgba(0,0,0,0.75)',
+                        padding: '8px 12px',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        borderTop: '1px solid rgba(255,255,255,0.15)',
+                    }}>
+                        <span style={{fontSize: 11, color: '#4ade80', fontWeight: 'bold', flexShrink: 0}}>
+                            📷 {t('camera.kiosk')}
+                        </span>
+                        {selectedGame && (
+                            <span style={{fontSize: 12, color: 'var(--kce-amber)', fontWeight: 'bold', flexShrink: 0}}>
+                                {selectedGame.name}
+                            </span>
+                        )}
+                        {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
+                            <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
+                                W#{currentReading.throwNum}
+                                {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
+                            </span>
+                        )}
+                        <span style={{fontSize: 11, color: 'var(--kce-muted)', marginLeft: 'auto'}}>
+                            {throws.length} {t('camera.throw').toLowerCase()}s ✓
+                        </span>
+                        <button
+                            className="btn-secondary btn-xs"
+                            style={{flexShrink: 0}}
+                            onClick={() => setMode('detecting')}
+                        >
+                            {t('camera.exitKiosk')}
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Scrollable content */}
-            <div style={{flex: 1, overflowY: 'auto', padding: '8px 12px 24px'}}>
+            {/* Scrollable content — hidden in kiosk mode */}
+            <div style={{flex: 1, overflowY: 'auto', padding: '8px 12px 24px', display: mode === 'kiosk' ? 'none' : 'block'}}>
 
                 {/* ── CALIBRATION MODE ── */}
                 {mode === 'calibrating' && (
@@ -505,9 +569,17 @@ export function CameraCapturePage({onClose}: Props) {
                                     </div>
                                 }
                                 {selectedGame && (
-                                    <p style={{fontSize: 10, color: 'var(--kce-primary)', margin: '4px 0 0', fontWeight: 'bold'}}>
-                                        ✓ {t('camera.syncActive')}
-                                    </p>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: 8, marginTop: 6}}>
+                                        <p style={{fontSize: 10, color: 'var(--kce-primary)', margin: 0, fontWeight: 'bold', flex: 1}}>
+                                            ✓ {t('camera.syncActive')}
+                                        </p>
+                                        <button
+                                            className="btn-primary btn-xs"
+                                            onClick={() => setMode('kiosk')}
+                                        >
+                                            📷 {t('camera.enterKiosk')}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         )}

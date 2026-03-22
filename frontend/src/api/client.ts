@@ -324,10 +324,13 @@ export const api = {
         throw_num: number;
         pins: number;
         cumulative?: number;
-        pin_states: boolean[]
+        pin_states: boolean[];
+        player_id?: number | null
     }) => request<{ok: boolean}>('POST', `/evening/${eid}/games/${gid}/throws`, d),
     clearCameraThrows: (eid: number, gid: number) =>
         request<{ok: boolean}>('DELETE', `/evening/${eid}/games/${gid}/throws`),
+    deleteCameraThrow: (eid: number, gid: number, tid: number) =>
+        request<{ok: boolean}>('DELETE', `/evening/${eid}/games/${gid}/throws/${tid}`),
 
     // Drinks
     addDrinkRound: (eid: number, d: {

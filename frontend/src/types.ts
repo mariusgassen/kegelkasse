@@ -216,6 +216,7 @@ export interface GameThrowLog {
     pins: number
     cumulative: number | null
     pin_states: boolean[]
+    player_id: number | null
 }
 
 export interface Game {
