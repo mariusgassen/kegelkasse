@@ -68,6 +68,7 @@ def serialize_evening(e: Evening) -> dict:
                    "started_at": g.started_at.isoformat() if g.started_at else None,
                    "finished_at": g.finished_at.isoformat() if g.finished_at else None,
                    "client_timestamp": g.client_timestamp,
+                   "turn_mode": g.turn_mode,
                    "throws": [{"id": t.id, "throw_num": t.throw_num, "pins": t.pins,
                                 "cumulative": t.cumulative, "pin_states": t.pin_states,
                                 "player_id": t.player_id}
@@ -618,7 +619,8 @@ class GameCreate(BaseModel):
     template_id: Optional[int] = None
     is_opener: bool = False
     is_president_game: bool = False
-    winner_type: str = "either"
+    winner_type: str = "individual"
+    turn_mode: Optional[str] = None  # 'alternating' | 'block'; only for team games
     loser_penalty: float = 0
     per_point_penalty: float = 0
     note: Optional[str] = None
@@ -630,13 +632,15 @@ class GameCreate(BaseModel):
 def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
              user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
+    wt = data.winner_type if data.winner_type in ("team", "individual") else "individual"
     g = Game(
         evening_id=e.id,
         name=data.name,
         template_id=data.template_id,
         is_opener=data.is_opener,
         is_president_game=data.is_president_game,
-        winner_type=WinnerType(data.winner_type),
+        winner_type=WinnerType(wt),
+        turn_mode=data.turn_mode if wt == "team" else None,
         loser_penalty=data.loser_penalty,
         per_point_penalty=data.per_point_penalty,
         note=data.note,
@@ -841,6 +845,7 @@ class GameUpdate(BaseModel):
     is_opener: Optional[bool] = None
     is_president_game: Optional[bool] = None
     winner_type: Optional[str] = None
+    turn_mode: Optional[str] = None
     loser_penalty: Optional[float] = None
     per_point_penalty: Optional[float] = None
     note: Optional[str] = None

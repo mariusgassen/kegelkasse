@@ -8,7 +8,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
-import type {Game, WinnerType} from '@/types.ts'
+import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
 
 function fe(v: number) {
@@ -40,7 +40,8 @@ export function GamesPage() {
     const [templateId, setTemplateId] = useState<number | null>(null)
     const [gameName, setGameName] = useState('')
     const [isOpener, setIsOpener] = useState(false)
-    const [winnerType, setWinnerType] = useState<WinnerType>('either')
+    const [winnerType, setWinnerType] = useState<WinnerType>('individual')
+    const [turnMode, setTurnMode] = useState<TurnMode>('alternating')
     const [loserPenalty, setLoserPenalty] = useState('0')
     const [perPointPenalty, setPerPointPenalty] = useState('0')
     const [gameNote, setGameNote] = useState('')
@@ -56,7 +57,8 @@ export function GamesPage() {
     const [editTarget, setEditTarget] = useState<Game | null>(null)
     const [editName, setEditName] = useState('')
     const [editIsOpener, setEditIsOpener] = useState(false)
-    const [editWinnerType, setEditWinnerType] = useState<WinnerType>('either')
+    const [editWinnerType, setEditWinnerType] = useState<WinnerType>('individual')
+    const [editTurnMode, setEditTurnMode] = useState<TurnMode>('alternating')
     const [editLoserPenalty, setEditLoserPenalty] = useState('0')
     const [editPerPointPenalty, setEditPerPointPenalty] = useState('0')
     const [editNote, setEditNote] = useState('')
@@ -89,14 +91,16 @@ export function GamesPage() {
         setIsOpener(tmpl.is_opener && !hasOpener)
         setLoserPenalty(String(tmpl.default_loser_penalty))
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
-        setWinnerType(tmpl.winner_type as WinnerType)
+        const wt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
+        setWinnerType(wt)
     }
 
     function openAddSheet() {
         setTemplateId(null);
         setGameName('');
         setIsOpener(false)
-        setWinnerType('either');
+        setWinnerType('individual');
+        setTurnMode('alternating');
         setLoserPenalty('0');
         setPerPointPenalty('0');
         setGameNote('')
@@ -114,7 +118,8 @@ export function GamesPage() {
         setEditTarget(game)
         setEditName(game.name)
         setEditIsOpener(game.is_opener)
-        setEditWinnerType(game.winner_type)
+        setEditWinnerType((game.winner_type === 'team' || game.winner_type === 'individual') ? game.winner_type : 'individual')
+        setEditTurnMode(game.turn_mode ?? 'alternating')
         setEditLoserPenalty(String(game.loser_penalty))
         setEditPerPointPenalty(String(game.per_point_penalty ?? 0))
         setEditNote(game.note ?? '')
@@ -144,6 +149,7 @@ export function GamesPage() {
                 template_id: templateId ?? undefined,
                 is_opener: isOpener,
                 winner_type: winnerType,
+                turn_mode: winnerType === 'team' ? turnMode : null,
                 loser_penalty: parseAmount(loserPenalty),
                 per_point_penalty: parseAmount(perPointPenalty),
                 note: gameNote.trim() || undefined,
@@ -203,6 +209,7 @@ export function GamesPage() {
                 name: editName.trim() || undefined,
                 is_opener: editIsOpener,
                 winner_type: editWinnerType,
+                turn_mode: editWinnerType === 'team' ? editTurnMode : null,
                 loser_penalty: parseAmount(editLoserPenalty),
                 per_point_penalty: parseAmount(editPerPointPenalty),
                 note: editNote.trim() || undefined,
@@ -228,8 +235,8 @@ export function GamesPage() {
     }
 
     // ── Finish sheet: which entities can win ──
-    const canPickTeam = finishTarget && (finishTarget.winner_type === 'team' || finishTarget.winner_type === 'either')
-    const canPickPlayer = finishTarget && (finishTarget.winner_type === 'individual' || finishTarget.winner_type === 'either')
+    const canPickTeam = finishTarget?.winner_type === 'team'
+    const canPickPlayer = finishTarget?.winner_type === 'individual'
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -385,7 +392,7 @@ export function GamesPage() {
                     <div>
                         <div className="field-label">{t('club.template.winnerType')}</div>
                         <div className="flex gap-1.5">
-                            {(['either', 'individual', 'team'] as WinnerType[]).map(wt => (
+                            {(['individual', 'team'] as WinnerType[]).map(wt => (
                                 <button key={wt} type="button"
                                         className={`chip flex-1 text-center ${winnerType === wt ? 'active' : ''}`}
                                         onClick={() => setWinnerType(wt)}>
@@ -394,6 +401,22 @@ export function GamesPage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Turn mode — only for team games */}
+                    {winnerType === 'team' && (
+                        <div>
+                            <div className="field-label">{t('game.turnMode')}</div>
+                            <div className="flex gap-1.5">
+                                {(['alternating', 'block'] as TurnMode[]).map(tm => (
+                                    <button key={tm} type="button"
+                                            className={`chip flex-1 text-center ${turnMode === tm ? 'active' : ''}`}
+                                            onClick={() => setTurnMode(tm)}>
+                                        {t(`game.turnMode.${tm}` as any)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Loser penalty */}
                     <div>
@@ -486,7 +509,7 @@ export function GamesPage() {
                             <div>
                                 <div className="field-label">{t('game.scores')}</div>
                                 <div className="flex flex-col gap-1.5">
-                                    {(finishTarget.winner_type === 'team' || (finishTarget.winner_type === 'either' && teams.length > 0))
+                                    {finishTarget.winner_type === 'team'
                                         ? teams.map(team => (
                                             <div key={`t:${team.id}`} className="flex items-center gap-2">
                                                 <span className="text-xs text-kce-cream flex-1">{team.name}</span>
@@ -598,7 +621,7 @@ export function GamesPage() {
                     <div>
                         <div className="field-label">{t('club.template.winnerType')}</div>
                         <div className="flex gap-1.5">
-                            {(['either', 'individual', 'team'] as WinnerType[]).map(wt => (
+                            {(['individual', 'team'] as WinnerType[]).map(wt => (
                                 <button key={wt} type="button"
                                         className={`chip flex-1 text-center ${editWinnerType === wt ? 'active' : ''}`}
                                         onClick={() => setEditWinnerType(wt)}>
@@ -607,6 +630,22 @@ export function GamesPage() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Turn mode — only for team games */}
+                    {editWinnerType === 'team' && (
+                        <div>
+                            <div className="field-label">{t('game.turnMode')}</div>
+                            <div className="flex gap-1.5">
+                                {(['alternating', 'block'] as TurnMode[]).map(tm => (
+                                    <button key={tm} type="button"
+                                            className={`chip flex-1 text-center ${editTurnMode === tm ? 'active' : ''}`}
+                                            onClick={() => setEditTurnMode(tm)}>
+                                        {t(`game.turnMode.${tm}` as any)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <label className="field-label">{t('game.loserPenalty')}</label>

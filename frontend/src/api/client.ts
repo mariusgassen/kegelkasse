@@ -294,6 +294,7 @@ export const api = {
         template_id?: number;
         is_opener?: boolean;
         winner_type?: string;
+        turn_mode?: string | null;
         loser_penalty?: number;
         per_point_penalty?: number;
         note?: string;
@@ -314,6 +315,7 @@ export const api = {
         name: string;
         is_opener: boolean;
         winner_type: string;
+        turn_mode: string | null;
         loser_penalty: number;
         per_point_penalty: number;
         note: string
