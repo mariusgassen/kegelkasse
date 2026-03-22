@@ -74,6 +74,7 @@ class GameThrowLog(Base):
     __tablename__ = "game_throw_log"
     id = Column(Integer, primary_key=True, index=True)
     game_id = Column(Integer, ForeignKey("game.id", ondelete="CASCADE"), nullable=False)
+    player_id = Column(Integer, ForeignKey("evening_player.id", ondelete="SET NULL"), nullable=True)
     throw_num = Column(Integer, nullable=False)
     pins = Column(Integer, nullable=False)
     cumulative = Column(Integer, nullable=True)

@@ -2,15 +2,18 @@
  * Quick Entry overlay — fullscreen panel for fast penalty & drink logging.
  * Three-column layout: players | penalties | drinks (separate).
  * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
+ *
+ * Camera strip (top): shows live throws for the running game, with per-throw
+ * void and turn-order management (alternating teams / block mode).
  */
 import {useMemo, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
-import {useAppStore} from '@/store/app.ts'
+import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
-import type {EveningPlayer, PenaltyType} from '@/types.ts'
+import type {EveningPlayer, Game, PenaltyType, Team} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -18,6 +21,34 @@ function fe(v: number) {
 
 function fTime(ms: number) {
     return new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
+}
+
+/** Build the circular throw-order list based on mode */
+function buildTurnOrder(
+    players: EveningPlayer[],
+    teams: Team[],
+    mode: 'alternating' | 'block',
+    blockTeamIdx: number,
+): EveningPlayer[] {
+    const teamsWithPlayers = teams.map(t => players.filter(p => p.team_id === t.id))
+    const noTeam = players.filter(p => p.team_id === null)
+
+    if (teams.length === 0) return [...players]
+
+    if (mode === 'block') {
+        const teamPlayers = teamsWithPlayers[blockTeamIdx % teams.length] ?? []
+        return teamPlayers
+    }
+
+    // alternating: interleave team players
+    const maxLen = Math.max(...teamsWithPlayers.map(t => t.length), 0)
+    const result: EveningPlayer[] = []
+    for (let i = 0; i < maxLen; i++) {
+        for (const team of teamsWithPlayers) {
+            if (i < team.length) result.push(team[i])
+        }
+    }
+    return [...result, ...noTeam]
 }
 
 interface Props {
@@ -33,6 +64,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const user = useAppStore(s => s.user)
 
+    // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
     const [flashingPenaltyId, setFlashingPenaltyId] = useState<number | null>(null)
     const [flashingDrink, setFlashingDrink] = useState<'beer' | 'shots' | null>(null)
@@ -40,6 +72,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [loadingDrink, setLoadingDrink] = useState<'beer' | 'shots' | null>(null)
     const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
     const [deletingKey, setDeletingKey] = useState<string | null>(null)
+
+    // Turn order state
+    const [turnMode, setTurnMode] = useState<'alternating' | 'block'>('alternating')
+    const [blockTeamIdx, setBlockTeamIdx] = useState(0)
+    const [currentTurnIdx, setCurrentTurnIdx] = useState(0)
+
+    // Finish game state
+    const [finishGameOpen, setFinishGameOpen] = useState(false)
+    const [finishWinnerRef, setFinishWinnerRef] = useState('')
+    const [finishSaving, setFinishSaving] = useState(false)
+    const [voidingThrowId, setVoidingThrowId] = useState<number | null>(null)
 
     // Sort: current user first, then alphabetical
     const sortedPlayers = useMemo(() =>
@@ -92,6 +135,34 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
         return events.sort((a, b) => b.time - a.time).slice(0, 8)
     }, [evening])
+
+    // Running game + throw data (live via SSE)
+    const runningGame: Game | undefined = useMemo(() =>
+        evening?.games.find(g => g.status === 'running' && !(g as any).is_deleted),
+        [evening])
+    const liveThrows = runningGame?.throws ?? []
+
+    // Turn order for current running game
+    const teams = evening?.teams ?? []
+    const turnOrder = useMemo(() =>
+        buildTurnOrder(players, teams, turnMode, blockTeamIdx),
+        [players, teams, turnMode, blockTeamIdx])
+    const currentPlayer = turnOrder.length > 0
+        ? turnOrder[currentTurnIdx % turnOrder.length]
+        : null
+
+    function advanceTurn() {
+        setCurrentTurnIdx(prev => prev + 1)
+    }
+
+    function resetTurn() {
+        setCurrentTurnIdx(0)
+    }
+
+    function switchTeam() {
+        setBlockTeamIdx(prev => (prev + 1) % Math.max(teams.length, 1))
+        setCurrentTurnIdx(0)
+    }
 
     function togglePlayer(id: number) {
         setSelectedPlayerIds(prev =>
@@ -167,6 +238,50 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
     }
 
+    async function handleVoidThrow(gameId: number, throwId: number) {
+        try {
+            setVoidingThrowId(throwId)
+            await api.deleteCameraThrow(eveningId, gameId, throwId)
+            invalidate()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setVoidingThrowId(null)
+        }
+    }
+
+    async function handleFinishGame() {
+        if (!runningGame || !finishWinnerRef || !evening) return
+        setFinishSaving(true)
+        try {
+            const lastThrow = liveThrows.slice(-1)[0]
+            const scores: Record<string, number> = {}
+            if (lastThrow?.cumulative != null) scores[finishWinnerRef] = lastThrow.cumulative
+            let winnerName = finishWinnerRef
+            if (finishWinnerRef.startsWith('p:')) {
+                const pid = parseInt(finishWinnerRef.slice(2))
+                winnerName = evening.players.find(p => p.id === pid)?.name ?? finishWinnerRef
+            } else if (finishWinnerRef.startsWith('t:')) {
+                const tid = parseInt(finishWinnerRef.slice(2))
+                winnerName = evening.teams.find(t => t.id === tid)?.name ?? finishWinnerRef
+            }
+            await api.finishGame(evening.id, runningGame.id, {
+                winner_ref: finishWinnerRef,
+                winner_name: winnerName,
+                scores,
+                loser_penalty: runningGame.loser_penalty,
+            })
+            invalidate()
+            setFinishGameOpen(false)
+            setFinishWinnerRef('')
+            resetTurn()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setFinishSaving(false)
+        }
+    }
+
     const noSelection = selectedPlayerIds.length === 0
 
     // Shared button style helpers
@@ -185,6 +300,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             color: isFlashing ? '#86efac' : 'var(--kce-cream)',
         }
     }
+
+    const lastThrow = liveThrows.length > 0 ? liveThrows[liveThrows.length - 1] : null
 
     return (
         <div style={{
@@ -232,6 +349,223 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </button>
             </div>
 
+            {/* ── Camera throw strip + turn order (when game is running) ── */}
+            {runningGame && (
+                <div style={{
+                    flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--kce-primary) 8%, var(--kce-surface))',
+                    borderBottom: '1px solid var(--kce-border)',
+                    paddingLeft: 'max(env(safe-area-inset-left), 10px)',
+                    paddingRight: 'max(env(safe-area-inset-right), 10px)',
+                    paddingTop: 6,
+                    paddingBottom: 6,
+                }}>
+                    {/* Row 1: Turn order indicator */}
+                    <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5}}>
+                        <span style={{
+                            fontSize: 10, fontWeight: 'bold',
+                            color: 'var(--kce-primary)', flexShrink: 0,
+                        }}>
+                            🎳 {runningGame.name}
+                        </span>
+
+                        {/* Turn mode chips */}
+                        {teams.length > 1 && (
+                            <>
+                                <button
+                                    type="button"
+                                    className={`chip ${turnMode === 'alternating' ? 'active' : ''}`}
+                                    style={{fontSize: 9, padding: '1px 6px'}}
+                                    onClick={() => { setTurnMode('alternating'); resetTurn() }}
+                                >
+                                    {t('quickEntry.modeAlternating')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`chip ${turnMode === 'block' ? 'active' : ''}`}
+                                    style={{fontSize: 9, padding: '1px 6px'}}
+                                    onClick={() => { setTurnMode('block'); resetTurn() }}
+                                >
+                                    {t('quickEntry.modeBlock')}
+                                </button>
+                            </>
+                        )}
+
+                        <div style={{flex: 1}}/>
+
+                        {/* Finish game button (admin only) */}
+                        {isAdmin(user) && (
+                            <button
+                                type="button"
+                                className="btn-secondary btn-xs"
+                                style={{flexShrink: 0, fontSize: 10}}
+                                onClick={() => setFinishGameOpen(f => !f)}
+                            >
+                                🏁 {t('quickEntry.finishGame')}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Row 2: Current player + next queue + score */}
+                    {turnOrder.length > 0 && (
+                        <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                            {/* Current player */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                background: 'var(--kce-primary)',
+                                borderRadius: 8, padding: '3px 8px', flexShrink: 0,
+                            }}>
+                                <span style={{fontSize: 9, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
+                                <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
+                                    {currentPlayer?.name ?? '—'}
+                                </span>
+                            </div>
+
+                            {/* Next 3 in queue */}
+                            {turnOrder.length > 1 && Array.from({length: Math.min(3, turnOrder.length - 1)}, (_, i) => {
+                                const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
+                                return (
+                                    <span key={i} style={{
+                                        fontSize: 10, color: 'var(--kce-muted)',
+                                        background: 'var(--kce-surface2)',
+                                        borderRadius: 6, padding: '2px 6px', flexShrink: 0,
+                                        border: '1px solid var(--kce-border)',
+                                    }}>
+                                        {p.name}
+                                    </span>
+                                )
+                            })}
+
+                            <div style={{flex: 1}}/>
+
+                            {/* Block mode: switch team button */}
+                            {turnMode === 'block' && teams.length > 1 && (
+                                <button
+                                    type="button"
+                                    className="btn-secondary btn-xs"
+                                    style={{fontSize: 10, flexShrink: 0}}
+                                    onClick={switchTeam}
+                                >
+                                    ⇄ {t('quickEntry.switchTeam')} ({(teams[blockTeamIdx % teams.length])?.name ?? ''})
+                                </button>
+                            )}
+
+                            {/* Manual advance button */}
+                            <button
+                                type="button"
+                                className="btn-secondary btn-xs"
+                                style={{flexShrink: 0, fontSize: 10}}
+                                onClick={advanceTurn}
+                            >
+                                {t('quickEntry.advanceTurn')} ▶
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Row 3: Throw history strip */}
+                    {liveThrows.length > 0 && (
+                        <div style={{display: 'flex', gap: 4, overflowX: 'auto', marginTop: 5, paddingBottom: 2}} className="no-scrollbar">
+                            {[...liveThrows].reverse().map(th => {
+                                const throwerName = th.player_id
+                                ? (players.find(p => p.id === th.player_id)?.name ?? null)
+                                : null
+                                return (
+                                    <div key={th.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: 3,
+                                        background: 'var(--kce-surface2)',
+                                        borderRadius: 6, padding: '2px 4px 2px 6px',
+                                        flexShrink: 0,
+                                        border: '1px solid var(--kce-border)',
+                                    }}>
+                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                        {throwerName && (
+                                            <span style={{fontSize: 9, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
+                                                {throwerName}
+                                            </span>
+                                        )}
+                                        <span style={{
+                                            fontSize: 13, fontFamily: 'monospace',
+                                            fontWeight: 'bold', color: 'var(--kce-amber)',
+                                        }}>
+                                            {th.pins}
+                                        </span>
+                                        {th.cumulative !== null && (
+                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                                Σ{th.cumulative}
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            disabled={voidingThrowId === th.id}
+                                            style={{
+                                                fontSize: 10, color: '#f87171',
+                                                background: 'none', border: 'none',
+                                                cursor: 'pointer', padding: '0 2px',
+                                                opacity: voidingThrowId === th.id ? 0.4 : 1,
+                                            }}
+                                            title={t('quickEntry.voidThrow')}
+                                            onClick={() => handleVoidThrow(runningGame.id, th.id)}
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {/* Finish game panel (expanded) */}
+                    {finishGameOpen && isAdmin(user) && (
+                        <div style={{
+                            marginTop: 8,
+                            padding: '10px 12px',
+                            background: 'var(--kce-surface)',
+                            borderRadius: 10,
+                            border: '1px solid var(--kce-border)',
+                        }}>
+                            <div style={{
+                                fontSize: 11, fontWeight: 'bold',
+                                color: 'var(--kce-cream)', marginBottom: 8,
+                            }}>
+                                🏁 {runningGame.name} — {t('quickEntry.selectWinner')}
+                                {lastThrow?.cumulative != null && (
+                                    <span style={{color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 8}}>
+                                        {t('quickEntry.gameScore')}: <strong style={{color: 'var(--kce-cream)'}}>{lastThrow.cumulative}</strong>
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
+                                {evening!.teams.map(team => (
+                                    <button key={team.id} type="button"
+                                            className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
+                                            onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
+                                        {team.name}
+                                    </button>
+                                ))}
+                                {evening!.players.map(p => (
+                                    <button key={p.id} type="button"
+                                            className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
+                                            onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
+                                        {p.name}
+                                    </button>
+                                ))}
+                            </div>
+                            <div style={{display: 'flex', gap: 6}}>
+                                <button className="btn-secondary btn-sm" style={{flex: 1}}
+                                        onClick={() => { setFinishGameOpen(false); setFinishWinnerRef('') }}>
+                                    {t('action.cancel')}
+                                </button>
+                                <button className="btn-primary btn-sm" style={{flex: 1}}
+                                        disabled={!finishWinnerRef || finishSaving}
+                                        onClick={handleFinishGame}>
+                                    ✓ {t('game.finish')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Three-column body — respects side safe areas ── */}
             <div style={{
                 flex: 1,
@@ -251,6 +585,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         const isMe = user?.regular_member_id !== null &&
                             p.regular_member_id === user?.regular_member_id
                         const isSelected = selectedPlayerIds.includes(p.id)
+                        const isCurrent = currentPlayer?.id === p.id
                         return (
                             <button
                                 key={p.id}
@@ -259,13 +594,20 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     transition-all active:scale-95 flex items-center gap-1
                                     ${isSelected
                                         ? 'border-kce-amber text-kce-amber'
-                                        : 'border-kce-border text-kce-cream'}
+                                        : isCurrent
+                                            ? 'border-kce-primary text-kce-primary'
+                                            : 'border-kce-border text-kce-cream'}
                                 `}
                                 style={{
-                                    background: isSelected ? 'rgba(232,160,32,0.12)' : 'var(--kce-surface2)',
+                                    background: isSelected
+                                        ? 'rgba(232,160,32,0.12)'
+                                        : isCurrent
+                                            ? 'color-mix(in srgb, var(--kce-primary) 12%, transparent)'
+                                            : 'var(--kce-surface2)',
                                 }}
                                 onClick={() => togglePlayer(p.id)}
                             >
+                                {isCurrent && <span style={{fontSize: 11}}>🎳</span>}
                                 {p.is_king && <span className="text-sm">👑</span>}
                                 <span className="flex-1 truncate">{p.name}</span>
                                 {isMe && (

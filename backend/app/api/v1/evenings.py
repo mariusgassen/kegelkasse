@@ -69,7 +69,8 @@ def serialize_evening(e: Evening) -> dict:
                    "finished_at": g.finished_at.isoformat() if g.finished_at else None,
                    "client_timestamp": g.client_timestamp,
                    "throws": [{"id": t.id, "throw_num": t.throw_num, "pins": t.pins,
-                                "cumulative": t.cumulative, "pin_states": t.pin_states}
+                                "cumulative": t.cumulative, "pin_states": t.pin_states,
+                                "player_id": t.player_id}
                                for t in g.throws]}
                   for g in e.games if not g.is_deleted],
         "drink_rounds": [{"id": r.id, "drink_type": r.drink_type, "variety": r.variety,
@@ -671,6 +672,7 @@ class CameraThrowCreate(BaseModel):
     pins: int
     cumulative: Optional[int] = None
     pin_states: list = []
+    player_id: Optional[int] = None
 
 
 @router.post("/{eid}/games/{gid}/throws")
@@ -691,9 +693,12 @@ def add_camera_throw(eid: int, gid: int, data: CameraThrowCreate,
         existing.pins = data.pins
         existing.cumulative = data.cumulative
         existing.pin_states = data.pin_states
+        if data.player_id is not None:
+            existing.player_id = data.player_id
     else:
         db.add(GameThrowLog(
             game_id=gid,
+            player_id=data.player_id,
             throw_num=data.throw_num,
             pins=data.pins,
             cumulative=data.cumulative,
@@ -714,6 +719,24 @@ def clear_camera_throws(eid: int, gid: int,
     if not g:
         raise HTTPException(404, "Game not found")
     db.query(GameThrowLog).filter(GameThrowLog.game_id == gid).delete()
+    db.commit()
+    background_tasks.add_task(event_bus.publish, eid)
+    return {"ok": True}
+
+
+@router.delete("/{eid}/games/{gid}/throws/{tid}")
+def delete_camera_throw(eid: int, gid: int, tid: int,
+                        background_tasks: BackgroundTasks,
+                        db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
+    if not g:
+        raise HTTPException(404, "Game not found")
+    throw = db.query(GameThrowLog).filter(GameThrowLog.id == tid, GameThrowLog.game_id == gid).first()
+    if not throw:
+        raise HTTPException(404, "Throw not found")
+    db.delete(throw)
     db.commit()
     background_tasks.add_task(event_bus.publish, eid)
     return {"ok": True}

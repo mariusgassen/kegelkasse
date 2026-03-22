@@ -650,6 +650,23 @@ export const de = {
     "camera.selectGame": "Aktuelles Spiel",
     "camera.noRunningGame": "Kein laufendes Spiel.",
     "camera.syncActive": "Würfe werden live synchronisiert",
+    "camera.kiosk": "Kiosk",
+    "camera.enterKiosk": "Kiosk starten",
+    "camera.exitKiosk": "Kiosk beenden",
+    "camera.kioskHint": "Läuft unbeaufsichtigt — Würfe werden automatisch übermittelt.",
+    "quickEntry.cameraThrows": "Kamera-Würfe",
+    "quickEntry.voidThrow": "Wurf widerrufen",
+    "quickEntry.finishGame": "Spiel beenden",
+    "quickEntry.selectWinner": "Gewinner wählen",
+    "quickEntry.noThrows": "Noch keine Würfe",
+    "quickEntry.turnOrder": "Reihenfolge",
+    "quickEntry.currentPlayer": "Dran",
+    "quickEntry.nextPlayer": "Nächster",
+    "quickEntry.switchTeam": "Team wechseln",
+    "quickEntry.modeAlternating": "Abwechselnd",
+    "quickEntry.modeBlock": "Block",
+    "quickEntry.advanceTurn": "Weiter",
+    "quickEntry.gameScore": "Punktestand",
 } as const
 
 export type TranslationKey = keyof typeof de
