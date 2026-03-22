@@ -24,12 +24,12 @@ DEFAULT_PENALTY_TYPES = [
 
 DEFAULT_GAME_TEMPLATES = [
     # name, description, winner_type, is_opener, default_loser_penalty, sort_order
-    ("Große Hausnummer", "Eröffnungsspiel — der König des Abends", "individual", True, 1.00, 0),
+    ("Große Hausnummer", "Eröffnungsspiel", "individual", True, 1.00, 0),
     ("Kleine Hausnummer", "Kleines Hausspiel", "individual", False, 0.50, 1),
     ("Fass", "Alle Kegel auf einmal abräumen", "team", False, 0.50, 2),
     ("Bunkern", "Verteidigungs-Kegelspiel", "team", False, 0.50, 3),
     ("Fußball", "Team-Spiel mit Fußball-Regeln", "team", False, 0.50, 4),
-    ("Klassisch", "Standard-Kegelrunde", "either", False, 0.00, 5),
+    ("Klassisch", "Standard-Kegelrunde", "individual", False, 0.00, 5),
 ]
 
 
