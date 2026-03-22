@@ -5,7 +5,11 @@ import {useI18n, useT} from '@/i18n'
 import {AppLogo} from '@/components/Logo.tsx'
 import {clearAuthParams} from '@/hooks/usePage.ts'
 
-export function LoginPage() {
+interface LoginPageProps {
+    onLogin?: () => void
+}
+
+export function LoginPage({onLogin}: LoginPageProps) {
     const [email, setEmail] = useState('')
     const [pw, setPw] = useState('')
     const [error, setError] = useState('')
@@ -49,6 +53,7 @@ export function LoginPage() {
             clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
+            onLogin?.()
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t('auth.error.invalid'))
         } finally {
@@ -68,6 +73,7 @@ export function LoginPage() {
             clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
+            onLogin?.()
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t('auth.error.invalid'))
         } finally {
@@ -84,6 +90,7 @@ export function LoginPage() {
             authState.setToken(res.access_token)
             clearAuthParams()
             setUser(res.user)
+            onLogin?.()
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t('error.generic'))
         } finally {
