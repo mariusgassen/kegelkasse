@@ -314,12 +314,16 @@ export function CameraCapturePage({onClose}: Props) {
     // Submit a confirmed throw: add to local list + POST to backend
     function _doConfirm(r: FrameReading | null) {
         if (r && r.throwPins !== null && r.throwNum !== null) {
+            const gid = selectedGameIdRef.current
+            const eid = eveningIdRef.current
+            // Capture current player BEFORE advancing turn
+            const currentPid = activePlayerIdRef.current
             const entry: ThrowEntry = {
                 throwNum: r.throwNum,
                 pins: r.throwPins,
                 cumulative: r.cumulative,
                 pinStates: r.pinStates,
-                playerId: activePlayerIdRef.current,
+                playerId: currentPid,
             }
             setThrows(prev => {
                 // Upsert by throwNum
@@ -331,16 +335,25 @@ export function CameraCapturePage({onClose}: Props) {
                 }
                 return [...prev, entry]
             })
-            // Fire-and-forget POST to backend (if game selected)
-            const gid = selectedGameIdRef.current
-            const eid = eveningIdRef.current
             if (gid && eid) {
+                // Advance turn (mirrors kiosk RAF loop and handleTestThrow)
+                const order = kioskTurnOrderRef.current
+                if (order.length > 0) {
+                    const nextIdx = kioskTurnIdxRef.current + 1
+                    kioskTurnIdxRef.current = nextIdx
+                    setKioskTurnIdx(nextIdx)
+                    const nextPid = order[nextIdx % order.length]?.id ?? null
+                    activePlayerIdRef.current = nextPid
+                    if (nextPid !== null) {
+                        api.setActivePlayer(eid, gid, nextPid).catch(() => {})
+                    }
+                }
                 api.addCameraThrow(eid, gid, {
                     throw_num: r.throwNum,
                     pins: r.throwPins,
                     cumulative: r.cumulative ?? undefined,
                     pin_states: r.pinStates,
-                    player_id: activePlayerIdRef.current,
+                    player_id: currentPid,
                 }).catch(() => {}) // silent — local state is the source of truth
             }
         }
