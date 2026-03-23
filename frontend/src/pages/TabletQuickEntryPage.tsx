@@ -13,6 +13,7 @@ import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
+import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, PenaltyType, Team} from '@/types.ts'
 
 function fe(v: number) {
@@ -23,33 +24,6 @@ function fTime(ms: number) {
     return new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
-/** Build the circular throw-order list based on mode */
-function buildTurnOrder(
-    players: EveningPlayer[],
-    teams: Team[],
-    mode: 'alternating' | 'block',
-    blockTeamIdx: number,
-): EveningPlayer[] {
-    const teamsWithPlayers = teams.map(t => players.filter(p => p.team_id === t.id))
-    const noTeam = players.filter(p => p.team_id === null)
-
-    if (teams.length === 0) return [...players]
-
-    if (mode === 'block') {
-        const teamPlayers = teamsWithPlayers[blockTeamIdx % teams.length] ?? []
-        return teamPlayers
-    }
-
-    // alternating: interleave team players
-    const maxLen = Math.max(...teamsWithPlayers.map(t => t.length), 0)
-    const result: EveningPlayer[] = []
-    for (let i = 0; i < maxLen; i++) {
-        for (const team of teamsWithPlayers) {
-            if (i < team.length) result.push(team[i])
-        }
-    }
-    return [...result, ...noTeam]
-}
 
 interface Props {
     eveningId: number
@@ -89,9 +63,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [editCumulative, setEditCumulative] = useState<number | null>(null)
     const [savingEditId, setSavingEditId] = useState<number | null>(null)
 
-    // Auto-advance: track how many throws existed when the component mounted / game changed
-    const prevThrowsLenRef = useRef<number>(-1)
-    const prevGameIdRef = useRef<number | null>(null)
+    // Auto-advance refs — track game + throw count to detect new arrivals without false-positives
+    const autoGameIdRef = useRef<number | undefined>(undefined)   // undefined = uninitialized
+    const autoThrowsLenRef = useRef<number>(0)
 
     // Heatmap toggle
     const [showHeatmap, setShowHeatmap] = useState(false)
@@ -174,21 +148,24 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }, [currentPlayer?.id, activeGame?.id, activeGame?.status, eveningId])
 
     // Auto-advance turn when a new throw arrives via SSE.
-    // On game change: reset the baseline so the existing throws don't trigger advances.
     const liveThrows = activeGame?.throws ?? []
     useEffect(() => {
-        if (activeGame?.id !== prevGameIdRef.current) {
-            prevGameIdRef.current = activeGame?.id ?? null
-            prevThrowsLenRef.current = liveThrows.length
+        const gid = activeGame?.id
+        const len = liveThrows.length
+
+        // Uninitialized or game changed → set baseline, no advance
+        if (autoGameIdRef.current === undefined || autoGameIdRef.current !== gid) {
+            autoGameIdRef.current = gid
+            autoThrowsLenRef.current = len
             return
         }
-        if (prevThrowsLenRef.current < 0) {
-            prevThrowsLenRef.current = liveThrows.length
-            return
-        }
-        if (liveThrows.length > prevThrowsLenRef.current) {
-            prevThrowsLenRef.current = liveThrows.length
-            setCurrentTurnIdx(prev => prev + 1)
+
+        const prev = autoThrowsLenRef.current
+        autoThrowsLenRef.current = len  // always update baseline (handles resets too)
+
+        if (len > prev) {
+            // One or more new throws — advance by delta
+            setCurrentTurnIdx(t => t + (len - prev))
         }
     }, [liveThrows.length, activeGame?.id])
 
