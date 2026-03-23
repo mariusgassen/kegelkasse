@@ -451,13 +451,15 @@ export const api = {
         players: {
             name: string; regular_member_id: number | null;
             evenings: number; penalty_total: number; penalty_count: number;
-            game_wins: number; beer_rounds: number; shot_rounds: number
+            game_wins: number; beer_rounds: number; shot_rounds: number;
+            total_pins: number; throw_count: number; avg_pins: number | null
         }[]
     }>('GET', `/stats/year/${year}`),
     getMyStats: (year: number) => request<{
         year: number; regular_member_id: number | null;
         penalty_total: number; evenings_attended: number;
-        total_evenings: number; game_wins: number; beer_rounds: number
+        total_evenings: number; game_wins: number; beer_rounds: number;
+        total_pins: number; throw_count: number; avg_pins: number | null
     }>('GET', `/stats/me/${year}`),
 
     // Sync

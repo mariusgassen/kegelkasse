@@ -323,6 +323,24 @@ export function StatsPage() {
                                             const pTotal = evening.penalty_log.filter(l => l.player_id === p.id).reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
                                             const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
                                             const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
+                                            // Throw stats for this player across all games of the evening
+                                            const playerThrows = evening.games.flatMap(g => g.throws ?? []).filter(th => th.player_id === p.id)
+                                            const totalPins = playerThrows.reduce((s, th) => s + th.pins, 0)
+                                            const throwCount = playerThrows.length
+                                            const avgPins = throwCount > 0 ? (totalPins / throwCount).toFixed(1) : null
+                                            // Heatmap: count per-pin hits across all throws with pin_states
+                                            const throwsWithPins = playerThrows.filter(th => th.pin_states && th.pin_states.length === 9)
+                                            const pinCounts = Array(9).fill(0)
+                                            for (const th of throwsWithPins) for (let i = 0; i < 9; i++) if (th.pin_states[i]) pinCounts[i]++
+                                            const maxPinCount = Math.max(...pinCounts, 1)
+                                            const hasHeatmap = throwsWithPins.length > 0
+                                            const PIN_POS: [number, number][] = [
+                                                [0.50, 0.10],
+                                                [0.30, 0.30], [0.70, 0.30],
+                                                [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
+                                                [0.30, 0.70], [0.70, 0.70],
+                                                [0.50, 0.90],
+                                            ]
                                             return (
                                                 <div key={p.id} className="kce-card p-3">
                                                     <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
@@ -354,6 +372,56 @@ export function StatsPage() {
                                                             <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
                                                         </div>
                                                     </div>
+                                                    {throwCount > 0 && (
+                                                        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--kce-border)'}}>
+                                                            <div className="flex justify-around text-center">
+                                                                <div>
+                                                                    <div className="text-kce-cream font-bold text-sm">🎳{totalPins}</div>
+                                                                    <div className="text-[9px] text-kce-muted">{t('stats.totalPins')}</div>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-kce-cream font-bold text-sm">{throwCount}</div>
+                                                                    <div className="text-[9px] text-kce-muted">{t('stats.throwCount')}</div>
+                                                                </div>
+                                                                {avgPins !== null && (
+                                                                    <div>
+                                                                        <div className="text-kce-cream font-bold text-sm">{avgPins}</div>
+                                                                        <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {hasHeatmap && (
+                                                                <div className="mt-2">
+                                                                    <div className="text-[9px] text-kce-muted text-center mb-1">{t('stats.heatmap')}</div>
+                                                                    <div style={{position: 'relative', width: 80, height: 68, margin: '0 auto'}}>
+                                                                        {PIN_POS.map(([px, py], i) => {
+                                                                            const ratio = pinCounts[i] / maxPinCount
+                                                                            const bg = ratio === 0
+                                                                                ? 'transparent'
+                                                                                : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
+                                                                            return (
+                                                                                <div key={i} style={{
+                                                                                    position: 'absolute',
+                                                                                    left: `${px * 100}%`, top: `${py * 100}%`,
+                                                                                    transform: 'translate(-50%,-50%)',
+                                                                                    width: 16, height: 16, borderRadius: '50%',
+                                                                                    background: bg,
+                                                                                    border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
+                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                }}>
+                                                                                    {pinCounts[i] > 0 && (
+                                                                                        <span style={{fontSize: 7, color: 'var(--kce-bg)', fontWeight: 'bold', lineHeight: 1}}>
+                                                                                            {pinCounts[i]}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            )
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )
                                         })}
@@ -414,6 +482,11 @@ export function StatsPage() {
                                         <div className="text-[10px] text-kce-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
                                         </div>
+                                        {p.throw_count > 0 && (
+                                            <div className="text-[10px] text-kce-muted">
+                                                🎳 {p.total_pins} {t('stats.totalPins')} · Ø {p.avg_pins} · {p.throw_count} {t('stats.throwCount')}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
