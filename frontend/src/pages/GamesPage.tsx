@@ -1,5 +1,4 @@
 import {useState} from 'react'
-import {useQuery} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -64,12 +63,6 @@ export function GamesPage() {
     const [editPerPointPenalty, setEditPerPointPenalty] = useState('0')
     const [editNote, setEditNote] = useState('')
 
-    // ── Team setup (intercepts starting a team game when setup is incomplete) ──
-    const [teamSetupOpen, setTeamSetupOpen] = useState(false)
-    const [pendingGameId, setPendingGameId] = useState<number | null>(null)
-    const [teamSaving, setTeamSaving] = useState(false)
-    const {data: clubTeams = []} = useQuery({queryKey: ['club-teams'], queryFn: api.listClubTeams, staleTime: 60000})
-
     const [saving, setSaving] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [cameraOpen, setCameraOpen] = useState(false)
@@ -88,11 +81,8 @@ export function GamesPage() {
     const games = [...evening.games].filter(g => !(g as any).is_deleted).sort((a, b) => a.sort_order - b.sort_order)
     const hasOpener = games.some(g => g.is_opener)
     const runningGame = games.find(g => g.status === 'running') ?? null
-
-    // Team setup state
-    const unassignedPlayers = players.filter(p => p.team_id === null)
-    const teamSetupComplete = teams.length > 0 && unassignedPlayers.length === 0
-    const hasTeamGame = games.some(g => g.winner_type === 'team' && g.status !== 'finished')
+    // Players without a team assignment (relevant for team games)
+    const unassignedPlayers = teams.length > 0 ? players.filter(p => p.team_id === null) : []
 
     // ── Helpers ──
 
@@ -189,51 +179,11 @@ export function GamesPage() {
             openFinishSheet(runningGame)
             return
         }
-        // For team games, require all players to be assigned to a team
-        const game = games.find(g => g.id === gid)
-        if (game?.winner_type === 'team' && !teamSetupComplete) {
-            setPendingGameId(gid)
-            setTeamSetupOpen(true)
-            return
-        }
         try {
             await api.startGame(evening!.id, gid)
             invalidate()
         } catch (e: unknown) {
             toastError(e)
-        }
-    }
-
-    async function applyTemplates(shuffle: boolean) {
-        try {
-            await api.applyClubTeamsToEvening(evening!.id, shuffle)
-            invalidate()
-        } catch (e: unknown) {
-            toastError(e)
-        }
-    }
-
-    async function assignPlayerTeam(pid: number, tid: number) {
-        try {
-            await api.updatePlayer(evening!.id, pid, {team_id: tid})
-            invalidate()
-        } catch (e: unknown) {
-            toastError(e)
-        }
-    }
-
-    async function doStartAfterSetup() {
-        if (!pendingGameId) return
-        setTeamSaving(true)
-        try {
-            await api.startGame(evening!.id, pendingGameId)
-            invalidate()
-            setTeamSetupOpen(false)
-            setPendingGameId(null)
-        } catch (e: unknown) {
-            toastError(e)
-        } finally {
-            setTeamSaving(false)
         }
     }
 
@@ -301,54 +251,17 @@ export function GamesPage() {
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">🏆 {t('nav.games')}</div>
 
-            {/* ── Teams overview (shown when team games exist or teams are configured) ── */}
-            {(teams.length > 0 || hasTeamGame || clubTeams.length > 0) && (
-                <div className="kce-card p-3 mb-3">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
-                            🤝 {t('club.tab.teams')}
-                        </div>
-                        <div className="flex gap-1">
-                            {clubTeams.length > 0 && (
-                                <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
-                                        onClick={() => applyTemplates(false)}>
-                                    📋 {t('team.fromTemplateBadge').replace('📋 ', '')}
-                                </button>
-                            )}
-                            {players.length > 0 && clubTeams.length > 0 && (
-                                <button className="btn-secondary btn-xs" title={t('team.randomize')}
-                                        onClick={() => applyTemplates(true)}>
-                                    🎲
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                    {teams.length === 0 ? (
-                        <p className="text-xs text-kce-muted">
-                            {clubTeams.length > 0 ? t('team.applyPrompt') : t('club.teams.none')}
-                        </p>
-                    ) : (
-                        <div className="flex flex-wrap gap-2">
-                            {teams.map(team => {
-                                const members = players.filter(p => p.team_id === team.id)
-                                return (
-                                    <div key={team.id} className="rounded-lg px-2.5 py-1.5 flex flex-col gap-0.5"
-                                         style={{background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)'}}>
-                                        <span className="text-xs font-bold text-kce-cream">{team.name}</span>
-                                        <span className="text-[10px] text-kce-muted">
-                                            {members.length > 0 ? members.map(p => p.name).join(', ') : '—'}
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                    {teams.length > 0 && unassignedPlayers.length > 0 && (
-                        <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
-                            <span>⚠️</span>
-                            <span>{unassignedPlayers.length} {t('team.playersUnassigned')}</span>
-                        </div>
-                    )}
+            {/* ── Unassigned-players warning (teams exist but not all players assigned) ── */}
+            {unassignedPlayers.length > 0 && (
+                <div className="rounded-lg px-3 py-2 mb-3 flex items-center gap-2"
+                     style={{background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.35)'}}>
+                    <span className="text-xs text-amber-400 flex-1">
+                        ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
+                    </span>
+                    <button className="btn-secondary btn-xs flex-shrink-0"
+                            onClick={() => { window.location.hash = 'config' }}>
+                        → {t('nav.evening')}
+                    </button>
                 </div>
             )}
 
@@ -785,87 +698,6 @@ export function GamesPage() {
                 </div>
             </Sheet>
 
-            {/* ── Team Setup Sheet — opens when starting a team game with incomplete assignments ── */}
-            <Sheet open={teamSetupOpen}
-                   onClose={() => { setTeamSetupOpen(false); setPendingGameId(null) }}
-                   title={t('team.setup')}
-                   onSubmit={doStartAfterSetup}>
-                <div className="flex flex-col gap-4">
-                    {/* Context: which game is waiting */}
-                    {pendingGameId !== null && (() => {
-                        const g = games.find(g => g.id === pendingGameId)
-                        return g ? (
-                            <div className="text-xs text-kce-muted">
-                                {t('team.setupForGame')}: <strong className="text-kce-cream">{g.name}</strong>
-                            </div>
-                        ) : null
-                    })()}
-
-                    {/* Quick-assign: apply club templates or randomize */}
-                    {clubTeams.length > 0 && (
-                        <div className="flex gap-2">
-                            <button type="button" className="btn-secondary flex-1 text-xs"
-                                    onClick={() => applyTemplates(false)}>
-                                📋 {t('team.fromTemplateBadge').replace('📋 ', '')}
-                            </button>
-                            <button type="button" className="btn-primary flex-1 text-xs"
-                                    onClick={() => applyTemplates(true)}>
-                                🎲 {t('team.randomizeShort')}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Current teams with their members */}
-                    {teams.length === 0 ? (
-                        <p className="text-xs text-kce-muted">{t('team.noTeamsYet')}</p>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {teams.map(team => {
-                                const members = players.filter(p => p.team_id === team.id)
-                                return (
-                                    <div key={team.id} className="rounded-lg px-3 py-2"
-                                         style={{background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)'}}>
-                                        <div className="text-xs font-bold text-kce-cream mb-0.5">🤝 {team.name}</div>
-                                        <div className="text-[11px] text-kce-muted">
-                                            {members.length > 0 ? members.map(p => p.name).join(', ') : '—'}
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-
-                    {/* Unassigned players — per-player team chip picker */}
-                    {teams.length > 0 && unassignedPlayers.length > 0 && (
-                        <div>
-                            <div className="field-label mb-2" style={{color: '#fbbf24'}}>
-                                ⚠️ {t('team.assignPlayers')}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                {unassignedPlayers.map(p => (
-                                    <div key={p.id} className="flex items-center gap-2">
-                                        <span className="text-sm text-kce-cream flex-1 truncate">{p.name}</span>
-                                        <div className="flex gap-1 flex-wrap justify-end">
-                                            {teams.map(team => (
-                                                <button key={team.id} type="button"
-                                                        className="chip"
-                                                        onClick={() => assignPlayerTeam(p.id, team.id)}>
-                                                    {team.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <button type="submit" className="btn-primary w-full mt-1"
-                            disabled={teamSaving || teams.length === 0 || unassignedPlayers.length > 0}>
-                        ▶ {t('game.start')}
-                    </button>
-                </div>
-            </Sheet>
         </div>
     )
 }
