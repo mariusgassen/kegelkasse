@@ -281,8 +281,79 @@ export function EveningPage() {
                            pinPenalty={club?.settings?.pin_penalty ?? 0} onPenaltyLogged={invalidate}/>
             )}
 
-            {/* ── Players ── */}
+            {/* ── Teams (first, so they're set up before players are assigned) ── */}
             <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
+                    🤝 Teams ({teams.length})
+                </div>
+                {!evening.is_closed && (
+                    <div className="flex gap-1">
+                        {/* Apply/Randomize only shown when no teams exist yet — teams are fixed once set */}
+                        {teams.length === 0 && (
+                            <>
+                                <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
+                                        onClick={async () => {
+                                            try {
+                                                await api.applyClubTeamsToEvening(evening.id, false)
+                                                invalidate()
+                                            } catch (e: unknown) {
+                                                toastError(e)
+                                            }
+                                        }}>
+                                    {t('team.fromTemplateBadge')}
+                                </button>
+                                <button className="btn-secondary btn-xs" title={t('team.randomize')}
+                                        onClick={async () => {
+                                            if (players.length === 0) {
+                                                showToast(t('team.noPlayers'))
+                                                return
+                                            }
+                                            try {
+                                                await api.applyClubTeamsToEvening(evening.id, true)
+                                                invalidate()
+                                            } catch (e: unknown) {
+                                                toastError(e)
+                                            }
+                                        }}>
+                                    🎲
+                                </button>
+                            </>
+                        )}
+                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>+</button>
+                    </div>
+                )}
+            </div>
+
+            {teams.length === 0
+                ? <Empty icon="🤝" text={t('club.teams.none')}/>
+                : teams.map(team => {
+                    const members = players.filter(p => p.team_id === team.id)
+                    return (
+                        <div key={team.id} className="kce-card p-3 mb-2">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm font-bold">{team.name}</div>
+                                {!evening.is_closed && (
+                                    <div className="flex gap-1">
+                                        <button className="btn-secondary btn-xs" onClick={() => openEditTeam(team)}>✏️</button>
+                                        <button className="btn-danger btn-xs" onClick={async () => {
+                                            await api.deleteTeam(evening.id, team.id)
+                                            invalidate()
+                                        }}>✕</button>
+                                    </div>
+                                )}
+                            </div>
+                            {members.length > 0 && (
+                                <div className="text-xs text-kce-muted mt-1">
+                                    {members.map(p => p.name).join(', ')}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })
+            }
+
+            {/* ── Players ── */}
+            <div className="flex items-center justify-between mb-2 mt-4">
                 <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
                     👤 {t('team.members')} ({players.length})
                 </div>
@@ -325,24 +396,20 @@ export function EveningPage() {
                                             <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
                                         ))}
                                     </div>
-                                    <div
-                                        className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
+                                    <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️
-                                        </button>
+                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️</button>
                                         {confirmRemovePlayerId === p.id ? (
                                             <>
                                                 <button className="btn-danger btn-xs" onClick={async () => {
                                                     await api.removePlayer(evening.id, p.id)
                                                     setConfirmRemovePlayerId(null)
                                                     invalidate()
-                                                }}>✓
-                                                </button>
+                                                }}>✓</button>
                                                 <button className="btn-secondary btn-xs"
-                                                        onClick={() => setConfirmRemovePlayerId(null)}>✕
-                                                </button>
+                                                        onClick={() => setConfirmRemovePlayerId(null)}>✕</button>
                                             </>
                                         ) : (
                                             <button className="btn-danger btn-xs"
@@ -354,74 +421,6 @@ export function EveningPage() {
                             {confirmRemovePlayerId === p.id && (
                                 <div className="text-xs text-red-400 px-3 pb-2">
                                     ⚠️ {t('player.removeWarning')}
-                                </div>
-                            )}
-                        </div>
-                    )
-                })
-            }
-
-            {/* ── Teams ── */}
-            <div className="flex items-center justify-between mb-2 mt-4">
-                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
-                    🤝 Teams ({teams.length})
-                </div>
-                {!evening.is_closed && (
-                    <div className="flex gap-1">
-                        <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
-                                onClick={async () => {
-                                    try {
-                                        await api.applyClubTeamsToEvening(evening.id, false);
-                                        invalidate()
-                                    } catch (e: unknown) {
-                                        toastError(e)
-                                    }
-                                }}>
-                            {t('team.fromTemplateBadge')}
-                        </button>
-                        <button className="btn-secondary btn-xs" title={t('team.randomize')}
-                                onClick={async () => {
-                                    if (players.length === 0) {
-                                        showToast(t('team.noPlayers'));
-                                        return
-                                    }
-                                    try {
-                                        await api.applyClubTeamsToEvening(evening.id, true);
-                                        invalidate()
-                                    } catch (e: unknown) {
-                                        toastError(e)
-                                    }
-                                }}>
-                            🎲
-                        </button>
-                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>+</button>
-                    </div>
-                )}
-            </div>
-
-            {teams.length === 0
-                ? <Empty icon="🤝" text={t('club.teams.none')}/>
-                : teams.map(team => {
-                    const members = players.filter(p => p.team_id === team.id)
-                    return (
-                        <div key={team.id} className="kce-card p-3 mb-2">
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm font-bold">{team.name}</div>
-                                {!evening.is_closed && (
-                                    <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditTeam(team)}>✏️
-                                        </button>
-                                        <button className="btn-danger btn-xs" onClick={async () => {
-                                            await api.deleteTeam(evening.id, team.id)
-                                            invalidate()
-                                        }}>✕
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            {members.length > 0 && (
-                                <div className="text-xs text-kce-muted mt-1">
-                                    {members.map(p => p.name).join(', ')}
                                 </div>
                             )}
                         </div>
