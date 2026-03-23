@@ -64,13 +64,23 @@ export interface PinAreaROI {
     h: number
 }
 
+export interface LampROI {
+    x: number
+    y: number
+    w: number
+    h: number
+}
+
 export interface CalibrationData {
     displayLeft: DisplayROI    // throw number display
     displayMiddle: DisplayROI  // pins-this-throw display
     displayRight: DisplayROI   // cumulative score display
     pinArea: PinAreaROI        // bounding box covering all 9 pin globes
+    lampRed: LampROI           // red lamp: Bande getroffen (0 Punkte)
+    lampGreen: LampROI         // green lamp: Kegel gestellt / Bahn bereit
     brightness: number         // green-channel threshold 0–255 (default 60)
-    version: 1
+    redness: number            // red-channel threshold for red lamp (default 80)
+    version: 2
 }
 
 export const DEFAULT_CALIBRATION: CalibrationData = {
@@ -78,8 +88,11 @@ export const DEFAULT_CALIBRATION: CalibrationData = {
     displayMiddle: {x: 0.35, y: 0.55, w: 0.28, h: 0.25, digits: 1},
     displayRight:  {x: 0.67, y: 0.55, w: 0.30, h: 0.25, digits: 2},
     pinArea:       {x: 0.10, y: 0.05, w: 0.80, h: 0.45},
+    lampRed:       {x: 0.02, y: 0.55, w: 0.04, h: 0.08},
+    lampGreen:     {x: 0.02, y: 0.45, w: 0.04, h: 0.08},
     brightness: 60,
-    version: 1,
+    redness: 80,
+    version: 2,
 }
 
 export interface FrameReading {
@@ -87,18 +100,45 @@ export interface FrameReading {
     throwPins: number | null
     cumulative: number | null
     pinStates: boolean[]  // 9 elements; true = fallen (globe lit)
+    lampRed: boolean      // true = Bande getroffen (0 Punkte)
+    lampGreen: boolean    // true = Kegel gestellt / Bahn bereit
 }
 
 // Vollmer 9-pin globe positions as [cx, cy] relative to pinArea bbox.
-// Layout (top→bottom): 3 – 2 – 3 – 1 (diamond / Raute)
+// True Raute/diamond layout (top→bottom): 1 – 2 – 3 – 2 – 1
+// Pin 9 (König) is back-center; Pin 1 is front-center.
 export const PIN_POSITIONS: [number, number][] = [
-    [0.20, 0.12], [0.50, 0.12], [0.80, 0.12],  // back row (3)
-    [0.35, 0.38], [0.65, 0.38],                  // middle row (2)
-    [0.20, 0.63], [0.50, 0.63], [0.80, 0.63],  // front row (3)
-    [0.50, 0.88],                                 // front center (1)
+    [0.50, 0.10],                                              // back center (König / Pin 9)
+    [0.30, 0.30], [0.70, 0.30],                               // row 4: pins 7, 8
+    [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],               // middle row: pins 4, 5, 6
+    [0.30, 0.70], [0.70, 0.70],                               // row 2: pins 2, 3
+    [0.50, 0.90],                                              // front center (Pin 1)
 ]
 
 // ── Pixel helpers ─────────────────────────────────────────────────────────────
+
+/** Average red-channel brightness over a rectangle (coords in 0–1 space). */
+function avgRed(
+    data: Uint8ClampedArray,
+    imgW: number,
+    imgH: number,
+    rx: number, ry: number, rw: number, rh: number,
+): number {
+    const x0 = Math.max(0, Math.floor(rx * imgW))
+    const y0 = Math.max(0, Math.floor(ry * imgH))
+    const x1 = Math.min(imgW, Math.ceil((rx + rw) * imgW))
+    const y1 = Math.min(imgH, Math.ceil((ry + rh) * imgH))
+    if (x1 <= x0 || y1 <= y0) return 0
+    let sum = 0
+    let count = 0
+    for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+            sum += data[(y * imgW + x) * 4 + 0]  // red channel
+            count++
+        }
+    }
+    return count > 0 ? sum / count : 0
+}
 
 /** Average green-channel brightness over a rectangle (coords in 0–1 space). */
 function avgGreen(
@@ -174,6 +214,7 @@ function readDisplay(
 export function readFrame(imageData: ImageData, cal: CalibrationData): FrameReading {
     const {data, width: imgW, height: imgH} = imageData
     const t = cal.brightness
+    const rt = cal.redness ?? 80
 
     const throwNum = readDisplay(data, imgW, imgH, cal.displayLeft, t)
     const throwPins = readDisplay(data, imgW, imgH, cal.displayMiddle, t)
@@ -187,5 +228,11 @@ export function readFrame(imageData: ImageData, cal: CalibrationData): FrameRead
         return bright > t  // lit = fallen
     })
 
-    return {throwNum, throwPins, cumulative, pinStates}
+    // Lamp detection: red lamp = Bande (gutter), green lamp = lane ready
+    const lr = cal.lampRed ?? {x: 0.02, y: 0.55, w: 0.04, h: 0.08}
+    const lg = cal.lampGreen ?? {x: 0.02, y: 0.45, w: 0.04, h: 0.08}
+    const lampRed = avgRed(data, imgW, imgH, lr.x, lr.y, lr.w, lr.h) > rt
+    const lampGreen = avgGreen(data, imgW, imgH, lg.x, lg.y, lg.w, lg.h) > t
+
+    return {throwNum, throwPins, cumulative, pinStates, lampRed, lampGreen}
 }

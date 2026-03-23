@@ -21,15 +21,16 @@ import {
     CalibrationData,
     DEFAULT_CALIBRATION,
     FrameReading,
+    LampROI,
     PIN_POSITIONS,
     readFrame,
 } from '@/lib/cameraEngine.ts'
 
-const STORAGE_KEY = 'kce_camera_cal_v1'
+const STORAGE_KEY = 'kce_camera_cal_v2'
 const CONFIRM_SECONDS = 5
 
 type Mode = 'calibrating' | 'detecting' | 'kiosk'
-type RoiField = 'displayLeft' | 'displayMiddle' | 'displayRight' | 'pinArea'
+type RoiField = 'displayLeft' | 'displayMiddle' | 'displayRight' | 'pinArea' | 'lampRed' | 'lampGreen'
 
 interface ThrowEntry {
     throwNum: number
@@ -58,6 +59,8 @@ const ROI_COLORS: Record<RoiField, string> = {
     displayMiddle: '#10b981',
     displayRight: '#3b82f6',
     pinArea: '#a78bfa',
+    lampRed: '#ef4444',
+    lampGreen: '#22c55e',
 }
 
 function loadCalibration(): CalibrationData {
@@ -65,7 +68,7 @@ function loadCalibration(): CalibrationData {
         const s = localStorage.getItem(STORAGE_KEY)
         if (s) {
             const p = JSON.parse(s)
-            if (p.version === 1) return p as CalibrationData
+            if (p.version === 2) return p as CalibrationData
         }
     } catch {}
     return DEFAULT_CALIBRATION
@@ -80,8 +83,14 @@ export function CameraCapturePage({onClose}: Props) {
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const svgRef = useRef<SVGSVGElement>(null)
+    const videoContainerRef = useRef<HTMLDivElement>(null)
     const rafRef = useRef<number>(0)
     const dragRef = useRef<DragState | null>(null)
+
+    // SVG overlay inset (tracks actual video bounds within container to avoid distortion)
+    const [svgInset, setSvgInset] = useState<{left: number; top: number; width: string; height: string}>(
+        {left: 0, top: 0, width: '100%', height: '100%'}
+    )
 
     // Refs for RAF loop and callbacks (avoid stale closures)
     const calRef = useRef<CalibrationData>(DEFAULT_CALIBRATION)
@@ -110,6 +119,13 @@ export function CameraCapturePage({onClose}: Props) {
     const [winnerRef, setWinnerRef] = useState('')
     const [saving, setSaving] = useState(false)
 
+    // Test-throw mode (no camera needed)
+    const [testMode, setTestMode] = useState(false)
+    const [testPins, setTestPins] = useState(9)
+    const [testCumulative, setTestCumulative] = useState<number | null>(null)
+    const [testSubmitting, setTestSubmitting] = useState(false)
+    const [testThrowNum, setTestThrowNum] = useState(1)
+
     // Auto-select the running/open game from the evening (same logic as tablet manager)
     const activeGame = evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted) ?? null
     useEffect(() => {
@@ -125,6 +141,32 @@ export function CameraCapturePage({onClose}: Props) {
     useEffect(() => { selectedGameIdRef.current = selectedGameId }, [selectedGameId])
     useEffect(() => { activePlayerIdRef.current = activeGame?.active_player_id ?? null }, [activeGame?.active_player_id])
     useEffect(() => { eveningIdRef.current = evening?.id ?? null }, [evening?.id])
+
+    // Track actual video render bounds within the container to avoid SVG overlay distortion.
+    // objectFit:contain adds letterboxing — SVG must match the video area, not the container.
+    useEffect(() => {
+        if (!videoReady) return
+        function recompute() {
+            const v = videoRef.current
+            const c = videoContainerRef.current
+            if (!v || !c || !v.videoWidth || !c.clientWidth || !c.clientHeight) return
+            const vr = v.videoWidth / v.videoHeight
+            const cr = c.clientWidth / c.clientHeight
+            if (cr > vr) {
+                // letterbox left + right
+                const w = c.clientHeight * vr
+                setSvgInset({left: (c.clientWidth - w) / 2, top: 0, width: w + 'px', height: '100%'})
+            } else {
+                // letterbox top + bottom
+                const h = c.clientWidth / vr
+                setSvgInset({left: 0, top: (c.clientHeight - h) / 2, width: '100%', height: h + 'px'})
+            }
+        }
+        recompute()
+        const ro = new ResizeObserver(recompute)
+        if (videoContainerRef.current) ro.observe(videoContainerRef.current)
+        return () => ro.disconnect()
+    }, [videoReady])
 
     // Start camera on mount
     useEffect(() => {
@@ -272,6 +314,7 @@ export function CameraCapturePage({onClose}: Props) {
     function getSvgCoords(e: React.PointerEvent): [number, number] {
         const svg = svgRef.current!
         const rect = svg.getBoundingClientRect()
+        // rect matches actual video area (SVG is now sized/positioned to the video, not the container)
         return [(e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height]
     }
 
@@ -311,6 +354,40 @@ export function CameraCapturePage({onClose}: Props) {
     }, [])
 
     const onSvgPointerUp = useCallback(() => { dragRef.current = null }, [])
+
+    // ── Test-throw submission ─────────────────────────────────────────────────
+
+    async function handleTestThrow() {
+        const gid = selectedGameId
+        const eid = evening?.id ?? null
+        if (!gid || !eid || testSubmitting) return
+        setTestSubmitting(true)
+        try {
+            const entry: ThrowEntry = {
+                throwNum: testThrowNum,
+                pins: testPins,
+                cumulative: testCumulative,
+                pinStates: Array(9).fill(false),
+            }
+            setThrows(prev => {
+                const idx = prev.findIndex(t => t.throwNum === entry.throwNum)
+                if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
+                return [...prev, entry]
+            })
+            await api.addCameraThrow(eid, gid, {
+                throw_num: testThrowNum,
+                pins: testPins,
+                cumulative: testCumulative ?? undefined,
+                pin_states: Array(9).fill(false),
+                player_id: activePlayerIdRef.current,
+            })
+            setTestThrowNum(prev => prev + 1)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setTestSubmitting(false)
+        }
+    }
 
     // ── Game finish ───────────────────────────────────────────────────────────
 
@@ -361,9 +438,11 @@ export function CameraCapturePage({onClose}: Props) {
         displayMiddle: t('camera.displayMiddle'),
         displayRight: t('camera.displayRight'),
         pinArea: t('camera.pinArea'),
+        lampRed: t('camera.lampRed'),
+        lampGreen: t('camera.lampGreen'),
     }[f])
 
-    const fields: RoiField[] = ['displayLeft', 'displayMiddle', 'displayRight', 'pinArea']
+    const fields: RoiField[] = ['displayLeft', 'displayMiddle', 'displayRight', 'pinArea', 'lampRed', 'lampGreen']
 
     return (
         <div style={{
@@ -403,7 +482,7 @@ export function CameraCapturePage({onClose}: Props) {
             )}
 
             {/* Video + SVG overlay */}
-            <div style={{
+            <div ref={videoContainerRef} style={{
                 position: 'relative', background: '#000',
                 ...(mode === 'kiosk'
                     ? {flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}
@@ -417,24 +496,34 @@ export function CameraCapturePage({onClose}: Props) {
 
                 {videoReady && (
                     <svg ref={svgRef} viewBox="0 0 1 1" preserveAspectRatio="none"
-                         style={{position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible'}}
+                         style={{
+                             position: 'absolute',
+                             left: svgInset.left, top: svgInset.top,
+                             width: svgInset.width, height: svgInset.height,
+                             overflow: 'visible',
+                         }}
                          onPointerMove={onSvgPointerMove} onPointerUp={onSvgPointerUp}>
                         {fields.map(field => {
-                            const roi = calibration[field]
+                            const roi = calibration[field] as {x: number; y: number; w: number; h: number; digits?: number}
                             const color = ROI_COLORS[field]
                             const isPin = field === 'pinArea'
-                            const digits = isPin ? 0 : (roi as any).digits as number
+                            const isLamp = field === 'lampRed' || field === 'lampGreen'
+                            const digits = (isPin || isLamp) ? 0 : (roi.digits ?? 1)
+                            const lampLit = isLamp && currentReading
+                                ? (field === 'lampRed' ? currentReading.lampRed : currentReading.lampGreen)
+                                : false
                             return (
                                 <g key={field}>
                                     <rect x={roi.x} y={roi.y} width={roi.w} height={roi.h}
-                                          fill="rgba(0,0,0,0.08)" stroke={color} strokeWidth="0.003"
+                                          fill={lampLit ? (field === 'lampRed' ? 'rgba(239,68,68,0.35)' : 'rgba(34,197,94,0.35)') : 'rgba(0,0,0,0.08)'}
+                                          stroke={color} strokeWidth="0.003"
                                           style={{cursor: 'move'}}
                                           onPointerDown={e => startDrag(e as any, field, 'move')}/>
                                     <text x={roi.x + 0.005} y={roi.y + roi.h + 0.025}
                                           fill={color} fontSize="0.022" fontFamily="monospace">
                                         {roiLabel(field)}
                                     </text>
-                                    {!isPin && currentReading && mode === 'detecting' && (
+                                    {!isPin && !isLamp && currentReading && mode === 'detecting' && (
                                         <text x={roi.x + roi.w / 2} y={roi.y + roi.h / 2 + 0.01}
                                               fill={color} fontSize="0.05" fontFamily="monospace"
                                               textAnchor="middle" dominantBaseline="middle"
@@ -444,7 +533,7 @@ export function CameraCapturePage({onClose}: Props) {
                                                     (currentReading.cumulative ?? '?')}
                                         </text>
                                     )}
-                                    {!isPin && digits > 1 && Array.from({length: digits - 1}, (_, d) => {
+                                    {!isPin && !isLamp && digits > 1 && Array.from({length: digits - 1}, (_, d) => {
                                         const x = roi.x + (d + 1) * (roi.w / digits)
                                         return <line key={d} x1={x} y1={roi.y} x2={x} y2={roi.y + roi.h}
                                                      stroke={color} strokeWidth="0.001" strokeDasharray="0.005 0.003"/>
@@ -489,11 +578,27 @@ export function CameraCapturePage({onClose}: Props) {
                                 {selectedGame.name}
                             </span>
                         )}
+                        {/* Active player */}
+                        {activeGame?.active_player_id && (() => {
+                            const p = players.find(p => p.id === activeGame.active_player_id)
+                            return p ? (
+                                <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
+                                    🎳 {p.name}
+                                </span>
+                            ) : null
+                        })()}
                         {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
                             <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
                                 W#{currentReading.throwNum}
                                 {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
                             </span>
+                        )}
+                        {/* Lamp indicators */}
+                        {currentReading?.lampGreen && (
+                            <span style={{fontSize: 11, color: '#4ade80', flexShrink: 0}}>🟢</span>
+                        )}
+                        {currentReading?.lampRed && (
+                            <span style={{fontSize: 11, color: '#f87171', flexShrink: 0}}>🔴 {t('camera.lampRedHint')}</span>
                         )}
                         <span style={{fontSize: 11, color: 'var(--kce-muted)', marginLeft: 'auto'}}>
                             {throws.length} {t('camera.throw').toLowerCase()}s ✓
@@ -540,6 +645,15 @@ export function CameraCapturePage({onClose}: Props) {
                             <input type="range" min="10" max="200" step="5"
                                    value={calibration.brightness}
                                    onChange={e => setCalibration(prev => ({...prev, brightness: parseInt(e.target.value)}))}
+                                   style={{width: '100%'}}/>
+                        </div>
+                        <div>
+                            <label style={{color: '#ef4444', fontSize: 12, display: 'block', marginBottom: 4}}>
+                                {t('camera.redness')}: <strong>{calibration.redness ?? 80}</strong>
+                            </label>
+                            <input type="range" min="10" max="200" step="5"
+                                   value={calibration.redness ?? 80}
+                                   onChange={e => setCalibration(prev => ({...prev, redness: parseInt(e.target.value)}))}
                                    style={{width: '100%'}}/>
                         </div>
                         <div style={{display: 'flex', gap: 8}}>
@@ -597,6 +711,42 @@ export function CameraCapturePage({onClose}: Props) {
                                 )}
                             </div>
                         )}
+
+                        {/* 1b. Active player + lamp status */}
+                        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
+                            {activeGame?.active_player_id && (() => {
+                                const p = players.find(pl => pl.id === activeGame.active_player_id)
+                                return p ? (
+                                    <span style={{
+                                        fontSize: 12, fontWeight: 'bold',
+                                        color: '#fff', background: 'var(--kce-primary)',
+                                        borderRadius: 8, padding: '3px 8px', flexShrink: 0,
+                                    }}>
+                                        🎳 {p.name}
+                                    </span>
+                                ) : null
+                            })()}
+                            {currentReading?.lampGreen && (
+                                <span style={{
+                                    fontSize: 11, color: '#4ade80', fontWeight: 'bold',
+                                    background: 'rgba(34,197,94,0.15)',
+                                    border: '1px solid rgba(34,197,94,0.4)',
+                                    borderRadius: 6, padding: '2px 8px',
+                                }}>
+                                    🟢 {t('camera.lampGreenHint')}
+                                </span>
+                            )}
+                            {currentReading?.lampRed && (
+                                <span style={{
+                                    fontSize: 11, color: '#f87171', fontWeight: 'bold',
+                                    background: 'rgba(239,68,68,0.15)',
+                                    border: '1px solid rgba(239,68,68,0.4)',
+                                    borderRadius: 6, padding: '2px 8px',
+                                }}>
+                                    🔴 {t('camera.lampRedHint')}
+                                </span>
+                            )}
+                        </div>
 
                         {/* 2. Live readings */}
                         {currentReading && (
@@ -682,14 +832,14 @@ export function CameraCapturePage({onClose}: Props) {
                             }}>
                                 <div className="field-label">{t('game.winner')}</div>
                                 <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
-                                    {teams.map(team => (
+                                    {selectedGame.winner_type === 'team' && teams.map(team => (
                                         <button key={team.id} type="button"
                                                 className={`chip ${winnerRef === `t:${team.id}` ? 'active' : ''}`}
                                                 onClick={() => setWinnerRef(`t:${team.id}`)}>
                                             {team.name}
                                         </button>
                                     ))}
-                                    {players.map(p => (
+                                    {selectedGame.winner_type !== 'team' && players.map(p => (
                                         <button key={p.id} type="button"
                                                 className={`chip ${winnerRef === `p:${p.id}` ? 'active' : ''}`}
                                                 onClick={() => setWinnerRef(`p:${p.id}`)}>
@@ -706,6 +856,59 @@ export function CameraCapturePage({onClose}: Props) {
                                         disabled={saving || !winnerRef}>
                                     🏁 {t('game.finish')}
                                 </button>
+                            </div>
+                        )}
+
+                        {/* 6. Manual test-throw mode (no camera / lane needed) */}
+                        {isAdmin(user) && selectedGame && (
+                            <div style={{borderTop: '1px solid var(--kce-border)', paddingTop: 10}}>
+                                <button
+                                    type="button"
+                                    className="btn-secondary btn-xs"
+                                    onClick={() => setTestMode(p => !p)}
+                                    style={{marginBottom: testMode ? 8 : 0}}
+                                >
+                                    🧪 {t('camera.testMode')}
+                                </button>
+                                {testMode && (
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--kce-surface)', borderRadius: 10, border: '1px solid var(--kce-border)'}}>
+                                        <p style={{fontSize: 11, color: 'var(--kce-muted)', margin: 0}}>
+                                            {t('camera.testModeHint')}
+                                        </p>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
+                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                                {t('camera.throw')} #
+                                            </label>
+                                            <input type="number" min="1" max="99"
+                                                   value={testThrowNum}
+                                                   onChange={e => setTestThrowNum(Math.max(1, parseInt(e.target.value) || 1))}
+                                                   style={{width: 56, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-cream)'}}/>
+                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                                {t('camera.pins')}
+                                            </label>
+                                            <input type="number" min="0" max="9"
+                                                   value={testPins}
+                                                   onChange={e => setTestPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
+                                                   style={{width: 48, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-amber)'}}/>
+                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                                Σ
+                                            </label>
+                                            <input type="number" min="0" max="999"
+                                                   value={testCumulative ?? ''}
+                                                   placeholder="—"
+                                                   onChange={e => setTestCumulative(e.target.value ? parseInt(e.target.value) : null)}
+                                                   style={{width: 60, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-muted)'}}/>
+                                            <button
+                                                type="button"
+                                                className="btn-primary btn-sm"
+                                                disabled={testSubmitting}
+                                                onClick={handleTestThrow}
+                                            >
+                                                {testSubmitting ? '…' : `▶ ${t('camera.testSend')}`}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
