@@ -333,6 +333,8 @@ export const api = {
         request<{ok: boolean}>('DELETE', `/evening/${eid}/games/${gid}/throws`),
     deleteCameraThrow: (eid: number, gid: number, tid: number) =>
         request<{ok: boolean}>('DELETE', `/evening/${eid}/games/${gid}/throws/${tid}`),
+    updateCameraThrow: (eid: number, gid: number, tid: number, d: {pins: number; cumulative?: number | null; pin_states?: boolean[]}) =>
+        request<{ok: boolean}>('PATCH', `/evening/${eid}/games/${gid}/throws/${tid}`, d),
     setActivePlayer: (eid: number, gid: number, playerId: number | null) =>
         request<{ok: boolean}>('PATCH', `/evening/${eid}/games/${gid}/active-player`, {player_id: playerId}),
 

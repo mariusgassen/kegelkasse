@@ -752,6 +752,33 @@ def delete_camera_throw(eid: int, gid: int, tid: int,
     return {"ok": True}
 
 
+class CameraThrowUpdate(BaseModel):
+    pins: int
+    cumulative: Optional[int] = None
+    pin_states: Optional[list] = None
+
+
+@router.patch("/{eid}/games/{gid}/throws/{tid}")
+def update_camera_throw(eid: int, gid: int, tid: int, data: CameraThrowUpdate,
+                        background_tasks: BackgroundTasks,
+                        db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    e = get_club_evening(eid, user, db)
+    g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
+    if not g:
+        raise HTTPException(404, "Game not found")
+    throw = db.query(GameThrowLog).filter(GameThrowLog.id == tid, GameThrowLog.game_id == gid).first()
+    if not throw:
+        raise HTTPException(404, "Throw not found")
+    throw.pins = data.pins
+    throw.cumulative = data.cumulative
+    if data.pin_states is not None:
+        throw.pin_states = data.pin_states
+    db.commit()
+    background_tasks.add_task(event_bus.publish, eid)
+    return {"ok": True}
+
+
 class ActivePlayerUpdate(BaseModel):
     player_id: Optional[int] = None  # None clears the active player
 
