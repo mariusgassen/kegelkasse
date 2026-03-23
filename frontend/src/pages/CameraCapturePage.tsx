@@ -38,6 +38,7 @@ interface ThrowEntry {
     pins: number
     cumulative: number | null
     pinStates: boolean[]
+    playerId: number | null
 }
 
 interface DragState {
@@ -167,6 +168,13 @@ export function CameraCapturePage({onClose}: Props) {
     useEffect(() => {
         activePlayerIdRef.current = kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
     }, [kioskCurrentPlayer?.id, activeGame?.active_player_id])
+    // Kiosk: proactively sync active player to backend whenever the turn changes,
+    // so the backend knows who is throwing before the first throw arrives.
+    useEffect(() => {
+        if (mode !== 'kiosk' || !activeGame || activeGame.status !== 'running' || !evening) return
+        const pid = kioskCurrentPlayer?.id ?? null
+        if (pid !== null) api.setActivePlayer(evening.id, activeGame.id, pid).catch(() => {})
+    }, [mode, kioskCurrentPlayer?.id, activeGame?.id, activeGame?.status])
 
     // Track actual video render bounds within the container to avoid SVG overlay distortion.
     // objectFit:contain adds letterboxing — SVG must match the video area, not the container.
@@ -239,31 +247,33 @@ export function CameraCapturePage({onClose}: Props) {
                     if (isKiosk) {
                         // Kiosk: immediate submission, no confirmation overlay
                         const r = reading
+                        const gid = selectedGameIdRef.current
+                        const eid = eveningIdRef.current
+                        // Capture current player before advancing turn
+                        const currentPid = activePlayerIdRef.current
+                        // Advance turn so the ref already reflects the next player
+                        const order = kioskTurnOrderRef.current
+                        if (order.length > 0) {
+                            const nextIdx = kioskTurnIdxRef.current + 1
+                            kioskTurnIdxRef.current = nextIdx
+                            setKioskTurnIdx(nextIdx)
+                            const nextPid = order[nextIdx % order.length]?.id ?? null
+                            activePlayerIdRef.current = nextPid
+                            if (nextPid !== null && gid && eid) {
+                                api.setActivePlayer(eid, gid, nextPid).catch(() => {})
+                            }
+                        }
                         setThrows(prev => {
                             const entry: ThrowEntry = {
                                 throwNum: r.throwNum!, pins: r.throwPins!,
                                 cumulative: r.cumulative, pinStates: r.pinStates,
+                                playerId: currentPid,
                             }
                             const idx = prev.findIndex(t => t.throwNum === entry.throwNum)
                             if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
                             return [...prev, entry]
                         })
-                        const gid = selectedGameIdRef.current
-                        const eid = eveningIdRef.current
                         if (gid && eid) {
-                            const currentPid = activePlayerIdRef.current
-                            // Advance turn before the API call so the ref already reflects the next player
-                            const order = kioskTurnOrderRef.current
-                            if (order.length > 0) {
-                                const nextIdx = kioskTurnIdxRef.current + 1
-                                kioskTurnIdxRef.current = nextIdx
-                                setKioskTurnIdx(nextIdx)
-                                const nextPid = order[nextIdx % order.length]?.id ?? null
-                                activePlayerIdRef.current = nextPid
-                                if (nextPid !== null) {
-                                    api.setActivePlayer(eid, gid, nextPid).catch(() => {})
-                                }
-                            }
                             api.addCameraThrow(eid, gid, {
                                 throw_num: r.throwNum!, pins: r.throwPins!,
                                 cumulative: r.cumulative ?? undefined,
@@ -309,6 +319,7 @@ export function CameraCapturePage({onClose}: Props) {
                 pins: r.throwPins,
                 cumulative: r.cumulative,
                 pinStates: r.pinStates,
+                playerId: activePlayerIdRef.current,
             }
             setThrows(prev => {
                 // Upsert by throwNum
@@ -402,19 +413,20 @@ export function CameraCapturePage({onClose}: Props) {
         if (!gid || !eid || testSubmitting) return
         setTestSubmitting(true)
         try {
+            // Player: explicit selection takes priority, then kiosk turn order, then tablet-set player
+            const effectivePlayerId = testPlayerId ?? kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
             const entry: ThrowEntry = {
                 throwNum: testThrowNum,
                 pins: testPins,
                 cumulative: testCumulative,
                 pinStates: Array(9).fill(false),
+                playerId: effectivePlayerId,
             }
             setThrows(prev => {
                 const idx = prev.findIndex(t => t.throwNum === entry.throwNum)
                 if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
                 return [...prev, entry]
             })
-            // Player: explicit selection takes priority, then kiosk turn order, then tablet-set player
-            const effectivePlayerId = testPlayerId ?? kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
             await api.addCameraThrow(eid, gid, {
                 throw_num: testThrowNum,
                 pins: testPins,
@@ -423,6 +435,20 @@ export function CameraCapturePage({onClose}: Props) {
                 player_id: effectivePlayerId,
             })
             setTestThrowNum(prev => prev + 1)
+            // Advance kiosk turn (mirrors kiosk RAF loop — no explicit test player selected)
+            if (testPlayerId === null) {
+                const order = kioskTurnOrderRef.current
+                if (order.length > 0) {
+                    const nextIdx = kioskTurnIdxRef.current + 1
+                    kioskTurnIdxRef.current = nextIdx
+                    setKioskTurnIdx(nextIdx)
+                    const nextPid = order[nextIdx % order.length]?.id ?? null
+                    activePlayerIdRef.current = nextPid
+                    if (nextPid !== null) {
+                        api.setActivePlayer(eid, gid, nextPid).catch(() => {})
+                    }
+                }
+            }
         } catch (e) {
             toastError(e)
         } finally {
@@ -832,27 +858,35 @@ export function CameraCapturePage({onClose}: Props) {
                                 ? <p style={{color: 'var(--kce-muted)', fontSize: 12}}>{t('camera.noThrows')}</p>
                                 : (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
-                                        {throws.map((th, i) => (
-                                            <div key={i} className="kce-card p-2 flex items-center gap-2">
-                                                <span style={{color: 'var(--kce-muted)', fontSize: 11, minWidth: 44}}>
-                                                    {t('camera.throw')} #{th.throwNum}
-                                                </span>
-                                                <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--kce-amber)'}}>
-                                                    {th.pins}
-                                                </span>
-                                                <span style={{color: 'var(--kce-muted)', fontSize: 11}}>
-                                                    {t('camera.pins')}
-                                                </span>
-                                                {th.cumulative !== null && (
-                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11, marginLeft: 'auto'}}>
-                                                        Σ {th.cumulative}
+                                        {throws.map((th, i) => {
+                                            const thrower = players.find(p => p.id === th.playerId)
+                                            return (
+                                                <div key={i} className="kce-card p-2 flex items-center gap-2">
+                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11, minWidth: 44}}>
+                                                        {t('camera.throw')} #{th.throwNum}
                                                     </span>
-                                                )}
-                                                {selectedGame && (
-                                                    <span style={{fontSize: 9, color: '#4ade80'}}>✓</span>
-                                                )}
-                                            </div>
-                                        ))}
+                                                    {thrower && (
+                                                        <span style={{fontSize: 10, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
+                                                            {thrower.name}
+                                                        </span>
+                                                    )}
+                                                    <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--kce-amber)'}}>
+                                                        {th.pins}
+                                                    </span>
+                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11}}>
+                                                        {t('camera.pins')}
+                                                    </span>
+                                                    {th.cumulative !== null && (
+                                                        <span style={{color: 'var(--kce-muted)', fontSize: 11, marginLeft: 'auto'}}>
+                                                            Σ {th.cumulative}
+                                                        </span>
+                                                    )}
+                                                    {selectedGame && (
+                                                        <span style={{fontSize: 9, color: '#4ade80'}}>✓</span>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 )}
                         </div>
