@@ -128,6 +128,8 @@ export const de = {
     "game.status.open": "Noch nicht gestartet",
     "game.start": "Starten",
     "game.finish": "Beenden",
+    "game.finishFirst": "Erst laufendes Spiel abschließen",
+    "game.thenStart": "Danach wird gestartet:",
     "game.editResult": "Ergebnis bearbeiten",
     "game.template.select": "Vorlage wählen…",
     "template.manage": "Vorlagen verwalten",
