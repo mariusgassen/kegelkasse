@@ -53,6 +53,7 @@ export function GamesPage() {
     const [scoresInput, setScoresInput] = useState<Record<string, string>>({})
     const [finishPenalty, setFinishPenalty] = useState('')
 
+
     // ── Edit metadata sheet (open/running games) ──
     const [editTarget, setEditTarget] = useState<Game | null>(null)
     const [editName, setEditName] = useState('')
@@ -80,6 +81,7 @@ export function GamesPage() {
     const teams = evening.teams
     const games = [...evening.games].filter(g => !(g as any).is_deleted).sort((a, b) => a.sort_order - b.sort_order)
     const hasOpener = games.some(g => g.is_opener)
+    const runningGame = games.find(g => g.status === 'running') ?? null
 
     // ── Helpers ──
 
@@ -171,6 +173,11 @@ export function GamesPage() {
     }
 
     async function startGame(gid: number) {
+        // If another game is already running, open its finish sheet instead
+        if (runningGame && runningGame.id !== gid) {
+            openFinishSheet(runningGame)
+            return
+        }
         try {
             await api.startGame(evening!.id, gid)
             invalidate()
