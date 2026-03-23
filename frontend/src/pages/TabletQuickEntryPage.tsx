@@ -66,6 +66,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Auto-advance refs — track game + throw count to detect new arrivals without false-positives
     const autoGameIdRef = useRef<number | undefined>(undefined)   // undefined = uninitialized
     const autoThrowsLenRef = useRef<number>(0)
+    // Ref to turn order — avoids stale closure in init effect without adding turnOrder to deps
+    const turnOrderRef = useRef<EveningPlayer[]>([])
+    // Track which game we already did the active_player_id correction for (handles late-loading turnOrder)
+    const correctedForGameRef = useRef<number | undefined>(undefined)
 
     // Heatmap toggle
     const [showHeatmap, setShowHeatmap] = useState(false)
@@ -139,13 +143,33 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         ? turnOrder[currentTurnIdx % turnOrder.length]
         : null
 
+    // Keep turnOrderRef in sync so the init effect can look up active_player_id without stale closure
+    useEffect(() => { turnOrderRef.current = turnOrder }, [turnOrder])
+
+    // Correction effect: if turnOrder was empty when the init effect ran (players still loading),
+    // re-sync currentTurnIdx from active_player_id once turnOrder becomes available.
+    // Only fires once per game (correctedForGameRef tracks this).
+    useEffect(() => {
+        const gid = activeGame?.id
+        if (correctedForGameRef.current === gid) return  // already corrected for this game
+        if (turnOrder.length === 0) return               // not ready yet — wait
+        correctedForGameRef.current = gid
+        const activePid = activeGame?.active_player_id ?? null
+        if (activePid !== null) {
+            const idx = turnOrder.findIndex(p => p.id === activePid)
+            if (idx >= 0) setCurrentTurnIdx(idx)
+        }
+    }, [turnOrder, activeGame?.id, activeGame?.active_player_id])
+
     // Sync active player to backend whenever currentPlayer or activeGame changes
     // so the kiosk knows who is throwing without manual selection.
+    // Guard: skip if turnOrder is empty (players still loading) to avoid overwriting server state.
     useEffect(() => {
         if (!activeGame || activeGame.status !== 'running' || !eveningId) return
+        if (turnOrder.length === 0) return  // players not yet loaded — don't overwrite server value
         const pid = currentPlayer?.id ?? null
         api.setActivePlayer(eveningId, activeGame.id, pid).catch(() => {})
-    }, [currentPlayer?.id, activeGame?.id, activeGame?.status, eveningId])
+    }, [currentPlayer?.id, activeGame?.id, activeGame?.status, eveningId, turnOrder.length])
 
     // Auto-advance turn when a new throw arrives via SSE.
     const liveThrows = activeGame?.throws ?? []
@@ -153,11 +177,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const gid = activeGame?.id
         const len = liveThrows.length
 
-        // Uninitialized or game changed → align turn index to existing throw count
+        // Uninitialized or game changed → align turn index to active_player_id (set by kiosk/camera)
         if (autoGameIdRef.current === undefined || autoGameIdRef.current !== gid) {
             autoGameIdRef.current = gid
             autoThrowsLenRef.current = len
-            setCurrentTurnIdx(len)  // sync to server state so current player is correct
+            const activePid = activeGame?.active_player_id ?? null
+            if (activePid !== null && turnOrderRef.current.length > 0) {
+                const idxInOrder = turnOrderRef.current.findIndex(p => p.id === activePid)
+                setCurrentTurnIdx(idxInOrder >= 0 ? idxInOrder : len)
+            } else {
+                setCurrentTurnIdx(len)
+            }
             return
         }
 
@@ -168,7 +198,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             // One or more new throws — advance by delta
             setCurrentTurnIdx(t => t + (len - prev))
         }
-    }, [liveThrows.length, activeGame?.id])
+    }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
 
     function advanceTurn() {
         setCurrentTurnIdx(prev => prev + 1)
