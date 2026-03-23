@@ -52,8 +52,7 @@ export function GamesPage() {
     const [winnerRef, setWinnerRef] = useState('')
     const [scoresInput, setScoresInput] = useState<Record<string, string>>({})
     const [finishPenalty, setFinishPenalty] = useState('')
-    // When a user tries to start a game while another is running, we finish first then auto-start
-    const [pendingStartId, setPendingStartId] = useState<number | null>(null)
+
 
     // ── Edit metadata sheet (open/running games) ──
     const [editTarget, setEditTarget] = useState<Game | null>(null)
@@ -174,9 +173,8 @@ export function GamesPage() {
     }
 
     async function startGame(gid: number) {
-        // If another game is already running, finish it first then auto-start this one
+        // If another game is already running, open its finish sheet instead
         if (runningGame && runningGame.id !== gid) {
-            setPendingStartId(gid)
             openFinishSheet(runningGame)
             return
         }
@@ -204,17 +202,6 @@ export function GamesPage() {
             })
             invalidate()
             setFinishTarget(null)
-            // Auto-start the game that was waiting
-            if (pendingStartId !== null) {
-                const gid = pendingStartId
-                setPendingStartId(null)
-                try {
-                    await api.startGame(evening!.id, gid)
-                    invalidate()
-                } catch (e: unknown) {
-                    toastError(e)
-                }
-            }
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -486,24 +473,11 @@ export function GamesPage() {
             </Sheet>
 
             {/* ── Finish / re-edit game sheet ── */}
-            <Sheet open={!!finishTarget} onClose={() => { setFinishTarget(null); setPendingStartId(null) }}
+            <Sheet open={!!finishTarget} onClose={() => setFinishTarget(null)}
                    title={finishTarget?.status === 'finished' ? t('game.editResult') : t('game.finish')}
                    onSubmit={submitFinish}>
                 {finishTarget && (
                     <div className="flex flex-col gap-3">
-                        {pendingStartId !== null && (() => {
-                            const next = games.find(g => g.id === pendingStartId)
-                            return next ? (
-                                <div className="rounded-lg px-3 py-2 text-xs flex items-center gap-2"
-                                     style={{background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface2))',
-                                             border: '1px solid color-mix(in srgb, var(--kce-primary) 30%, transparent)'}}>
-                                    <span style={{color: 'var(--kce-primary)'}}>▶</span>
-                                    <span style={{color: 'var(--kce-cream)'}}>
-                                        {t('game.thenStart')} <strong>{next.name}</strong>
-                                    </span>
-                                </div>
-                            ) : null
-                        })()}
                         {/* Winner selection */}
                         <div>
                             <div className="field-label">{t('game.winner')}</div>

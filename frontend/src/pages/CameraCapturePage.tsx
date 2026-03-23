@@ -143,7 +143,8 @@ export function CameraCapturePage({onClose}: Props) {
             setSelectedGameId(activeGame.id)
             setWinnerRef('')
             setThrows([])
-            setKioskTurnIdx(0)
+            // Sync turn index to server state (mirrors tablet logic) so re-opening mid-game is correct
+            setKioskTurnIdx(activeGame.throws?.length ?? 0)
         }
     }, [activeGame?.id])
 
@@ -244,8 +245,8 @@ export function CameraCapturePage({onClose}: Props) {
                     reading.throwPins !== null
                 ) {
                     lastThrowNumRef.current = reading.throwNum
-                    if (isKiosk) {
-                        // Kiosk: immediate submission, no confirmation overlay
+                    if (isKiosk && selectedGameIdRef.current !== null) {
+                        // Kiosk: immediate submission, no confirmation overlay; skip if no active game
                         const r = reading
                         const gid = selectedGameIdRef.current
                         const eid = eveningIdRef.current
@@ -259,7 +260,7 @@ export function CameraCapturePage({onClose}: Props) {
                             setKioskTurnIdx(nextIdx)
                             const nextPid = order[nextIdx % order.length]?.id ?? null
                             activePlayerIdRef.current = nextPid
-                            if (nextPid !== null && gid && eid) {
+                            if (nextPid !== null && eid) {
                                 api.setActivePlayer(eid, gid, nextPid).catch(() => {})
                             }
                         }
@@ -273,7 +274,7 @@ export function CameraCapturePage({onClose}: Props) {
                             if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
                             return [...prev, entry]
                         })
-                        if (gid && eid) {
+                        if (eid) {
                             api.addCameraThrow(eid, gid, {
                                 throw_num: r.throwNum!, pins: r.throwPins!,
                                 cumulative: r.cumulative ?? undefined,
@@ -281,7 +282,8 @@ export function CameraCapturePage({onClose}: Props) {
                                 player_id: currentPid,
                             }).catch(() => {})
                         }
-                    } else {
+                    } else if (!isKiosk && selectedGameIdRef.current !== null) {
+                        // Detecting mode: only queue for confirmation when a game is active
                         pendingRef.current = reading
                         setPendingThrow({...reading})
                     }

@@ -12,7 +12,8 @@ export function buildTurnOrder(
     if (teams.length === 0) return [...players]
 
     if (mode === 'block') {
-        return teamsWithPlayers[blockTeamIdx % teams.length] ?? []
+        const teamPlayers = teamsWithPlayers[blockTeamIdx % teams.length] ?? []
+        return teamPlayers.length > 0 ? teamPlayers : [...players]
     }
 
     // alternating: interleave team players
@@ -23,5 +24,6 @@ export function buildTurnOrder(
             if (i < team.length) result.push(team[i])
         }
     }
-    return [...result, ...players.filter(p => p.team_id === null)]
+    const combined = [...result, ...players.filter(p => p.team_id === null)]
+    return combined.length > 0 ? combined : [...players]
 }

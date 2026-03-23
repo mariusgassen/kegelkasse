@@ -128,8 +128,6 @@ export const en = {
     "game.status.open": "Not started yet",
     "game.start": "Start",
     "game.finish": "Finish",
-    "game.finishFirst": "Finish the running game first",
-    "game.thenStart": "Then start:",
     "game.editResult": "Edit result",
     "game.template.select": "Choose template…",
     "template.manage": "Manage templates",
