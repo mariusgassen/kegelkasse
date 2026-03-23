@@ -153,10 +153,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const gid = activeGame?.id
         const len = liveThrows.length
 
-        // Uninitialized or game changed → set baseline, no advance
+        // Uninitialized or game changed → align turn index to existing throw count
         if (autoGameIdRef.current === undefined || autoGameIdRef.current !== gid) {
             autoGameIdRef.current = gid
             autoThrowsLenRef.current = len
+            setCurrentTurnIdx(len)  // sync to server state so current player is correct
             return
         }
 
