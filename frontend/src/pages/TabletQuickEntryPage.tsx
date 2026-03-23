@@ -6,7 +6,7 @@
  * Camera strip (top): shows live throws for the running game, with per-throw
  * void and turn-order management (alternating teams / block mode).
  */
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
@@ -83,6 +83,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [finishSaving, setFinishSaving] = useState(false)
     const [voidingThrowId, setVoidingThrowId] = useState<number | null>(null)
 
+    // Throw correction
+    const [editingThrowId, setEditingThrowId] = useState<number | null>(null)
+    const [editPins, setEditPins] = useState(0)
+    const [editCumulative, setEditCumulative] = useState<number | null>(null)
+    const [savingEditId, setSavingEditId] = useState<number | null>(null)
+
+    // Auto-advance: track how many throws existed when the component mounted / game changed
+    const prevThrowsLenRef = useRef<number>(-1)
+    const prevGameIdRef = useRef<number | null>(null)
+
+    // Heatmap toggle
+    const [showHeatmap, setShowHeatmap] = useState(false)
+
     // Sort: current user first, then alphabetical
     const sortedPlayers = useMemo(() =>
         [...players].sort((a, b) => {
@@ -141,7 +154,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         [evening])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
-    const liveThrows = activeGame?.throws ?? []
 
     // Turn order — mode is fixed on the game, not a runtime choice
     const teams = evening?.teams ?? []
@@ -160,6 +172,25 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const pid = currentPlayer?.id ?? null
         api.setActivePlayer(eveningId, activeGame.id, pid).catch(() => {})
     }, [currentPlayer?.id, activeGame?.id, activeGame?.status, eveningId])
+
+    // Auto-advance turn when a new throw arrives via SSE.
+    // On game change: reset the baseline so the existing throws don't trigger advances.
+    const liveThrows = activeGame?.throws ?? []
+    useEffect(() => {
+        if (activeGame?.id !== prevGameIdRef.current) {
+            prevGameIdRef.current = activeGame?.id ?? null
+            prevThrowsLenRef.current = liveThrows.length
+            return
+        }
+        if (prevThrowsLenRef.current < 0) {
+            prevThrowsLenRef.current = liveThrows.length
+            return
+        }
+        if (liveThrows.length > prevThrowsLenRef.current) {
+            prevThrowsLenRef.current = liveThrows.length
+            setCurrentTurnIdx(prev => prev + 1)
+        }
+    }, [liveThrows.length, activeGame?.id])
 
     function advanceTurn() {
         setCurrentTurnIdx(prev => prev + 1)
@@ -267,6 +298,33 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             toastError(e)
         } finally {
             setVoidingThrowId(null)
+        }
+    }
+
+    function startEdit(th: {id: number; pins: number; cumulative: number | null}) {
+        setEditingThrowId(th.id)
+        setEditPins(th.pins)
+        setEditCumulative(th.cumulative)
+    }
+
+    function cancelEdit() {
+        setEditingThrowId(null)
+    }
+
+    async function handleSaveEdit(gameId: number) {
+        if (editingThrowId === null) return
+        setSavingEditId(editingThrowId)
+        try {
+            await api.updateCameraThrow(eveningId, gameId, editingThrowId, {
+                pins: editPins,
+                cumulative: editCumulative,
+            })
+            invalidate()
+            setEditingThrowId(null)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSavingEditId(null)
         }
     }
 
@@ -507,13 +565,63 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
                     )}
 
-                    {/* Row 3: Throw history strip */}
+                    {/* Row 3: Throw history strip + heatmap toggle */}
                     {liveThrows.length > 0 && (
-                        <div style={{display: 'flex', gap: 4, overflowX: 'auto', marginTop: 5, paddingBottom: 2}} className="no-scrollbar">
+                        <>
+                        <div style={{display: 'flex', gap: 4, overflowX: 'auto', marginTop: 5, paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
                             {[...liveThrows].reverse().map(th => {
                                 const throwerName = th.player_id
                                 ? (players.find(p => p.id === th.player_id)?.name ?? null)
                                 : null
+                                const isEditing = editingThrowId === th.id
+                                if (isEditing) {
+                                    return (
+                                        <div key={th.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: 4,
+                                            background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface2))',
+                                            borderRadius: 6, padding: '3px 6px',
+                                            flexShrink: 0,
+                                            border: '1px solid var(--kce-primary)',
+                                        }}>
+                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                            <input
+                                                type="number" min="0" max="9"
+                                                value={editPins}
+                                                onChange={e => setEditPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
+                                                style={{
+                                                    width: 36, fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
+                                                    padding: '1px 4px', borderRadius: 4,
+                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-primary)',
+                                                    color: 'var(--kce-amber)', textAlign: 'center',
+                                                }}
+                                            />
+                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>Σ</span>
+                                            <input
+                                                type="number" min="0"
+                                                value={editCumulative ?? ''}
+                                                placeholder="—"
+                                                onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
+                                                style={{
+                                                    width: 44, fontSize: 11, fontFamily: 'monospace',
+                                                    padding: '1px 4px', borderRadius: 4,
+                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-border)',
+                                                    color: 'var(--kce-cream)', textAlign: 'center',
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                disabled={savingEditId === th.id}
+                                                style={{fontSize: 11, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                onClick={() => handleSaveEdit(activeGame.id)}
+                                            >✓</button>
+                                            <button
+                                                type="button"
+                                                style={{fontSize: 10, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                onClick={cancelEdit}
+                                            >✕</button>
+                                        </div>
+                                    )
+                                }
                                 return (
                                     <div key={th.id} style={{
                                         display: 'flex', alignItems: 'center', gap: 3,
@@ -539,6 +647,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                                 Σ{th.cumulative}
                                             </span>
                                         )}
+                                        {isAdmin(user) && (
+                                            <button
+                                                type="button"
+                                                style={{fontSize: 9, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                title={t('quickEntry.editThrow')}
+                                                onClick={() => startEdit(th)}
+                                            >✎</button>
+                                        )}
                                         <button
                                             type="button"
                                             disabled={voidingThrowId === th.id}
@@ -556,7 +672,70 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     </div>
                                 )
                             })}
+                            {/* Heatmap toggle */}
+                            {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
+                                <button
+                                    type="button"
+                                    className="btn-secondary btn-xs"
+                                    style={{flexShrink: 0, fontSize: 9, marginLeft: 2}}
+                                    onClick={() => setShowHeatmap(h => !h)}
+                                >
+                                    🎯
+                                </button>
+                            )}
                         </div>
+                        {/* Pin heatmap */}
+                        {showHeatmap && (() => {
+                            const throwsWithPins = liveThrows.filter(th => th.pin_states && th.pin_states.length === 9)
+                            const counts = Array(9).fill(0)
+                            for (const th of throwsWithPins) {
+                                for (let i = 0; i < 9; i++) {
+                                    if (th.pin_states[i]) counts[i]++
+                                }
+                            }
+                            const maxCount = Math.max(...counts, 1)
+                            // True 1-2-3-2-1 diamond positions (same as cameraEngine PIN_POSITIONS)
+                            const PIN_POS: [number, number][] = [
+                                [0.50, 0.10],
+                                [0.30, 0.30], [0.70, 0.30],
+                                [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
+                                [0.30, 0.70], [0.70, 0.70],
+                                [0.50, 0.90],
+                            ]
+                            return (
+                                <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 10}}>
+                                    <div style={{position: 'relative', width: 80, height: 70, flexShrink: 0}}>
+                                        {PIN_POS.map(([px, py], i) => {
+                                            const ratio = counts[i] / maxCount
+                                            const bg = ratio === 0
+                                                ? 'transparent'
+                                                : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
+                                            return (
+                                                <div key={i} style={{
+                                                    position: 'absolute',
+                                                    left: `${px * 100}%`, top: `${py * 100}%`,
+                                                    transform: 'translate(-50%, -50%)',
+                                                    width: 18, height: 18, borderRadius: '50%',
+                                                    background: bg,
+                                                    border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                }}>
+                                                    {counts[i] > 0 && (
+                                                        <span style={{fontSize: 7, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--kce-amber)'}}>
+                                                            {counts[i]}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                    <div style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                        {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
+                                    </div>
+                                </div>
+                            )
+                        })()}
+                        </>
                     )}
 
                     {/* Finish game panel (expanded) */}

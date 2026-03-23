@@ -669,6 +669,8 @@ export const de = {
     "camera.testSend": "Senden",
     "quickEntry.cameraThrows": "Kamera-Würfe",
     "quickEntry.voidThrow": "Wurf widerrufen",
+    "quickEntry.editThrow": "Wurf korrigieren",
+    "quickEntry.heatmapHint": "{n} Würfe mit Pin-Daten",
     "quickEntry.finishGame": "Spiel beenden",
     "quickEntry.selectWinner": "Gewinner wählen",
     "quickEntry.noThrows": "Noch keine Würfe",

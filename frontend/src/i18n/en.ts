@@ -669,6 +669,8 @@ export const en = {
     "camera.testSend": "Send",
     "quickEntry.cameraThrows": "Camera throws",
     "quickEntry.voidThrow": "Void throw",
+    "quickEntry.editThrow": "Correct throw",
+    "quickEntry.heatmapHint": "{n} throws with pin data",
     "quickEntry.finishGame": "Finish game",
     "quickEntry.selectWinner": "Select winner",
     "quickEntry.noThrows": "No throws yet",
