@@ -10,13 +10,14 @@
  *
  * Calibration is persisted in localStorage. Uses existing api.finishGame().
  */
-import React, {useCallback, useEffect, useRef, useState} from 'react'
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
-import type {Game} from '@/types.ts'
+import {buildTurnOrder} from '@/lib/turnOrder.ts'
+import type {EveningPlayer, Game} from '@/types.ts'
 import {
     CalibrationData,
     DEFAULT_CALIBRATION,
@@ -99,6 +100,9 @@ export function CameraCapturePage({onClose}: Props) {
     const selectedGameIdRef = useRef<number | null>(null)
     const activePlayerIdRef = useRef<number | null>(null)
     const eveningIdRef = useRef<number | null>(null)
+    // Kiosk turn order refs (accessible inside RAF loop)
+    const kioskTurnOrderRef = useRef<EveningPlayer[]>([])
+    const kioskTurnIdxRef = useRef<number>(0)
 
     // UI state
     const [mode, setMode] = useState<Mode>('detecting')
@@ -125,6 +129,11 @@ export function CameraCapturePage({onClose}: Props) {
     const [testCumulative, setTestCumulative] = useState<number | null>(null)
     const [testSubmitting, setTestSubmitting] = useState(false)
     const [testThrowNum, setTestThrowNum] = useState(1)
+    const [testPlayerId, setTestPlayerId] = useState<number | null>(null)
+
+    // Kiosk turn-order tracking (mirrors tablet logic for standalone kiosk use)
+    const [kioskTurnIdx, setKioskTurnIdx] = useState(0)
+    const [kioskBlockTeamIdx] = useState(0)  // block mode unsupported in standalone kiosk
 
     // Auto-select the running/open game from the evening (same logic as tablet manager)
     const activeGame = evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted) ?? null
@@ -133,14 +142,31 @@ export function CameraCapturePage({onClose}: Props) {
             setSelectedGameId(activeGame.id)
             setWinnerRef('')
             setThrows([])
+            setKioskTurnIdx(0)
         }
     }, [activeGame?.id])
+
+    // Turn order for kiosk (same logic as tablet)
+    const players = evening?.players ?? []
+    const teams = evening?.teams ?? []
+    const kioskTurnOrder = useMemo(() =>
+        buildTurnOrder(players, teams, activeGame?.turn_mode ?? 'alternating', kioskBlockTeamIdx),
+        [players, teams, activeGame?.turn_mode, kioskBlockTeamIdx])
+    const kioskCurrentPlayer: EveningPlayer | null = kioskTurnOrder.length > 0
+        ? kioskTurnOrder[kioskTurnIdx % kioskTurnOrder.length]
+        : null
 
     // Keep refs in sync
     useEffect(() => { calRef.current = calibration }, [calibration])
     useEffect(() => { selectedGameIdRef.current = selectedGameId }, [selectedGameId])
-    useEffect(() => { activePlayerIdRef.current = activeGame?.active_player_id ?? null }, [activeGame?.active_player_id])
     useEffect(() => { eveningIdRef.current = evening?.id ?? null }, [evening?.id])
+    // Kiosk turn order refs (accessible inside RAF loop without stale closure)
+    useEffect(() => { kioskTurnOrderRef.current = kioskTurnOrder }, [kioskTurnOrder])
+    useEffect(() => { kioskTurnIdxRef.current = kioskTurnIdx }, [kioskTurnIdx])
+    // Active player: kiosk locally-tracked player takes priority over tablet-set player
+    useEffect(() => {
+        activePlayerIdRef.current = kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
+    }, [kioskCurrentPlayer?.id, activeGame?.active_player_id])
 
     // Track actual video render bounds within the container to avoid SVG overlay distortion.
     // objectFit:contain adds letterboxing — SVG must match the video area, not the container.
@@ -225,11 +251,24 @@ export function CameraCapturePage({onClose}: Props) {
                         const gid = selectedGameIdRef.current
                         const eid = eveningIdRef.current
                         if (gid && eid) {
+                            const currentPid = activePlayerIdRef.current
+                            // Advance turn before the API call so the ref already reflects the next player
+                            const order = kioskTurnOrderRef.current
+                            if (order.length > 0) {
+                                const nextIdx = kioskTurnIdxRef.current + 1
+                                kioskTurnIdxRef.current = nextIdx
+                                setKioskTurnIdx(nextIdx)
+                                const nextPid = order[nextIdx % order.length]?.id ?? null
+                                activePlayerIdRef.current = nextPid
+                                if (nextPid !== null) {
+                                    api.setActivePlayer(eid, gid, nextPid).catch(() => {})
+                                }
+                            }
                             api.addCameraThrow(eid, gid, {
                                 throw_num: r.throwNum!, pins: r.throwPins!,
                                 cumulative: r.cumulative ?? undefined,
                                 pin_states: r.pinStates,
-                                player_id: activePlayerIdRef.current,
+                                player_id: currentPid,
                             }).catch(() => {})
                         }
                     } else {
@@ -374,12 +413,14 @@ export function CameraCapturePage({onClose}: Props) {
                 if (idx >= 0) { const next = [...prev]; next[idx] = entry; return next }
                 return [...prev, entry]
             })
+            // Player: explicit selection takes priority, then kiosk turn order, then tablet-set player
+            const effectivePlayerId = testPlayerId ?? kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
             await api.addCameraThrow(eid, gid, {
                 throw_num: testThrowNum,
                 pins: testPins,
                 cumulative: testCumulative ?? undefined,
                 pin_states: Array(9).fill(false),
-                player_id: activePlayerIdRef.current,
+                player_id: effectivePlayerId,
             })
             setTestThrowNum(prev => prev + 1)
         } catch (e) {
@@ -393,8 +434,6 @@ export function CameraCapturePage({onClose}: Props) {
 
     const runningGames = evening?.games.filter(g => g.status === 'running' && !(g as any).is_deleted) ?? []
     const selectedGame = runningGames.find((g: Game) => g.id === selectedGameId) ?? null
-    const players = evening?.players ?? []
-    const teams = evening?.teams ?? []
     const latestCumulative = throws.length > 0 ? throws[throws.length - 1].cumulative : null
 
     function playerLabel(p: {name: string; is_king: boolean}) {
@@ -578,15 +617,12 @@ export function CameraCapturePage({onClose}: Props) {
                                 {selectedGame.name}
                             </span>
                         )}
-                        {/* Active player */}
-                        {activeGame?.active_player_id && (() => {
-                            const p = players.find(p => p.id === activeGame.active_player_id)
-                            return p ? (
-                                <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
-                                    🎳 {p.name}
-                                </span>
-                            ) : null
-                        })()}
+                        {/* Active player — prefer local kiosk turn order */}
+                        {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id)) && (
+                            <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
+                                🎳 {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id))!.name}
+                            </span>
+                        )}
                         {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
                             <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
                                 W#{currentReading.throwNum}
@@ -714,18 +750,15 @@ export function CameraCapturePage({onClose}: Props) {
 
                         {/* 1b. Active player + lamp status */}
                         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                            {activeGame?.active_player_id && (() => {
-                                const p = players.find(pl => pl.id === activeGame.active_player_id)
-                                return p ? (
-                                    <span style={{
-                                        fontSize: 12, fontWeight: 'bold',
-                                        color: '#fff', background: 'var(--kce-primary)',
-                                        borderRadius: 8, padding: '3px 8px', flexShrink: 0,
-                                    }}>
-                                        🎳 {p.name}
-                                    </span>
-                                ) : null
-                            })()}
+                            {(kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id)) && (
+                                <span style={{
+                                    fontSize: 12, fontWeight: 'bold',
+                                    color: '#fff', background: 'var(--kce-primary)',
+                                    borderRadius: 8, padding: '3px 8px', flexShrink: 0,
+                                }}>
+                                    🎳 {(kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id))!.name}
+                                </span>
+                            )}
                             {currentReading?.lampGreen && (
                                 <span style={{
                                     fontSize: 11, color: '#4ade80', fontWeight: 'bold',
@@ -875,6 +908,20 @@ export function CameraCapturePage({onClose}: Props) {
                                         <p style={{fontSize: 11, color: 'var(--kce-muted)', margin: 0}}>
                                             {t('camera.testModeHint')}
                                         </p>
+                                        {/* Player selector */}
+                                        {players.length > 0 && (
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: 4}}>
+                                                <span style={{fontSize: 11, color: 'var(--kce-muted)', alignSelf: 'center', flexShrink: 0}}>🎳</span>
+                                                {players.map(p => (
+                                                    <button key={p.id} type="button"
+                                                            className={`chip ${testPlayerId === p.id ? 'active' : ''}`}
+                                                            style={{fontSize: 10}}
+                                                            onClick={() => setTestPlayerId(prev => prev === p.id ? null : p.id)}>
+                                                        {p.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
                                             <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
                                                 {t('camera.throw')} #
