@@ -681,7 +681,7 @@ export function CameraCapturePage({onClose}: Props) {
                         display: 'flex', flexDirection: 'column', gap: 4,
                         borderTop: '1px solid rgba(255,255,255,0.15)',
                     }}>
-                        {/* Row 1: status indicators — wrap freely */}
+                        {/* Row 1: game context */}
                         <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 10px'}}>
                             <span style={{fontSize: 11, color: '#4ade80', fontWeight: 'bold'}}>
                                 📷 {t('camera.kiosk')}
@@ -702,14 +702,17 @@ export function CameraCapturePage({onClose}: Props) {
                                     {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
                                 </span>
                             )}
-                            {currentReading?.lampGreen && (
-                                <span style={{fontSize: 11, color: '#4ade80'}}>🟢</span>
-                            )}
-                            {currentReading?.lampRed && (
-                                <span style={{fontSize: 11, color: '#f87171'}}>🔴 {t('camera.lampRedHint')}</span>
-                            )}
                         </div>
-                        {/* Row 2: throw count + exit button always visible */}
+                        {/* Row 2: lamp indicators side by side */}
+                        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                            <span style={{fontSize: 11, color: currentReading?.lampGreen ? '#4ade80' : 'var(--kce-muted)'}}>
+                                🟢 {t('camera.lampGreenHint')}
+                            </span>
+                            <span style={{fontSize: 11, color: currentReading?.lampRed ? '#f87171' : 'var(--kce-muted)'}}>
+                                🔴 {t('camera.lampRedHint')}
+                            </span>
+                        </div>
+                        {/* Row 3: throw count + exit button always visible */}
                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8}}>
                             <span style={{fontSize: 11, color: 'var(--kce-muted)'}}>
                                 {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
