@@ -130,7 +130,6 @@ export function CameraCapturePage({onClose}: Props) {
     const [testCumulative, setTestCumulative] = useState<number | null>(null)
     const [testSubmitting, setTestSubmitting] = useState(false)
     const [testThrowNum, setTestThrowNum] = useState(1)
-    const [testPlayerId, setTestPlayerId] = useState<number | null>(null)
 
     // Kiosk turn-order tracking (mirrors tablet logic for standalone kiosk use)
     const [kioskTurnIdx, setKioskTurnIdx] = useState(0)
@@ -142,7 +141,15 @@ export function CameraCapturePage({onClose}: Props) {
         if (activeGame && selectedGameId !== activeGame.id) {
             setSelectedGameId(activeGame.id)
             setWinnerRef('')
-            setThrows([])
+            // Hydrate throw history from server so the protocol is populated on re-open
+            setThrows((activeGame.throws ?? []).map(th => ({
+                throwNum: th.throw_num,
+                pins: th.pins,
+                cumulative: th.cumulative,
+                pinStates: th.pin_states,
+                playerId: th.player_id,
+            })))
+            setTestThrowNum((activeGame.throws?.length ?? 0) + 1)
             // Sync turn index to server state (mirrors tablet logic) so re-opening mid-game is correct
             setKioskTurnIdx(activeGame.throws?.length ?? 0)
         }
@@ -422,14 +429,25 @@ export function CameraCapturePage({onClose}: Props) {
 
     // ── Test-throw submission ─────────────────────────────────────────────────
 
+    // Advance kiosk turn index and sync active player to backend
+    function advanceKioskTurn(eid: number, gid: number) {
+        const order = kioskTurnOrderRef.current
+        if (order.length === 0) return
+        const nextIdx = kioskTurnIdxRef.current + 1
+        kioskTurnIdxRef.current = nextIdx
+        setKioskTurnIdx(nextIdx)
+        const nextPid = order[nextIdx % order.length]?.id ?? null
+        activePlayerIdRef.current = nextPid
+        if (nextPid !== null) api.setActivePlayer(eid, gid, nextPid).catch(() => {})
+    }
+
     async function handleTestThrow() {
         const gid = selectedGameId
         const eid = evening?.id ?? null
         if (!gid || !eid || testSubmitting) return
         setTestSubmitting(true)
         try {
-            // Player: explicit selection takes priority, then kiosk turn order, then tablet-set player
-            const effectivePlayerId = testPlayerId ?? kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
+            const effectivePlayerId = kioskCurrentPlayer?.id ?? activeGame?.active_player_id ?? null
             const entry: ThrowEntry = {
                 throwNum: testThrowNum,
                 pins: testPins,
@@ -450,25 +468,19 @@ export function CameraCapturePage({onClose}: Props) {
                 player_id: effectivePlayerId,
             })
             setTestThrowNum(prev => prev + 1)
-            // Advance kiosk turn (mirrors kiosk RAF loop — no explicit test player selected)
-            if (testPlayerId === null) {
-                const order = kioskTurnOrderRef.current
-                if (order.length > 0) {
-                    const nextIdx = kioskTurnIdxRef.current + 1
-                    kioskTurnIdxRef.current = nextIdx
-                    setKioskTurnIdx(nextIdx)
-                    const nextPid = order[nextIdx % order.length]?.id ?? null
-                    activePlayerIdRef.current = nextPid
-                    if (nextPid !== null) {
-                        api.setActivePlayer(eid, gid, nextPid).catch(() => {})
-                    }
-                }
-            }
+            advanceKioskTurn(eid, gid)
         } catch (e) {
             toastError(e)
         } finally {
             setTestSubmitting(false)
         }
+    }
+
+    function handleTestAdvanceTurn() {
+        const gid = selectedGameId
+        const eid = evening?.id ?? null
+        if (!gid || !eid) return
+        advanceKioskTurn(eid, gid)
     }
 
     // ── Game finish ───────────────────────────────────────────────────────────
@@ -678,7 +690,7 @@ export function CameraCapturePage({onClose}: Props) {
                             <span style={{fontSize: 11, color: '#f87171', flexShrink: 0}}>🔴 {t('camera.lampRedHint')}</span>
                         )}
                         <span style={{fontSize: 11, color: 'var(--kce-muted)', marginLeft: 'auto'}}>
-                            {throws.length} {t('camera.throw').toLowerCase()}s ✓
+                            {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                         </span>
                         <button
                             className="btn-secondary btn-xs"
@@ -957,18 +969,22 @@ export function CameraCapturePage({onClose}: Props) {
                                         <p style={{fontSize: 11, color: 'var(--kce-muted)', margin: 0}}>
                                             {t('camera.testModeHint')}
                                         </p>
-                                        {/* Player selector */}
-                                        {players.length > 0 && (
-                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: 4}}>
-                                                <span style={{fontSize: 11, color: 'var(--kce-muted)', alignSelf: 'center', flexShrink: 0}}>🎳</span>
-                                                {players.map(p => (
-                                                    <button key={p.id} type="button"
-                                                            className={`chip ${testPlayerId === p.id ? 'active' : ''}`}
-                                                            style={{fontSize: 10}}
-                                                            onClick={() => setTestPlayerId(prev => prev === p.id ? null : p.id)}>
-                                                        {p.name}
-                                                    </button>
-                                                ))}
+                                        {/* Current + next 3 players */}
+                                        {kioskTurnOrder.length > 0 && (
+                                            <div style={{display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap'}}>
+                                                {/* Current player */}
+                                                <span style={{fontSize: 12, fontWeight: 700, color: 'var(--kce-amber)', background: 'rgba(251,191,36,0.12)', borderRadius: 6, padding: '2px 8px', border: '1px solid rgba(251,191,36,0.35)'}}>
+                                                    🎳 {kioskCurrentPlayer?.name ?? '—'}
+                                                </span>
+                                                {/* Next 3 */}
+                                                {[1, 2, 3].map(offset => {
+                                                    const p = kioskTurnOrder[(kioskTurnIdx + offset) % kioskTurnOrder.length]
+                                                    return p ? (
+                                                        <span key={offset} style={{fontSize: 11, color: 'var(--kce-muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)'}}>
+                                                            {p.name}
+                                                        </span>
+                                                    ) : null
+                                                })}
                                             </div>
                                         )}
                                         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
@@ -1001,6 +1017,13 @@ export function CameraCapturePage({onClose}: Props) {
                                                 onClick={handleTestThrow}
                                             >
                                                 {testSubmitting ? '…' : `▶ ${t('camera.testSend')}`}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn-secondary btn-sm"
+                                                onClick={handleTestAdvanceTurn}
+                                            >
+                                                {t('quickEntry.advanceTurn')}
                                             </button>
                                         </div>
                                     </div>

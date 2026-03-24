@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
+import {showToast} from '@/components/ui/Toast'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
@@ -65,6 +66,7 @@ export function GamesPage() {
 
     const [saving, setSaving] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+    const [confirmFinishGame, setConfirmFinishGame] = useState<Game | null>(null)
     const [cameraOpen, setCameraOpen] = useState(false)
 
     if (!evening) {
@@ -174,9 +176,15 @@ export function GamesPage() {
     }
 
     async function startGame(gid: number) {
-        // If another game is already running, open its finish sheet instead
+        // If another game is already running, ask user to finish it first
         if (runningGame && runningGame.id !== gid) {
-            openFinishSheet(runningGame)
+            setConfirmFinishGame(runningGame)
+            return
+        }
+        // Block team games when players are not fully assigned
+        const game = games.find(g => g.id === gid)
+        if (game?.turn_mode !== null && game?.turn_mode !== undefined && unassignedPlayers.length > 0) {
+            showToast(t('team.cannotStartUnassigned'), 'error')
             return
         }
         try {
@@ -621,6 +629,13 @@ export function GamesPage() {
 
             {/* ── Camera overlay ── */}
             {cameraOpen && <CameraCapturePage onClose={() => setCameraOpen(false)}/>}
+
+            {/* ── Confirm finish running game (triggered by starting another) ── */}
+            <Sheet open={!!confirmFinishGame} onClose={() => setConfirmFinishGame(null)}
+                   title={`"${confirmFinishGame?.name}" – ${t('game.mustFinishFirst')}`}
+                   onSubmit={() => { openFinishSheet(confirmFinishGame!); setConfirmFinishGame(null) }}>
+                <p className="text-sm text-kce-muted">{t('game.mustFinishFirstHint')}</p>
+            </Sheet>
 
             {/* ── Edit metadata sheet (open/running games) ── */}
             <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')}
