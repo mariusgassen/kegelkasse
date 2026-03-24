@@ -656,6 +656,7 @@ export const en = {
     "camera.resetCalibration": "Reset",
     "camera.noCamera": "No camera access — please grant permission",
     "camera.throw": "Throw",
+    "camera.throws": "Throws",
     "camera.pins": "pins",
     "camera.cumulative": "Total",
     "camera.throwHistory": "Throw log",

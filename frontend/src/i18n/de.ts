@@ -656,6 +656,7 @@ export const de = {
     "camera.resetCalibration": "Zurücksetzen",
     "camera.noCamera": "Kein Kamerazugriff — bitte Berechtigung erteilen",
     "camera.throw": "Wurf",
+    "camera.throws": "Würfe",
     "camera.pins": "Kegel",
     "camera.cumulative": "Gesamt",
     "camera.throwHistory": "Wurf-Protokoll",

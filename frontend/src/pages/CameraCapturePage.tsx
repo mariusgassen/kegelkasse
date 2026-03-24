@@ -678,7 +678,7 @@ export function CameraCapturePage({onClose}: Props) {
                             <span style={{fontSize: 11, color: '#f87171', flexShrink: 0}}>🔴 {t('camera.lampRedHint')}</span>
                         )}
                         <span style={{fontSize: 11, color: 'var(--kce-muted)', marginLeft: 'auto'}}>
-                            {throws.length} {t('camera.throw').toLowerCase()}s ✓
+                            {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                         </span>
                         <button
                             className="btn-secondary btn-xs"
