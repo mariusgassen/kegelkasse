@@ -1,6 +1,5 @@
 services:
   app:
-    container_name: kegelkasse_app
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -25,10 +24,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 60s
 
   db:
     container_name: kegelkasse_db
