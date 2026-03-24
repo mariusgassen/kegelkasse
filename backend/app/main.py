@@ -84,6 +84,11 @@ docs_static_dir = os.path.join(os.path.dirname(__file__), "..", "docs_static")
 if os.path.exists(docs_static_dir):
     app.mount("/docs", StaticFiles(directory=docs_static_dir, html=True), name="docs")
 
+# Serve uploaded files (club logos, etc.)
+uploads_dir = "/app/uploads"
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 # Serve React PWA
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.exists(static_dir):

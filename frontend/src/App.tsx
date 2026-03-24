@@ -334,7 +334,12 @@ export default function App() {
                 zIndex: 50,
             }}>
                 <div className="flex items-center gap-2.5 px-3 pb-2 pt-1">
-                    <AppLogoAnimated size={28}/>
+                    {club?.settings?.logo_url ? (
+                        <img src={club.settings.logo_url} alt={club.name}
+                             style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0}}/>
+                    ) : (
+                        <AppLogoAnimated size={28}/>
+                    )}
                     <div className="flex-1 min-w-0">
                         <h1 className="font-display font-bold text-kce-amber text-sm leading-tight truncate">
                             {club?.name || t('app.name')}
