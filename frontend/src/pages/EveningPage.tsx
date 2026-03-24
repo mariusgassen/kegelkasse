@@ -9,11 +9,13 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {useOnline} from '@/hooks/useOnline.ts'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId, isPending} = useActiveEvening()
+    const isOnline = useOnline()
     const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
@@ -99,7 +101,10 @@ export function EveningPage() {
                                    onChange={e => setStartNote(e.target.value)}
                                    placeholder={t('common.optional')}/>
                         </div>
-                        <button className="btn-primary mt-1" disabled={starting} onClick={async () => {
+                        {!isOnline && (
+                            <p className="text-xs text-amber-400 mt-1">📵 {t('offline.startHint')}</p>
+                        )}
+                        <button className="btn-primary mt-1" disabled={starting || !isOnline} onClick={async () => {
                             setStarting(true)
                             try {
                                 const date = startTime ? `${startDate}T${startTime}` : startDate
@@ -170,29 +175,35 @@ export function EveningPage() {
     }
 
     async function saveEvening() {
-        await api.updateEvening(evening!.id, {
-            date: editDate, venue: editVenue || undefined, note: editNote || undefined,
-        })
-        invalidate();
-        setEditSheet(false)
+        try {
+            await api.updateEvening(evening!.id, {
+                date: editDate, venue: editVenue || undefined, note: editNote || undefined,
+            })
+            invalidate();
+            setEditSheet(false)
+        } catch (e) { toastError(e) }
     }
 
     async function saveEditPlayer() {
         if (!editingPlayer) return
-        await api.updatePlayer(evening!.id, editingPlayer.id, {team_id: editPlayerTeam})
-        invalidate();
-        setEditPlayerSheet(false)
+        try {
+            await api.updatePlayer(evening!.id, editingPlayer.id, {team_id: editPlayerTeam})
+            invalidate();
+            setEditPlayerSheet(false)
+        } catch (e) { toastError(e) }
     }
 
     async function saveTeam() {
         if (!teamName.trim()) return
-        if (editingTeam) {
-            await api.updateTeam(evening!.id, editingTeam.id, {name: teamName, player_ids: teamPlayerIds as number[]})
-        } else {
-            await api.createTeam(evening!.id, {name: teamName, player_ids: teamPlayerIds as number[]})
-        }
-        invalidate();
-        setTeamSheet(false)
+        try {
+            if (editingTeam) {
+                await api.updateTeam(evening!.id, editingTeam.id, {name: teamName, player_ids: teamPlayerIds as number[]})
+            } else {
+                await api.createTeam(evening!.id, {name: teamName, player_ids: teamPlayerIds as number[]})
+            }
+            invalidate();
+            setTeamSheet(false)
+        } catch (e) { toastError(e) }
     }
 
     async function addPlayers() {
@@ -256,8 +267,10 @@ export function EveningPage() {
                             </button>
                         ) : (
                             <button className="btn-secondary btn-xs" onClick={async () => {
-                                await api.updateEvening(evening.id, {is_closed: false})
-                                invalidate()
+                                try {
+                                    await api.updateEvening(evening.id, {is_closed: false})
+                                    invalidate()
+                                } catch (e) { toastError(e) }
                             }}>{t('evening.reopen')}</button>
                         )}
                     </div>
@@ -270,12 +283,14 @@ export function EveningPage() {
                                 {t('action.cancel')}
                             </button>
                             <button className="btn-danger btn-sm flex-1" onClick={async () => {
-                                await api.updateEvening(evening.id, {is_closed: true})
-                                setCloseConfirm(false)
-                                setActiveEveningId(null)
-                                qc.invalidateQueries({queryKey: ['evenings']})
-                                qc.invalidateQueries({queryKey: ['schedule']})
-                                invalidate()
+                                try {
+                                    await api.updateEvening(evening.id, {is_closed: true})
+                                    setCloseConfirm(false)
+                                    setActiveEveningId(null)
+                                    qc.invalidateQueries({queryKey: ['evenings']})
+                                    qc.invalidateQueries({queryKey: ['schedule']})
+                                    invalidate()
+                                } catch (e) { toastError(e) }
                             }}>{t('action.done')}</button>
                         </div>
                     </div>

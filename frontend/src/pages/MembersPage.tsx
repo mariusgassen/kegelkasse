@@ -10,10 +10,12 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
+import {useOnline} from '@/hooks/useOnline.ts'
 import type {RegularMember} from '@/types.ts'
 
 export function MembersPage() {
     const t = useT()
+    const isOnline = useOnline()
     const {regularMembers, setRegularMembers, user} = useAppStore()
     const {evening, invalidate: invalidateEvening} = useActiveEvening()
     const admin = isAdmin(user)
@@ -74,19 +76,23 @@ export function MembersPage() {
     }
 
     async function openInvite(m: RegularMember) {
-        const res = await api.createMemberInvite(m.id)
-        setInviteUrl(window.location.origin + res.invite_url)
-        setInviteName(res.member_name)
-        setCopied(false)
-        setInviteSheet(true)
+        try {
+            const res = await api.createMemberInvite(m.id)
+            setInviteUrl(window.location.origin + res.invite_url)
+            setInviteName(res.member_name)
+            setCopied(false)
+            setInviteSheet(true)
+        } catch (e) { toastError(e) }
     }
 
     async function openGeneralInvite() {
-        const res = await api.createInvite()
-        setInviteUrl(window.location.origin + res.invite_url)
-        setInviteName(t('club.invite.create'))
-        setCopied(false)
-        setInviteSheet(true)
+        try {
+            const res = await api.createInvite()
+            setInviteUrl(window.location.origin + res.invite_url)
+            setInviteName(t('club.invite.create'))
+            setCopied(false)
+            setInviteSheet(true)
+        } catch (e) { toastError(e) }
     }
 
     async function refetchRoster() {
@@ -246,7 +252,7 @@ export function MembersPage() {
                 <div className="sec-heading mb-0">{t('member.appUsers')}</div>
                 <div className="flex gap-1">
                     {admin && (
-                        <button className="btn-secondary btn-xs" onClick={openGeneralInvite}>
+                        <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={openGeneralInvite}>
                             📨 {t('club.tab.invites')}
                         </button>
                     )}
@@ -303,6 +309,7 @@ export function MembersPage() {
                             )}
                             {admin && u.role !== 'superadmin' && (
                                 <button className="btn-secondary btn-xs" title={t('auth.reset.createLink')}
+                                        disabled={!isOnline}
                                         onClick={() => openResetSheet(u.id, u.name)}>🔑</button>
                             )}
                             {admin && u.role !== 'superadmin' && u.id !== user?.id && (
@@ -390,8 +397,8 @@ export function MembersPage() {
                                 )}
                                 {admin && (
                                     <>
-                                        <button className="btn-secondary btn-xs" onClick={() => openInvite(m)}
-                                                title="Einladungslink">📨
+                                        <button className="btn-secondary btn-xs" disabled={!isOnline}
+                                                onClick={() => openInvite(m)} title="Einladungslink">📨
                                         </button>
                                         <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
                                         <button className="btn-secondary btn-xs" title="Zusammenlegen"
