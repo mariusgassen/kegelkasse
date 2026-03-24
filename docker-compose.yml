@@ -18,6 +18,8 @@ services:
       # pgbackrest — scheduled full backup cron + management API URL
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
       PGB_MGMT_URL: ${PGB_MGMT_URL:-http://db:8089}
+    volumes:
+      - club_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -66,3 +68,4 @@ services:
 volumes:
   postgres_data:
   pgbackrest_repo:
+  club_uploads:

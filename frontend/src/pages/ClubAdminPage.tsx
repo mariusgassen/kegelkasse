@@ -150,9 +150,11 @@ function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
 
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
+    const qc = useQueryClient()
     const setGuestPenaltyCap = useAppStore(s => s.setGuestPenaltyCap)
     const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
+    const [logoUploading, setLogoUploading] = useState(false)
     const [color1, setColor1] = useState(club?.settings?.primary_color || '#e8a020')
     const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
     const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
@@ -195,6 +197,29 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         const palettes = buildPalettes(h, t)
         applyPalette(palettes[Math.floor(Math.random() * palettes.length)])
         setSuggestions(palettes)
+    }
+
+    async function handleLogoUpload(file: File) {
+        setLogoUploading(true)
+        try {
+            await api.uploadClubLogo(file)
+            await qc.invalidateQueries({queryKey: ['club']})
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setLogoUploading(false)
+        }
+    }
+
+    async function handleLogoRemove() {
+        try {
+            await api.deleteClubLogo()
+            await qc.invalidateQueries({queryKey: ['club']})
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        }
     }
 
     async function handleSave() {
@@ -245,6 +270,38 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             {/* ── Erscheinungsbild ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.appearance')}</div>
+
+                {/* Logo */}
+                <div className="mb-4 pb-4 border-b border-kce-border">
+                    <label className="field-label mb-2">{t('club.logo')}</label>
+                    <div className="flex items-center gap-3">
+                        {club?.settings?.logo_url ? (
+                            <img src={club.settings.logo_url} alt="Logo"
+                                 className="h-12 w-12 rounded-lg object-contain bg-kce-surface flex-shrink-0"
+                                 style={{border: '1px solid var(--kce-border)'}}/>
+                        ) : (
+                            <div className="h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0 text-kce-muted text-xl"
+                                 style={{background: 'var(--kce-surface)', border: '1px solid var(--kce-border)'}}>🎳</div>
+                        )}
+                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                            <label className={`btn-secondary text-xs px-3 py-1.5 cursor-pointer inline-flex items-center gap-1.5 ${logoUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                {logoUploading ? t('club.logo.uploading') : t('club.logo.upload')}
+                                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                                       className="sr-only"
+                                       disabled={logoUploading}
+                                       onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}/>
+                            </label>
+                            {club?.settings?.logo_url && (
+                                <button type="button" className="text-xs text-kce-muted hover:text-red-400 text-left"
+                                        onClick={handleLogoRemove}>
+                                    {t('club.logo.remove')}
+                                </button>
+                            )}
+                            <p className="text-[10px] text-kce-muted">{t('club.logo.hint')}</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="flex gap-3">
                     <div className="flex-1">
                         <label className="field-label">{t('club.color.primary')}</label>

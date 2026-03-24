@@ -147,6 +147,20 @@ export const api = {
 
     // Club
     getClub: () => request<Club>('GET', '/club/'),
+    uploadClubLogo: async (file: File): Promise<{ logo_url: string }> => {
+        const formData = new FormData()
+        formData.append('file', file)
+        const headers: Record<string, string> = {}
+        if (_token) headers['Authorization'] = `Bearer ${_token}`
+        const res = await fetch(`${API_BASE}/club/logo`, {method: 'POST', headers, body: formData})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
+        }
+        return res.json()
+    },
+    deleteClubLogo: () => request<void>('DELETE', '/club/logo'),
     updateClubSettings: (d: Partial<ClubSettings> & {
         name?: string;
         guest_penalty_cap?: number | null;

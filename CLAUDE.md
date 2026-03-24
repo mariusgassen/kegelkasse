@@ -150,7 +150,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 7  | **Statistiken & Analyse**          | ✅      | Jahresranking mit CSS-Balken, Jahresauswahl, alle Mitglieder ein-/ausklappbar                         |
 | 8  | **Push Notifications**             | ✅      | Web Push mit Deep Links; Kategorien-Präferenzen pro User; 4 neue Trigger (König, Abend start, neue Mitglieder, Strafe storniert); VAPID-Backend, ProfileSheet-Toggle+Prefs, SW-Handler; Missed-push-Speicherung in IndexedDB bei geschlossener App; Hybrid-Ladeweg via notification_log (Migration 035): Benachrichtigungen werden server-seitig gespeichert und beim App-Start über API geladen (auch ohne PWA/SW); Deep-Link-Fix (absolute URL in SW navigate()); Glocke immer sichtbar für eingeloggte User |
 | 9  | **Offline-Sync**                   | ✅      | IndexedDB-Queue für alle Abend-Mutations (Strafen, Getränke, Spiele, Spieler, Highlights, Teams, RSVP, …); navigator.onLine-Sofortcheck verhindert Hängen; OfflineQueuedError; Auto-Flush on reconnect; /sync/-Handler |
-| 10 | **Logo-Upload**                    | ⬜      | Admin-Upload für Vereinslogo, Docker Volume                                                           |
+| 10 | **Logo-Upload**                    | ✅      | Admin-Upload (JPEG/PNG/WebP/GIF/SVG, max 5 MB); POST /club/logo + DELETE /club/logo; Docker Volume club_uploads:/app/uploads; Serve via /uploads StaticFiles; Logo in App-Header statt animierter Kugel wenn gesetzt; Vorschau + Entfernen-Button in ClubSettingsTab |
 | 11 | **Emoji Picker**                   | ✅      | `emoji-picker-react` v4, EmojiPickerButton-Komponente, Icon- & Insert-Modus, 5 Verwendungen         |
 | 12 | **Ausflug / Gastvereine**          | ⬜      | Club-Vernetzung, Gast-Clubs                                                                           |
 | 13 | **Präsident**                      | ✅      | Jährliches Präsidentenspiel (🎯-Flag), club_president-Tabelle, Historie-Badge, Präsidenten-Tab       |
@@ -160,7 +160,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 16 | **Cleanup / Fehlerhandling**       | ⬜      | Prüfung ob relevante Stellen fehler unbekannt und bekannt behandelt und dem benutzer angezeigt werden |
 | 17 | **Logging**                        | ⬜      | Backend Logs hinzufügen mit konfigurierbarem level für Monitoring                                     |
 | 32 | **Datenbank-Backups**              | ✅      | pgbackrest in custom db-Image (postgres:16 + pgbackrest + Python mgmt-server auf :8089); WAL-Archivierung → PITR; APScheduler-Cron-Job Full-Backup; Superadmin-Tab: Backup-Liste (Label, Typ, Größe, PITR-Fenster), Manuell auslösen; Retention per PGBACKREST_REPO1_RETENTION_FULL; S3 via PGBACKREST_REPO1_* env-vars |
-| 18 | **Testing**                        | ⬜      | Automatisierte Tests für Frontend und Backend                                                         |
+| 18 | **Testing**                        | 🚧      | Vitest: cameraEngine (readFrame, digit/pin/lamp detection), turnOrder (alternating/block), API client (push, club, logo). pytest: push routes/core, club routes (CRUD + logo upload), evenings (CRUD, players, penalties). Uncovered — see Testing-TODO below. |
 | 33 | **Kamera-Wurf-Erkennung (Echtzeit)** | 🚧    | Phase 1–3 implementiert. Architektur: Kamera-Gerät (Stativ, Kiosk-Modus) + Tablet (Schnellerfassung + Wurf-Management). CameraCapturePage: Kiosk-Modus (auto-submit, kein Bestätigungs-Overlay, Video fullscreen, Exit-Button). TabletQuickEntryPage: kombiniert Strafen/Getränke + Kamera-Wurf-Strip (Live-Würfe via SSE, Spieler-Zuordnung, Widerruf-Button) + Spieler-Reihenfolge (Abwechselnd / Block-Modus, aktuelle Spielerin hervorgehoben, nächste angezeigt, manuelle Weiter-Taste) + Spiel-Beenden (Gewinner-Wahl inline). game_throw_log.player_id (Migration 038, FK evening_player, SET NULL); DELETE /evening/{eid}/games/{gid}/throws/{tid}; Phasen: 1) ✅ Kalibrierung + Segment/Glob-Erkennung, 2) ✅ Backend + Echtzeit-UI, 3) ✅ Kiosk + Tablet-Integration + Spieler-Reihenfolge. Vollmer-Anlage: grüne 7-Segment-Displays + 9 Pin-Globen (leuchtet=gefallen); deterministisches Segment-Mapping ohne ML. Phase 4: game.active_player_id (Migration 041, FK evening_player SET NULL); PATCH /evening/{eid}/games/{gid}/active-player; Tablet schreibt aktiven Spieler bei Zug-Wechsel; Kiosk liest active_player_id + wählt Spiel automatisch (kein manuelles Auswählen mehr). |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | ✅      | Spieltermine & RSVP (SchedulePage); Abwesenheitsstrafen auto beim Start-aus-Termin; no_cancel_fee nur wenn RSVP vorhanden; Gäste ohne regular_member_id werden beim Start automatisch als RegularMember angelegt |
@@ -174,3 +174,40 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 28 | **Abend nur via Termin starten**   | ✅      | create_evening auf require_club_admin gesetzt; ad-hoc-Formular bleibt für Admins erhalten             |
 | 29 | **Tablet Schnellerfassung**        | ✅      | Vollbild-Overlay (⚡) für Landscape-Modus; 3-Spalten-Layout: Spieler | Strafen | Getränke (separat); iOS safe-area-insets (Notch, Home-Indicator, gerundete Ecken); kein Scrollen erforderlich; letzte Einträge unten; 0€-Strafen ausgeblendet; Getränke-Spalte kompakt (Icon only), Strafen-Buttons vergrößert |
 | 31 | **Navbar-Farben & Farbpalette**    | ✅      | Navbar nutzt CSS-Variablen (--kce-surface2, --kce-border, --kce-primary); Live-Vorschau bei Farbänderung; Paletten-Generator in Erscheinungsbild: Grundfarbe wählen + Vorschläge (Warm/Kontrast/Triade/Weich) oder Zufallspalette |
+
+## Testing TODO
+
+The following functionality is **not yet covered** by automated tests and should be added in future iterations:
+
+### Backend (pytest)
+
+- **Games** — `POST /evening/{eid}/games`, start/finish game, loser-penalty creation, king flag, president game
+- **Drinks** — `POST /evening/{eid}/drinks`, drink round listing
+- **Treasury** — penalty ranking, member balances, payment recording, expense tracking, PaymentRequest flow
+- **Stats** — annual ranking endpoint, personal profile stats
+- **Schedule** — scheduled evening CRUD, RSVP (attend/absent), iCal feed, absence penalty on evening start
+- **Auth** — login, register with invite, password reset, avatar upload, locale update, account deletion
+- **Push** — subscription preferences, notification broadcast triggers (König, Abend start, etc.)
+- **Reports** — PDF/Excel export endpoints (member accounts, penalties, evening overview)
+- **Committee** — club trips, announcements, VA-member management
+- **Superadmin** — club creation, switch-club, club listing
+- **Throw log** — camera throw CRUD (`POST/DELETE /evening/{eid}/games/{gid}/throws`), active-player endpoint
+- **Reminders** — APScheduler job logic (debt, RSVP, schedule reminders)
+- **Backups** — pgbackrest integration (requires docker, skip in unit tests; add integration test placeholder)
+
+### Frontend (Vitest)
+
+- **EveningPage** — player add/remove, penalty logging, drink logging, game flow (start/finish), team setup
+- **TabletQuickEntryPage** — column rendering, player highlight, finish-game selector, throw strip display
+- **CameraCapturePage** — calibration state machine, kiosk-mode auto-submit, confirmation timer
+- **TreasuryPage** — balance display, payment recording sheet, PaymentRequest accept/reject
+- **SchedulePage** — RSVP toggle, iCal copy, scheduled evening list
+- **StatsPage** — annual ranking rendering, year selector, member expand/collapse
+- **HistoryPage** — close/reopen evening flow, backlog sheet
+- **MembersPage** — member CRUD, invite link creation, link-to-roster
+- **ProfileSheet** — avatar upload, PayPal.me link, push preference toggles
+- **Store (app.ts)** — Zustand selectors, role helpers (isAdmin, isSuperadmin)
+- **i18n** — key completeness check between de.ts and en.ts
+- **offlineQueue** — enqueue, flush, conflict-free replay
+- **hexToHsl / hslToHex** — color conversion round-trip (currently only used in App.tsx)
+- **Error handling** — UnauthorizedError auto-logout, NetworkError offline queue, OfflineQueuedError UX

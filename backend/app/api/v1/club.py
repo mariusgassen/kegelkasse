@@ -3,10 +3,12 @@ Club management — settings, regular members, penalty types, game templates.
 All write operations require club_admin role.
 Read operations available to all club members.
 """
+import uuid
 from datetime import date as date_type, datetime, timezone
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -119,6 +121,69 @@ def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(re
     s.extra = extra
     db.commit()
     return {"ical_token": extra["ical_token"]}
+
+
+_UPLOAD_DIR = Path("/app/uploads/logos")
+_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"}
+_MAX_LOGO_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+@router.post("/logo")
+async def upload_club_logo(
+        file: UploadFile = File(...),
+        db: Session = Depends(get_db),
+        user: User = Depends(require_club_admin),
+):
+    """Admin only: upload a club logo image (JPEG/PNG/WebP/GIF/SVG, max 5 MB)."""
+    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(400, "Unsupported file type. Use JPEG, PNG, WebP, GIF or SVG.")
+
+    # Read and size-check
+    data = await file.read()
+    if len(data) > _MAX_LOGO_SIZE:
+        raise HTTPException(413, "Logo too large. Maximum size is 5 MB.")
+
+    # Determine extension from content-type for safety (ignore original filename)
+    _ext_map = {
+        "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+        "image/gif": "gif", "image/svg+xml": "svg",
+    }
+    ext = _ext_map[file.content_type]
+    filename = f"club_{user.club_id}_{uuid.uuid4().hex}.{ext}"
+
+    _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    dest = _UPLOAD_DIR / filename
+    dest.write_bytes(data)
+
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+
+    # Delete old logo file if it was a locally uploaded one
+    if s.logo_url and s.logo_url.startswith("/uploads/logos/"):
+        old_path = Path("/app") / s.logo_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink(missing_ok=True)
+
+    s.logo_url = f"/uploads/logos/{filename}"
+    db.commit()
+    return {"logo_url": s.logo_url}
+
+
+@router.delete("/logo")
+def delete_club_logo(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin only: remove the club logo."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        raise HTTPException(404)
+    if s.logo_url and s.logo_url.startswith("/uploads/logos/"):
+        old_path = Path("/app") / s.logo_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink(missing_ok=True)
+    s.logo_url = None
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/members")
