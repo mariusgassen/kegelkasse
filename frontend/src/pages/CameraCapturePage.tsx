@@ -133,10 +133,15 @@ export function CameraCapturePage({onClose}: Props) {
 
     // Kiosk turn-order tracking (mirrors tablet logic for standalone kiosk use)
     const [kioskTurnIdx, setKioskTurnIdx] = useState(0)
-    const [kioskBlockTeamIdx] = useState(0)  // block mode unsupported in standalone kiosk
+    const [kioskBlockTeamIdx, setKioskBlockTeamIdx] = useState(0)
 
     // Auto-select the running/open game from the evening (same logic as tablet manager)
     const activeGame = evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted) ?? null
+
+    // Turn order for kiosk (same logic as tablet)
+    const players = evening?.players ?? []
+    const teams = evening?.teams ?? []
+
     useEffect(() => {
         if (activeGame && selectedGameId !== activeGame.id) {
             setSelectedGameId(activeGame.id)
@@ -155,9 +160,23 @@ export function CameraCapturePage({onClose}: Props) {
         }
     }, [activeGame?.id])
 
-    // Turn order for kiosk (same logic as tablet)
-    const players = evening?.players ?? []
-    const teams = evening?.teams ?? []
+    // In block mode: re-sync team index + turn index whenever active_player_id changes.
+    // Covers both restart and live team-switch from the tablet (tablet writes active_player_id
+    // whenever it advances the block team, so the kiosk follows automatically).
+    useEffect(() => {
+        if (!activeGame || activeGame.turn_mode !== 'block' || players.length === 0) return
+        const activePid = activeGame.active_player_id
+        if (activePid === null) return
+        const activeEp = players.find(p => p.id === activePid)
+        if (!activeEp?.team_id) return
+        const teamIdx = teams.findIndex(t => t.id === activeEp.team_id)
+        if (teamIdx < 0) return
+        setKioskBlockTeamIdx(prev => prev !== teamIdx ? teamIdx : prev)
+        // Re-derive turn index to the active player's position within the team
+        const teamPlayers = players.filter(p => p.team_id === activeEp.team_id)
+        const idxInTeam = teamPlayers.findIndex(p => p.id === activePid)
+        if (idxInTeam >= 0) setKioskTurnIdx(idxInTeam)
+    }, [activeGame?.active_player_id, activeGame?.turn_mode, players.length])
     const kioskTurnOrder = useMemo(() =>
         buildTurnOrder(players, teams, activeGame?.turn_mode ?? 'alternating', kioskBlockTeamIdx),
         [players, teams, activeGame?.turn_mode, kioskBlockTeamIdx])
