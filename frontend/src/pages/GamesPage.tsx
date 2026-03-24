@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
+import {showToast} from '@/components/ui/Toast'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
@@ -174,9 +175,16 @@ export function GamesPage() {
     }
 
     async function startGame(gid: number) {
-        // If another game is already running, open its finish sheet instead
+        // If another game is already running, warn and open its finish sheet
         if (runningGame && runningGame.id !== gid) {
+            showToast(`"${runningGame.name}" – ${t('game.mustFinishFirst')}`, 'error')
             openFinishSheet(runningGame)
+            return
+        }
+        // Block team games when players are not fully assigned
+        const game = games.find(g => g.id === gid)
+        if (game?.turn_mode !== null && game?.turn_mode !== undefined && unassignedPlayers.length > 0) {
+            showToast(t('team.cannotStartUnassigned'), 'error')
             return
         }
         try {
