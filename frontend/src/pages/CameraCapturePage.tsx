@@ -141,7 +141,15 @@ export function CameraCapturePage({onClose}: Props) {
         if (activeGame && selectedGameId !== activeGame.id) {
             setSelectedGameId(activeGame.id)
             setWinnerRef('')
-            setThrows([])
+            // Hydrate throw history from server so the protocol is populated on re-open
+            setThrows((activeGame.throws ?? []).map(th => ({
+                throwNum: th.throw_num,
+                pins: th.pins,
+                cumulative: th.cumulative,
+                pinStates: th.pin_states,
+                playerId: th.player_id,
+            })))
+            setTestThrowNum((activeGame.throws?.length ?? 0) + 1)
             // Sync turn index to server state (mirrors tablet logic) so re-opening mid-game is correct
             setKioskTurnIdx(activeGame.throws?.length ?? 0)
         }
