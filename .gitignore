@@ -61,6 +61,12 @@ Thumbs.db
 postgres_data/
 postgres_dev_data/
 
+# Coverage
+backend/.coverage
+backend/coverage.xml
+backend/coverage-html/
+frontend/coverage/
+
 # Logs
 *.logdocs/build
 docs/node_modules
