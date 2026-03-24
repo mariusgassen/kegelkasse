@@ -13,7 +13,7 @@ import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
     const t = useT()
-    const {evening, invalidate, activeEveningId} = useActiveEvening()
+    const {evening, invalidate, activeEveningId, isPending} = useActiveEvening()
     const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
 
@@ -231,6 +231,14 @@ export function EveningPage() {
                     </span>
                 )}
             </div>
+
+            {/* Pending-sync banner for offline-created evenings */}
+            {isPending && (
+                <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center gap-2">
+                    <span>⏳</span>
+                    <span>{t('sync.pendingEvening')}</span>
+                </div>
+            )}
 
             {/* Evening info card */}
             <div className="kce-card p-4 mb-3">

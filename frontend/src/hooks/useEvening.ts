@@ -2,6 +2,8 @@ import {useEffect, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState, NetworkError} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
+import {pendingStore} from '@/pendingStore.ts'
+import type {Evening} from '@/types.ts'
 
 export function useActiveEvening() {
     const activeEveningId = useAppStore(s => s.activeEveningId)
@@ -9,13 +11,50 @@ export function useActiveEvening() {
     const qc = useQueryClient()
     const esRef = useRef<EventSource | null>(null)
 
+    // When a temp evening is resolved to a real ID, update the store so the
+    // evening page reloads against the real server resource.
+    useEffect(() => {
+        function onResolved(e: Event) {
+            const {tempId, realId} = (e as CustomEvent<{tempId: number; realId: number}>).detail
+            if (activeEveningId === tempId) {
+                setActiveEveningId(realId)
+                qc.invalidateQueries({queryKey: ['evening', realId]})
+            }
+        }
+        window.addEventListener('kegelkasse:temp-id-resolved', onResolved)
+        return () => window.removeEventListener('kegelkasse:temp-id-resolved', onResolved)
+    }, [activeEveningId, setActiveEveningId, qc])
+
+    const isPending = !!activeEveningId && activeEveningId < 0
+
     const {data: evening, isLoading, isError, error} = useQuery({
         queryKey: ['evening', activeEveningId],
-        queryFn: () => activeEveningId ? api.getEvening(activeEveningId) : null,
+        queryFn: async (): Promise<Evening | null> => {
+            if (!activeEveningId) return null
+            // Negative ID = offline-created temp evening; load from pendingStore
+            if (activeEveningId < 0) {
+                const pending = await pendingStore.get(activeEveningId)
+                if (!pending) return null
+                return {
+                    id: activeEveningId,
+                    date: pending.date,
+                    venue: pending.venue,
+                    note: null,
+                    is_closed: false,
+                    players: [],
+                    teams: [],
+                    penalty_log: [],
+                    games: [],
+                    drink_rounds: [],
+                    highlights: [],
+                }
+            }
+            return api.getEvening(activeEveningId)
+        },
         enabled: !!activeEveningId,
-        staleTime: 1000 * 15,
-        // 30s polling as fallback when SSE is unavailable
-        refetchInterval: 1000 * 30,
+        staleTime: isPending ? Infinity : 1000 * 15,
+        // No polling / no SSE for temp evenings — they live only in IndexedDB
+        refetchInterval: isPending ? false : 1000 * 30,
         // Retry network errors (e.g. backend restart) but not data errors (e.g. 404)
         retry: (failureCount, err) => err instanceof NetworkError && failureCount < 4,
     })
@@ -25,6 +64,7 @@ export function useActiveEvening() {
     // don't need to manually reload after network hiccups or server restarts.
     useEffect(() => {
         if (!activeEveningId) return
+        if (isPending) return  // temp evening has no server-side SSE stream
         const token = authState.getToken()
         if (!token) return
 
@@ -74,13 +114,15 @@ export function useActiveEvening() {
     // Only clear activeEveningId for real data errors (e.g. 404 evening gone).
     // Network errors (backend restart, temporary outage) are transient — preserving
     // the ID lets the app recover automatically once the server is back.
+    // Pending temp evenings (id < 0) must never be cleared by error — they only
+    // exist in IndexedDB and will be resolved when the queue is flushed.
     useEffect(() => {
-        if (isError && !(error instanceof NetworkError)) setActiveEveningId(null)
-    }, [isError, error])
+        if (isError && !(error instanceof NetworkError) && !isPending) setActiveEveningId(null)
+    }, [isError, error, isPending])
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
 
-    return {evening, isLoading, invalidate, activeEveningId}
+    return {evening, isLoading, invalidate, activeEveningId, isPending}
 }
 
 export function useEveningList() {

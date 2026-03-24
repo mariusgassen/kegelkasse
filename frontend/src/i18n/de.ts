@@ -287,6 +287,7 @@ export const de = {
     "sync.queued": "Offline gespeichert – wird synchronisiert wenn du wieder online bist.",
     "sync.flushed": "Offline-Änderungen synchronisiert.",
     "sync.flushErrors": "Einige Offline-Änderungen konnten nicht synchronisiert werden.",
+    "sync.pendingEvening": "Abend offline gestartet – wird synchronisiert sobald du wieder online bist.",
     "settings.language": "Sprache",
     "wheel.title": "🎲 Zufalls-Strafe",
     "wheel.spin": "Drehen!",

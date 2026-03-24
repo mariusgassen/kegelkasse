@@ -287,6 +287,7 @@ export const en = {
     "sync.queued": "Saved offline – will sync when you're back online.",
     "sync.flushed": "Offline changes synced.",
     "sync.flushErrors": "Some offline changes could not be synced.",
+    "sync.pendingEvening": "Evening created offline – will sync when you're back online.",
     "settings.language": "Language",
     "wheel.title": "🎲 Random penalty",
     "wheel.spin": "Spin!",

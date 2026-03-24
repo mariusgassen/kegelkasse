@@ -15,6 +15,13 @@ export interface QueuedRequest {
     path: string
     body: unknown
     timestamp: number
+    /**
+     * If this request creates a new resource, `tempId` is the negative
+     * placeholder ID that was returned to the UI while offline.  The flush
+     * logic replaces every occurrence of this value (in subsequent paths and
+     * bodies) with the real server-assigned ID once the request is replayed.
+     */
+    tempId?: number
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -29,11 +36,13 @@ function openDb(): Promise<IDBDatabase> {
 }
 
 export const offlineQueue = {
-    async enqueue(method: string, path: string, body: unknown): Promise<void> {
+    async enqueue(method: string, path: string, body: unknown, tempId?: number): Promise<void> {
         const db = await openDb()
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite')
-            tx.objectStore(STORE).add({method, path, body, timestamp: Date.now()})
+            const record: Omit<QueuedRequest, 'id'> = {method, path, body, timestamp: Date.now()}
+            if (tempId !== undefined) record.tempId = tempId
+            tx.objectStore(STORE).add(record)
             tx.oncomplete = () => { db.close(); resolve() }
             tx.onerror = () => { db.close(); reject(tx.error) }
         })
@@ -83,14 +92,27 @@ export const offlineQueue = {
 /**
  * Returns true if this mutation can be safely queued offline and replayed later.
  *
- * Covered: all sub-resources of an active evening (penalties, drinks, games, players,
- * highlights, teams, throws, active-player), schedule RSVP, and lightweight user-preference
- * updates.  Auth, admin, financial, and reporting endpoints are excluded because they either
- * need a real response value or must not be replayed blindly.
+ * Covered:
+ *  - Starting an evening from a schedule (temp ID assigned, replayed first on flush)
+ *  - Creating a guest RegularMember (temp ID, body-replaced on flush)
+ *  - Adding a guest to a scheduled evening
+ *  - All sub-resources of an active evening (penalties, drinks, games, players,
+ *    highlights, teams, throws, active-player)
+ *  - Schedule RSVP (add / remove)
+ *  - Light user-preference updates
+ *
+ * Auth, financial, reporting, and superadmin endpoints are excluded because
+ * they need real response values or must not be replayed blindly.
  */
 export function isQueuableMutation(method: string, path: string): boolean {
     if (method === 'GET') return false
     return (
+        // Start a scheduled evening (creates temp evening ID)
+        /^\/schedule\/\d+\/start$/.test(path) ||
+        // Create a guest member (creates temp member ID)
+        /^\/club\/regular-members$/.test(path) ||
+        // Add / remove guests from a scheduled evening
+        /^\/schedule\/\d+\/guests/.test(path) ||
         // All sub-resources of an active evening
         /^\/evening\/\d+\//.test(path) ||
         // PATCH on the evening itself (venue, note, …)

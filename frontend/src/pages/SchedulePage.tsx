@@ -100,7 +100,12 @@ function AddGuestForm({se, onAdded, onCancel}: {
                 name: name.trim(),
                 regular_member_id: matchedId ?? undefined,
             })
-            onAdded(guest)
+            if (guest) {
+                onAdded(guest)
+            } else {
+                // Queued offline — optimistically show the guest in the list
+                onAdded({id: -Date.now(), name: name.trim(), regular_member_id: matchedId})
+            }
         } catch (e) {
             toastError(e)
         } finally {
@@ -226,7 +231,9 @@ export function StartEveningSheet({se, onClose, onStarted}: {
             const ev = await api.startEveningFromSchedule(se.id, {
                 member_ids: Array.from(checkedIds),
             })
-            if (missingPinIds.size > 0 && pinPenalty > 0) {
+            // Pin penalties require real player IDs from the server — only possible
+            // when the evening was created online (positive real ID).
+            if (ev && ev.id > 0 && missingPinIds.size > 0 && pinPenalty > 0) {
                 const eveningData = await api.getEvening(ev.id)
                 for (const pinId of missingPinIds) {
                     const pin = pins.find(p => p.id === pinId)
