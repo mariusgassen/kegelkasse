@@ -677,47 +677,50 @@ export function CameraCapturePage({onClose}: Props) {
                     <div style={{
                         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
                         background: 'rgba(0,0,0,0.75)',
-                        padding: '8px 12px',
-                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '6px 10px',
+                        display: 'flex', flexDirection: 'column', gap: 4,
                         borderTop: '1px solid rgba(255,255,255,0.15)',
                     }}>
-                        <span style={{fontSize: 11, color: '#4ade80', fontWeight: 'bold', flexShrink: 0}}>
-                            📷 {t('camera.kiosk')}
-                        </span>
-                        {selectedGame && (
-                            <span style={{fontSize: 12, color: 'var(--kce-amber)', fontWeight: 'bold', flexShrink: 0}}>
-                                {selectedGame.name}
+                        {/* Row 1: status indicators — wrap freely */}
+                        <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 10px'}}>
+                            <span style={{fontSize: 11, color: '#4ade80', fontWeight: 'bold'}}>
+                                📷 {t('camera.kiosk')}
                             </span>
-                        )}
-                        {/* Active player — prefer local kiosk turn order */}
-                        {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id)) && (
-                            <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
-                                🎳 {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id))!.name}
+                            {selectedGame && (
+                                <span style={{fontSize: 12, color: 'var(--kce-amber)', fontWeight: 'bold'}}>
+                                    {selectedGame.name}
+                                </span>
+                            )}
+                            {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id)) && (
+                                <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
+                                    🎳 {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id))!.name}
+                                </span>
+                            )}
+                            {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
+                                <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
+                                    W#{currentReading.throwNum}
+                                    {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
+                                </span>
+                            )}
+                            {currentReading?.lampGreen && (
+                                <span style={{fontSize: 11, color: '#4ade80'}}>🟢</span>
+                            )}
+                            {currentReading?.lampRed && (
+                                <span style={{fontSize: 11, color: '#f87171'}}>🔴 {t('camera.lampRedHint')}</span>
+                            )}
+                        </div>
+                        {/* Row 2: throw count + exit button always visible */}
+                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8}}>
+                            <span style={{fontSize: 11, color: 'var(--kce-muted)'}}>
+                                {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                             </span>
-                        )}
-                        {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
-                            <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
-                                W#{currentReading.throwNum}
-                                {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
-                            </span>
-                        )}
-                        {/* Lamp indicators */}
-                        {currentReading?.lampGreen && (
-                            <span style={{fontSize: 11, color: '#4ade80', flexShrink: 0}}>🟢</span>
-                        )}
-                        {currentReading?.lampRed && (
-                            <span style={{fontSize: 11, color: '#f87171', flexShrink: 0}}>🔴 {t('camera.lampRedHint')}</span>
-                        )}
-                        <span style={{fontSize: 11, color: 'var(--kce-muted)', marginLeft: 'auto'}}>
-                            {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
-                        </span>
-                        <button
-                            className="btn-secondary btn-xs"
-                            style={{flexShrink: 0}}
-                            onClick={() => setMode('detecting')}
-                        >
-                            {t('camera.exitKiosk')}
-                        </button>
+                            <button
+                                className="btn-secondary btn-xs"
+                                onClick={() => setMode('detecting')}
+                            >
+                                {t('camera.exitKiosk')}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
