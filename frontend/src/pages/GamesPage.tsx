@@ -66,6 +66,7 @@ export function GamesPage() {
 
     const [saving, setSaving] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+    const [confirmFinishGame, setConfirmFinishGame] = useState<Game | null>(null)
     const [cameraOpen, setCameraOpen] = useState(false)
 
     if (!evening) {
@@ -175,10 +176,9 @@ export function GamesPage() {
     }
 
     async function startGame(gid: number) {
-        // If another game is already running, warn and open its finish sheet
+        // If another game is already running, ask user to finish it first
         if (runningGame && runningGame.id !== gid) {
-            showToast(`"${runningGame.name}" – ${t('game.mustFinishFirst')}`, 'error')
-            openFinishSheet(runningGame)
+            setConfirmFinishGame(runningGame)
             return
         }
         // Block team games when players are not fully assigned
@@ -629,6 +629,13 @@ export function GamesPage() {
 
             {/* ── Camera overlay ── */}
             {cameraOpen && <CameraCapturePage onClose={() => setCameraOpen(false)}/>}
+
+            {/* ── Confirm finish running game (triggered by starting another) ── */}
+            <Sheet open={!!confirmFinishGame} onClose={() => setConfirmFinishGame(null)}
+                   title={`"${confirmFinishGame?.name}" – ${t('game.mustFinishFirst')}`}
+                   onSubmit={() => { openFinishSheet(confirmFinishGame!); setConfirmFinishGame(null) }}>
+                <p className="text-sm text-kce-muted">{t('game.mustFinishFirstHint')}</p>
+            </Sheet>
 
             {/* ── Edit metadata sheet (open/running games) ── */}
             <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')}
