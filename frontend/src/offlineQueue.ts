@@ -1,6 +1,7 @@
 /**
  * IndexedDB-based queue for offline mutations.
- * Only append-safe operations (add/delete penalty, add/delete drink) are queued.
+ * All evening-session write operations (penalties, drinks, games, players, highlights, …)
+ * plus a handful of lightweight user-preference updates are queued when the device is offline.
  * On reconnect, the queue is flushed by replaying each request in timestamp order.
  */
 
@@ -79,14 +80,28 @@ export const offlineQueue = {
     },
 }
 
-/** Paths that are safe to queue offline (append-only, no return value needed by callers). */
+/**
+ * Returns true if this mutation can be safely queued offline and replayed later.
+ *
+ * Covered: all sub-resources of an active evening (penalties, drinks, games, players,
+ * highlights, teams, throws, active-player), schedule RSVP, and lightweight user-preference
+ * updates.  Auth, admin, financial, and reporting endpoints are excluded because they either
+ * need a real response value or must not be replayed blindly.
+ */
 export function isQueuableMutation(method: string, path: string): boolean {
     if (method === 'GET') return false
     return (
-        /^\/evening\/\d+\/penalties$/.test(path) ||           // POST add_penalty
-        /^\/evening\/\d+\/penalties\/\d+$/.test(path) ||      // DELETE delete_penalty
-        /^\/evening\/\d+\/drinks$/.test(path) ||              // POST add_drink_round
-        /^\/evening\/\d+\/drinks\/\d+$/.test(path)            // DELETE delete_drink_round
+        // All sub-resources of an active evening
+        /^\/evening\/\d+\//.test(path) ||
+        // PATCH on the evening itself (venue, note, …)
+        /^\/evening\/\d+$/.test(path) ||
+        // Schedule RSVP (add / remove)
+        /^\/schedule\/\d+\/rsvp/.test(path) ||
+        // Mark push notifications read
+        /^\/push\/notifications\/read$/.test(path) ||
+        // Light user preferences
+        /^\/auth\/locale$/.test(path) ||
+        /^\/push\/preferences$/.test(path)
     )
 }
 
