@@ -80,6 +80,18 @@ export const authState = {
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = {'Content-Type': 'application/json'}
     if (_token) headers['Authorization'] = `Bearer ${_token}`
+
+    // Fast-path: if the browser already knows we're offline, skip the fetch entirely
+    // so the UI never hangs waiting for a connection that won't come.
+    if (!navigator.onLine && !_bypassQueue) {
+        if (isQueuableMutation(method, path)) {
+            await offlineQueue.enqueue(method, path, body)
+            window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+            return null as T
+        }
+        throw new NetworkError()
+    }
+
     let res: Response
     try {
         res = await fetch(API_BASE + path, {
