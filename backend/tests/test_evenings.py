@@ -13,9 +13,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from core.security import create_access_token, get_password_hash
-from models.club import Club, ClubSettings
+from models.club import Club
 from models.evening import Evening, EveningPlayer, RegularMember
-from models.game import Game
 from models.penalty import PenaltyType, PenaltyLog
 from models.user import User, UserRole
 

@@ -30,6 +30,8 @@ fpdf2 = "^2.8"
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
 pytest-asyncio = "^0.24"
+pytest-cov = "^6.0"
+genbadge = {version = "^1.1", extras = ["coverage"]}
 
 [build-system]
 requires = ["poetry-core"]

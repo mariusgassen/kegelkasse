@@ -13,6 +13,8 @@ import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
+import {OfflineNotice} from '@/components/ui/OfflineNotice.tsx'
+import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
@@ -91,6 +93,7 @@ export function ClubAdminPage() {
             {/* All other tabs: scrollable inline content */}
             {tab !== 'members' && (
                 <div className="page-scroll px-3 pb-24">
+                    <OfflineNotice message={t('offline.noticeAdmin')}/>
                     {tab === 'settings' && (
                         <AdminGuard>
                             <ClubSettingsTab club={club} onSaved={async () => {
@@ -151,6 +154,7 @@ function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
     const qc = useQueryClient()
+    const isOnline = useOnline()
     const setGuestPenaltyCap = useAppStore(s => s.setGuestPenaltyCap)
     const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
@@ -226,21 +230,25 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         const cap = guestCap.trim() ? parseAmount(guestCap) : null
         const noRsvp = noRsvpExtra.trim() ? parseAmount(noRsvpExtra) : null
         const pinP = pinPenalty.trim() ? parseAmount(pinPenalty) : null
-        await api.updateClubSettings({
-            name: clubName || undefined,
-            home_venue: venue,
-            primary_color: color1,
-            secondary_color: color2,
-            bg_color: bgColor,
-            guest_penalty_cap: cap,
-            paypal_me: paypalMe.trim() || null,
-            no_cancel_fee: noRsvp,
-            pin_penalty: pinP,
-            default_evening_time: defaultEveningTime || undefined,
-        })
-        applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
-        setGuestPenaltyCap(cap)
-        onSaved()
+        try {
+            await api.updateClubSettings({
+                name: clubName || undefined,
+                home_venue: venue,
+                primary_color: color1,
+                secondary_color: color2,
+                bg_color: bgColor,
+                guest_penalty_cap: cap,
+                paypal_me: paypalMe.trim() || null,
+                no_cancel_fee: noRsvp,
+                pin_penalty: pinP,
+                default_evening_time: defaultEveningTime || undefined,
+            })
+            applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
+            setGuestPenaltyCap(cap)
+            onSaved()
+        } catch (e) {
+            toastError(e)
+        }
     }
 
     return (
@@ -427,7 +435,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
             </div>
 
-            <button className="btn-primary w-full" onClick={handleSave}>{t('action.save')}</button>
+            <button className="btn-primary w-full" onClick={handleSave} disabled={!isOnline}>
+                {isOnline ? t('action.save') : t('offline.btnLabel')}
+            </button>
 
             <ReminderSettingsCard />
             <BroadcastPushCard />
@@ -450,6 +460,7 @@ function ReminderToggle({value, onChange}: { value: boolean; onChange: (v: boole
 
 function ReminderSettingsCard() {
     const t = useT()
+    const isOnline = useOnline()
     const {data: saved, isLoading} = useQuery<ReminderSettings>({
         queryKey: ['reminder-settings'],
         queryFn: api.getReminderSettings,
@@ -474,15 +485,19 @@ function ReminderSettingsCard() {
     }, [saved])
 
     async function handleSave() {
-        await api.updateReminderSettings({
-            debt_weekly: debtWeekly,
-            upcoming_evening: upcoming,
-            rsvp_reminder: rsvp,
-            debt_day_of: dayOf,
-            payment_request_nudge: payNudge,
-            auto_report: autoReport,
-        })
-        showToast(t('reminders.saved'))
+        try {
+            await api.updateReminderSettings({
+                debt_weekly: debtWeekly,
+                upcoming_evening: upcoming,
+                rsvp_reminder: rsvp,
+                debt_day_of: dayOf,
+                payment_request_nudge: payNudge,
+                auto_report: autoReport,
+            })
+            showToast(t('reminders.saved'))
+        } catch (e) {
+            toastError(e)
+        }
     }
 
     if (isLoading) return null
@@ -605,8 +620,10 @@ function ReminderSettingsCard() {
             </div>
 
             <div className="flex gap-2 mt-0">
-                <button className="btn-primary flex-1" onClick={handleSave}>{t('action.save')}</button>
-                <button className="btn-secondary flex-shrink-0" onClick={async () => {
+                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline}>
+                    {isOnline ? t('action.save') : t('offline.btnLabel')}
+                </button>
+                <button className="btn-secondary flex-shrink-0" disabled={!isOnline} onClick={async () => {
                     try {
                         await api.triggerReminders()
                         showToast(t('reminders.triggered'))
@@ -667,6 +684,7 @@ function BroadcastPushCard() {
 // ── Penalty Types ──
 function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[]; onChanged: () => void }) {
     const t = useT()
+    const isOnline = useOnline()
     const [icon, setIcon] = useState('⚠️')
     const [name, setName] = useState('')
     const [amount, setAmount] = useState('0.50')
@@ -693,22 +711,24 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                         <div className="text-sm font-bold">{pt.name}</div>
                         <div className="text-xs text-kce-muted">{fe(pt.default_amount)}</div>
                     </div>
-                    <button className="btn-ghost btn-xs text-kce-muted"
+                    <button className="btn-ghost btn-xs text-kce-muted" disabled={!isOnline}
                             onClick={() => openEdit(pt)}>✏️
                     </button>
-                    <button className="btn-danger btn-xs"
-                            onClick={() => api.deletePenaltyType(pt.id).then(onChanged)}>✕
+                    <button className="btn-danger btn-xs" disabled={!isOnline}
+                            onClick={() => api.deletePenaltyType(pt.id).then(onChanged).catch(toastError)}>✕
                     </button>
                 </div>
             ))}
             <form className="kce-card p-3 mt-2" onSubmit={async e => {
                 e.preventDefault()
                 if (!name.trim()) return
-                await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99})
-                setIcon('⚠️');
-                setName('');
-                setAmount('0.50');
-                onChanged()
+                try {
+                    await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99})
+                    setIcon('⚠️');
+                    setName('');
+                    setAmount('0.50');
+                    onChanged()
+                } catch (err) { toastError(err) }
             }}>
                 <div className="field-label">{t('club.penalty.newLabel')}</div>
                 <div className="flex gap-2 mb-2">
@@ -718,20 +738,24 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     <input className="kce-input w-20" type="text" inputMode="decimal" value={amount}
                            onChange={e => setAmount(e.target.value)}/>
                 </div>
-                <button type="submit" className="btn-primary w-full btn-sm">+ {t('action.add')}</button>
+                <button type="submit" className="btn-primary w-full btn-sm" disabled={!isOnline}>
+                    {isOnline ? `+ ${t('action.add')}` : t('offline.btnLabel')}
+                </button>
             </form>
 
             <Sheet open={!!editPt} onClose={() => setEditPt(null)} title={t('club.penalty.editLabel')}
                    onSubmit={async () => {
                        if (!editPt || !editName.trim()) return
-                       await api.updatePenaltyType(editPt.id, {
-                           icon: editIcon,
-                           name: editName,
-                           default_amount: parseAmount(editAmount),
-                           sort_order: editPt.sort_order,
-                       })
-                       setEditPt(null)
-                       onChanged()
+                       try {
+                           await api.updatePenaltyType(editPt.id, {
+                               icon: editIcon,
+                               name: editName,
+                               default_amount: parseAmount(editAmount),
+                               sort_order: editPt.sort_order,
+                           })
+                           setEditPt(null)
+                           onChanged()
+                       } catch (e) { toastError(e) }
                    }}>
                 <div className="flex flex-col gap-3">
                     <p className="text-xs text-kce-muted">{t('club.penalty.editHint')}</p>
@@ -765,6 +789,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
 // ── Game Templates ──
 function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; onChanged: () => void }) {
     const t = useT()
+    const isOnline = useOnline()
     const [sheet, setSheet] = useState(false)
     const [editing, setEditing] = useState<GameTemplate | null>(null)
     const [name, setName] = useState('')
@@ -807,15 +832,17 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
             default_loser_penalty: parseAmount(penalty),
             per_point_penalty: parseAmount(perPoint), sort_order: 0
         }
-        if (editing) await api.updateGameTemplate(editing.id, d)
-        else await api.createGameTemplate(d)
-        onChanged();
-        setSheet(false)
+        try {
+            if (editing) await api.updateGameTemplate(editing.id, d)
+            else await api.createGameTemplate(d)
+            onChanged();
+            setSheet(false)
+        } catch (e) { toastError(e) }
     }
 
     return (
         <div>
-            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('club.template.add')}</button>
+            <button className="btn-primary btn-sm mb-3" onClick={openNew} disabled={!isOnline}>+ {t('club.template.add')}</button>
             {!templates.length && <Empty icon="🏆" text={t('club.template.none')}/>}
             {templates.map((gt, i) => (
                 <div key={gt.id} className="kce-card p-3 mb-2 flex items-start gap-3">
@@ -834,9 +861,9 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         </div>
                     </div>
                     <div className="flex gap-1">
-                        <button className="btn-secondary btn-xs" onClick={() => openEdit(gt)}>✏️</button>
-                        <button className="btn-danger btn-xs"
-                                onClick={() => api.deleteGameTemplate(gt.id).then(onChanged)}>✕
+                        <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={() => openEdit(gt)}>✏️</button>
+                        <button className="btn-danger btn-xs" disabled={!isOnline}
+                                onClick={() => api.deleteGameTemplate(gt.id).then(onChanged).catch(toastError)}>✕
                         </button>
                     </div>
                 </div>
@@ -958,6 +985,7 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
 // ── Club Teams ──
 function ClubTeamsTab() {
     const t = useT()
+    const isOnline = useOnline()
     const {data: teams = [], refetch} = useQuery({
         queryKey: ['club-teams'],
         queryFn: api.listClubTeams,
@@ -984,16 +1012,18 @@ function ClubTeamsTab() {
     async function save() {
         if (!name.trim()) return
         const d = {name: name.trim(), sort_order: parseInt(sortOrder) || 0}
-        if (editing) await api.updateClubTeam(editing.id, d)
-        else await api.createClubTeam(d)
-        refetch()
-        setSheet(false)
+        try {
+            if (editing) await api.updateClubTeam(editing.id, d)
+            else await api.createClubTeam(d)
+            refetch()
+            setSheet(false)
+        } catch (e) { toastError(e) }
     }
 
     return (
         <div>
             <p className="text-xs text-kce-muted mb-3">{t('club.teams.description')}</p>
-            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('club.teams.add')}</button>
+            <button className="btn-primary btn-sm mb-3" disabled={!isOnline} onClick={openNew}>+ {t('club.teams.add')}</button>
             {teams.length === 0 && <Empty icon="🤝" text={t('club.teams.none')}/>}
             {teams.map(team => (
                 <div key={team.id} className="kce-card p-3 mb-2 flex items-center gap-3">
@@ -1003,9 +1033,9 @@ function ClubTeamsTab() {
                         {team.name[0].toUpperCase()}
                     </div>
                     <div className="flex-1 font-bold text-sm">{team.name}</div>
-                    <button className="btn-secondary btn-xs" onClick={() => openEdit(team)}>✏️</button>
-                    <button className="btn-danger btn-xs"
-                            onClick={() => api.deleteClubTeam(team.id).then(() => refetch())}>✕
+                    <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={() => openEdit(team)}>✏️</button>
+                    <button className="btn-danger btn-xs" disabled={!isOnline}
+                            onClick={() => api.deleteClubTeam(team.id).then(() => refetch()).catch(toastError)}>✕
                     </button>
                 </div>
             ))}

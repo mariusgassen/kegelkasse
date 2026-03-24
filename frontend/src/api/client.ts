@@ -1,5 +1,6 @@
 import {t as tl} from '@/i18n'
 import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
+import {pendingStore} from '@/pendingStore'
 import {persistTokenForSW} from '@/lib/tokenStore'
 import {
     Club,
@@ -85,6 +86,36 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     // so the UI never hangs waiting for a connection that won't come.
     if (!navigator.onLine && !_bypassQueue) {
         if (isQueuableMutation(method, path)) {
+            // Special case: starting an evening from a schedule creates a new server
+            // resource whose ID is needed immediately.  We generate a negative temp
+            // ID, queue the request, persist a minimal pending-evening record, and
+            // return a fake Evening so the caller can navigate to the evening page.
+            if (method === 'POST' && /^\/schedule\/\d+\/start$/.test(path)) {
+                const tempId = -Date.now()
+                await offlineQueue.enqueue(method, path, body, tempId)
+                const date = new Date().toISOString().slice(0, 10)
+                await pendingStore.save({
+                    tempId,
+                    date,
+                    venue: null,
+                    memberIds: (body as {member_ids?: number[]})?.member_ids ?? [],
+                })
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+                return {id: tempId, date, venue: null} as T
+            }
+
+            // Special case: creating a RegularMember (guest) is needed before addPlayer.
+            // Return a fake member with a temp ID; the flush logic rewrites all
+            // subsequent bodies that reference this temp ID.
+            if (method === 'POST' && /^\/club\/regular-members$/.test(path)) {
+                const tempId = -Date.now()
+                await offlineQueue.enqueue(method, path, body, tempId)
+                const name = (body as {name?: string})?.name ?? ''
+                const isGuest = (body as {is_guest?: boolean})?.is_guest ?? false
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+                return {id: tempId, name, nickname: null, is_guest: isGuest, is_active: true} as T
+            }
+
             await offlineQueue.enqueue(method, path, body)
             window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
             return null as T
@@ -584,6 +615,12 @@ export const api = {
 
 /**
  * Flush all queued offline mutations in timestamp order.
+ *
+ * Temp-ID remapping: when an offline-queued request carries a `tempId` (a
+ * negative placeholder generated while offline), the server response contains
+ * the real ID.  All subsequent queued items whose path or JSON body contain
+ * the temp ID string are rewritten with the real ID before being sent.
+ *
  * Returns the number of successfully applied changes and any errors.
  */
 export async function flushOfflineQueue(): Promise<{ applied: number; errors: number }> {
@@ -594,11 +631,47 @@ export async function flushOfflineQueue(): Promise<{ applied: number; errors: nu
     let applied = 0
     let errors = 0
 
+    // tempId (string) → realId (string) mapping built up as items are processed
+    const tempIdMap: Record<string, string> = {}
+
+    function rewrite(value: string): string {
+        let result = value
+        for (const [tempId, realId] of Object.entries(tempIdMap)) {
+            result = result.split(tempId).join(realId)
+        }
+        return result
+    }
+
     _bypassQueue = true
     try {
         for (const item of sorted) {
             try {
-                await request<unknown>(item.method, item.path, item.body)
+                const resolvedPath = rewrite(item.path)
+                const resolvedBody = item.body != null
+                    ? JSON.parse(rewrite(JSON.stringify(item.body)))
+                    : item.body
+
+                const result = await request<unknown>(item.method, resolvedPath, resolvedBody)
+
+                // If this item created a resource with a temp ID, record the mapping
+                // and notify the rest of the app so the UI can update live.
+                if (
+                    item.tempId !== undefined &&
+                    result != null &&
+                    typeof result === 'object' &&
+                    'id' in (result as object)
+                ) {
+                    const realId = (result as {id: number}).id
+                    tempIdMap[String(item.tempId)] = String(realId)
+                    window.dispatchEvent(new CustomEvent('kegelkasse:temp-id-resolved', {
+                        detail: {tempId: item.tempId, realId},
+                    }))
+                    // Clean up the pending evening record if applicable
+                    if (item.tempId < 0) {
+                        pendingStore.remove(item.tempId).catch(() => {})
+                    }
+                }
+
                 if (item.id !== undefined) await offlineQueue.remove(item.id)
                 applied++
             } catch (e) {

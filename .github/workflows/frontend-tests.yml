@@ -9,6 +9,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,6 +19,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -28,6 +33,55 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Run push tests
+      - name: Run tests with coverage
         working-directory: frontend
-        run: npm test
+        run: npm test -- --coverage
+
+      - name: Write coverage to job summary
+        run: |
+          node -e "
+          const s = require('./frontend/coverage/coverage-summary.json');
+          const pct = s.total.lines.pct.toFixed(1);
+          const line = '## Frontend Coverage\n\n**' + pct + '%** line coverage\n';
+          require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, line);
+          console.log('Coverage:', pct + '%');
+          "
+
+      - name: Generate frontend coverage badge
+        if: github.ref == 'refs/heads/main'
+        run: |
+          node -e "
+          const s = require('./frontend/coverage/coverage-summary.json');
+          const pct = Math.round(s.total.lines.pct);
+          const fill = pct >= 80 ? '#4c1' : pct >= 60 ? '#dfb317' : '#e05d44';
+          const svg = [
+            '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"20\">',
+            '<linearGradient id=\"s\" x2=\"0\" y2=\"100%\"><stop offset=\"0\" stop-color=\"#bbb\" stop-opacity=\".1\"/><stop offset=\"1\" stop-opacity=\".1\"/></linearGradient>',
+            '<rect rx=\"3\" width=\"120\" height=\"20\" fill=\"#555\"/>',
+            '<rect rx=\"3\" x=\"63\" width=\"57\" height=\"20\" fill=\"' + fill + '\"/>',
+            '<rect x=\"63\" width=\"4\" height=\"20\" fill=\"' + fill + '\"/>',
+            '<rect rx=\"3\" width=\"120\" height=\"20\" fill=\"url(#s)\"/>',
+            '<text x=\"6\" y=\"15\" fill=\"#fff\" font-family=\"DejaVu Sans,Verdana,Geneva,sans-serif\" font-size=\"11\">coverage</text>',
+            '<text x=\"71\" y=\"15\" fill=\"#fff\" font-family=\"DejaVu Sans,Verdana,Geneva,sans-serif\" font-size=\"11\">' + pct + '%</text>',
+            '</svg>'
+          ].join('');
+          require('fs').mkdirSync('.github/badges', {recursive: true});
+          require('fs').writeFileSync('.github/badges/coverage-frontend.svg', svg);
+          console.log('Badge written for', pct + '%');
+          "
+
+      - name: Commit badge
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/coverage-frontend.svg
+          git diff --staged --quiet || git commit -m "chore: update frontend coverage badge [skip ci]"
+          git push
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-html
+          path: frontend/coverage/
+          retention-days: 14

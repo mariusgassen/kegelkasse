@@ -6,7 +6,6 @@ Tests for club management endpoints:
   DELETE /club/logo            — remove club logo (admin)
 """
 import io
-import os
 from unittest.mock import patch
 
 import pytest
