@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {api, authState} from '@/api/client.ts'
+import {api, authState, NetworkError} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 
 export function useActiveEvening() {
@@ -9,14 +9,15 @@ export function useActiveEvening() {
     const qc = useQueryClient()
     const esRef = useRef<EventSource | null>(null)
 
-    const {data: evening, isLoading, isError} = useQuery({
+    const {data: evening, isLoading, isError, error} = useQuery({
         queryKey: ['evening', activeEveningId],
         queryFn: () => activeEveningId ? api.getEvening(activeEveningId) : null,
         enabled: !!activeEveningId,
         staleTime: 1000 * 15,
         // 30s polling as fallback when SSE is unavailable
         refetchInterval: 1000 * 30,
-        retry: false,
+        // Retry network errors (e.g. backend restart) but not data errors (e.g. 404)
+        retry: (failureCount, err) => err instanceof NetworkError && failureCount < 4,
     })
 
     // SSE subscription — invalidates query instantly when server signals a change.
@@ -70,9 +71,12 @@ export function useActiveEvening() {
         if (evening?.is_closed) setActiveEveningId(null)
     }, [evening?.is_closed])
 
+    // Only clear activeEveningId for real data errors (e.g. 404 evening gone).
+    // Network errors (backend restart, temporary outage) are transient — preserving
+    // the ID lets the app recover automatically once the server is back.
     useEffect(() => {
-        if (isError) setActiveEveningId(null)
-    }, [isError])
+        if (isError && !(error instanceof NetworkError)) setActiveEveningId(null)
+    }, [isError, error])
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
 
