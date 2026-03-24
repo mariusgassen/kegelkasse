@@ -1,5 +1,12 @@
 # 🎳 Kegelkasse — Kegelclub Manager
 
+[![Backend Build](https://github.com/mariusgassen/kegelkasse/actions/workflows/backend-build.yml/badge.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/backend-build.yml)
+[![Frontend Build](https://github.com/mariusgassen/kegelkasse/actions/workflows/frontend-build.yml/badge.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/frontend-build.yml)
+[![Backend Tests](https://github.com/mariusgassen/kegelkasse/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/backend-tests.yml)
+[![Frontend Tests](https://github.com/mariusgassen/kegelkasse/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/frontend-tests.yml)
+[![Backend Coverage](https://raw.githubusercontent.com/mariusgassen/kegelkasse/main/.github/badges/coverage-backend.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/backend-tests.yml)
+[![Frontend Coverage](https://raw.githubusercontent.com/mariusgassen/kegelkasse/main/.github/badges/coverage-frontend.svg)](https://github.com/mariusgassen/kegelkasse/actions/workflows/frontend-tests.yml)
+
 Full-stack bowling club management PWA with offline sync, i18n (DE/EN), and role-based access.
 
 ## Stack
