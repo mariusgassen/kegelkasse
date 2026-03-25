@@ -311,6 +311,7 @@ export const de = {
     "error.generic": "Fehler",
     "error.session": "Sitzung abgelaufen — bitte neu einloggen.",
     "error.network": "Server nicht erreichbar.",
+    "error.eveningAlreadyActive": "Ein offener Abend wurde geladen.",
     "error.serverDown": "Verbindung zum Server fehlgeschlagen.",
     "error.retry": "Erneut versuchen",
     "error.connecting": "Verbindung wird hergestellt…",
