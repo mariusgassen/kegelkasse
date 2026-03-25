@@ -40,6 +40,7 @@ def _serialize_comment(c: Comment, db: Session, current_user_id: int) -> dict:
     return {
         "id": c.id,
         "text": c.text,
+        "media_url": c.media_url,
         "created_by_id": c.created_by,
         "created_by_name": _creator_name(c.created_by, db),
         "created_at": c.created_at.isoformat() if c.created_at else None,
@@ -137,7 +138,8 @@ def toggle_reaction(
 
 
 class CommentCreate(BaseModel):
-    text: str
+    text: Optional[str] = None
+    media_url: Optional[str] = None
 
 
 def _notify_thread_participants(
@@ -186,17 +188,19 @@ def create_comment(
     if parent_type not in VALID_PARENT_TYPES:
         raise HTTPException(400, "Invalid parent_type")
     _assert_parent_access(parent_type, parent_id, user, db)
-    text = data.text.strip()
-    if not text:
-        raise HTTPException(400, "Comment text cannot be empty")
-    c = Comment(parent_type=parent_type, parent_id=parent_id, text=text, created_by=user.id)
+    text = data.text.strip() if data.text else None
+    media_url = data.media_url or None
+    if not text and not media_url:
+        raise HTTPException(400, "Text or media is required")
+    c = Comment(parent_type=parent_type, parent_id=parent_id, text=text, media_url=media_url, created_by=user.id)
     db.add(c)
     db.commit()
     db.refresh(c)
     commenter_name = _creator_name(user.id, db) or user.name
+    push_body = text or "📷 Bild"
     background_tasks.add_task(
         _notify_thread_participants,
-        db, parent_type, parent_id, user.id, commenter_name, text,
+        db, parent_type, parent_id, user.id, commenter_name, push_body,
     )
     return _serialize_comment(c, db, user.id)
 

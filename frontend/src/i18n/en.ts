@@ -713,4 +713,7 @@ export const en = {
     "comment.unknown": "Unknown",
     "comment.reaction.add": "Add reaction",
     "comment.reaction.remove": "Remove reaction",
+    "media.attach": "Attach image",
+    "media.remove": "Remove image",
+    "media.captionHint": "Optional: add a caption",
 } as const

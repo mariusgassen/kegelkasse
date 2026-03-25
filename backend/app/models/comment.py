@@ -11,7 +11,8 @@ class Comment(Base):
     id = Column(Integer, primary_key=True)
     parent_type = Column(String(20), nullable=False)  # 'highlight' or 'announcement'
     parent_id = Column(Integer, nullable=False)
-    text = Column(Text, nullable=False)
+    text = Column(Text, nullable=True)
+    media_url = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_deleted = Column(Boolean, default=False, nullable=False)

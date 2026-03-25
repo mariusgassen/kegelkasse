@@ -6,6 +6,7 @@ import {api} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {useT} from '@/i18n'
 import {toastError} from '@/utils/error'
+import {MediaUploadButton} from '@/components/ui/MediaUploadButton'
 import type {Comment} from '@/types'
 
 function fDateTime(isoStr: string) {
@@ -139,9 +140,18 @@ function CommentItem({
                             <span className="text-[10px] text-kce-muted">{fDateTime(comment.created_at)}</span>
                         )}
                     </div>
-                    <p className="text-xs text-kce-muted mt-0.5 leading-relaxed whitespace-pre-wrap">
-                        {comment.text}
-                    </p>
+                    {comment.text && (
+                        <p className="text-xs text-kce-muted mt-0.5 leading-relaxed whitespace-pre-wrap">
+                            {comment.text}
+                        </p>
+                    )}
+                    {comment.media_url && (
+                        <img
+                            src={comment.media_url}
+                            alt=""
+                            className="mt-1 rounded max-h-48 max-w-full object-contain border border-kce-border/40"
+                        />
+                    )}
                 </div>
                 {canDelete && (
                     <button
@@ -183,6 +193,7 @@ export function CommentThread({parentType, parentId}: Props) {
     const qc = useQueryClient()
     const [open, setOpen] = useState(false)
     const [text, setText] = useState('')
+    const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
@@ -198,11 +209,12 @@ export function CommentThread({parentType, parentId}: Props) {
     }
 
     async function handleAdd() {
-        if (!text.trim() || saving) return
+        if (!text.trim() && !mediaUrl || saving) return
         setSaving(true)
         try {
-            await api.addComment(parentType, parentId, text.trim())
+            await api.addComment(parentType, parentId, text.trim(), mediaUrl ?? undefined)
             setText('')
+            setMediaUrl(null)
             await qc.invalidateQueries({queryKey})
         } catch (e) {
             toastError(e)
@@ -212,6 +224,7 @@ export function CommentThread({parentType, parentId}: Props) {
     }
 
     const count = open ? comments.length : undefined
+    const canSubmit = (text.trim() || mediaUrl) && !saving
 
     return (
         <div className="mt-2">
@@ -253,28 +266,38 @@ export function CommentThread({parentType, parentId}: Props) {
                     ))}
 
                     {/* New comment input */}
-                    <div className="flex gap-2 mt-1">
-                        <input
-                            ref={inputRef}
-                            className="kce-input flex-1 text-xs py-1.5"
-                            value={text}
-                            onChange={e => setText(e.target.value)}
-                            placeholder={t('comment.placeholder')}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
-                                    handleAdd()
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            className="btn-primary btn-xs flex-shrink-0"
-                            disabled={!text.trim() || saving}
-                            onClick={handleAdd}
-                        >
-                            ↵
-                        </button>
+                    <div className="flex flex-col gap-1.5 mt-1">
+                        <div className="flex gap-2">
+                            <input
+                                ref={inputRef}
+                                className="kce-input flex-1 text-xs py-1.5"
+                                value={text}
+                                onChange={e => setText(e.target.value)}
+                                placeholder={t('comment.placeholder')}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleAdd()
+                                    }
+                                }}
+                            />
+                            <MediaUploadButton
+                                value={mediaUrl}
+                                onUploaded={setMediaUrl}
+                                onRemove={() => setMediaUrl(null)}
+                            />
+                            <button
+                                type="button"
+                                className="btn-primary btn-xs flex-shrink-0"
+                                disabled={!canSubmit}
+                                onClick={handleAdd}
+                            >
+                                ↵
+                            </button>
+                        </div>
+                        {mediaUrl && !text && (
+                            <p className="text-[10px] text-kce-muted italic pl-1">{t('media.captionHint')}</p>
+                        )}
                     </div>
                 </div>
             )}

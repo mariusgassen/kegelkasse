@@ -21,6 +21,7 @@ def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str]) ->
         "id": a.id,
         "title": a.title,
         "text": a.text,
+        "media_url": a.media_url,
         "created_by_name": creator_name,
         "created_at": a.created_at.isoformat() if a.created_at else None,
     }
@@ -70,6 +71,7 @@ def list_announcements(
 class AnnouncementCreate(BaseModel):
     title: str
     text: Optional[str] = None
+    media_url: Optional[str] = None
 
 
 @router.post("/announcements")
@@ -83,6 +85,7 @@ def create_announcement(
         club_id=user.club_id,
         title=data.title.strip(),
         text=data.text.strip() if data.text else None,
+        media_url=data.media_url or None,
         created_by=user.id,
     )
     db.add(ann)

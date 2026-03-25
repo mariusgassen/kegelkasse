@@ -186,6 +186,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 29 | **Tablet Schnellerfassung**        | ✅      | Vollbild-Overlay (⚡) für Landscape-Modus; 3-Spalten-Layout: Spieler | Strafen | Getränke (separat); iOS safe-area-insets (Notch, Home-Indicator, gerundete Ecken); kein Scrollen erforderlich; letzte Einträge unten; 0€-Strafen ausgeblendet; Getränke-Spalte kompakt (Icon only), Strafen-Buttons vergrößert |
 | 31 | **Navbar-Farben & Farbpalette**    | ✅      | Navbar nutzt CSS-Variablen (--kce-surface2, --kce-border, --kce-primary); Live-Vorschau bei Farbänderung; Paletten-Generator in Erscheinungsbild: Grundfarbe wählen + Vorschläge (Warm/Kontrast/Triade/Weich) oder Zufallspalette |
 | 34 | **Kommentare & Reaktionen**        | ✅      | Kollabierbare Kommentar-Threads auf Highlights und Ankündigungen; Emoji-Reaktionen pro Kommentar (Toggle-Picker); Soft-Delete (eigener oder Admin); Push-Benachrichtigung an Thread-Teilnehmer; Migration 042 (comment + comment_reaction); pytest: 28 Tests (list, create, delete, reactions inkl. Auth/403/404) |
+| 35 | **Medien-Upload**                  | ✅      | Self-hosted Bild-Upload (JPEG/PNG/WebP/GIF, max 10 MB); POST /uploads/media; Bilder in Highlights, Ankündigungen und Kommentaren; MediaUploadButton-Komponente mit Vorschau; Migration 043 (media_url an highlight/announcement/comment + text nullable); pytest: 8 Tests |
 
 ## Testing TODO
 

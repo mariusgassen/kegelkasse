@@ -11,6 +11,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
+import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
@@ -36,6 +37,7 @@ export function EveningPage() {
 
     // ── Highlights ──
     const [highlightText, setHighlightText] = useState('')
+    const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
     const [addingHighlight, setAddingHighlight] = useState(false)
 
     // ── Edit evening sheet ──
@@ -465,7 +467,12 @@ export function EveningPage() {
                         <div key={h.id} className="kce-card p-3">
                             <div className="flex items-start gap-2">
                                 <span className="text-base flex-shrink-0">✨</span>
-                                <div className="flex-1 text-sm">{h.text}</div>
+                                <div className="flex-1 min-w-0">
+                                    {h.text && <div className="text-sm">{h.text}</div>}
+                                    {h.media_url && (
+                                        <img src={h.media_url} alt="" className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
+                                    )}
+                                </div>
                                 {!evening.is_closed && (
                                     <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
                                         try {
@@ -481,34 +488,46 @@ export function EveningPage() {
                 </div>
             }
             {!evening.is_closed && (
-                <div className="flex gap-2 mb-4">
-                    <input
-                        className="kce-input flex-1"
-                        value={highlightText}
-                        onChange={e => setHighlightText(e.target.value)}
-                        placeholder={t('highlight.placeholder')}
-                        onKeyDown={async e => {
-                            if (e.key === 'Enter' && highlightText.trim()) {
-                                e.preventDefault()
+                <div className="flex flex-col gap-1.5 mb-4">
+                    <div className="flex gap-2">
+                        <input
+                            className="kce-input flex-1"
+                            value={highlightText}
+                            onChange={e => setHighlightText(e.target.value)}
+                            placeholder={t('highlight.placeholder')}
+                            onKeyDown={async e => {
+                                if (e.key === 'Enter' && (highlightText.trim() || highlightMediaUrl)) {
+                                    e.preventDefault()
+                                    setAddingHighlight(true)
+                                    try {
+                                        await api.addHighlight(evening.id, {text: highlightText.trim() || undefined, media_url: highlightMediaUrl || undefined})
+                                        setHighlightText('')
+                                        setHighlightMediaUrl(null)
+                                        invalidate()
+                                    } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
+                                }
+                            }}
+                        />
+                        <MediaUploadButton
+                            value={highlightMediaUrl}
+                            onUploaded={setHighlightMediaUrl}
+                            onRemove={() => setHighlightMediaUrl(null)}
+                        />
+                        <button className="btn-primary btn-sm flex-shrink-0" disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
+                            onClick={async () => {
+                                if (!highlightText.trim() && !highlightMediaUrl) return
                                 setAddingHighlight(true)
                                 try {
-                                    await api.addHighlight(evening.id, {text: highlightText.trim()})
+                                    await api.addHighlight(evening.id, {text: highlightText.trim() || undefined, media_url: highlightMediaUrl || undefined})
                                     setHighlightText('')
+                                    setHighlightMediaUrl(null)
                                     invalidate()
                                 } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
-                            }
-                        }}
-                    />
-                    <button className="btn-primary btn-sm flex-shrink-0" disabled={!highlightText.trim() || addingHighlight}
-                        onClick={async () => {
-                            if (!highlightText.trim()) return
-                            setAddingHighlight(true)
-                            try {
-                                await api.addHighlight(evening.id, {text: highlightText.trim()})
-                                setHighlightText('')
-                                invalidate()
-                            } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
-                        }}>+</button>
+                            }}>+</button>
+                    </div>
+                    {highlightMediaUrl && <div className="pl-0">
+                        <img src={highlightMediaUrl} alt="" className="rounded max-h-32 max-w-full object-contain border border-kce-border/40"/>
+                    </div>}
                 </div>
             )}
 

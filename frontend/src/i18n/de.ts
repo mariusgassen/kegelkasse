@@ -713,6 +713,9 @@ export const de = {
     "comment.unknown": "Unbekannt",
     "comment.reaction.add": "Reaktion hinzufügen",
     "comment.reaction.remove": "Reaktion entfernen",
+    "media.attach": "Bild anhängen",
+    "media.remove": "Bild entfernen",
+    "media.captionHint": "Optional: Bildunterschrift hinzufügen",
 } as const
 
 export type TranslationKey = keyof typeof de
