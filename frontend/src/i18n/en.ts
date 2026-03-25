@@ -549,7 +549,7 @@ export const en = {
     "treasury.remindDebtors": "Remind debtors",
     "treasury.remindDebtorsDone": "Reminders sent",
     "schedule.time": "Time",
-    "schedule.clockSuffix": "",
+    "schedule.clockSuffix": " o'clock",
     "schedule.defaultTime": "Default time",
     "schedule.defaultIs": "Default:",
     "schedule.defaultTimeHint": "Used as start time for events without an individual time.",
