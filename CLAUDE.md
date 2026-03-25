@@ -129,6 +129,17 @@ service worker + IndexedDB for offline support.
   dependent queries immediately. Examples: creating a `PaymentRequest` → invalidate `['payment-requests']` and
   `['my-payment-requests']`; confirming a request → also invalidate `['my-balance']` and `['my-payment-requests']` so
   the member's profile view stays in sync without a manual refresh.
+- **Testing policy:** Every new feature **must** ship with tests — no exceptions, no deferred "add tests later".
+  - **Backend:** Every new API endpoint gets a pytest test in `backend/tests/test_<module>.py`. Cover the happy path,
+    auth/role guards (401 unauthenticated, 403 wrong role), and the main error cases (404, 400). Use the existing
+    conftest fixtures (`db`, `club`, `user`, `auth_headers`) and add an autouse `cleanup` fixture that deletes all rows
+    created by that test module in correct FK order (children before parents) and depends on `club` so it runs before
+    club teardown.
+  - **Frontend:** Every new utility function, store action, or pure logic module gets a Vitest test in a `__tests__/`
+    sibling directory. Stubs/mocks go in `beforeEach`; always restore with `vi.unstubAllGlobals()` or `afterEach`.
+    Page-level UI is lower priority but must be added when feasible.
+  - **Run tests before committing:** `cd backend && poetry run pytest -q` must pass. `cd frontend && npm run build`
+    must pass (also validates TypeScript). Fix failures before pushing — never push with a red test suite.
 
 ## Deployment
 
@@ -181,15 +192,9 @@ The following functionality is **not yet covered** by automated tests and should
 
 ### Backend (pytest)
 
-- **Games** — `POST /evening/{eid}/games`, start/finish game, loser-penalty creation, king flag, president game
-- **Drinks** — `POST /evening/{eid}/drinks`, drink round listing
-- **Treasury** — penalty ranking, member balances, payment recording, expense tracking, PaymentRequest flow
-- **Stats** — annual ranking endpoint, personal profile stats
-- **Schedule** — scheduled evening CRUD, RSVP (attend/absent), iCal feed, absence penalty on evening start
-- **Auth** — login, register with invite, password reset, avatar upload, locale update, account deletion
+- **Treasury** — PaymentRequest flow (member-initiated, admin confirm/reject)
 - **Push** — subscription preferences, notification broadcast triggers (König, Abend start, etc.)
 - **Reports** — PDF/Excel export endpoints (member accounts, penalties, evening overview)
-- **Committee** — club trips, announcements, VA-member management
 - **Superadmin** — club creation, switch-club, club listing
 - **Throw log** — camera throw CRUD (`POST/DELETE /evening/{eid}/games/{gid}/throws`), active-player endpoint
 - **Reminders** — APScheduler job logic (debt, RSVP, schedule reminders)
@@ -206,8 +211,9 @@ The following functionality is **not yet covered** by automated tests and should
 - **HistoryPage** — close/reopen evening flow, backlog sheet
 - **MembersPage** — member CRUD, invite link creation, link-to-roster
 - **ProfileSheet** — avatar upload, PayPal.me link, push preference toggles
-- **Store (app.ts)** — Zustand selectors, role helpers (isAdmin, isSuperadmin)
-- **i18n** — key completeness check between de.ts and en.ts
-- **offlineQueue** — enqueue, flush, conflict-free replay
-- **hexToHsl / hslToHex** — color conversion round-trip (currently only used in App.tsx)
-- **Error handling** — UnauthorizedError auto-logout, NetworkError offline queue, OfflineQueuedError UX
+
+### Already covered
+
+**Backend (pytest):** Games (create/start/finish/delete, loser-penalty, king flag) · Drinks · Stats (year/me) · Auth (login, register, reset, profile, avatar, locale, delete) · Push routes/core · Club routes (CRUD, logo upload) · Evenings (CRUD, players, penalties) · Schedule (CRUD, RSVP, iCal) · Treasury (balances, payments, expenses) · Committee (announcements, trips)
+
+**Frontend (Vitest):** cameraEngine (digit/pin/lamp) · turnOrder (alternating/block) · API client (push, club, logo) · Store/app.ts (isAdmin, role helpers) · i18n key parity (de↔en) · hexToHsl / hslToHex round-trip · offlineQueue (enqueue/getAll/remove/count/clear, isQueuableMutation) · Error handling (UnauthorizedError, NetworkError, OfflineQueuedError, authState)
