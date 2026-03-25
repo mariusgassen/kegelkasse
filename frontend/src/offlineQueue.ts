@@ -37,6 +37,8 @@ function openDb(): Promise<IDBDatabase> {
 
 export const offlineQueue = {
     async enqueue(method: string, path: string, body: unknown, tempId?: number): Promise<void> {
+        // Request persistent storage on first enqueue so iOS/Safari doesn't evict the queue
+        navigator.storage?.persist?.().catch(() => {})
         const db = await openDb()
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite')
@@ -107,16 +109,18 @@ export const offlineQueue = {
 export function isQueuableMutation(method: string, path: string): boolean {
     if (method === 'GET') return false
     return (
+        // Create an ad-hoc evening (creates temp evening ID)
+        (method === 'POST' && /^\/evening$/.test(path)) ||
         // Start a scheduled evening (creates temp evening ID)
         /^\/schedule\/\d+\/start$/.test(path) ||
         // Create a guest member (creates temp member ID)
         /^\/club\/regular-members$/.test(path) ||
         // Add / remove guests from a scheduled evening
         /^\/schedule\/\d+\/guests/.test(path) ||
-        // All sub-resources of an active evening
-        /^\/evening\/\d+\//.test(path) ||
+        // All sub-resources of an active evening (positive or negative/temp ID)
+        /^\/evening\/-?\d+\//.test(path) ||
         // PATCH on the evening itself (venue, note, …)
-        /^\/evening\/\d+$/.test(path) ||
+        /^\/evening\/-?\d+$/.test(path) ||
         // Schedule RSVP (add / remove)
         /^\/schedule\/\d+\/rsvp/.test(path) ||
         // Mark push notifications read

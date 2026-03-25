@@ -8,6 +8,7 @@ import {t} from '@/i18n'
 export function OfflineBanner() {
     const [offline, setOffline] = useState(!navigator.onLine)
     const [pendingCount, setPendingCount] = useState(0)
+    const [syncing, setSyncing] = useState(false)
     const tl = useT()
 
     async function refreshCount() {
@@ -15,6 +16,19 @@ export function OfflineBanner() {
             setPendingCount(await offlineQueue.count())
         } catch {
             // IndexedDB unavailable — ignore
+        }
+    }
+
+    async function handleForceSync() {
+        if (syncing) return
+        setSyncing(true)
+        try {
+            const {applied, errors} = await flushOfflineQueue()
+            if (applied > 0) showToast(t('sync.flushed'))
+            if (errors > 0) showToast(t('sync.flushErrors'), 'error')
+        } finally {
+            setSyncing(false)
+            refreshCount()
         }
     }
 
@@ -48,11 +62,31 @@ export function OfflineBanner() {
     if (!offline && pendingCount === 0) return null
 
     return (
-        <div className="offline-banner">
+        <div className="offline-banner flex items-center justify-center gap-2 px-3">
             {offline ? (
-                <>📵 {tl('sync.offline')}</>
+                <span>📵 {tl('sync.offline')}</span>
             ) : (
-                <>⏳ {tl('sync.pending')}: {pendingCount}</>
+                <>
+                    <span>⏳ {tl('sync.pending')}: {pendingCount}</span>
+                    <button
+                        onClick={handleForceSync}
+                        disabled={syncing}
+                        style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '1px 8px',
+                            borderRadius: 999,
+                            background: 'rgba(255,255,255,0.25)',
+                            color: 'inherit',
+                            border: 'none',
+                            cursor: 'pointer',
+                            opacity: syncing ? 0.6 : 1,
+                            flexShrink: 0,
+                        }}
+                    >
+                        {syncing ? '…' : tl('sync.forceSync')}
+                    </button>
+                </>
             )}
         </div>
     )

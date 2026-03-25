@@ -323,6 +323,8 @@ export default function App() {
 
     return (
         <div style={{display: 'flex', flexDirection: 'column', height: '100%', maxWidth: 640, margin: '0 auto'}}>
+            {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
+            <div className="safe-top" style={{flexShrink: 0, background: 'var(--kce-bg)'}}/>
             <OfflineBanner/>
 
             {/* ── Header ── */}
@@ -330,7 +332,6 @@ export default function App() {
                 flexShrink: 0,
                 background: 'linear-gradient(180deg, var(--kce-bg), var(--kce-bg))',
                 borderBottom: '1px solid var(--kce-border)',
-                paddingTop: 'env(safe-area-inset-top, 8px)',
                 zIndex: 50,
             }}>
                 <div className="flex items-center gap-2.5 px-3 pb-2 pt-1">

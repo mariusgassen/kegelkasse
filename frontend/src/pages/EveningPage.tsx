@@ -104,7 +104,7 @@ export function EveningPage() {
                         {!isOnline && (
                             <p className="text-xs text-amber-400 mt-1">📵 {t('offline.startHint')}</p>
                         )}
-                        <button className="btn-primary mt-1" disabled={starting || !isOnline} onClick={async () => {
+                        <button className="btn-primary mt-1" disabled={starting} onClick={async () => {
                             setStarting(true)
                             try {
                                 const date = startTime ? `${startDate}T${startTime}` : startDate
@@ -779,7 +779,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
             if (abgesagtIds.size > 0) {
                 await api.markCancelled(eveningId, Array.from(abgesagtIds))
             }
-            if (missingPinIds.size > 0 && pinPenalty > 0) {
+            // Pin penalties require real player IDs — skip for pending/temp evenings (id < 0)
+            if (eveningId > 0 && missingPinIds.size > 0 && pinPenalty > 0) {
                 const eveningData = await api.getEvening(eveningId)
                 for (const pinId of missingPinIds) {
                     const pin = pins.find(p => p.id === pinId)
