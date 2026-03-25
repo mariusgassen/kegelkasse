@@ -12,7 +12,7 @@ uvicorn = {version = "^0.41.0", extras = ["standard"]}
 sqlalchemy = {version = "^2.0.35", extras = ["asyncio"]}
 alembic = "^1.13.3"
 psycopg2-binary = "^2.9.9"
-asyncpg = "^0.30.0"
+asyncpg = "^0.31.0"
 python-jose = {version = "^3.3.0", extras = ["cryptography"]}
 bcrypt = "5.0.0"
 python-multipart = "^0.0.22"
