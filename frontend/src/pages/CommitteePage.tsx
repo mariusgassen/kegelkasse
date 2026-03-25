@@ -14,6 +14,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
+import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import type {ClubAnnouncement, ClubTrip} from '@/types.ts'
 
@@ -127,6 +128,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                 </button>
                             )}
                         </div>
+                        <ItemReactionBar parentType="announcement" parentId={a.id}/>
                         <CommentThread parentType="announcement" parentId={a.id}/>
                     </div>
                 ))}

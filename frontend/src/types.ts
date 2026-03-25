@@ -269,10 +269,19 @@ export interface Comment {
     id: number
     text: string | null
     media_url: string | null
+    parent_comment_id: number | null
     created_by_id: number | null
     created_by_name: string | null
     created_at: string | null
+    edited_at: string | null
     reactions: CommentReaction[]
+    replies: Comment[]
+}
+
+export interface ItemReaction {
+    emoji: string
+    count: number
+    reacted_by_me: boolean
 }
 
 export interface Evening {
