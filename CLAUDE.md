@@ -103,6 +103,11 @@ service worker + IndexedDB for offline support.
 - **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
+- **Versioning:** A single semantic version (`MAJOR.MINOR.PATCH`) for the whole app lives in `frontend/package.json`
+  (field `"version"`). It is injected at build time as `__APP_VERSION__` via `vite.config.ts` and displayed in the
+  ProfileSheet footer. Bump the version in `package.json` with every release or significant feature:
+  `MAJOR` for breaking changes, `MINOR` for new features, `PATCH` for bug-fixes. Never edit the displayed version
+  elsewhere — always update `frontend/package.json` as the single source of truth.
 - **Linting & build:** Always run `cd frontend && npm run build` locally before every push to catch TypeScript errors
   early. Fix all errors before pushing. Also run `cd backend && poetry run ruff check app/` locally before every push to catch Python linting errors — fix all issues before pushing. Do NOT run `eslint` locally — check that via CI after pushing.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),

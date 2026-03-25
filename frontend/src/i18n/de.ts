@@ -620,7 +620,7 @@ export const de = {
     "quickEntry.count": "Anzahl",
     "quickEntry.recent": "Letzte Einträge",
     "quickEntry.logged": "✓ Eingetragen",
-    "nav.committee": "Ausflug",
+    "nav.committee": "Neuigkeiten",
     "committee.title": "Vergnügungsausschuss",
     "committee.tab.announcements": "📣 Ankündigungen",
     "committee.tab.trips": "🚌 Kegelfahrten",

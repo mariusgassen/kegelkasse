@@ -1,3 +1,5 @@
+declare const __APP_VERSION__: string
+
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
@@ -688,7 +690,9 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     )}
 
-                    <p className="text-[10px] text-kce-muted/40 text-center py-2">© 2026 Marius Gassen</p>
+                    <p className="text-[10px] text-kce-muted/40 text-center py-2">
+                        v{__APP_VERSION__} · © 2026 Marius Gassen
+                    </p>
                 </div>
             </div>
         </div>
