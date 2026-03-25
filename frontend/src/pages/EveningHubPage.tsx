@@ -34,6 +34,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const [highlightText, setHighlightText] = useState('')
     const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
     const [addingHighlight, setAddingHighlight] = useState(false)
+    const [openCommentHighlightId, setOpenCommentHighlightId] = useState<number | null>(null)
 
     // No active evening — prompt to configure one
     if (!activeEveningId) {
@@ -215,8 +216,16 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                                             }}>✕</button>
                                                 )}
                                             </div>
-                                            <ItemReactionBar parentType="highlight" parentId={h.id}/>
-                                            <CommentThread parentType="highlight" parentId={h.id}/>
+                                            <ItemReactionBar
+                                                parentType="highlight" parentId={h.id}
+                                                commentOpen={openCommentHighlightId === h.id}
+                                                onCommentToggle={() => setOpenCommentHighlightId(openCommentHighlightId === h.id ? null : h.id)}
+                                            />
+                                            <CommentThread
+                                                parentType="highlight" parentId={h.id}
+                                                open={openCommentHighlightId === h.id}
+                                                onOpenChange={v => setOpenCommentHighlightId(v ? h.id : null)}
+                                            />
                                         </div>
                                     ))}
                                 </div>

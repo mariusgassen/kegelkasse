@@ -47,6 +47,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
     const [text, setText] = useState('')
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
+    const [openCommentId, setOpenCommentId] = useState<number | null>(null)
 
     const {data: announcements = [], isLoading} = useQuery({
         queryKey: ['committee-announcements'],
@@ -128,8 +129,16 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                 </button>
                             )}
                         </div>
-                        <ItemReactionBar parentType="announcement" parentId={a.id}/>
-                        <CommentThread parentType="announcement" parentId={a.id}/>
+                        <ItemReactionBar
+                            parentType="announcement" parentId={a.id}
+                            commentOpen={openCommentId === a.id}
+                            onCommentToggle={() => setOpenCommentId(openCommentId === a.id ? null : a.id)}
+                        />
+                        <CommentThread
+                            parentType="announcement" parentId={a.id}
+                            open={openCommentId === a.id}
+                            onOpenChange={v => setOpenCommentId(v ? a.id : null)}
+                        />
                     </div>
                 ))}
             </div>
@@ -198,6 +207,7 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
     const [addOpen, setAddOpen] = useState(false)
     const [editTrip, setEditTrip] = useState<ClubTrip | null>(null)
     const [delId, setDelId] = useState<number | null>(null)
+    const [openCommentTripId, setOpenCommentTripId] = useState<number | null>(null)
     const [date, setDate] = useState(todayStr())
     const [destination, setDestination] = useState('')
     const [note, setNote] = useState('')
@@ -287,6 +297,9 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
                     <div className="flex flex-col gap-3 mb-5">
                         {upcoming.map((tr: ClubTrip) => (
                             <TripCard key={tr.id} trip={tr} canWrite={canWrite}
+                                      commentOpen={openCommentTripId === tr.id}
+                                      onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
+                                      onCommentClose={() => setOpenCommentTripId(null)}
                                       onEdit={() => openEdit(tr)}
                                       onDelete={() => setDelId(tr.id)}/>
                         ))}
@@ -300,6 +313,9 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
                     <div className="flex flex-col gap-3">
                         {[...past].reverse().map((tr: ClubTrip) => (
                             <TripCard key={tr.id} trip={tr} canWrite={canWrite} past
+                                      commentOpen={openCommentTripId === tr.id}
+                                      onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
+                                      onCommentClose={() => setOpenCommentTripId(null)}
                                       onEdit={() => openEdit(tr)}
                                       onDelete={() => setDelId(tr.id)}/>
                         ))}
@@ -388,10 +404,13 @@ function TripFormFields({date, destination, note, onDate, onDestination, onNote}
     )
 }
 
-function TripCard({trip, canWrite, past = false, onEdit, onDelete}: {
+function TripCard({trip, canWrite, past = false, commentOpen, onCommentToggle, onCommentClose, onEdit, onDelete}: {
     trip: ClubTrip
     canWrite: boolean
     past?: boolean
+    commentOpen?: boolean
+    onCommentToggle?: () => void
+    onCommentClose?: () => void
     onEdit: () => void
     onDelete: () => void
 }) {
@@ -426,8 +445,16 @@ function TripCard({trip, canWrite, past = false, onEdit, onDelete}: {
                     </div>
                 )}
             </div>
-            <ItemReactionBar parentType="trip" parentId={trip.id}/>
-            <CommentThread parentType="trip" parentId={trip.id}/>
+            <ItemReactionBar
+                parentType="trip" parentId={trip.id}
+                commentOpen={commentOpen}
+                onCommentToggle={onCommentToggle}
+            />
+            <CommentThread
+                parentType="trip" parentId={trip.id}
+                open={commentOpen}
+                onOpenChange={v => v ? onCommentToggle?.() : onCommentClose?.()}
+            />
         </div>
     )
 }

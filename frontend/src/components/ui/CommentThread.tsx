@@ -1,7 +1,8 @@
-import {useState, useRef, useEffect} from 'react'
+import {useState, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
 import {createPortal} from 'react-dom'
+import {useEffect} from 'react'
 import {api} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {useT} from '@/i18n'
@@ -24,7 +25,7 @@ function fRelTime(isoStr: string): string {
     return new Date(isoStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
 }
 
-function Avatar({src, name, size = 28}: {src: string | null; name: string | null; size?: number}) {
+export function Avatar({src, name, size = 28}: {src: string | null; name: string | null; size?: number}) {
     const initial = name ? name.slice(0, 1).toUpperCase() : '?'
     if (src) {
         return (
@@ -88,7 +89,7 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
             <button
                 ref={btnRef}
                 type="button"
-                className="text-[11px] text-kce-muted hover:text-kce-cream transition-colors leading-none px-1 py-0.5 rounded"
+                className="text-xs text-kce-muted hover:text-kce-cream transition-colors leading-none px-1 py-0.5 rounded"
                 onClick={openPicker}
                 title="Reaktion hinzufügen"
             >
@@ -115,6 +116,9 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
 interface Props {
     parentType: 'highlight' | 'announcement' | 'trip'
     parentId: number
+    /** Controlled mode: when provided, the built-in toggle button is hidden */
+    open?: boolean
+    onOpenChange?: (v: boolean) => void
 }
 
 function CommentItem({
@@ -133,8 +137,8 @@ function CommentItem({
     const t = useT()
     const {user} = useAppStore()
     const isOwn = comment.created_by_id === user?.id
-    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-    const canDelete = isOwn || isAdmin
+    const isAdminUser = user?.role === 'admin' || user?.role === 'superadmin'
+    const canDelete = isOwn || isAdminUser
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [editing, setEditing] = useState(false)
     const [editText, setEditText] = useState(comment.text ?? '')
@@ -189,7 +193,7 @@ function CommentItem({
                                 <div className="flex flex-col gap-1.5 mt-1.5">
                                     <div className="flex gap-1.5">
                                         <input
-                                            className="kce-input flex-1 text-xs py-1"
+                                            className="kce-input flex-1 py-1"
                                             value={editText}
                                             onChange={e => setEditText(e.target.value)}
                                             autoFocus
@@ -234,11 +238,11 @@ function CommentItem({
                             )}
                         </div>
 
-                        {/* Heart reaction — right side */}
+                        {/* Heart reaction — right side, vertically centered */}
                         {!editing && (
                             <button
                                 type="button"
-                                className="flex flex-col items-center gap-0.5 pt-1.5 px-0.5 flex-shrink-0"
+                                className="flex flex-col items-center justify-center gap-0.5 self-center px-0.5 flex-shrink-0 min-w-[28px]"
                                 onClick={() => handleReaction('❤️')}
                                 title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                             >
@@ -261,7 +265,8 @@ function CommentItem({
                             {comment.edited_at && (
                                 <span className="text-[10px] text-kce-muted italic">· {t('comment.edited')}</span>
                             )}
-                            {depth === 0 && onReply && (
+                            {/* Show Antworten at any depth — reply always posts flat to the thread */}
+                            {onReply && (
                                 <button type="button"
                                         className="text-[10px] font-semibold text-kce-muted hover:text-kce-cream transition-colors"
                                         onClick={() => onReply(comment)}>
@@ -321,7 +326,7 @@ function CommentItem({
                 </div>
             </div>
 
-            {/* Replies */}
+            {/* Replies — always rendered flat (depth 1 max) */}
             {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2 ml-9 flex flex-col gap-2">
                     {comment.replies.map(reply => (
@@ -330,6 +335,7 @@ function CommentItem({
                             comment={reply}
                             onDeleted={onDeleted}
                             onReacted={onReacted}
+                            onReply={onReply}
                             depth={1}
                         />
                     ))}
@@ -339,11 +345,18 @@ function CommentItem({
     )
 }
 
-export function CommentThread({parentType, parentId}: Props) {
+export function CommentThread({parentType, parentId, open: controlledOpen, onOpenChange}: Props) {
     const t = useT()
     const qc = useQueryClient()
     const {user} = useAppStore()
-    const [open, setOpen] = useState(false)
+    const isControlled = controlledOpen !== undefined
+    const [internalOpen, setInternalOpen] = useState(false)
+    const open = isControlled ? (controlledOpen ?? false) : internalOpen
+    const setOpen = (v: boolean) => {
+        if (isControlled) onOpenChange?.(v)
+        else setInternalOpen(v)
+    }
+
     const [text, setText] = useState('')
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [replyTo, setReplyTo] = useState<Comment | null>(null)
@@ -362,8 +375,12 @@ export function CommentThread({parentType, parentId}: Props) {
     }
 
     function handleReply(comment: Comment) {
-        setReplyTo(comment)
-        const name = comment.created_by_name || t('comment.unknown')
+        // If replying to a depth-1 reply, target its parent (keep thread flat)
+        const replyTarget = comment.parent_comment_id !== null
+            ? (comments.find(c => c.id === comment.parent_comment_id) ?? comment)
+            : comment
+        setReplyTo(replyTarget)
+        const name = replyTarget.created_by_name || t('comment.unknown')
         setText(prev => `@${name} ${prev}`.trimStart())
         setOpen(true)
         setTimeout(() => inputRef.current?.focus(), 150)
@@ -390,19 +407,21 @@ export function CommentThread({parentType, parentId}: Props) {
 
     return (
         <div className="mt-2">
-            {/* Toggle button — always shows count */}
-            <button
-                type="button"
-                onClick={() => {
-                    setOpen(v => !v)
-                    if (!open) setTimeout(() => inputRef.current?.focus(), 150)
-                }}
-                className="flex items-center gap-1.5 text-[11px] text-kce-muted hover:text-kce-cream transition-colors"
-            >
-                <span>💬</span>
-                <span>({totalCount})</span>
-                <span className="text-[10px]">{open ? '▲' : '▼'}</span>
-            </button>
+            {/* Built-in toggle — hidden in controlled mode (caller renders it) */}
+            {!isControlled && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setOpen(!open)
+                        if (!open) setTimeout(() => inputRef.current?.focus(), 150)
+                    }}
+                    className="flex items-center gap-1.5 text-[11px] text-kce-muted hover:text-kce-cream transition-colors"
+                >
+                    <span>💬</span>
+                    <span>({totalCount})</span>
+                    <span className="text-[10px]">{open ? '▲' : '▼'}</span>
+                </button>
+            )}
 
             {open && (
                 <div className="mt-3 flex flex-col gap-3">
@@ -437,7 +456,7 @@ export function CommentThread({parentType, parentId}: Props) {
                                  style={{paddingTop: '6px', paddingBottom: '6px'}}>
                                 <input
                                     ref={inputRef}
-                                    className="flex-1 bg-transparent text-xs text-kce-cream outline-none placeholder:text-kce-muted min-w-0"
+                                    className="flex-1 bg-transparent text-kce-cream outline-none placeholder:text-kce-muted min-w-0"
                                     value={text}
                                     onChange={e => setText(e.target.value)}
                                     placeholder={replyTo ? `@${replyTo.created_by_name || ''}…` : t('comment.placeholder')}
@@ -463,9 +482,6 @@ export function CommentThread({parentType, parentId}: Props) {
                                 </button>
                             </div>
                         </div>
-                        {mediaUrl && !text && (
-                            <p className="text-[10px] text-kce-muted italic pl-10">{t('media.captionHint')}</p>
-                        )}
                     </div>
                 </div>
             )}

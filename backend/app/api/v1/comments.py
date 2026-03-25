@@ -19,6 +19,12 @@ router = APIRouter(prefix="/comments", tags=["comments"])
 
 VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip'}
 
+_TYPE_LABEL_DE = {
+    'highlight': 'Highlight',
+    'announcement': 'Ankündigung',
+    'trip': 'Kegelfahrt',
+}
+
 
 def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
     if not user_id:
@@ -31,6 +37,20 @@ def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
         if rm:
             return rm.nickname or rm.name
     return u.name
+
+
+def _parent_title(parent_type: str, parent_id: int, db: Session) -> str:
+    """Return a short display title for the parent item."""
+    if parent_type == 'announcement':
+        item = db.query(ClubAnnouncement).filter(ClubAnnouncement.id == parent_id).first()
+        return item.title if item else ''
+    if parent_type == 'highlight':
+        h = db.query(EveningHighlight).filter(EveningHighlight.id == parent_id).first()
+        return (h.text or '')[:60] if h else ''
+    if parent_type == 'trip':
+        tr = db.query(ClubTrip).filter(ClubTrip.id == parent_id).first()
+        return tr.destination if tr else ''
+    return ''
 
 
 def _serialize_comment(c: Comment, db: Session, current_user_id: int, include_replies: bool = True) -> dict:
@@ -129,6 +149,10 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
             raise HTTPException(404, "Trip not found")
 
 
+def _parent_url(parent_type: str) -> str:
+    return "/#/committee" if parent_type in ("announcement", "trip") else "/#/evening"
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/{parent_type}/{parent_id}")
@@ -162,6 +186,7 @@ class ReactionToggle(BaseModel):
 def toggle_reaction(
     comment_id: int,
     data: ReactionToggle,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_member),
 ):
@@ -183,15 +208,23 @@ def toggle_reaction(
     r = CommentReaction(comment_id=comment_id, user_id=user.id, emoji=data.emoji)
     db.add(r)
     db.commit()
+    # Notify comment author
+    if c.created_by and c.created_by != user.id:
+        reactor_name = _creator_name(user.id, db) or user.name
+        title = f"{data.emoji} {reactor_name}"
+        body = "hat deinen Kommentar geliked"
+        url = _parent_url(c.parent_type)
+        background_tasks.add_task(push_to_user, db, c.created_by, title, body, url, "comments")
     return {"action": "added"}
 
 
-# Item reactions (on highlights / announcements themselves, not on comments)
+# Item reactions (on highlights / announcements / trips themselves, not on comments)
 @router.post("/item-reaction/{parent_type}/{parent_id}")
 def toggle_item_reaction(
     parent_type: str,
     parent_id: int,
     data: ReactionToggle,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: User = Depends(require_club_member),
 ):
@@ -211,6 +244,16 @@ def toggle_item_reaction(
     r = ItemReaction(parent_type=parent_type, parent_id=parent_id, user_id=user.id, emoji=data.emoji)
     db.add(r)
     db.commit()
+    # Notify item creator
+    creator_id = _parent_creator_user_id(parent_type, parent_id, db)
+    if creator_id and creator_id != user.id:
+        reactor_name = _creator_name(user.id, db) or user.name
+        type_label = _TYPE_LABEL_DE.get(parent_type, parent_type)
+        title_str = _parent_title(parent_type, parent_id, db)
+        push_title = f"{data.emoji} {reactor_name}"
+        push_body = f"hat auf deine {type_label}" + (f" '{title_str}'" if title_str else "") + " reagiert"
+        url = _parent_url(parent_type)
+        background_tasks.add_task(push_to_user, db, creator_id, push_title, push_body, url, "comments")
     return {"action": "added", "reactions": _serialize_item_reactions(parent_type, parent_id, db, user.id)}
 
 
@@ -233,37 +276,51 @@ class CommentCreate(BaseModel):
     parent_comment_id: Optional[int] = None  # for replies (max depth 1)
 
 
-def _notify_thread_participants(
+def _notify_new_comment(
     db: Session,
+    c: Comment,
     parent_type: str,
     parent_id: int,
     commenter_user_id: int,
     commenter_name: str,
     comment_text: str,
 ) -> None:
-    """Push a notification to everyone already in the thread (excluding the commenter)."""
-    notify_ids: set[int] = set()
-    creator_id = _parent_creator_user_id(parent_type, parent_id, db)
-    if creator_id and creator_id != commenter_user_id:
-        notify_ids.add(creator_id)
-    prev_commenters = db.query(Comment.created_by).filter(
-        Comment.parent_type == parent_type,
-        Comment.parent_id == parent_id,
-        Comment.is_deleted == False,  # noqa: E712
-        Comment.created_by != None,  # noqa: E711
-        Comment.created_by != commenter_user_id,
-    ).distinct().all()
-    for (uid,) in prev_commenters:
-        if uid:
-            notify_ids.add(uid)
-    if not notify_ids:
-        return
-    parent_anchor = "committee" if parent_type in ("announcement", "trip") else "evening"
-    url = f"/#/{parent_anchor}"
-    title = f"💬 {commenter_name}"
-    body = comment_text[:120]
-    for uid in notify_ids:
-        push_to_user(db, uid, title, body, url)
+    """Send differentiated push notifications for new comments and replies."""
+    url = _parent_url(parent_type)
+
+    if c.parent_comment_id is not None:
+        # Reply: notify the author of the parent comment
+        parent_c = db.query(Comment).filter(Comment.id == c.parent_comment_id).first()
+        if parent_c and parent_c.created_by and parent_c.created_by != commenter_user_id:
+            push_to_user(
+                db, parent_c.created_by,
+                f"💬 {commenter_name}",
+                "hat auf deinen Kommentar geantwortet",
+                url, "comments",
+            )
+        # Also notify item creator if different from reply author and parent comment author
+        creator_id = _parent_creator_user_id(parent_type, parent_id, db)
+        parent_author = parent_c.created_by if parent_c else None
+        if creator_id and creator_id != commenter_user_id and creator_id != parent_author:
+            type_label = _TYPE_LABEL_DE.get(parent_type, parent_type)
+            push_to_user(
+                db, creator_id,
+                f"💬 {commenter_name}",
+                f"hat deine {type_label} kommentiert",
+                url, "comments",
+            )
+    else:
+        # Top-level comment: notify item creator
+        creator_id = _parent_creator_user_id(parent_type, parent_id, db)
+        if creator_id and creator_id != commenter_user_id:
+            type_label = _TYPE_LABEL_DE.get(parent_type, parent_type)
+            title_str = _parent_title(parent_type, parent_id, db)
+            push_to_user(
+                db, creator_id,
+                f"💬 {commenter_name}",
+                f"hat deine {type_label}" + (f" '{title_str}'" if title_str else "") + " kommentiert",
+                url, "comments",
+            )
 
 
 @router.post("/{parent_type}/{parent_id}")
@@ -308,10 +365,10 @@ def create_comment(
     db.commit()
     db.refresh(c)
     commenter_name = _creator_name(user.id, db) or user.name
-    push_body = text or "📷 Bild"
+    comment_text = text or "📷 Bild"
     background_tasks.add_task(
-        _notify_thread_participants,
-        db, parent_type, parent_id, user.id, commenter_name, push_body,
+        _notify_new_comment,
+        db, c, parent_type, parent_id, user.id, commenter_name, comment_text,
     )
     return _serialize_comment(c, db, user.id)
 
