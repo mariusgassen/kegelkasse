@@ -26,6 +26,7 @@ import {
     ScheduledEveningGuest,
     Team,
     User,
+    Comment,
     PaymentRequest,
     PgBackrestStanza
 } from '@/types';
@@ -162,6 +163,21 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
     }
     return res.status === 204 ? (null as T) : res.json()
+}
+
+export async function uploadMedia(file: File): Promise<string> {
+    const form = new FormData()
+    form.append('file', file)
+    const headers: Record<string, string> = {}
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(`${API_BASE}/uploads/media`, {method: 'POST', headers, body: form})
+    if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+    }
+    const data = await res.json() as {url: string}
+    return data.url
 }
 
 export const api = {
@@ -509,10 +525,20 @@ export const api = {
     deletePin: (id: number) => request<void>('DELETE', `/club/pins/${id}`),
 
     // Highlights
-    addHighlight: (eid: number, d: { text: string }) =>
+    addHighlight: (eid: number, d: { text?: string; media_url?: string }) =>
         request<EveningHighlight>('POST', `/evening/${eid}/highlights`, d),
     deleteHighlight: (eid: number, hid: number) =>
         request<void>('DELETE', `/evening/${eid}/highlights/${hid}`),
+
+    // Comments
+    listComments: (parentType: 'highlight' | 'announcement', parentId: number) =>
+        request<Comment[]>('GET', `/comments/${parentType}/${parentId}`),
+    addComment: (parentType: 'highlight' | 'announcement', parentId: number, text: string, mediaUrl?: string) =>
+        request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text: text || null, media_url: mediaUrl || null}),
+    deleteComment: (commentId: number) =>
+        request<void>('DELETE', `/comments/${commentId}`),
+    toggleReaction: (commentId: number, emoji: string) =>
+        request<{action: 'added' | 'removed'}>('POST', `/comments/${commentId}/reactions`, {emoji}),
 
     // Stats
     getYearStats: (year: number) => request<{
@@ -563,7 +589,7 @@ export const api = {
 
     // Committee (Vergnügungsausschuss)
     listAnnouncements: () => request<ClubAnnouncement[]>('GET', '/committee/announcements'),
-    createAnnouncement: (d: { title: string; text?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
+    createAnnouncement: (d: { title: string; text?: string; media_url?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
     deleteAnnouncement: (id: number) => request<void>('DELETE', `/committee/announcements/${id}`),
     listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
     createTrip: (d: { date: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),

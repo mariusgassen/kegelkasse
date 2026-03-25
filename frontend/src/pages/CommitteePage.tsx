@@ -13,6 +13,8 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {CommentThread} from '@/components/ui/CommentThread.tsx'
+import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import type {ClubAnnouncement, ClubTrip} from '@/types.ts'
 
 function fDate(isoStr: string) {
@@ -42,6 +44,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
     const [delId, setDelId] = useState<number | null>(null)
     const [title, setTitle] = useState('')
     const [text, setText] = useState('')
+    const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
 
     const {data: announcements = [], isLoading} = useQuery({
@@ -53,11 +56,12 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
         if (!title.trim()) return
         setSaving(true)
         try {
-            await api.createAnnouncement({title: title.trim(), text: text.trim() || undefined})
+            await api.createAnnouncement({title: title.trim(), text: text.trim() || undefined, media_url: mediaUrl || undefined})
             await qc.invalidateQueries({queryKey: ['committee-announcements']})
             setAddOpen(false)
             setTitle('')
             setText('')
+            setMediaUrl(null)
             showToast('✓ Ankündigung veröffentlicht')
         } catch (e) {
             toastError(e)
@@ -101,6 +105,13 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                         {a.text}
                                     </p>
                                 )}
+                                {a.media_url && (
+                                    <img
+                                        src={a.media_url}
+                                        alt=""
+                                        className="mt-2 rounded max-h-64 max-w-full object-contain border border-kce-border/40"
+                                    />
+                                )}
                                 <p className="text-[10px] text-kce-muted mt-2">
                                     {a.created_by_name && (
                                         <span>{t('committee.announcement.by')} {a.created_by_name} · </span>
@@ -116,6 +127,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                 </button>
                             )}
                         </div>
+                        <CommentThread parentType="announcement" parentId={a.id}/>
                     </div>
                 ))}
             </div>
@@ -143,6 +155,14 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                 value={text}
                                 onChange={e => setText(e.target.value)}
                                 placeholder={t('committee.announcement.text')}
+                            />
+                        </div>
+                        <div>
+                            <label className="field-label">{t('media.attach')}</label>
+                            <MediaUploadButton
+                                value={mediaUrl}
+                                onUploaded={setMediaUrl}
+                                onRemove={() => setMediaUrl(null)}
                             />
                         </div>
                         <button type="submit" className="btn-primary w-full" disabled={!title.trim() || saving}>

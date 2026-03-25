@@ -131,6 +131,7 @@ export interface ClubAnnouncement {
     id: number
     title: string
     text: string | null
+    media_url: string | null
     created_by_name: string | null
     created_at: string | null
 }
@@ -253,8 +254,25 @@ export interface DrinkRound {
 
 export interface EveningHighlight {
     id: number
-    text: string
+    text: string | null
+    media_url: string | null
     created_at: string | null
+}
+
+export interface CommentReaction {
+    emoji: string
+    count: number
+    reacted_by_me: boolean
+}
+
+export interface Comment {
+    id: number
+    text: string | null
+    media_url: string | null
+    created_by_id: number | null
+    created_by_name: string | null
+    created_at: string | null
+    reactions: CommentReaction[]
 }
 
 export interface Evening {

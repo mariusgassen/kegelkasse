@@ -79,7 +79,7 @@ def serialize_evening(e: Evening) -> dict:
                           "participant_ids": r.participant_ids,
                           "client_timestamp": r.client_timestamp}
                          for r in e.drink_rounds if not r.is_deleted],
-        "highlights": [{"id": h.id, "text": h.text,
+        "highlights": [{"id": h.id, "text": h.text, "media_url": h.media_url,
                         "created_at": h.created_at.isoformat() if h.created_at else None}
                        for h in e.highlights],
     }
@@ -985,7 +985,8 @@ def delete_drink_round(eid: int, rid: int, db: Session = Depends(get_db),
 # ── Highlights ──
 
 class HighlightCreate(BaseModel):
-    text: str
+    text: Optional[str] = None
+    media_url: Optional[str] = None
 
 
 @router.post("/{eid}/highlights")
@@ -994,14 +995,16 @@ def add_highlight(eid: int, data: HighlightCreate, db: Session = Depends(get_db)
     e = get_club_evening(eid, user, db)
     if e.is_closed:
         raise HTTPException(400, "Evening is closed")
-    text = data.text.strip()
-    if not text:
-        raise HTTPException(400, "Text is required")
-    h = EveningHighlight(evening_id=eid, text=text, created_by=user.id)
+    text = data.text.strip() if data.text else None
+    media_url = data.media_url or None
+    if not text and not media_url:
+        raise HTTPException(400, "Text or media is required")
+    h = EveningHighlight(evening_id=eid, text=text, media_url=media_url, created_by=user.id)
     db.add(h)
     db.commit()
     db.refresh(h)
-    return {"id": h.id, "text": h.text, "created_at": h.created_at.isoformat() if h.created_at else None}
+    return {"id": h.id, "text": h.text, "media_url": h.media_url,
+            "created_at": h.created_at.isoformat() if h.created_at else None}
 
 
 @router.delete("/{eid}/highlights/{hid}", status_code=204)

@@ -83,7 +83,8 @@ class EveningHighlight(Base):
     __tablename__ = "evening_highlight"
     id = Column(Integer, primary_key=True, index=True)
     evening_id = Column(Integer, ForeignKey("evening.id", ondelete="CASCADE"), nullable=False)
-    text = Column(String, nullable=False)
+    text = Column(String, nullable=True)
+    media_url = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     evening = relationship("Evening", back_populates="highlights")
