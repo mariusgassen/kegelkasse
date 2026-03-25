@@ -4,6 +4,7 @@ if (!globalThis.crypto) Object.defineProperty(globalThis, 'crypto', {value: webc
 
 import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import {VitePWA} from 'vite-plugin-pwa'
 import {fileURLToPath, URL} from 'node:url'
 import {execSync} from 'node:child_process'
@@ -32,6 +33,7 @@ export default defineConfig({
         }
     },
     plugins: [
+        tailwindcss(),
         react(),
         VitePWA({
             strategies: 'injectManifest',
