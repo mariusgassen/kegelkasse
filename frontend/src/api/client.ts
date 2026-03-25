@@ -86,6 +86,22 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     // so the UI never hangs waiting for a connection that won't come.
     if (!navigator.onLine && !_bypassQueue) {
         if (isQueuableMutation(method, path)) {
+            // Special case: creating an ad-hoc evening (POST /evening) works the same
+            // as starting a scheduled one — negative temp ID, queued, pendingStore record.
+            if (method === 'POST' && /^\/evening$/.test(path)) {
+                const tempId = -Date.now()
+                await offlineQueue.enqueue(method, path, body, tempId)
+                const b = body as {date?: string; venue?: string; note?: string} ?? {}
+                const date = b.date ?? new Date().toISOString().slice(0, 10)
+                await pendingStore.save({tempId, date, venue: b.venue ?? null, memberIds: []})
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+                return {
+                    id: tempId, date, venue: b.venue ?? null, note: b.note ?? null,
+                    is_closed: false, players: [], teams: [], penalty_log: [],
+                    games: [], drink_rounds: [], highlights: [],
+                } as T
+            }
+
             // Special case: starting an evening from a schedule creates a new server
             // resource whose ID is needed immediately.  We generate a negative temp
             // ID, queue the request, persist a minimal pending-evening record, and

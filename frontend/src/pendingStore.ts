@@ -29,6 +29,8 @@ function openDb(): Promise<IDBDatabase> {
 
 export const pendingStore = {
     async save(data: PendingEvening): Promise<void> {
+        // Request persistent storage so iOS/Safari doesn't evict pending evenings
+        navigator.storage?.persist?.().catch(() => {})
         const db = await openDb()
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite')
