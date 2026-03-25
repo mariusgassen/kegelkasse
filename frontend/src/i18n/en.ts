@@ -311,6 +311,7 @@ export const en = {
     "error.generic": "Error",
     "error.session": "Session expired — please sign in again.",
     "error.network": "Server unreachable.",
+    "error.eveningAlreadyActive": "An open evening has been loaded.",
     "error.serverDown": "Failed to connect to server.",
     "error.retry": "Try again",
     "error.connecting": "Connecting…",

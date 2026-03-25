@@ -6,7 +6,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
-import {toastError} from '@/utils/error.ts'
+import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
@@ -253,7 +253,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
             showToast(t('schedule.started'))
             onStarted(ev.id)
         } catch (e) {
-            toastError(e)
+            if (!await handleAlreadyActive(e)) toastError(e)
         } finally {
             setStarting(false)
         }
@@ -856,7 +856,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             setBacklogSheet(false)
             setAttendanceEveningId(ev.id)
         } catch (e) {
-            toastError(e)
+            if (!await handleAlreadyActive(e)) toastError(e)
         } finally {
             setSaving(false)
         }

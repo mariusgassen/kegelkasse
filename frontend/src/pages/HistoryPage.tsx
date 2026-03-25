@@ -7,7 +7,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
-import {toastError} from '@/utils/error.ts'
+import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -81,7 +81,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
             qc.invalidateQueries({queryKey: ['evenings']})
             setBacklogSheet(false)
         } catch (e: unknown) {
-            toastError(e)
+            if (!await handleAlreadyActive(e)) toastError(e)
         } finally {
             setSaving(false)
         }

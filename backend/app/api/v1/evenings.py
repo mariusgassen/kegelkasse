@@ -103,6 +103,12 @@ class EveningCreate(BaseModel):
 @router.post("/")
 def create_evening(data: EveningCreate, db: Session = Depends(get_db),
                    user: User = Depends(require_club_admin)):
+    other_open = db.query(Evening).filter(
+        Evening.club_id == user.club_id,
+        Evening.is_closed == False,
+    ).first()
+    if other_open:
+        raise HTTPException(400, "Another evening is already active")
     payload = data.model_dump()
     payload["date"] = _parse_date(payload["date"])
     e = Evening(club_id=user.club_id, created_by=user.id, **payload)

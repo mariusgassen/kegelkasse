@@ -8,7 +8,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
-import {toastError} from '@/utils/error.ts'
+import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
@@ -118,7 +118,7 @@ export function EveningPage() {
                                 })
                                 setAttendanceEveningId(ev.id)
                             } catch (e: unknown) {
-                                toastError(e)
+                                if (!await handleAlreadyActive(e)) toastError(e)
                             } finally {
                                 setStarting(false)
                             }
