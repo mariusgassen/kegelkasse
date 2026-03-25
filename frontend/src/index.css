@@ -1,6 +1,44 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+    /* Custom colors — mirror the runtime CSS variables defined in :root */
+    --color-kce-ring: #3d3540;
+    --color-kce-olive: var(--kce-secondary);
+    --color-kce-brown: #4a3c38;
+    --color-kce-cream: var(--kce-cream);
+    --color-kce-squirrel: #b8401a;
+    --color-kce-bg: var(--kce-bg);
+    --color-kce-surface: var(--kce-surface);
+    --color-kce-surface2: var(--kce-surface2);
+    --color-kce-border: var(--kce-border);
+    --color-kce-muted: var(--kce-muted);
+    --color-kce-amber: var(--kce-primary);
+    --color-kce-amber-light: var(--kce-primary);
+    --color-kce-amber-dark: var(--kce-primary);
+
+    /* Font families */
+    --font-display: 'Lora', Georgia, serif;
+    --font-body: 'Nunito', system-ui, sans-serif;
+
+    /* Named animations */
+    --animate-bob: bob 3s ease-in-out infinite;
+    --animate-slide-up: slideUp .22s ease;
+    --animate-fade-in: fadeIn .18s ease;
+    --animate-spin-slow: spin 3s linear infinite;
+
+    @keyframes bob {
+        0%, 100% { transform: translateY(0) rotate(-4deg); }
+        50% { transform: translateY(-4px) rotate(4deg); }
+    }
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}
 
 :root {
     --kce-primary: #e8a020;
