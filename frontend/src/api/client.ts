@@ -26,6 +26,7 @@ import {
     ScheduledEveningGuest,
     Team,
     User,
+    Comment,
     PaymentRequest,
     PgBackrestStanza
 } from '@/types';
@@ -497,6 +498,16 @@ export const api = {
         request<EveningHighlight>('POST', `/evening/${eid}/highlights`, d),
     deleteHighlight: (eid: number, hid: number) =>
         request<void>('DELETE', `/evening/${eid}/highlights/${hid}`),
+
+    // Comments
+    listComments: (parentType: 'highlight' | 'announcement', parentId: number) =>
+        request<Comment[]>('GET', `/comments/${parentType}/${parentId}`),
+    addComment: (parentType: 'highlight' | 'announcement', parentId: number, text: string) =>
+        request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text}),
+    deleteComment: (commentId: number) =>
+        request<void>('DELETE', `/comments/${commentId}`),
+    toggleReaction: (commentId: number, emoji: string) =>
+        request<{action: 'added' | 'removed'}>('POST', `/comments/${commentId}/reactions`, {emoji}),
 
     // Stats
     getYearStats: (year: number) => request<{

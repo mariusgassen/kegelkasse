@@ -13,6 +13,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import type {ClubAnnouncement, ClubTrip} from '@/types.ts'
 
 function fDate(isoStr: string) {
@@ -116,6 +117,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                                 </button>
                             )}
                         </div>
+                        <CommentThread parentType="announcement" parentId={a.id}/>
                     </div>
                 ))}
             </div>

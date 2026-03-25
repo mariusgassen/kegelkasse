@@ -257,6 +257,21 @@ export interface EveningHighlight {
     created_at: string | null
 }
 
+export interface CommentReaction {
+    emoji: string
+    count: number
+    reacted_by_me: boolean
+}
+
+export interface Comment {
+    id: number
+    text: string
+    created_by_id: number | null
+    created_by_name: string | null
+    created_at: string | null
+    reactions: CommentReaction[]
+}
+
 export interface Evening {
     id: number
     date: string

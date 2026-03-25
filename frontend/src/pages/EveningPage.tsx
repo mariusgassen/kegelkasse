@@ -10,6 +10,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
+import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 
 export function EveningPage() {
@@ -461,17 +462,20 @@ export function EveningPage() {
                 ? <Empty icon="✨" text={t('highlight.none')}/>
                 : <div className="flex flex-col gap-1.5 mb-2">
                     {evening.highlights.map(h => (
-                        <div key={h.id} className="kce-card p-3 flex items-start gap-2">
-                            <span className="text-base flex-shrink-0">✨</span>
-                            <div className="flex-1 text-sm">{h.text}</div>
-                            {!evening.is_closed && (
-                                <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
-                                    try {
-                                        await api.deleteHighlight(evening.id, h.id)
-                                        invalidate()
-                                    } catch (e) { toastError(e) }
-                                }}>✕</button>
-                            )}
+                        <div key={h.id} className="kce-card p-3">
+                            <div className="flex items-start gap-2">
+                                <span className="text-base flex-shrink-0">✨</span>
+                                <div className="flex-1 text-sm">{h.text}</div>
+                                {!evening.is_closed && (
+                                    <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                        try {
+                                            await api.deleteHighlight(evening.id, h.id)
+                                            invalidate()
+                                        } catch (e) { toastError(e) }
+                                    }}>✕</button>
+                                )}
+                            </div>
+                            <CommentThread parentType="highlight" parentId={h.id}/>
                         </div>
                     ))}
                 </div>

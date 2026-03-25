@@ -706,6 +706,13 @@ export const de = {
     "quickEntry.modeBlock": "Block",
     "quickEntry.advanceTurn": "Weiter",
     "quickEntry.gameScore": "Punktestand",
+    "comment.show": "Kommentare",
+    "comment.collapse": "Kommentare ausblenden",
+    "comment.none": "Noch keine Kommentare.",
+    "comment.placeholder": "Kommentar schreiben…",
+    "comment.unknown": "Unbekannt",
+    "comment.reaction.add": "Reaktion hinzufügen",
+    "comment.reaction.remove": "Reaktion entfernen",
 } as const
 
 export type TranslationKey = keyof typeof de

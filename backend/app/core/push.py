@@ -162,6 +162,19 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
         db.commit()
 
 
+def push_to_user(db: Session, user_id: int, title: str, body: str,
+                 url: str = '/', extra: dict | None = None) -> None:
+    """Send push to a single user by user ID."""
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        return
+    _log_notification(db, user.id, title, body, url)
+    if not settings.VAPID_PRIVATE_KEY:
+        return
+    for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
+        _send_one(db, sub, title, body, url, extra=extra)
+
+
 def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
                         url: str = '/', category: str = '', extra: dict | None = None) -> None:
     """Send push to all admin/superadmin subscribers in a club."""
