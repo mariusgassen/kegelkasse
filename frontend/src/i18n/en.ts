@@ -619,7 +619,7 @@ export const en = {
     "quickEntry.count": "Count",
     "quickEntry.recent": "Recent entries",
     "quickEntry.logged": "✓ Logged",
-    "nav.committee": "Trips",
+    "nav.committee": "Events",
     "committee.title": "Entertainment Committee",
     "committee.tab.announcements": "📣 Announcements",
     "committee.tab.trips": "🚌 Bowling Trips",
