@@ -1,6 +1,6 @@
 /**
  * Emoji reaction row for highlight and announcement items (not comments).
- * Fetches reactions and supports toggle via POST /comments/item-reaction/{type}/{id}.
+ * Heart (❤️) is the primary reaction; other emojis are secondary pills.
  */
 import {useState, useRef, useEffect} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -14,7 +14,7 @@ import type {ItemReaction} from '@/types'
 const PICKER_W = 300
 const PICKER_H = 380
 
-function ReactionPicker({onPick}: { onPick: (emoji: string) => void }) {
+function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({top: 0, left: 0})
     const btnRef = useRef<HTMLButtonElement>(null)
@@ -56,7 +56,7 @@ function ReactionPicker({onPick}: { onPick: (emoji: string) => void }) {
             <button
                 ref={btnRef}
                 type="button"
-                className="text-[11px] text-kce-muted hover:text-kce-cream transition-colors leading-none px-1 py-0.5 rounded"
+                className="text-[11px] text-kce-muted hover:text-kce-cream transition-colors leading-none px-1.5 py-1 rounded-full border border-kce-border/40 hover:border-kce-border"
                 onClick={openPicker}
                 title="Reaktion hinzufügen"
             >
@@ -65,7 +65,7 @@ function ReactionPicker({onPick}: { onPick: (emoji: string) => void }) {
             {open && createPortal(
                 <div ref={pickerRef} style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999}}>
                     <EmojiPicker
-                        onEmojiClick={(data: EmojiClickData) => { onPick(data.emoji); setOpen(false) }}
+                        onEmojiClick={(data: EmojiClickData) => {onPick(data.emoji); setOpen(false)}}
                         theme={Theme.DARK}
                         height={PICKER_H}
                         width={PICKER_W}
@@ -81,7 +81,7 @@ function ReactionPicker({onPick}: { onPick: (emoji: string) => void }) {
 }
 
 interface Props {
-    parentType: 'highlight' | 'announcement'
+    parentType: 'highlight' | 'announcement' | 'trip'
     parentId: number
 }
 
@@ -105,15 +105,37 @@ export function ItemReactionBar({parentType, parentId}: Props) {
         }
     }
 
+    const heartReaction = reactions.find(r => r.emoji === '❤️')
+    const otherReactions = reactions.filter(r => r.emoji !== '❤️')
+
     return (
-        <div className="flex items-center gap-1 flex-wrap mt-1.5">
-            {reactions.map(r => (
+        <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t border-kce-border/20">
+            {/* Primary heart reaction */}
+            <button
+                type="button"
+                onClick={() => handleToggle('❤️')}
+                className={[
+                    'flex items-center gap-1 text-sm leading-none px-2 py-1 rounded-full border transition-colors',
+                    heartReaction?.reacted_by_me
+                        ? 'border-red-400/60 bg-red-400/10 text-red-400'
+                        : 'border-kce-border text-kce-muted hover:border-red-400/40 hover:text-red-400/70',
+                ].join(' ')}
+                title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
+            >
+                <span>{heartReaction?.reacted_by_me ? '❤️' : '🤍'}</span>
+                {heartReaction && heartReaction.count > 0 && (
+                    <span className="text-[11px]">{heartReaction.count}</span>
+                )}
+            </button>
+
+            {/* Other reactions */}
+            {otherReactions.map(r => (
                 <button
                     key={r.emoji}
                     type="button"
                     onClick={() => handleToggle(r.emoji)}
                     className={[
-                        'text-[11px] px-1.5 py-0.5 rounded-full border leading-none transition-colors',
+                        'text-[11px] px-1.5 py-1 rounded-full border leading-none transition-colors',
                         r.reacted_by_me
                             ? 'border-kce-primary bg-kce-primary/20 text-kce-cream'
                             : 'border-kce-border text-kce-muted hover:border-kce-primary/50',
@@ -123,6 +145,7 @@ export function ItemReactionBar({parentType, parentId}: Props) {
                     {r.emoji} {r.count}
                 </button>
             ))}
+
             <ReactionPicker onPick={handleToggle}/>
         </div>
     )

@@ -1,6 +1,9 @@
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
     DATABASE_URL: str
     SECRET_KEY: str
     ENVIRONMENT: str = "development"
@@ -15,9 +18,5 @@ class Settings(BaseSettings):
     BACKUP_SCHEDULE: str = "0 2 * * *"  # daily full backup at 02:00 UTC
     BACKUP_RETAIN_FULL: int = 7          # number of full backup sets to retain
     PGB_MGMT_URL: str = "http://db:8089"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
 settings = Settings()

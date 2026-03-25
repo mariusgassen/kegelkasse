@@ -10,14 +10,14 @@ from api.deps import require_club_member
 from core.database import get_db
 from core.push import push_to_user
 from models.comment import Comment, CommentReaction, ItemReaction
-from models.committee import ClubAnnouncement
+from models.committee import ClubAnnouncement, ClubTrip
 from models.evening import EveningHighlight, Evening
 from models.user import User, UserRole
 from models.evening import RegularMember
 
 router = APIRouter(prefix="/comments", tags=["comments"])
 
-VALID_PARENT_TYPES = {'highlight', 'announcement'}
+VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip'}
 
 
 def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
@@ -47,6 +47,13 @@ def _serialize_comment(c: Comment, db: Session, current_user_id: int, include_re
         ).order_by(Comment.created_at).all()
         replies = [_serialize_comment(r, db, current_user_id, include_replies=False) for r in reply_comments]
 
+    # Fetch avatar for author
+    avatar: Optional[str] = None
+    if c.created_by:
+        u = db.query(User).filter(User.id == c.created_by).first()
+        if u:
+            avatar = u.avatar
+
     return {
         "id": c.id,
         "text": c.text,
@@ -54,6 +61,7 @@ def _serialize_comment(c: Comment, db: Session, current_user_id: int, include_re
         "parent_comment_id": c.parent_comment_id,
         "created_by_id": c.created_by,
         "created_by_name": _creator_name(c.created_by, db),
+        "created_by_avatar": avatar,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "edited_at": c.edited_at.isoformat() if c.edited_at else None,
         "reactions": [
@@ -88,6 +96,9 @@ def _parent_creator_user_id(parent_type: str, parent_id: int, db: Session) -> Op
     if parent_type == 'highlight':
         h = db.query(EveningHighlight).filter(EveningHighlight.id == parent_id).first()
         return h.created_by if h else None
+    if parent_type == 'trip':
+        tr = db.query(ClubTrip).filter(ClubTrip.id == parent_id).first()
+        return tr.created_by if tr else None
     return None
 
 
@@ -108,6 +119,14 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
         evening = db.query(Evening).filter(Evening.id == h.evening_id).first()
         if not evening or evening.club_id != user.club_id:
             raise HTTPException(404, "Highlight not found")
+    elif parent_type == 'trip':
+        tr = db.query(ClubTrip).filter(
+            ClubTrip.id == parent_id,
+            ClubTrip.club_id == user.club_id,
+            ClubTrip.is_deleted == False,  # noqa: E712
+        ).first()
+        if not tr:
+            raise HTTPException(404, "Trip not found")
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -239,7 +258,7 @@ def _notify_thread_participants(
             notify_ids.add(uid)
     if not notify_ids:
         return
-    parent_anchor = "committee" if parent_type == "announcement" else "evening"
+    parent_anchor = "committee" if parent_type in ("announcement", "trip") else "evening"
     url = f"/#/{parent_anchor}"
     title = f"💬 {commenter_name}"
     body = comment_text[:120]

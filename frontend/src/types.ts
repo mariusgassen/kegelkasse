@@ -272,6 +272,7 @@ export interface Comment {
     parent_comment_id: number | null
     created_by_id: number | null
     created_by_name: string | null
+    created_by_avatar: string | null
     created_at: string | null
     edited_at: string | null
     reactions: CommentReaction[]

@@ -426,6 +426,8 @@ function TripCard({trip, canWrite, past = false, onEdit, onDelete}: {
                     </div>
                 )}
             </div>
+            <ItemReactionBar parentType="trip" parentId={trip.id}/>
+            <CommentThread parentType="trip" parentId={trip.id}/>
         </div>
     )
 }
