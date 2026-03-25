@@ -101,6 +101,41 @@ def list_comments(
     return [_serialize_comment(c, db, user.id) for c in comments]
 
 
+class ReactionToggle(BaseModel):
+    emoji: str
+
+
+# NOTE: /{comment_id}/reactions must be registered BEFORE /{parent_type}/{parent_id}
+# so that FastAPI routes "/123/reactions" to this handler rather than treating
+# "reactions" as parent_id (int) and returning 422.
+@router.post("/{comment_id}/reactions")
+def toggle_reaction(
+    comment_id: int,
+    data: ReactionToggle,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    c = db.query(Comment).filter(
+        Comment.id == comment_id,
+        Comment.is_deleted == False,  # noqa: E712
+    ).first()
+    if not c:
+        raise HTTPException(404, "Comment not found")
+    existing = db.query(CommentReaction).filter(
+        CommentReaction.comment_id == comment_id,
+        CommentReaction.user_id == user.id,
+        CommentReaction.emoji == data.emoji,
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return {"action": "removed"}
+    r = CommentReaction(comment_id=comment_id, user_id=user.id, emoji=data.emoji)
+    db.add(r)
+    db.commit()
+    return {"action": "added"}
+
+
 class CommentCreate(BaseModel):
     text: str
 
@@ -182,35 +217,3 @@ def delete_comment(
         raise HTTPException(403, "Not allowed")
     c.is_deleted = True
     db.commit()
-
-
-class ReactionToggle(BaseModel):
-    emoji: str
-
-
-@router.post("/{comment_id}/reactions")
-def toggle_reaction(
-    comment_id: int,
-    data: ReactionToggle,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_club_member),
-):
-    c = db.query(Comment).filter(
-        Comment.id == comment_id,
-        Comment.is_deleted == False,  # noqa: E712
-    ).first()
-    if not c:
-        raise HTTPException(404, "Comment not found")
-    existing = db.query(CommentReaction).filter(
-        CommentReaction.comment_id == comment_id,
-        CommentReaction.user_id == user.id,
-        CommentReaction.emoji == data.emoji,
-    ).first()
-    if existing:
-        db.delete(existing)
-        db.commit()
-        return {"action": "removed"}
-    r = CommentReaction(comment_id=comment_id, user_id=user.id, emoji=data.emoji)
-    db.add(r)
-    db.commit()
-    return {"action": "added"}
