@@ -7,12 +7,12 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "0.135.1"
-uvicorn = {version = "^0.41.0", extras = ["standard"]}
+fastapi = "0.135.2"
+uvicorn = {version = "^0.42.0", extras = ["standard"]}
 sqlalchemy = {version = "^2.0.35", extras = ["asyncio"]}
 alembic = "^1.13.3"
 psycopg2-binary = "^2.9.9"
-asyncpg = "^0.30.0"
+asyncpg = "^0.31.0"
 python-jose = {version = "^3.3.0", extras = ["cryptography"]}
 bcrypt = "5.0.0"
 python-multipart = "^0.0.22"
@@ -30,7 +30,7 @@ fpdf2 = "^2.8"
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
 pytest-asyncio = "^0.24"
-pytest-cov = "^6.0"
+pytest-cov = "^7.1"
 genbadge = {version = "^1.1", extras = ["coverage"]}
 
 [build-system]
