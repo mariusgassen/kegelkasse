@@ -926,6 +926,10 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
     const t = useT()
     const {setUser} = useAppStore()
     const [newName, setNewName] = useState('')
+    const [editClub, setEditClub] = useState<{id: number; name: string; slug: string} | null>(null)
+    const [editName, setEditName] = useState('')
+    const [editSlug, setEditSlug] = useState('')
+    const [deleteClubId, setDeleteClubId] = useState<number | null>(null)
     const {data: clubs = [], refetch} = useQuery({
         queryKey: ['superadmin-clubs'],
         queryFn: api.listAllClubs,
@@ -947,25 +951,57 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
         showToast(t('superadmin.clubs.created'))
     }
 
+    const openEdit = (c: {id: number; name: string; slug: string}) => {
+        setEditClub(c)
+        setEditName(c.name)
+        setEditSlug(c.slug)
+    }
+
+    const handleUpdate = async () => {
+        if (!editClub) return
+        try {
+            await api.updateClub(editClub.id, {name: editName.trim(), slug: editSlug.trim()})
+            setEditClub(null)
+            refetch()
+            showToast(t('superadmin.clubs.updated'))
+        } catch (e) { toastError(e) }
+    }
+
+    const handleDelete = async (clubId: number) => {
+        try {
+            await api.deleteClub(clubId)
+            setDeleteClubId(null)
+            refetch()
+            showToast(t('superadmin.clubs.deleted'))
+        } catch (e) { toastError(e) }
+    }
+
     return (
         <div className="flex flex-col gap-3">
             {clubs.map(c => (
                 <div key={c.id} className="kce-card p-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold truncate">{c.name}</div>
-                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder
-                        </div>
+                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
                     </div>
-                    {c.is_active ? (
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
-                              style={{background: 'rgba(232,160,32,.15)', color: '#e8a020'}}>
-                            {t('superadmin.clubs.active')}
-                        </span>
-                    ) : (
-                        <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
-                            {t('superadmin.clubs.switch')}
-                        </button>
-                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <button className="btn-secondary btn-xs" onClick={() => openEdit(c)} title={t('superadmin.clubs.edit')}>✏️</button>
+                        {c.is_active ? (
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
+                                  style={{background: 'rgba(232,160,32,.15)', color: '#e8a020'}}>
+                                {t('superadmin.clubs.active')}
+                            </span>
+                        ) : (
+                            <>
+                                <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
+                                    {t('superadmin.clubs.switch')}
+                                </button>
+                                <button className="text-kce-muted hover:text-red-400 text-sm px-1"
+                                        onClick={() => setDeleteClubId(c.id)}
+                                        title={t('superadmin.clubs.delete')}>×</button>
+                            </>
+                        )}
+                    </div>
                 </div>
             ))}
 
@@ -978,6 +1014,41 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                     <button className="btn-primary btn-sm flex-shrink-0" onClick={handleCreate}>+</button>
                 </div>
             </div>
+
+            {/* Edit sheet */}
+            {editClub && (
+                <Sheet open onClose={() => setEditClub(null)} title={t('superadmin.clubs.edit')} onSubmit={handleUpdate}>
+                    <div className="flex flex-col gap-3">
+                        <div>
+                            <label className="field-label">{t('club.name')}</label>
+                            <input className="kce-input" value={editName} onChange={e => setEditName(e.target.value)} autoFocus/>
+                        </div>
+                        <div>
+                            <label className="field-label">{t('superadmin.clubs.slug')}</label>
+                            <input className="kce-input font-mono" value={editSlug}
+                                   onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                   placeholder={t('superadmin.clubs.slugPlaceholder')}/>
+                        </div>
+                        <button type="submit" className="btn-primary w-full"
+                                disabled={!editName.trim() || !editSlug.trim()}>
+                            {t('action.save')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
+
+            {/* Delete confirm sheet */}
+            {deleteClubId !== null && (
+                <Sheet open onClose={() => setDeleteClubId(null)} title={t('superadmin.clubs.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-kce-muted text-sm">{t('superadmin.clubs.deleteConfirm')}</p>
+                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                                onClick={() => handleDelete(deleteClubId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
         </div>
     )
 }

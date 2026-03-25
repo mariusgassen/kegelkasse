@@ -1,4 +1,5 @@
 """Comments and emoji reactions on highlights and announcements."""
+from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member
 from core.database import get_db
 from core.push import push_to_user
-from models.comment import Comment, CommentReaction
+from models.comment import Comment, CommentReaction, ItemReaction
 from models.committee import ClubAnnouncement
 from models.evening import EveningHighlight, Evening
 from models.user import User, UserRole
@@ -32,23 +33,51 @@ def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
     return u.name
 
 
-def _serialize_comment(c: Comment, db: Session, current_user_id: int) -> dict:
+def _serialize_comment(c: Comment, db: Session, current_user_id: int, include_replies: bool = True) -> dict:
     reactions_raw = db.query(CommentReaction).filter(CommentReaction.comment_id == c.id).all()
     reaction_map: dict[str, list[int]] = {}
     for r in reactions_raw:
         reaction_map.setdefault(r.emoji, []).append(r.user_id)
+
+    replies = []
+    if include_replies:
+        reply_comments = db.query(Comment).filter(
+            Comment.parent_comment_id == c.id,
+            Comment.is_deleted == False,  # noqa: E712
+        ).order_by(Comment.created_at).all()
+        replies = [_serialize_comment(r, db, current_user_id, include_replies=False) for r in reply_comments]
+
     return {
         "id": c.id,
         "text": c.text,
         "media_url": c.media_url,
+        "parent_comment_id": c.parent_comment_id,
         "created_by_id": c.created_by,
         "created_by_name": _creator_name(c.created_by, db),
         "created_at": c.created_at.isoformat() if c.created_at else None,
+        "edited_at": c.edited_at.isoformat() if c.edited_at else None,
         "reactions": [
             {"emoji": e, "count": len(uids), "reacted_by_me": current_user_id in uids}
             for e, uids in reaction_map.items()
         ],
+        "replies": replies,
     }
+
+
+def _serialize_item_reactions(
+    parent_type: str, parent_id: int, db: Session, current_user_id: int
+) -> list[dict]:
+    rows = db.query(ItemReaction).filter(
+        ItemReaction.parent_type == parent_type,
+        ItemReaction.parent_id == parent_id,
+    ).all()
+    reaction_map: dict[str, list[int]] = {}
+    for r in rows:
+        reaction_map.setdefault(r.emoji, []).append(r.user_id)
+    return [
+        {"emoji": e, "count": len(uids), "reacted_by_me": current_user_id in uids}
+        for e, uids in reaction_map.items()
+    ]
 
 
 def _parent_creator_user_id(parent_type: str, parent_id: int, db: Session) -> Optional[int]:
@@ -60,7 +89,6 @@ def _parent_creator_user_id(parent_type: str, parent_id: int, db: Session) -> Op
         h = db.query(EveningHighlight).filter(EveningHighlight.id == parent_id).first()
         return h.created_by if h else None
     return None
-
 
 
 def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Session) -> None:
@@ -94,9 +122,11 @@ def list_comments(
     if parent_type not in VALID_PARENT_TYPES:
         raise HTTPException(400, "Invalid parent_type")
     _assert_parent_access(parent_type, parent_id, user, db)
+    # Only return top-level comments; replies are nested inside each
     comments = db.query(Comment).filter(
         Comment.parent_type == parent_type,
         Comment.parent_id == parent_id,
+        Comment.parent_comment_id == None,  # noqa: E711
         Comment.is_deleted == False,  # noqa: E712
     ).order_by(Comment.created_at).all()
     return [_serialize_comment(c, db, user.id) for c in comments]
@@ -137,9 +167,51 @@ def toggle_reaction(
     return {"action": "added"}
 
 
+# Item reactions (on highlights / announcements themselves, not on comments)
+@router.post("/item-reaction/{parent_type}/{parent_id}")
+def toggle_item_reaction(
+    parent_type: str,
+    parent_id: int,
+    data: ReactionToggle,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    if parent_type not in VALID_PARENT_TYPES:
+        raise HTTPException(400, "Invalid parent_type")
+    _assert_parent_access(parent_type, parent_id, user, db)
+    existing = db.query(ItemReaction).filter(
+        ItemReaction.parent_type == parent_type,
+        ItemReaction.parent_id == parent_id,
+        ItemReaction.user_id == user.id,
+        ItemReaction.emoji == data.emoji,
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return {"action": "removed", "reactions": _serialize_item_reactions(parent_type, parent_id, db, user.id)}
+    r = ItemReaction(parent_type=parent_type, parent_id=parent_id, user_id=user.id, emoji=data.emoji)
+    db.add(r)
+    db.commit()
+    return {"action": "added", "reactions": _serialize_item_reactions(parent_type, parent_id, db, user.id)}
+
+
+@router.get("/item-reactions/{parent_type}/{parent_id}")
+def get_item_reactions(
+    parent_type: str,
+    parent_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    if parent_type not in VALID_PARENT_TYPES:
+        raise HTTPException(400, "Invalid parent_type")
+    _assert_parent_access(parent_type, parent_id, user, db)
+    return _serialize_item_reactions(parent_type, parent_id, db, user.id)
+
+
 class CommentCreate(BaseModel):
     text: Optional[str] = None
     media_url: Optional[str] = None
+    parent_comment_id: Optional[int] = None  # for replies (max depth 1)
 
 
 def _notify_thread_participants(
@@ -151,7 +223,6 @@ def _notify_thread_participants(
     comment_text: str,
 ) -> None:
     """Push a notification to everyone already in the thread (excluding the commenter)."""
-    # Collect unique user IDs to notify: parent creator + previous commenters
     notify_ids: set[int] = set()
     creator_id = _parent_creator_user_id(parent_type, parent_id, db)
     if creator_id and creator_id != commenter_user_id:
@@ -192,7 +263,28 @@ def create_comment(
     media_url = data.media_url or None
     if not text and not media_url:
         raise HTTPException(400, "Text or media is required")
-    c = Comment(parent_type=parent_type, parent_id=parent_id, text=text, media_url=media_url, created_by=user.id)
+
+    # Validate reply: parent comment must exist, belong to same parent, and be top-level
+    if data.parent_comment_id is not None:
+        parent_c = db.query(Comment).filter(
+            Comment.id == data.parent_comment_id,
+            Comment.parent_type == parent_type,
+            Comment.parent_id == parent_id,
+            Comment.is_deleted == False,  # noqa: E712
+        ).first()
+        if not parent_c:
+            raise HTTPException(404, "Parent comment not found")
+        if parent_c.parent_comment_id is not None:
+            raise HTTPException(400, "Replies can only be one level deep")
+
+    c = Comment(
+        parent_type=parent_type,
+        parent_id=parent_id,
+        parent_comment_id=data.parent_comment_id,
+        text=text,
+        media_url=media_url,
+        created_by=user.id,
+    )
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -202,6 +294,38 @@ def create_comment(
         _notify_thread_participants,
         db, parent_type, parent_id, user.id, commenter_name, push_body,
     )
+    return _serialize_comment(c, db, user.id)
+
+
+class CommentEdit(BaseModel):
+    text: Optional[str] = None
+    media_url: Optional[str] = None
+
+
+@router.patch("/{comment_id}")
+def edit_comment(
+    comment_id: int,
+    data: CommentEdit,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    c = db.query(Comment).filter(
+        Comment.id == comment_id,
+        Comment.is_deleted == False,  # noqa: E712
+    ).first()
+    if not c:
+        raise HTTPException(404, "Comment not found")
+    if c.created_by != user.id:
+        raise HTTPException(403, "Only the author can edit a comment")
+    text = data.text.strip() if data.text else None
+    media_url = data.media_url or None
+    if not text and not media_url:
+        raise HTTPException(400, "Text or media is required")
+    c.text = text
+    c.media_url = media_url
+    c.edited_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(c)
     return _serialize_comment(c, db, user.id)
 
 

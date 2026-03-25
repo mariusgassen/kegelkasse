@@ -27,6 +27,7 @@ import {
     Team,
     User,
     Comment,
+    ItemReaction,
     PaymentRequest,
     PgBackrestStanza
 } from '@/types';
@@ -247,6 +248,10 @@ export const api = {
         member_count: number;
         is_active: boolean
     }>('POST', '/superadmin/clubs', {name}),
+    updateClub: (clubId: number, d: { name?: string; slug?: string }) => request<{
+        id: number; name: string; slug: string; member_count: number; is_active: boolean
+    }>('PATCH', `/superadmin/clubs/${clubId}`, d),
+    deleteClub: (clubId: number) => request<void>('DELETE', `/superadmin/clubs/${clubId}`),
     switchClub: (clubId: number) => request<{
         access_token: string;
         user: User
@@ -517,12 +522,18 @@ export const api = {
     // Comments
     listComments: (parentType: 'highlight' | 'announcement', parentId: number) =>
         request<Comment[]>('GET', `/comments/${parentType}/${parentId}`),
-    addComment: (parentType: 'highlight' | 'announcement', parentId: number, text: string, mediaUrl?: string) =>
-        request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text: text || null, media_url: mediaUrl || null}),
+    addComment: (parentType: 'highlight' | 'announcement', parentId: number, text: string, mediaUrl?: string, parentCommentId?: number) =>
+        request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text: text || null, media_url: mediaUrl || null, parent_comment_id: parentCommentId ?? null}),
+    editComment: (commentId: number, text: string | null, mediaUrl?: string | null) =>
+        request<Comment>('PATCH', `/comments/${commentId}`, {text: text || null, media_url: mediaUrl || null}),
     deleteComment: (commentId: number) =>
         request<void>('DELETE', `/comments/${commentId}`),
     toggleReaction: (commentId: number, emoji: string) =>
         request<{action: 'added' | 'removed'}>('POST', `/comments/${commentId}/reactions`, {emoji}),
+    toggleItemReaction: (parentType: 'highlight' | 'announcement', parentId: number, emoji: string) =>
+        request<{action: 'added' | 'removed'; reactions: ItemReaction[]}>('POST', `/comments/item-reaction/${parentType}/${parentId}`, {emoji}),
+    getItemReactions: (parentType: 'highlight' | 'announcement', parentId: number) =>
+        request<ItemReaction[]>('GET', `/comments/item-reactions/${parentType}/${parentId}`),
 
     // Stats
     getYearStats: (year: number) => request<{
