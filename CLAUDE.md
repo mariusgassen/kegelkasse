@@ -118,6 +118,7 @@ service worker + IndexedDB for offline support.
   - `vite-plugin-pwa` currently caps Vite at `^7` → unblocks when a new vite-plugin-pwa release adds `^8` support.
   - `@typescript-eslint@8.x` requires `typescript < 6.0.0` → unblocks when `@typescript-eslint@9.x` is released.
   - `@vitejs/plugin-react@6.x` requires `vite@^8` → unblocks together with the vite-plugin-pwa/Vite-8 constraint above.
+  - `eslint-plugin-react-hooks@7.x` caps ESLint at `^9` → unblocks when a new release adds `^10` support.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
