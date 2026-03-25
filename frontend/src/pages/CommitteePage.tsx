@@ -48,11 +48,18 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const [openCommentId, setOpenCommentId] = useState<number | null>(null)
+    const [search, setSearch] = useState('')
 
     const {data: announcements = [], isLoading} = useQuery({
         queryKey: ['committee-announcements'],
         queryFn: api.listAnnouncements,
     })
+
+    const sq = search.trim().toLowerCase()
+    const filteredAnnouncements = sq
+        ? (announcements as ClubAnnouncement[]).filter(a =>
+            a.title.toLowerCase().includes(sq) || (a.text ?? '').toLowerCase().includes(sq))
+        : announcements as ClubAnnouncement[]
 
     async function handleCreate() {
         if (!title.trim()) return
@@ -90,14 +97,21 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
                 </button>
             )}
 
+            <input
+                className="kce-input mb-3"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t('committee.search')}
+            />
+
             {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
 
-            {!isLoading && announcements.length === 0 && (
+            {!isLoading && filteredAnnouncements.length === 0 && (
                 <Empty icon="📣" text={t('committee.announcement.none')}/>
             )}
 
             <div className="flex flex-col gap-3">
-                {announcements.map((a: ClubAnnouncement) => (
+                {filteredAnnouncements.map((a: ClubAnnouncement) => (
                     <div key={a.id} className="kce-card p-4">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
@@ -212,6 +226,7 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
     const [destination, setDestination] = useState('')
     const [note, setNote] = useState('')
     const [saving, setSaving] = useState(false)
+    const [search, setSearch] = useState('')
 
     const {data: trips = [], isLoading} = useQuery({
         queryKey: ['committee-trips'],
@@ -274,8 +289,13 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
     }
 
     const now = new Date()
-    const upcoming = trips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') >= now)
-    const past = trips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') < now)
+    const tq = search.trim().toLowerCase()
+    const filteredTrips = tq
+        ? (trips as ClubTrip[]).filter(tr =>
+            tr.destination.toLowerCase().includes(tq) || (tr.note ?? '').toLowerCase().includes(tq))
+        : trips as ClubTrip[]
+    const upcoming = filteredTrips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') >= now)
+    const past = filteredTrips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') < now)
 
     return (
         <div>
@@ -285,9 +305,16 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
                 </button>
             )}
 
+            <input
+                className="kce-input mb-3"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t('committee.search')}
+            />
+
             {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
 
-            {!isLoading && trips.length === 0 && (
+            {!isLoading && filteredTrips.length === 0 && (
                 <Empty icon="🚌" text={t('committee.trip.none')}/>
             )}
 

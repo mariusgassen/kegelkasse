@@ -277,7 +277,7 @@ export function ProfileSheet({open, onClose}: Props) {
                 showToast('Benachrichtigungen aktiviert')
             }
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         } finally {
             setPushLoading(false)
         }
@@ -498,7 +498,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                             await api.testPush()
                                             showToast(t('push.testSent'))
                                         } catch (e: unknown) {
-                                            showToast(e instanceof Error ? e.message : 'Fehler beim Senden')
+                                            toastError(e)
                                         } finally {
                                             setPushTesting(false)
                                         }

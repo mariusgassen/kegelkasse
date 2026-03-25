@@ -1,4 +1,5 @@
 """Authentication endpoints — login, invite, register."""
+import logging
 import secrets
 from datetime import datetime, timedelta, UTC
 from typing import Optional
@@ -13,6 +14,7 @@ from core.push import push_to_club_admins
 from core.security import verify_password, get_password_hash, create_access_token
 from models.user import User, UserRole, InviteToken, PasswordResetToken
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -44,10 +46,13 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = (db.query(User).filter(User.email == req.email).first()
             or db.query(User).filter(User.username == req.email).first())
     if not user or not verify_password(req.password, user.hashed_password):
+        logger.warning("Failed login attempt for identifier: %s", req.email)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
+        logger.warning("Login attempt for deactivated account: %s (user_id=%s)", req.email, user.id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account deactivated")
     token = create_access_token({"sub": str(user.id)})
+    logger.info("User logged in: %s (user_id=%s)", user.email, user.id)
     return {"access_token": token, "user": _user_dict(user)}
 
 
@@ -169,6 +174,7 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(req.new_password)
     reset.used_at = datetime.now(UTC)
     db.commit()
+    logger.info("Password reset completed for user_id=%s", user.id)
     return {"ok": True}
 
 

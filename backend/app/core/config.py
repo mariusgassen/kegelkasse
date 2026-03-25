@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
+    # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
+    LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL
     BACKUP_SCHEDULE: str = "0 2 * * *"  # daily full backup at 02:00 UTC
     BACKUP_RETAIN_FULL: int = 7          # number of full backup sets to retain

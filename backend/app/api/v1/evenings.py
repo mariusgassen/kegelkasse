@@ -1,5 +1,6 @@
 """Evening management — CRUD for evenings, players, teams, penalties, games, drinks."""
 import asyncio
+import logging
 from datetime import datetime, UTC
 from typing import Optional, List
 
@@ -24,6 +25,7 @@ from models.penalty import PenaltyLog, PenaltyMode
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
 from models.user import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/evening", tags=["evening"])
 
 
@@ -115,6 +117,7 @@ def create_evening(data: EveningCreate, db: Session = Depends(get_db),
     db.add(e)
     db.commit()
     db.refresh(e)
+    logger.info("Evening created: id=%s date=%s club_id=%s by user_id=%s", e.id, e.date, user.club_id, user.id)
     return serialize_evening(e)
 
 
@@ -154,6 +157,7 @@ def update_evening(eid: int,
     db.commit()
     db.refresh(e)
     if was_open and e.is_closed:
+        logger.info("Evening closed: id=%s date=%s club_id=%s by user_id=%s", e.id, e.date, e.club_id, user.id)
         # Auto-calculate absence penalties on close
         if e.players:
             _do_calculate_absence_penalties(e, background_tasks, db, user.id)
@@ -676,6 +680,7 @@ def start_game(eid: int, gid: int, db: Session = Depends(get_db),
     # Clear any stale camera throws from a previous run
     db.query(GameThrowLog).filter(GameThrowLog.game_id == gid).delete()
     db.commit()
+    logger.info("Game started: id=%s name=%r evening_id=%s by user_id=%s", g.id, g.name, eid, user.id)
     return {"ok": True}
 
 
@@ -893,6 +898,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
         except (ValueError, IndexError):
             pass
     db.commit()
+    logger.info("Game finished: id=%s name=%r winner=%r evening_id=%s by user_id=%s", g.id, g.name, data.winner_ref, eid, user.id)
     # Auto-recalculate absence penalties after each game finish (silent, no push)
     if e.players:
         _do_calculate_absence_penalties(e, background_tasks, db, user.id, notify=False)
