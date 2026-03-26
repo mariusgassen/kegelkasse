@@ -6,6 +6,8 @@ import {api} from '../api/client'
 import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
+import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import type {Evening} from '@/types.ts'
 
 function fe(v: number) {
@@ -205,6 +207,7 @@ export function StatsPage() {
     const [memberSearch, setMemberSearch] = useState('')
     const [showAllMembers, setShowAllMembers] = useState(false)
     const [pickedId, setPickedId] = useState<number | null>(null)
+    const [openCommentHighlightId, setOpenCommentHighlightId] = useState<number | null>(null)
 
     const {data: eveningList = []} = useEveningList()
     const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
@@ -302,11 +305,29 @@ export function StatsPage() {
                             {evening.highlights.length > 0 && (
                                 <>
                                     <div className="sec-heading text-sm mt-4">✨ {t('highlight.title').replace('✨ ', '')}</div>
-                                    <div className="flex flex-col gap-1.5 mb-2">
-                                        {evening.highlights.map(h => (
-                                            <div key={h.id} className="kce-card p-3 flex items-start gap-2">
-                                                <span className="text-base flex-shrink-0">✨</span>
-                                                <div className="text-sm">{h.text}</div>
+                                    <div className="flex flex-col gap-2 mb-2">
+                                        {[...evening.highlights].reverse().map(h => (
+                                            <div key={h.id} id={`item-${h.id}`} className="kce-card p-3">
+                                                <div className="flex items-start gap-2">
+                                                    <span className="text-base flex-shrink-0">✨</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        {h.media_url && (
+                                                            <img src={h.media_url} alt=""
+                                                                 className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
+                                                        )}
+                                                        {h.text && <div className="text-sm mt-1">{h.text}</div>}
+                                                    </div>
+                                                </div>
+                                                <ItemReactionBar
+                                                    parentType="highlight" parentId={h.id}
+                                                    commentOpen={openCommentHighlightId === h.id}
+                                                    onCommentToggle={() => setOpenCommentHighlightId(openCommentHighlightId === h.id ? null : h.id)}
+                                                />
+                                                <CommentThread
+                                                    parentType="highlight" parentId={h.id}
+                                                    open={openCommentHighlightId === h.id}
+                                                    onOpenChange={v => setOpenCommentHighlightId(v ? h.id : null)}
+                                                />
                                             </div>
                                         ))}
                                     </div>

@@ -165,7 +165,7 @@ def update_evening(eid: int,
             push_to_club,
             db, e.club_id, "Abend beendet 🎳",
             f"Abend vom {e.date.strftime('%d.%m.%Y')} wurde abgeschlossen.",
-            "/", category="evenings"
+            f"/#schedule?evening={e.id}", category="evenings"
         )
     return serialize_evening(e)
 
