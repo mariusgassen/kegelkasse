@@ -2,12 +2,13 @@
  * Evening hub — sub-tab wrapper for Protokoll | Spiele | Highlights.
  * Evening configuration is accessed separately via the AKTIV header button.
  */
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
@@ -35,6 +36,59 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
     const [addingHighlight, setAddingHighlight] = useState(false)
     const [openCommentHighlightId, setOpenCommentHighlightId] = useState<number | null>(null)
+
+    // Deep link state for highlight items
+    const [deepLinkItemId, setDeepLinkItemId] = useState<number | null>(null)
+    const [deepLinkCommentId, setDeepLinkCommentId] = useState<number | null>(null)
+    const [hashVersion, setHashVersion] = useState(0)
+    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Listen for hash changes triggered by notification-panel clicks
+    useEffect(() => {
+        const handler = () => setHashVersion(v => v + 1)
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [])
+
+    // Parse deep-link params (on mount and on hash changes)
+    useEffect(() => {
+        const params = getHashParams()
+        const itemId = params.get('item')
+        if (!itemId) return
+        const commentId = params.get('comment')
+        setDeepLinkItemId(parseInt(itemId, 10))
+        setDeepLinkCommentId(commentId ? parseInt(commentId, 10) : null)
+        clearHashParams()
+        // Ensure we're on the highlights tab
+        setSubTab('highlights')
+    }, [hashVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Execute scroll + highlight once subTab is 'highlights' and evening data is available
+    useEffect(() => {
+        if (!deepLinkItemId || subTab !== 'highlights' || !evening) return
+        const target = evening.highlights.find(h => h.id === deepLinkItemId)
+        if (!target) return
+
+        // Expand comments if a specific comment was linked
+        if (deepLinkCommentId) {
+            setOpenCommentHighlightId(target.id)
+        }
+
+        // Clear any pending flash timer
+        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
+
+        setDeepLinkItemId(null)
+        setDeepLinkCommentId(null)
+
+        flashTimerRef.current = setTimeout(() => {
+            const el = document.getElementById(`item-${target.id}`)
+            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
+            el?.classList.add('kce-deeplink-flash')
+            flashTimerRef.current = setTimeout(() => {
+                el?.classList.remove('kce-deeplink-flash')
+            }, 2500)
+        }, 120)
+    }, [deepLinkItemId, subTab, evening]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // No active evening — prompt to configure one
     if (!activeEveningId) {
@@ -196,7 +250,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                 ? <Empty icon="✨" text={t('highlight.none')}/>
                                 : <div className="flex flex-col gap-2">
                                     {[...evening.highlights].reverse().map(h => (
-                                        <div key={h.id} className="kce-card p-3">
+                                        <div key={h.id} id={`item-${h.id}`} className="kce-card p-3">
                                             <div className="flex items-start gap-2">
                                                 <span className="text-base flex-shrink-0">✨</span>
                                                 <div className="flex-1 min-w-0">
