@@ -7,12 +7,10 @@ import time
 import pytest
 from sqlalchemy.orm import Session
 
-from core.security import get_password_hash
 from models.club import Club
 from models.drink import DrinkRound
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.penalty import PenaltyLog
-from models.user import User, UserRole
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +315,7 @@ class TestSyncOrdering:
                 "client_timestamp": ts_ms,
             },
         }
-        r_add = _sync(client, auth_headers, [add_change])
+        _sync(client, auth_headers, [add_change])
         log = db.query(PenaltyLog).filter(PenaltyLog.evening_id == evening.id).first()
         assert log is not None
 
