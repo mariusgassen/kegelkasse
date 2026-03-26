@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {api, authState, NetworkError} from '@/api/client.ts'
+import {api, authState, NetworkError, flushOfflineQueue} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {pendingStore} from '@/pendingStore.ts'
 import type {Evening} from '@/types.ts'
@@ -106,9 +106,16 @@ export function useActiveEvening() {
         }
     }, [activeEveningId])
 
-    // Clear stale activeEveningId when the evening has been closed or is no longer reachable (e.g. deleted)
+    // Clear stale activeEveningId when the evening has been closed or is no longer reachable (e.g. deleted).
+    // Also invalidate the evenings list so SchedulePage doesn't show a stale "active evening" card,
+    // and flush the offline queue so any queued mutations for the now-closed evening are replayed
+    // (they'll get 400 from the server and be discarded cleanly, hiding the OfflineBanner).
     useEffect(() => {
-        if (evening?.is_closed) setActiveEveningId(null)
+        if (evening?.is_closed) {
+            setActiveEveningId(null)
+            qc.invalidateQueries({queryKey: ['evenings']})
+            flushOfflineQueue().catch(() => {})
+        }
     }, [evening?.is_closed])
 
     // Only clear activeEveningId for real data errors (e.g. 404 evening gone).
