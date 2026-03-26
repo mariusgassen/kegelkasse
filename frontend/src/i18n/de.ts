@@ -597,6 +597,7 @@ export const de = {
     "push.pref.payments": "Zahlungen",
     "push.pref.games": "Spielergebnisse",
     "push.pref.members": "Neue Mitglieder",
+    "push.pref.comments": "Kommentare & Reaktionen",
     "push.pref.committee": "Ankündigungen (immer an)",
     "push.testLabel": "Test-Benachrichtigung",
     "push.testSent": "Test-Benachrichtigung gesendet",

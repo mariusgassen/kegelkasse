@@ -113,6 +113,18 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
     )
 }
 
+function flattenReplies(comment: Comment): Comment[] {
+    const result: Comment[] = []
+    function collect(replies: Comment[]) {
+        for (const r of replies) {
+            result.push(r)
+            if (r.replies?.length) collect(r.replies)
+        }
+    }
+    collect(comment.replies ?? [])
+    return result
+}
+
 interface Props {
     parentType: 'highlight' | 'announcement' | 'trip'
     parentId: number
@@ -329,10 +341,10 @@ function CommentItem({
                 </div>
             </div>
 
-            {/* Replies — always rendered flat (depth 1 max) */}
-            {comment.replies && comment.replies.length > 0 && (
+            {/* Replies — flattened to depth 1; deeper nesting is displayed flat */}
+            {depth === 0 && comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2 ml-9 flex flex-col gap-2">
-                    {comment.replies.map(reply => (
+                    {flattenReplies(comment).map(reply => (
                         <CommentItem
                             key={reply.id}
                             comment={reply}
@@ -382,7 +394,8 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         qc.invalidateQueries({queryKey})
     }
 
-    // Scroll to + flash the specific comment once thread is open and data loaded
+    // Scroll to + flash the specific comment once thread is open and data loaded;
+    // also flash the parent item card so the context is visible.
     const flashedCommentRef = useRef<number | null>(null)
     useEffect(() => {
         if (!highlightCommentId || !open || comments.length === 0) return
@@ -394,7 +407,13 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
             if (!el) return
             el.scrollIntoView({behavior: 'smooth', block: 'center'})
             el.classList.add('kce-deeplink-flash')
-            setTimeout(() => el.classList.remove('kce-deeplink-flash'), 2500)
+            setTimeout(() => el.classList.remove('kce-deeplink-flash'), 2000)
+            // Also flash the parent item card
+            const itemEl = document.getElementById(`item-${parentId}`)
+            if (itemEl) {
+                itemEl.classList.add('kce-deeplink-flash')
+                setTimeout(() => itemEl.classList.remove('kce-deeplink-flash'), 2000)
+            }
         }, 100)
     }, [highlightCommentId, open, comments.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
