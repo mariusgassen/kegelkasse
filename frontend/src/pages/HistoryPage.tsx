@@ -282,11 +282,17 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                             className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
                                                             ✨ {t('highlight.title').replace('✨ ', '')}
                                                         </div>
-                                                        <div className="flex flex-col gap-1">
+                                                        <div className="flex flex-col gap-2">
                                                             {detail.highlights.map(h => (
-                                                                <div key={h.id} className="text-xs text-kce-cream flex items-start gap-1.5">
-                                                                    <span className="flex-shrink-0">✨</span>
-                                                                    <span>{h.text}</span>
+                                                                <div key={h.id} className="flex items-start gap-1.5">
+                                                                    <span className="flex-shrink-0 text-xs mt-0.5">✨</span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        {h.media_url && (
+                                                                            <img src={h.media_url} alt=""
+                                                                                 className="rounded max-h-32 max-w-full object-contain border border-kce-border/40 mb-1"/>
+                                                                        )}
+                                                                        {h.text && <span className="text-xs text-kce-cream">{h.text}</span>}
+                                                                    </div>
                                                                 </div>
                                                             ))}
                                                         </div>

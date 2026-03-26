@@ -1033,6 +1033,27 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         </div>
                                                     </div>
                                                 )}
+                                                {detail.highlights.length > 0 && (
+                                                    <div className="mb-3">
+                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            ✨ {t('highlight.title').replace('✨ ', '')}
+                                                        </div>
+                                                        <div className="flex flex-col gap-2">
+                                                            {detail.highlights.map(h => (
+                                                                <div key={h.id} className="flex items-start gap-1.5">
+                                                                    <span className="flex-shrink-0 text-xs mt-0.5">✨</span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        {h.media_url && (
+                                                                            <img src={h.media_url} alt=""
+                                                                                 className="rounded max-h-32 max-w-full object-contain border border-kce-border/40 mb-1"/>
+                                                                        )}
+                                                                        {h.text && <span className="text-xs text-kce-cream">{h.text}</span>}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
                                                         <button className="btn-secondary btn-sm flex-1"
