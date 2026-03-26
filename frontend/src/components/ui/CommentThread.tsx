@@ -412,12 +412,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         if ((!text.trim() && !mediaUrl) || saving) return
         setSaving(true)
         try {
-            // parent_comment_id must point to a top-level comment (max depth 1)
-            // If replyTo is itself a reply, use its parent as the API parent_comment_id
-            const parentCommentId = replyTo
-                ? (replyTo.parent_comment_id !== null ? replyTo.parent_comment_id : replyTo.id)
-                : undefined
-            await api.addComment(parentType, parentId, text.trim(), mediaUrl ?? undefined, parentCommentId)
+            await api.addComment(parentType, parentId, text.trim(), mediaUrl ?? undefined, replyTo?.id)
             setText('')
             setMediaUrl(null)
             setReplyTo(null)
@@ -429,7 +424,10 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         }
     }
 
-    const totalCount = comments.reduce((sum, c) => sum + 1 + (c.replies?.length ?? 0), 0)
+    function countComments(list: Comment[]): number {
+        return list.reduce((sum, c) => sum + 1 + countComments(c.replies ?? []), 0)
+    }
+    const totalCount = countComments(comments)
     const canSubmit = (text.trim() || mediaUrl) && !saving
 
     return (

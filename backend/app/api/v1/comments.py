@@ -53,19 +53,17 @@ def _parent_title(parent_type: str, parent_id: int, db: Session) -> str:
     return ''
 
 
-def _serialize_comment(c: Comment, db: Session, current_user_id: int, include_replies: bool = True) -> dict:
+def _serialize_comment(c: Comment, db: Session, current_user_id: int) -> dict:
     reactions_raw = db.query(CommentReaction).filter(CommentReaction.comment_id == c.id).all()
     reaction_map: dict[str, list[int]] = {}
     for r in reactions_raw:
         reaction_map.setdefault(r.emoji, []).append(r.user_id)
 
-    replies = []
-    if include_replies:
-        reply_comments = db.query(Comment).filter(
-            Comment.parent_comment_id == c.id,
-            Comment.is_deleted == False,  # noqa: E712
-        ).order_by(Comment.created_at).all()
-        replies = [_serialize_comment(r, db, current_user_id, include_replies=False) for r in reply_comments]
+    reply_comments = db.query(Comment).filter(
+        Comment.parent_comment_id == c.id,
+        Comment.is_deleted == False,  # noqa: E712
+    ).order_by(Comment.created_at).all()
+    replies = [_serialize_comment(r, db, current_user_id) for r in reply_comments]
 
     # Fetch avatar for author
     avatar: Optional[str] = None
@@ -296,7 +294,7 @@ def _notify_new_comment(
 ) -> None:
     """Send differentiated push notifications for new comments and replies."""
     if c.parent_comment_id is not None:
-        # Reply: notify the author of the parent comment — link to the parent comment
+        # Reply: notify the author of the parent comment — link to the new reply
         parent_c = db.query(Comment).filter(Comment.id == c.parent_comment_id).first()
         if parent_c and parent_c.created_by and parent_c.created_by != commenter_user_id:
             push_to_user(
@@ -357,8 +355,6 @@ def create_comment(
         ).first()
         if not parent_c:
             raise HTTPException(404, "Parent comment not found")
-        if parent_c.parent_comment_id is not None:
-            raise HTTPException(400, "Replies can only be one level deep")
 
     c = Comment(
         parent_type=parent_type,
