@@ -133,3 +133,48 @@ export function isQueuableMutation(method: string, path: string): boolean {
 
 /** Custom event dispatched after the queue is flushed so pages can refresh. */
 export const SYNC_FLUSHED_EVENT = 'kegelkasse:sync-flushed'
+
+/**
+ * Categories used for grouping queued requests in the UI.
+ * Each QueuedRequest maps to exactly one category.
+ */
+export type QueueCategory =
+    | 'evening'
+    | 'penalty'
+    | 'drink'
+    | 'game'
+    | 'player'
+    | 'highlight'
+    | 'team'
+    | 'rsvp'
+    | 'member'
+    | 'other'
+
+/** Classify a single queued request into a display category. */
+export function categorizeRequest(req: QueuedRequest): QueueCategory {
+    const {method, path} = req
+    if (method === 'POST' && /^\/evening$/.test(path)) return 'evening'
+    if (/^\/schedule\/\d+\/start$/.test(path)) return 'evening'
+    if (/^\/club\/regular-members$/.test(path)) return 'member'
+    if (/^\/schedule\/\d+\/rsvp/.test(path)) return 'rsvp'
+    if (/^\/schedule\/\d+\/guests/.test(path)) return 'member'
+    if (/^\/evening\/-?\d+\/penalties/.test(path)) return 'penalty'
+    if (/^\/evening\/-?\d+\/drinks/.test(path)) return 'drink'
+    if (/^\/evening\/-?\d+\/games/.test(path)) return 'game'
+    if (/^\/evening\/-?\d+\/players/.test(path)) return 'player'
+    if (/^\/evening\/-?\d+\/highlights/.test(path)) return 'highlight'
+    if (/^\/evening\/-?\d+\/teams/.test(path)) return 'team'
+    if (/^\/evening\/-?\d+$/.test(path)) return 'evening'
+    return 'other'
+}
+
+/** Returns a map of category → count for all queued requests. */
+export async function groupQueuedRequests(): Promise<Partial<Record<QueueCategory, number>>> {
+    const all = await offlineQueue.getAll()
+    const groups: Partial<Record<QueueCategory, number>> = {}
+    for (const req of all) {
+        const cat = categorizeRequest(req)
+        groups[cat] = (groups[cat] ?? 0) + 1
+    }
+    return groups
+}
