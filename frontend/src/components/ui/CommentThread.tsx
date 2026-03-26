@@ -399,13 +399,11 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
     }, [highlightCommentId, open, comments.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleReply(comment: Comment) {
-        // If replying to a depth-1 reply, target its parent (keep thread flat)
-        const replyTarget = comment.parent_comment_id !== null
-            ? (comments.find(c => c.id === comment.parent_comment_id) ?? comment)
-            : comment
-        setReplyTo(replyTarget)
-        const name = replyTarget.created_by_name || t('comment.unknown')
-        setText(prev => `@${name} ${prev}`.trimStart())
+        // Always display the actual comment clicked as reply target
+        setReplyTo(comment)
+        const name = comment.created_by_name || t('comment.unknown')
+        // Set directly (not prepend) to avoid duplicate @handle on repeated clicks
+        setText(`@${name} `)
         setOpen(true)
         setTimeout(() => inputRef.current?.focus(), 150)
     }
@@ -414,7 +412,12 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         if ((!text.trim() && !mediaUrl) || saving) return
         setSaving(true)
         try {
-            await api.addComment(parentType, parentId, text.trim(), mediaUrl ?? undefined, replyTo?.id)
+            // parent_comment_id must point to a top-level comment (max depth 1)
+            // If replyTo is itself a reply, use its parent as the API parent_comment_id
+            const parentCommentId = replyTo
+                ? (replyTo.parent_comment_id !== null ? replyTo.parent_comment_id : replyTo.id)
+                : undefined
+            await api.addComment(parentType, parentId, text.trim(), mediaUrl ?? undefined, parentCommentId)
             setText('')
             setMediaUrl(null)
             setReplyTo(null)

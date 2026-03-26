@@ -303,7 +303,7 @@ def _notify_new_comment(
                 db, parent_c.created_by,
                 f"💬 {commenter_name}",
                 "hat auf deinen Kommentar geantwortet",
-                _parent_url(parent_type, parent_id, c.parent_comment_id), "comments",
+                _parent_url(parent_type, parent_id, c.id), "comments",
             )
         # Also notify item creator if different from reply author and parent comment author
         creator_id = _parent_creator_user_id(parent_type, parent_id, db)
@@ -314,7 +314,7 @@ def _notify_new_comment(
                 db, creator_id,
                 f"💬 {commenter_name}",
                 f"hat deine {type_label} kommentiert",
-                _parent_url(parent_type, parent_id, c.parent_comment_id), "comments",
+                _parent_url(parent_type, parent_id, c.id), "comments",
             )
     else:
         # Top-level comment: notify item creator — link to the new comment
