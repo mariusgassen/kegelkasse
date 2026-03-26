@@ -149,8 +149,17 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
             raise HTTPException(404, "Trip not found")
 
 
-def _parent_url(parent_type: str) -> str:
-    return "/#/committee" if parent_type in ("announcement", "trip") else "/#/evening"
+def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = None) -> str:
+    """Return a deep-link URL pointing directly to the parent item, optionally with a specific comment."""
+    if parent_type == 'announcement':
+        base = f'/#committee:announcements?item={parent_id}'
+    elif parent_type == 'trip':
+        base = f'/#committee:trips?item={parent_id}'
+    else:  # highlight
+        base = f'/#evening:highlights?item={parent_id}'
+    if comment_id:
+        base += f'&comment={comment_id}'
+    return base
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -213,7 +222,7 @@ def toggle_reaction(
         reactor_name = _creator_name(user.id, db) or user.name
         title = f"{data.emoji} {reactor_name}"
         body = "hat deinen Kommentar geliked"
-        url = _parent_url(c.parent_type)
+        url = _parent_url(c.parent_type, c.parent_id, c.id)
         background_tasks.add_task(push_to_user, db, c.created_by, title, body, url, "comments")
     return {"action": "added"}
 
@@ -252,7 +261,7 @@ def toggle_item_reaction(
         title_str = _parent_title(parent_type, parent_id, db)
         push_title = f"{data.emoji} {reactor_name}"
         push_body = f"hat auf deine {type_label}" + (f" '{title_str}'" if title_str else "") + " reagiert"
-        url = _parent_url(parent_type)
+        url = _parent_url(parent_type, parent_id)
         background_tasks.add_task(push_to_user, db, creator_id, push_title, push_body, url, "comments")
     return {"action": "added", "reactions": _serialize_item_reactions(parent_type, parent_id, db, user.id)}
 
@@ -286,17 +295,15 @@ def _notify_new_comment(
     comment_text: str,
 ) -> None:
     """Send differentiated push notifications for new comments and replies."""
-    url = _parent_url(parent_type)
-
     if c.parent_comment_id is not None:
-        # Reply: notify the author of the parent comment
+        # Reply: notify the author of the parent comment — link to the parent comment
         parent_c = db.query(Comment).filter(Comment.id == c.parent_comment_id).first()
         if parent_c and parent_c.created_by and parent_c.created_by != commenter_user_id:
             push_to_user(
                 db, parent_c.created_by,
                 f"💬 {commenter_name}",
                 "hat auf deinen Kommentar geantwortet",
-                url, "comments",
+                _parent_url(parent_type, parent_id, c.parent_comment_id), "comments",
             )
         # Also notify item creator if different from reply author and parent comment author
         creator_id = _parent_creator_user_id(parent_type, parent_id, db)
@@ -307,10 +314,10 @@ def _notify_new_comment(
                 db, creator_id,
                 f"💬 {commenter_name}",
                 f"hat deine {type_label} kommentiert",
-                url, "comments",
+                _parent_url(parent_type, parent_id, c.parent_comment_id), "comments",
             )
     else:
-        # Top-level comment: notify item creator
+        # Top-level comment: notify item creator — link to the new comment
         creator_id = _parent_creator_user_id(parent_type, parent_id, db)
         if creator_id and creator_id != commenter_user_id:
             type_label = _TYPE_LABEL_DE.get(parent_type, parent_type)
@@ -319,7 +326,7 @@ def _notify_new_comment(
                 db, creator_id,
                 f"💬 {commenter_name}",
                 f"hat deine {type_label}" + (f" '{title_str}'" if title_str else "") + " kommentiert",
-                url, "comments",
+                _parent_url(parent_type, parent_id, c.id), "comments",
             )
 
 

@@ -103,7 +103,7 @@ def create_announcement(
         user.club_id,
         f"📣 {data.title.strip()}",
         push_body,
-        "/#committee",
+        f"/#committee:announcements?item={ann.id}",
         # No category — announcements are always delivered, not filterable
     )
     return _serialize_announcement(ann, author)
@@ -183,7 +183,7 @@ def create_trip(
         user.club_id,
         "🚌 Neue Kegelfahrt",
         f"Kegelfahrt am {date_str} nach {data.destination.strip()}",
-        "/#committee",
+        f"/#committee:trips?item={trip.id}",
         category="committee",
     )
     return _serialize_trip(trip, _creator_name(user.id, db))

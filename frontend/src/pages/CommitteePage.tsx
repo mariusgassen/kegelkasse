@@ -3,7 +3,7 @@
  * Committee members (is_committee) and admins can create/delete entries.
  * All club members can view.
  */
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useT} from '@/i18n'
@@ -13,6 +13,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
@@ -36,9 +37,62 @@ function todayStr() {
     return new Date().toISOString().slice(0, 10)
 }
 
+interface DeepLink {
+    itemId: number
+    commentId: number | null
+}
+
+function useDeepLinkScroll(
+    items: { id: number }[],
+    deepLink: DeepLink | null,
+    onHandled: () => void,
+    setOpenCommentId: (id: number | null) => void,
+) {
+    const highlightRef = useRef<number | null>(null)
+    const [highlightedId, setHighlightedId] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (!deepLink || items.length === 0) return
+        const target = items.find(it => it.id === deepLink.itemId)
+        if (!target) return
+
+        if (deepLink.commentId) {
+            setOpenCommentId(target.id)
+        }
+
+        // Clear any existing highlight timer
+        if (highlightRef.current !== null) {
+            clearTimeout(highlightRef.current)
+        }
+
+        setHighlightedId(target.id)
+        onHandled()
+
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`item-${target.id}`)
+            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
+            // Flash animation via CSS class
+            el?.classList.add('kce-deeplink-flash')
+            const removeTimer = setTimeout(() => {
+                el?.classList.remove('kce-deeplink-flash')
+                setHighlightedId(null)
+            }, 2500)
+            highlightRef.current = removeTimer
+        }, 120)
+
+        return () => clearTimeout(timer)
+    }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    return highlightedId
+}
+
 // ── Announcements Tab ─────────────────────────────────────────────────────────
 
-function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
+function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
+    canWrite: boolean
+    deepLink: DeepLink | null
+    onDeepLinkHandled: () => void
+}) {
     const t = useT()
     const qc = useQueryClient()
     const [addOpen, setAddOpen] = useState(false)
@@ -60,6 +114,8 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
         ? (announcements as ClubAnnouncement[]).filter(a =>
             a.title.toLowerCase().includes(sq) || (a.text ?? '').toLowerCase().includes(sq))
         : announcements as ClubAnnouncement[]
+
+    useDeepLinkScroll(announcements, deepLink, onDeepLinkHandled, setOpenCommentId)
 
     async function handleCreate() {
         if (!title.trim()) return
@@ -112,7 +168,7 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
 
             <div className="flex flex-col gap-3">
                 {filteredAnnouncements.map((a: ClubAnnouncement) => (
-                    <div key={a.id} className="kce-card p-4">
+                    <div key={a.id} id={`item-${a.id}`} className="kce-card p-4">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-kce-cream text-sm leading-snug">{a.title}</p>
@@ -215,7 +271,11 @@ function AnnouncementsTab({canWrite}: { canWrite: boolean }) {
 
 // ── Trips Tab (Kegelfahrten) ──────────────────────────────────────────────────
 
-function TripsTab({canWrite}: { canWrite: boolean }) {
+function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
+    canWrite: boolean
+    deepLink: DeepLink | null
+    onDeepLinkHandled: () => void
+}) {
     const t = useT()
     const qc = useQueryClient()
     const [addOpen, setAddOpen] = useState(false)
@@ -232,6 +292,8 @@ function TripsTab({canWrite}: { canWrite: boolean }) {
         queryKey: ['committee-trips'],
         queryFn: api.listTrips,
     })
+
+    useDeepLinkScroll(trips, deepLink, onDeepLinkHandled, setOpenCommentTripId)
 
     function openEdit(trip: ClubTrip) {
         setEditTrip(trip)
@@ -442,7 +504,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, onCommentToggle, o
     onDelete: () => void
 }) {
     return (
-        <div className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
+        <div id={`item-${trip.id}`} className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -493,10 +555,32 @@ export function CommitteePage() {
     const user = useAppStore(s => s.user)
     const regularMembers = useAppStore(s => s.regularMembers)
     const [tab, setTab] = useHashTab<'announcements' | 'trips'>('announcements', ['announcements', 'trips'])
+    const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
+    const [hashVersion, setHashVersion] = useState(0)
 
     // User can write if they are admin OR their regular member has is_committee=true
     const myMember = regularMembers.find(m => m.id === user?.regular_member_id)
     const canWrite = isAdmin(user) || !!myMember?.is_committee
+
+    // Listen for hash changes triggered by notification-panel clicks
+    useEffect(() => {
+        const handler = () => setHashVersion(v => v + 1)
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [])
+
+    // Parse deep-link params from hash (on mount and whenever hash changes)
+    useEffect(() => {
+        const params = getHashParams()
+        const itemId = params.get('item')
+        if (!itemId) return
+        const commentId = params.get('comment')
+        setDeepLink({
+            itemId: parseInt(itemId, 10),
+            commentId: commentId ? parseInt(commentId, 10) : null,
+        })
+        clearHashParams()
+    }, [hashVersion])
 
     const TABS = [
         {id: 'announcements', label: t('committee.tab.announcements')},
@@ -526,8 +610,20 @@ export function CommitteePage() {
             </div>
 
             <div className="page-scroll px-3 pb-24">
-                {tab === 'announcements' && <AnnouncementsTab canWrite={canWrite}/>}
-                {tab === 'trips' && <TripsTab canWrite={canWrite}/>}
+                {tab === 'announcements' && (
+                    <AnnouncementsTab
+                        canWrite={canWrite}
+                        deepLink={deepLink}
+                        onDeepLinkHandled={() => setDeepLink(null)}
+                    />
+                )}
+                {tab === 'trips' && (
+                    <TripsTab
+                        canWrite={canWrite}
+                        deepLink={deepLink}
+                        onDeepLinkHandled={() => setDeepLink(null)}
+                    />
+                )}
             </div>
         </div>
     )
