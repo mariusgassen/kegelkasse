@@ -202,6 +202,7 @@ export function StatsPage() {
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const currentYear = new Date().getFullYear()
     const [year, setYear] = useState(currentYear)
+    const [memberSearch, setMemberSearch] = useState('')
     const [showAllMembers, setShowAllMembers] = useState(false)
     const [pickedId, setPickedId] = useState<number | null>(null)
 
@@ -237,8 +238,10 @@ export function StatsPage() {
     })
 
     const players = yearStats?.players ?? []
-    const maxPenalty = players[0]?.penalty_total ?? 1
-    const displayPlayers = showAllMembers ? players : players.slice(0, 5)
+    const mq = memberSearch.trim().toLowerCase()
+    const filteredPlayers = mq ? players.filter(p => p.name.toLowerCase().includes(mq)) : players
+    const maxPenalty = filteredPlayers[0]?.penalty_total ?? 1
+    const displayPlayers = mq || showAllMembers ? filteredPlayers : filteredPlayers.slice(0, 5)
 
     const fDate = (dateStr: string) =>
         new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
@@ -460,7 +463,14 @@ export function StatsPage() {
                     </div>
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
+                    <input
+                        className="kce-input mb-3"
+                        value={memberSearch}
+                        onChange={e => setMemberSearch(e.target.value)}
+                        placeholder={t('stats.memberSearch')}
+                    />
                     {displayPlayers.map((p, i) => {
+                        const rank = players.indexOf(p)
                         const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
                         const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
                         const medals = ['🥇', '🥈', '🥉']
@@ -468,8 +478,8 @@ export function StatsPage() {
                             <div key={i} className={`kce-card p-3 mb-2 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}>
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-base w-6 text-center flex-shrink-0">
-                                        {medals[i] ??
-                                            <span className="text-xs text-kce-muted font-bold">{i + 1}.</span>}
+                                        {medals[rank] ??
+                                            <span className="text-xs text-kce-muted font-bold">{rank + 1}.</span>}
                                     </span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
@@ -503,11 +513,11 @@ export function StatsPage() {
                         )
                     })}
 
-                    {players.length > 5 && (
+                    {!mq && filteredPlayers.length > 5 && (
                         <button type="button"
                                 className="w-full text-xs text-kce-muted py-2 font-bold"
                                 onClick={() => setShowAllMembers(v => !v)}>
-                            {showAllMembers ? t('stats.showLess') : `${t('stats.showAllMembers')} (${players.length})`}
+                            {showAllMembers ? t('stats.showLess') : `${t('stats.showAllMembers')} (${filteredPlayers.length})`}
                         </button>
                     )}
                 </>

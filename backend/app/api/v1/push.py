@@ -1,4 +1,5 @@
 """Web Push subscription endpoints."""
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -23,6 +24,8 @@ _DEFAULT_PREFS = {
     "reminder_schedule": True,
     "reminder_payments": True,
 }
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/push", tags=["push"])
 
@@ -50,6 +53,7 @@ def subscribe(data: SubscribeRequest, db: Session = Depends(get_db),
     if existing:
         existing.p256dh = data.p256dh
         existing.auth = data.auth
+        logger.info("Push subscription updated: user=%d endpoint_prefix=%s", user.id, data.endpoint[:40])
     else:
         db.add(PushSubscription(
             user_id=user.id,
@@ -57,6 +61,7 @@ def subscribe(data: SubscribeRequest, db: Session = Depends(get_db),
             p256dh=data.p256dh,
             auth=data.auth,
         ))
+        logger.info("Push subscription created: user=%d endpoint_prefix=%s", user.id, data.endpoint[:40])
     db.commit()
     return {"ok": True}
 
@@ -67,8 +72,9 @@ def unsubscribe(endpoint: Optional[str] = None, db: Session = Depends(get_db),
     q = db.query(PushSubscription).filter(PushSubscription.user_id == user.id)
     if endpoint:
         q = q.filter(PushSubscription.endpoint == endpoint)
-    q.delete(synchronize_session=False)
+    deleted = q.delete(synchronize_session=False)
     db.commit()
+    logger.info("Push unsubscribe: user=%d removed=%d specific=%s", user.id, deleted, bool(endpoint))
 
 
 @router.get("/status")
@@ -101,6 +107,7 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
             errors.append(str(exc))
     if errors and sent == 0:
         raise HTTPException(500, f"Push fehlgeschlagen: {errors[0]}")
+    logger.info("Test push: user=%d sent=%d errors=%d", user.id, sent, len(errors))
     return {"sent": sent, "logged": True, "errors": errors}
 
 

@@ -1,11 +1,11 @@
-"""Tests for treasury endpoints — member balances, payments, expenses."""
+"""Tests for treasury endpoints — member balances, payments, expenses, payment requests."""
 import pytest
 from fastapi.testclient import TestClient
 
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
 from models.evening import RegularMember
-from models.payment import MemberPayment, ClubExpense
+from models.payment import MemberPayment, ClubExpense, PaymentRequest
 
 
 # ---------------------------------------------------------------------------
@@ -44,11 +44,38 @@ def regular_member(db, club):
     yield m
 
 
+@pytest.fixture()
+def member_user(db, club, regular_member):
+    """A club member linked to a regular_member (required for PaymentRequests)."""
+    u = User(
+        email="member_linked@test.de",
+        name="Linked Member",
+        username="linkedmember",
+        hashed_password=get_password_hash("pass"),
+        role=UserRole.member,
+        club_id=club.id,
+        is_active=True,
+        regular_member_id=regular_member.id,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    yield u
+
+
+@pytest.fixture()
+def member_headers(member_user):
+    token = create_access_token({"sub": str(member_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.fixture(autouse=True)
 def cleanup(db, club):
     yield
+    db.query(PaymentRequest).filter(PaymentRequest.club_id == club.id).delete(synchronize_session=False)
     db.query(MemberPayment).filter(MemberPayment.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubExpense).filter(ClubExpense.club_id == club.id).delete(synchronize_session=False)
+    db.query(User).filter(User.email == "member_linked@test.de").delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.commit()
 
@@ -300,3 +327,150 @@ class TestMyBalance:
     def test_requires_auth(self, client: TestClient):
         resp = client.get("/api/v1/club/my-balance")
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# PaymentRequest flow
+# ---------------------------------------------------------------------------
+
+class TestPaymentRequestCreate:
+    def test_member_can_create_request(self, client: TestClient, member_headers, regular_member):
+        resp = client.post("/api/v1/club/payment-requests", json={
+            "amount": 12.50,
+            "note": "PayPal Überweisung",
+        }, headers=member_headers)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["amount"] == 12.50
+        assert data["note"] == "PayPal Überweisung"
+        assert data["status"] == "pending"
+
+    def test_member_without_roster_gets_400(self, client: TestClient, auth_headers):
+        """User fixture has no regular_member_id — creating a request must fail."""
+        resp = client.post("/api/v1/club/payment-requests", json={"amount": 5.0}, headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_zero_amount_gets_400(self, client: TestClient, member_headers):
+        resp = client.post("/api/v1/club/payment-requests", json={"amount": 0}, headers=member_headers)
+        assert resp.status_code == 400
+
+    def test_requires_auth(self, client: TestClient):
+        resp = client.post("/api/v1/club/payment-requests", json={"amount": 5.0})
+        assert resp.status_code == 401
+
+
+class TestPaymentRequestList:
+    def test_admin_can_list_pending_requests(self, client: TestClient, db, club, regular_member, admin_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=8.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.get("/api/v1/club/payment-requests", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(r["id"] == req.id for r in data)
+
+    def test_member_cannot_list_all_requests(self, client: TestClient, auth_headers):
+        resp = client.get("/api/v1/club/payment-requests", headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_member_can_list_own_requests(self, client: TestClient, db, club, regular_member, member_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=5.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.get("/api/v1/club/payment-requests/my", headers=member_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(r["id"] == req.id for r in data)
+
+
+class TestPaymentRequestConfirm:
+    def test_admin_can_confirm_request(self, client: TestClient, db, club, regular_member, admin_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=20.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/confirm", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "confirmed"
+        # A MemberPayment should have been created
+        payment = db.query(MemberPayment).filter(
+            MemberPayment.regular_member_id == regular_member.id,
+            MemberPayment.amount == 20.0,
+        ).first()
+        assert payment is not None
+
+    def test_confirming_nonexistent_request_returns_404(self, client: TestClient, admin_headers):
+        resp = client.patch("/api/v1/club/payment-requests/999999/confirm", headers=admin_headers)
+        assert resp.status_code == 404
+
+    def test_confirming_already_resolved_returns_400(self, client: TestClient, db, club, regular_member, admin_headers):
+        from models.payment import PaymentRequestStatus
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=10.0,
+            status=PaymentRequestStatus.confirmed,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/confirm", headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_member_cannot_confirm_request(self, client: TestClient, db, club, regular_member, auth_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=5.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/confirm", headers=auth_headers)
+        assert resp.status_code == 403
+
+
+class TestPaymentRequestReject:
+    def test_admin_can_reject_request(self, client: TestClient, db, club, regular_member, admin_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=15.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/reject", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "rejected"
+        # No MemberPayment should have been created
+        payment = db.query(MemberPayment).filter(
+            MemberPayment.regular_member_id == regular_member.id,
+            MemberPayment.amount == 15.0,
+        ).first()
+        assert payment is None
+
+    def test_rejecting_nonexistent_request_returns_404(self, client: TestClient, admin_headers):
+        resp = client.patch("/api/v1/club/payment-requests/999999/reject", headers=admin_headers)
+        assert resp.status_code == 404
+
+    def test_member_cannot_reject_request(self, client: TestClient, db, club, regular_member, auth_headers):
+        req = PaymentRequest(
+            club_id=club.id,
+            regular_member_id=regular_member.id,
+            amount=5.0,
+        )
+        db.add(req)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/reject", headers=auth_headers)
+        assert resp.status_code == 403

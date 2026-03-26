@@ -1,4 +1,5 @@
 """Vergnügungsausschuss (Entertainment Committee) — trips and announcements."""
+import logging
 from datetime import UTC, datetime
 from typing import Optional
 
@@ -12,6 +13,8 @@ from core.push import push_to_club
 from models.committee import ClubAnnouncement, ClubTrip
 from models.evening import RegularMember
 from models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/committee", tags=["committee"])
 
@@ -91,6 +94,7 @@ def create_announcement(
     db.add(ann)
     db.commit()
     db.refresh(ann)
+    logger.info("Announcement created: id=%d club=%d user=%d title=%r", ann.id, user.club_id, user.id, ann.title)
     author = _creator_name(user.id, db)
     push_body = data.text.strip()[:120] if data.text else data.title.strip()
     background_tasks.add_task(
@@ -120,6 +124,7 @@ def delete_announcement(
         raise HTTPException(404, "Announcement not found")
     ann.is_deleted = True
     db.commit()
+    logger.info("Announcement deleted: id=%d club=%d user=%d", aid, user.club_id, user.id)
 
 
 # ── Trips (Kegelfahrt) ────────────────────────────────────────────────────────
@@ -170,6 +175,7 @@ def create_trip(
     db.add(trip)
     db.commit()
     db.refresh(trip)
+    logger.info("Trip created: id=%d club=%d user=%d destination=%r", trip.id, user.club_id, user.id, trip.destination)
     date_str = dt.strftime('%d.%m.%Y')
     background_tasks.add_task(
         push_to_club,
@@ -229,6 +235,7 @@ def delete_trip(
         raise HTTPException(404, "Trip not found")
     trip.is_deleted = True
     db.commit()
+    logger.info("Trip deleted: id=%d club=%d user=%d", tid, user.club_id, user.id)
 
 
 # ── Committee members (read — for display; management via club.py) ─────────────

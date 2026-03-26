@@ -2,6 +2,7 @@
 Kegelkasse API — FastAPI application entry point.
 Serves the React PWA from /static and exposes REST API under /api/v1.
 """
+import logging
 import os
 import re
 import tomllib
@@ -17,8 +18,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.v1 import auth, backups, club, comments, committee, evenings, push, reports, schedule, stats, sync, superadmin, uploads
+from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
+
+logging.basicConfig(
+    level=settings.LOG_LEVEL.upper(),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+for _uvicorn_logger in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    logging.getLogger(_uvicorn_logger).setLevel(settings.LOG_LEVEL.upper())
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -43,6 +53,8 @@ _EVENING_PATH_RE = re.compile(r"^/api/v1/evening/(\d+)/.+")
 @app.middleware("http")
 async def notify_evening_on_mutate(request: Request, call_next):
     response = await call_next(request)
+    if response.status_code >= 500:
+        logger.error("%s %s → %s", request.method, request.url.path, response.status_code)
     if request.method in ("POST", "PATCH", "DELETE") and response.status_code < 300:
         m = _EVENING_PATH_RE.match(request.url.path)
         if m:

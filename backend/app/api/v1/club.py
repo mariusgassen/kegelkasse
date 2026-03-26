@@ -3,6 +3,7 @@ Club management — settings, regular members, penalty types, game templates.
 All write operations require club_admin role.
 Read operations available to all club members.
 """
+import logging
 import uuid
 from datetime import date as date_type, datetime, timezone
 from pathlib import Path
@@ -21,6 +22,8 @@ from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog
 from models.user import User, UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/club", tags=["club"])
 
@@ -168,6 +171,7 @@ async def upload_club_logo(
 
     s.logo_url = f"/uploads/logos/{filename}"
     db.commit()
+    logger.info("Logo uploaded: club=%d filename=%s", user.club_id, filename)
     return {"logo_url": s.logo_url}
 
 
@@ -183,6 +187,7 @@ def delete_club_logo(db: Session = Depends(get_db), user: User = Depends(require
             old_path.unlink(missing_ok=True)
     s.logo_url = None
     db.commit()
+    logger.info("Logo deleted: club=%d user=%d", user.club_id, user.id)
     return {"ok": True}
 
 
@@ -209,6 +214,7 @@ def update_member_role(member_id: int, role: str, db: Session = Depends(get_db),
     except ValueError:
         raise HTTPException(400, "Invalid role")
     db.commit()
+    logger.info("Member role updated: user=%d new_role=%s by admin=%d", member_id, role, user.id)
     return {"ok": True}
 
 
@@ -224,6 +230,7 @@ def deactivate_member(member_id: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
     target.is_active = False
     db.commit()
+    logger.info("Member deactivated: user=%d by admin=%d", member_id, user.id)
     return {"ok": True}
 
 

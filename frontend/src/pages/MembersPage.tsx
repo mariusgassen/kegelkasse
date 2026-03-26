@@ -149,7 +149,7 @@ export function MembersPage() {
             invalidateEvening()
             showToast(`${m.name} ${t('member.addedToEvening')}`)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         }
     }
 
@@ -178,7 +178,7 @@ export function MembersPage() {
             await Promise.all([refetchUsers(), refetchRoster()])
             setLinkSheet(false)
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         }
     }
 
@@ -191,7 +191,7 @@ export function MembersPage() {
             setMergeSheet(false)
             showToast(t('member.merged'))
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         }
     }
 
@@ -201,7 +201,7 @@ export function MembersPage() {
             await api.linkUserToRoster(userId, newMember.id)
             await Promise.all([refetchUsers(), refetchRoster()])
         } catch (e: unknown) {
-            showToast(e instanceof Error ? e.message : 'Fehler')
+            toastError(e)
         }
     }
 

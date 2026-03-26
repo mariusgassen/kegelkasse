@@ -7,7 +7,7 @@ from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.penalty import PenaltyLog
-from models.game import Game
+from models.game import Game, GameThrowLog
 from models.drink import DrinkRound
 from datetime import datetime, UTC
 
@@ -94,6 +94,7 @@ def cleanup_evenings(db, club):
     yield
     db.query(PenaltyLog).delete(synchronize_session=False)
     db.query(DrinkRound).delete(synchronize_session=False)
+    db.query(GameThrowLog).delete(synchronize_session=False)
     db.query(Game).delete(synchronize_session=False)
     db.query(EveningPlayer).delete(synchronize_session=False)
     db.query(Evening).filter(Evening.club_id == club.id).delete(synchronize_session=False)
@@ -434,3 +435,167 @@ class TestMyStats:
         assert resp.json()["evenings_attended"] == 1
         user.regular_member_id = None
         db.commit()
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/evening/{eid}/games/{gid}/throws — add camera throw
+# ---------------------------------------------------------------------------
+
+class TestCameraThrows:
+    @pytest.fixture()
+    def running_game(self, db, evening, player):
+        """A started (running) game needed for throw submission."""
+        from datetime import datetime, UTC
+        import time as _time
+        g = Game(
+            evening_id=evening.id,
+            name="Throw Test Game",
+            status="running",
+            started_at=datetime.now(UTC),
+            client_timestamp=_time.time() * 1000,
+        )
+        db.add(g)
+        db.commit()
+        db.refresh(g)
+        return g
+
+    def test_admin_can_add_throw(self, client: TestClient, evening, running_game, player, admin_headers):
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 7, "cumulative": 7},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    def test_throw_is_upserted_by_throw_num(self, client: TestClient, evening, running_game, admin_headers):
+        """Posting the same throw_num twice updates the existing entry."""
+        client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 5},
+            headers=admin_headers,
+        )
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 9},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+
+    def test_member_cannot_add_throw(self, client: TestClient, evening, running_game, auth_headers):
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 3},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 403
+
+    def test_nonexistent_game_returns_404(self, client: TestClient, evening, admin_headers):
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/games/999999/throws",
+            json={"throw_num": 1, "pins": 5},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 404
+
+    def test_requires_auth(self, client: TestClient, evening, running_game):
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 5},
+        )
+        assert resp.status_code == 401
+
+    def test_admin_can_delete_single_throw(self, client: TestClient, db, evening, running_game, admin_headers):
+        """DELETE /throws/{tid} removes a specific throw."""
+        throw = GameThrowLog(game_id=running_game.id, throw_num=2, pins=4)
+        db.add(throw)
+        db.commit()
+        resp = client.delete(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws/{throw.id}",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        assert db.query(GameThrowLog).filter(GameThrowLog.id == throw.id).first() is None
+
+    def test_delete_nonexistent_throw_returns_404(self, client: TestClient, evening, running_game, admin_headers):
+        resp = client.delete(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws/999999",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 404
+
+    def test_admin_can_clear_all_throws(self, client: TestClient, db, evening, running_game, admin_headers):
+        """DELETE /throws (no tid) clears all throws for the game."""
+        for i in range(3):
+            db.add(GameThrowLog(game_id=running_game.id, throw_num=i + 1, pins=5))
+        db.commit()
+        resp = client.delete(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        assert db.query(GameThrowLog).filter(GameThrowLog.game_id == running_game.id).count() == 0
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/evening/{eid}/games/{gid}/active-player
+# ---------------------------------------------------------------------------
+
+class TestActivePlayer:
+    @pytest.fixture()
+    def game(self, db, evening):
+        import time as _time
+        g = Game(
+            evening_id=evening.id,
+            name="Active Player Game",
+            client_timestamp=_time.time() * 1000,
+        )
+        db.add(g)
+        db.commit()
+        db.refresh(g)
+        return g
+
+    def test_member_can_set_active_player(self, client: TestClient, evening, game, player, auth_headers):
+        resp = client.patch(
+            f"/api/v1/evening/{evening.id}/games/{game.id}/active-player",
+            json={"player_id": player.id},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    def test_active_player_stored_in_game(self, client: TestClient, db, evening, game, player, auth_headers):
+        client.patch(
+            f"/api/v1/evening/{evening.id}/games/{game.id}/active-player",
+            json={"player_id": player.id},
+            headers=auth_headers,
+        )
+        db.refresh(game)
+        assert game.active_player_id == player.id
+
+    def test_can_clear_active_player(self, client: TestClient, db, evening, game, player, auth_headers):
+        game.active_player_id = player.id
+        db.commit()
+        resp = client.patch(
+            f"/api/v1/evening/{evening.id}/games/{game.id}/active-player",
+            json={"player_id": None},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        db.refresh(game)
+        assert game.active_player_id is None
+
+    def test_nonexistent_game_returns_404(self, client: TestClient, evening, auth_headers):
+        resp = client.patch(
+            f"/api/v1/evening/{evening.id}/games/999999/active-player",
+            json={"player_id": None},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 404
+
+    def test_requires_auth(self, client: TestClient, evening, game):
+        resp = client.patch(
+            f"/api/v1/evening/{evening.id}/games/{game.id}/active-player",
+            json={"player_id": None},
+        )
+        assert resp.status_code == 401

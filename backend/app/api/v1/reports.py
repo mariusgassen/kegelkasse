@@ -4,6 +4,7 @@ covering member accounts, penalties, transactions, and evening summaries.
 Supports optional year filtering (omit for all-time).
 """
 import io
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,8 @@ from models.game import Game
 from models.payment import ClubExpense, MemberPayment
 from models.penalty import PenaltyLog
 from models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -295,6 +298,7 @@ def export_report(
             month_label_fn=_month_label,
         )
         filename = f"kegelkasse_report{year_suffix}.pdf"
+        logger.info("PDF report generated: club=%d user=%d year=%s", user.club_id, user.id, year)
         return StreamingResponse(
             buf,
             media_type="application/pdf",
@@ -503,6 +507,7 @@ def export_report(
     buf.seek(0)
 
     filename = f"kegelkasse_report{year_suffix}.xlsx"
+    logger.info("Excel report generated: club=%d user=%d year=%s", user.club_id, user.id, year)
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
