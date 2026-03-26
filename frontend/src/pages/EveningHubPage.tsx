@@ -69,16 +69,14 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
         const target = evening.highlights.find(h => h.id === deepLinkItemId)
         if (!target) return
 
-        // Expand comments if a specific comment was linked
-        if (deepLinkCommentId) {
-            setOpenCommentHighlightId(target.id)
-        }
+        // Always open the comment thread; deepLinkCommentId is passed to CommentThread and cleared there
+        setOpenCommentHighlightId(target.id)
 
         // Clear any pending flash timer
         if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
 
         setDeepLinkItemId(null)
-        setDeepLinkCommentId(null)
+        // Note: deepLinkCommentId is NOT cleared here — CommentThread calls onHighlightHandled() once it flashes
 
         flashTimerRef.current = setTimeout(() => {
             const el = document.getElementById(`item-${target.id}`)
@@ -254,11 +252,11 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                             <div className="flex items-start gap-2">
                                                 <span className="text-base flex-shrink-0">✨</span>
                                                 <div className="flex-1 min-w-0">
-                                                    {h.text && <div className="text-sm">{h.text}</div>}
                                                     {h.media_url && (
                                                         <img src={h.media_url} alt=""
                                                              className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
                                                     )}
+                                                    {h.text && <div className="text-sm mt-1">{h.text}</div>}
                                                 </div>
                                                 {!isClosed && (
                                                     <button className="btn-danger btn-xs flex-shrink-0"
@@ -279,6 +277,8 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                                 parentType="highlight" parentId={h.id}
                                                 open={openCommentHighlightId === h.id}
                                                 onOpenChange={v => setOpenCommentHighlightId(v ? h.id : null)}
+                                                highlightCommentId={openCommentHighlightId === h.id ? (deepLinkCommentId ?? undefined) : undefined}
+                                                onHighlightHandled={() => setDeepLinkCommentId(null)}
                                             />
                                         </div>
                                     ))}

@@ -119,6 +119,9 @@ interface Props {
     /** Controlled mode: when provided, the built-in toggle button is hidden */
     open?: boolean
     onOpenChange?: (v: boolean) => void
+    /** Deep-link: scroll to + flash this specific comment once the thread opens and data loads. */
+    highlightCommentId?: number
+    onHighlightHandled?: () => void
 }
 
 function CommentItem({
@@ -177,7 +180,7 @@ function CommentItem({
     }
 
     return (
-        <div className={depth > 0 ? 'pl-4 border-l-2 border-kce-border/20' : ''}>
+        <div id={`comment-${comment.id}`} className={depth > 0 ? 'pl-4 border-l-2 border-kce-border/20' : ''}>
             <div className="flex gap-2">
                 <Avatar src={comment.created_by_avatar} name={comment.created_by_name} size={28}/>
 
@@ -345,7 +348,7 @@ function CommentItem({
     )
 }
 
-export function CommentThread({parentType, parentId, open: controlledOpen, onOpenChange}: Props) {
+export function CommentThread({parentType, parentId, open: controlledOpen, onOpenChange, highlightCommentId, onHighlightHandled}: Props) {
     const t = useT()
     const qc = useQueryClient()
     const {user} = useAppStore()
@@ -356,6 +359,11 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         if (isControlled) onOpenChange?.(v)
         else setInternalOpen(v)
     }
+
+    // Auto-open when a specific comment is targeted via deep link (uncontrolled mode)
+    useEffect(() => {
+        if (highlightCommentId && !isControlled && !internalOpen) setInternalOpen(true)
+    }, [highlightCommentId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const [text, setText] = useState('')
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
@@ -373,6 +381,22 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
     function invalidate() {
         qc.invalidateQueries({queryKey})
     }
+
+    // Scroll to + flash the specific comment once thread is open and data loaded
+    const flashedCommentRef = useRef<number | null>(null)
+    useEffect(() => {
+        if (!highlightCommentId || !open || comments.length === 0) return
+        if (flashedCommentRef.current === highlightCommentId) return
+        flashedCommentRef.current = highlightCommentId
+        onHighlightHandled?.()
+        setTimeout(() => {
+            const el = document.getElementById(`comment-${highlightCommentId}`)
+            if (!el) return
+            el.scrollIntoView({behavior: 'smooth', block: 'center'})
+            el.classList.add('kce-deeplink-flash')
+            setTimeout(() => el.classList.remove('kce-deeplink-flash'), 2500)
+        }, 100)
+    }, [highlightCommentId, open, comments.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleReply(comment: Comment) {
         // If replying to a depth-1 reply, target its parent (keep thread flat)
