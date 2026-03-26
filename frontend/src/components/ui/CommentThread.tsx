@@ -115,17 +115,25 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
 
 function flattenAllComments(comments: Comment[]): {comment: Comment; depth: number}[] {
     const result: {comment: Comment; depth: number}[] = []
-    function collect(list: Comment[], depth: number) {
-        for (const c of list) {
-            result.push({comment: c, depth: Math.min(depth, 1)})
-            if (c.replies?.length) collect(c.replies, depth + 1)
+    for (const root of comments) {
+        result.push({comment: root, depth: 0})
+        // Collect all nested replies recursively, then sort by creation time
+        const replies: Comment[] = []
+        function collectReplies(list: Comment[]) {
+            for (const r of list) {
+                replies.push(r)
+                if (r.replies?.length) collectReplies(r.replies)
+            }
+        }
+        collectReplies(root.replies ?? [])
+        replies.sort((a, b) => {
+            if (!a.created_at || !b.created_at) return 0
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+        for (const reply of replies) {
+            result.push({comment: reply, depth: 1})
         }
     }
-    collect(comments, 0)
-    result.sort((a, b) => {
-        if (!a.comment.created_at || !b.comment.created_at) return 0
-        return new Date(a.comment.created_at).getTime() - new Date(b.comment.created_at).getTime()
-    })
     return result
 }
 
