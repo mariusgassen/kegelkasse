@@ -20,6 +20,7 @@ _DEFAULT_PREFS = {
     "payments": True,
     "games": True,
     "members": True,
+    "comments": True,
     "reminder_debt": True,
     "reminder_schedule": True,
     "reminder_payments": True,

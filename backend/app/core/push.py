@@ -163,10 +163,12 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
 
 
 def push_to_user(db: Session, user_id: int, title: str, body: str,
-                 url: str = '/', extra: dict | None = None) -> None:
+                 url: str = '/', category: str = '', extra: dict | None = None) -> None:
     """Send push to a single user by user ID."""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
+        return
+    if category and not _user_wants(user, category):
         return
     _log_notification(db, user.id, title, body, url)
     if not settings.VAPID_PRIVATE_KEY:

@@ -67,6 +67,7 @@ export interface PushPreferences {
     payments: boolean
     games: boolean
     members: boolean
+    comments: boolean
     reminder_debt: boolean
     reminder_schedule: boolean
     reminder_payments: boolean

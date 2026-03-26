@@ -434,7 +434,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
                                 <PushToggle value={true} onChange={() => {}} disabled />
                             </div>
-                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members'] as (keyof PushPreferences)[]).map(key => (
+                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
                                     <PushToggle value={!!pushPrefs[key]} onChange={() => togglePushPref(key)} />
