@@ -798,6 +798,34 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
+    const [hashVersion, setHashVersion] = useState(0)
+    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // Listen for hash changes triggered by notification-panel clicks
+    useEffect(() => {
+        const handler = () => setHashVersion(v => v + 1)
+        window.addEventListener('hashchange', handler)
+        return () => window.removeEventListener('hashchange', handler)
+    }, [])
+
+    // Parse deep-link ?evening= param and expand + scroll + flash the matching card
+    useEffect(() => {
+        const params = getHashParams()
+        const eveningId = params.get('evening')
+        if (!eveningId || !evenings) return
+        const id = parseInt(eveningId, 10)
+        clearHashParams()
+        setExpandedId(id)
+        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
+        flashTimerRef.current = setTimeout(() => {
+            const el = document.getElementById(`history-evening-${id}`)
+            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
+            el?.classList.add('kce-deeplink-flash')
+            flashTimerRef.current = setTimeout(() => {
+                el?.classList.remove('kce-deeplink-flash')
+            }, 2500)
+        }, 120)
+    }, [hashVersion, evenings]) // eslint-disable-line react-hooks/exhaustive-deps
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
     const [backlogDate, setBacklogDate] = useState(TODAY)
@@ -910,7 +938,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                         const isExpanded = expandedId === ev.id
                         const detail = isExpanded ? expandedEvening : null
                         return (
-                            <div key={ev.id} className="kce-card mb-2 overflow-hidden">
+                            <div key={ev.id} id={`history-evening-${ev.id}`} className="kce-card mb-2 overflow-hidden">
                                 <button className="w-full p-3 flex items-center gap-3 text-left"
                                         onClick={() => setExpandedId(isExpanded ? null : ev.id)}>
                                     <span className="text-base">📅</span>
