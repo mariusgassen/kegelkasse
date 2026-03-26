@@ -5,7 +5,7 @@ Covers every route in api/v1/push.py using an in-memory SQLite database
 and a FastAPI TestClient.  VAPID keys are injected / cleared per test so the
 "not configured" branch is easy to reach.
 """
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from core.config import settings
 from models.push import PushSubscription
@@ -255,4 +255,211 @@ class TestTestPush:
 
     def test_401_without_auth(self, client):
         r = client.post("/api/v1/push/test")
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /push/preferences
+# ---------------------------------------------------------------------------
+
+class TestGetPreferences:
+    def test_returns_default_preferences(self, client, auth_headers):
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["penalties"] is True
+        assert data["evenings"] is True
+        assert data["games"] is True
+        assert data["reminder_debt"] is True
+
+    def test_401_without_auth(self, client):
+        r = client.get("/api/v1/push/preferences")
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# PATCH /push/preferences
+# ---------------------------------------------------------------------------
+
+class TestUpdatePreferences:
+    def test_partial_update(self, client, auth_headers, db, user):
+        r = client.patch(
+            "/api/v1/push/preferences",
+            json={"penalties": False, "games": False},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["penalties"] is False
+        assert data["games"] is False
+        # unmodified keys keep defaults
+        assert data["evenings"] is True
+
+    def test_full_round_trip(self, client, auth_headers, db, user):
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": False}, headers=auth_headers)
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        assert r.json()["reminder_debt"] is False
+        # restore
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": True}, headers=auth_headers)
+
+    def test_401_without_auth(self, client):
+        r = client.patch("/api/v1/push/preferences", json={"penalties": False})
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /push/debug
+# ---------------------------------------------------------------------------
+
+class TestDebugPush:
+    def test_returns_debug_info(self, client, auth_headers):
+        r = client.get("/api/v1/push/debug", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "vapid_configured" in data
+        assert "subscription_count" in data
+        assert "subscriptions" in data
+        assert isinstance(data["subscriptions"], list)
+
+    def test_subscription_count_accurate(self, client, auth_headers, db, user):
+        sub = PushSubscription(
+            user_id=user.id,
+            endpoint="https://push.example.com/debug-test",
+            p256dh="p",
+            auth="a",
+        )
+        db.add(sub)
+        db.commit()
+        r = client.get("/api/v1/push/debug", headers=auth_headers)
+        assert r.json()["subscription_count"] >= 1
+        db.delete(sub)
+        db.commit()
+
+    def test_401_without_auth(self, client):
+        r = client.get("/api/v1/push/debug")
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /push/recent
+# ---------------------------------------------------------------------------
+
+class TestRecentNotifications:
+    def test_returns_empty_by_default(self, client, auth_headers):
+        r = client.get("/api/v1/push/recent", headers=auth_headers)
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_returns_unread_notification(self, client, auth_headers, db, user):
+        from models.push import NotificationLog
+        log = NotificationLog(
+            user_id=user.id,
+            title="Test",
+            body="Hello",
+            url="/",
+            is_read=False,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/push/recent", headers=auth_headers)
+        ids = [n["id"] for n in r.json()]
+        assert log.id in ids
+        db.delete(log)
+        db.commit()
+
+    def test_does_not_return_read_notifications(self, client, auth_headers, db, user):
+        from models.push import NotificationLog
+        log = NotificationLog(
+            user_id=user.id,
+            title="Read",
+            body="Already read",
+            url="/",
+            is_read=True,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/push/recent", headers=auth_headers)
+        ids = [n["id"] for n in r.json()]
+        assert log.id not in ids
+        db.delete(log)
+        db.commit()
+
+    def test_401_without_auth(self, client):
+        r = client.get("/api/v1/push/recent")
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# POST /push/notifications/read
+# ---------------------------------------------------------------------------
+
+class TestMarkNotificationsRead:
+    def test_marks_all_read(self, client, auth_headers, db, user):
+        from models.push import NotificationLog
+        log = NotificationLog(user_id=user.id, title="T", body="B", url="/", is_read=False)
+        db.add(log)
+        db.commit()
+        r = client.post("/api/v1/push/notifications/read", json={}, headers=auth_headers)
+        assert r.status_code == 204
+        db.expire(log)
+        assert log.is_read is True
+        db.delete(log)
+        db.commit()
+
+    def test_marks_specific_ids(self, client, auth_headers, db, user):
+        from models.push import NotificationLog
+        log1 = NotificationLog(user_id=user.id, title="T1", body="B", url="/", is_read=False)
+        log2 = NotificationLog(user_id=user.id, title="T2", body="B", url="/", is_read=False)
+        db.add_all([log1, log2])
+        db.commit()
+        client.post(
+            "/api/v1/push/notifications/read",
+            json={"ids": [log1.id]},
+            headers=auth_headers,
+        )
+        db.expire_all()
+        assert log1.is_read is True
+        assert log2.is_read is False
+        db.delete(log1)
+        db.delete(log2)
+        db.commit()
+
+    def test_401_without_auth(self, client):
+        r = client.post("/api/v1/push/notifications/read", json={})
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# POST /push/trigger-reminders  (admin-only)
+# ---------------------------------------------------------------------------
+
+class TestTriggerReminders:
+    def test_admin_can_trigger(self, client, db, club):
+        from core.security import create_access_token, get_password_hash
+        from models.user import User, UserRole
+        admin = User(
+            email="pushadmin@test.de",
+            name="Push Admin",
+            hashed_password=get_password_hash("pass"),
+            role=UserRole.admin,
+            club_id=club.id,
+            is_active=True,
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        headers = {"Authorization": f"Bearer {create_access_token({'sub': str(admin.id)})}"}
+        with patch("core.reminders.send_all_reminders", new=AsyncMock(return_value=None)):
+            r = client.post("/api/v1/push/trigger-reminders", headers=headers)
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        db.delete(admin)
+        db.commit()
+
+    def test_member_forbidden(self, client, auth_headers):
+        r = client.post("/api/v1/push/trigger-reminders", headers=auth_headers)
+        assert r.status_code == 403
+
+    def test_401_without_auth(self, client):
+        r = client.post("/api/v1/push/trigger-reminders")
         assert r.status_code == 401
