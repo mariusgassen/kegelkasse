@@ -116,9 +116,8 @@
     }
 
     @keyframes deeplink-flash {
-        0%   { border-color: rgba(232, 160, 32, 0.8); box-shadow: 0 0 0 4px rgba(232, 160, 32, 0.15); }
-        50%  { border-color: rgba(232, 160, 32, 0.4); box-shadow: 0 0 0 2px rgba(232, 160, 32, 0.06); }
-        100% { border-color: var(--kce-border); box-shadow: none; }
+        0%, 30% { box-shadow: 0 0 0 3px rgba(232, 160, 32, 0.65); }
+        100%     { box-shadow: none; }
     }
 
     .kce-input {

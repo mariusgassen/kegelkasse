@@ -47,43 +47,30 @@ function useDeepLinkScroll(
     deepLink: DeepLink | null,
     onHandled: () => void,
     setOpenCommentId: (id: number | null) => void,
+    setHighlightCommentId: (id: number | null) => void,
 ) {
-    const highlightRef = useRef<number | null>(null)
-    const [highlightedId, setHighlightedId] = useState<number | null>(null)
+    const highlightRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
         if (!deepLink || items.length === 0) return
         const target = items.find(it => it.id === deepLink.itemId)
         if (!target) return
 
-        if (deepLink.commentId) {
-            setOpenCommentId(target.id)
-        }
-
-        // Clear any existing highlight timer
-        if (highlightRef.current !== null) {
-            clearTimeout(highlightRef.current)
-        }
-
-        setHighlightedId(target.id)
+        // Always open the comment thread for the target item
+        setOpenCommentId(target.id)
+        // Pass comment ID to highlight inside the thread (null if none)
+        setHighlightCommentId(deepLink.commentId)
         onHandled()
 
-        const timer = setTimeout(() => {
+        if (highlightRef.current !== null) clearTimeout(highlightRef.current)
+
+        highlightRef.current = setTimeout(() => {
             const el = document.getElementById(`item-${target.id}`)
             el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            // Flash animation via CSS class
             el?.classList.add('kce-deeplink-flash')
-            const removeTimer = setTimeout(() => {
-                el?.classList.remove('kce-deeplink-flash')
-                setHighlightedId(null)
-            }, 2500)
-            highlightRef.current = removeTimer
+            setTimeout(() => el?.classList.remove('kce-deeplink-flash'), 2500)
         }, 120)
-
-        return () => clearTimeout(timer)
     }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    return highlightedId
 }
 
 // ── Announcements Tab ─────────────────────────────────────────────────────────
@@ -102,6 +89,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
     const [mediaUrl, setMediaUrl] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const [openCommentId, setOpenCommentId] = useState<number | null>(null)
+    const [highlightCommentId, setHighlightCommentId] = useState<number | null>(null)
     const [search, setSearch] = useState('')
 
     const {data: announcements = [], isLoading} = useQuery({
@@ -115,7 +103,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
             a.title.toLowerCase().includes(sq) || (a.text ?? '').toLowerCase().includes(sq))
         : announcements as ClubAnnouncement[]
 
-    useDeepLinkScroll(announcements, deepLink, onDeepLinkHandled, setOpenCommentId)
+    useDeepLinkScroll(announcements, deepLink, onDeepLinkHandled, setOpenCommentId, setHighlightCommentId)
 
     async function handleCreate() {
         if (!title.trim()) return
@@ -172,17 +160,17 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-kce-cream text-sm leading-snug">{a.title}</p>
-                                {a.text && (
-                                    <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
-                                        {a.text}
-                                    </p>
-                                )}
                                 {a.media_url && (
                                     <img
                                         src={a.media_url}
                                         alt=""
                                         className="mt-2 rounded max-h-64 max-w-full object-contain border border-kce-border/40"
                                     />
+                                )}
+                                {a.text && (
+                                    <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
+                                        {a.text}
+                                    </p>
                                 )}
                                 <p className="text-[10px] text-kce-muted mt-2">
                                     {a.created_by_name && (
@@ -208,6 +196,8 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                             parentType="announcement" parentId={a.id}
                             open={openCommentId === a.id}
                             onOpenChange={v => setOpenCommentId(v ? a.id : null)}
+                            highlightCommentId={openCommentId === a.id ? (highlightCommentId ?? undefined) : undefined}
+                            onHighlightHandled={() => setHighlightCommentId(null)}
                         />
                     </div>
                 ))}
@@ -282,6 +272,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     const [editTrip, setEditTrip] = useState<ClubTrip | null>(null)
     const [delId, setDelId] = useState<number | null>(null)
     const [openCommentTripId, setOpenCommentTripId] = useState<number | null>(null)
+    const [highlightCommentId, setHighlightCommentId] = useState<number | null>(null)
     const [date, setDate] = useState(todayStr())
     const [destination, setDestination] = useState('')
     const [note, setNote] = useState('')
@@ -293,7 +284,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         queryFn: api.listTrips,
     })
 
-    useDeepLinkScroll(trips, deepLink, onDeepLinkHandled, setOpenCommentTripId)
+    useDeepLinkScroll(trips, deepLink, onDeepLinkHandled, setOpenCommentTripId, setHighlightCommentId)
 
     function openEdit(trip: ClubTrip) {
         setEditTrip(trip)
@@ -387,8 +378,10 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                         {upcoming.map((tr: ClubTrip) => (
                             <TripCard key={tr.id} trip={tr} canWrite={canWrite}
                                       commentOpen={openCommentTripId === tr.id}
+                                      highlightCommentId={openCommentTripId === tr.id ? (highlightCommentId ?? undefined) : undefined}
                                       onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
                                       onCommentClose={() => setOpenCommentTripId(null)}
+                                      onHighlightHandled={() => setHighlightCommentId(null)}
                                       onEdit={() => openEdit(tr)}
                                       onDelete={() => setDelId(tr.id)}/>
                         ))}
@@ -403,8 +396,10 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                         {[...past].reverse().map((tr: ClubTrip) => (
                             <TripCard key={tr.id} trip={tr} canWrite={canWrite} past
                                       commentOpen={openCommentTripId === tr.id}
+                                      highlightCommentId={openCommentTripId === tr.id ? (highlightCommentId ?? undefined) : undefined}
                                       onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
                                       onCommentClose={() => setOpenCommentTripId(null)}
+                                      onHighlightHandled={() => setHighlightCommentId(null)}
                                       onEdit={() => openEdit(tr)}
                                       onDelete={() => setDelId(tr.id)}/>
                         ))}
@@ -493,13 +488,15 @@ function TripFormFields({date, destination, note, onDate, onDestination, onNote}
     )
 }
 
-function TripCard({trip, canWrite, past = false, commentOpen, onCommentToggle, onCommentClose, onEdit, onDelete}: {
+function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId, onCommentToggle, onCommentClose, onHighlightHandled, onEdit, onDelete}: {
     trip: ClubTrip
     canWrite: boolean
     past?: boolean
     commentOpen?: boolean
+    highlightCommentId?: number
     onCommentToggle?: () => void
     onCommentClose?: () => void
+    onHighlightHandled?: () => void
     onEdit: () => void
     onDelete: () => void
 }) {
@@ -543,6 +540,8 @@ function TripCard({trip, canWrite, past = false, commentOpen, onCommentToggle, o
                 parentType="trip" parentId={trip.id}
                 open={commentOpen}
                 onOpenChange={v => v ? onCommentToggle?.() : onCommentClose?.()}
+                highlightCommentId={commentOpen ? highlightCommentId : undefined}
+                onHighlightHandled={onHighlightHandled}
             />
         </div>
     )
