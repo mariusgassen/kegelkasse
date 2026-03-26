@@ -182,7 +182,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 16 | **Cleanup / Fehlerhandling**       | ✅      | Konsistente Fehlerbehandlung: alle catch-Blöcke verwenden toastError(); MembersPage + ProfileSheet korrigiert; toastError unterscheidet UnauthorizedError, OfflineQueuedError und generische Fehler |
 | 17 | **Logging**                        | ✅      | Python stdlib logging mit LOG_LEVEL env-var (config.py); logging.basicConfig in main.py; strukturierte Logger in auth, evenings, scheduler, club, committee, superadmin, push, schedule, reports, backups; 5xx-Middleware-Logging |
 | 32 | **Datenbank-Backups**              | ✅      | pgbackrest in custom db-Image (postgres:16 + pgbackrest + Python mgmt-server auf :8089); WAL-Archivierung → PITR; APScheduler-Cron-Job Full-Backup; Superadmin-Tab: Backup-Liste (Label, Typ, Größe, PITR-Fenster), Manuell auslösen; Retention per PGBACKREST_REPO1_RETENTION_FULL; S3 via PGBACKREST_REPO1_* env-vars |
-| 18 | **Testing**                        | 🚧      | Vitest: cameraEngine (readFrame, digit/pin/lamp detection), turnOrder (alternating/block), API client (push, club, logo). pytest: push routes/core, club routes (CRUD + logo upload), evenings (CRUD, players, penalties), treasury (PaymentRequest flow), games (throw log CRUD, active-player), stats (year + me endpoints). Uncovered — see Testing-TODO below. |
+| 18 | **Testing**                        | 🚧      | Vitest: cameraEngine (readFrame, digit/pin/lamp detection), turnOrder (alternating/block), API client (push, club, logo). pytest: alle Backend-Endpunkte vollständig abgedeckt (379 Tests); push (preferences, debug, recent, mark-read, trigger-reminders), comments (edit, item-reactions), sync (add/delete penalty+drink), reports (xlsx+pdf), backups (mocked pgbackrest). Uncovered — see Testing-TODO below. |
 | 33 | **Kamera-Wurf-Erkennung (Echtzeit)** | ✅    | Alle 4 Phasen implementiert. Architektur: Kamera-Gerät (Stativ, Kiosk-Modus) + Tablet (Schnellerfassung + Wurf-Management). CameraCapturePage: Kiosk-Modus (auto-submit, kein Bestätigungs-Overlay, Video fullscreen, Exit-Button). TabletQuickEntryPage: kombiniert Strafen/Getränke + Kamera-Wurf-Strip (Live-Würfe via SSE, Spieler-Zuordnung, Widerruf-Button) + Spieler-Reihenfolge (Abwechselnd / Block-Modus, aktuelle Spielerin hervorgehoben, nächste angezeigt, manuelle Weiter-Taste) + Spiel-Beenden (Gewinner-Wahl inline). game_throw_log.player_id (Migration 038, FK evening_player, SET NULL); DELETE /evening/{eid}/games/{gid}/throws/{tid}; Phase 4: game.active_player_id (Migration 041, FK evening_player SET NULL); PATCH /evening/{eid}/games/{gid}/active-player; Tablet schreibt aktiven Spieler bei Zug-Wechsel; Kiosk liest active_player_id + wählt Spiel automatisch. |
 | 19 | **Bezahllink**                     | ✅      | PayPal.me-Link im Profil, Zahlung melden (PaymentRequest), Admin bestätigt/lehnt ab in Kasse        |
 | 20 | **Abwesenheiten verwalten**        | ✅      | Spieltermine & RSVP (SchedulePage); Abwesenheitsstrafen auto beim Start-aus-Termin; no_cancel_fee nur wenn RSVP vorhanden; Gäste ohne regular_member_id werden beim Start automatisch als RegularMember angelegt |
@@ -207,11 +207,8 @@ The following functionality is **not yet covered** by automated tests and should
 
 ### Backend (pytest)
 
-- **Push** — subscription preferences, notification broadcast triggers (König, Abend start, etc.)
-- **Reports** — PDF/Excel export endpoints (member accounts, penalties, evening overview)
-- **Superadmin** — club creation, switch-club, club listing
-- **Reminders** — APScheduler job logic (debt, RSVP, schedule reminders)
-- **Backups** — pgbackrest integration (requires docker, skip in unit tests; add integration test placeholder)
+- **Reminders** — APScheduler job logic (debt, RSVP, schedule reminders) — requires time-travel mocking
+- **Push broadcast triggers** — notification triggers for König, Abend start, new members, etc.
 
 ### Frontend (Vitest)
 
@@ -227,6 +224,6 @@ The following functionality is **not yet covered** by automated tests and should
 
 ### Already covered
 
-**Backend (pytest):** Games (create/start/finish/delete, loser-penalty, king flag, throw log CRUD, active-player) · Drinks · Stats (year/me) · Auth (login, register, reset, profile, avatar, locale, delete) · Push routes/core · Club routes (CRUD, logo upload) · Evenings (CRUD, players, penalties) · Schedule (CRUD, RSVP, iCal) · Treasury (balances, payments, expenses, PaymentRequest flow) · Committee (announcements, trips) · Superadmin (club rename/delete)
+**Backend (pytest):** Games (create/start/finish/delete, loser-penalty, king flag, throw log CRUD, active-player) · Drinks · Stats (year/me) · Auth (login, register, reset, profile, avatar, locale, delete) · Push (subscribe/unsubscribe/status/test/preferences/debug/recent/mark-read/trigger-reminders) · Club routes (CRUD, logo upload) · Evenings (CRUD, players, penalties) · Schedule (CRUD, RSVP, iCal) · Treasury (balances, payments, expenses, PaymentRequest flow) · Committee (announcements, trips) · Superadmin (club CRUD, switch-club, listing) · Comments (list/create/edit/delete, reactions, item-reactions) · Uploads (media upload) · Reports (xlsx+pdf export) · Sync (add/delete penalty+drink) · Backups (CRUD with mocked pgbackrest)
 
 **Frontend (Vitest):** cameraEngine (digit/pin/lamp) · turnOrder (alternating/block) · API client (push, club, logo) · Store/app.ts (isAdmin, role helpers) · i18n key parity (de↔en) · hexToHsl / hslToHex round-trip · offlineQueue (enqueue/getAll/remove/count/clear, isQueuableMutation) · Error handling (UnauthorizedError, NetworkError, OfflineQueuedError, authState)

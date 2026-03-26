@@ -98,8 +98,10 @@ def announcement(db, club, admin_user):
 @pytest.fixture(autouse=True)
 def cleanup(db, club):
     yield
-    # FK order: reactions → comments → highlights → evenings → announcements
+    from models.comment import ItemReaction
     from sqlalchemy import select
+    # FK order: item reactions → comment reactions → comments → highlights → evenings → announcements
+    db.query(ItemReaction).delete(synchronize_session=False)
     comment_ids = db.scalars(select(Comment.id)).all()
     db.query(CommentReaction).filter(CommentReaction.comment_id.in_(comment_ids)).delete(
         synchronize_session=False
@@ -332,3 +334,145 @@ class TestToggleReaction:
         emojis = {r["emoji"] for r in reactions}
         assert "👍" in emojis
         assert "❤️" in emojis
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/comments/{comment_id}  — edit comment
+# ---------------------------------------------------------------------------
+
+class TestEditComment:
+    def _make_comment(self, db, user, highlight):
+        c = Comment(parent_type="highlight", parent_id=highlight.id, text="Original", created_by=user.id)
+        db.add(c)
+        db.commit()
+        db.refresh(c)
+        return c
+
+    def test_author_can_edit(self, client: TestClient, db, auth_headers, user, highlight):
+        c = self._make_comment(db, user, highlight)
+        resp = client.patch(f"/api/v1/comments/{c.id}", json={"text": "Edited!"}, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["text"] == "Edited!"
+        assert data["edited_at"] is not None
+
+    def test_non_author_cannot_edit(self, client: TestClient, db, second_headers, user, highlight):
+        c = self._make_comment(db, user, highlight)
+        resp = client.patch(f"/api/v1/comments/{c.id}", json={"text": "Hijack"}, headers=second_headers)
+        assert resp.status_code == 403
+
+    def test_edit_nonexistent_returns_404(self, client: TestClient, auth_headers):
+        resp = client.patch("/api/v1/comments/99999", json={"text": "X"}, headers=auth_headers)
+        assert resp.status_code == 404
+
+    def test_empty_text_returns_400(self, client: TestClient, db, auth_headers, user, highlight):
+        c = self._make_comment(db, user, highlight)
+        resp = client.patch(f"/api/v1/comments/{c.id}", json={"text": "   "}, headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_requires_auth(self, client: TestClient, db, user, highlight):
+        c = self._make_comment(db, user, highlight)
+        resp = client.patch(f"/api/v1/comments/{c.id}", json={"text": "X"})
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/comments/item-reaction/{parent_type}/{parent_id}
+# ---------------------------------------------------------------------------
+
+class TestToggleItemReaction:
+    def test_add_reaction_to_highlight(self, client: TestClient, auth_headers, highlight):
+        resp = client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["action"] == "added"
+        assert any(r["emoji"] == "❤️" for r in data["reactions"])
+
+    def test_toggle_removes_existing_reaction(self, client: TestClient, auth_headers, highlight):
+        client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        resp = client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["action"] == "removed"
+
+    def test_add_reaction_to_announcement(self, client: TestClient, auth_headers, announcement):
+        resp = client.post(
+            f"/api/v1/comments/item-reaction/announcement/{announcement.id}",
+            json={"emoji": "👍"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["action"] == "added"
+
+    def test_invalid_parent_type_returns_400(self, client: TestClient, auth_headers):
+        resp = client.post(
+            "/api/v1/comments/item-reaction/game/1",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 400
+
+    def test_nonexistent_parent_returns_404(self, client: TestClient, auth_headers):
+        resp = client.post(
+            "/api/v1/comments/item-reaction/highlight/99999",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 404
+
+    def test_requires_auth(self, client: TestClient, highlight):
+        resp = client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"},
+        )
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/comments/item-reactions/{parent_type}/{parent_id}
+# ---------------------------------------------------------------------------
+
+class TestGetItemReactions:
+    def test_empty_by_default(self, client: TestClient, auth_headers, highlight):
+        resp = client.get(
+            f"/api/v1/comments/item-reactions/highlight/{highlight.id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_returns_added_reaction(self, client: TestClient, auth_headers, highlight):
+        client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"},
+            headers=auth_headers,
+        )
+        resp = client.get(
+            f"/api/v1/comments/item-reactions/highlight/{highlight.id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(r["emoji"] == "❤️" for r in data)
+
+    def test_invalid_parent_type_returns_400(self, client: TestClient, auth_headers):
+        resp = client.get(
+            "/api/v1/comments/item-reactions/game/1",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 400
+
+    def test_requires_auth(self, client: TestClient, highlight):
+        resp = client.get(f"/api/v1/comments/item-reactions/highlight/{highlight.id}")
+        assert resp.status_code == 401
