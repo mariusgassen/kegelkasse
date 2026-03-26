@@ -1,4 +1,5 @@
 """Backup management endpoints — superadmin only."""
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,8 @@ from services.backup import (
     run_backup,
     stream_backup,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backups", tags=["backups"])
 
@@ -50,9 +53,13 @@ async def get_backups(user: User = Depends(require_superadmin)):
 @router.post("")
 async def create_backup(user: User = Depends(require_superadmin)):
     """Trigger a manual full pgbackrest backup."""
+    logger.info("Manual backup triggered by superadmin=%d", user.id)
     try:
-        return await run_backup("full")
+        result = await run_backup("full")
+        logger.info("Manual backup completed: superadmin=%d", user.id)
+        return result
     except Exception as e:
+        logger.error("Manual backup failed: superadmin=%d error=%s", user.id, e)
         raise HTTPException(500, str(e))
 
 
@@ -78,4 +85,5 @@ async def remove_backup(label: str, user: User = Depends(require_superadmin)):
         raise HTTPException(404, str(e))
     except Exception as e:
         raise HTTPException(500, str(e))
+    logger.warning("Backup deleted: label=%s by superadmin=%d", label, user.id)
     return {"ok": True}

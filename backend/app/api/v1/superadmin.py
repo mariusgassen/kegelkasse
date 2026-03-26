@@ -1,4 +1,5 @@
 """Superadmin endpoints — cross-club management."""
+import logging
 import re
 from typing import Optional
 
@@ -21,6 +22,8 @@ from models.penalty import PenaltyLog, PenaltyType
 from models.push import NotificationLog, PushSubscription
 from models.schedule import MemberRsvp, ScheduledEvening, ScheduledEveningGuest
 from models.user import InviteToken, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/superadmin", tags=["superadmin"])
 
@@ -60,6 +63,7 @@ def create_club(data: CreateClubRequest, db: Session = Depends(get_db),
     db.add(ClubSettings(club_id=club.id))
     db.commit()
     db.refresh(club)
+    logger.info("Club created: id=%d name=%r slug=%r by superadmin=%d", club.id, club.name, club.slug, user.id)
     return {"id": club.id, "name": club.name, "slug": club.slug, "member_count": 0, "is_active": False}
 
 
@@ -90,6 +94,7 @@ def update_club(club_id: int, data: UpdateClubRequest, db: Session = Depends(get
         club.slug = slug
     db.commit()
     db.refresh(club)
+    logger.info("Club updated: id=%d name=%r slug=%r by superadmin=%d", club.id, club.name, club.slug, user.id)
     member_count = sum(1 for m in club.members if m.is_active)
     return {"id": club.id, "name": club.name, "slug": club.slug,
             "member_count": member_count, "is_active": club.id == user.club_id}
@@ -104,6 +109,7 @@ def delete_club(club_id: int, db: Session = Depends(get_db),
         raise HTTPException(404, "Club not found")
     if user.club_id == club_id:
         raise HTTPException(400, "Cannot delete your currently active club. Switch to another club first.")
+    club_name = club.name  # capture before deletion expunges the instance
 
     # Collect IDs needed for deep cascade (bulk deletes don't fire ORM cascades)
     evening_ids = [r[0] for r in db.query(Evening.id).filter(Evening.club_id == club_id)]
@@ -159,6 +165,7 @@ def delete_club(club_id: int, db: Session = Depends(get_db),
     db.query(ClubSettings).filter(ClubSettings.club_id == club_id).delete(synchronize_session=False)
     db.query(Club).filter(Club.id == club_id).delete(synchronize_session=False)
     db.commit()
+    logger.warning("Club deleted: id=%d name=%r by superadmin=%d", club_id, club_name, user.id)
 
 
 @router.post("/switch-club/{club_id}")
@@ -170,6 +177,7 @@ def switch_club(club_id: int, db: Session = Depends(get_db),
         raise HTTPException(404, "Club not found")
     user.club_id = club_id
     db.commit()
+    logger.info("Superadmin %d switched to club %d (%r)", user.id, club_id, club.name)
     token = create_access_token({"sub": str(user.id)})
     return {
         "access_token": token,

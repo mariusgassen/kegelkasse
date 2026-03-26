@@ -1,4 +1,5 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
@@ -16,6 +17,8 @@ from models.club import Club, ClubSettings
 from models.evening import RegularMember, Evening, EveningPlayer
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
@@ -108,6 +111,7 @@ def create_scheduled_evening(
     db.add(se)
     db.commit()
     db.refresh(se)
+    logger.info("Scheduled evening created: id=%d club=%d user=%d date=%s", se.id, user.club_id, user.id, scheduled_at.isoformat())
     date_str = format_datetime(se.scheduled_at, locale=user.preferred_locale)
     venue_str = f" · {se.venue}" if se.venue else ""
     background_tasks.add_task(
@@ -168,6 +172,7 @@ def delete_scheduled_evening(
     se = _get_se(sid, user.club_id, db)
     se.is_deleted = True
     db.commit()
+    logger.info("Scheduled evening deleted: id=%d club=%d user=%d", sid, user.club_id, user.id)
 
 
 # ── Guests ────────────────────────────────────────────────────────────────────
@@ -312,6 +317,8 @@ def start_evening(
             push_to_regular_member, db, rsvp.regular_member_id, "🎳 Kegelabend gestartet",
             f"Abend vom {ev_date_str} hat begonnen.", "/", "evenings")
 
+    logger.info("Evening started from schedule: evening=%d schedule=%d club=%d user=%d players=%d",
+                ev.id, sid, user.club_id, user.id, len(added_member_ids))
     return {"id": ev.id, "date": ev.date.isoformat(), "venue": ev.venue}
 
 
@@ -349,6 +356,7 @@ def set_rsvp(
         )
         db.add(rsvp)
     db.commit()
+    logger.info("RSVP set: schedule=%d member=%d status=%s", sid, user.regular_member_id, data.status)
     return {"status": data.status}
 
 
