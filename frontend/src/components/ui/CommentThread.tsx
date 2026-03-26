@@ -113,15 +113,19 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
     )
 }
 
-function flattenReplies(comment: Comment): Comment[] {
-    const result: Comment[] = []
-    function collect(replies: Comment[]) {
-        for (const r of replies) {
-            result.push(r)
-            if (r.replies?.length) collect(r.replies)
+function flattenAllComments(comments: Comment[]): {comment: Comment; depth: number}[] {
+    const result: {comment: Comment; depth: number}[] = []
+    function collect(list: Comment[], depth: number) {
+        for (const c of list) {
+            result.push({comment: c, depth: Math.min(depth, 1)})
+            if (c.replies?.length) collect(c.replies, depth + 1)
         }
     }
-    collect(comment.replies ?? [])
+    collect(comments, 0)
+    result.sort((a, b) => {
+        if (!a.comment.created_at || !b.comment.created_at) return 0
+        return new Date(a.comment.created_at).getTime() - new Date(b.comment.created_at).getTime()
+    })
     return result
 }
 
@@ -341,21 +345,6 @@ function CommentItem({
                 </div>
             </div>
 
-            {/* Replies — flattened to depth 1; deeper nesting is displayed flat */}
-            {depth === 0 && comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2 ml-9 flex flex-col gap-2">
-                    {flattenReplies(comment).map(reply => (
-                        <CommentItem
-                            key={reply.id}
-                            comment={reply}
-                            onDeleted={onDeleted}
-                            onReacted={onReacted}
-                            onReply={onReply}
-                            depth={1}
-                        />
-                    ))}
-                </div>
-            )}
         </div>
     )
 }
@@ -475,13 +464,14 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                     {!isLoading && comments.length === 0 && (
                         <p className="text-xs text-kce-muted italic pl-1">{t('comment.none')}</p>
                     )}
-                    {comments.map((c: Comment) => (
+                    {flattenAllComments(comments).map(({comment: c, depth}) => (
                         <CommentItem
                             key={c.id}
                             comment={c}
                             onDeleted={invalidate}
                             onReacted={invalidate}
                             onReply={handleReply}
+                            depth={depth}
                         />
                     ))}
 
