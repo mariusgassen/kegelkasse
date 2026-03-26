@@ -397,12 +397,6 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
             el.scrollIntoView({behavior: 'smooth', block: 'center'})
             el.classList.add('kce-deeplink-flash')
             setTimeout(() => el.classList.remove('kce-deeplink-flash'), 2000)
-            // Also flash the parent item card
-            const itemEl = document.getElementById(`item-${parentId}`)
-            if (itemEl) {
-                itemEl.classList.add('kce-deeplink-flash')
-                setTimeout(() => itemEl.classList.remove('kce-deeplink-flash'), 2000)
-            }
         }, 100)
     }, [highlightCommentId, open, comments.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
