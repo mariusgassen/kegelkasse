@@ -71,4 +71,5 @@ frontend/coverage/
 *.logdocs/build
 docs/node_modules
 /backend/docs_static/
-.claude/\nnode_modules/
+.claude/
+node_modules/
