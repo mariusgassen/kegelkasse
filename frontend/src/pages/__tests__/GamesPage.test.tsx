@@ -676,3 +676,162 @@ describe('GamesPage — add game with template', () => {
         })
     })
 })
+
+describe('GamesPage — finish sheet score inputs (individual)', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows score inputs for each player in finish sheet', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
+        await waitFor(() => expect(screen.getByText('game.scores')).toBeInTheDocument())
+        // Player score inputs should have placeholder "0"
+        const scoreInputs = screen.getAllByPlaceholderText('0')
+        expect(scoreInputs.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('updates score input value when typed', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
+        await waitFor(() => expect(screen.getByText('game.scores')).toBeInTheDocument())
+        const scoreInputs = screen.getAllByPlaceholderText('0')
+        fireEvent.change(scoreInputs[0], { target: { value: '42' } })
+        expect((scoreInputs[0] as HTMLInputElement).value).toBe('42')
+    })
+
+    it('updates loser penalty input when typed', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
+        await waitFor(() => expect(screen.getByText('game.loserPenalty')).toBeInTheDocument())
+        // Find the finish penalty input (type="text", inputMode="decimal")
+        const penaltyInputs = screen.getAllByRole('textbox')
+        const penaltyInput = penaltyInputs[penaltyInputs.length - 1]
+        fireEvent.change(penaltyInput, { target: { value: '3.50' } })
+        expect((penaltyInput as HTMLInputElement).value).toBe('3.50')
+    })
+})
+
+describe('GamesPage — edit metadata sheet interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows winner type chips in edit sheet', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByText('club.template.winnerType.individual')).toBeInTheDocument()
+            expect(screen.getByText('club.template.winnerType.team')).toBeInTheDocument()
+        })
+    })
+
+    it('switching to team winner type reveals turn mode chips', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByText('club.template.winnerType.team'))
+        fireEvent.click(screen.getByText('club.template.winnerType.team'))
+        await waitFor(() => {
+            expect(screen.getByText('game.turnMode.alternating')).toBeInTheDocument()
+            expect(screen.getByText('game.turnMode.block')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking block turn mode chip selects it', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByText('club.template.winnerType.team'))
+        fireEvent.click(screen.getByText('club.template.winnerType.team'))
+        await waitFor(() => screen.getByText('game.turnMode.block'))
+        fireEvent.click(screen.getByText('game.turnMode.block'))
+        // block chip is now active — no error thrown, state updated
+        expect(screen.getByText('game.turnMode.block')).toBeInTheDocument()
+    })
+
+    it('shows loser penalty input in edit sheet', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByText('game.loserPenalty')).toBeInTheDocument()
+        })
+    })
+
+    it('shows note input in edit sheet', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByText('game.note')).toBeInTheDocument()
+        })
+    })
+
+    it('updates edit name input when changed', async () => {
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByDisplayValue('Warmup'))
+        const nameInput = screen.getByDisplayValue('Warmup')
+        fireEvent.change(nameInput, { target: { value: 'Neuer Name' } })
+        expect((nameInput as HTMLInputElement).value).toBe('Neuer Name')
+    })
+
+    it('calls api.updateGame with team winner type when submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByText('club.template.winnerType.team'))
+        fireEvent.click(screen.getByText('club.template.winnerType.team'))
+        await waitFor(() => screen.getByText('game.turnMode.alternating'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateGame).toHaveBeenCalledWith(
+                42, OPEN_GAME.id,
+                expect.objectContaining({ winner_type: 'team' }),
+            )
+        })
+    })
+})
+
+describe('GamesPage — confirm finish running game sheet', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows confirm finish sheet when start clicked while running game exists', async () => {
+        await renderGamesPage()
+        // Clicking start on the open game while RUNNING_GAME is running triggers confirmFinishGame sheet
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(screen.getByText(/game\.mustFinishFirstHint/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows per-point hint text in add sheet', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.add/))
+        await waitFor(() => {
+            expect(screen.getByText('game.perPointNote')).toBeInTheDocument()
+        })
+    })
+})

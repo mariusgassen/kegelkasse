@@ -49,6 +49,7 @@ vi.mock('@/api/client.ts', () => ({
         addHighlight: vi.fn(),
         deleteHighlight: vi.fn(),
         addPenalty: vi.fn(),
+        deletePenalty: vi.fn(),
         markCancelled: vi.fn(),
     },
 }))

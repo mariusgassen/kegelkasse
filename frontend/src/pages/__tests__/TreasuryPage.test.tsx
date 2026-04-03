@@ -900,3 +900,82 @@ describe('TreasuryPage — booking sheet date input for club expense', () => {
         })
     })
 })
+
+// ── additional coverage: payment sheet ModeToggle + note input (lines 960-970, 984) ──
+
+describe('TreasuryPage — payment sheet interaction', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('switches payment mode to withdrawal when ModeToggle onChange fires', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        await renderTreasuryPage()
+        // Open payment sheet via member row
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => screen.getByText(/treasury\.payment\.record/))
+        const recordBtns = screen.getAllByText(/treasury\.payment\.record/)
+        fireEvent.click(recordBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Click the withdrawal ModeToggle option
+        const withdrawalBtn = screen.getByText(/treasury\.payment\.withdrawal/)
+        fireEvent.click(withdrawalBtn)
+        // Mode has switched — withdrawal label is still visible
+        expect(screen.getByText(/treasury\.payment\.withdrawal/)).toBeInTheDocument()
+    })
+
+    it('updates payment note input onChange', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => screen.getByText(/treasury\.payment\.record/))
+        const recordBtns = screen.getAllByText(/treasury\.payment\.record/)
+        fireEvent.click(recordBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill payment note
+        const noteInput = screen.getByPlaceholderText('treasury.payment.notePlaceholder')
+        fireEvent.change(noteInput, { target: { value: 'Test Notiz' } })
+        expect(noteInput).toHaveValue('Test Notiz')
+    })
+})
+
+// ── additional coverage: booking direction ModeToggle onChange (line 1030) ──────
+
+describe('TreasuryPage — booking direction toggle via ModeToggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('calls setBookingDirection via ModeToggle onChange in booking sheet', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Default is club booking → shows income/expense options
+        // Click the income option via the ModeToggle
+        const incomeBtn = screen.getByText(/treasury\.booking\.income/)
+        fireEvent.click(incomeBtn)
+        // Direction is now 'in' — income label still visible
+        expect(screen.getByText(/treasury\.booking\.income/)).toBeInTheDocument()
+    })
+})

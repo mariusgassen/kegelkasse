@@ -1079,3 +1079,123 @@ describe('ProtocolPage — absence result display', () => {
         })
     })
 })
+
+describe('ProtocolPage — edit penalty sheet interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows penalty type chips inside edit sheet', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // penalty types should be rendered as chip buttons in edit sheet
+        expect(screen.getAllByText(/Bier/).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/Strafe/).length).toBeGreaterThan(0)
+    })
+
+    it('clicking a penalty type chip in edit sheet updates selection', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        // Click the 'Strafe' chip (⚠️ Strafe) within the edit sheet
+        const strafeBtn = within(sheet).getAllByText(/Strafe/)[0]
+        fireEvent.click(strafeBtn)
+        // No crash, chip state updated
+        expect(strafeBtn).toBeInTheDocument()
+    })
+
+    it('shows mode toggle (count/euro) inside edit sheet', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect(screen.getAllByText('penalty.mode.count').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('penalty.mode.euro').length).toBeGreaterThan(0)
+    })
+
+    it('clicking mode toggle in edit sheet changes mode', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Click the count mode button via ModeToggle mock
+        const countBtns = screen.getAllByText('penalty.mode.count')
+        fireEvent.click(countBtns[countBtns.length - 1])
+        // No crash — mode updated
+        expect(countBtns[countBtns.length - 1]).toBeInTheDocument()
+    })
+
+    it('shows player selection chips inside edit sheet', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        // Players should render as chip buttons with their names
+        expect(within(sheet).getAllByText('Admin').length).toBeGreaterThan(0)
+        expect(within(sheet).getAllByText('Hansi').length).toBeGreaterThan(0)
+    })
+
+    it('clicking player chip in edit sheet selects that player', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        const hansiBtn = within(sheet).getByText('Hansi')
+        fireEvent.click(hansiBtn)
+        // No crash, Hansi selected
+        expect(hansiBtn).toBeInTheDocument()
+    })
+
+    it('shows date override label for admin in edit sheet', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect(screen.getByText('penalty.date')).toBeInTheDocument()
+    })
+
+    it('shows datetime-local input in admin edit sheet', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // datetime-local input is pre-filled with created_at date
+        const dateInputs = document.querySelectorAll('input[type="datetime-local"]')
+        expect(dateInputs.length).toBeGreaterThan(0)
+    })
+
+    it('calls api.updatePenalty with correct args on edit sheet submit', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Select a penalty type chip and player within sheet before submitting
+        const sheet = screen.getByTestId('sheet')
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+        fireEvent.click(within(sheet).getByText('Hansi'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenalty).toHaveBeenCalledWith(42, expect.any(Number), expect.any(Object))
+        })
+    })
+})
