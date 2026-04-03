@@ -47,7 +47,7 @@ vi.mock('@/hooks/useEvening.ts', () => ({
     useActiveEvening: vi.fn(() => ({ evening: null, invalidate: vi.fn() })),
 }))
 vi.mock('@/utils/hashParams.ts', () => ({
-    getHashParams: () => new URLSearchParams(''),
+    getHashParams: vi.fn(() => new URLSearchParams('')),
     clearHashParams: vi.fn(),
 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
@@ -1224,6 +1224,157 @@ describe('SchedulePage — history admin actions', () => {
         // backlog sheet opens
         await waitFor(() => {
             expect(screen.getByText('evening.date')).toBeInTheDocument()
+        })
+    })
+})
+
+// ── Show less (collapse) ──────────────────────────────────────────────────────
+
+describe('SchedulePage — show less upcoming', () => {
+    const MULTI_SCHEDULE = [
+        {
+            id: 1, scheduled_at: FUTURE_DATE + 'T20:00:00', venue: 'Kneipe 1',
+            evening_id: null, guests: [], my_rsvp: null, rsvp_count: 1, created_by: 1, is_deleted: false, absent_count: 0, note: null,
+        },
+        {
+            id: 2, scheduled_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) + 'T20:00:00', venue: 'Kneipe 2',
+            evening_id: null, guests: [], my_rsvp: null, rsvp_count: 1, created_by: 1, is_deleted: false, absent_count: 0, note: null,
+        },
+        {
+            id: 3, scheduled_at: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) + 'T20:00:00', venue: 'Kneipe 3',
+            evening_id: null, guests: [], my_rsvp: null, rsvp_count: 1, created_by: 1, is_deleted: false, absent_count: 0, note: null,
+        },
+    ]
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: null, regularMembers: [],
+            setActiveEveningId: vi.fn(), activeEveningId: null,
+        }))
+    })
+
+    it('shows "show less" button after expanding all upcoming events', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(MULTI_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByText(/schedule\.moreUpcoming/))
+        fireEvent.click(screen.getByText(/schedule\.moreUpcoming/))
+        await waitFor(() => {
+            expect(screen.getByText(/schedule\.showLess/)).toBeInTheDocument()
+        })
+    })
+
+    it('collapses back when "show less" button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(MULTI_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        await renderSchedulePage()
+        // Expand
+        await waitFor(() => screen.getByText(/schedule\.moreUpcoming/))
+        fireEvent.click(screen.getByText(/schedule\.moreUpcoming/))
+        // Wait for show-less button (line 1260)
+        await waitFor(() => screen.getByText(/schedule\.showLess/))
+        // Collapse
+        fireEvent.click(screen.getByText(/schedule\.showLess/))
+        // The third card should no longer be visible and "show more" button should return
+        await waitFor(() => {
+            expect(screen.getByText(/schedule\.moreUpcoming/)).toBeInTheDocument()
+            expect(screen.queryByText(/schedule\.showLess/)).not.toBeInTheDocument()
+        })
+    })
+})
+
+// ── RsvpQuickSheet via hash deeplink (non-admin) ──────────────────────────────
+
+describe('SchedulePage — RsvpQuickSheet deeplink', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 2, role: 'member', email: 'm@test.de', name: 'Hans', regular_member_id: 2 },
+            regularMembers: [],
+            setActiveEveningId: vi.fn(), activeEveningId: null,
+        }))
+    })
+
+    it('opens RsvpQuickSheet for non-admin when hash event param matches a schedule', async () => {
+        // Override hashParams mock to return event=1
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams('event=1'))
+
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+
+        await renderSchedulePage()
+
+        await waitFor(() => {
+            expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument()
+        })
+    })
+
+    it('RsvpQuickSheet shows attending and absent buttons', async () => {
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams('event=1'))
+
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+
+        await renderSchedulePage()
+
+        await waitFor(() => expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument())
+        expect(screen.getByText(/rsvp\.attending\.short/)).toBeInTheDocument()
+        expect(screen.getAllByText(/rsvp\.absent\.short/).length).toBeGreaterThan(0)
+    })
+
+    it('calls api.setRsvp attending when attending button clicked in RsvpQuickSheet', async () => {
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams('event=1'))
+
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.setRsvp).mockResolvedValue(undefined as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/rsvp\.attending\.short/))
+        await waitFor(() => {
+            expect(api.setRsvp).toHaveBeenCalledWith(1, 'attending')
+        })
+    })
+
+    it('closes RsvpQuickSheet when close button clicked', async () => {
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams('event=1'))
+
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('close-sheet'))
+        await waitFor(() => {
+            expect(screen.queryByText('schedule.rsvpQuickTitle')).not.toBeInTheDocument()
         })
     })
 })
