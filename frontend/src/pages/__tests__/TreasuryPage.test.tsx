@@ -35,8 +35,19 @@ vi.mock('@/api/client.ts', () => ({
         confirmPaymentRequest: vi.fn(),
         rejectPaymentRequest: vi.fn(),
         downloadReport: vi.fn(),
-        sendDebtReminders: vi.fn(),
+        remindDebtors: vi.fn(),
     },
+}))
+
+vi.mock('@/utils/parse.ts', () => ({ parseAmount: (s: string) => parseFloat(String(s).replace(',', '.')) || 0 }))
+vi.mock('@/components/ui/ModeToggle.tsx', () => ({
+    ModeToggle: ({ value, onChange, options }: any) => (
+        <div>
+            {options?.map((o: any) => (
+                <button key={o.value} onClick={() => onChange(o.value)}>{o.label}</button>
+            ))}
+        </div>
+    ),
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
@@ -590,6 +601,143 @@ describe('TreasuryPage — bookings delete', () => {
         fireEvent.click(deleteBtns[1])
         await waitFor(() => {
             expect(api.deleteExpense).toHaveBeenCalledWith(1)
+        })
+    })
+})
+
+// ── additional coverage tests ──────────────────────────────────────────────────
+
+describe('TreasuryPage — expense submit', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupDefaultMocks()
+    })
+
+    it('calls api.createExpense on expense form submit', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createExpense).mockResolvedValueOnce({ id: 100, amount: 15.00, description: 'Test', note: 'Test', date: null, created_at: '2026-01-15T00:00:00', created_by: 1 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill amount — actual placeholder is "0,00" (German notation)
+        const amountInputs = screen.getAllByPlaceholderText('0,00')
+        fireEvent.change(amountInputs[0], { target: { value: '15,00' } })
+        // Fill description
+        const descInput = screen.getByPlaceholderText(/treasury\.expense\.descPlaceholder/)
+        fireEvent.change(descInput, { target: { value: 'Test Ausgabe' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createExpense).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('TreasuryPage — payment creation via accounts tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('calls api.createMemberPayment when payment form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        vi.mocked(api.createMemberPayment).mockResolvedValueOnce({ id: 999, regular_member_id: 5, member_name: 'Hans', amount: 5.50, note: 'Test', created_at: '2026-01-16T00:00:00' } as any)
+        await renderTreasuryPage()
+        // Expand member row
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => screen.getByText(/treasury\.payment\.record/))
+        // The "record payment" button in the row opens the payment sheet
+        const recordBtns = screen.getAllByText(/treasury\.payment\.record/)
+        fireEvent.click(recordBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill in amount (placeholder is "0,00") before submitting
+        const amountInput = screen.getByPlaceholderText('0,00')
+        fireEvent.change(amountInput, { target: { value: '5,50' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createMemberPayment).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('TreasuryPage — member payment delete', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('shows individual member payments when row expanded', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 50, regular_member_id: 5, member_name: 'Hans', amount: 5.00, note: 'Bareinzahlung', created_at: '2026-01-10T12:00:00' },
+        ] as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => {
+            expect(screen.getByText('Bareinzahlung')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('TreasuryPage — guest balances tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+    })
+
+    it('shows guest balances when guests have debt', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([])
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([])
+        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getGuestBalances).mockResolvedValue([
+            { regular_member_id: 99, name: 'Gast Peter', nickname: null, balance: -3.00, payments_total: 0, penalty_total: 3.00 },
+        ] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([])
+        vi.mocked(api.getAllPayments).mockResolvedValue([])
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText('Gast Peter')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('TreasuryPage — accounts tab layout', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupDefaultMocks()
+    })
+
+    it('shows accounts search input on accounts tab', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('treasury.accounts.search')).toBeInTheDocument()
+        })
+    })
+
+    it('shows empty state when no member balances exist', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText('treasury.noData')).toBeInTheDocument()
         })
     })
 })

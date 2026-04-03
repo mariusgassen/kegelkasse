@@ -624,3 +624,201 @@ describe('CommitteePage — announcement display', () => {
         })
     })
 })
+
+// ── additional coverage tests ──────────────────────────────────────────────────
+
+describe('CommitteePage — announcement CRUD', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['announcements', vi.fn()] as any)
+    })
+
+    it('calls api.createAnnouncement when form submitted with title', async () => {
+        await setupAsAdmin()
+        await setupDefaultMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createAnnouncement).mockResolvedValueOnce({ id: 99, title: 'Neues', text: null, media_url: null, created_at: '2026-01-20T10:00:00', created_by: 1 } as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
+        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const titleInput = screen.getByPlaceholderText('committee.announcement.title')
+        fireEvent.change(titleInput, { target: { value: 'Neues Thema' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createAnnouncement).toHaveBeenCalledWith(expect.objectContaining({ title: 'Neues Thema' }))
+        })
+    })
+
+    it('calls api.deleteAnnouncement when × button clicked on announcement', async () => {
+        await setupAsAdmin()
+        await setupWithAnnouncements()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteAnnouncement).mockResolvedValueOnce(undefined as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Wichtige Ankündigung'))
+        const deleteBtns = screen.getAllByText('×')
+        fireEvent.click(deleteBtns[0])
+        // Delete opens a confirmation sheet — click the confirm button
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
+        await waitFor(() => {
+            expect(api.deleteAnnouncement).toHaveBeenCalledWith(1)
+        })
+    })
+})
+
+describe('CommitteePage — announcement add sheet fields', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['announcements', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupDefaultMocks()
+    })
+
+    it('shows title input in add announcement sheet', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
+        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.announcement.title')).toBeInTheDocument()
+        })
+    })
+
+    it('shows text input in add announcement sheet', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
+        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.announcement.text')).toBeInTheDocument()
+        })
+    })
+
+    it('closes sheet on close-sheet click', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
+        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('close-sheet'))
+        await waitFor(() => {
+            expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+        })
+    })
+})
+
+describe('CommitteePage — trip details', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnTripsTab()
+    })
+
+    it('shows trip date when present', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('München')).toBeInTheDocument()
+        })
+    })
+
+    it('shows delete button for trip when admin', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        // Admin sees × delete button on trip
+        expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+    })
+
+    it('calls api.deleteTrip when × clicked on trip', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        vi.mocked(api.deleteTrip).mockResolvedValueOnce(undefined as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        const deleteBtns = screen.getAllByText('×')
+        fireEvent.click(deleteBtns[0])
+        // Delete opens a confirmation sheet — click the confirm button
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
+        await waitFor(() => {
+            expect(api.deleteTrip).toHaveBeenCalledWith(1)
+        })
+    })
+
+    it('shows edit button for trip when admin', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
+    })
+
+    it('opens edit trip sheet when ✏️ clicked', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.updateTrip when edit trip form submitted', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        vi.mocked(api.updateTrip).mockResolvedValueOnce({ ...TRIPS[0], note: 'Updated note' } as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateTrip).toHaveBeenCalledWith(1, expect.any(Object))
+        })
+    })
+})
+
+describe('CommitteePage — trips search', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnTripsTab()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([
+            ...TRIPS,
+            { id: 2, destination: 'Berlin', date: '2026-08-10', note: null, created_by: 1 },
+        ] as any)
+    })
+
+    it('shows trips search input', async () => {
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.search')).toBeInTheDocument()
+        })
+    })
+
+    it('filters trips by search query', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        fireEvent.change(screen.getByPlaceholderText('committee.search'), { target: { value: 'Berlin' } })
+        await waitFor(() => {
+            expect(screen.getByText('Berlin')).toBeInTheDocument()
+            expect(screen.queryByText('München')).not.toBeInTheDocument()
+        })
+    })
+})

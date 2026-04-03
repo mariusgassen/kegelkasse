@@ -71,7 +71,7 @@ vi.mock('@/api/client.ts', () => ({
         deleteBackup: vi.fn(),
         downloadBackup: vi.fn(),
     },
-    authState: { token: null },
+    authState: { token: null, setToken: vi.fn() },
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
@@ -738,3 +738,281 @@ describe('ClubAdminPage — clubs tab (superadmin)', () => {
         })
     })
 })
+
+// ── Additional coverage tests ──────────────────────────────────────────────────
+
+describe('ClubAdminPage — settings save', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('calls api.updateClubSettings when save button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateClubSettings).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        // There may be multiple save buttons (settings + reminder card) — click the first
+        const saveBtns = screen.getAllByText('action.save')
+        fireEvent.click(saveBtns[0])
+        await waitFor(() => {
+            expect(api.updateClubSettings).toHaveBeenCalled()
+        })
+    })
+
+    it('shows broadcast title heading in settings tab', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('broadcast.title')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.broadcastPush when send button clicked with title+body', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.broadcastPush).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('broadcast.title'))
+        const titleInput = screen.getByPlaceholderText('broadcast.label')
+        const bodyInput = screen.getByPlaceholderText('broadcast.body')
+        fireEvent.change(titleInput, { target: { value: 'Hello' } })
+        fireEvent.change(bodyInput, { target: { value: 'World' } })
+        fireEvent.click(screen.getByText('broadcast.send'))
+        await waitFor(() => {
+            expect(api.broadcastPush).toHaveBeenCalledWith(expect.objectContaining({ title: 'Hello', body: 'World' }))
+        })
+    })
+
+    it('shows palette suggest button in settings tab', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('club.palette.suggest')).toBeInTheDocument()
+        })
+    })
+
+    it('shows palette suggestions after clicking suggest', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('club.palette.suggest'))
+        fireEvent.click(screen.getByText('club.palette.suggest'))
+        await waitFor(() => {
+            expect(screen.getByText('club.palette.warm')).toBeInTheDocument()
+        })
+    })
+
+    it('shows random palette button', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText(/club\.palette\.random/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows paypal input in settings tab', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('club.paypalMe')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('ClubAdminPage — reminder settings interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getReminderSettings).mockResolvedValue({
+            debt_weekly: { enabled: false, weekday: 1, min_debt: 5 },
+            upcoming_evening: { enabled: false, days_before: 5 },
+            rsvp_reminder: { enabled: false, days_before: 3 },
+            debt_day_of: { enabled: false },
+            payment_request_nudge: { enabled: false, days_pending: 3 },
+            auto_report: { enabled: false, days_before: 1 },
+        } as any)
+    })
+
+    it('calls api.updateReminderSettings when reminder save clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateReminderSettings).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('reminders.title')).toBeInTheDocument()
+        }, { timeout: 3000 })
+        const saveBtns = screen.getAllByText('action.save')
+        // Last save button is in reminders card (after settings save)
+        fireEvent.click(saveBtns[saveBtns.length - 1])
+        await waitFor(() => {
+            expect(api.updateReminderSettings).toHaveBeenCalled()
+        })
+    })
+
+    it('calls api.triggerReminders when triggerNow button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.triggerReminders).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.triggerNow'))
+        fireEvent.click(screen.getByText('reminders.triggerNow'))
+        await waitFor(() => {
+            expect(api.triggerReminders).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ClubAdminPage — game templates CRUD extended', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['templates', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listGameTemplates).mockResolvedValue(GAME_TEMPLATES as any)
+    })
+
+    it('calls api.createGameTemplate when add template form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createGameTemplate).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getByText(/club\.template\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // The template name field has no placeholder — find it by being an input inside the sheet
+        const inputs = screen.getAllByRole('textbox') as HTMLInputElement[]
+        const nameInput = inputs.find(i => i.value === '') as HTMLInputElement
+        if (nameInput) fireEvent.change(nameInput, { target: { value: 'New Template' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createGameTemplate).toHaveBeenCalled()
+        })
+    })
+
+    it('calls api.updateGameTemplate when edit template form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateGameTemplate).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateGameTemplate).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ClubAdminPage — pins CRUD extended', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['pins', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue(PINS as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
+    })
+
+    it('calls api.createPin when add pin form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createPin).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/pin\.add/))
+        fireEvent.click(screen.getByText(/pin\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const nameInput = screen.getByPlaceholderText('z.B. Vereinsnadel')
+        fireEvent.change(nameInput, { target: { value: 'Goldnadel' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createPin).toHaveBeenCalled()
+        })
+    })
+
+    it('opens edit pin sheet when ✏️ clicked', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Silbernadel'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet-title')).toHaveTextContent(/pin\.edit/)
+        })
+    })
+
+    it('calls api.updatePin when edit pin form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePin).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Silbernadel'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePin).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ClubAdminPage — superadmin clubs CRUD extended', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['clubs', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsSuperadmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAllClubs).mockResolvedValue([
+            { id: 1, name: 'TestClub', slug: 'testclub' },
+        ] as any)
+    })
+
+    it('calls api.switchClub when switch button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.switchClub).mockResolvedValueOnce({ token: 'newtoken' } as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        const switchBtns = screen.getAllByText('superadmin.clubs.switch')
+        fireEvent.click(switchBtns[0])
+        await waitFor(() => {
+            expect(api.switchClub).toHaveBeenCalledWith(1)
+        })
+    })
+
+    it('calls api.createClub when create form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createClub).mockResolvedValueOnce({ id: 99, name: 'NewClub', slug: 'newclub' } as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('superadmin.clubs.create'))
+        const nameInput = screen.getByPlaceholderText('superadmin.clubs.namePlaceholder')
+        fireEvent.change(nameInput, { target: { value: 'BrandNewClub' } })
+        // Trigger create via Enter key (onKeyDown handler)
+        fireEvent.keyDown(nameInput, { key: 'Enter' })
+        await waitFor(() => {
+            expect(api.createClub).toHaveBeenCalledWith('BrandNewClub')
+        })
+    })
+
+    it('opens edit club sheet when ✏️ clicked', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.updateClub when edit club form submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateClub).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateClub).toHaveBeenCalled()
+        })
+    })
+})
+
