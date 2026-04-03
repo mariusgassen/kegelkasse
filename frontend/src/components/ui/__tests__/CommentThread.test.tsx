@@ -399,3 +399,167 @@ describe('CommentThread — delete flow', () => {
         expect(screen.queryByText('action.confirmDelete')).not.toBeInTheDocument()
     })
 })
+
+// ── CommentThread — reply flow (line ~318, 486) ───────────────────────────────
+
+describe('CommentThread — reply flow', () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    async function renderWithReplyComment() {
+        const { useQuery } = await import('@tanstack/react-query')
+        vi.mocked(useQuery).mockReturnValue({
+            data: [makeComment({ id: 5, text: 'Root comment', created_by_name: 'Alice', created_by_id: 99 })],
+            isLoading: false,
+        } as ReturnType<typeof useQuery>)
+        const { CommentThread } = await import('../CommentThread')
+        return render(
+            <CommentThread parentType="highlight" parentId={1} open onOpenChange={vi.fn()} />,
+        )
+    }
+
+    it('shows reply button on comment', async () => {
+        await renderWithReplyComment()
+        expect(screen.getByText('comment.reply')).toBeInTheDocument()
+    })
+
+    it('clicking reply sets replyTo indicator', async () => {
+        await renderWithReplyComment()
+        fireEvent.click(screen.getByText('comment.reply'))
+        // The cancel × button appears in the reply indicator area
+        expect(screen.getByText('×')).toBeInTheDocument()
+        // Input is prefilled with @Alice
+        const input = screen.getByPlaceholderText(/comment\.placeholder|@Alice/)
+        expect((input as HTMLInputElement).value).toBe('@Alice ')
+    })
+
+    it('clicking reply prefills input with @name', async () => {
+        await renderWithReplyComment()
+        fireEvent.click(screen.getByText('comment.reply'))
+        const input = screen.getByPlaceholderText(/comment\.placeholder|@Alice/)
+        // Text should be set to "@Alice "
+        expect((input as HTMLInputElement).value).toBe('@Alice ')
+    })
+
+    it('cancel reply (×) clears replyTo and text', async () => {
+        await renderWithReplyComment()
+        fireEvent.click(screen.getByText('comment.reply'))
+        // Verify replyTo cancel button is shown
+        expect(screen.getByText('×')).toBeInTheDocument()
+        // Click the × cancel button
+        fireEvent.click(screen.getByText('×'))
+        expect(screen.queryByText('×')).not.toBeInTheDocument()
+        // Input should be cleared
+        const input = screen.getByPlaceholderText('comment.placeholder')
+        expect((input as HTMLInputElement).value).toBe('')
+    })
+
+    it('passes replyTo id to api.addComment when submitting reply', async () => {
+        const { api } = await import('@/api/client')
+        await renderWithReplyComment()
+        fireEvent.click(screen.getByText('comment.reply'))
+        // The input now has @Alice as text (trimmed to @Alice for submit)
+        // Add something so submit is possible
+        const input = screen.getByPlaceholderText(/comment\.placeholder|@Alice/)
+        fireEvent.change(input, { target: { value: '@Alice nice' } })
+        fireEvent.click(screen.getByText('↵'))
+        await waitFor(() => {
+            // replyTo.id = 5, parentType=highlight, parentId=1
+            expect(api.addComment).toHaveBeenCalledWith('highlight', 1, '@Alice nice', undefined, 5)
+        })
+    })
+})
+
+// ── CommentThread — add comment error path (line ~431) ────────────────────────
+
+describe('CommentThread — add comment error handling', () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    it('calls toastError when api.addComment rejects', async () => {
+        const { api } = await import('@/api/client')
+        const { toastError } = await import('@/utils/error')
+        vi.mocked(api.addComment).mockRejectedValueOnce(new Error('network error'))
+        const { CommentThread } = await import('../CommentThread')
+        render(
+            <CommentThread parentType="highlight" parentId={1} open onOpenChange={vi.fn()} />,
+        )
+        const input = screen.getByPlaceholderText('comment.placeholder')
+        fireEvent.change(input, { target: { value: 'Test' } })
+        fireEvent.click(screen.getByText('↵'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+// ── CommentThread — edit comment flow (line ~196-204) ─────────────────────────
+
+describe('CommentThread — edit flow', () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    async function renderEditableComment() {
+        const { useQuery } = await import('@tanstack/react-query')
+        const { useAppStore } = await import('@/store/app')
+        const ownState = { user: { id: 42, name: 'Me', avatar: null, role: 'member' } }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(useAppStore).mockImplementation((sel?: (s: any) => any) => sel ? sel(ownState) : ownState)
+        vi.mocked(useQuery).mockReturnValue({
+            data: [makeComment({ id: 7, created_by_id: 42, text: 'Original text' })],
+            isLoading: false,
+        } as ReturnType<typeof useQuery>)
+        const { CommentThread } = await import('../CommentThread')
+        return render(
+            <CommentThread parentType="highlight" parentId={1} open onOpenChange={vi.fn()} />,
+        )
+    }
+
+    it('clicking edit icon switches to edit mode showing input', async () => {
+        await renderEditableComment()
+        fireEvent.click(screen.getByTitle('action.edit'))
+        // Should show the save and cancel buttons
+        expect(screen.getByText('action.save')).toBeInTheDocument()
+        expect(screen.getByText('action.cancel')).toBeInTheDocument()
+    })
+
+    it('cancel edit restores view mode', async () => {
+        await renderEditableComment()
+        fireEvent.click(screen.getByTitle('action.edit'))
+        expect(screen.getByText('action.save')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('action.cancel'))
+        expect(screen.queryByText('action.save')).not.toBeInTheDocument()
+        // Original text visible again
+        expect(screen.getByText('Original text')).toBeInTheDocument()
+    })
+
+    it('saving edit calls api.editComment', async () => {
+        const { api } = await import('@/api/client')
+        await renderEditableComment()
+        fireEvent.click(screen.getByTitle('action.edit'))
+        // Edit input has the original text pre-filled
+        const editInput = screen.getByDisplayValue('Original text')
+        fireEvent.change(editInput, { target: { value: 'Updated text' } })
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => {
+            expect(api.editComment).toHaveBeenCalledWith(7, 'Updated text', null)
+        })
+    })
+
+    it('pressing Enter in edit input saves the comment', async () => {
+        const { api } = await import('@/api/client')
+        await renderEditableComment()
+        fireEvent.click(screen.getByTitle('action.edit'))
+        const editInput = screen.getByDisplayValue('Original text')
+        fireEvent.change(editInput, { target: { value: 'Enter save' } })
+        fireEvent.keyDown(editInput, { key: 'Enter', shiftKey: false })
+        await waitFor(() => {
+            expect(api.editComment).toHaveBeenCalledWith(7, 'Enter save', null)
+        })
+    })
+
+    it('pressing Escape in edit input cancels editing', async () => {
+        await renderEditableComment()
+        fireEvent.click(screen.getByTitle('action.edit'))
+        const editInput = screen.getByDisplayValue('Original text')
+        fireEvent.keyDown(editInput, { key: 'Escape' })
+        expect(screen.queryByText('action.save')).not.toBeInTheDocument()
+    })
+})

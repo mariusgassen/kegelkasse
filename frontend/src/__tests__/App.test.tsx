@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -30,13 +30,13 @@ vi.mock('@/components/ui/Toast.tsx', () => ({
 }))
 
 vi.mock('@/components/ProfileSheet.tsx', () => ({
-    ProfileSheet: ({ open }: { open: boolean; onClose: () => void }) =>
-        open ? <div data-testid="profile-sheet" /> : null,
+    ProfileSheet: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+        open ? <div data-testid="profile-sheet"><button onClick={onClose}>close-profile</button></div> : null,
 }))
 
 vi.mock('@/components/NotificationPanel.tsx', () => ({
-    NotificationPanel: ({ open }: { open: boolean; onClose: () => void }) =>
-        open ? <div data-testid="notification-panel" /> : null,
+    NotificationPanel: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+        open ? <div data-testid="notification-panel"><button onClick={onClose}>close-notif</button></div> : null,
 }))
 
 vi.mock('@/pages/LoginPage.tsx', () => ({
@@ -48,7 +48,12 @@ vi.mock('@/pages/LoginPage.tsx', () => ({
 }))
 
 vi.mock('@/pages/EveningHubPage.tsx', () => ({
-    EveningHubPage: () => <div data-testid="evening-hub-page" />,
+    EveningHubPage: ({ onNavigate, onHistory }: { onNavigate?: () => void; onHistory?: () => void }) => (
+        <div data-testid="evening-hub-page">
+            {onNavigate && <button onClick={onNavigate}>hub-navigate</button>}
+            {onHistory && <button onClick={onHistory}>hub-history</button>}
+        </div>
+    ),
 }))
 
 vi.mock('@/pages/EveningPage.tsx', () => ({
@@ -68,7 +73,11 @@ vi.mock('@/pages/ClubAdminPage.tsx', () => ({
 }))
 
 vi.mock('@/pages/SchedulePage.tsx', () => ({
-    SchedulePage: () => <div data-testid="schedule-page" />,
+    SchedulePage: ({ onNavigate }: { onNavigate?: () => void }) => (
+        <div data-testid="schedule-page">
+            {onNavigate && <button onClick={onNavigate}>schedule-navigate</button>}
+        </div>
+    ),
 }))
 
 vi.mock('@/pages/CommitteePage.tsx', () => ({
@@ -375,5 +384,201 @@ describe('applyClubTheme', () => {
     it('does nothing when settings are null', async () => {
         const { applyClubTheme } = await import('../App')
         expect(() => applyClubTheme({ settings: null })).not.toThrow()
+    })
+})
+
+// ── interaction / branch coverage ────────────────────────────────────────────
+
+describe('App — authenticated interactions', () => {
+    const mockUser = {
+        id: 1,
+        email: 'u@example.com',
+        name: 'Rudi',
+        username: null,
+        role: 'member' as const,
+        club_id: 1,
+        preferred_locale: 'de',
+        avatar: null,
+        regular_member_id: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        storeState.user = mockUser
+        storeState.activeEveningId = null
+        mockAuthState.isLoggedIn.mockReturnValue(false)
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['evening', vi.fn()] as any)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('opens ProfileSheet when avatar button is clicked', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('button', { name: 'Profil' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Profil' }))
+        await waitFor(() => {
+            expect(screen.getByTestId('profile-sheet')).toBeInTheDocument()
+        })
+    })
+
+    it('opens NotificationPanel when bell button is clicked', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('button', { name: 'notifications.title' }))
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.title' }))
+        await waitFor(() => {
+            expect(screen.getByTestId('notification-panel')).toBeInTheDocument()
+        })
+    })
+
+    it('shows active evening button when activeEveningId is set', async () => {
+        storeState.activeEveningId = 42
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByText(/evening\.active/)).toBeInTheDocument()
+        })
+    })
+
+    it('navigates to config page when active evening button is clicked', async () => {
+        storeState.activeEveningId = 42
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText(/evening\.active/))
+        fireEvent.click(screen.getByText(/evening\.active/))
+        expect(setPageMock).toHaveBeenCalledWith('config')
+    })
+
+    it('navigates to another page when nav button is clicked', async () => {
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('nav.treasury'))
+        fireEvent.click(screen.getByText('nav.treasury'))
+        expect(setPageMock).toHaveBeenCalledWith('treasury')
+    })
+
+    it('shows club logo img when club has logo_url', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({
+            id: 1, name: 'TestClub', slug: 'tc',
+            settings: { logo_url: '/uploads/logo.png', primary_color: null, secondary_color: null, bg_color: null },
+        } as any)
+        await renderApp()
+        await waitFor(() => {
+            const img = document.querySelector('img[alt="TestClub"]')
+            expect(img).toBeInTheDocument()
+        })
+    })
+
+    it('shows notification badge when badgeCount > 0', async () => {
+        const { unreadCount } = await import('@/store/notifications.ts')
+        vi.mocked(unreadCount).mockReturnValue(3)
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByText('3')).toBeInTheDocument()
+        })
+    })
+
+    it('shows 9+ badge when badgeCount > 9', async () => {
+        const { unreadCount } = await import('@/store/notifications.ts')
+        vi.mocked(unreadCount).mockReturnValue(12)
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByText('9+')).toBeInTheDocument()
+        })
+    })
+
+    it('shows user avatar img when user has avatar', async () => {
+        storeState.user = { ...mockUser, avatar: '/avatars/me.jpg' }
+        await renderApp()
+        await waitFor(() => {
+            const img = document.querySelector('img[alt=""]')
+            expect(img).toBeInTheDocument()
+        })
+    })
+
+    it('closes ProfileSheet when onClose is called', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('button', { name: 'Profil' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Profil' }))
+        await waitFor(() => screen.getByTestId('profile-sheet'))
+        fireEvent.click(screen.getByText('close-profile'))
+        await waitFor(() => {
+            expect(screen.queryByTestId('profile-sheet')).not.toBeInTheDocument()
+        })
+    })
+
+    it('closes NotificationPanel when onClose is called', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('button', { name: 'notifications.title' }))
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.title' }))
+        await waitFor(() => screen.getByTestId('notification-panel'))
+        fireEvent.click(screen.getByText('close-notif'))
+        await waitFor(() => {
+            expect(screen.queryByTestId('notification-panel')).not.toBeInTheDocument()
+        })
+    })
+
+    it('calls setPage(config) when EveningHubPage onNavigate fires', async () => {
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('hub-navigate'))
+        fireEvent.click(screen.getByText('hub-navigate'))
+        expect(setPageMock).toHaveBeenCalledWith('config')
+    })
+
+    it('calls setPage(schedule) when EveningHubPage onHistory fires', async () => {
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('hub-history'))
+        fireEvent.click(screen.getByText('hub-history'))
+        expect(setPageMock).toHaveBeenCalledWith('schedule')
+    })
+
+    it('calls setPage(evening) when SchedulePage onNavigate fires', async () => {
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['schedule', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('schedule-navigate'))
+        fireEvent.click(screen.getByText('schedule-navigate'))
+        expect(setPageMock).toHaveBeenCalledWith('evening')
+    })
+})
+
+describe('App — retry boot button', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = null
+        mockAuthState.isLoggedIn.mockReturnValue(true)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('clicking retry button resets boot state and triggers refetch', async () => {
+        const { api, NetworkError } = await import('@/api/client.ts')
+        // First call: network error. Second call: success (resolve to null-like).
+        vi.mocked(api.me)
+            .mockRejectedValueOnce(new NetworkError())
+            .mockReturnValue(new Promise(() => {})) // second call hangs (stays loading)
+        await renderApp()
+        // Wait for retry button to appear
+        await waitFor(() => screen.getByText('error.retry'))
+        fireEvent.click(screen.getByText('error.retry'))
+        // After clicking, the loading splash should re-appear (bootDone=false)
+        await waitFor(() => {
+            expect(screen.getByText('error.connecting')).toBeInTheDocument()
+        })
     })
 })

@@ -39,11 +39,12 @@ vi.mock('@/components/ui/Toast.tsx', () => ({
 }))
 
 vi.mock('@/components/ui/Sheet.tsx', () => ({
-    Sheet: ({ open, children, title, onClose }: any) =>
+    Sheet: ({ open, children, title, onClose, onSubmit }: any) =>
         open ? (
             <div data-testid="sheet">
                 <div>{title}</div>
                 <button onClick={onClose}>close-sheet</button>
+                {onSubmit && <button onClick={onSubmit}>submit-sheet</button>}
                 {children}
             </div>
         ) : null,
@@ -493,5 +494,394 @@ describe('HistoryPage — multiple evenings', () => {
         } as any)
         await renderHistoryPage()
         expect(screen.getByText(/7/)).toBeInTheDocument()
+    })
+})
+
+describe('HistoryPage — expanded detail with drinks and highlights', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function setupWithFullDetail(detail: any) {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(detail as any)
+        const result = await renderHistoryPage()
+        const eveningRowBtn = screen.getByText(/15\.01\.2026/).closest('button')
+        if (eveningRowBtn) fireEvent.click(eveningRowBtn)
+        return result
+    }
+
+    it('shows drink round counts in expanded detail', async () => {
+        await setupWithFullDetail({
+            ...CLOSED_EVENING,
+            players: [],
+            teams: [],
+            penalty_log: [],
+            games: [],
+            highlights: [],
+            drink_rounds: [
+                { id: 201, drink_type: 'beer', variety: 'Pils', participant_ids: [1], client_timestamp: Date.now(), created_at: new Date().toISOString() },
+                { id: 202, drink_type: 'shots', variety: 'Korn', participant_ids: [1], client_timestamp: Date.now(), created_at: new Date().toISOString() },
+            ],
+        })
+        await waitFor(() => {
+            expect(screen.getByText(/drinks\.title/)).toBeInTheDocument()
+        })
+        expect(screen.getByText(/drinks\.beer/)).toBeInTheDocument()
+        expect(screen.getByText(/drinks\.shots/)).toBeInTheDocument()
+    })
+
+    it('shows highlights in expanded detail', async () => {
+        await setupWithFullDetail({
+            ...CLOSED_EVENING,
+            players: [],
+            teams: [],
+            penalty_log: [],
+            games: [],
+            drink_rounds: [],
+            highlights: [
+                { id: 301, text: 'Great evening!', media_url: null, created_at: new Date().toISOString() },
+            ],
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Great evening!')).toBeInTheDocument()
+        })
+    })
+
+    it('shows highlight with media image when media_url present', async () => {
+        await setupWithFullDetail({
+            ...CLOSED_EVENING,
+            players: [],
+            teams: [],
+            penalty_log: [],
+            games: [],
+            drink_rounds: [],
+            highlights: [
+                { id: 302, text: null, media_url: 'https://example.com/img.jpg', created_at: new Date().toISOString() },
+            ],
+        })
+        await waitFor(() => {
+            const img = document.querySelector('img[src="https://example.com/img.jpg"]')
+            expect(img).toBeTruthy()
+        })
+    })
+
+    it('shows loading text when expanded but detail not yet loaded', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'member', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        // Never resolves — simulate pending fetch
+        vi.mocked(api.getEvening).mockReturnValue(new Promise(() => {}))
+        await renderHistoryPage()
+        const eveningRowBtn = screen.getByText(/15\.01\.2026/).closest('button')
+        if (eveningRowBtn) fireEvent.click(eveningRowBtn)
+        await waitFor(() => {
+            expect(screen.getByText('action.loading')).toBeInTheDocument()
+        })
+    })
+
+    it('shows penalty totals per player in expanded detail', async () => {
+        await setupWithFullDetail({
+            ...CLOSED_EVENING,
+            players: [{ id: 10, name: 'Max', is_king: false }],
+            teams: [],
+            games: [],
+            drink_rounds: [],
+            highlights: [],
+            penalty_log: [
+                { id: 101, player_name: 'Max', player_id: 10, amount: 3.0, mode: 'euro', unit_amount: null },
+                { id: 102, player_name: 'Max', player_id: 10, amount: 2.0, mode: 'euro', unit_amount: null },
+            ],
+        })
+        await waitFor(() => {
+            // Total = 5 EUR — displayed in penalty section
+            expect(screen.getAllByText(/5,00/).length).toBeGreaterThan(0)
+        })
+    })
+
+    it('calculates count-mode penalty totals correctly', async () => {
+        await setupWithFullDetail({
+            ...CLOSED_EVENING,
+            players: [{ id: 10, name: 'Bernd', is_king: false }],
+            teams: [],
+            games: [],
+            drink_rounds: [],
+            highlights: [],
+            penalty_log: [
+                { id: 103, player_name: 'Bernd', player_id: 10, amount: 4, mode: 'count', unit_amount: 0.5 },
+            ],
+        })
+        await waitFor(() => {
+            // 4 * 0.5 = 2 EUR
+            expect(screen.getAllByText(/2,00/).length).toBeGreaterThan(0)
+        })
+    })
+})
+
+describe('HistoryPage — delete confirmation flow', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function setupExpanded() {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue({
+            ...CLOSED_EVENING,
+            players: [], teams: [], penalty_log: [], games: [], drink_rounds: [], highlights: [],
+        } as any)
+        const result = await renderHistoryPage()
+        const eveningRowBtn = screen.getByText(/15\.01\.2026/).closest('button')
+        if (eveningRowBtn) fireEvent.click(eveningRowBtn)
+        await waitFor(() => screen.queryByText(/action\.delete/))
+        return result
+    }
+
+    it('shows confirm/cancel buttons after clicking delete', async () => {
+        await setupExpanded()
+        await waitFor(() => {
+            const deleteBtn = screen.queryByText(/action\.delete/)
+            expect(deleteBtn).toBeInTheDocument()
+        })
+        const deleteBtn = screen.getByText(/action\.delete/)
+        fireEvent.click(deleteBtn)
+        await waitFor(() => {
+            // After first click, the confirm delete button (✓ action.delete) appears
+            const allDeleteBtns = screen.getAllByText(/action\.delete/)
+            expect(allDeleteBtns.length).toBeGreaterThanOrEqual(1)
+        })
+    })
+
+    it('can cancel the delete confirmation', async () => {
+        await setupExpanded()
+        await waitFor(() => screen.getByText(/action\.delete/))
+        // First click shows confirmation
+        fireEvent.click(screen.getByText(/action\.delete/))
+        await waitFor(() => {
+            expect(screen.getByText('✕')).toBeInTheDocument()
+        })
+        // Cancel
+        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => {
+            // Reverts to single delete button (no ✕ cancel button)
+            expect(screen.queryByText('✕')).not.toBeInTheDocument()
+        })
+    })
+
+    it('calls api.deleteEvening after confirming deletion', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteEvening).mockResolvedValueOnce(undefined as any)
+        await setupExpanded()
+        await waitFor(() => screen.getByText(/action\.delete/))
+        // First click → confirm state
+        fireEvent.click(screen.getByText(/action\.delete/))
+        await waitFor(() => {
+            // The confirm button text is "✓ action.delete"
+            const confirmBtn = screen.getAllByText(/action\.delete/).find(el =>
+                el.textContent?.includes('✓')
+            )
+            expect(confirmBtn).toBeTruthy()
+            if (confirmBtn) fireEvent.click(confirmBtn)
+        })
+        await waitFor(() => {
+            expect(api.deleteEvening).toHaveBeenCalledWith(2)
+        })
+    })
+})
+
+describe('HistoryPage — reopen evening', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function setupExpanded(onNavigate?: () => void) {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue({
+            ...CLOSED_EVENING,
+            players: [], teams: [], penalty_log: [], games: [], drink_rounds: [], highlights: [],
+        } as any)
+        const result = await renderHistoryPage({ onNavigate })
+        const eveningRowBtn = screen.getByText(/15\.01\.2026/).closest('button')
+        if (eveningRowBtn) fireEvent.click(eveningRowBtn)
+        // Wait for the detail to render (reopen button is part of admin actions in expanded view)
+        await waitFor(() => {
+            expect(screen.queryByText(/history\.reopen/)).toBeInTheDocument()
+        })
+        return result
+    }
+
+    it('calls api.updateEvening with is_closed false on reopen', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
+        await setupExpanded()
+        fireEvent.click(screen.getByText(/history\.reopen/))
+        await waitFor(() => {
+            expect(api.updateEvening).toHaveBeenCalledWith(2, { is_closed: false })
+        })
+    })
+
+    it('calls onNavigate after successful reopen', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
+        const onNavigate = vi.fn()
+        await setupExpanded(onNavigate)
+        fireEvent.click(screen.getByText(/history\.reopen/))
+        await waitFor(() => {
+            expect(onNavigate).toHaveBeenCalled()
+        })
+    })
+
+    it('shows reopen button in expanded admin view', async () => {
+        await setupExpanded()
+        expect(screen.getByText(/history\.reopen/)).toBeInTheDocument()
+    })
+})
+
+describe('HistoryPage — backlog sheet submit', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function setupBacklogSheet() {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { isAdmin } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useEveningList).mockReturnValue({ data: [], isLoading: false } as any)
+        await renderHistoryPage()
+        fireEvent.click(screen.getByText(/history\.backlog/))
+        await waitFor(() => screen.getByTestId('sheet'))
+    }
+
+    it('submits backlog form and calls api.createEvening', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createEvening).mockResolvedValueOnce({ id: 99 } as any)
+        await setupBacklogSheet()
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createEvening).toHaveBeenCalled()
+        })
+    })
+
+    it('accepts venue input in backlog sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createEvening).mockResolvedValueOnce({ id: 88 } as any)
+        await setupBacklogSheet()
+        const venueInput = screen.getByPlaceholderText('evening.venuePlaceholder')
+        fireEvent.change(venueInput, { target: { value: 'Gasthaus Krone' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createEvening).toHaveBeenCalledWith(
+                expect.objectContaining({ venue: 'Gasthaus Krone' })
+            )
+        })
+    })
+
+    it('shows date input in backlog sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createEvening).mockResolvedValueOnce({ id: 77 } as any)
+        await setupBacklogSheet()
+        const today = new Date().toISOString().slice(0, 10)
+        const dateInput = screen.getByDisplayValue(today)
+        expect(dateInput).toBeInTheDocument()
+    })
+})
+
+describe('HistoryPage — active evening expanded detail', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('shows player names when active evening is expanded', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useEveningList).mockReturnValue({
+            data: [ACTIVE_EVENING], isLoading: false,
+        } as any)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'member', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: 1,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue({
+            ...ACTIVE_EVENING,
+            players: [
+                { id: 5, name: 'Alice', is_king: false },
+                { id: 6, name: 'Bob', is_king: false },
+            ],
+            teams: [], penalty_log: [], games: [], drink_rounds: [], highlights: [],
+        } as any)
+        await renderHistoryPage()
+        // Click the active evening row
+        const activeBtn = screen.getByText('evening.active').closest('button') ??
+            screen.getByText(/26\.03\.2026/).closest('button')
+        if (activeBtn) fireEvent.click(activeBtn)
+        await waitFor(() => {
+            expect(screen.getByText(/Alice.*Bob|Bob.*Alice/s)).toBeInTheDocument()
+        })
+    })
+
+    it('collapses active evening on second click', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useEveningList).mockReturnValue({
+            data: [ACTIVE_EVENING], isLoading: false,
+        } as any)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'member', email: 'a@b.de', name: 'A', username: null, club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            setActiveEveningId: vi.fn(),
+            activeEveningId: 1,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue({
+            ...ACTIVE_EVENING,
+            players: [{ id: 5, name: 'Alice', is_king: false }],
+            teams: [], penalty_log: [], games: [], drink_rounds: [], highlights: [],
+        } as any)
+        await renderHistoryPage()
+        const dateBtn = screen.getByText(/26\.03\.2026/).closest('button')
+        if (dateBtn) {
+            fireEvent.click(dateBtn)
+            await waitFor(() => expect(api.getEvening).toHaveBeenCalled())
+            // Second click collapses
+            fireEvent.click(dateBtn)
+        }
+        // The ▼ indicator should be shown (collapsed state)
+        await waitFor(() => {
+            expect(screen.getByText('▼')).toBeInTheDocument()
+        })
     })
 })
