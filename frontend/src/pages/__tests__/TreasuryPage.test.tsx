@@ -741,3 +741,162 @@ describe('TreasuryPage — accounts tab layout', () => {
         })
     })
 })
+
+// ── additional coverage: booking sheet member picker (lines 1010-1013) ────────
+
+describe('TreasuryPage — booking sheet member picker', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        // Provide regular members so member picker shows buttons
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: ADMIN_USER,
+            regularMembers: REGULAR_MEMBERS,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        // Balances must include the regular_member_ids that match REGULAR_MEMBERS
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('shows member picker buttons in booking sheet', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Should show the Club button and Hansi (from BALANCES + REGULAR_MEMBERS)
+        expect(screen.getByText(/treasury\.booking\.club/)).toBeInTheDocument()
+        // 'Hansi' is the nickname for regular_member_id=5
+        expect(screen.getByText('Hansi')).toBeInTheDocument()
+    })
+
+    it('clicking member in picker switches direction label to deposit/withdrawal', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Click member button to select a member as booking target
+        fireEvent.click(screen.getByText('Hansi'))
+        // ModeToggle receives member-specific options: deposit / withdrawal
+        expect(screen.getByText(/treasury\.payment\.deposit/)).toBeInTheDocument()
+        expect(screen.getByText(/treasury\.payment\.withdrawal/)).toBeInTheDocument()
+    })
+
+    it('clicking club button restores expense/income direction labels', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // First click Hansi to go to member mode
+        fireEvent.click(screen.getByText('Hansi'))
+        // Then click Club to go back
+        // There may be two elements matching treasury.booking.club (sheet title + button)
+        const clubBtns = screen.getAllByText(/treasury\.booking\.club/)
+        fireEvent.click(clubBtns[clubBtns.length - 1])
+        // Should show expense / income options again
+        expect(screen.getByText(/treasury\.booking\.expense/)).toBeInTheDocument()
+        expect(screen.getByText(/treasury\.booking\.income/)).toBeInTheDocument()
+    })
+
+    it('submits member payment when member selected in booking sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createMemberPayment).mockResolvedValueOnce({ id: 200, regular_member_id: 5, member_name: 'Hans', amount: 10, note: null, created_at: null } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Select Hansi as booking target
+        fireEvent.click(screen.getByText('Hansi'))
+        // Fill amount
+        const amountInputs = screen.getAllByPlaceholderText('0,00')
+        fireEvent.change(amountInputs[0], { target: { value: '10,00' } })
+        // Submit
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createMemberPayment).toHaveBeenCalled()
+        })
+    })
+})
+
+// ── additional coverage: booking sheet date input (line 1058) ──────────────────
+
+describe('TreasuryPage — booking sheet date input for club expense', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: ADMIN_USER,
+            regularMembers: REGULAR_MEMBERS,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('shows date input when club is selected as booking target', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Club is default target → date input should be visible
+        const dateLabel = screen.getByText('treasury.expense.date')
+        expect(dateLabel).toBeInTheDocument()
+        // The date input element
+        const dateInput = screen.getByDisplayValue(/^\d{4}-\d{2}-\d{2}$/)
+        expect(dateInput).toBeInTheDocument()
+    })
+
+    it('date input is NOT shown when a member is selected as booking target', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Select Hansi (member) — date input should disappear
+        fireEvent.click(screen.getByText('Hansi'))
+        expect(screen.queryByText('treasury.expense.date')).not.toBeInTheDocument()
+    })
+
+    it('passes the custom date to api.createExpense when date changed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createExpense).mockResolvedValueOnce({ id: 101, amount: 20, description: 'Test', note: 'Test', date: '2026-03-15', created_at: null, created_by: 1 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Change date
+        const dateInput = screen.getByDisplayValue(/^\d{4}-\d{2}-\d{2}$/)
+        fireEvent.change(dateInput, { target: { value: '2026-03-15' } })
+        // Fill amount and description
+        const amountInput = screen.getAllByPlaceholderText('0,00')[0]
+        fireEvent.change(amountInput, { target: { value: '20,00' } })
+        const descInput = screen.getByPlaceholderText(/treasury\.expense\.descPlaceholder/)
+        fireEvent.change(descInput, { target: { value: 'Custom Date Expense' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({
+                date: '2026-03-15',
+                description: 'Custom Date Expense',
+            }))
+        })
+    })
+})

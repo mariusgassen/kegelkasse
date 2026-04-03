@@ -653,4 +653,335 @@ describe('ProfileSheet — payment form interaction', () => {
             expect(api.createPaymentRequest).toHaveBeenCalledWith({ amount: 10 })
         })
     })
+
+    it('calls toastError when createPaymentRequest throws', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: -10.00, penalty_total: 10.00, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { paypal_me: 'testuser' } } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({} as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.createPaymentRequest).mockRejectedValue(new Error('payment failed'))
+
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getAllByText('profile.reportPayment').length).toBeGreaterThan(0)
+        })
+        // Open the payment form
+        const reportBtns = screen.getAllByText('profile.reportPayment')
+        fireEvent.click(reportBtns[reportBtns.length - 1])
+
+        await waitFor(() => {
+            expect(screen.getByText('action.cancel')).toBeInTheDocument()
+        })
+        // Submit (uses default debtAmount)
+        const submitBtns = screen.getAllByText('profile.reportPayment')
+        fireEvent.click(submitBtns[0])
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ProfileSheet — language toggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+    })
+
+    it('calls api.updateLocale when language button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateLocale).mockResolvedValue(undefined as any)
+
+        await renderProfileSheet()
+        // Click the EN language button
+        const enBtn = screen.getByText('EN')
+        fireEvent.click(enBtn)
+        // updateLocale is called with the new locale (fire-and-forget)
+        await waitFor(() => {
+            expect(api.updateLocale).toHaveBeenCalledWith('en')
+        })
+    })
+
+    it('calls api.updateLocale with de when DE button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateLocale).mockResolvedValue(undefined as any)
+
+        await renderProfileSheet()
+        const deBtn = screen.getByText('DE')
+        fireEvent.click(deBtn)
+        await waitFor(() => {
+            expect(api.updateLocale).toHaveBeenCalledWith('de')
+        })
+    })
+})
+
+describe('ProfileSheet — reminder toggles', () => {
+    async function setupWithReminders(extraPrefs = {}) {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: 0, penalty_total: 0, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({
+            penalties: true, evenings: true, schedule: true, payments: true,
+            games: true, members: true, comments: true,
+            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            reminder_schedule_days: 5,
+            ...extraPrefs,
+        } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+    })
+
+    it('shows push.pref.reminder_debt toggle', async () => {
+        await setupWithReminders()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
+        })
+    })
+
+    it('calls updatePushPreferences when reminder_debt toggle clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithReminders({ reminder_debt: false })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
+        })
+        // Find the toggle button next to reminder_debt label — it's aria-pressed=false (reminder_debt is false)
+        const debtLabel = screen.getByText('push.pref.reminder_debt')
+        // The toggle button is in the same row
+        const row = debtLabel.closest('div')!
+        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        fireEvent.click(toggle)
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_debt: true }))
+        })
+    })
+
+    it('shows push.pref.reminder_schedule toggle', async () => {
+        await setupWithReminders()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_schedule')).toBeInTheDocument()
+        })
+    })
+
+    it('calls updatePushPreferences when reminder_schedule toggle clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithReminders({ reminder_schedule: false })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_schedule')).toBeInTheDocument()
+        })
+        const schedLabel = screen.getByText('push.pref.reminder_schedule')
+        const row = schedLabel.closest('div')!
+        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        fireEvent.click(toggle)
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule: true }))
+        })
+    })
+
+    it('shows reminder_schedule_days input when reminder_schedule is true', async () => {
+        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.reminder_schedule_days')).toBeInTheDocument()
+        })
+        const input = screen.getByDisplayValue('5')
+        expect(input).toBeInTheDocument()
+    })
+
+    it('calls updatePushPreferences when reminder_schedule_days input changed', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('5')).toBeInTheDocument()
+        })
+        const daysInput = screen.getByDisplayValue('5')
+        fireEvent.change(daysInput, { target: { value: '7' } })
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule_days: 7 }))
+        })
+    })
+
+    it('does not call updatePushPreferences for invalid days input (0 or NaN)', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('5')).toBeInTheDocument()
+        })
+        const daysInput = screen.getByDisplayValue('5')
+        fireEvent.change(daysInput, { target: { value: '0' } })
+        // Should not call API for 0
+        await new Promise(r => setTimeout(r, 50))
+        expect(api.updatePushPreferences).not.toHaveBeenCalled()
+    })
+
+    it('shows test push button when pushPrefs loaded', async () => {
+        await setupWithReminders()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.testLabel')).toBeInTheDocument()
+        })
+        expect(screen.getByText('Test')).toBeInTheDocument()
+    })
+
+    it('calls api.testPush and shows toast when test button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.testPush).mockResolvedValue(undefined as any)
+        await setupWithReminders()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('Test')).toBeInTheDocument()
+        })
+        fireEvent.click(screen.getByText('Test'))
+        await waitFor(() => {
+            expect(api.testPush).toHaveBeenCalled()
+        })
+        expect(showToast).toHaveBeenCalledWith('push.testSent')
+    })
+
+    it('calls toastError when testPush throws', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.testPush).mockRejectedValue(new Error('push failed'))
+        await setupWithReminders()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('Test')).toBeInTheDocument()
+        })
+        fireEvent.click(screen.getByText('Test'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('shows reminder_payments toggle for admin user', async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
+        } as any)
+        await setupWithReminders({ reminder_payments: false })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
+        })
+    })
+
+    it('calls updatePushPreferences for reminder_payments when admin toggle clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
+        } as any)
+        await setupWithReminders({ reminder_payments: false })
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
+        })
+        const paymentsLabel = screen.getByText('push.pref.reminder_payments')
+        const row = paymentsLabel.closest('div')!
+        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        fireEvent.click(toggle)
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_payments: true }))
+        })
+    })
+
+    it('calls toastError when updatePushPreferences throws in reminder_schedule_days onChange', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updatePushPreferences).mockRejectedValue(new Error('server error'))
+        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        // Re-mock getPushPreferences to ensure prefs after the failed update are reverted
+        vi.mocked(api.updatePushPreferences).mockRejectedValue(new Error('server error'))
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('5')).toBeInTheDocument()
+        })
+        const daysInput = screen.getByDisplayValue('5')
+        fireEvent.change(daysInput, { target: { value: '10' } })
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ProfileSheet — payment form cancel and amount input', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+    })
+
+    async function setupPaymentForm() {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: -10.00, penalty_total: 10.00, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { paypal_me: 'testuser' } } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({} as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+    }
+
+    it('cancels payment form when cancel button clicked in payment form', async () => {
+        await setupPaymentForm()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getAllByText('profile.reportPayment').length).toBeGreaterThan(0)
+        })
+        // Open the form
+        const reportBtns = screen.getAllByText('profile.reportPayment')
+        fireEvent.click(reportBtns[reportBtns.length - 1])
+        await waitFor(() => {
+            expect(screen.getByText('action.cancel')).toBeInTheDocument()
+        })
+        // Cancel — hides form and shows payNow link again
+        fireEvent.click(screen.getByText('action.cancel'))
+        await waitFor(() => {
+            expect(screen.getByText('profile.payNow')).toBeInTheDocument()
+        })
+    })
+
+    it('accepts typed amount in payment amount input', async () => {
+        await setupPaymentForm()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createPaymentRequest).mockResolvedValue({ id: 1, amount: 7.5, status: 'pending' } as any)
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getAllByText('profile.reportPayment').length).toBeGreaterThan(0)
+        })
+        // Open form
+        const reportBtns = screen.getAllByText('profile.reportPayment')
+        fireEvent.click(reportBtns[reportBtns.length - 1])
+        await waitFor(() => {
+            expect(screen.getByText('action.cancel')).toBeInTheDocument()
+        })
+        // Type custom amount
+        const amountInput = screen.getByPlaceholderText('10.00')
+        fireEvent.change(amountInput, { target: { value: '7,50' } })
+        // Submit with custom amount
+        const submitBtns = screen.getAllByText('profile.reportPayment')
+        fireEvent.click(submitBtns[0])
+        await waitFor(() => {
+            expect(api.createPaymentRequest).toHaveBeenCalledWith({ amount: 7.5 })
+        })
+    })
 })

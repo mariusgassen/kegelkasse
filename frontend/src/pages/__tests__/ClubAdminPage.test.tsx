@@ -1016,3 +1016,143 @@ describe('ClubAdminPage — superadmin clubs CRUD extended', () => {
     })
 })
 
+describe('ClubAdminPage — backups tab config and stanza display', () => {
+    const STANZA = {
+        name: 'db',
+        status: { code: 0, message: 'ok' },
+        backup: [
+            {
+                label: '20260321-020000F',
+                type: 'full',
+                timestamp: { start: 1742515200, stop: 1742515800 },
+                info: { size: 1048576, delta: 512000, repository: { size: 204800, delta: 102400 } },
+                archive: { start: 'abc', stop: 'def' },
+                error: false,
+            },
+        ],
+        archive: [{ id: 'arch1', min: 'abc00000001', max: 'def99999999' }],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['backups', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsSuperadmin()
+    })
+
+    it('shows config details when listBackups returns config', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [],
+            config: { schedule: '0 2 * * *', retain_full: 7, repo_type: 'posix', s3_bucket: null },
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('backup.config.title')).toBeInTheDocument()
+            expect(screen.getByText('0 2 * * *')).toBeInTheDocument()
+        })
+    })
+
+    it('shows s3Disabled label when repo_type is posix', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [],
+            config: { schedule: null, retain_full: 3, repo_type: 'posix', s3_bucket: null },
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('backup.config.s3Disabled')).toBeInTheDocument()
+        })
+    })
+
+    it('shows s3Enabled label and bucket when repo_type is s3', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [],
+            config: { schedule: null, retain_full: 3, repo_type: 's3', s3_bucket: 'my-bucket' },
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('backup.config.s3Enabled')).toBeInTheDocument()
+            expect(screen.getByText('my-bucket')).toBeInTheDocument()
+        })
+    })
+
+    it('shows stanza card when listBackups returns stanza info', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [STANZA],
+            config: null,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            // The backup label should be visible inside the stanza card
+            expect(screen.getByText('20260321-020000F')).toBeInTheDocument()
+        })
+    })
+
+    it('shows delete confirmation sheet when delete button clicked on backup', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [STANZA],
+            config: null,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/backup\.delete$/))
+        fireEvent.click(screen.getByText(/backup\.delete$/))
+        await waitFor(() => {
+            expect(screen.getByText('backup.delete.confirm')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.deleteBackup when confirmed in the sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({
+            info: [STANZA],
+            config: null,
+        } as any)
+        vi.mocked(api.deleteBackup).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/backup\.delete$/))
+        fireEvent.click(screen.getByText(/backup\.delete$/))
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
+        await waitFor(() => {
+            expect(api.deleteBackup).toHaveBeenCalledWith('20260321-020000F')
+        })
+    })
+
+    it('calls api.createBackup when trigger button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createBackup).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/backup\.trigger/))
+        fireEvent.click(screen.getByText(/backup\.trigger/))
+        await waitFor(() => {
+            expect(api.createBackup).toHaveBeenCalled()
+        })
+    })
+
+    it('shows error message when listBackups fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockRejectedValue(new Error('pgbackrest offline'))
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('pgbackrest offline')).toBeInTheDocument()
+        })
+    })
+
+    it('calls toastError when createBackup fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createBackup).mockRejectedValueOnce(new Error('trigger failed'))
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/backup\.trigger/))
+        fireEvent.click(screen.getByText(/backup\.trigger/))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
