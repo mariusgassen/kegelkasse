@@ -306,3 +306,86 @@ class TestMyStats:
         data = r.json()
         assert data["throw_count"] == 2
         assert data["avg_pins"] == 8.0
+
+    def test_counts_beer_rounds_in_me(self, client, member_headers, db,
+                                      evening_2025, player, member):
+        """Cover lines 120-121: beer round counting in /me/ endpoint."""
+        dr = DrinkRound(
+            evening_id=evening_2025.id,
+            drink_type="beer",
+            participant_ids=[player.id],
+            is_deleted=False,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(dr)
+        db.commit()
+        r = client.get("/api/v1/stats/me/2025", headers=member_headers)
+        assert r.json()["beer_rounds"] == 1
+
+    def test_shot_rounds_not_in_beer(self, client, member_headers, db,
+                                     evening_2025, player):
+        """Shots don't count as beers in /me/ endpoint."""
+        dr = DrinkRound(
+            evening_id=evening_2025.id,
+            drink_type="shots",
+            participant_ids=[player.id],
+            is_deleted=False,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(dr)
+        db.commit()
+        r = client.get("/api/v1/stats/me/2025", headers=member_headers)
+        assert r.json()["beer_rounds"] == 0
+
+
+class TestYearStatsExtra:
+    """Extra cases to cover year-stats throw counting and shot rounds (lines 45-57)."""
+
+    def test_year_throws_counted(self, client, member_headers, db,
+                                 evening_2025, player, member):
+        """Cover lines 48-51: throw counting in /year/ endpoint."""
+        g = Game(
+            evening_id=evening_2025.id, name="YearThrow",
+            status="finished", client_timestamp=time.time() * 1000,
+        )
+        db.add(g)
+        db.flush()
+        db.add(GameThrowLog(game_id=g.id, player_id=player.id, throw_num=1, pins=5))
+        db.add(GameThrowLog(game_id=g.id, player_id=player.id, throw_num=2, pins=8))
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        me = next(p for p in r.json()["players"] if p["regular_member_id"] == member.id)
+        assert me["throw_count"] == 2
+        assert me["total_pins"] == 13
+        assert me["avg_pins"] == 6.5
+
+    def test_year_shot_rounds_counted(self, client, member_headers, db,
+                                      evening_2025, player, member):
+        """Cover line 57: shot_rounds counting in /year/ endpoint."""
+        dr = DrinkRound(
+            evening_id=evening_2025.id,
+            drink_type="shots",
+            participant_ids=[player.id],
+            is_deleted=False,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(dr)
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        me = next(p for p in r.json()["players"] if p["regular_member_id"] == member.id)
+        assert me["shot_rounds"] == 1
+
+    def test_year_total_shots_counted(self, client, member_headers, db,
+                                      evening_2025, player):
+        """Also cover total_shots in the year response."""
+        dr = DrinkRound(
+            evening_id=evening_2025.id,
+            drink_type="shots",
+            participant_ids=[player.id],
+            is_deleted=False,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(dr)
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        assert r.json()["total_shots"] == 1

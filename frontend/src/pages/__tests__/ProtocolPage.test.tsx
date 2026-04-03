@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -545,5 +545,537 @@ describe('ProtocolPage — player filter', () => {
     it('shows drinks section heading', async () => {
         await renderProtocolPage()
         expect(screen.getByText(/drinks\.title/)).toBeInTheDocument()
+    })
+})
+
+// ── additional coverage tests ──────────────────────────────────────────────────
+
+describe('ProtocolPage — closed evening', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const closedEvening = { ...ACTIVE_EVENING, is_closed: true, penalty_log: PENALTY_LOG, drink_rounds: [] }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: closedEvening as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('still shows + Strafe button for closed evening', async () => {
+        await renderProtocolPage()
+        // ProtocolPage always shows the add penalty button regardless of is_closed
+        expect(screen.getByText(/\+ Strafe/)).toBeInTheDocument()
+    })
+
+    it('still shows penalties in log for closed evening', async () => {
+        await renderProtocolPage()
+        expect(screen.getByText('Bier')).toBeInTheDocument()
+    })
+})
+
+describe('ProtocolPage — absence penalties', () => {
+    const ABSENCE_LOG = [
+        {
+            id: 200, player_id: null, player_name: 'Absent Member', penalty_type_name: 'Abwesenheit',
+            icon: '🏃', amount: 2.00, mode: 'euro', unit_amount: null,
+            game_id: null, note: 'absent', regular_member_id: 5,
+            client_timestamp: Date.now() - 60000, created_at: new Date().toISOString(),
+        },
+    ]
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithAbsence = { ...ACTIVE_EVENING, penalty_log: ABSENCE_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithAbsence as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows absence penalty in list', async () => {
+        await renderProtocolPage()
+        expect(screen.getByText('Absent Member')).toBeInTheDocument()
+    })
+})
+
+describe('ProtocolPage — penalty sheet player selection', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('enables confirm button after selecting a player and penalty type', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+
+        // Select a player — scoped to within the sheet (player name also appears in main view)
+        fireEvent.click(within(sheet).getAllByText('Admin')[0])
+        // Select a penalty type chip — renders as "🍺 Bier" so use regex
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+
+        await waitFor(() => {
+            const confirmBtn = screen.getByText('penalty.confirm')
+            expect(confirmBtn).not.toBeDisabled()
+        })
+    })
+
+    it('calls api.addPenalty when confirmed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValueOnce({} as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+
+        // Select player — scoped to within the sheet
+        fireEvent.click(within(sheet).getAllByText('Admin')[0])
+        // Select penalty type — chip renders as "🍺 Bier" so use regex
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+
+        // Wait until state is set (confirm button enabled), then submit via Sheet's onSubmit
+        await waitFor(() => expect(screen.getByText('penalty.confirm')).not.toBeDisabled())
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.addPenalty).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ProtocolPage — drink round entries', () => {
+    const DRINK_ROUNDS_WITH_ENTRIES = [
+        {
+            id: 201, drink_type: 'beer', variety: 'Hefeweizen',
+            participant_ids: [10, 11],
+            client_timestamp: Date.now() - 90000,
+            created_at: new Date().toISOString(),
+        },
+        {
+            id: 202, drink_type: 'wine', variety: null,
+            participant_ids: [10],
+            client_timestamp: Date.now() - 45000,
+            created_at: new Date().toISOString(),
+        },
+    ]
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithDrinks = { ...ACTIVE_EVENING, drink_rounds: DRINK_ROUNDS_WITH_ENTRIES }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithDrinks as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: [], setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows hefeweizen variety', async () => {
+        await renderProtocolPage()
+        expect(screen.getByText(/Hefeweizen/)).toBeInTheDocument()
+    })
+
+    it('shows shots label for non-beer drink type', async () => {
+        await renderProtocolPage()
+        // ProtocolPage maps non-beer drink_type to t('drinks.shots')
+        expect(screen.getByText(/drinks\.shots/)).toBeInTheDocument()
+    })
+})
+
+describe('ProtocolPage — calculate absence penalties', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('calls api.calculateAbsencePenalties when button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.calculateAbsencePenalties).mockResolvedValueOnce({ avg: 0, absent_count: 0 } as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            expect(api.calculateAbsencePenalties).toHaveBeenCalledWith(42)
+        })
+    })
+})
+
+// ── new coverage tests ─────────────────────────────────────────────────────────
+
+describe('ProtocolPage — custom penalty tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('switches to custom tab when penalty.custom clicked', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('penalty.custom'))
+        await waitFor(() => {
+            // custom tab shows a Name input (placeholder "z.B. Zu spät…")
+            expect(screen.getByPlaceholderText(/z\.B\. Zu spät/)).toBeInTheDocument()
+        })
+    })
+
+    it('custom tab confirm button is disabled when no player or name', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('penalty.custom'))
+        await waitFor(() => screen.getByPlaceholderText(/z\.B\. Zu spät/))
+        // No player selected and no name → disabled
+        const confirmBtns = screen.getAllByText('penalty.confirm')
+        expect(confirmBtns[confirmBtns.length - 1]).toBeDisabled()
+    })
+
+    it('calls api.addPenalty when custom tab form submitted with player and name', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValueOnce({} as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('penalty.custom'))
+        await waitFor(() => screen.getByPlaceholderText(/z\.B\. Zu spät/))
+        const sheet = screen.getByTestId('sheet')
+
+        // Fill in a custom name
+        const nameInput = screen.getByPlaceholderText(/z\.B\. Zu spät/)
+        fireEvent.change(nameInput, { target: { value: 'Zu spät' } })
+
+        // Select a player within the sheet
+        const playerBtns = within(sheet).getAllByText('Admin')
+        fireEvent.click(playerBtns[0])
+
+        await waitFor(() => {
+            const confirmBtns = screen.getAllByText('penalty.confirm')
+            expect(confirmBtns[confirmBtns.length - 1]).not.toBeDisabled()
+        })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.addPenalty).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ProtocolPage — edit penalty sheet', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('opens edit sheet with penalty.edit title when ✏️ clicked', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet-title')).toHaveTextContent('penalty.edit')
+        })
+    })
+
+    it('calls api.updatePenalty when edit sheet submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenalty).toHaveBeenCalled()
+        })
+    })
+
+    it('closes edit sheet when cancel clicked', async () => {
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('close-sheet'))
+        await waitFor(() => {
+            expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+        })
+    })
+})
+
+describe('ProtocolPage — drink round delete', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithDrinks = {
+            ...ACTIVE_EVENING,
+            drink_rounds: [
+                {
+                    id: 301, drink_type: 'beer', variety: 'Kölsch',
+                    participant_ids: [10],
+                    client_timestamp: Date.now() - 30000,
+                    created_at: new Date().toISOString(),
+                },
+            ],
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithDrinks as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: [], setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows delete button for drink round', async () => {
+        await renderProtocolPage()
+        await waitFor(() => screen.getByText(/Kölsch/))
+        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+    })
+
+    it('calls api.deleteDrinkRound when drink ✕ clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteDrinkRound).mockResolvedValueOnce(undefined as any)
+        await renderProtocolPage()
+        await waitFor(() => screen.getByText(/Kölsch/))
+        fireEvent.click(screen.getAllByText('✕')[0])
+        await waitFor(() => {
+            expect(api.deleteDrinkRound).toHaveBeenCalledWith(42, 301)
+        })
+    })
+})
+
+describe('ProtocolPage — drink sheet with player selection', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows shots button in drink sheet', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        await waitFor(() => {
+            expect(screen.getByText(/drinks\.shots/)).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.addDrinkRound with beer type by default', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addDrinkRound).mockResolvedValueOnce({} as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        await waitFor(() => screen.getByText('action.done'))
+        fireEvent.click(screen.getByText('action.done'))
+        await waitFor(() => {
+            expect(api.addDrinkRound).toHaveBeenCalledWith(
+                42,
+                expect.objectContaining({ drink_type: 'beer' }),
+            )
+        })
+    })
+})
+
+describe('ProtocolPage — player filter chip', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('clicking player chip filters penalty log to that player', async () => {
+        await renderProtocolPage()
+        // Both names visible initially
+        await waitFor(() => screen.getAllByText('Admin'))
+        // Click the "Hansi" chip in the filter bar (first occurrence is the chip)
+        const hansiChips = screen.getAllByText('Hansi')
+        fireEvent.click(hansiChips[0])
+        // After filtering: "Bier" (Admin's entry) should disappear, Strafe (Hansi's) stays
+        await waitFor(() => {
+            expect(screen.queryByText('Bier')).not.toBeInTheDocument()
+            expect(screen.getByText('Strafe')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking all chip shows all entries again after player filter', async () => {
+        await renderProtocolPage()
+        await waitFor(() => screen.getByText('action.all'))
+        // Filter by Hansi first
+        const hansiChips = screen.getAllByText('Hansi')
+        fireEvent.click(hansiChips[0])
+        // Now click "All" chip
+        fireEvent.click(screen.getByText('action.all'))
+        await waitFor(() => {
+            expect(screen.getByText('Bier')).toBeInTheDocument()
+            expect(screen.getByText('Strafe')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('ProtocolPage — game timeline events', () => {
+    const GAME_WITH_TIMESTAMPS = {
+        id: 5, name: 'Spiel 1', status: 'finished',
+        started_at: new Date(Date.now() - 3600000).toISOString(),
+        finished_at: new Date(Date.now() - 1800000).toISOString(),
+        winner_name: 'Admin',
+        is_deleted: false,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithGame = {
+            ...ACTIVE_EVENING,
+            games: [GAME_WITH_TIMESTAMPS],
+            penalty_log: PENALTY_LOG,
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithGame as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('renders game started timeline marker', async () => {
+        await renderProtocolPage()
+        await waitFor(() => {
+            expect(screen.getByText(/▶/)).toBeInTheDocument()
+        })
+    })
+
+    it('renders game finished timeline marker with winner name', async () => {
+        await renderProtocolPage()
+        await waitFor(() => {
+            expect(screen.getByText(/🏁/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows game filter chip when game has penalties linked', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const penaltyWithGame = [{
+            ...PENALTY_LOG[0], game_id: 5,
+        }]
+        const eveningWithGamePenalty = {
+            ...ACTIVE_EVENING,
+            games: [GAME_WITH_TIMESTAMPS],
+            penalty_log: penaltyWithGame,
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithGamePenalty as any, invalidate: vi.fn(),
+        } as any)
+        await renderProtocolPage()
+        await waitFor(() => {
+            // game filter chip renders with 🏆 prefix
+            expect(screen.getByText(/🏆/)).toBeInTheDocument()
+        })
+    })
+})
+
+describe('ProtocolPage — absence result display', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('shows absence result count after calculation succeeds', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.calculateAbsencePenalties).mockResolvedValueOnce({ avg: 2.50, absent_count: 3 } as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            // Result renders "N penalty.absence.result · Ø €…"
+            expect(screen.getByText(/penalty\.absence\.result/)).toBeInTheDocument()
+        })
     })
 })

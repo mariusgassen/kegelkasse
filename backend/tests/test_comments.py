@@ -476,3 +476,109 @@ class TestGetItemReactions:
     def test_requires_auth(self, client: TestClient, highlight):
         resp = client.get(f"/api/v1/comments/item-reactions/highlight/{highlight.id}")
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Trip-based comments and item reactions (covers lines for trip parent type)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+def trip(db, club, admin_user):
+    from models.committee import ClubTrip
+    from datetime import date
+    tr = ClubTrip(
+        club_id=club.id,
+        destination="Bowling City",
+        date=date(2025, 7, 20),
+        created_by=admin_user.id,
+    )
+    db.add(tr)
+    db.commit()
+    db.refresh(tr)
+    return tr
+
+
+class TestTripComments:
+    """Cover comments on ClubTrip parent type."""
+
+    def test_empty_for_new_trip(self, client, auth_headers, trip):
+        resp = client.get(f"/api/v1/comments/trip/{trip.id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_returns_400_for_invalid_parent(self, client, auth_headers):
+        resp = client.get("/api/v1/comments/invalid/999", headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_nonexistent_trip_returns_404(self, client, auth_headers):
+        resp = client.get("/api/v1/comments/trip/999999", headers=auth_headers)
+        assert resp.status_code == 404
+
+    def test_member_can_comment_on_trip(self, client, auth_headers, trip):
+        resp = client.post(
+            f"/api/v1/comments/trip/{trip.id}",
+            headers=auth_headers,
+            json={"text": "Bin dabei!"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["text"] == "Bin dabei!"
+
+    def test_comment_returns_400_for_invalid_parent(self, client, auth_headers):
+        resp = client.post("/api/v1/comments/invalid/1", headers=auth_headers, json={"text": "x"})
+        assert resp.status_code == 400
+
+    def test_comment_returns_404_for_missing_trip(self, client, auth_headers):
+        resp = client.post("/api/v1/comments/trip/999999", headers=auth_headers, json={"text": "x"})
+        assert resp.status_code == 404
+
+
+class TestTripItemReactions:
+    """Cover item reactions on trips (lines 298-311 in comments.py)."""
+
+    def test_add_item_reaction_on_trip(self, client, auth_headers, trip):
+        resp = client.post(
+            f"/api/v1/comments/item-reaction/trip/{trip.id}",
+            headers=auth_headers,
+            json={"emoji": "❤️"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["action"] == "added"
+
+    def test_toggle_item_reaction_removes_on_second(self, client, auth_headers, trip):
+        url = f"/api/v1/comments/item-reaction/trip/{trip.id}"
+        client.post(url, headers=auth_headers, json={"emoji": "❤️"})
+        resp = client.post(url, headers=auth_headers, json={"emoji": "❤️"})
+        assert resp.json()["action"] == "removed"
+
+    def test_item_reaction_invalid_parent_returns_400(self, client, auth_headers):
+        resp = client.post(
+            "/api/v1/comments/item-reaction/invalid/1",
+            headers=auth_headers,
+            json={"emoji": "❤️"},
+        )
+        assert resp.status_code == 400
+
+    def test_item_reaction_nonexistent_trip_returns_404(self, client, auth_headers):
+        resp = client.post(
+            "/api/v1/comments/item-reaction/trip/999999",
+            headers=auth_headers,
+            json={"emoji": "❤️"},
+        )
+        assert resp.status_code == 404
+
+    def test_get_item_reactions_on_trip(self, client, auth_headers, trip):
+        resp = client.get(
+            f"/api/v1/comments/item-reactions/trip/{trip.id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_get_item_reactions_invalid_parent(self, client, auth_headers):
+        resp = client.get("/api/v1/comments/item-reactions/invalid/1", headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_get_item_reactions_nonexistent_trip(self, client, auth_headers):
+        resp = client.get("/api/v1/comments/item-reactions/trip/999999", headers=auth_headers)
+        assert resp.status_code == 404

@@ -875,3 +875,579 @@ describe('EveningPage — highlight interaction', () => {
         expect(screen.getByPlaceholderText('highlight.placeholder')).toBeInTheDocument()
     })
 })
+
+// ── Additional coverage tests ──────────────────────────────────────────────────
+
+const PLAYERS_WITH_TEAMS = [
+    { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: 1, is_present: true },
+    { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: 2, is_present: true },
+]
+
+const EVENING_WITH_TEAMS = {
+    ...ACTIVE_EVENING,
+    teams: [
+        { id: 1, name: 'Rote Brüder', player_ids: [10] },
+        { id: 2, name: 'Blaue Wölfe', player_ids: [11] },
+    ],
+    players: PLAYERS_WITH_TEAMS,
+}
+
+describe('EveningPage — team CRUD', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: EVENING_WITH_TEAMS as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows team names in team list', async () => {
+        await renderEveningPage()
+        expect(screen.getAllByText('Rote Brüder').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Blaue Wölfe').length).toBeGreaterThan(0)
+    })
+
+    it('shows player team assignment in player row', async () => {
+        await renderEveningPage()
+        expect(screen.getAllByText('Rote Brüder').length).toBeGreaterThan(0)
+    })
+
+    it('calls api.deleteTeam when team ✕ clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteTeam).mockResolvedValueOnce(undefined as any)
+        await renderEveningPage()
+        // ✕ buttons: player remove (×2) + team delete (×2)
+        const xBtns = screen.getAllByText('✕')
+        fireEvent.click(xBtns[0])
+        await waitFor(() => {
+            expect(api.deleteTeam).toHaveBeenCalled()
+        })
+    })
+
+    it('opens new team sheet when + button clicked', async () => {
+        await renderEveningPage()
+        // + button in teams section
+        const plusBtns = screen.getAllByText('+')
+        fireEvent.click(plusBtns[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+    })
+
+    it('opens edit team sheet when team ✏️ clicked', async () => {
+        await renderEveningPage()
+        // First ✏️ is evening edit, then team edits
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[1]) // first team edit
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet-title')).toHaveTextContent('team.edit')
+        })
+    })
+
+    it('calls api.updateTeam when team edit submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateTeam).mockResolvedValueOnce({} as any)
+        await renderEveningPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[1])
+        await waitFor(() => screen.getByText('submit-sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateTeam).toHaveBeenCalled()
+        })
+    })
+
+    it('calls api.createTeam when new team submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createTeam).mockResolvedValueOnce({} as any)
+        await renderEveningPage()
+        const plusBtns = screen.getAllByText('+')
+        fireEvent.click(plusBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Type a team name
+        const nameInput = screen.getByPlaceholderText('team.namePlaceholder')
+        fireEvent.change(nameInput, { target: { value: 'New Team' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createTeam).toHaveBeenCalledWith(42, expect.objectContaining({ name: 'New Team' }))
+        })
+    })
+})
+
+describe('EveningPage — apply/randomize teams buttons', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        // No teams — so apply/randomize buttons should appear
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, teams: [] } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows apply templates badge button when no teams', async () => {
+        await renderEveningPage()
+        expect(screen.getByText('team.fromTemplateBadge')).toBeInTheDocument()
+    })
+
+    it('shows randomize (dice) button when no teams', async () => {
+        await renderEveningPage()
+        expect(screen.getByText('🎲')).toBeInTheDocument()
+    })
+
+    it('calls api.applyClubTeamsToEvening(id, false) on apply templates', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.applyClubTeamsToEvening).mockResolvedValueOnce(undefined as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText('team.fromTemplateBadge'))
+        await waitFor(() => {
+            expect(api.applyClubTeamsToEvening).toHaveBeenCalledWith(42, false)
+        })
+    })
+
+    it('shows toast on randomize when no players', async () => {
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        const { api } = await import('@/api/client.ts')
+        // Evening with 0 players
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, teams: [], players: [] } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText('🎲'))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalled()
+        })
+        expect(api.applyClubTeamsToEvening).not.toHaveBeenCalled()
+    })
+
+    it('calls api.applyClubTeamsToEvening(id, true) on randomize with players', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.applyClubTeamsToEvening).mockResolvedValueOnce(undefined as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText('🎲'))
+        await waitFor(() => {
+            expect(api.applyClubTeamsToEvening).toHaveBeenCalledWith(42, true)
+        })
+    })
+})
+
+describe('EveningPage — add player with team selection', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: EVENING_WITH_TEAMS as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows team selection chips in add player sheet', async () => {
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => {
+            expect(screen.getByText('team.label')).toBeInTheDocument()
+        })
+    })
+
+    it('shows team name buttons in add player sheet', async () => {
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => {
+            expect(screen.getAllByText('Rote Brüder').length).toBeGreaterThan(0)
+        })
+    })
+
+    it('calls api.addPlayer with team_id when member selected and submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPlayer).mockResolvedValueOnce({} as any)
+        // Use a fresh evening with no players but with teams
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, teams: [{ id: 1, name: 'Rote Brüder', player_ids: [] }], players: [] } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER,
+            regularMembers: REGULAR_MEMBERS,
+            setActiveEveningId: vi.fn(),
+            setRegularMembers: vi.fn(),
+        } as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => screen.getByText(/Admin/))
+        // Click a member chip
+        fireEvent.click(screen.getByText('Admin'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.addPlayer).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('EveningPage — highlight add via button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('calls api.addHighlight when + button clicked with text', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addHighlight).mockResolvedValueOnce({} as any)
+        await renderEveningPage()
+        const input = screen.getByPlaceholderText('highlight.placeholder')
+        fireEvent.change(input, { target: { value: 'Amazing game' } })
+        // Click the + button in the highlight add section (last + on page)
+        const plusBtns = screen.getAllByText('+')
+        fireEvent.click(plusBtns[plusBtns.length - 1])
+        await waitFor(() => {
+            expect(api.addHighlight).toHaveBeenCalledWith(42, expect.objectContaining({ text: 'Amazing game' }))
+        })
+    })
+
+    it('shows king crown icon for king player', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: {
+                ...ACTIVE_EVENING,
+                players: [
+                    { ...PLAYERS[0], is_king: true },
+                    { ...PLAYERS[1], is_king: false },
+                ],
+            } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        await renderEveningPage()
+        expect(screen.getByTitle('König')).toBeInTheDocument()
+    })
+})
+
+describe('EveningPage — PinsAlert sub-component', () => {
+    const PIN_WITH_HOLDER = { id: 5, icon: '📌', name: 'Silbernadel', holder_regular_member_id: 1, holder_name: 'Admin' }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: {
+                ...ACTIVE_EVENING,
+                penalty_log: [],
+            } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { pin_penalty: 2.50 } } as any)
+        vi.mocked(api.listPins).mockResolvedValue([PIN_WITH_HOLDER] as any)
+    })
+
+    it('shows pin alert when holder is a player', async () => {
+        await renderEveningPage()
+        await waitFor(() => {
+            expect(screen.getByText('Silbernadel')).toBeInTheDocument()
+        })
+    })
+
+    it('shows missing penalty button for pin alert', async () => {
+        await renderEveningPage()
+        await waitFor(() => {
+            expect(screen.getByText(/pin\.missingPenalty/)).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.addPenalty when missing pin button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValueOnce({} as any)
+        await renderEveningPage()
+        await waitFor(() => screen.getByText(/pin\.missingPenalty/))
+        const missingBtns = screen.getAllByText(/pin\.missingPenalty/)
+        fireEvent.click(missingBtns[0])
+        await waitFor(() => {
+            expect(api.addPenalty).toHaveBeenCalledWith(42, expect.objectContaining({ player_ids: [10] }))
+        })
+    })
+
+    it('shows undo button when penalty already logged for pin', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: {
+                ...ACTIVE_EVENING,
+                penalty_log: [{ id: 99, player_name: 'Admin', penalty_type_name: '📌 Silbernadel missing' }],
+            } as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        await renderEveningPage()
+        await waitFor(() => {
+            // undo button is ↩
+            expect(screen.getByText('↩')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('EveningPage — UnplannedAttendanceSheet member interactions', () => {
+    const GUESTS = [
+        { id: 3, name: 'GastMember', nickname: 'Gasti', is_guest: true, is_active: true, is_committee: false, avatar: null },
+    ]
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER,
+            regularMembers: [...REGULAR_MEMBERS, ...GUESTS],
+            setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    async function renderAttendanceSheet() {
+        const { UnplannedAttendanceSheet } = await import('../EveningPage')
+        const onDone = vi.fn()
+        const onCancel = vi.fn()
+        return { ...render(
+            <UnplannedAttendanceSheet eveningId={42} onDone={onDone} onCancel={onCancel} />,
+            { wrapper: makeWrapper() },
+        ), onDone, onCancel }
+    }
+
+    it('shows all active members initially checked', async () => {
+        await renderAttendanceSheet()
+        // ☑ = checked
+        const checked = screen.getAllByText('☑')
+        expect(checked.length).toBe(2) // 2 active non-guest members
+    })
+
+    it('toggles member to unchecked when clicked', async () => {
+        await renderAttendanceSheet()
+        // Click Admin to uncheck them
+        const adminBtn = screen.getByText('Admin').closest('button') as HTMLButtonElement
+        fireEvent.click(adminBtn)
+        await waitFor(() => {
+            // Now has ☐ (unchecked)
+            expect(screen.getByText('☐')).toBeInTheDocument()
+        })
+    })
+
+    it('shows abgesagt button after unchecking member', async () => {
+        await renderAttendanceSheet()
+        const adminBtn = screen.getByText('Admin').closest('button') as HTMLButtonElement
+        fireEvent.click(adminBtn)
+        await waitFor(() => {
+            expect(screen.getByText('rsvp.absent.short')).toBeInTheDocument()
+        })
+    })
+
+    it('shows known guests section', async () => {
+        await renderAttendanceSheet()
+        // guests section header
+        await waitFor(() => {
+            expect(screen.getByText('Gasti')).toBeInTheDocument()
+        })
+    })
+
+    it('shows guest name input field', async () => {
+        await renderAttendanceSheet()
+        expect(screen.getByPlaceholderText('player.guestName')).toBeInTheDocument()
+    })
+
+    it('calls api.createRegularMember and addPlayer for new guest name', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createRegularMember).mockResolvedValue({ id: 99, name: 'NewGuest' } as any)
+        vi.mocked(api.addPlayer).mockResolvedValue({} as any)
+        vi.mocked(api.applyClubTeamsToEvening).mockResolvedValue(undefined as any)
+        await renderAttendanceSheet()
+        const guestInput = screen.getByPlaceholderText('player.guestName')
+        fireEvent.change(guestInput, { target: { value: 'NewGuest' } })
+        const startBtns = screen.getAllByText('evening.startButton')
+        fireEvent.click(startBtns[startBtns.length - 1])
+        await waitFor(() => {
+            expect(api.createRegularMember).toHaveBeenCalledWith(expect.objectContaining({ name: 'NewGuest', is_guest: true }))
+        })
+    })
+
+    it('calls onCancel when cancel button clicked', async () => {
+        const { onCancel } = await renderAttendanceSheet()
+        const cancelBtns = screen.getAllByText('action.cancel')
+        fireEvent.click(cancelBtns[cancelBtns.length - 1])
+        expect(onCancel).toHaveBeenCalled()
+    })
+})
+
+describe('EveningPage — offline state', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        const { useOnline } = await import('@/hooks/useOnline.ts')
+        vi.mocked(useOnline).mockReturnValue(false)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows offline hint on start form when offline', async () => {
+        await renderEveningPage()
+        expect(screen.getByText(/offline\.startHint/)).toBeInTheDocument()
+    })
+})
+
+describe('EveningPage — club settings autofill', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { home_venue: 'Stammtisch Mitte', default_evening_time: '19:30' } } as any)
+        vi.mocked(api.listPins).mockResolvedValue([])
+    })
+
+    it('prefills venue from club home_venue setting', async () => {
+        await renderEveningPage()
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('Stammtisch Mitte')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('EveningPage — member user (non-admin) view', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: MEMBER_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows Ich badge for current member user', async () => {
+        await renderEveningPage()
+        // MEMBER_USER has regular_member_id: 2 → player Hansi
+        expect(screen.getByText('Ich')).toBeInTheDocument()
+    })
+
+    it('shows evening venue for member user', async () => {
+        await renderEveningPage()
+        expect(screen.getByText(/Stammtisch/)).toBeInTheDocument()
+    })
+
+    it('shows evening end button (not admin-gated in EveningPage)', async () => {
+        await renderEveningPage()
+        expect(screen.getByText('evening.end')).toBeInTheDocument()
+    })
+})
+
+describe('EveningPage — confirm remove player cancel', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any,
+            invalidate: vi.fn(),
+            activeEveningId: 42,
+            isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows cancel (✕) button after remove confirm', async () => {
+        await renderEveningPage()
+        const xBtns = screen.getAllByText('✕')
+        fireEvent.click(xBtns[0]) // click first player remove
+        await waitFor(() => {
+            // Now shows both ✓ and ✕ for the confirmation
+            expect(screen.getAllByText('✕').length).toBeGreaterThan(1)
+        })
+    })
+
+    it('shows removal warning text after remove confirm', async () => {
+        await renderEveningPage()
+        const xBtns = screen.getAllByText('✕')
+        fireEvent.click(xBtns[0])
+        await waitFor(() => {
+            expect(screen.getByText(/player\.removeWarning/)).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.removePlayer when ✓ confirm button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.removePlayer).mockResolvedValueOnce(undefined as any)
+        await renderEveningPage()
+        // Sort order: current user (Admin, id=1) first, then Hansi
+        const xBtns = screen.getAllByText('✕')
+        fireEvent.click(xBtns[0])
+        await waitFor(() => screen.getByText('✓'))
+        fireEvent.click(screen.getByText('✓'))
+        await waitFor(() => {
+            expect(api.removePlayer).toHaveBeenCalled()
+        })
+    })
+})

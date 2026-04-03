@@ -37,6 +37,12 @@ genbadge = {version = "^1.1", extras = ["coverage"]}
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.coverage.run]
+omit = [
+    "app/scripts/*",
+    "app/services/backup.py",
+]
+
 [tool.ruff]
 line-length = 120
 
