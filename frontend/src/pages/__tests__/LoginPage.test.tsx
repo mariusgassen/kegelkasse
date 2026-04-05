@@ -262,7 +262,7 @@ describe('LoginPage — register success', () => {
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.register).mockResolvedValueOnce({
             access_token: 'reg-tok',
-            user: { id: 2, email: 'new@e.de', name: 'New', username: 'newbie', role: 'member', club_id: 1, preferred_locale: null, avatar: null, regular_member_id: null },
+            user: { id: 2, email: 'new@e.de', name: 'New', username: 'newbie', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
         await renderLoginPage({ onLogin })
@@ -389,7 +389,7 @@ describe('LoginPage — register mode with invite token in URL', () => {
         vi.mocked(api.getInviteInfo).mockResolvedValueOnce({ member_name: 'Franz' } as any)
         vi.mocked(api.register).mockResolvedValueOnce({
             access_token: 'tok-pf',
-            user: { id: 3, email: 'f@e.de', name: 'Franz', username: 'franz', role: 'member', club_id: 1, preferred_locale: null, avatar: null, regular_member_id: null },
+            user: { id: 3, email: 'f@e.de', name: 'Franz', username: 'franz', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
         await renderLoginPage({ onLogin })
