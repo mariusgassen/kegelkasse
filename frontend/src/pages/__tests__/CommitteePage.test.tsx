@@ -66,6 +66,10 @@ vi.mock('@/components/ui/Toast.tsx', () => ({
     showToast: vi.fn(),
 }))
 
+vi.mock('@/components/ui/Empty.tsx', () => ({
+    Empty: ({ text }: any) => <div>{text}</div>,
+}))
+
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 const ANNOUNCEMENTS = [
@@ -941,5 +945,95 @@ describe('CommitteePage — trip note field', () => {
         expect(dateInput).toBeTruthy()
         fireEvent.change(dateInput!, { target: { value: '2027-05-15' } })
         expect(dateInput).toHaveValue('2027-05-15')
+    })
+})
+
+// ── error handlers ────────────────────────────────────────────────────────────
+describe('CommitteePage — announcement error handlers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['announcements', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue(ANNOUNCEMENTS as any)
+        vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    })
+
+    it('calls toastError when createAnnouncement fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createAnnouncement).mockRejectedValueOnce(new Error('create fail'))
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.announcement\.add/))
+        fireEvent.click(screen.getByText(/committee\.announcement\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Title input has placeholder='committee.announcement.title'
+        const titleInput = screen.getByPlaceholderText('committee.announcement.title') as HTMLInputElement
+        fireEvent.change(titleInput, { target: { value: 'Test Title' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('shows delete confirm sheet with announcement delete confirm text', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Wichtige Ankündigung'))
+        // Click × on the first announcement to open confirm dialog
+        fireEvent.click(screen.getAllByText('×')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect(screen.getByText(/committee\.announcement\.deleteConfirm/)).toBeInTheDocument()
+    })
+})
+
+describe('CommitteePage — trip error handlers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['trips', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+    })
+
+    it('calls toastError when createTrip fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createTrip).mockRejectedValueOnce(new Error('create fail'))
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.trip\.add/))
+        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Destination input has placeholder='committee.trip.destinationPlaceholder'
+        const destInput = screen.getByPlaceholderText('committee.trip.destinationPlaceholder') as HTMLInputElement
+        fireEvent.change(destInput, { target: { value: 'TestCity' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when updateTrip fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateTrip).mockRejectedValueOnce(new Error('update fail'))
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        // Click edit button ✏️ on the trip
+        fireEvent.click(screen.getByText('✏️'))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when deleteTrip (in handler) fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deleteTrip).mockRejectedValueOnce(new Error('delete fail'))
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        // Click × on the trip
+        fireEvent.click(screen.getAllByText('×')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText(/action\.confirmDelete/))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 })
