@@ -1452,3 +1452,202 @@ describe('EveningPage — confirm remove player cancel', () => {
         })
     })
 })
+
+// ── start form onChange handlers ──────────────────────────────────────────────
+describe('EveningPage — start form input interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('updates date input value when changed', async () => {
+        await renderEveningPage()
+        const dateInput = document.querySelector('input[type="date"]')
+        expect(dateInput).toBeTruthy()
+        fireEvent.change(dateInput!, { target: { value: '2026-05-15' } })
+        expect(dateInput).toHaveValue('2026-05-15')
+    })
+
+    it('updates time input value when changed', async () => {
+        await renderEveningPage()
+        const timeInput = document.querySelector('input[type="time"]')
+        expect(timeInput).toBeTruthy()
+        fireEvent.change(timeInput!, { target: { value: '20:30' } })
+        expect(timeInput).toHaveValue('20:30')
+    })
+
+    it('updates note input value when changed', async () => {
+        await renderEveningPage()
+        const noteInput = screen.getByPlaceholderText('common.optional')
+        fireEvent.change(noteInput, { target: { value: 'Test note' } })
+        expect(noteInput).toHaveValue('Test note')
+    })
+})
+
+// ── edit evening sheet input interactions ────────────────────────────────────
+describe('EveningPage — edit sheet input interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    async function openEditSheet() {
+        await renderEveningPage()
+        // Click the ✏️ edit button
+        await waitFor(() => screen.getAllByText('✏️'))
+        // Click the first ✏️ which should be the evening edit button
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+    }
+
+    it('shows edit venue input in edit sheet', async () => {
+        await openEditSheet()
+        const venueInput = screen.getByDisplayValue('Stammtisch')
+        expect(venueInput).toBeInTheDocument()
+    })
+
+    it('updates venue input when changed in edit sheet', async () => {
+        await openEditSheet()
+        const venueInput = screen.getByDisplayValue('Stammtisch')
+        fireEvent.change(venueInput, { target: { value: 'New Venue' } })
+        expect(venueInput).toHaveValue('New Venue')
+    })
+
+    it('updates note input when changed in edit sheet', async () => {
+        await openEditSheet()
+        // Find the note input - it has value 'Testabend'
+        const noteInput = screen.getByDisplayValue('Testabend')
+        fireEvent.change(noteInput, { target: { value: 'Changed note' } })
+        expect(noteInput).toHaveValue('Changed note')
+    })
+})
+
+// ── guest name input in add player sheet ─────────────────────────────────────
+describe('EveningPage — guest name in add player', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('shows guest name input in add player sheet', async () => {
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => screen.getByText('player.newGuest'))
+        expect(screen.getByPlaceholderText('player.guestPlaceholder')).toBeInTheDocument()
+    })
+
+    it('updates guest name input when typed', async () => {
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => screen.getByPlaceholderText('player.guestPlaceholder'))
+        const guestInput = screen.getByPlaceholderText('player.guestPlaceholder')
+        fireEvent.change(guestInput, { target: { value: 'Max Gast' } })
+        expect(guestInput).toHaveValue('Max Gast')
+    })
+})
+
+// ── error handling in EveningPage ────────────────────────────────────────────
+describe('EveningPage — error handling in save operations', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('calls toastError when saveEvening fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('save fail'))
+        await renderEveningPage()
+        // Open edit sheet and submit
+        await waitFor(() => screen.getAllByText('✏️'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByText('submit-sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when reopen fails', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: CLOSED_EVENING as any, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('reopen fail'))
+        await renderEveningPage()
+        await waitFor(() => screen.getByText('evening.reopen'))
+        fireEvent.click(screen.getByText('evening.reopen'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when close evening fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('close fail'))
+        await renderEveningPage()
+        await waitFor(() => screen.getByText('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
+        await waitFor(() => screen.getByText('action.done'))
+        fireEvent.click(screen.getByText('action.done'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})
+
+// ── highlight Enter key handler ───────────────────────────────────────────────
+describe('EveningPage — highlight Enter key', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
+        } as any)
+        await setupDefaultApiMocks()
+    })
+
+    it('calls api.addHighlight when Enter pressed in highlight input', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addHighlight).mockResolvedValueOnce(undefined as any)
+        await renderEveningPage()
+        await waitFor(() => screen.getByPlaceholderText('highlight.placeholder'))
+        const highlightInput = screen.getByPlaceholderText('highlight.placeholder')
+        fireEvent.change(highlightInput, { target: { value: 'Great moment!' } })
+        fireEvent.keyDown(highlightInput, { key: 'Enter' })
+        await waitFor(() => expect(api.addHighlight).toHaveBeenCalledWith(42, expect.objectContaining({ text: 'Great moment!' })))
+    })
+})

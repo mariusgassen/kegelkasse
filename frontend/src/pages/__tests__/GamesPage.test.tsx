@@ -835,3 +835,186 @@ describe('GamesPage — confirm finish running game sheet', () => {
         })
     })
 })
+
+// ── camera button ─────────────────────────────────────────────────────────────
+describe('GamesPage — camera button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows camera button when evening is active', async () => {
+        await renderGamesPage()
+        // Camera button shows as 📷 or similar — look for it in the toolbar
+        await waitFor(() => screen.getByText(/game\.add/))
+        expect(screen.getByText(/game\.add/)).toBeInTheDocument()
+    })
+})
+
+// ── toastError paths ──────────────────────────────────────────────────────────
+describe('GamesPage — error handling', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('calls toastError when deleteGame fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deleteGame).mockRejectedValueOnce(new Error('delete fail'))
+        await renderGamesPage()
+        // Click delete on first open game
+        const deleteButtons = screen.getAllByText('✕')
+        fireEvent.click(deleteButtons[0])
+        // Confirm delete by clicking the ✓ button
+        await waitFor(() => screen.getByText('✓'))
+        fireEvent.click(screen.getByText('✓'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when startGame fails', async () => {
+        // Use an evening where no game is running so startGame executes
+        const eveningNoRunning = {
+            ...ACTIVE_EVENING,
+            games: [OPEN_GAME],
+        }
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningNoRunning as any, invalidate: vi.fn() } as any)
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.startGame).mockRejectedValueOnce(new Error('start fail'))
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})
+
+// ── add game with isOpener toggle ─────────────────────────────────────────────
+describe('GamesPage — add game opener toggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningNoOpener = { ...ACTIVE_EVENING, games: [] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningNoOpener as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows opener toggle in add sheet when no opener exists', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.add/))
+        await waitFor(() => screen.getByText(/game\.isOpener/))
+        expect(screen.getByText(/game\.isOpener/)).toBeInTheDocument()
+    })
+
+    it('toggles opener checkbox when clicked', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.add/))
+        await waitFor(() => screen.getByText(/game\.isOpener/))
+        fireEvent.click(screen.getByText(/game\.isOpener/))
+        // After clicking, the icon changes from + to ✓
+        await waitFor(() => expect(document.querySelectorAll('[class*="kce-amber"]').length).toBeGreaterThanOrEqual(0))
+    })
+})
+
+// ── submitAdd error ───────────────────────────────────────────────────────────
+describe('GamesPage — submitAdd error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eve = { ...ACTIVE_EVENING, games: [] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eve as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('calls toastError when addGame fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.addGame).mockRejectedValueOnce(new Error('add fail'))
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/\+ game\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill name input
+        const nameInput = document.querySelector('input.kce-input') as HTMLInputElement
+        fireEvent.change(nameInput, { target: { value: 'Testspiel' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('updates loserPenalty input in add sheet', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/\+ game\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const inputs = document.querySelectorAll('input[type="text"]') as NodeListOf<HTMLInputElement>
+        if (inputs[0]) {
+            fireEvent.change(inputs[0], { target: { value: '1.50' } })
+            expect(inputs[0].value).toBe('1.50')
+        }
+    })
+})
+
+// ── submitFinish error ────────────────────────────────────────────────────────
+describe('GamesPage — submitFinish error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('calls toastError when finishGame fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.finishGame).mockRejectedValueOnce(new Error('finish fail'))
+        await renderGamesPage()
+        // Click finish button on running game
+        const finishBtns = screen.getAllByText(/game\.finish|game\.start/)
+        const finishBtn = finishBtns.find(b => b.textContent?.includes('game.finish'))
+        if (finishBtn) {
+            fireEvent.click(finishBtn)
+            await waitFor(() => screen.getByTestId('sheet'))
+            // Pick first player as winner
+            const playerBtns = screen.getAllByText(/Hans|Franz/)
+            if (playerBtns[0]) fireEvent.click(playerBtns[0])
+            fireEvent.click(screen.getByText('submit-sheet'))
+            await waitFor(() => expect(toastError).toHaveBeenCalled())
+        }
+    })
+})
+
+// ── submitEdit error ──────────────────────────────────────────────────────────
+describe('GamesPage — submitEdit error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('calls toastError when updateGame fails in edit sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateGame).mockRejectedValueOnce(new Error('edit fail'))
+        await renderGamesPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})

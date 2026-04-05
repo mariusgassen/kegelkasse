@@ -822,3 +822,124 @@ describe('CommitteePage — trips search', () => {
         })
     })
 })
+
+// ── past trips section ─────────────────────────────────────────────────────────
+describe('CommitteePage — past trips section', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnTripsTab()
+    })
+
+    it('shows past trips in past section', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        const PAST_TRIP = { id: 10, destination: 'Hamburg', date: '2020-01-01', note: 'old trip', created_by: 1 }
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([PAST_TRIP] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Hamburg'))
+        expect(screen.getByText(/schedule\.past/)).toBeInTheDocument()
+    })
+
+    it('shows edit button on past trip for admin', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        const PAST_TRIP = { id: 10, destination: 'OldCity', date: '2020-01-01', note: null, created_by: 1 }
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([PAST_TRIP] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('OldCity'))
+        expect(screen.getByText('✏️')).toBeInTheDocument()
+    })
+})
+
+// ── trip delete confirmation sheet ───────────────────────────────────────────
+describe('CommitteePage — trip delete confirmation', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnTripsTab()
+        await setupAsAdmin()
+    })
+
+    it('shows delete confirm sheet when × clicked on trip', async () => {
+        const { api } = await import('@/api/client.ts')
+        const FUTURE_TRIP = { id: 5, destination: 'Vienna', date: '2030-01-01', note: null, created_by: 1 }
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([FUTURE_TRIP] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Vienna'))
+        fireEvent.click(screen.getByText('×'))
+        await waitFor(() => screen.getByText(/committee\.trip\.deleteConfirm/))
+        expect(screen.getByText(/committee\.trip\.deleteConfirm/)).toBeInTheDocument()
+    })
+
+    it('calls api.deleteTrip when confirmDelete clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const FUTURE_TRIP = { id: 5, destination: 'Vienna', date: '2030-01-01', note: null, created_by: 1 }
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([FUTURE_TRIP] as any)
+        vi.mocked(api.deleteTrip).mockResolvedValueOnce(undefined as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Vienna'))
+        fireEvent.click(screen.getByText('×'))
+        await waitFor(() => screen.getByText(/action\.confirmDelete/))
+        fireEvent.click(screen.getByText(/action\.confirmDelete/))
+        await waitFor(() => expect(api.deleteTrip).toHaveBeenCalledWith(5))
+    })
+})
+
+// ── announcement textarea interaction ────────────────────────────────────────
+describe('CommitteePage — announcement form textarea', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['announcements', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    })
+
+    it('updates textarea value when text typed in announcement sheet', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
+        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await waitFor(() => screen.getByPlaceholderText('committee.announcement.title'))
+        const textarea = screen.getByPlaceholderText('committee.announcement.text')
+        fireEvent.change(textarea, { target: { value: 'Some text content' } })
+        expect(textarea).toHaveValue('Some text content')
+    })
+})
+
+// ── trip note field in add sheet ──────────────────────────────────────────────
+describe('CommitteePage — trip note field', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnTripsTab()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    })
+
+    it('updates note textarea value in add trip sheet', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.trip\.add/))
+        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await waitFor(() => screen.getByPlaceholderText('common.optional'))
+        const noteTextarea = screen.getByPlaceholderText('common.optional')
+        fireEvent.change(noteTextarea, { target: { value: 'Fun trip notes' } })
+        expect(noteTextarea).toHaveValue('Fun trip notes')
+    })
+
+    it('updates date field in add trip sheet', async () => {
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.trip\.add/))
+        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await waitFor(() => screen.getByText(/committee\.trip\.date/))
+        const dateInput = document.querySelector('input[type="date"]')
+        expect(dateInput).toBeTruthy()
+        fireEvent.change(dateInput!, { target: { value: '2027-05-15' } })
+        expect(dateInput).toHaveValue('2027-05-15')
+    })
+})
