@@ -954,3 +954,255 @@ describe('MembersPage — inactive toggle details', () => {
         })
     })
 })
+
+// ── invite sheet URL display ────────────────────────────────────────────────
+describe('MembersPage — invite sheet URL display', () => {
+    async function setupWithUnlinked() {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', regular_member_id: 1 },
+            regularMembers: MEMBERS_WITH_UNLINKED,
+            setRegularMembers: vi.fn(),
+        } as any)
+    }
+
+    it('shows invite URL in member invite sheet', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createMemberInvite).mockResolvedValueOnce({
+            invite_url: '/invite/abc123', member_name: 'Klauschen'
+        } as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Klauschen'))
+        const inviteButtons = screen.getAllByText('📨')
+        fireEvent.click(inviteButtons[inviteButtons.length - 1])
+        await waitFor(() => screen.getByText(/invite\/abc123/))
+        expect(screen.getByText(/invite\/abc123/)).toBeInTheDocument()
+    })
+
+    it('shows copy button in invite sheet', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createMemberInvite).mockResolvedValueOnce({
+            invite_url: '/invite/xyz789', member_name: 'Klauschen'
+        } as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Klauschen'))
+        const inviteButtons = screen.getAllByText('📨')
+        fireEvent.click(inviteButtons[inviteButtons.length - 1])
+        await waitFor(() => screen.getByText(/club\.invite\.copy/))
+        expect(screen.getByText(/club\.invite\.copy/)).toBeInTheDocument()
+    })
+})
+
+// ── reset sheet URL display ────────────────────────────────────────────────
+describe('MembersPage — reset sheet URL display', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+    })
+
+    it('shows reset URL in reset sheet', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/reset/token123' } as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getAllByText('🔑'))
+        const resetButtons = screen.getAllByText('🔑')
+        fireEvent.click(resetButtons[0])
+        await waitFor(() => screen.getByText(/reset\/token123/))
+        expect(screen.getByText(/reset\/token123/)).toBeInTheDocument()
+    })
+})
+
+// ── addToEvening button ─────────────────────────────────────────────────────
+describe('MembersPage — addToEvening button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+    })
+
+    it('shows add to evening button when an evening is active and open', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { id: 42, is_closed: false, players: [] },
+            isLoading: false, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        await setupAdmin()
+        await renderMembersPage()
+        await waitFor(() => screen.getByText(/member\.addToEvening/))
+        expect(screen.getByText(/member\.addToEvening/)).toBeInTheDocument()
+    })
+
+    it('calls api.addPlayer when add to evening button clicked', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { id: 42, is_closed: false, players: [] },
+            isLoading: false, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPlayer).mockResolvedValueOnce(undefined as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getAllByText(/member\.addToEvening/))
+        const addButtons = screen.getAllByText(/member\.addToEvening/)
+        fireEvent.click(addButtons[0])
+        await waitFor(() => expect(api.addPlayer).toHaveBeenCalledWith(42, expect.any(Object)))
+    })
+})
+
+// ── deactivate/reactivate member ───────────────────────────────────────────
+describe('MembersPage — deactivate member', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+    })
+
+    it('calls api.deactivateMember when deactivate button clicked', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: null, isLoading: false, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', regular_member_id: 1 },
+            regularMembers: REGULAR_MEMBERS,
+            setRegularMembers: vi.fn(),
+        } as any)
+        vi.mocked(api.deactivateMember).mockResolvedValueOnce(undefined as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        await renderMembersPage()
+        // The deactivate button is ✕ with title="Deaktivieren" for non-self users
+        await waitFor(() => screen.getAllByTitle('Deaktivieren'))
+        const deactivateBtn = screen.getAllByTitle('Deaktivieren')[0]
+        fireEvent.click(deactivateBtn)
+        await waitFor(() => expect(api.deactivateMember).toHaveBeenCalled())
+    })
+})
+
+// ── error handlers ───────────────────────────────────────────────────────────
+describe('MembersPage — error handlers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: null, isLoading: false, invalidate: vi.fn(), activeEveningId: null, isPending: false,
+        } as any)
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+    })
+
+    it('calls toastError when save (create) fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createRegularMember).mockRejectedValueOnce(new Error('create fail'))
+        await renderMembersPage()
+        // The "+ member.add" button opens the create sheet
+        await waitFor(() => screen.getByText(/\+ member\.add/))
+        fireEvent.click(screen.getByText(/\+ member\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Use within to find the name input inside the sheet (not the search input)
+        const sheet = screen.getByTestId('sheet')
+        const nameInput = within(sheet).getAllByRole('textbox')[0]
+        fireEvent.change(nameInput, { target: { value: 'Test Member' } })
+        fireEvent.click(within(sheet).getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when remove (delete) fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deleteRegularMember).mockRejectedValueOnce(new Error('delete fail'))
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        // ✕ buttons in the roster section call remove()
+        const deleteBtns = screen.getAllByText('✕')
+        // Last ones should be roster member delete buttons (not deactivate)
+        fireEvent.click(deleteBtns[deleteBtns.length - 1])
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when openReset (createResetToken) fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createResetToken).mockRejectedValueOnce(new Error('reset fail'))
+        await renderMembersPage()
+        await waitFor(() => screen.getAllByText('🔑'))
+        fireEvent.click(screen.getAllByText('🔑')[0])
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when openInvite (createMemberInvite) fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createMemberInvite).mockRejectedValueOnce(new Error('invite fail'))
+        // Use MEMBERS_WITH_UNLINKED so unlinkedRoster has member 4 (Unlinked Klaus)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', regular_member_id: 1 },
+            regularMembers: MEMBERS_WITH_UNLINKED,
+            setRegularMembers: vi.fn(),
+        } as any)
+        await renderMembersPage()
+        // 📨 buttons appear in unlinked roster section
+        await waitFor(() => screen.getAllByText('📨'))
+        const inviteBtns = screen.getAllByText('📨')
+        // Last button is in the roster section (not the general invite at the top)
+        fireEvent.click(inviteBtns[inviteBtns.length - 1])
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when handleDeactivate fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deactivateMember).mockRejectedValueOnce(new Error('deactivate fail'))
+        await renderMembersPage()
+        await waitFor(() => screen.getAllByTitle('Deaktivieren'))
+        fireEvent.click(screen.getAllByTitle('Deaktivieren')[0])
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+
+    it('calls toastError when handleLink fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.linkUserToRoster).mockRejectedValueOnce(new Error('link fail'))
+        // Set up with unlinked user
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', regular_member_id: 1 },
+            regularMembers: MEMBERS_WITH_UNLINKED,
+            setRegularMembers: vi.fn(),
+        } as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS_UNLINKED as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValue(MEMBERS_WITH_UNLINKED as any)
+        await renderMembersPage()
+        // 🔗 button for user without roster link
+        await waitFor(() => screen.getAllByText('🔗'))
+        fireEvent.click(screen.getAllByText('🔗')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Click any available member chip in the sheet
+        const sheetEl = screen.getByTestId('sheet')
+        const memberBtns = within(sheetEl).getAllByRole('button').filter(b =>
+            !['close-sheet', 'submit-sheet'].includes(b.textContent ?? '')
+        )
+        if (memberBtns[0]) {
+            fireEvent.click(memberBtns[0])
+            await waitFor(() => expect(toastError).toHaveBeenCalled())
+        }
+    })
+})

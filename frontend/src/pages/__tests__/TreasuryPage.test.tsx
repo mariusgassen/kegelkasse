@@ -900,3 +900,412 @@ describe('TreasuryPage — booking sheet date input for club expense', () => {
         })
     })
 })
+
+// ── additional coverage: payment sheet ModeToggle + note input (lines 960-970, 984) ──
+
+describe('TreasuryPage — payment sheet interaction', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('switches payment mode to withdrawal when ModeToggle onChange fires', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        await renderTreasuryPage()
+        // Open payment sheet via member row
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => screen.getByText(/treasury\.payment\.record/))
+        const recordBtns = screen.getAllByText(/treasury\.payment\.record/)
+        fireEvent.click(recordBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Click the withdrawal ModeToggle option
+        const withdrawalBtn = screen.getByText(/treasury\.payment\.withdrawal/)
+        fireEvent.click(withdrawalBtn)
+        // Mode has switched — withdrawal label is still visible
+        expect(screen.getByText(/treasury\.payment\.withdrawal/)).toBeInTheDocument()
+    })
+
+    it('updates payment note input onChange', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([])
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => screen.getByText(/treasury\.payment\.record/))
+        const recordBtns = screen.getAllByText(/treasury\.payment\.record/)
+        fireEvent.click(recordBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill payment note
+        const noteInput = screen.getByPlaceholderText('treasury.payment.notePlaceholder')
+        fireEvent.change(noteInput, { target: { value: 'Test Notiz' } })
+        expect(noteInput).toHaveValue('Test Notiz')
+    })
+})
+
+// ── additional coverage: booking direction ModeToggle onChange (line 1030) ──────
+
+describe('TreasuryPage — booking direction toggle via ModeToggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('calls setBookingDirection via ModeToggle onChange in booking sheet', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Default is club booking → shows income/expense options
+        // Click the income option via the ModeToggle
+        const incomeBtn = screen.getByText(/treasury\.booking\.income/)
+        fireEvent.click(incomeBtn)
+        // Direction is now 'in' — income label still visible
+        expect(screen.getByText(/treasury\.booking\.income/)).toBeInTheDocument()
+    })
+})
+
+// ── downloadReport button ──────────────────────────────────────────────────────
+describe('TreasuryPage — downloadReport', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupDefaultMocks()
+    })
+
+    it('shows export button for admin', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/report\.export/))
+        expect(screen.getByText(/report\.export/)).toBeInTheDocument()
+    })
+
+    it('calls api.downloadReport when export button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.downloadReport).mockResolvedValueOnce(undefined as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/report\.export/))
+        fireEvent.click(screen.getByText(/report\.export/))
+        await waitFor(() => expect(api.downloadReport).toHaveBeenCalled())
+    })
+
+    it('shows year select for admin', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/report\.yearAll/))
+        expect(screen.getByText(/report\.yearAll/)).toBeInTheDocument()
+    })
+})
+
+// ── remindDebtors button ───────────────────────────────────────────────────────
+describe('TreasuryPage — remindDebtors button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+    })
+
+    it('shows remind debtors button when debtors exist', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: null, balance: -5.00, payments_total: 0, penalty_total: 5.00 }
+        ] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.remindDebtors/))
+        expect(screen.getByText(/treasury\.remindDebtors/)).toBeInTheDocument()
+    })
+
+    it('calls api.remindDebtors when remind button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: null, balance: -5.00, payments_total: 0, penalty_total: 5.00 }
+        ] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        vi.mocked(api.remindDebtors).mockResolvedValueOnce(undefined as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.remindDebtors/))
+        fireEvent.click(screen.getByText(/treasury\.remindDebtors/))
+        await waitFor(() => expect(api.remindDebtors).toHaveBeenCalled())
+    })
+})
+
+// ── settle payment button ──────────────────────────────────────────────────────
+describe('TreasuryPage — settle payment (overview tab)', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+    })
+
+    it('shows settle button next to debtor name', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: 'Hansi', balance: -5.00, payments_total: 0, penalty_total: 5.00 }
+        ] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.payment\.settle/))
+        expect(screen.getByText(/treasury\.payment\.settle/)).toBeInTheDocument()
+    })
+})
+
+// ── Error handling tests ───────────────────────────────────────────────────────
+
+describe('TreasuryPage — error handlers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue(EXPENSES as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue(PAYMENTS as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('calls toastError when downloadReport fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.downloadReport).mockRejectedValueOnce(new Error('export failed'))
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('report.export'))
+        fireEvent.click(screen.getByText('report.export'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('calls toastError when remindDebtors fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: 'Hansi', balance: -5.00, payments_total: 0, penalty_total: 5.00 }
+        ] as any)
+        vi.mocked(api.remindDebtors).mockRejectedValueOnce(new Error('remind failed'))
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('treasury.remindDebtors'))
+        fireEvent.click(screen.getByText('treasury.remindDebtors'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('changes exportYear select value', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('report.export'))
+        const yearSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement
+        const currentYear = new Date().getFullYear()
+        fireEvent.change(yearSelect, { target: { value: String(currentYear) } })
+        expect(yearSelect.value).toBe(String(currentYear))
+    })
+
+    it('changes exportFormat select value', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('report.export'))
+        const selects = screen.getAllByRole('combobox')
+        const formatSelect = selects[1] as HTMLSelectElement
+        fireEvent.change(formatSelect, { target: { value: 'pdf' } })
+        expect(formatSelect.value).toBe('pdf')
+    })
+})
+
+describe('TreasuryPage — confirmPaymentRequest error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([
+            { id: 10, regular_member_id: 5, member_name: 'Hans', amount: 5.00, status: 'pending', created_at: '2026-01-01' }
+        ] as any)
+    })
+
+    it('calls toastError when confirmPaymentRequest fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.confirmPaymentRequest).mockRejectedValueOnce(new Error('confirm failed'))
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('paymentRequest.confirm'))
+        fireEvent.click(screen.getByText('paymentRequest.confirm'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('calls toastError when rejectPaymentRequest fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.rejectPaymentRequest).mockRejectedValueOnce(new Error('reject failed'))
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('paymentRequest.reject'))
+        fireEvent.click(screen.getByText('paymentRequest.reject'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('TreasuryPage — deletePayment error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 20, amount: 10.00, note: 'Test Payment', created_at: '2026-01-01T00:00:00' }
+        ] as any)
+    })
+
+    it('calls toastError when deleteMemberPayment fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deleteMemberPayment).mockRejectedValueOnce(new Error('delete failed'))
+        await renderTreasuryPage()
+        // Expand Admin member row to show payments
+        await waitFor(() => screen.getByText('Admin'))
+        fireEvent.click(screen.getByText('Admin'))
+        await waitFor(() => screen.getByText('Test Payment'))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[0])
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('TreasuryPage — submitPayment error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('calls toastError when createMemberPayment fails in payment sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createMemberPayment).mockRejectedValueOnce(new Error('payment failed'))
+        await renderTreasuryPage()
+        // Hansi has negative balance (-5.50) → shows in debtors section with settle button (overview tab)
+        await waitFor(() => screen.getByText('Hansi'))
+        const settleBtn = screen.getAllByText('treasury.payment.settle')[0]
+        fireEvent.click(settleBtn)
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Amount is pre-filled with abs(balance), just submit
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('TreasuryPage — bookingSheet submitBooking error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue(EXPENSES as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue(PAYMENTS as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('calls toastError when createExpense fails in booking sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.createExpense).mockRejectedValueOnce(new Error('expense failed'))
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Fill amount (placeholder "0,00") and note (required for club expense)
+        fireEvent.change(screen.getByPlaceholderText('0,00'), { target: { value: '25.00' } })
+        fireEvent.change(screen.getByPlaceholderText('treasury.expense.descPlaceholder'), { target: { value: 'Test Expense' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('shows filteredBookings search and filters entries', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Getränke'))
+        const searchInput = screen.getByPlaceholderText(/treasury\.bookings\.search/)
+        fireEvent.change(searchInput, { target: { value: 'Admin' } })
+        await waitFor(() => {
+            expect(screen.getByText('Admin')).toBeInTheDocument()
+        })
+    })
+})

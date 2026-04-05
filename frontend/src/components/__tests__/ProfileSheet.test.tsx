@@ -985,3 +985,101 @@ describe('ProfileSheet — payment form cancel and amount input', () => {
         })
     })
 })
+
+// ── Additional input onChange coverage ────────────────────────────────────────
+
+describe('ProfileSheet — input onChange handlers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+    })
+
+    it('updates username input when changed', async () => {
+        await renderProfileSheet()
+        const usernameInput = screen.getByDisplayValue('hans') as HTMLInputElement
+        fireEvent.change(usernameInput, { target: { value: 'newhans' } })
+        expect(usernameInput.value).toBe('newhans')
+    })
+
+    it('updates email input when changed', async () => {
+        await renderProfileSheet()
+        const emailInput = screen.getByDisplayValue('member@test.de') as HTMLInputElement
+        fireEvent.change(emailInput, { target: { value: 'new@test.de' } })
+        expect(emailInput.value).toBe('new@test.de')
+    })
+
+    it('updates currentPassword input when changed', async () => {
+        await renderProfileSheet()
+        const pwInputs = document.querySelectorAll('input[type="password"]')
+        const currentPwInput = pwInputs[0] as HTMLInputElement
+        fireEvent.change(currentPwInput, { target: { value: 'oldpass123' } })
+        expect(currentPwInput.value).toBe('oldpass123')
+    })
+
+    it('updates newPassword input when changed', async () => {
+        await renderProfileSheet()
+        const pwInputs = document.querySelectorAll('input[type="password"]')
+        const newPwInput = pwInputs[1] as HTMLInputElement
+        fireEvent.change(newPwInput, { target: { value: 'newpass456' } })
+        expect(newPwInput.value).toBe('newpass456')
+    })
+
+    it('calls toastError when save fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateProfile).mockRejectedValueOnce(new Error('save failed'))
+        await renderProfileSheet()
+        const nameInput = screen.getByDisplayValue('Hans Schmidt')
+        fireEvent.change(nameInput, { target: { value: 'Different Name' } })
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('includes new_password in save payload when newPw set', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateProfile).mockResolvedValueOnce(MEMBER_USER as any)
+        await renderProfileSheet()
+        const pwInputs = document.querySelectorAll('input[type="password"]')
+        fireEvent.change(pwInputs[0], { target: { value: 'currentpass' } })
+        fireEvent.change(pwInputs[1], { target: { value: 'newpass456' } })
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => {
+            expect(api.updateProfile).toHaveBeenCalledWith(expect.objectContaining({
+                new_password: 'newpass456',
+                current_password: 'currentpass',
+            }))
+        })
+    })
+})
+
+describe('ProfileSheet — avatar remove button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { ...MEMBER_USER, avatar: '/avatar.jpg' },
+            setUser: vi.fn(),
+            regularMembers: [],
+        } as any)
+        await setupApiMocks()
+    })
+
+    it('shows remove avatar button when user has avatar', async () => {
+        await renderProfileSheet()
+        expect(screen.getByText('profile.removeAvatar')).toBeInTheDocument()
+    })
+
+    it('calls api.updateAvatar(null) when remove avatar clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateAvatar).mockResolvedValueOnce({ ...MEMBER_USER, avatar: null } as any)
+        await renderProfileSheet()
+        fireEvent.click(screen.getByText('profile.removeAvatar'))
+        await waitFor(() => {
+            expect(api.updateAvatar).toHaveBeenCalledWith(null)
+        })
+    })
+})
