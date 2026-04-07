@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_committee_or_admin
 from core.database import get_db
 from core.push import push_to_club
-from models.committee import ClubAnnouncement, ClubTrip
+from models.committee import ClubAnnouncement, ClubTrip, ClubPoll, PollOption, PollVote
 from models.evening import RegularMember
 from models.user import User
 
@@ -236,6 +236,215 @@ def delete_trip(
     trip.is_deleted = True
     db.commit()
     logger.info("Trip deleted: id=%d club=%d user=%d", tid, user.club_id, user.id)
+
+
+# ── Polls ─────────────────────────────────────────────────────────────────────
+
+def _serialize_poll(poll: ClubPoll, options: list, my_vote_ids: set, creator_name: Optional[str]) -> dict:
+    return {
+        "id": poll.id,
+        "title": poll.title,
+        "text": poll.text,
+        "mode": poll.mode,
+        "is_closed": poll.is_closed,
+        "created_by_name": creator_name,
+        "created_at": poll.created_at.isoformat() if poll.created_at else None,
+        "options": [
+            {
+                "id": o.id,
+                "text": o.text,
+                "sort_order": o.sort_order,
+                "vote_count": o.vote_count,
+                "voted_by_me": o.id in my_vote_ids,
+            }
+            for o in options
+        ],
+    }
+
+
+def _get_poll_options_with_counts(poll_id: int, db: Session) -> list:
+    """Return PollOption rows annotated with vote_count."""
+    from sqlalchemy import func as sqlfunc
+    opts = db.query(PollOption).filter(PollOption.poll_id == poll_id).order_by(PollOption.sort_order).all()
+    counts = {
+        row.option_id: row.cnt
+        for row in db.query(PollVote.option_id, sqlfunc.count(PollVote.id).label("cnt"))
+        .filter(PollVote.poll_id == poll_id)
+        .group_by(PollVote.option_id)
+        .all()
+    }
+    for o in opts:
+        o.vote_count = counts.get(o.id, 0)
+    return opts
+
+
+@router.get("/polls")
+def list_polls(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    polls = db.query(ClubPoll).filter(
+        ClubPoll.club_id == user.club_id,
+        ClubPoll.is_deleted == False,
+    ).order_by(ClubPoll.created_at.desc()).all()
+
+    my_votes_by_poll: dict[int, set] = {}
+    all_poll_ids = [p.id for p in polls]
+    if all_poll_ids:
+        votes = db.query(PollVote).filter(
+            PollVote.poll_id.in_(all_poll_ids),
+            PollVote.user_id == user.id,
+        ).all()
+        for v in votes:
+            my_votes_by_poll.setdefault(v.poll_id, set()).add(v.option_id)
+
+    result = []
+    for poll in polls:
+        opts = _get_poll_options_with_counts(poll.id, db)
+        result.append(_serialize_poll(poll, opts, my_votes_by_poll.get(poll.id, set()), _creator_name(poll.created_by, db)))
+    return result
+
+
+class PollCreate(BaseModel):
+    title: str
+    text: Optional[str] = None
+    mode: str = "single"  # 'single' | 'multi'
+    options: list[str]
+
+
+@router.post("/polls")
+def create_poll(
+    data: PollCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_committee_or_admin),
+):
+    if data.mode not in ("single", "multi"):
+        raise HTTPException(400, "mode must be 'single' or 'multi'")
+    if len(data.options) < 2:
+        raise HTTPException(400, "A poll needs at least 2 options")
+    poll = ClubPoll(
+        club_id=user.club_id,
+        title=data.title.strip(),
+        text=data.text.strip() if data.text else None,
+        mode=data.mode,
+        created_by=user.id,
+    )
+    db.add(poll)
+    db.flush()
+    for i, opt_text in enumerate(data.options):
+        opt_text = opt_text.strip()
+        if not opt_text:
+            raise HTTPException(400, "Option text must not be empty")
+        db.add(PollOption(poll_id=poll.id, text=opt_text, sort_order=i))
+    db.commit()
+    db.refresh(poll)
+    logger.info("Poll created: id=%d club=%d user=%d title=%r mode=%s", poll.id, user.club_id, user.id, poll.title, poll.mode)
+    opts = _get_poll_options_with_counts(poll.id, db)
+    return _serialize_poll(poll, opts, set(), _creator_name(user.id, db))
+
+
+class PollUpdate(BaseModel):
+    is_closed: Optional[bool] = None
+
+
+@router.patch("/polls/{pid}")
+def update_poll(
+    pid: int,
+    data: PollUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_committee_or_admin),
+):
+    poll = db.query(ClubPoll).filter(
+        ClubPoll.id == pid,
+        ClubPoll.club_id == user.club_id,
+        ClubPoll.is_deleted == False,
+    ).first()
+    if not poll:
+        raise HTTPException(404, "Poll not found")
+    if data.is_closed is not None:
+        poll.is_closed = data.is_closed
+    db.commit()
+    db.refresh(poll)
+    opts = _get_poll_options_with_counts(poll.id, db)
+    my_votes = {v.option_id for v in db.query(PollVote).filter(PollVote.poll_id == pid, PollVote.user_id == user.id).all()}
+    return _serialize_poll(poll, opts, my_votes, _creator_name(poll.created_by, db))
+
+
+@router.delete("/polls/{pid}", status_code=204)
+def delete_poll(
+    pid: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_committee_or_admin),
+):
+    poll = db.query(ClubPoll).filter(
+        ClubPoll.id == pid,
+        ClubPoll.club_id == user.club_id,
+        ClubPoll.is_deleted == False,
+    ).first()
+    if not poll:
+        raise HTTPException(404, "Poll not found")
+    poll.is_deleted = True
+    db.commit()
+    logger.info("Poll deleted: id=%d club=%d user=%d", pid, user.club_id, user.id)
+
+
+class PollVoteCreate(BaseModel):
+    option_ids: list[int]
+
+
+@router.post("/polls/{pid}/vote", status_code=204)
+def cast_vote(
+    pid: int,
+    data: PollVoteCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    poll = db.query(ClubPoll).filter(
+        ClubPoll.id == pid,
+        ClubPoll.club_id == user.club_id,
+        ClubPoll.is_deleted == False,
+    ).first()
+    if not poll:
+        raise HTTPException(404, "Poll not found")
+    if poll.is_closed:
+        raise HTTPException(400, "Poll is closed")
+    if not data.option_ids:
+        raise HTTPException(400, "No options provided")
+    if poll.mode == "single" and len(data.option_ids) > 1:
+        raise HTTPException(400, "Single-answer poll accepts only one option")
+
+    # Verify all options belong to this poll
+    valid_ids = {o.id for o in db.query(PollOption).filter(PollOption.poll_id == pid).all()}
+    for oid in data.option_ids:
+        if oid not in valid_ids:
+            raise HTTPException(400, f"Option {oid} does not belong to this poll")
+
+    # Delete existing votes for this user on this poll, then re-insert
+    db.query(PollVote).filter(PollVote.poll_id == pid, PollVote.user_id == user.id).delete()
+    for oid in data.option_ids:
+        db.add(PollVote(poll_id=pid, option_id=oid, user_id=user.id))
+    db.commit()
+    logger.info("Vote cast: poll=%d user=%d options=%s", pid, user.id, data.option_ids)
+
+
+@router.delete("/polls/{pid}/vote", status_code=204)
+def retract_vote(
+    pid: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    poll = db.query(ClubPoll).filter(
+        ClubPoll.id == pid,
+        ClubPoll.club_id == user.club_id,
+        ClubPoll.is_deleted == False,
+    ).first()
+    if not poll:
+        raise HTTPException(404, "Poll not found")
+    if poll.is_closed:
+        raise HTTPException(400, "Poll is closed")
+    db.query(PollVote).filter(PollVote.poll_id == pid, PollVote.user_id == user.id).delete()
+    db.commit()
+    logger.info("Vote retracted: poll=%d user=%d", pid, user.id)
 
 
 # ── Committee members (read — for display; management via club.py) ─────────────

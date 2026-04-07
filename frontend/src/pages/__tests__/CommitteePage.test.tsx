@@ -26,6 +26,12 @@ vi.mock('@/api/client.ts', () => ({
         createTrip: vi.fn(),
         deleteTrip: vi.fn(),
         updateTrip: vi.fn(),
+        listPolls: vi.fn(),
+        createPoll: vi.fn(),
+        deletePoll: vi.fn(),
+        closePoll: vi.fn(),
+        castVote: vi.fn(),
+        retractVote: vi.fn(),
     },
 }))
 
@@ -794,6 +800,256 @@ describe('CommitteePage — trip details', () => {
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
             expect(api.updateTrip).toHaveBeenCalledWith(1, expect.any(Object))
+        })
+    })
+})
+
+// ── Polls fixtures ────────────────────────────────────────────────────────────
+
+const POLLS = [
+    {
+        id: 1,
+        title: 'Wohin fahren wir?',
+        text: 'Bitte abstimmen',
+        mode: 'single',
+        is_closed: false,
+        created_by_name: 'Admin',
+        created_at: '2026-04-01T10:00:00',
+        options: [
+            { id: 10, text: 'Berlin', sort_order: 0, vote_count: 3, voted_by_me: false },
+            { id: 11, text: 'Hamburg', sort_order: 1, vote_count: 1, voted_by_me: true },
+        ],
+    },
+]
+
+const POLLS_UNVOTED = [
+    {
+        id: 2,
+        title: 'Was esst ihr?',
+        text: null,
+        mode: 'multi',
+        is_closed: false,
+        created_by_name: 'Admin',
+        created_at: '2026-04-02T10:00:00',
+        options: [
+            { id: 20, text: 'Pizza', sort_order: 0, vote_count: 0, voted_by_me: false },
+            { id: 21, text: 'Pasta', sort_order: 1, vote_count: 0, voted_by_me: false },
+        ],
+    },
+]
+
+async function setupOnPollsTab() {
+    const { useHashTab } = await import('@/hooks/usePage.ts')
+    vi.mocked(useHashTab).mockReturnValue(['polls', vi.fn()] as any)
+}
+
+async function setupPollsMocks(polls = POLLS) {
+    const { api } = await import('@/api/client.ts')
+    vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+    vi.mocked(api.listTrips).mockResolvedValue([] as any)
+    vi.mocked(api.listPolls).mockResolvedValue(polls as any)
+}
+
+// ── tests: polls tab ──────────────────────────────────────────────────────────
+
+describe('CommitteePage — polls tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnPollsTab()
+    })
+
+    it('shows polls tab in tab strip', async () => {
+        await setupPollsMocks([])
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('committee.tab.polls')).toBeInTheDocument()
+        })
+    })
+
+    it('shows empty state when no polls', async () => {
+        await setupPollsMocks([])
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('committee.poll.none')).toBeInTheDocument()
+        })
+    })
+
+    it('shows poll title', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('Wohin fahren wir?')).toBeInTheDocument()
+        })
+    })
+
+    it('shows poll description', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('Bitte abstimmen')).toBeInTheDocument()
+        })
+    })
+
+    it('shows option texts', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('Berlin')).toBeInTheDocument()
+            expect(screen.getByText('Hamburg')).toBeInTheDocument()
+        })
+    })
+
+    it('shows vote counts when already voted', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText(/3/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows retract button when already voted', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('committee.poll.retract')).toBeInTheDocument()
+        })
+    })
+
+    it('shows vote button when not voted', async () => {
+        await setupPollsMocks(POLLS_UNVOTED)
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText('committee.poll.vote')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.castVote when option selected and vote button clicked', async () => {
+        await setupPollsMocks(POLLS_UNVOTED)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.castVote).mockResolvedValueOnce(undefined as any)
+        vi.mocked(api.listPolls).mockResolvedValue(POLLS_UNVOTED as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Pizza'))
+        // Select option
+        fireEvent.click(screen.getByText('Pizza'))
+        await waitFor(() => screen.getByText('committee.poll.vote'))
+        fireEvent.click(screen.getByText('committee.poll.vote'))
+        await waitFor(() => {
+            expect(api.castVote).toHaveBeenCalledWith(2, [20])
+        })
+    })
+
+    it('calls api.retractVote when retract clicked', async () => {
+        await setupPollsMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.retractVote).mockResolvedValueOnce(undefined as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('committee.poll.retract'))
+        fireEvent.click(screen.getByText('committee.poll.retract'))
+        await waitFor(() => {
+            expect(api.retractVote).toHaveBeenCalledWith(1)
+        })
+    })
+})
+
+describe('CommitteePage — polls admin actions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupOnPollsTab()
+        await setupAsAdmin()
+    })
+
+    it('shows add poll button for admin', async () => {
+        await setupPollsMocks([])
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByText(/committee\.poll\.add/)).toBeInTheDocument()
+        })
+    })
+
+    it('opens create poll sheet when add button clicked', async () => {
+        await setupPollsMocks([])
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.poll\.add/))
+        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+            expect(screen.getByTestId('sheet-title')).toHaveTextContent('committee.poll.new')
+        })
+    })
+
+    it('create poll sheet has title input', async () => {
+        await setupPollsMocks([])
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.poll\.add/))
+        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.poll.titlePlaceholder')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.createPoll when form submitted with valid data', async () => {
+        await setupPollsMocks([])
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createPoll).mockResolvedValueOnce(POLLS_UNVOTED[0] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.poll\.add/))
+        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const titleInput = screen.getByPlaceholderText('committee.poll.titlePlaceholder')
+        fireEvent.change(titleInput, { target: { value: 'Neue Frage' } })
+        // Fill options (first two are pre-rendered)
+        const optInputs = screen.getAllByPlaceholderText(/committee\.poll\.optionPlaceholder/)
+        fireEvent.change(optInputs[0], { target: { value: 'Ja' } })
+        fireEvent.change(optInputs[1], { target: { value: 'Nein' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createPoll).toHaveBeenCalledWith(expect.objectContaining({
+                title: 'Neue Frage',
+                options: expect.arrayContaining(['Ja', 'Nein']),
+            }))
+        })
+    })
+
+    it('shows close/open toggle button on poll', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByTitle('committee.poll.close')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.closePoll when lock button clicked', async () => {
+        await setupPollsMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.closePoll).mockResolvedValueOnce({ ...POLLS[0], is_closed: true } as any)
+        vi.mocked(api.listPolls).mockResolvedValue(POLLS as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByTitle('committee.poll.close'))
+        fireEvent.click(screen.getByTitle('committee.poll.close'))
+        await waitFor(() => {
+            expect(api.closePoll).toHaveBeenCalledWith(1, true)
+        })
+    })
+
+    it('shows delete button on poll', async () => {
+        await setupPollsMocks()
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Wohin fahren wir?'))
+        expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+    })
+
+    it('calls api.deletePoll when × confirmed', async () => {
+        await setupPollsMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deletePoll).mockResolvedValueOnce(undefined as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Wohin fahren wir?'))
+        fireEvent.click(screen.getAllByText('×')[0])
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
+        await waitFor(() => {
+            expect(api.deletePoll).toHaveBeenCalledWith(1)
         })
     })
 })

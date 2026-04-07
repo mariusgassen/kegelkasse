@@ -17,7 +17,7 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
-import type {ClubAnnouncement, ClubTrip} from '@/types.ts'
+import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 
 function fDate(isoStr: string) {
     const date = isoStr.length > 10 ? isoStr.slice(0, 10) : isoStr
@@ -551,13 +551,373 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
     )
 }
 
+// ── Polls Tab ─────────────────────────────────────────────────────────────────
+
+function PollsTab({canWrite}: {canWrite: boolean}) {
+    const t = useT()
+    const qc = useQueryClient()
+    const [addOpen, setAddOpen] = useState(false)
+    const [delId, setDelId] = useState<number | null>(null)
+    const [saving, setSaving] = useState(false)
+
+    // Create form state
+    const [newTitle, setNewTitle] = useState('')
+    const [newText, setNewText] = useState('')
+    const [newMode, setNewMode] = useState<'single' | 'multi'>('single')
+    const [newOptions, setNewOptions] = useState(['', ''])
+
+    // Pending vote selections per poll (before submit)
+    const [pendingVotes, setPendingVotes] = useState<Record<number, number[]>>({})
+    const [voting, setVoting] = useState<number | null>(null)
+
+    const {data: polls = [], isLoading} = useQuery({
+        queryKey: ['committee-polls'],
+        queryFn: api.listPolls,
+    })
+
+    function resetForm() {
+        setNewTitle('')
+        setNewText('')
+        setNewMode('single')
+        setNewOptions(['', ''])
+        setAddOpen(false)
+    }
+
+    async function handleCreate() {
+        const opts = newOptions.map(o => o.trim()).filter(Boolean)
+        if (!newTitle.trim() || opts.length < 2) return
+        setSaving(true)
+        try {
+            await api.createPoll({title: newTitle.trim(), text: newText.trim() || undefined, mode: newMode, options: opts})
+            await qc.invalidateQueries({queryKey: ['committee-polls']})
+            resetForm()
+            showToast('✓ Abstimmung erstellt')
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleDelete(id: number) {
+        try {
+            await api.deletePoll(id)
+            await qc.invalidateQueries({queryKey: ['committee-polls']})
+            setDelId(null)
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    async function handleToggleClose(poll: ClubPoll) {
+        try {
+            await api.closePoll(poll.id, !poll.is_closed)
+            await qc.invalidateQueries({queryKey: ['committee-polls']})
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    async function handleVote(poll: ClubPoll) {
+        const selected = pendingVotes[poll.id] ?? []
+        if (selected.length === 0) return
+        setVoting(poll.id)
+        try {
+            await api.castVote(poll.id, selected)
+            await qc.invalidateQueries({queryKey: ['committee-polls']})
+            setPendingVotes(prev => {
+                const next = {...prev}
+                delete next[poll.id]
+                return next
+            })
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setVoting(null)
+        }
+    }
+
+    async function handleRetract(pollId: number) {
+        setVoting(pollId)
+        try {
+            await api.retractVote(pollId)
+            await qc.invalidateQueries({queryKey: ['committee-polls']})
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setVoting(null)
+        }
+    }
+
+    function toggleOption(poll: ClubPoll, optId: number) {
+        if (poll.is_closed) return
+        setPendingVotes(prev => {
+            const current = prev[poll.id] ?? []
+            if (poll.mode === 'single') {
+                return {...prev, [poll.id]: [optId]}
+            }
+            // multi
+            if (current.includes(optId)) {
+                return {...prev, [poll.id]: current.filter(id => id !== optId)}
+            }
+            return {...prev, [poll.id]: [...current, optId]}
+        })
+    }
+
+    function hasVoted(poll: ClubPoll) {
+        return poll.options.some(o => o.voted_by_me)
+    }
+
+    function totalVotes(poll: ClubPoll) {
+        // For single-choice: each voter contributed one vote; for multi: count unique voters roughly
+        // We use max to show total participations
+        return poll.options.reduce((s, o) => s + o.vote_count, 0)
+    }
+
+    return (
+        <div>
+            {canWrite && (
+                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                    + {t('committee.poll.add')}
+                </button>
+            )}
+
+            {isLoading && <p className="text-kce-muted text-sm text-center py-8">{t('action.loading')}</p>}
+
+            {!isLoading && (polls as ClubPoll[]).length === 0 && (
+                <Empty icon="🗳️" text={t('committee.poll.none')}/>
+            )}
+
+            <div className="flex flex-col gap-3">
+                {(polls as ClubPoll[]).map(poll => {
+                    const voted = hasVoted(poll)
+                    const selected = pendingVotes[poll.id] ?? []
+                    const maxCount = Math.max(...poll.options.map(o => o.vote_count), 1)
+
+                    return (
+                        <div key={poll.id} className={`kce-card p-4 ${poll.is_closed ? 'opacity-75' : ''}`}>
+                            {/* Header */}
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <p className="font-bold text-kce-cream text-sm leading-snug">{poll.title}</p>
+                                        {poll.is_closed && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-kce-surface2 text-kce-muted border border-kce-border/40">
+                                                {t('committee.poll.closed')}
+                                            </span>
+                                        )}
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-kce-surface2 text-kce-muted border border-kce-border/40">
+                                            {poll.mode === 'multi' ? t('committee.poll.modeMulti') : t('committee.poll.modeSingle')}
+                                        </span>
+                                    </div>
+                                    {poll.text && (
+                                        <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
+                                            {poll.text}
+                                        </p>
+                                    )}
+                                    {poll.created_by_name && (
+                                        <p className="text-[10px] text-kce-muted mt-1">
+                                            {t('committee.poll.by')} {poll.created_by_name}
+                                        </p>
+                                    )}
+                                </div>
+                                {canWrite && (
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        <button
+                                            className="text-kce-muted hover:text-kce-amber text-xs px-1.5 py-1 rounded"
+                                            title={poll.is_closed ? t('committee.poll.reopen') : t('committee.poll.close')}
+                                            onClick={() => handleToggleClose(poll)}>
+                                            {poll.is_closed ? '🔓' : '🔒'}
+                                        </button>
+                                        <button
+                                            className="text-kce-muted hover:text-red-400 text-lg leading-none px-1"
+                                            onClick={() => setDelId(poll.id)}>
+                                            ×
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Options */}
+                            <div className="flex flex-col gap-1.5 mt-3">
+                                {poll.options.map(opt => {
+                                    const isSelected = selected.includes(opt.id)
+                                    const isMyVote = opt.voted_by_me
+                                    const pct = totalVotes(poll) > 0 ? Math.round((opt.vote_count / maxCount) * 100) : 0
+                                    const showResult = voted || poll.is_closed
+
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            disabled={poll.is_closed || voted}
+                                            onClick={() => toggleOption(poll, opt.id)}
+                                            className={`relative w-full text-left rounded-lg px-3 py-2 text-sm transition-all overflow-hidden border ${
+                                                isMyVote
+                                                    ? 'border-kce-amber bg-kce-amber/10 text-kce-cream'
+                                                    : isSelected
+                                                        ? 'border-kce-primary bg-kce-primary/10 text-kce-cream'
+                                                        : 'border-kce-border/40 bg-kce-surface2 text-kce-muted'
+                                            } ${poll.is_closed || voted ? 'cursor-default' : 'hover:border-kce-primary/60'}`}
+                                        >
+                                            {/* Progress bar */}
+                                            {showResult && (
+                                                <div
+                                                    className="absolute inset-0 rounded-lg opacity-20 transition-all"
+                                                    style={{
+                                                        width: `${pct}%`,
+                                                        background: isMyVote ? 'var(--kce-amber)' : 'var(--kce-primary)',
+                                                    }}
+                                                />
+                                            )}
+                                            <div className="relative flex items-center justify-between gap-2">
+                                                <span>{opt.text}</span>
+                                                {showResult && (
+                                                    <span className="text-xs font-bold flex-shrink-0">
+                                                        {opt.vote_count} {t('committee.poll.votes')}
+                                                    </span>
+                                                )}
+                                                {!showResult && isSelected && (
+                                                    <span className="text-xs font-bold text-kce-primary flex-shrink-0">✓</span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+
+                            {/* Vote / Retract actions */}
+                            {!poll.is_closed && (
+                                <div className="mt-3 flex gap-2">
+                                    {!voted ? (
+                                        <button
+                                            className="btn-primary text-xs py-1.5 px-4"
+                                            disabled={selected.length === 0 || voting === poll.id}
+                                            onClick={() => handleVote(poll)}>
+                                            {voting === poll.id ? t('action.saving') : t('committee.poll.vote')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="text-xs text-kce-muted hover:text-red-400 underline"
+                                            disabled={voting === poll.id}
+                                            onClick={() => handleRetract(poll.id)}>
+                                            {t('committee.poll.retract')}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Create sheet */}
+            {addOpen && (
+                <Sheet open onClose={resetForm} title={t('committee.poll.new')} onSubmit={handleCreate}>
+                    <div className="flex flex-col gap-3">
+                        <div>
+                            <label className="field-label">{t('committee.poll.title')}</label>
+                            <input
+                                className="kce-input"
+                                value={newTitle}
+                                onChange={e => setNewTitle(e.target.value)}
+                                placeholder={t('committee.poll.titlePlaceholder')}
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="field-label">{t('committee.poll.text')}</label>
+                            <textarea
+                                className="kce-input resize-none"
+                                rows={3}
+                                value={newText}
+                                onChange={e => setNewText(e.target.value)}
+                                placeholder={t('committee.poll.text')}
+                            />
+                        </div>
+                        <div>
+                            <label className="field-label">{t('committee.poll.mode')}</label>
+                            <div className="flex gap-2">
+                                {(['single', 'multi'] as const).map(m => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
+                                            newMode === m
+                                                ? 'bg-kce-amber text-kce-bg border-kce-amber'
+                                                : 'bg-kce-surface2 text-kce-muted border-kce-border/40'
+                                        }`}
+                                        onClick={() => setNewMode(m)}>
+                                        {m === 'single' ? t('committee.poll.modeSingle') : t('committee.poll.modeMulti')}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="field-label">{t('committee.poll.options')}</label>
+                            <div className="flex flex-col gap-2">
+                                {newOptions.map((opt, i) => (
+                                    <div key={i} className="flex gap-2">
+                                        <input
+                                            className="kce-input flex-1"
+                                            value={opt}
+                                            onChange={e => setNewOptions(prev => prev.map((o, j) => j === i ? e.target.value : o))}
+                                            placeholder={`${t('committee.poll.optionPlaceholder')} ${i + 1}`}
+                                        />
+                                        {newOptions.length > 2 && (
+                                            <button
+                                                type="button"
+                                                className="text-kce-muted hover:text-red-400 text-lg leading-none px-2"
+                                                onClick={() => setNewOptions(prev => prev.filter((_, j) => j !== i))}>
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="text-xs text-kce-primary hover:text-kce-amber text-left py-1"
+                                    onClick={() => setNewOptions(prev => [...prev, ''])}>
+                                    {t('committee.poll.addOption')}
+                                </button>
+                            </div>
+                        </div>
+                        {newOptions.map(o => o.trim()).filter(Boolean).length < 2 && (
+                            <p className="text-xs text-red-400">{t('committee.poll.minOptions')}</p>
+                        )}
+                        <button
+                            type="submit"
+                            className="btn-primary w-full"
+                            disabled={!newTitle.trim() || newOptions.map(o => o.trim()).filter(Boolean).length < 2 || saving}>
+                            {saving ? t('action.saving') : t('action.save')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
+
+            {/* Delete confirm */}
+            {delId !== null && (
+                <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-kce-muted text-sm">{t('committee.poll.deleteConfirm')}</p>
+                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                                onClick={() => handleDelete(delId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
+        </div>
+    )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function CommitteePage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const regularMembers = useAppStore(s => s.regularMembers)
-    const [tab, setTab] = useHashTab<'announcements' | 'trips'>('announcements', ['announcements', 'trips'])
+    const [tab, setTab] = useHashTab<'announcements' | 'trips' | 'polls'>('announcements', ['announcements', 'trips', 'polls'])
     const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
     const [hashVersion, setHashVersion] = useState(0)
 
@@ -588,6 +948,7 @@ export function CommitteePage() {
     const TABS = [
         {id: 'announcements', label: t('committee.tab.announcements')},
         {id: 'trips', label: t('committee.tab.trips')},
+        {id: 'polls', label: t('committee.tab.polls')},
     ]
 
     return (
@@ -626,6 +987,9 @@ export function CommitteePage() {
                         deepLink={deepLink}
                         onDeepLinkHandled={() => setDeepLink(null)}
                     />
+                )}
+                {tab === 'polls' && (
+                    <PollsTab canWrite={canWrite}/>
                 )}
             </div>
         </div>

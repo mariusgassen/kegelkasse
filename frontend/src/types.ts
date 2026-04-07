@@ -146,6 +146,25 @@ export interface ClubTrip {
     created_at: string | null
 }
 
+export interface PollOption {
+    id: number
+    text: string
+    sort_order: number
+    vote_count: number
+    voted_by_me: boolean
+}
+
+export interface ClubPoll {
+    id: number
+    title: string
+    text: string | null
+    mode: 'single' | 'multi'
+    is_closed: boolean
+    created_by_name: string | null
+    created_at: string | null
+    options: PollOption[]
+}
+
 export interface PenaltyType {
     id: number
     icon: string
