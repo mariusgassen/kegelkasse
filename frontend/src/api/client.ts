@@ -29,7 +29,8 @@ import {
     Comment,
     ItemReaction,
     PaymentRequest,
-    PgBackrestStanza
+    PgBackrestStanza,
+    ClubPoll,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -608,6 +609,12 @@ export const api = {
     deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),
     setCommitteeMember: (memberId: number, isCommittee: boolean) =>
         request<{ id: number; is_committee: boolean }>('PATCH', `/club/members/${memberId}/committee`, {is_committee: isCommittee}),
+    listPolls: () => request<ClubPoll[]>('GET', '/committee/polls'),
+    createPoll: (d: { title: string; text?: string; mode: 'single' | 'multi'; options: string[] }) => request<ClubPoll>('POST', '/committee/polls', d),
+    closePoll: (id: number, is_closed: boolean) => request<ClubPoll>('PATCH', `/committee/polls/${id}`, { is_closed }),
+    deletePoll: (id: number) => request<void>('DELETE', `/committee/polls/${id}`),
+    castVote: (pollId: number, optionIds: number[]) => request<void>('POST', `/committee/polls/${pollId}/vote`, { option_ids: optionIds }),
+    retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
 
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
