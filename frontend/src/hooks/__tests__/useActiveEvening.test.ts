@@ -9,6 +9,8 @@ import { renderHook, act } from '@testing-library/react'
 
 // ── EventSource polyfill (jsdom doesn't include it) ──────────────────────────
 
+let lastCreatedES: MockEventSource | null = null
+
 class MockEventSource {
     static CONNECTING = 0
     static OPEN = 1
@@ -17,7 +19,8 @@ class MockEventSource {
     onmessage: ((e: MessageEvent) => void) | null = null
     onerror: (() => void) | null = null
     close = vi.fn()
-    constructor(_url: string) {}
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    constructor(_url: string) { lastCreatedES = this }
 }
 vi.stubGlobal('EventSource', MockEventSource)
 
@@ -215,5 +218,66 @@ describe('useActiveEvening — temp-id-resolved event', () => {
         })
 
         expect(mockSetActiveEveningId).toHaveBeenCalledWith(42)
+    })
+})
+
+describe('useActiveEvening — is_closed effect', () => {
+    const closedEvening = { id: 5, is_closed: true, players: [], teams: [], games: [], highlights: [], penalty_log: [], drink_rounds: [] }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        mockActiveEveningId = 5
+        lastCreatedES = null
+        // Override useQuery to return the closed evening data directly (not as Promise)
+        const { useQuery } = await import('@tanstack/react-query')
+        vi.mocked(useQuery).mockReturnValue({ data: closedEvening, isLoading: false, isError: false, error: null } as any)
+    })
+
+    it('calls setActiveEveningId(null) when evening is closed', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        renderHook(() => useActiveEvening())
+        expect(mockSetActiveEveningId).toHaveBeenCalledWith(null)
+    })
+
+    it('invalidates evenings list when evening is closed', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        renderHook(() => useActiveEvening())
+        expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['evenings'] })
+    })
+
+    it('calls flushOfflineQueue when evening is closed', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        renderHook(() => useActiveEvening())
+        expect(mockFlushOfflineQueue).toHaveBeenCalled()
+    })
+})
+
+describe('useActiveEvening — SSE onerror handler', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockActiveEveningId = 5
+        lastCreatedES = null
+        mockGetEvening.mockReturnValue({ id: 5, is_closed: false, players: [], teams: [], games: [], highlights: [], penalty_log: [], drink_rounds: [] })
+    })
+
+    it('closes EventSource and schedules reconnect on SSE error', async () => {
+        vi.useFakeTimers()
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockImplementation((sel: (s: any) => any) => sel({
+            activeEveningId: 5,
+            setActiveEveningId: mockSetActiveEveningId,
+        }))
+        const { useActiveEvening } = await import('../useEvening')
+        renderHook(() => useActiveEvening())
+
+        // After render the SSE useEffect has run and created an EventSource
+        expect(lastCreatedES).not.toBeNull()
+        expect(typeof lastCreatedES!.onerror).toBe('function')
+
+        // Trigger onerror — should close the ES
+        act(() => { lastCreatedES!.onerror!() })
+        expect(lastCreatedES!.close).toHaveBeenCalled()
+
+        vi.useRealTimers()
     })
 })

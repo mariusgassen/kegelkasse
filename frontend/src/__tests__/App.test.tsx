@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -553,6 +553,14 @@ describe('App — authenticated interactions', () => {
         fireEvent.click(screen.getByText('schedule-navigate'))
         expect(setPageMock).toHaveBeenCalledWith('evening')
     })
+
+    it('clicking refresh button calls invalidateQueries without throwing', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByText('↻'))
+        fireEvent.click(screen.getByText('↻'))
+        // Just verify no error is thrown; handleRefresh runs async
+        await waitFor(() => screen.getByText('↻'))
+    })
 })
 
 describe('App — retry boot button', () => {
@@ -580,5 +588,236 @@ describe('App — retry boot button', () => {
         await waitFor(() => {
             expect(screen.getByText('error.connecting')).toBeInTheDocument()
         })
+    })
+})
+
+describe('App — boot success path', () => {
+    const mockUser = {
+        id: 1,
+        email: 'u@example.com',
+        name: 'Rudi',
+        username: null,
+        role: 'member' as const,
+        club_id: 1,
+        preferred_locale: 'de',
+        avatar: null,
+        regular_member_id: null,
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = null
+        storeState.activeEveningId = null
+        mockAuthState.isLoggedIn.mockReturnValue(true)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('calls setUser and setPenaltyTypes when boot succeeds', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.me).mockResolvedValue(mockUser as any)
+        vi.mocked(api.listPenaltyTypes).mockResolvedValue([{ id: 1, name: 'Beer' }] as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValue([])
+        vi.mocked(api.listGameTemplates).mockResolvedValue([])
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', slug: 'tc', settings: null } as any)
+        vi.mocked(api.listEvenings).mockResolvedValue([])
+
+        await renderApp()
+
+        await waitFor(() => {
+            expect(storeState.setUser).toHaveBeenCalledWith(mockUser)
+            expect(storeState.setPenaltyTypes).toHaveBeenCalledWith([{ id: 1, name: 'Beer' }])
+        })
+    })
+
+    it('auto-sets activeEveningId when exactly one open evening exists', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.me).mockResolvedValue(mockUser as any)
+        vi.mocked(api.listPenaltyTypes).mockResolvedValue([])
+        vi.mocked(api.listRegularMembers).mockResolvedValue([])
+        vi.mocked(api.listGameTemplates).mockResolvedValue([])
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', slug: 'tc', settings: null } as any)
+        vi.mocked(api.listEvenings).mockResolvedValue([{ id: 7, is_closed: false }] as any)
+
+        await renderApp()
+
+        await waitFor(() => {
+            expect(storeState.setActiveEveningId).toHaveBeenCalledWith(7)
+        })
+    })
+
+    it('clears stale activeEveningId when evening no longer exists', async () => {
+        storeState.activeEveningId = 99
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.me).mockResolvedValue(mockUser as any)
+        vi.mocked(api.listPenaltyTypes).mockResolvedValue([])
+        vi.mocked(api.listRegularMembers).mockResolvedValue([])
+        vi.mocked(api.listGameTemplates).mockResolvedValue([])
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', slug: 'tc', settings: null } as any)
+        // Return empty list — the stale ID 99 is gone
+        vi.mocked(api.listEvenings).mockResolvedValue([])
+
+        await renderApp()
+
+        await waitFor(() => {
+            expect(storeState.setActiveEveningId).toHaveBeenCalledWith(null)
+        })
+    })
+
+    it('clears token and user on generic boot error', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.me).mockRejectedValue(new Error('something broke'))
+
+        await renderApp()
+
+        await waitFor(() => {
+            expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+            expect(storeState.setUser).toHaveBeenCalledWith(null)
+        })
+    })
+
+    it('does NOT clear token on UnauthorizedError during boot', async () => {
+        const { api, UnauthorizedError } = await import('@/api/client.ts')
+        vi.mocked(api.me).mockRejectedValue(new UnauthorizedError())
+
+        await renderApp()
+
+        await waitFor(() => {
+            // setBootDone(true) eventually shows LoginPage (no user)
+            expect(screen.queryByTestId('login-page')).toBeInTheDocument()
+        })
+        // Token must NOT be cleared — onUnauthorized handles it
+        expect(mockAuthState.setToken).not.toHaveBeenCalled()
+    })
+})
+
+describe('App — onUnauthorized callback', () => {
+    const mockUser = {
+        id: 1,
+        email: 'u@example.com',
+        name: 'Rudi',
+        username: null,
+        role: 'member' as const,
+        club_id: 1,
+        preferred_locale: 'de',
+        avatar: null,
+        regular_member_id: null,
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = mockUser
+        storeState.activeEveningId = null
+        mockAuthState.isLoggedIn.mockReturnValue(false)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('calls setToken(null) and setUser(null) and shows toast when user was logged in', async () => {
+        let capturedCallback: (() => void) | null = null
+        mockAuthState.onUnauthorized.mockImplementation(((cb: () => void) => {
+            capturedCallback = cb
+            return () => {}
+        }) as any)
+
+        await renderApp()
+        await waitFor(() => expect(capturedCallback).not.toBeNull())
+
+        // User is in store, so wasLoggedIn = true
+        act(() => { capturedCallback!() })
+
+        expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+        expect(storeState.setUser).toHaveBeenCalledWith(null)
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        expect(showToast).toHaveBeenCalledWith('error.session', 'error')
+    })
+
+    it('does NOT show toast when user was already null', async () => {
+        storeState.user = null
+        let capturedCallback: (() => void) | null = null
+        mockAuthState.onUnauthorized.mockImplementation(((cb: () => void) => {
+            capturedCallback = cb
+            return () => {}
+        }) as any)
+
+        await renderApp()
+        await waitFor(() => expect(capturedCallback).not.toBeNull())
+
+        act(() => { capturedCallback!() })
+
+        expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        expect(showToast).not.toHaveBeenCalled()
+    })
+})
+
+describe('App — service worker message handler', () => {
+    const mockUser = {
+        id: 1,
+        email: 'u@example.com',
+        name: 'Rudi',
+        username: null,
+        role: 'member' as const,
+        club_id: 1,
+        preferred_locale: 'de',
+        avatar: null,
+        regular_member_id: null,
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = mockUser
+        storeState.activeEveningId = null
+        mockAuthState.isLoggedIn.mockReturnValue(false)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('adds notification when service worker sends push-received message', async () => {
+        const addNotification = vi.fn()
+        const { useNotificationStore } = await import('@/store/notifications.ts')
+        vi.mocked(useNotificationStore).mockReturnValue({ notifications: [], addNotification } as any)
+
+        const listeners: { [evt: string]: ((e: any) => void)[] } = {}
+        const swMock = {
+            addEventListener: vi.fn((evt: string, handler: (e: any) => void) => {
+                if (!listeners[evt]) listeners[evt] = []
+                listeners[evt].push(handler)
+            }),
+            removeEventListener: vi.fn(),
+        }
+        // Define serviceWorker directly on navigator (jsdom doesn't have it)
+        Object.defineProperty(navigator, 'serviceWorker', {
+            value: swMock,
+            writable: true,
+            configurable: true,
+        })
+
+        const { unmount } = await renderApp()
+
+        act(() => {
+            ;(listeners['message'] ?? []).forEach(h =>
+                h({ data: { type: 'push-received', title: 'Test', body: 'Body', url: '/test' } })
+            )
+        })
+
+        expect(addNotification).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Test', body: 'Body', url: '/test' })
+        )
+
+        // Unmount before removing the mock so cleanup can call removeEventListener
+        unmount()
+        delete (navigator as any).serviceWorker
+    })
+
+    it('skips SW setup when serviceWorker not in navigator', async () => {
+        // jsdom has no serviceWorker by default → the useEffect returns early, no crash
+        await expect(renderApp()).resolves.not.toThrow()
     })
 })

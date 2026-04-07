@@ -864,4 +864,60 @@ describe('api.downloadReport', () => {
         vi.restoreAllMocks()
     })
 
+    it('throws when response is not ok', async () => {
+        // Re-stub fetch in case a previous test unstubbed it
+        vi.stubGlobal('fetch', mockFetch)
+        const mockResponse = {
+            status: 500,
+            ok: false,
+            json: vi.fn().mockResolvedValue({ detail: 'Internal Server Error' }),
+        }
+        mockFetch.mockResolvedValueOnce(mockResponse)
+        const { api } = await import('../client')
+        await expect(api.downloadReport(2025, 'xlsx')).rejects.toThrow('Internal Server Error')
+    })
+})
+
+// ── downloadBackup ──────────────────────────────────────────────────────────────
+
+describe('api.downloadBackup', () => {
+    beforeEach(() => {
+        // Re-stub fetch in case a previous test unstubbed it
+        vi.stubGlobal('fetch', mockFetch)
+    })
+
+    it('fetches /backups/{label}/download and triggers file download', async () => {
+        const fakeBlob = new Blob(['backup-data'])
+        const mockResponse = {
+            status: 200,
+            ok: true,
+            blob: vi.fn().mockResolvedValue(fakeBlob),
+        }
+        mockFetch.mockResolvedValueOnce(mockResponse)
+
+        vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() })
+        const anchor = document.createElement('a')
+        const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
+        vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor)
+
+        const { api } = await import('../client')
+        await api.downloadBackup('2025-01-01T00:00:00')
+
+        expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/backups/')
+        expect(mockFetch.mock.calls[0][0]).toContain('download')
+        expect(clickSpy).toHaveBeenCalled()
+        vi.unstubAllGlobals()
+        vi.restoreAllMocks()
+    })
+
+    it('throws when backup download response is not ok', async () => {
+        const mockResponse = {
+            status: 404,
+            ok: false,
+            json: vi.fn().mockResolvedValue({ detail: 'Backup not found' }),
+        }
+        mockFetch.mockResolvedValueOnce(mockResponse)
+        const { api } = await import('../client')
+        await expect(api.downloadBackup('missing-label')).rejects.toThrow('Backup not found')
+    })
 })

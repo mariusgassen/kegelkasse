@@ -15,19 +15,18 @@ Covers:
 """
 import asyncio
 from datetime import date, datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.orm import Session
 
-from core.security import get_password_hash
 from models.club import Club, ClubSettings
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.payment import MemberPayment, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyLog, PenaltyMode
 from models.push import PushSubscription
 from models.schedule import MemberRsvp, ScheduledEvening
-from models.user import User, UserRole
+from models.user import User
 
 from core.reminders import (
     get_reminder_settings,
@@ -393,7 +392,7 @@ class TestSendRsvpReminders:
         assert send_rsvp_reminders(db, club, settings, date.today()) == 0
 
     def test_sends_to_members_without_rsvp(self, db: Session, club: Club, user: User):
-        member = _make_member(db, club, "NoRsvp")
+        _make_member(db, club, "NoRsvp")
         days_before = 3
         _make_scheduled_evening(db, club, user, days_from_now=days_before)
 
@@ -564,14 +563,6 @@ class TestSendAllReminders:
 
     def test_runs_all_functions_for_club_with_settings(self, db: Session, club: Club):
         _make_club_settings(db, club)
-        fns = [
-            "core.reminders.send_debt_reminders",
-            "core.reminders.send_upcoming_evening_reminders",
-            "core.reminders.send_rsvp_reminders",
-            "core.reminders.send_debt_day_of_reminders",
-            "core.reminders.send_payment_request_nudge",
-            "core.reminders.send_auto_report_reminder",
-        ]
         with patch("core.reminders.send_debt_reminders", return_value=0) as m1, \
              patch("core.reminders.send_upcoming_evening_reminders", return_value=0) as m2, \
              patch("core.reminders.send_rsvp_reminders", return_value=0) as m3, \

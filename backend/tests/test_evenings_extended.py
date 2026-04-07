@@ -954,12 +954,11 @@ class TestMarkCancelled:
         db.commit()
 
 
-class TestAbsencePenalties:
+class TestAbsencePenaltiesExtended:
     """Cover lines 566-578: calculate_absence_penalties endpoint."""
 
     def test_calculates_absence_penalties(self, client, admin_headers, db, evening, club):
-        from models.evening import RegularMember, EveningPlayer
-        from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
+        from models.evening import RegularMember
         m = RegularMember(club_id=club.id, name="Abwesend", is_active=True)
         db.add(m)
         db.commit()

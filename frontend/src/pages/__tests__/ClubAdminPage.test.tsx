@@ -1156,3 +1156,576 @@ describe('ClubAdminPage — backups tab config and stanza display', () => {
     })
 })
 
+// ── Additional interaction tests ───────────────────────────────────────────────
+
+describe('ClubAdminPage — settings inputs onChange', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('updates venue input value when changed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const venueInput = screen.getByPlaceholderText('club.defaultVenuePlaceholder') as HTMLInputElement
+        fireEvent.change(venueInput, { target: { value: 'Bowling Center' } })
+        expect(venueInput.value).toBe('Bowling Center')
+    })
+
+    it('updates guestCap input when changed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const input = screen.getByPlaceholderText('club.penalty.guestCapPlaceholder') as HTMLInputElement
+        fireEvent.change(input, { target: { value: '5.00' } })
+        expect(input.value).toBe('5.00')
+    })
+
+    it('updates noRsvpExtra input when changed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const input = screen.getByPlaceholderText('club.noRsvpExtraPlaceholder') as HTMLInputElement
+        fireEvent.change(input, { target: { value: '2.50' } })
+        expect(input.value).toBe('2.50')
+    })
+
+    it('updates pinPenalty input when changed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const input = screen.getByPlaceholderText('club.pinPenaltyPlaceholder') as HTMLInputElement
+        fireEvent.change(input, { target: { value: '1.00' } })
+        expect(input.value).toBe('1.00')
+    })
+
+    it('updates paypalMe input when changed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const input = screen.getByPlaceholderText('club.paypalMePlaceholder') as HTMLInputElement
+        fireEvent.change(input, { target: { value: 'myclub' } })
+        expect(input.value).toBe('myclub')
+    })
+
+    it('calls toastError when handleSave fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateClubSettings).mockRejectedValueOnce(new Error('save failed'))
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const saveBtns = screen.getAllByText('action.save')
+        fireEvent.click(saveBtns[0])
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ClubAdminPage — palette and color interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('clicking random palette button applies a palette', async () => {
+        const { applyClubTheme } = await import('@/App.tsx')
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/club\.palette\.random/))
+        fireEvent.click(screen.getByText(/club\.palette\.random/))
+        await waitFor(() => {
+            expect(applyClubTheme).toHaveBeenCalled()
+        })
+    })
+
+    it('clicking a palette suggestion applies it', async () => {
+        const { applyClubTheme } = await import('@/App.tsx')
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('club.palette.suggest'))
+        fireEvent.click(screen.getByText('club.palette.suggest'))
+        await waitFor(() => screen.getByText('club.palette.warm'))
+        fireEvent.click(screen.getByText('club.palette.warm'))
+        expect(applyClubTheme).toHaveBeenCalled()
+    })
+
+    it('changes primary color input', async () => {
+        const { applyClubTheme } = await import('@/App.tsx')
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const colorInputs = document.querySelectorAll('input[type="color"]')
+        // First color input is primary color
+        fireEvent.change(colorInputs[0], { target: { value: '#ff0000' } })
+        expect(applyClubTheme).toHaveBeenCalled()
+    })
+
+    it('changes secondary color input', async () => {
+        const { applyClubTheme } = await import('@/App.tsx')
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const colorInputs = document.querySelectorAll('input[type="color"]')
+        if (colorInputs[1]) {
+            fireEvent.change(colorInputs[1], { target: { value: '#00ff00' } })
+            expect(applyClubTheme).toHaveBeenCalled()
+        } else {
+            expect(colorInputs.length).toBeGreaterThan(0)
+        }
+    })
+
+    it('changes bg color input', async () => {
+        const { applyClubTheme } = await import('@/App.tsx')
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByDisplayValue('TestClub'))
+        const colorInputs = document.querySelectorAll('input[type="color"]')
+        if (colorInputs[2]) {
+            fireEvent.change(colorInputs[2], { target: { value: '#000000' } })
+            expect(applyClubTheme).toHaveBeenCalled()
+        } else {
+            expect(colorInputs.length).toBeGreaterThan(0)
+        }
+    })
+})
+
+describe('ClubAdminPage — logo remove', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('shows remove button when club has logo_url', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { logo_url: '/logo.png' } } as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('club.logo.remove')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.deleteClubLogo when remove button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { logo_url: '/logo.png' } } as any)
+        vi.mocked(api.deleteClubLogo).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('club.logo.remove'))
+        fireEvent.click(screen.getByText('club.logo.remove'))
+        await waitFor(() => {
+            expect(api.deleteClubLogo).toHaveBeenCalled()
+        })
+    })
+})
+
+describe('ClubAdminPage — reminder toggle interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getReminderSettings).mockResolvedValue({
+            debt_weekly: { enabled: false, weekday: 1, min_debt: 5 },
+            upcoming_evening: { enabled: false, days_before: 5 },
+            rsvp_reminder: { enabled: false, days_before: 3 },
+            debt_day_of: { enabled: false },
+            payment_request_nudge: { enabled: false, days_pending: 3 },
+            auto_report: { enabled: false, days_before: 1 },
+        } as any)
+    })
+
+    it('clicking debt_weekly toggle shows weekday select and min_debt input', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.title'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        // first toggle is debt_weekly
+        fireEvent.click(toggles[0])
+        await waitFor(() => {
+            expect(screen.getByText('reminders.weekday')).toBeInTheDocument()
+            expect(screen.getByText('reminders.min_debt')).toBeInTheDocument()
+        })
+    })
+
+    it('changing weekday select updates value', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.title'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[0])
+        await waitFor(() => screen.getByText('reminders.weekday'))
+        const weekdaySelect = screen.getByDisplayValue('reminders.weekday.tue') as HTMLSelectElement
+        fireEvent.change(weekdaySelect, { target: { value: '2' } })
+        expect(weekdaySelect.value).toBe('2')
+    })
+
+    it('clicking upcoming_evening toggle shows label', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.title'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[1])
+        await waitFor(() => {
+            expect(screen.getByText('reminders.upcoming_evening')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking rsvp_reminder toggle shows label', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.title'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[2])
+        await waitFor(() => {
+            expect(screen.getByText('reminders.rsvp_reminder')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking debt_day_of toggle updates its state', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.debt_day_of'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[3])
+        expect(screen.getByText('reminders.debt_day_of')).toBeInTheDocument()
+    })
+
+    it('clicking payment_nudge toggle shows label', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.payment_nudge'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[4])
+        await waitFor(() => {
+            expect(screen.getByText('reminders.payment_nudge')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking auto_report toggle shows label', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('reminders.auto_report'))
+        const toggles = document.querySelectorAll('[aria-pressed]')
+        fireEvent.click(toggles[5])
+        await waitFor(() => {
+            expect(screen.getByText('reminders.auto_report')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('ClubAdminPage — game template sheet field interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['templates', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listGameTemplates).mockResolvedValue(GAME_TEMPLATES as any)
+    })
+
+    it('changing winner type to team shows turn mode selector', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const wtypeSelect = screen.getByDisplayValue('club.template.winnerType.individual') as HTMLSelectElement
+        fireEvent.change(wtypeSelect, { target: { value: 'team' } })
+        await waitFor(() => {
+            expect(screen.getByText('game.turnMode')).toBeInTheDocument()
+        })
+    })
+
+    it('clicking turn mode block button changes selection', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const wtypeSelect = screen.getByDisplayValue('club.template.winnerType.individual') as HTMLSelectElement
+        fireEvent.change(wtypeSelect, { target: { value: 'team' } })
+        await waitFor(() => screen.getByText('game.turnMode.alternating'))
+        fireEvent.click(screen.getByText('game.turnMode.block'))
+        expect(screen.getByText('game.turnMode.block')).toBeInTheDocument()
+    })
+
+    it('changes is_opener checkbox in template sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const checkbox = screen.getByRole('checkbox') as HTMLInputElement
+        fireEvent.change(checkbox, { target: { checked: true } })
+        expect(checkbox.checked).toBe(true)
+    })
+
+    it('changes description input in template sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const inputs = screen.getAllByRole('textbox') as HTMLInputElement[]
+        const descInput = inputs.find(i => i.value === '') as HTMLInputElement
+        if (descInput) {
+            fireEvent.change(descInput, { target: { value: 'A warmup game' } })
+            expect(descInput.value).toBe('A warmup game')
+        } else {
+            expect(inputs.length).toBeGreaterThan(0)
+        }
+    })
+})
+
+describe('ClubAdminPage — teams edit sheet', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['teams', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listClubTeams).mockResolvedValue([
+            { id: 1, name: 'Team Alpha', sort_order: 0 },
+        ] as any)
+    })
+
+    it('opens edit sheet with team name displayed', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Team Alpha'))
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+            expect(screen.getByDisplayValue('Team Alpha')).toBeInTheDocument()
+        })
+    })
+
+    it('changes sort order input in teams edit sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Team Alpha'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sortInput = screen.getByDisplayValue('0') as HTMLInputElement
+        fireEvent.change(sortInput, { target: { value: '3' } })
+        expect(sortInput.value).toBe('3')
+    })
+
+    it('calls api.updateClubTeam when edit sheet submitted', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateClubTeam).mockResolvedValueOnce({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Team Alpha'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateClubTeam).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'Team Alpha' }))
+        })
+    })
+})
+
+describe('ClubAdminPage — pins holder select', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['pins', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue(PINS as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
+    })
+
+    it('shows date input when holder is selected in add pin sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/pin\.add/))
+        fireEvent.click(screen.getByText(/pin\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const holderSelect = screen.getByDisplayValue('pin.noHolder') as HTMLSelectElement
+        fireEvent.change(holderSelect, { target: { value: '1' } })
+        await waitFor(() => {
+            expect(screen.getByText('pin.assignedAt')).toBeInTheDocument()
+        })
+    })
+
+    it('updates pin date input when holder is selected', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText(/pin\.add/))
+        fireEvent.click(screen.getByText(/pin\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const holderSelect = screen.getByDisplayValue('pin.noHolder') as HTMLSelectElement
+        fireEvent.change(holderSelect, { target: { value: '1' } })
+        await waitFor(() => screen.getByText('pin.assignedAt'))
+        const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement
+        fireEvent.change(dateInput, { target: { value: '2026-01-01' } })
+        expect(dateInput.value).toBe('2026-01-01')
+    })
+})
+
+describe('ClubAdminPage — committee toggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['committee', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('calls api.setCommitteeMember true when toggle clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listRegularMembers).mockResolvedValue(REGULAR_MEMBERS as any)
+        vi.mocked(api.setCommitteeMember).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('committee.membersHint'))
+        const toggleBtns = screen.getAllByText('committee.isCommittee')
+        fireEvent.click(toggleBtns[0])
+        await waitFor(() => {
+            expect(api.setCommitteeMember).toHaveBeenCalledWith(expect.any(Number), true)
+        })
+    })
+
+    it('shows committee member in committee section with VGA button', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listRegularMembers).mockResolvedValue([
+            { id: 1, name: 'Admin', nickname: null, is_guest: false, is_deleted: false, is_committee: true, is_active: true, avatar: null },
+            { id: 2, name: 'Hans', nickname: 'Hansi', is_guest: false, is_deleted: false, is_committee: false, is_active: true, avatar: null },
+        ] as any)
+        await renderClubAdminPage()
+        await waitFor(() => {
+            expect(screen.getByText('committee.members')).toBeInTheDocument()
+            expect(screen.getByText('VGA ✓')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.setCommitteeMember false when VGA button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listRegularMembers).mockResolvedValue([
+            { id: 1, name: 'Admin', nickname: null, is_guest: false, is_deleted: false, is_committee: true, is_active: true, avatar: null },
+        ] as any)
+        vi.mocked(api.setCommitteeMember).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('VGA ✓'))
+        fireEvent.click(screen.getByText('VGA ✓'))
+        await waitFor(() => {
+            expect(api.setCommitteeMember).toHaveBeenCalledWith(1, false)
+        })
+    })
+})
+
+describe('ClubAdminPage — superadmin clubs delete flow', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['clubs', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsSuperadmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAllClubs).mockResolvedValue([
+            { id: 1, name: 'TestClub', slug: 'testclub', is_active: false, member_count: 5 },
+        ] as any)
+    })
+
+    it('shows delete confirm sheet when × button clicked', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        const deleteBtn = screen.getByTitle('superadmin.clubs.delete')
+        fireEvent.click(deleteBtn)
+        await waitFor(() => {
+            expect(screen.getByText('superadmin.clubs.deleteConfirm')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.deleteClub when confirmed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteClub).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        const deleteBtn = screen.getByTitle('superadmin.clubs.delete')
+        fireEvent.click(deleteBtn)
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
+        await waitFor(() => {
+            expect(api.deleteClub).toHaveBeenCalledWith(1)
+        })
+    })
+
+    it('calls toastError when updateClub fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updateClub).mockRejectedValueOnce(new Error('update failed'))
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+
+    it('changes editName input in edit club sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const nameInput = screen.getByDisplayValue('TestClub') as HTMLInputElement
+        fireEvent.change(nameInput, { target: { value: 'NewClubName' } })
+        expect(nameInput.value).toBe('NewClubName')
+    })
+
+    it('changes editSlug input in edit club sheet', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('TestClub'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const slugInput = screen.getByDisplayValue('testclub') as HTMLInputElement
+        fireEvent.change(slugInput, { target: { value: 'new-slug' } })
+        expect(slugInput.value).toBe('new-slug')
+    })
+})
+
+describe('ClubAdminPage — backup download button', () => {
+    const STANZA_WITH_BACKUP = {
+        name: 'db',
+        status: { code: 0, message: 'ok' },
+        backup: [
+            {
+                label: '20260321-020000F',
+                type: 'full',
+                timestamp: { start: 1742515200, stop: 1742515800 },
+                info: { size: 1048576, delta: 512000, repository: { size: 204800, delta: 102400 } },
+                archive: { start: 'abc', stop: 'def' },
+                error: false,
+            },
+        ],
+        archive: [{ id: 'arch1', min: 'abc00000001', max: 'def99999999' }],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['backups', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsSuperadmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listBackups).mockResolvedValue({ info: [STANZA_WITH_BACKUP], config: null } as any)
+    })
+
+    it('calls api.downloadBackup when download button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.downloadBackup).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('20260321-020000F'))
+        const downloadBtn = screen.getByText(/backup\.download/)
+        fireEvent.click(downloadBtn)
+        await waitFor(() => {
+            expect(api.downloadBackup).toHaveBeenCalledWith('20260321-020000F')
+        })
+    })
+
+    it('calls toastError when downloadBackup fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.downloadBackup).mockRejectedValueOnce(new Error('download failed'))
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('20260321-020000F'))
+        const downloadBtn = screen.getByText(/backup\.download/)
+        fireEvent.click(downloadBtn)
+        await waitFor(() => {
+            expect(toastError).toHaveBeenCalled()
+        })
+    })
+})

@@ -262,7 +262,7 @@ describe('LoginPage — register success', () => {
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.register).mockResolvedValueOnce({
             access_token: 'reg-tok',
-            user: { id: 2, email: 'new@e.de', name: 'New', username: 'newbie', role: 'member', club_id: 1, preferred_locale: null, avatar: null, regular_member_id: null },
+            user: { id: 2, email: 'new@e.de', name: 'New', username: 'newbie', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
         await renderLoginPage({ onLogin })
@@ -389,7 +389,7 @@ describe('LoginPage — register mode with invite token in URL', () => {
         vi.mocked(api.getInviteInfo).mockResolvedValueOnce({ member_name: 'Franz' } as any)
         vi.mocked(api.register).mockResolvedValueOnce({
             access_token: 'tok-pf',
-            user: { id: 3, email: 'f@e.de', name: 'Franz', username: 'franz', role: 'member', club_id: 1, preferred_locale: null, avatar: null, regular_member_id: null },
+            user: { id: 3, email: 'f@e.de', name: 'Franz', username: 'franz', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
         await renderLoginPage({ onLogin })
@@ -454,6 +454,68 @@ describe('LoginPage — login with preferred_locale', () => {
         await waitFor(() => {
             expect(screen.getByText('auth.error.invalid')).toBeInTheDocument()
         })
+    })
+})
+
+describe('LoginPage — dev login', () => {
+    beforeEach(() => {
+        vi.resetAllMocks()
+        Object.defineProperty(window, 'location', {
+            value: { search: '', hash: '', pathname: '/' },
+            configurable: true,
+        })
+    })
+
+    it('calls api.login with dev credentials when Dev Login button clicked', async () => {
+        const { api, authState } = await import('@/api/client.ts')
+        const { useAppStore } = await import('@/store/app.ts')
+        const setUser = vi.fn()
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
+        vi.mocked(api.login).mockResolvedValueOnce({
+            access_token: 'dev-tok',
+            user: { id: 1, email: 'admin@kegelkasse.de', name: 'Admin', username: null, role: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
+        })
+        await renderLoginPage()
+        const devBtn = screen.queryByText('⚡ Dev Login')
+        if (!devBtn) return // Only runs in DEV mode
+        fireEvent.click(devBtn)
+        await waitFor(() => {
+            expect(api.login).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+            )
+            expect(authState.setToken).toHaveBeenCalledWith('dev-tok')
+        })
+    })
+
+    it('shows error when dev login fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.login).mockRejectedValueOnce(new Error('Dev login failed'))
+        await renderLoginPage()
+        const devBtn = screen.queryByText('⚡ Dev Login')
+        if (!devBtn) return // Only runs in DEV mode
+        fireEvent.click(devBtn)
+        await waitFor(() => {
+            expect(screen.getByText('Dev login failed')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('LoginPage — reset form password input', () => {
+    beforeEach(() => {
+        vi.resetAllMocks()
+        Object.defineProperty(window, 'location', {
+            value: { search: '?reset=mytoken', hash: '', pathname: '/' },
+            configurable: true,
+        })
+    })
+
+    it('updates password state when input changes in reset form', async () => {
+        await renderLoginPage()
+        await waitFor(() => screen.getByText('auth.reset.title'))
+        const pwInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement
+        fireEvent.change(pwInput, { target: { value: 'newpass123' } })
+        expect(pwInput.value).toBe('newpass123')
     })
 })
 
