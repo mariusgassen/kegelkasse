@@ -8,6 +8,7 @@ import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
+import {Sheet} from '@/components/ui/Sheet.tsx'
 import type {Evening} from '@/types.ts'
 
 function fe(v: number) {
@@ -275,6 +276,88 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
     )
 }
 
+// ── Player detail sheet ─────────────────────────────────────────────────────
+
+type YearPlayer = {
+    name: string; nickname: string | null; regular_member_id: number | null
+    evenings: number; penalty_total: number; penalty_count: number
+    game_wins: number; beer_rounds: number; shot_rounds: number
+    total_pins: number; throw_count: number; avg_pins: number | null
+}
+
+function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
+    player: YearPlayer
+    year: number
+    rank: number
+    isMe: boolean
+    t: (k: any) => string
+    onClose: () => void
+}) {
+    const medals = ['🥇', '🥈', '🥉']
+    const rm = useAppStore.getState().regularMembers.find(m => m.id === player.regular_member_id)
+    const displayName = player.nickname || player.name
+
+    return (
+        <Sheet open onClose={onClose} title={t('stats.playerDetail')}>
+            {/* Player header */}
+            <div className="flex items-center gap-3 mb-5">
+                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-lg flex-shrink-0"
+                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                    {rm?.avatar
+                        ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
+                        : displayName[0].toUpperCase()
+                    }
+                </div>
+                <div className="min-w-0">
+                    <div className="font-bold text-kce-cream text-base flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xl">{medals[rank] ?? `${rank + 1}.`}</span>
+                        <span className="truncate">{displayName}</span>
+                        {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                    </div>
+                    <div className="text-xs text-kce-muted">{year}</div>
+                </div>
+            </div>
+
+            {/* Year stats grid */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-red-400 text-lg leading-tight">
+                        {player.penalty_total.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
+                    </div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('member.totalPenalties')}</div>
+                </div>
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">{player.evenings}</div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.evenings')}</div>
+                </div>
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-kce-amber text-lg leading-tight">{player.game_wins}</div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.wins')}</div>
+                </div>
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">🍺 {player.beer_rounds}</div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.beer')}</div>
+                </div>
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">🥃 {player.shot_rounds}</div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.shotRounds')}</div>
+                </div>
+                <div className="kce-card p-3 text-center">
+                    <div className="font-display font-bold text-kce-muted text-lg leading-tight">{player.penalty_count}</div>
+                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.penalties')}</div>
+                </div>
+            </div>
+
+            {/* Throw performance */}
+            {player.regular_member_id != null && (
+                <div className="kce-card p-3">
+                    <PlayerThrowDetail memberId={player.regular_member_id} year={year} t={t}/>
+                </div>
+            )}
+        </Sheet>
+    )
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export function StatsPage() {
@@ -287,7 +370,7 @@ export function StatsPage() {
     const [showAllMembers, setShowAllMembers] = useState(false)
     const [pickedId, setPickedId] = useState<number | null>(null)
     const [openCommentHighlightId, setOpenCommentHighlightId] = useState<number | null>(null)
-    const [expandedThrowId, setExpandedThrowId] = useState<number | null>(null)
+    const [selectedPlayer, setSelectedPlayer] = useState<{player: YearPlayer; rank: number} | null>(null)
 
     const {data: eveningList = []} = useEveningList()
     const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
@@ -330,6 +413,7 @@ export function StatsPage() {
         new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
 
     return (
+        <>
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">{t('stats.title')}</div>
 
@@ -575,9 +659,13 @@ export function StatsPage() {
                         const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
                         const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
                         const medals = ['🥇', '🥈', '🥉']
-                        const throwExpanded = p.regular_member_id != null && expandedThrowId === p.regular_member_id
                         return (
-                            <div key={i} className={`kce-card p-3 mb-2 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}>
+                            <button
+                                key={i}
+                                type="button"
+                                className={`kce-card p-3 mb-2 w-full text-left active:opacity-70 transition-opacity ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
+                                onClick={() => setSelectedPlayer({player: p, rank})}
+                            >
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-base w-6 text-center flex-shrink-0">
                                         {medals[rank] ??
@@ -585,7 +673,7 @@ export function StatsPage() {
                                     </span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
-                                            {p.name}
+                                            {p.nickname || p.name}
                                             {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                             {pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => (
                                                 <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
@@ -596,23 +684,11 @@ export function StatsPage() {
                                         </div>
                                         {p.throw_count > 0 && (
                                             <div className="text-[10px] text-kce-muted">
-                                                🎳 {p.total_pins} {t('stats.totalPins')} · Ø {p.avg_pins} · {p.throw_count} {t('stats.throwCount')}
+                                                🎳 Ø {p.avg_pins} · {p.throw_count} {t('stats.throwCount')}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        {p.throw_count > 0 && p.regular_member_id != null && (
-                                            <button
-                                                type="button"
-                                                className="text-xs text-kce-muted hover:text-kce-amber transition-colors"
-                                                title={throwExpanded ? t('stats.hideThrowStats') : t('stats.showThrowStats')}
-                                                onClick={() => setExpandedThrowId(throwExpanded ? null : p.regular_member_id)}
-                                            >
-                                                🎳
-                                            </button>
-                                        )}
-                                        <div className="text-red-400 font-bold text-sm">{fe(p.penalty_total)}</div>
-                                    </div>
+                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
                                 <div className="h-1 rounded-full overflow-hidden"
                                      style={{background: 'var(--kce-surface2)'}}>
@@ -623,10 +699,7 @@ export function StatsPage() {
                                                  : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--kce-muted)'
                                          }}/>
                                 </div>
-                                {throwExpanded && p.regular_member_id != null && (
-                                    <PlayerThrowDetail memberId={p.regular_member_id} year={year} t={t}/>
-                                )}
-                            </div>
+                            </button>
                         )
                     })}
 
@@ -640,6 +713,18 @@ export function StatsPage() {
                 </>
             )}
         </div>
+
+        {selectedPlayer && (
+            <PlayerDetailSheet
+                player={selectedPlayer.player}
+                year={year}
+                rank={selectedPlayer.rank}
+                isMe={selectedPlayer.player.regular_member_id === user?.regular_member_id}
+                t={t}
+                onClose={() => setSelectedPlayer(null)}
+            />
+        )}
+        </>
     )
 }
 

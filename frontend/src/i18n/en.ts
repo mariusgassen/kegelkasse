@@ -450,6 +450,8 @@ export const en = {
     "stats.noThrowData": "No throw data available yet.",
     "stats.showThrowStats": "Show throw stats",
     "stats.hideThrowStats": "Hide throw stats",
+    "stats.playerDetail": "Player Details",
+    "stats.shotRounds": "Shot Rounds",
     "profile.throwStats": "🎳 Throw Performance",
     "profile.bestAvg": "Best Avg",
     "profile.worstAvg": "Worst Avg",
