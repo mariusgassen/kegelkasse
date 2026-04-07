@@ -227,6 +227,241 @@ function ThrowTrendSmall({evenings}: { evenings: {avg_pins: number; date: string
     )
 }
 
+// ── Evening donut chart ─────────────────────────────────────────────────────
+
+function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRounds, t}: {
+    evening: Evening
+    totalEuro: number
+    penaltyCount: number
+    beerRounds: number
+    shotRounds: number
+    t: (k: any) => string
+}) {
+    const playerTotals = evening.players.map(p => {
+        const total = evening.penalty_log
+            .filter(l => l.player_id === p.id && !(l as any).is_deleted)
+            .reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
+        return {id: p.id, name: p.name, total}
+    }).filter(p => p.total > 0)
+
+    const hasData = totalEuro > 0 && playerTotals.length > 0
+
+    if (!hasData) {
+        return (
+            <div className="grid grid-cols-2 gap-2 mb-4">
+                <StatBox value={fe(totalEuro)} label={t('stats.totalEuro')}/>
+                <StatBox value={String(penaltyCount)} label={t('stats.penalties')}/>
+                <StatBox value={`🍺 ${beerRounds}`} label={t('drinks.beer')}/>
+                <StatBox value={`🥃 ${shotRounds}`} label={t('drinks.shots')}/>
+            </div>
+        )
+    }
+
+    const R = 70
+    const CX = 100, CY = 100
+    const SW = 28
+    const CIRC = 2 * Math.PI * R
+
+    let accumulated = 0
+    const segments = playerTotals.map((p, i) => {
+        const arcLen = (p.total / totalEuro) * CIRC
+        const rotation = (accumulated / CIRC) * 360 - 90
+        const seg = {
+            ...p,
+            arcLen,
+            rotation,
+            color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+        }
+        accumulated += arcLen
+        return seg
+    })
+
+    return (
+        <div className="mb-4">
+            <div className="flex gap-3 items-center mb-3">
+                <div style={{flexShrink: 0, width: 120}}>
+                    <svg width="120" height="120" viewBox="0 0 200 200">
+                        <circle cx={CX} cy={CY} r={R} fill="none"
+                                stroke="var(--kce-surface2)" strokeWidth={SW}/>
+                        {segments.map(seg => (
+                            <circle key={seg.id}
+                                    cx={CX} cy={CY} r={R}
+                                    fill="none"
+                                    stroke={seg.color}
+                                    strokeWidth={SW}
+                                    strokeDasharray={`${seg.arcLen} ${CIRC}`}
+                                    strokeDashoffset={0}
+                                    transform={`rotate(${seg.rotation}, ${CX}, ${CY})`}
+                                    strokeLinecap="butt"/>
+                        ))}
+                        <text x={CX} y={CY - 8} textAnchor="middle" fontSize="13"
+                              fill="var(--kce-cream)" fontWeight="bold">
+                            {feShort(totalEuro)}
+                        </text>
+                        <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
+                              fill="var(--kce-muted)">
+                            {penaltyCount} {t('stats.penalties')}
+                        </text>
+                        <text x={CX} y={CY + 22} textAnchor="middle" fontSize="9"
+                              fill="var(--kce-muted)">{t('stats.totalEuro')}</text>
+                    </svg>
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                    <StatBox value={`🍺 ${beerRounds}`} label={t('drinks.beer')}/>
+                    <StatBox value={`🥃 ${shotRounds}`} label={t('drinks.shots')}/>
+                </div>
+            </div>
+            <div className="kce-card p-2">
+                <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1.5">
+                    {t('stats.penaltyDistribution')}
+                </div>
+                <div className="flex flex-col gap-1">
+                    {segments.map(seg => (
+                        <div key={seg.id} className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                     style={{background: seg.color}}/>
+                                <span className="text-[11px] text-kce-cream truncate">{seg.name}</span>
+                            </div>
+                            <span className="text-[11px] font-bold text-kce-amber flex-shrink-0">
+                                {feShort(seg.total)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// ── Year evenings bar chart ─────────────────────────────────────────────────
+
+function YearEveningsBarChart({eveningList, year, t}: {
+    eveningList: {id: number; date: string; venue: string | null; penalty_total: number}[]
+    year: number
+    t: (k: any) => string
+}) {
+    const bars = [...eveningList]
+        .filter(e => new Date(e.date).getFullYear() === year)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-12)
+
+    if (bars.length < 2) return null
+
+    const allZero = bars.every(b => (b.penalty_total ?? 0) === 0)
+    if (allZero) return null
+
+    const VW = 400, VH = 80
+    const PAD_T = 4, PAD_B = 22, PAD_H = 4
+    const IH = VH - PAD_T - PAD_B
+    const IW = VW - PAD_H * 2
+    const maxP = Math.max(...bars.map(b => b.penalty_total ?? 0), 0.01)
+    const gap = 3
+    const barW = Math.max(2, (IW / bars.length) - gap)
+
+    const fShortDate = (d: string) =>
+        new Date(d).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
+
+    return (
+        <div className="kce-card p-3 mb-4">
+            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">
+                {t('stats.eveningBars')}
+            </div>
+            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{display: 'block', overflow: 'visible'}}>
+                {bars.map((bar, i) => {
+                    const x = PAD_H + i * (barW + gap)
+                    const h = Math.max(2, ((bar.penalty_total ?? 0) / maxP) * IH)
+                    const y = PAD_T + IH - h
+                    const labelX = x + barW / 2
+                    const showLabel = bars.length <= 8 || i % 2 === 0
+                    return (
+                        <g key={bar.id}>
+                            <rect x={x} y={y} width={barW} height={h} rx="2"
+                                  fill="var(--kce-amber)" opacity="0.85"/>
+                            {showLabel && (
+                                <text x={labelX} y={VH - 6} textAnchor="middle"
+                                      fontSize="8" fill="var(--kce-muted)">
+                                    {fShortDate(bar.date)}
+                                </text>
+                            )}
+                            <title>{fShortDate(bar.date)}: {feShort(bar.penalty_total ?? 0)}</title>
+                        </g>
+                    )
+                })}
+                <line x1={PAD_H} y1={PAD_T + IH} x2={VW - PAD_H} y2={PAD_T + IH}
+                      stroke="var(--kce-border)" strokeWidth="1"/>
+            </svg>
+        </div>
+    )
+}
+
+// ── Year podium ─────────────────────────────────────────────────────────────
+
+function YearPodium({players, myMemberId, t}: {
+    players: YearPlayer[]
+    myMemberId: number | null | undefined
+    t: (k: any) => string
+}) {
+    if (players.length < 3) return null
+
+    const PODIUM_CONFIG = [
+        {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,#9ca3af,#d1d5db)', label: '🥈', borderColor: '#9ca3af'},
+        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,#c4701a,#e8a020)', label: '🥇', borderColor: '#e8a020'},
+        {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,#cd7f32)', label: '🥉', borderColor: '#cd7f32'},
+    ]
+
+    return (
+        <div className="kce-card p-3 mb-4">
+            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-3">
+                {t('stats.podium')}
+            </div>
+            <div style={{display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, paddingBottom: 4}}>
+                {PODIUM_CONFIG.map(cfg => {
+                    const p = players[cfg.rank]
+                    const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
+                    const isMe = p.regular_member_id != null && p.regular_member_id === myMemberId
+                    const displayName = p.nickname || p.name
+                    return (
+                        <div key={cfg.rank} style={{order: cfg.displayOrder, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0, flex: '0 0 88px'}}>
+                            <div style={{
+                                width: cfg.avatarSize, height: cfg.avatarSize, borderRadius: '50%',
+                                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: cfg.gradient, border: `2px solid ${cfg.borderColor}`,
+                                fontSize: Math.round(cfg.avatarSize * 0.35), fontWeight: 'bold',
+                                color: 'var(--kce-bg)', flexShrink: 0,
+                            }}>
+                                {rm?.avatar
+                                    ? <img src={rm.avatar} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
+                                    : displayName[0].toUpperCase()
+                                }
+                            </div>
+                            <div style={{textAlign: 'center', maxWidth: 88}}>
+                                <div style={{fontSize: 11, fontWeight: 'bold', color: 'var(--kce-cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                    {displayName}
+                                </div>
+                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                            </div>
+                            <div style={{fontSize: 10, color: '#f87171', fontWeight: 'bold'}}>
+                                {feShort(p.penalty_total)}
+                            </div>
+                            <div style={{
+                                width: 72, height: cfg.height,
+                                background: cfg.gradient, borderRadius: '4px 4px 0 0',
+                                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                                paddingTop: 8,
+                            }}>
+                                <span style={{fontSize: cfg.rank === 0 ? 22 : 18}}>{cfg.label}</span>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+// ── Throw performance components ────────────────────────────────────────────
+
 function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number; t: (k: any) => string }) {
     const {data, isLoading} = useQuery({
         queryKey: ['member-throw-stats', memberId, year],
@@ -441,12 +676,14 @@ export function StatsPage() {
 
                     {evening && eveningStats ? (
                         <>
-                            <div className="grid grid-cols-2 gap-2 mb-4">
-                                <StatBox value={fe(eveningStats.totalEuro)} label={t('stats.totalEuro')}/>
-                                <StatBox value={String(eveningStats.penaltyCount)} label={t('stats.penalties')}/>
-                                <StatBox value={`🍺 ${eveningStats.beerRounds}`} label={t('drinks.beer')}/>
-                                <StatBox value={`🥃 ${eveningStats.shotRounds}`} label={t('drinks.shots')}/>
-                            </div>
+                            <EveningDonutChart
+                                evening={evening}
+                                totalEuro={eveningStats.totalEuro}
+                                penaltyCount={eveningStats.penaltyCount}
+                                beerRounds={eveningStats.beerRounds}
+                                shotRounds={eveningStats.shotRounds}
+                                t={t}
+                            />
 
                             {eveningStats.hallOfFame.length > 0 && (
                                 <>
@@ -646,6 +883,12 @@ export function StatsPage() {
                         <StatBox value={fe(yearStats.total_penalties)} label={t('member.totalPenalties')}/>
                         <StatBox value={`🍺 ${yearStats.total_beers}`} label={t('drinks.beer')}/>
                     </div>
+
+                    <YearEveningsBarChart eveningList={eveningList} year={year} t={t}/>
+
+                    {!mq && players.length >= 3 && (
+                        <YearPodium players={players} myMemberId={user?.regular_member_id} t={t}/>
+                    )}
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
                     <input

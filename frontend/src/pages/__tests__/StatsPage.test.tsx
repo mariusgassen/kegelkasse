@@ -348,8 +348,9 @@ describe('StatsPage — member ranking', () => {
         await setupWithEvenings()
         await renderStatsPage()
         await waitFor(() => {
-            expect(screen.getByText('Hans')).toBeInTheDocument()
-            expect(screen.getByText('Franzi')).toBeInTheDocument()
+            // Hans and Franzi appear in both podium and ranking list
+            expect(screen.getAllByText('Hans').length).toBeGreaterThanOrEqual(1)
+            expect(screen.getAllByText('Franzi').length).toBeGreaterThanOrEqual(1)
         })
     })
 
@@ -365,12 +366,13 @@ describe('StatsPage — member ranking', () => {
         await setupWithEvenings()
         await renderStatsPage()
         await waitFor(() => {
-            expect(screen.getByText('Hans')).toBeInTheDocument()
+            expect(screen.getAllByText('Hans').length).toBeGreaterThanOrEqual(1)
         })
         const searchInput = screen.getByPlaceholderText('stats.memberSearch')
         fireEvent.change(searchInput, { target: { value: 'hans' } })
         await waitFor(() => {
-            expect(screen.getByText('Hans')).toBeInTheDocument()
+            // Podium is hidden during search, ranking shows only Hans
+            expect(screen.getAllByText('Hans').length).toBeGreaterThanOrEqual(1)
             expect(screen.queryByText('Franzi')).not.toBeInTheDocument()
         })
     })
@@ -428,7 +430,8 @@ describe('StatsPage — current user highlighting', () => {
         await setupWithUser(2) // regular_member_id=2 is "Franzi"
         await renderStatsPage()
         await waitFor(() => {
-            expect(screen.getByText('Ich')).toBeInTheDocument()
+            // Ich badge may appear in both podium and ranking list
+            expect(screen.getAllByText('Ich').length).toBeGreaterThanOrEqual(1)
         })
     })
 
@@ -446,10 +449,10 @@ describe('StatsPage — current user highlighting', () => {
         await setupWithUser(1) // regular_member_id=1 is "Hans"
         await renderStatsPage()
         await waitFor(() => {
-            const ichBadge = screen.getByText('Ich')
-            expect(ichBadge).toBeInTheDocument()
+            const ichBadges = screen.getAllByText('Ich')
+            expect(ichBadges.length).toBeGreaterThanOrEqual(1)
             // The badge is amber — just confirm it renders inside the card
-            expect(ichBadge.className).toContain('kce-amber')
+            expect(ichBadges[0].className).toContain('kce-amber')
         })
     })
 })

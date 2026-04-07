@@ -350,6 +350,9 @@ export interface EveningListItem {
     venue: string | null
     is_closed: boolean
     player_count: number
+    game_count: number
+    penalty_total: number
+    drink_total: number
 }
 
 // pgbackrest info output types
