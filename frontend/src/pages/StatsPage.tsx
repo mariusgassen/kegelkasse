@@ -237,13 +237,32 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
     shotRounds: number
     t: (k: any) => string
 }) {
-    const playerTotals = evening.players.map(p => {
+    const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+    // Present players: group by player_id
+    const presentTotals = evening.players.map(p => {
         const total = evening.penalty_log
             .filter(l => l.player_id === p.id && !(l as any).is_deleted)
             .reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
-        return {id: p.id, name: p.name, total}
+        return {id: `p:${p.id}`, name: p.name, total}
     }).filter(p => p.total > 0)
 
+    // Absent members: player_id === null, regular_member_id set — group by regular_member_id
+    const absentMap = new Map<string, {name: string; total: number}>()
+    for (const l of evening.penalty_log) {
+        if (l.player_id === null && l.regular_member_id != null && !(l as any).is_deleted) {
+            const key = `r:${l.regular_member_id}`
+            const amount = l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)
+            const existing = absentMap.get(key)
+            if (existing) existing.total += amount
+            else absentMap.set(key, {name: l.player_name, total: amount})
+        }
+    }
+    const absentTotals = [...absentMap.entries()]
+        .map(([id, v]) => ({id, ...v}))
+        .filter(p => p.total > 0)
+
+    const playerTotals = [...presentTotals, ...absentTotals]
     const hasData = totalEuro > 0 && playerTotals.length > 0
 
     if (!hasData) {
@@ -276,34 +295,61 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
         return seg
     })
 
+    const hovered = hoveredId ? segments.find(s => s.id === hoveredId) : null
+
     return (
         <div className="mb-4">
             <div className="flex gap-3 items-center mb-3">
                 <div style={{flexShrink: 0, width: 120}}>
-                    <svg width="120" height="120" viewBox="0 0 200 200">
+                    <svg width="120" height="120" viewBox="0 0 200 200"
+                         onMouseLeave={() => setHoveredId(null)}
+                         style={{cursor: 'default'}}>
                         <circle cx={CX} cy={CY} r={R} fill="none"
                                 stroke="var(--kce-surface2)" strokeWidth={SW}/>
-                        {segments.map(seg => (
-                            <circle key={seg.id}
-                                    cx={CX} cy={CY} r={R}
-                                    fill="none"
-                                    stroke={seg.color}
-                                    strokeWidth={SW}
-                                    strokeDasharray={`${seg.arcLen} ${CIRC}`}
-                                    strokeDashoffset={0}
-                                    transform={`rotate(${seg.rotation}, ${CX}, ${CY})`}
-                                    strokeLinecap="butt"/>
-                        ))}
-                        <text x={CX} y={CY - 8} textAnchor="middle" fontSize="13"
-                              fill="var(--kce-cream)" fontWeight="bold">
-                            {feShort(totalEuro)}
-                        </text>
-                        <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
-                              fill="var(--kce-muted)">
-                            {penaltyCount} {t('stats.penalties')}
-                        </text>
-                        <text x={CX} y={CY + 22} textAnchor="middle" fontSize="9"
-                              fill="var(--kce-muted)">{t('stats.totalEuro')}</text>
+                        {segments.map(seg => {
+                            const isHovered = hoveredId === seg.id
+                            const dimmed = hoveredId !== null && !isHovered
+                            return (
+                                <circle key={seg.id}
+                                        cx={CX} cy={CY} r={R}
+                                        fill="none"
+                                        stroke={seg.color}
+                                        strokeWidth={isHovered ? SW + 6 : SW}
+                                        strokeDasharray={`${seg.arcLen} ${CIRC}`}
+                                        strokeDashoffset={0}
+                                        transform={`rotate(${seg.rotation}, ${CX}, ${CY})`}
+                                        strokeLinecap="butt"
+                                        opacity={dimmed ? 0.35 : 1}
+                                        style={{transition: 'opacity 0.15s, stroke-width 0.15s', cursor: 'pointer'}}
+                                        onMouseEnter={() => setHoveredId(seg.id)}/>
+                            )
+                        })}
+                        {/* Center label: show hovered player or total */}
+                        {hovered ? (
+                            <>
+                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="12"
+                                      fill={hovered.color} fontWeight="bold">
+                                    {feShort(hovered.total)}
+                                </text>
+                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="9"
+                                      fill="var(--kce-cream)">
+                                    {hovered.name.length > 10 ? hovered.name.slice(0, 9) + '…' : hovered.name}
+                                </text>
+                            </>
+                        ) : (
+                            <>
+                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="13"
+                                      fill="var(--kce-cream)" fontWeight="bold">
+                                    {feShort(totalEuro)}
+                                </text>
+                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
+                                      fill="var(--kce-muted)">
+                                    {penaltyCount} {t('stats.penalties')}
+                                </text>
+                                <text x={CX} y={CY + 22} textAnchor="middle" fontSize="9"
+                                      fill="var(--kce-muted)">{t('stats.totalEuro')}</text>
+                            </>
+                        )}
                     </svg>
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
@@ -316,18 +362,29 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     {t('stats.penaltyDistribution')}
                 </div>
                 <div className="flex flex-col gap-1">
-                    {segments.map(seg => (
-                        <div key={seg.id} className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                     style={{background: seg.color}}/>
-                                <span className="text-[11px] text-kce-cream truncate">{seg.name}</span>
+                    {segments.map(seg => {
+                        const isHovered = hoveredId === seg.id
+                        return (
+                            <div key={seg.id}
+                                 className="flex items-center justify-between gap-2 rounded px-1 transition-colors"
+                                 style={{background: isHovered ? seg.color + '22' : 'transparent', cursor: 'default'}}
+                                 onMouseEnter={() => setHoveredId(seg.id)}
+                                 onMouseLeave={() => setHoveredId(null)}>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                         style={{background: seg.color}}/>
+                                    <span className="text-[11px] text-kce-cream truncate">{seg.name}</span>
+                                    {seg.id.startsWith('r:') && (
+                                        <span className="text-[9px] text-kce-muted">🏠</span>
+                                    )}
+                                </div>
+                                <span className="text-[11px] font-bold flex-shrink-0"
+                                      style={{color: isHovered ? seg.color : 'var(--kce-amber)'}}>
+                                    {feShort(seg.total)}
+                                </span>
                             </div>
-                            <span className="text-[11px] font-bold text-kce-amber flex-shrink-0">
-                                {feShort(seg.total)}
-                            </span>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             </div>
         </div>
@@ -341,6 +398,8 @@ function YearEveningsBarChart({eveningList, year, t}: {
     year: number
     t: (k: any) => string
 }) {
+    const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
     const bars = [...eveningList]
         .filter(e => new Date(e.date).getFullYear() === year)
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -351,8 +410,8 @@ function YearEveningsBarChart({eveningList, year, t}: {
     const allZero = bars.every(b => (b.penalty_total ?? 0) === 0)
     if (allZero) return null
 
-    const VW = 400, VH = 80
-    const PAD_T = 4, PAD_B = 22, PAD_H = 4
+    const VW = 400, VH = 90
+    const PAD_T = 18, PAD_B = 22, PAD_H = 4
     const IH = VH - PAD_T - PAD_B
     const IW = VW - PAD_H * 2
     const maxP = Math.max(...bars.map(b => b.penalty_total ?? 0), 0.01)
@@ -361,30 +420,63 @@ function YearEveningsBarChart({eveningList, year, t}: {
 
     const fShortDate = (d: string) =>
         new Date(d).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
+    const fLongDate = (d: string) =>
+        new Date(d).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
 
     return (
         <div className="kce-card p-3 mb-4">
             <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">
                 {t('stats.eveningBars')}
             </div>
-            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{display: 'block', overflow: 'visible'}}>
+            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
+                 style={{display: 'block', overflow: 'visible'}}
+                 onMouseLeave={() => setHoveredIdx(null)}>
                 {bars.map((bar, i) => {
                     const x = PAD_H + i * (barW + gap)
                     const h = Math.max(2, ((bar.penalty_total ?? 0) / maxP) * IH)
                     const y = PAD_T + IH - h
                     const labelX = x + barW / 2
                     const showLabel = bars.length <= 8 || i % 2 === 0
+                    const isHovered = hoveredIdx === i
+                    const dimmed = hoveredIdx !== null && !isHovered
+
+                    // Tooltip text above bar
+                    const tooltipLabel = bar.venue
+                        ? `${fLongDate(bar.date)} · ${bar.venue}`
+                        : fLongDate(bar.date)
+                    const tooltipVal = feShort(bar.penalty_total ?? 0)
+                    const tipX = Math.min(Math.max(labelX, 30), VW - 30)
+
                     return (
-                        <g key={bar.id}>
+                        <g key={bar.id}
+                           onMouseEnter={() => setHoveredIdx(i)}
+                           style={{cursor: 'pointer'}}>
                             <rect x={x} y={y} width={barW} height={h} rx="2"
-                                  fill="var(--kce-amber)" opacity="0.85"/>
-                            {showLabel && (
+                                  fill={isHovered ? 'var(--kce-amber)' : 'var(--kce-amber)'}
+                                  opacity={dimmed ? 0.3 : isHovered ? 1 : 0.75}
+                                  style={{transition: 'opacity 0.12s'}}/>
+                            {/* Invisible wider hit area */}
+                            <rect x={x} y={PAD_T} width={barW} height={IH} rx="0"
+                                  fill="transparent"/>
+                            {showLabel && !isHovered && (
                                 <text x={labelX} y={VH - 6} textAnchor="middle"
                                       fontSize="8" fill="var(--kce-muted)">
                                     {fShortDate(bar.date)}
                                 </text>
                             )}
-                            <title>{fShortDate(bar.date)}: {feShort(bar.penalty_total ?? 0)}</title>
+                            {/* Tooltip above bar on hover */}
+                            {isHovered && (
+                                <>
+                                    <text x={tipX} y={PAD_T - 10} textAnchor="middle"
+                                          fontSize="9" fill="var(--kce-cream)" fontWeight="bold">
+                                        {tooltipVal}
+                                    </text>
+                                    <text x={tipX} y={PAD_T - 1} textAnchor="middle"
+                                          fontSize="8" fill="var(--kce-muted)">
+                                        {tooltipLabel}
+                                    </text>
+                                </>
+                            )}
                         </g>
                     )
                 })}
