@@ -254,6 +254,7 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 38 | **Spieler-Performance-Tracking**   | ⬜      | Wurf-für-Wurf-Statistiken pro Mitglied über Zeit: Durchschnittswürfe, beste/schlechteste Abende, Trendkurve. Nutzt vorhandene game_throw_log-Daten (Feature 33). Neue Endpoints GET /stats/me/throws + GET /members/{id}/throws; persönliche Statistik-Karte im Profil + Detailansicht im Stats-Tab. |
 | 39 | **Saisonabschluss-Workflow**       | ⬜      | Geführter Jahresabschluss für Admins: Kassenabschluss (alle offenen Salden auf Null setzen / Übertrag buchen), Jahresranking einfrieren (Snapshot-Tabelle), Archivierung aller Abende der Saison, PDF-Jahresbericht auto-generiert. Neuer Admin-Tab "Saisonabschluss" mit Step-Wizard. |
 | 40 | **Gäste-Management**               | ⬜      | Gastspieler per Link einladen (zeitlich begrenztes Token); Gast sieht eigene Abend-Übersicht (Würfe, Strafen, Getränke) ohne vollen Account; Admin kann Gast nachträglich in reguläres Mitglied konvertieren. Neue Tabelle guest_token; GET /guest/{token}/summary Endpoint. |
+| 41 | **Abstimmungen / Umfragen**        | ⬜      | Einfach- und Mehrfach-Antwort-Polls für Mitglieder (z. B. Terminwahl, Vereinsentscheidungen). Admin erstellt Poll mit Frage + Antwortoptionen + Modus (single/multi). Mitglieder stimmen ab, Ergebnisse live sichtbar. Neue Tabellen club_poll + poll_option + poll_vote; CRUD-Endpoints unter /committee/polls; Poll-Kacheln im VA-Tab (🗳️) mit Ablaufdatum und Ergebnisanzeige. |
 
 ## Testing TODO
 
