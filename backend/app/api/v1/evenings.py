@@ -334,6 +334,28 @@ def apply_club_team_templates(eid: int, shuffle: bool = False, db: Session = Dep
     return serialize_evening(e)
 
 
+@router.post("/{eid}/teams/shuffle-players")
+def shuffle_team_players(eid: int, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_member)):
+    """Randomly redistribute existing evening players across existing teams. Does not delete/recreate teams."""
+    import random
+    e = get_club_evening(eid, user, db)
+    if not e.teams:
+        raise HTTPException(400, "Keine Teams vorhanden")
+    # Clear all team assignments
+    db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"team_id": None})
+    db.flush()
+    # Randomly assign players to existing teams
+    players = list(e.players)
+    random.shuffle(players)
+    teams = list(e.teams)
+    for i, player in enumerate(players):
+        player.team_id = teams[i % len(teams)].id
+    db.commit()
+    db.refresh(e)
+    return serialize_evening(e)
+
+
 # ── Penalties ──
 
 class PenaltyCreate(BaseModel):
@@ -525,7 +547,7 @@ def _do_calculate_absence_penalties(
         if rsvp_status == RsvpStatus.absent:
             total_fee = base_fee
         elif scheduled and no_cancel_fee > 0:
-            total_fee = no_cancel_fee
+            total_fee = base_fee + no_cancel_fee
         else:
             total_fee = base_fee
         db.add(PenaltyLog(
@@ -550,7 +572,7 @@ def _do_calculate_absence_penalties(
             if rsvp_status == RsvpStatus.absent:
                 total_fee = base_fee
             elif scheduled and no_cancel_fee > 0:
-                total_fee = no_cancel_fee
+                total_fee = base_fee + no_cancel_fee
             else:
                 total_fee = base_fee
             fee_str = f"{total_fee:.2f}".replace('.', ',')

@@ -308,6 +308,8 @@ export const api = {
     deleteClubTeam: (id: number) => request<void>('DELETE', `/club/teams/${id}`),
     applyClubTeamsToEvening: (eid: number, shuffle = false) =>
         request<Evening>('POST', `/evening/${eid}/teams/from-templates${shuffle ? '?shuffle=true' : ''}`),
+    shuffleTeamPlayers: (eid: number) =>
+        request<Evening>('POST', `/evening/${eid}/teams/shuffle-players`),
 
     // Game templates
     listGameTemplates: () => request<GameTemplate[]>('GET', '/club/game-templates'),

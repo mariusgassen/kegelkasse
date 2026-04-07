@@ -314,37 +314,38 @@ export function EveningPage() {
                 </div>
                 {!evening.is_closed && (
                     <div className="flex gap-1">
-                        {/* Apply/Randomize only shown when no teams exist yet — teams are fixed once set */}
                         {teams.length === 0 && (
-                            <>
-                                <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
-                                        onClick={async () => {
-                                            try {
-                                                await api.applyClubTeamsToEvening(evening.id, false)
-                                                invalidate()
-                                            } catch (e: unknown) {
-                                                toastError(e)
-                                            }
-                                        }}>
-                                    {t('team.fromTemplateBadge')}
-                                </button>
-                                <button className="btn-secondary btn-xs" title={t('team.randomize')}
-                                        onClick={async () => {
-                                            if (players.length === 0) {
-                                                showToast(t('team.noPlayers'))
-                                                return
-                                            }
-                                            try {
-                                                await api.applyClubTeamsToEvening(evening.id, true)
-                                                invalidate()
-                                            } catch (e: unknown) {
-                                                toastError(e)
-                                            }
-                                        }}>
-                                    🎲
-                                </button>
-                            </>
+                            <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
+                                    onClick={async () => {
+                                        try {
+                                            await api.applyClubTeamsToEvening(evening.id, false)
+                                            invalidate()
+                                        } catch (e: unknown) {
+                                            toastError(e)
+                                        }
+                                    }}>
+                                {t('team.fromTemplateBadge')}
+                            </button>
                         )}
+                        <button className="btn-secondary btn-xs" title={t('team.randomize')}
+                                onClick={async () => {
+                                    if (players.length === 0) {
+                                        showToast(t('team.noPlayers'))
+                                        return
+                                    }
+                                    try {
+                                        if (teams.length > 0) {
+                                            await api.shuffleTeamPlayers(evening.id)
+                                        } else {
+                                            await api.applyClubTeamsToEvening(evening.id, true)
+                                        }
+                                        invalidate()
+                                    } catch (e: unknown) {
+                                        toastError(e)
+                                    }
+                                }}>
+                            🎲
+                        </button>
                         <button className="btn-secondary btn-xs" onClick={openNewTeam}>+</button>
                     </div>
                 )}

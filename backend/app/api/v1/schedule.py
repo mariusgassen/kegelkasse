@@ -1,6 +1,6 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
 from typing import Optional
 
 from babel.dates import format_datetime
@@ -98,9 +98,6 @@ def create_scheduled_evening(
     user: User = Depends(require_club_admin),
 ):
     scheduled_at = _parse_date(data.date)
-    # Allow up to 5 minutes in the past (for quick-start flow where "now" is used)
-    if scheduled_at < datetime.now(UTC) - timedelta(minutes=5):
-        raise HTTPException(400, "Scheduled date must be in the future")
     se = ScheduledEvening(
         club_id=user.club_id,
         created_by=user.id,
