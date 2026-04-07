@@ -1309,3 +1309,67 @@ describe('TreasuryPage — bookingSheet submitBooking error', () => {
         })
     })
 })
+
+describe('TreasuryPage — delete payment in bookings tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('calls api.deleteMemberPayment when payment ✕ clicked in bookings', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteMemberPayment).mockResolvedValueOnce(undefined as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Einzahlung'))
+        const deleteBtns = screen.getAllByText('✕')
+        // Sorted by date desc: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
+        // deleteBtns[0] is payment id=10
+        fireEvent.click(deleteBtns[0])
+        await waitFor(() => {
+            expect(api.deleteMemberPayment).toHaveBeenCalledWith(10)
+        })
+    })
+})
+
+describe('TreasuryPage — guest accounts settle button', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([
+            { regular_member_id: 99, name: 'Gast Peter', nickname: null, balance: -3.00, payments_total: 0, penalty_total: 3.00 },
+        ] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    })
+
+    it('opens payment sheet when guest settle button clicked', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Gast Peter'))
+        fireEvent.click(screen.getByText('treasury.payment.settle'))
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+    })
+
+    it('closes payment sheet when onClose clicked', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Gast Peter'))
+        fireEvent.click(screen.getByText('treasury.payment.settle'))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('close-sheet'))
+        await waitFor(() => {
+            expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+        })
+    })
+})

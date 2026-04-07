@@ -204,3 +204,31 @@ describe('flushOfflineQueue — dispatches events', () => {
         expect(syncEvents[0].detail.applied).toBe(1)
     })
 })
+
+// ── flushOfflineQueue — NetworkError stops flushing ───────────────────────────
+
+describe('flushOfflineQueue — NetworkError stops loop', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockGetAll.mockResolvedValue([
+            { id: 1, method: 'POST', path: '/evening/5/drinks', body: {}, timestamp: 1000 },
+            { id: 2, method: 'POST', path: '/evening/5/drinks', body: {}, timestamp: 2000 },
+        ])
+    })
+
+    afterEach(() => {
+        vi.stubGlobal('navigator', { onLine: true })
+    })
+
+    it('stops processing items when fetch throws NetworkError', async () => {
+        // Make fetch reject (network failure) — causes NetworkError which stops the loop
+        mockFetch.mockRejectedValue(new Error('network failure'))
+        const { authState, flushOfflineQueue } = await import('../client')
+        authState.setToken('tok')
+        const result = await flushOfflineQueue()
+        // Should have applied 0 (stopped after first item's NetworkError)
+        expect(result.applied).toBe(0)
+        // Only first item processed before break (fetch called once)
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+})

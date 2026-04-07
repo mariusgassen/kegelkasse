@@ -58,8 +58,10 @@ vi.mock('@/components/ui/Empty.tsx', () => ({
     Empty: ({ text }: any) => <div>{text}</div>,
 }))
 vi.mock('@/components/ui/ChipSelect.tsx', () => ({
-    ChipSelect: ({ options, onChange, selected }: any) => (
+    ChipSelect: ({ options, onChange, selected, onSelectAll, onSelectNone }: any) => (
         <div>
+            {onSelectAll && <button onClick={onSelectAll}>action.all</button>}
+            {onSelectNone && <button onClick={onSelectNone}>action.none</button>}
             {options?.map((o: any) => {
                 const id = o.id ?? o.value
                 const isSelected = Array.isArray(selected) ? selected.includes(id) : selected === id
@@ -1197,5 +1199,173 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
         await waitFor(() => {
             expect(api.updatePenalty).toHaveBeenCalledWith(42, expect.any(Number), expect.any(Object))
         })
+    })
+
+    it('calls toastError when updatePenalty fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.updatePenalty).mockRejectedValueOnce(new Error('update fail'))
+        await renderProtocolPage()
+        const editBtns = screen.getAllByText('✏️')
+        fireEvent.click(editBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+        fireEvent.click(within(sheet).getByText('Hansi'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})
+
+// ── error handlers ────────────────────────────────────────────────────────────
+describe('ProtocolPage — submitQuick error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('calls toastError when addPenalty fails in quick tab', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.addPenalty).mockRejectedValueOnce(new Error('add fail'))
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        // ChipSelect renders player names as buttons; click one to select a player
+        fireEvent.click(within(sheet).getByText('Hansi'))
+        // Click penalty type chip (rendered as plain button with icon+name)
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})
+
+describe('ProtocolPage — confirmDelete error', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('calls toastError when deletePenalty fails', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.deletePenalty).mockRejectedValueOnce(new Error('delete fail'))
+        await renderProtocolPage()
+        await waitFor(() => screen.getAllByText('✕'))
+        // First ✕ click sets confirmDeleteId (shows confirm UI with ✓ button)
+        fireEvent.click(screen.getAllByText('✕')[0])
+        // Now click ✓ to call confirmDelete
+        await waitFor(() => screen.getByText('✓'))
+        fireEvent.click(screen.getByText('✓'))
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+    })
+})
+
+describe('ProtocolPage — drink sheet interactions', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('changes drink type to shots when shots button clicked', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        await waitFor(() => screen.getByText(/drinks\.shots/))
+        fireEvent.click(screen.getByText(/drinks\.shots/))
+        // shots button now active — just verify no error
+        expect(screen.getByText(/drinks\.shots/)).toBeInTheDocument()
+    })
+
+    it('updates variety input in drink sheet', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        await waitFor(() => screen.getByPlaceholderText(/drinks\.sortPlaceholder/))
+        const varietyInput = screen.getByPlaceholderText(/drinks\.sortPlaceholder/) as HTMLInputElement
+        fireEvent.change(varietyInput, { target: { value: 'Pils' } })
+        expect(varietyInput.value).toBe('Pils')
+    })
+
+    it('calls onSelectNone to deselect all players in drink sheet', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        await waitFor(() => screen.getByText('action.none'))
+        fireEvent.click(screen.getByText('action.none'))
+        // After selectNone, drinkPlayerIds is empty → submit button disabled
+        expect(screen.getByText('action.done')).toBeDisabled()
+    })
+
+    it('calls onSelectAll after deselecting players in drink sheet', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Getränk/))
+        // Wait for drink sheet to open (action.none button always appears)
+        await waitFor(() => screen.getByText('action.none'))
+        // First deselect all to verify the flow
+        const sheet = screen.getByTestId('sheet')
+        fireEvent.click(within(sheet).getByText('action.none'))
+        expect(within(sheet).getByText('action.done')).toBeDisabled()
+        // Now re-select all via action.all
+        fireEvent.click(within(sheet).getAllByText('action.all')[0])
+        expect(within(sheet).getByText('action.done')).not.toBeDisabled()
+    })
+})
+
+describe('ProtocolPage — admin edit date input', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('updates edit date input in edit sheet for admin', async () => {
+        await renderProtocolPage()
+        await waitFor(() => screen.getAllByText('✏️'))
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const dateInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
+        expect(dateInput).not.toBeNull()
+        fireEvent.change(dateInput, { target: { value: '2026-02-15T20:00' } })
+        expect(dateInput.value).toBe('2026-02-15T20:00')
     })
 })

@@ -1206,3 +1206,122 @@ describe('MembersPage — error handlers', () => {
         }
     })
 })
+
+describe('MembersPage — invite sheet copy and share buttons', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        // Mock clipboard
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: vi.fn().mockResolvedValue(undefined) },
+            writable: true,
+            configurable: true,
+        })
+    })
+
+    async function openInviteSheet() {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: REGULAR_MEMBERS,
+            setRegularMembers: vi.fn(),
+        } as any)
+        vi.mocked(api.createInvite).mockResolvedValueOnce({
+            invite_url: '/auth/register?token=tok123', token: 'tok123',
+        } as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText(/club\.tab\.invites/))
+        fireEvent.click(screen.getByText(/club\.tab\.invites/))
+        await waitFor(() => screen.getByTestId('sheet'))
+    }
+
+    it('calls navigator.clipboard.writeText when copy button clicked in invite sheet', async () => {
+        await openInviteSheet()
+        fireEvent.click(screen.getByText('club.invite.copy'))
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+            expect.stringContaining('/auth/register?token=tok123')
+        )
+    })
+
+    it('calls shareOrCopy when share button clicked in invite sheet', async () => {
+        const { shareOrCopy } = await import('@/utils/share.ts')
+        await openInviteSheet()
+        fireEvent.click(screen.getByText(/share\.button/))
+        await waitFor(() => {
+            expect(shareOrCopy).toHaveBeenCalledWith(
+                expect.stringContaining('/auth/register?token=tok123'),
+                expect.any(String),
+            )
+        })
+    })
+})
+
+describe('MembersPage — reset sheet copy and share buttons', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: vi.fn().mockResolvedValue(undefined) },
+            writable: true,
+            configurable: true,
+        })
+    })
+
+    async function openResetSheet() {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: REGULAR_MEMBERS,
+            setRegularMembers: vi.fn(),
+        } as any)
+        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=rst' } as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getAllByText('🔑'))
+        fireEvent.click(screen.getAllByText('🔑')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+    }
+
+    it('calls navigator.clipboard.writeText when copy button clicked in reset sheet', async () => {
+        await openResetSheet()
+        fireEvent.click(screen.getByText('club.invite.copy'))
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+            expect.stringContaining('/auth/reset?token=rst')
+        )
+    })
+
+    it('calls shareOrCopy when share button clicked in reset sheet', async () => {
+        const { shareOrCopy } = await import('@/utils/share.ts')
+        await openResetSheet()
+        fireEvent.click(screen.getByText(/share\.button/))
+        await waitFor(() => {
+            expect(shareOrCopy).toHaveBeenCalledWith(
+                expect.stringContaining('/auth/reset?token=rst'),
+                expect.any(String),
+            )
+        })
+    })
+})
+
+describe('MembersPage — member add sheet nickname input', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAdmin()
+    })
+
+    it('updates nickname input when changed in add sheet', async () => {
+        await renderMembersPage()
+        await waitFor(() => screen.getByText(/\+ member\.add/))
+        fireEvent.click(screen.getByText(/\+ member\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Find the nickname input by its placeholder
+        const nicknameInput = screen.getByPlaceholderText('z.B. Kapitän, Aufschläger…') as HTMLInputElement
+        fireEvent.change(nicknameInput, { target: { value: 'Bobo' } })
+        expect(nicknameInput.value).toBe('Bobo')
+    })
+})
