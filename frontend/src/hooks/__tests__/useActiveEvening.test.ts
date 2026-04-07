@@ -19,6 +19,7 @@ class MockEventSource {
     onmessage: ((e: MessageEvent) => void) | null = null
     onerror: (() => void) | null = null
     close = vi.fn()
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     constructor(_url: string) { lastCreatedES = this }
 }
 vi.stubGlobal('EventSource', MockEventSource)

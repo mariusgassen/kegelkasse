@@ -719,7 +719,6 @@ describe('App — onUnauthorized callback', () => {
 
     it('calls setToken(null) and setUser(null) and shows toast when user was logged in', async () => {
         let capturedCallback: (() => void) | null = null
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mockAuthState.onUnauthorized.mockImplementation(((cb: () => void) => {
             capturedCallback = cb
             return () => {}
@@ -740,7 +739,6 @@ describe('App — onUnauthorized callback', () => {
     it('does NOT show toast when user was already null', async () => {
         storeState.user = null
         let capturedCallback: (() => void) | null = null
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mockAuthState.onUnauthorized.mockImplementation(((cb: () => void) => {
             capturedCallback = cb
             return () => {}
