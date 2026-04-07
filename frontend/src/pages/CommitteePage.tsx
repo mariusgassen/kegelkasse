@@ -70,6 +70,10 @@ function useDeepLinkScroll(
             el?.classList.add('kce-deeplink-flash')
             setTimeout(() => el?.classList.remove('kce-deeplink-flash'), 2500)
         }, 120)
+
+        return () => {
+            if (highlightRef.current !== null) clearTimeout(highlightRef.current)
+        }
     }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
