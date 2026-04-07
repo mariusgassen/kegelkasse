@@ -1,7 +1,6 @@
 """
 Extended tests for app/api/v1/club.py — covers routes not tested in test_club.py.
 """
-from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
