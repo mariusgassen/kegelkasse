@@ -389,3 +389,118 @@ class TestYearStatsExtra:
         db.commit()
         r = client.get("/api/v1/stats/year/2025", headers=member_headers)
         assert r.json()["total_shots"] == 1
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/me/throws  +  GET /stats/members/{id}/throws
+# ---------------------------------------------------------------------------
+
+class TestThrowStats:
+    def _make_game_with_throws(self, db, evening, player, pins_list):
+        g = Game(
+            evening_id=evening.id,
+            name="ThrowGame",
+            status="finished",
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(g)
+        db.flush()
+        for i, pins in enumerate(pins_list):
+            db.add(GameThrowLog(game_id=g.id, player_id=player.id, throw_num=i + 1, pins=pins))
+        db.commit()
+        return g
+
+    def test_me_throws_structure(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/me/throws?year=2025", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "regular_member_id" in data
+        assert "throw_count" in data
+        assert "avg_pins" in data
+        assert "best_avg" in data
+        assert "worst_avg" in data
+        assert "evenings" in data
+
+    def test_me_throws_no_data(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/me/throws?year=1990", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["throw_count"] == 0
+        assert data["avg_pins"] is None
+        assert data["evenings"] == []
+
+    def test_me_throws_counts_correctly(self, client: TestClient, member_headers: dict,
+                                        db: Session,
+                                        evening_2025: Evening, player: EveningPlayer):
+        self._make_game_with_throws(db, evening_2025, player, [6, 8, 9])
+        r = client.get("/api/v1/stats/me/throws?year=2025", headers=member_headers)
+        data = r.json()
+        assert data["throw_count"] == 3
+        assert data["total_pins"] == 23
+        assert data["avg_pins"] == round(23 / 3, 1)
+        assert len(data["evenings"]) == 1
+        ev = data["evenings"][0]
+        assert ev["evening_id"] == evening_2025.id
+        assert ev["throw_count"] == 3
+
+    def test_me_throws_best_worst_avg(self, client: TestClient, member_headers: dict,
+                                      db: Session,
+                                      evening_2025: Evening, player: EveningPlayer, club: Club, member: RegularMember):
+        """Two evenings → best and worst are different."""
+        from datetime import datetime
+        e2 = Evening(club_id=club.id, date=datetime(2025, 9, 1), is_closed=True)
+        db.add(e2)
+        db.flush()
+        p2 = EveningPlayer(evening_id=e2.id, regular_member_id=member.id, name=member.name)
+        db.add(p2)
+        db.flush()
+        self._make_game_with_throws(db, evening_2025, player, [9, 9])   # avg 9.0
+        self._make_game_with_throws(db, e2, p2, [3, 3])                 # avg 3.0
+        r = client.get("/api/v1/stats/me/throws?year=2025", headers=member_headers)
+        data = r.json()
+        assert data["best_avg"] == 9.0
+        assert data["worst_avg"] == 3.0
+        assert len(data["evenings"]) == 2
+
+    def test_me_throws_requires_auth(self, client: TestClient):
+        r = client.get("/api/v1/stats/me/throws?year=2025")
+        assert r.status_code == 401
+
+    def test_me_throws_no_year_filter(self, client: TestClient, member_headers: dict,
+                                      db: Session,
+                                      evening_2025: Evening, player: EveningPlayer):
+        """Without year param all evenings are returned."""
+        self._make_game_with_throws(db, evening_2025, player, [5, 7])
+        r = client.get("/api/v1/stats/me/throws", headers=member_headers)
+        assert r.status_code == 200
+        assert r.json()["throw_count"] == 2
+
+    def test_member_throws_visible_to_club_member(self, client: TestClient, member_headers: dict,
+                                                   db: Session,
+                                                   evening_2025: Evening, player: EveningPlayer,
+                                                   member: RegularMember):
+        self._make_game_with_throws(db, evening_2025, player, [4, 8])
+        r = client.get(f"/api/v1/stats/members/{member.id}/throws?year=2025", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["regular_member_id"] == member.id
+        assert data["throw_count"] == 2
+
+    def test_member_throws_404_for_wrong_club(self, client: TestClient, member_headers: dict,
+                                               db: Session, club: Club):
+        """Member from another club returns 404."""
+        other_club = Club(name="Other", slug="other-stat")
+        db.add(other_club)
+        db.flush()
+        other_member = RegularMember(club_id=other_club.id, name="Stranger", is_active=True)
+        db.add(other_member)
+        db.commit()
+        r = client.get(f"/api/v1/stats/members/{other_member.id}/throws", headers=member_headers)
+        assert r.status_code == 404
+        db.delete(other_member)
+        db.delete(other_club)
+        db.commit()
+
+    def test_member_throws_requires_auth(self, client: TestClient, member: RegularMember):
+        r = client.get(f"/api/v1/stats/members/{member.id}/throws")
+        assert r.status_code == 401

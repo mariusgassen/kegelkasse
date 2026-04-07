@@ -46,6 +46,36 @@ function resizeToBase64(file: File, size = 256): Promise<string> {
     })
 }
 
+import type {EveningThrowSummary} from '@/types'
+
+function ThrowTrendMini({evenings}: { evenings: EveningThrowSummary[] }) {
+    const avgs = evenings.map(e => e.avg_pins)
+    const minV = Math.min(...avgs)
+    const maxV = Math.max(...avgs)
+    const range = Math.max(maxV - minV, 1)
+    const W = 300, H = 40, PAD = 4
+    const iw = W - PAD * 2
+    const ih = H - PAD * 2
+    const n = avgs.length
+    const pts = avgs.map((v, i) => {
+        const x = PAD + (n === 1 ? iw / 2 : (i / (n - 1)) * iw)
+        const y = PAD + ih - ((v - minV) / range) * ih
+        return `${x},${y}`
+    })
+    return (
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display: 'block', overflow: 'visible'}}>
+            <polyline points={pts.join(' ')} fill="none" stroke="var(--kce-amber)" strokeWidth="2"
+                      strokeLinejoin="round" strokeLinecap="round"/>
+            {avgs.map((v, i) => {
+                const [x, y] = pts[i].split(',').map(Number)
+                return <circle key={i} cx={x} cy={y} r="3" fill="var(--kce-amber)">
+                    <title>{v}</title>
+                </circle>
+            })}
+        </svg>
+    )
+}
+
 interface Props {
     open: boolean
     onClose: () => void
@@ -158,6 +188,12 @@ export function ProfileSheet({open, onClose}: Props) {
     const {data: myStats} = useQuery({
         queryKey: ['my-stats', year],
         queryFn: () => api.getMyStats(year),
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 60 * 5,
+    })
+    const {data: myThrowStats} = useQuery({
+        queryKey: ['my-throw-stats', year],
+        queryFn: () => api.getMyThrowStats(year),
         enabled: open && !!user?.regular_member_id,
         staleTime: 1000 * 60 * 5,
     })
@@ -633,6 +669,35 @@ export function ProfileSheet({open, onClose}: Props) {
                                         className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
                                     <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Throw performance card */}
+                    {myThrowStats && myThrowStats.throw_count > 0 && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('profile.throwStats')} {year}
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-kce-cream text-lg">{myThrowStats.avg_pins ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('stats.avgPins')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-green-400 text-lg">{myThrowStats.best_avg ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.bestAvg')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-red-400 text-lg">{myThrowStats.worst_avg ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.worstAvg')}</div>
+                                </div>
+                            </div>
+                            {myThrowStats.evenings.length > 1 && (
+                                <ThrowTrendMini evenings={myThrowStats.evenings}/>
+                            )}
+                            <div className="text-[10px] text-kce-muted text-center mt-1">
+                                {myThrowStats.throw_count} {t('stats.throwCount')} · {myThrowStats.total_pins} {t('stats.totalPins')}
                             </div>
                         </div>
                     )}

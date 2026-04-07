@@ -572,6 +572,8 @@ export const api = {
         total_evenings: number; game_wins: number; beer_rounds: number;
         total_pins: number; throw_count: number; avg_pins: number | null
     }>('GET', `/stats/me/${year}`),
+    getMyThrowStats: (year?: number) => request<import('../types').ThrowStats>('GET', `/stats/me/throws${year ? `?year=${year}` : ''}`),
+    getMemberThrowStats: (memberId: number, year?: number) => request<import('../types').ThrowStats>('GET', `/stats/members/${memberId}/throws${year ? `?year=${year}` : ''}`),
 
     // Sync
     sync: (payload: { client_id: string; last_sync?: number; changes: any[] }) =>

@@ -2,12 +2,12 @@
 from collections import defaultdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
 from core.database import get_db
-from models.evening import Evening
+from models.evening import Evening, RegularMember
 from models.penalty import PenaltyMode
 from models.user import User
 
@@ -78,6 +78,93 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
         ),
         "players": players_list
     }
+
+
+def _build_throw_stats(evenings: list, regular_member_id: int, year: int | None) -> dict:
+    """Compute per-evening throw stats for a given regular_member_id."""
+    evening_rows = []
+    total_pins = 0
+    throw_count = 0
+
+    for e in sorted(evenings, key=lambda x: x.date):
+        player = next((p for p in e.players if p.regular_member_id == regular_member_id), None)
+        if not player:
+            continue
+        ep_pins = 0
+        ep_throws = 0
+        for g in e.games:
+            if g.is_deleted:
+                continue
+            for th in g.throws:
+                if th.player_id == player.id:
+                    ep_pins += th.pins
+                    ep_throws += 1
+        if ep_throws == 0:
+            continue
+        avg = round(ep_pins / ep_throws, 1)
+        evening_rows.append({
+            "evening_id": e.id,
+            "date": e.date.isoformat(),
+            "location": e.venue,
+            "total_pins": ep_pins,
+            "throw_count": ep_throws,
+            "avg_pins": avg,
+        })
+        total_pins += ep_pins
+        throw_count += ep_throws
+
+    avgs = [r["avg_pins"] for r in evening_rows]
+    return {
+        "regular_member_id": regular_member_id,
+        "year": year,
+        "total_pins": total_pins,
+        "throw_count": throw_count,
+        "avg_pins": round(total_pins / throw_count, 1) if throw_count > 0 else None,
+        "best_avg": max(avgs) if avgs else None,
+        "worst_avg": min(avgs) if avgs else None,
+        "evenings": evening_rows,
+    }
+
+
+# NOTE: /me/throws must be registered BEFORE /me/{year} to prevent FastAPI
+# from trying to parse "throws" as an integer year parameter.
+@router.get("/me/throws")
+def get_my_throw_stats(
+    year: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    """Personal throw statistics per evening (optionally filtered by year)."""
+    mid = user.regular_member_id
+    if not mid:
+        return {"regular_member_id": None, "year": year, "total_pins": 0,
+                "throw_count": 0, "avg_pins": None, "best_avg": None, "worst_avg": None, "evenings": []}
+
+    q = db.query(Evening).filter(Evening.club_id == user.club_id)
+    if year:
+        q = q.filter(Evening.date >= datetime(year, 1, 1), Evening.date < datetime(year + 1, 1, 1))
+    return _build_throw_stats(q.all(), mid, year)
+
+
+@router.get("/members/{member_id}/throws")
+def get_member_throw_stats(
+    member_id: int,
+    year: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    """Throw statistics per evening for any club member (visible to all club members)."""
+    member = db.query(RegularMember).filter(
+        RegularMember.id == member_id,
+        RegularMember.club_id == user.club_id,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    q = db.query(Evening).filter(Evening.club_id == user.club_id)
+    if year:
+        q = q.filter(Evening.date >= datetime(year, 1, 1), Evening.date < datetime(year + 1, 1, 1))
+    return _build_throw_stats(q.all(), member_id, year)
 
 
 @router.get("/me/{year}")
