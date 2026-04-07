@@ -450,6 +450,8 @@ export const de = {
     "stats.noThrowData": "Noch keine Wurf-Daten vorhanden.",
     "stats.showThrowStats": "Wurf-Stats anzeigen",
     "stats.hideThrowStats": "Wurf-Stats ausblenden",
+    "stats.playerDetail": "Spieler-Details",
+    "stats.shotRounds": "Schnaps-Runden",
     "profile.throwStats": "🎳 Wurf-Performance",
     "profile.bestAvg": "Bestes Ø",
     "profile.worstAvg": "Schlechtestes Ø",
