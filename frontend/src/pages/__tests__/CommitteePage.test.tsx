@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ClubPoll } from '@/types.ts'
 
 // ── mocks ─────────────────────────────────────────────────────────────────────
 
@@ -806,7 +807,7 @@ describe('CommitteePage — trip details', () => {
 
 // ── Polls fixtures ────────────────────────────────────────────────────────────
 
-const POLLS = [
+const POLLS: ClubPoll[] = [
     {
         id: 1,
         title: 'Wohin fahren wir?',
@@ -822,7 +823,7 @@ const POLLS = [
     },
 ]
 
-const POLLS_UNVOTED = [
+const POLLS_UNVOTED: ClubPoll[] = [
     {
         id: 2,
         title: 'Was esst ihr?',
