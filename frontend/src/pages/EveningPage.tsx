@@ -150,11 +150,11 @@ export function EveningPage() {
 
     const players = evening.players
     const teams = evening.teams
-    const playerOptions = players.map(p => ({id: p.id, label: p.name}))
+    const playerOptions = players.map(p => ({id: p.id, label: p.nickname || p.name}))
     // For the team sheet: only players not in another team (+ current team's players)
     const availableForTeam = (currentTeamId: number | null) =>
         players.filter(p => p.team_id === null || p.team_id === currentTeamId)
-            .map(p => ({id: p.id, label: p.name}))
+            .map(p => ({id: p.id, label: p.nickname || p.name}))
 
     function openEditSheet() {
         setEditDate(evening!.date.slice(0, 10))
@@ -370,7 +370,7 @@ export function EveningPage() {
                             </div>
                             {members.length > 0 && (
                                 <div className="text-xs text-kce-muted mt-1">
-                                    {members.map(p => p.name).join(', ')}
+                                    {members.map(p => p.nickname || p.name).join(', ')}
                                 </div>
                             )}
                         </div>

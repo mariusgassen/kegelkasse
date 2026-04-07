@@ -11,6 +11,7 @@ function player(id: number, teamId: number | null = null): EveningPlayer {
         evening_id: 1,
         regular_member_id: id,
         name: `Player ${id}`,
+        nickname: null,
         is_king: false,
         team_id: teamId,
         is_guest: false,

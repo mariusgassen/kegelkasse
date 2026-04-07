@@ -559,7 +559,7 @@ export const api = {
         total_beers: number;
         total_shots: number;
         players: {
-            name: string; regular_member_id: number | null;
+            name: string; nickname: string | null; regular_member_id: number | null;
             evenings: number; penalty_total: number; penalty_count: number;
             game_wins: number; beer_rounds: number; shot_rounds: number;
             total_pins: number; throw_count: number; avg_pins: number | null

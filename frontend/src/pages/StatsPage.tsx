@@ -242,7 +242,7 @@ export function StatsPage() {
 
     const players = yearStats?.players ?? []
     const mq = memberSearch.trim().toLowerCase()
-    const filteredPlayers = mq ? players.filter(p => p.name.toLowerCase().includes(mq)) : players
+    const filteredPlayers = mq ? players.filter(p => (p.nickname || p.name).toLowerCase().includes(mq)) : players
     const maxPenalty = filteredPlayers[0]?.penalty_total ?? 1
     const displayPlayers = mq || showAllMembers ? filteredPlayers : filteredPlayers.slice(0, 5)
 

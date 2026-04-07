@@ -128,7 +128,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     }
 
     const players = evening.players
-    const playerOptions = players.map(p => ({id: p.id, label: p.name}))
+    const playerOptions = players.map(p => ({id: p.id, label: p.nickname || p.name}))
 
     // Per-player euro contribution (full uncapped)
     function entryEuroValue(l: typeof players[0] extends never ? never : {

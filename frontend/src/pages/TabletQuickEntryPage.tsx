@@ -346,7 +346,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             let winnerName = finishWinnerRef
             if (finishWinnerRef.startsWith('p:')) {
                 const pid = parseInt(finishWinnerRef.slice(2))
-                winnerName = evening.players.find(p => p.id === pid)?.name ?? finishWinnerRef
+                const wp = evening.players.find(p => p.id === pid)
+                winnerName = wp ? (wp.nickname || wp.name) : finishWinnerRef
             } else if (finishWinnerRef.startsWith('t:')) {
                 const tid = parseInt(finishWinnerRef.slice(2))
                 winnerName = evening.teams.find(t => t.id === tid)?.name ?? finishWinnerRef
@@ -578,9 +579,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         <>
                         <div style={{display: 'flex', gap: 4, overflowX: 'auto', marginTop: 5, paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
                             {[...liveThrows].reverse().map(th => {
-                                const throwerName = th.player_id
-                                ? (players.find(p => p.id === th.player_id)?.name ?? null)
-                                : null
+                                const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
+                                const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
                                 const isEditing = editingThrowId === th.id
                                 if (isEditing) {
                                     return (
