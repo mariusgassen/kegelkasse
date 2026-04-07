@@ -243,6 +243,26 @@ export interface GameThrowLog {
     player_id: number | null
 }
 
+export interface EveningThrowSummary {
+    evening_id: number
+    date: string
+    location: string | null
+    total_pins: number
+    throw_count: number
+    avg_pins: number
+}
+
+export interface ThrowStats {
+    regular_member_id: number | null
+    year: number | null
+    total_pins: number
+    throw_count: number
+    avg_pins: number | null
+    best_avg: number | null
+    worst_avg: number | null
+    evenings: EveningThrowSummary[]
+}
+
 export interface Game {
     id: number
     name: string

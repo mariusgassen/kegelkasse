@@ -196,6 +196,85 @@ function EveningTimeline({evening}: { evening: Evening }) {
     )
 }
 
+// ── Throw performance components ────────────────────────────────────────────
+
+function ThrowTrendSmall({evenings}: { evenings: {avg_pins: number; date: string}[] }) {
+    const avgs = evenings.map(e => e.avg_pins)
+    const minV = Math.min(...avgs)
+    const maxV = Math.max(...avgs)
+    const range = Math.max(maxV - minV, 1)
+    const W = 300, H = 50, PAD = 6
+    const iw = W - PAD * 2
+    const ih = H - PAD * 2
+    const n = avgs.length
+    const pts = avgs.map((v, i) => {
+        const x = PAD + (n === 1 ? iw / 2 : (i / (n - 1)) * iw)
+        const y = PAD + ih - ((v - minV) / range) * ih
+        return {x, y, v}
+    })
+    const polyline = pts.map(p => `${p.x},${p.y}`).join(' ')
+    return (
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display: 'block', overflow: 'visible'}}>
+            <polyline points={polyline} fill="none" stroke="var(--kce-amber)" strokeWidth="2"
+                      strokeLinejoin="round" strokeLinecap="round"/>
+            {pts.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="var(--kce-amber)">
+                    <title>{p.v}</title>
+                </circle>
+            ))}
+        </svg>
+    )
+}
+
+function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number; t: (k: any) => string }) {
+    const {data, isLoading} = useQuery({
+        queryKey: ['member-throw-stats', memberId, year],
+        queryFn: () => api.getMemberThrowStats(memberId, year),
+        staleTime: 1000 * 60 * 5,
+    })
+    if (isLoading) return <div className="text-xs text-kce-muted py-2 text-center">{t('action.loading')}</div>
+    if (!data || data.throw_count === 0) return <div className="text-xs text-kce-muted py-2 text-center">{t('stats.noThrowData')}</div>
+    return (
+        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--kce-border)'}}>
+            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="text-center">
+                    <div className="font-bold text-kce-cream text-sm">{data.avg_pins ?? '—'}</div>
+                    <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                </div>
+                <div className="text-center">
+                    <div className="font-bold text-green-400 text-sm">{data.best_avg ?? '—'}</div>
+                    <div className="text-[9px] text-kce-muted">{t('profile.bestAvg')}</div>
+                </div>
+                <div className="text-center">
+                    <div className="font-bold text-red-400 text-sm">{data.worst_avg ?? '—'}</div>
+                    <div className="text-[9px] text-kce-muted">{t('profile.worstAvg')}</div>
+                </div>
+            </div>
+            {data.evenings.length > 1 && (
+                <div className="mb-2">
+                    <div className="text-[9px] text-kce-muted mb-1">{t('stats.throwTrend')}</div>
+                    <ThrowTrendSmall evenings={data.evenings}/>
+                </div>
+            )}
+            <div className="space-y-0.5">
+                {data.evenings.map(e => (
+                    <div key={e.evening_id} className="flex items-center justify-between text-[10px]">
+                        <span className="text-kce-muted">
+                            {new Date(e.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
+                            {e.location ? ` · ${e.location}` : ''}
+                        </span>
+                        <span className="font-bold text-kce-cream">Ø {e.avg_pins} ({e.throw_count} {t('stats.throwCount')})</span>
+                    </div>
+                ))}
+            </div>
+            <div className="text-[9px] text-kce-muted text-right mt-1">
+                {data.throw_count} {t('stats.throwCount')} · {data.total_pins} {t('stats.totalPins')}
+            </div>
+        </div>
+    )
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export function StatsPage() {
@@ -208,6 +287,7 @@ export function StatsPage() {
     const [showAllMembers, setShowAllMembers] = useState(false)
     const [pickedId, setPickedId] = useState<number | null>(null)
     const [openCommentHighlightId, setOpenCommentHighlightId] = useState<number | null>(null)
+    const [expandedThrowId, setExpandedThrowId] = useState<number | null>(null)
 
     const {data: eveningList = []} = useEveningList()
     const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
@@ -495,6 +575,7 @@ export function StatsPage() {
                         const isMe = p.regular_member_id != null && p.regular_member_id === user?.regular_member_id
                         const barWidth = maxPenalty > 0 ? (p.penalty_total / maxPenalty) * 100 : 0
                         const medals = ['🥇', '🥈', '🥉']
+                        const throwExpanded = p.regular_member_id != null && expandedThrowId === p.regular_member_id
                         return (
                             <div key={i} className={`kce-card p-3 mb-2 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}>
                                 <div className="flex items-center gap-2 mb-1.5">
@@ -519,7 +600,19 @@ export function StatsPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        {p.throw_count > 0 && p.regular_member_id != null && (
+                                            <button
+                                                type="button"
+                                                className="text-xs text-kce-muted hover:text-kce-amber transition-colors"
+                                                title={throwExpanded ? t('stats.hideThrowStats') : t('stats.showThrowStats')}
+                                                onClick={() => setExpandedThrowId(throwExpanded ? null : p.regular_member_id)}
+                                            >
+                                                🎳
+                                            </button>
+                                        )}
+                                        <div className="text-red-400 font-bold text-sm">{fe(p.penalty_total)}</div>
+                                    </div>
                                 </div>
                                 <div className="h-1 rounded-full overflow-hidden"
                                      style={{background: 'var(--kce-surface2)'}}>
@@ -530,6 +623,9 @@ export function StatsPage() {
                                                  : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--kce-muted)'
                                          }}/>
                                 </div>
+                                {throwExpanded && p.regular_member_id != null && (
+                                    <PlayerThrowDetail memberId={p.regular_member_id} year={year} t={t}/>
+                                )}
                             </div>
                         )
                     })}
