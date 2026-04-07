@@ -508,8 +508,9 @@ export function CameraCapturePage({onClose}: Props) {
     const selectedGame = runningGames.find((g: Game) => g.id === selectedGameId) ?? null
     const latestCumulative = throws.length > 0 ? throws[throws.length - 1].cumulative : null
 
-    function playerLabel(p: {name: string; is_king: boolean}) {
-        return p.is_king ? `👑 ${p.name}` : p.name
+    function playerLabel(p: {name: string; nickname?: string | null; is_king: boolean}) {
+        const display = p.nickname || p.name
+        return p.is_king ? `👑 ${display}` : display
     }
 
     function winnerName(ref: string): string {
@@ -693,7 +694,7 @@ export function CameraCapturePage({onClose}: Props) {
                             )}
                             {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id)) && (
                                 <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
-                                    🎳 {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id))!.name}
+                                    🎳 {(() => { const p = kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id); return p ? (p.nickname || p.name) : '' })()}
                                 </span>
                             )}
                             {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
@@ -834,7 +835,7 @@ export function CameraCapturePage({onClose}: Props) {
                                     color: '#fff', background: 'var(--kce-primary)',
                                     borderRadius: 8, padding: '3px 8px', flexShrink: 0,
                                 }}>
-                                    🎳 {(kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id))!.name}
+                                    🎳 {(() => { const p = kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id); return p ? (p.nickname || p.name) : '' })()}
                                 </span>
                             )}
                             {currentReading?.lampGreen && (

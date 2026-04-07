@@ -19,8 +19,9 @@ function fTime(iso: string) {
     return new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
-function playerLabel(p: { name: string; is_king: boolean }) {
-    return p.is_king ? `👑 ${p.name}` : p.name
+function playerLabel(p: { name: string; nickname?: string | null; is_king: boolean }) {
+    const display = p.nickname || p.name
+    return p.is_king ? `👑 ${display}` : display
 }
 
 const STATUS_COLOR: Record<string, string> = {

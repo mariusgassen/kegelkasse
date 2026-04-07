@@ -132,7 +132,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                     </button>
                     {expandedId === activeEvening.id && expandedEvening && (
                         <div className="border-t border-kce-border px-3 pb-3 pt-2">
-                            <p className="text-xs text-kce-muted py-1">{expandedEvening.players.map(p => p.name).join(', ')}</p>
+                            <p className="text-xs text-kce-muted py-1">{expandedEvening.players.map(p => p.nickname || p.name).join(', ')}</p>
                         </div>
                     )}
                 </div>

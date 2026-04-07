@@ -187,6 +187,7 @@ export interface ClubPin {
 export interface EveningPlayer {
     id: number
     name: string
+    nickname: string | null
     regular_member_id: number | null
     team_id: number | null
     is_king: boolean

@@ -229,7 +229,6 @@ Status: ✅ Done · 🚧 In Progress · ⬜ Planned
 | 11 | **Emoji Picker**                   | ✅      | `emoji-picker-react` v4, EmojiPickerButton-Komponente, Icon- & Insert-Modus, 5 Verwendungen         |
 | 13 | **Präsident**                      | ✅      | Jährliches Präsidentenspiel (🎯-Flag), club_president-Tabelle, Historie-Badge, Präsidenten-Tab       |
 | 14 | **Filter**                         | ✅      | Suchfelder in allen Listen-Ansichten: MembersPage (Name/Spitzname), HistoryPage (Datum/Lokal), TreasuryPage (Konten + Buchungen), StatsPage (Jahresranking nach Name), CommitteePage (Ankündigungen + Kegelfahrten nach Titel/Text) |
-| 15 | **Bonus**                          | ⬜      | Gamification, Ankündigung, Kassenstand                                                                |
 | 30 | **Vergnügungsausschuss**           | ✅      | VA-Mitglieder (is_committee Flag), Kegelfahrten (club_trip), Ankündigungen (club_announcement) mit Push; Migrationen 032–034; 🚌-Tab für alle; VA-Verwaltung im Verein-Tab |
 | 16 | **Cleanup / Fehlerhandling**       | ✅      | Konsistente Fehlerbehandlung: alle catch-Blöcke verwenden toastError(); MembersPage + ProfileSheet korrigiert; toastError unterscheidet UnauthorizedError, OfflineQueuedError und generische Fehler |
 | 17 | **Logging**                        | ✅      | Python stdlib logging mit LOG_LEVEL env-var (config.py); logging.basicConfig in main.py; strukturierte Logger in auth, evenings, scheduler, club, committee, superadmin, push, schedule, reports, backups; 5xx-Middleware-Logging |
