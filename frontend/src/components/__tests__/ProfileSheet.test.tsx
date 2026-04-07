@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -104,10 +104,14 @@ function makeWrapper() {
 
 async function renderProfileSheet(props: { open?: boolean; onClose?: () => void } = {}) {
     const { ProfileSheet } = await import('../ProfileSheet')
-    return render(
-        <ProfileSheet open={props.open ?? true} onClose={props.onClose ?? vi.fn()} />,
-        { wrapper: makeWrapper() }
-    )
+    let result!: ReturnType<typeof render>
+    await act(async () => {
+        result = render(
+            <ProfileSheet open={props.open ?? true} onClose={props.onClose ?? vi.fn()} />,
+            { wrapper: makeWrapper() }
+        )
+    })
+    return result
 }
 
 async function setupAsAdmin() {
