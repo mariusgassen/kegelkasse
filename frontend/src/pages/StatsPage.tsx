@@ -910,31 +910,38 @@ export function StatsPage() {
                                                             {hasHeatmap && (
                                                                 <div className="mt-2">
                                                                     <div className="text-[9px] text-kce-muted text-center mb-1">{t('stats.heatmap')}</div>
-                                                                    <div style={{position: 'relative', width: 80, height: 68, margin: '0 auto'}}>
+                                                                    <svg width="80" height="68" viewBox="0 0 80 68" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
                                                                         {PIN_POS.map(([px, py], i) => {
                                                                             const ratio = pinCounts[i] / maxPinCount
-                                                                            const bg = ratio === 0
-                                                                                ? 'transparent'
-                                                                                : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
+                                                                            const cx = px * 80
+                                                                            const cy = py * 68
                                                                             return (
-                                                                                <div key={i} style={{
-                                                                                    position: 'absolute',
-                                                                                    left: `${px * 100}%`, top: `${py * 100}%`,
-                                                                                    transform: 'translate(-50%,-50%)',
-                                                                                    width: 16, height: 16, borderRadius: '50%',
-                                                                                    background: bg,
-                                                                                    border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
-                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                }}>
+                                                                                <g key={i}>
+                                                                                    <circle
+                                                                                        cx={cx} cy={cy} r="8"
+                                                                                        fill={ratio === 0 ? 'var(--kce-surface2)' : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`}
+                                                                                        stroke={ratio > 0 ? 'var(--kce-amber)' : 'var(--kce-border)'}
+                                                                                        strokeWidth="1.5"
+                                                                                    />
                                                                                     {pinCounts[i] > 0 && (
-                                                                                        <span style={{fontSize: 7, color: 'var(--kce-bg)', fontWeight: 'bold', lineHeight: 1}}>
+                                                                                        <text
+                                                                                            x={cx} y={cy}
+                                                                                            textAnchor="middle"
+                                                                                            dominantBaseline="central"
+                                                                                            fontSize="7"
+                                                                                            fontWeight="bold"
+                                                                                            fill="white"
+                                                                                            stroke="rgba(0,0,0,0.55)"
+                                                                                            strokeWidth="2.5"
+                                                                                            paintOrder="stroke"
+                                                                                        >
                                                                                             {pinCounts[i]}
-                                                                                        </span>
+                                                                                        </text>
                                                                                     )}
-                                                                                </div>
+                                                                                </g>
                                                                             )
                                                                         })}
-                                                                    </div>
+                                                                    </svg>
                                                                 </div>
                                                             )}
                                                         </div>
