@@ -193,22 +193,42 @@ export function StartEveningSheet({se, onClose, onStarted}: {
     const absentIds = new Set(rsvps.filter(r => r.status === 'absent').map(r => r.regular_member_id))
 
     const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set())
+    const [abgesagtIds, setAbgesagtIds] = useState<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
     const [guests, setGuests] = useState<ScheduledEveningGuest[]>([...se.guests])
     const [addingGuest, setAddingGuest] = useState(false)
     const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
     const [starting, setStarting] = useState(false)
 
-    // Initialize attendance from RSVPs once loaded
+    // Initialize attendance and cancellations from RSVPs once loaded
     useEffect(() => {
         if (!rsvpsLoading && !initialized) {
             setCheckedIds(new Set(activeMembers.filter((m: RegularMember) => !absentIds.has(m.id)).map((m: RegularMember) => m.id)))
+            setAbgesagtIds(new Set(absentIds))
             setInitialized(true)
         }
     }, [rsvpsLoading, initialized])  // eslint-disable-line react-hooks/exhaustive-deps
 
     function toggleMember(id: number) {
         setCheckedIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+                // If re-checked, remove from abgesagt
+                setAbgesagtIds(prev2 => {
+                    const n2 = new Set(prev2)
+                    n2.delete(id)
+                    return n2
+                })
+            }
+            return next
+        })
+    }
+
+    function toggleAbgesagt(id: number) {
+        setAbgesagtIds(prev => {
             const next = new Set(prev)
             if (next.has(id)) next.delete(id)
             else next.add(id)
@@ -231,6 +251,14 @@ export function StartEveningSheet({se, onClose, onStarted}: {
             const ev = await api.startEveningFromSchedule(se.id, {
                 member_ids: Array.from(checkedIds),
             })
+            if (ev && ev.id > 0) {
+                // Auto-assign players to club teams (same as ad-hoc flow)
+                try { await api.applyClubTeamsToEvening(ev.id) } catch { /* no templates configured */ }
+                // Record explicitly cancelled members (allows absence-penalty calc to distinguish them)
+                if (abgesagtIds.size > 0) {
+                    await api.markCancelled(ev.id, Array.from(abgesagtIds))
+                }
+            }
             // Pin penalties require real player IDs from the server — only possible
             // when the evening was created online (positive real ID).
             if (ev && ev.id > 0 && missingPinIds.size > 0 && pinPenalty > 0) {
@@ -286,6 +314,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                 {sortedMembers.map((m: RegularMember) => {
                                     const isChecked = checkedIds.has(m.id)
                                     const wasAbsent = absentIds.has(m.id)
+                                    const isAbgesagt = abgesagtIds.has(m.id)
                                     return (
                                         <button
                                             key={m.id}
@@ -312,10 +341,16 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                     {t('schedule.showedUpAnyway')}
                                                 </span>
                                             )}
-                                            {wasAbsent && !isChecked && (
-                                                <span className="text-[10px] text-red-400 flex-shrink-0">
+                                            {!isChecked && (
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); toggleAbgesagt(m.id) }}
+                                                    className={[
+                                                        'text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0',
+                                                        isAbgesagt ? 'bg-red-500/20 text-red-400' : 'text-kce-muted',
+                                                    ].join(' ')}
+                                                >
                                                     {t('schedule.absent')}
-                                                </span>
+                                                </button>
                                             )}
                                         </button>
                                     )
@@ -604,7 +639,6 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                 <div>
                     <label className="field-label">{t('schedule.date')}</label>
                     <input type="datetime-local" className="kce-input" value={datetime}
-                           min={!initial ? new Date().toISOString().slice(0, 16) : undefined}
                            onChange={e => setDatetime(e.target.value)} required/>
                 </div>
                 <div>

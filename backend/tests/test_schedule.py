@@ -132,10 +132,11 @@ class TestCreateScheduledEvening:
         resp = client.post("/api/v1/schedule/", json={"date": future_date}, headers=auth_headers)
         assert resp.status_code == 403
 
-    def test_past_date_rejected(self, client: TestClient, admin_headers):
+    def test_past_date_accepted(self, client: TestClient, admin_headers):
+        """Past dates are allowed so admins can backfill evenings."""
         past = (datetime.now(UTC) - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M')
         resp = client.post("/api/v1/schedule/", json={"date": past}, headers=admin_headers)
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
     def test_requires_auth(self, client: TestClient, future_date):
         resp = client.post("/api/v1/schedule/", json={"date": future_date})
