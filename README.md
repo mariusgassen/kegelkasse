@@ -151,6 +151,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Club expenses (e.g. lane rental) tracked separately
 - **Bezahllink**: members request payment via PayPal.me link; admin confirms manually
 - **Report export**: admins download a full treasury report as Excel (.xlsx) or PDF — 6 sections: summary, member accounts, all transactions, penalties by member, penalties by evening, evenings overview; optional year filter; automated push notification to admins before the next bowling evening (configurable in club settings)
+- **Saisonabschluss (Season closing)**: guided year-end wizard for admins — balance carry-over (books a zeroing payment for every member with a non-zero balance), annual ranking snapshot (frozen JSON record in `season_snapshot` table), bulk-archive all open evenings, one-click PDF annual report download; past season closings listed with PDF re-download
 
 ### Statistics
 

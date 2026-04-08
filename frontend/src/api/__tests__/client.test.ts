@@ -184,3 +184,52 @@ describe('api — NetworkError on fetch failure', () => {
         await expect(api.login('a@b.de', 'pw')).rejects.toBeInstanceOf(NetworkError)
     })
 })
+
+// ── Season API methods ────────────────────────────────────────────────────────
+
+describe('api — season methods', () => {
+    beforeEach(() => {
+        authState.setToken('test-token')
+        vi.stubGlobal('navigator', { onLine: true })
+        vi.stubGlobal('fetch', vi.fn())
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        authState.setToken(null)
+    })
+
+    it('listSeasonSnapshots calls GET /season/snapshots', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(jsonOk([]))
+        await api.listSeasonSnapshots()
+        expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+            expect.stringContaining('/season/snapshots'),
+            expect.objectContaining({ method: 'GET' }),
+        )
+    })
+
+    it('getSeasonSnapshot calls GET /season/snapshots/{year}', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(jsonOk({ id: 1, year: 2024 }))
+        await api.getSeasonSnapshot(2024)
+        expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+            expect.stringContaining('/season/snapshots/2024'),
+            expect.objectContaining({ method: 'GET' }),
+        )
+    })
+
+    it('closeSeason calls POST /season/close with year in body', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(jsonOk({ id: 1, year: 2024 }))
+        await api.closeSeason(2024)
+        const call = vi.mocked(fetch).mock.calls[0]
+        expect(call[0]).toContain('/season/close')
+        expect(call[1]?.method).toBe('POST')
+        expect(JSON.parse(call[1]?.body as string)).toMatchObject({ year: 2024 })
+    })
+
+    it('closeSeason includes notes when provided', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(jsonOk({ id: 1, year: 2024 }))
+        await api.closeSeason(2024, 'some notes')
+        const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)
+        expect(body.notes).toBe('some notes')
+    })
+})

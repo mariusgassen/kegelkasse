@@ -31,6 +31,7 @@ import {
     PaymentRequest,
     PgBackrestStanza,
     ClubPoll,
+    SeasonSnapshot,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -619,6 +620,11 @@ export const api = {
     deletePoll: (id: number) => request<void>('DELETE', `/committee/polls/${id}`),
     castVote: (pollId: number, optionIds: number[]) => request<void>('POST', `/committee/polls/${pollId}/vote`, { option_ids: optionIds }),
     retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
+
+    // Season closing workflow (admin only)
+    listSeasonSnapshots: () => request<SeasonSnapshot[]>('GET', '/season/snapshots'),
+    getSeasonSnapshot: (year: number) => request<SeasonSnapshot>('GET', `/season/snapshots/${year}`),
+    closeSeason: (year: number, notes?: string) => request<SeasonSnapshot>('POST', '/season/close', {year, notes}),
 
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
