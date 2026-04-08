@@ -455,6 +455,7 @@ export const de = {
     "stats.podium": "Podium",
     "stats.penaltyDistribution": "Strafenverteilung",
     "stats.eveningBars": "Strafen pro Abend",
+    "stats.toggleAbsent": "Abwesende",
     "profile.throwStats": "🎳 Wurf-Performance",
     "profile.bestAvg": "Bestes Ø",
     "profile.worstAvg": "Schlechtestes Ø",
