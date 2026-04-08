@@ -455,6 +455,7 @@ export const en = {
     "stats.podium": "Podium",
     "stats.penaltyDistribution": "Penalty distribution",
     "stats.eveningBars": "Penalties per evening",
+    "stats.toggleAbsent": "Absent",
     "profile.throwStats": "🎳 Throw Performance",
     "profile.bestAvg": "Best Avg",
     "profile.worstAvg": "Worst Avg",
