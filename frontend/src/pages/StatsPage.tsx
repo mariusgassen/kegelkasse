@@ -16,8 +16,7 @@ function fe(v: number) {
 }
 
 function feShort(v: number) {
-    if (v === 0) return '0'
-    return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 0, maximumFractionDigits: 2})
+    return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
 const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#f97316', '#14b8a6', '#f43f5e']
@@ -145,7 +144,13 @@ function EveningTimeline({evening}: { evening: Evening }) {
     const hasAnyPenalty = penaltySeries.some(s => s.events.length > 0)
     const hasAnyDrink = drinkSeries.some(s => s.events.length > 0)
 
-    if (!hasAnyPenalty && !hasAnyDrink) {
+    // Check across ALL players (not just selected) to decide if the section should render at all
+    const anyPenaltyTotal = evening.players.some(p =>
+        evening.penalty_log.some(l => l.player_id === p.id && !('is_deleted' in l && (l as any).is_deleted)))
+    const anyDrinkTotal = evening.players.some(p =>
+        evening.drink_rounds.some(r => r.participant_ids.includes(p.id)))
+
+    if (!anyPenaltyTotal && !anyDrinkTotal) {
         return (
             <div>
                 <div className="sec-heading text-sm mt-4">📈 Verlauf</div>
@@ -177,10 +182,10 @@ function EveningTimeline({evening}: { evening: Evening }) {
             </div>
 
             <div className="kce-card p-3">
-                {hasAnyPenalty && (
+                {anyPenaltyTotal && (
                     <CumulativeChart series={penaltySeries} yFormat={feShort} title="Strafen €"/>
                 )}
-                {hasAnyDrink && (
+                {anyDrinkTotal && (
                     <CumulativeChart series={drinkSeries} yFormat={v => `${Math.round(v)}`} title="Getränke"/>
                 )}
                 {/* Legend */}
@@ -264,7 +269,8 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
         .filter(p => p.total > 0)
     const hasAbsent = absentTotals.length > 0
 
-    const allTotals = showAbsent ? [...presentTotals, ...absentTotals] : presentTotals
+    const allTotals = (showAbsent ? [...presentTotals, ...absentTotals] : presentTotals)
+        .sort((a, b) => b.total - a.total)
     const visibleTotal = allTotals.reduce((s, p) => s + p.total, 0)
     const hasData = visibleTotal > 0 && allTotals.length > 0
 
@@ -367,7 +373,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     {hasAbsent && (
                         <button type="button"
                                 className="chip flex-shrink-0 text-[9px]"
-                                style={showAbsent ? {borderColor: 'var(--kce-border)', color: 'var(--kce-muted)'} : {borderColor: 'var(--kce-amber)', color: 'var(--kce-amber)', background: 'color-mix(in srgb, var(--kce-amber) 15%, transparent)'}}
+                                style={showAbsent ? {borderColor: 'var(--kce-amber)', color: 'var(--kce-amber)', background: 'color-mix(in srgb, var(--kce-amber) 15%, transparent)'} : {borderColor: 'var(--kce-border)', color: 'var(--kce-muted)', opacity: 0.6}}
                                 onClick={() => { setShowAbsent(v => !v); setSelectedId(null) }}>
                             🏠 {t('stats.toggleAbsent')}
                         </button>
