@@ -377,3 +377,18 @@ export interface PgBackrestStanza {
     backup: PgBackrestBackup[]
     archive: PgBackrestArchive[]
 }
+
+
+export interface SeasonSnapshot {
+    id: number
+    year: number
+    closed_at: string
+    closed_by_name: string | null
+    member_count: number
+    evening_count: number
+    carry_over_count: number
+    total_penalties: number
+    total_payments: number
+    ranking_data: Record<string, unknown>[] | null
+    notes: string | null
+}

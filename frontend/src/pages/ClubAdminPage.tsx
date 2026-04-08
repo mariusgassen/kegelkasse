@@ -22,6 +22,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
 import {MembersPage} from './MembersPage'
+import {SeasonTab} from './SeasonTab'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -31,7 +32,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee', 'backups'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee', 'season', 'backups'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -65,6 +66,7 @@ export function ClubAdminPage() {
         {id: 'teams', label: t('club.tab.teams')},
         {id: 'pins', label: t('club.tab.pins')},
         {id: 'committee', label: '🚌 VGA'},
+        {id: 'season', label: t('season.tab')},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
         ...(user?.role === 'superadmin' ? [{id: 'backups', label: t('club.tab.backups')}] : []),
     ]
@@ -125,6 +127,11 @@ export function ClubAdminPage() {
                     {tab === 'committee' && (
                         <AdminGuard>
                             <CommitteeAdminTab regularMembers={regularMembers} onChanged={refetchRM}/>
+                        </AdminGuard>
+                    )}
+                    {tab === 'season' && (
+                        <AdminGuard>
+                            <SeasonTab/>
                         </AdminGuard>
                     )}
                     {tab === 'clubs' && user?.role === 'superadmin' && (
