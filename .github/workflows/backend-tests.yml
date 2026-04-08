@@ -65,8 +65,44 @@ jobs:
         if: github.ref == 'refs/heads/main'
         working-directory: backend
         run: |
-          mkdir -p ../.github/badges
-          poetry run genbadge coverage -n "backend" -i coverage.xml -o ../.github/badges/coverage-backend.svg
+          poetry run python -c "
+          import xml.etree.ElementTree as ET, os
+          tree = ET.parse('coverage.xml')
+          pct = round(float(tree.getroot().get('line-rate', 0)) * 100, 1)
+          label = 'backend'
+          value = f'{pct:.1f}%'
+          color = '#97ca00' if pct >= 80 else '#dfb317' if pct >= 60 else '#e05d44'
+          char_w = 65
+          pad = 100
+          ltl = len(label) * char_w
+          vtl = len(value) * char_w
+          lw = (ltl + pad) // 10
+          vw = (vtl + pad) // 10
+          w = lw + vw
+          lc = lw * 5
+          vc = lw * 10 + vw * 5
+          svg = (
+              f'<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"20\" role=\"img\" aria-label=\"{label}: {value}\">'
+              f'<title>{label}: {value}</title>'
+              f'<linearGradient id=\"s\" x2=\"0\" y2=\"100%\"><stop offset=\"0\" stop-color=\"#bbb\" stop-opacity=\".1\"/><stop offset=\"1\" stop-opacity=\".1\"/></linearGradient>'
+              f'<clipPath id=\"r\"><rect width=\"{w}\" height=\"20\" rx=\"3\" fill=\"#fff\"/></clipPath>'
+              f'<g clip-path=\"url(#r)\">'
+              f'<rect width=\"{lw}\" height=\"20\" fill=\"#555\"/>'
+              f'<rect x=\"{lw}\" width=\"{vw}\" height=\"20\" fill=\"{color}\"/>'
+              f'<rect width=\"{w}\" height=\"20\" fill=\"url(#s)\"/>'
+              f'</g>'
+              f'<g fill=\"#fff\" text-anchor=\"middle\" font-family=\"Verdana,Geneva,DejaVu Sans,sans-serif\" text-rendering=\"geometricPrecision\" font-size=\"110\">'
+              f'<text aria-hidden=\"true\" x=\"{lc}\" y=\"150\" fill=\"#010101\" fill-opacity=\".3\" transform=\"scale(.1)\" textLength=\"{ltl}\">{label}</text>'
+              f'<text x=\"{lc}\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"{ltl}\">{label}</text>'
+              f'<text aria-hidden=\"true\" x=\"{vc}\" y=\"150\" fill=\"#010101\" fill-opacity=\".3\" transform=\"scale(.1)\" textLength=\"{vtl}\">{value}</text>'
+              f'<text x=\"{vc}\" y=\"140\" transform=\"scale(.1)\" fill=\"#fff\" textLength=\"{vtl}\">{value}</text>'
+              f'</g></svg>'
+          )
+          os.makedirs('../.github/badges', exist_ok=True)
+          with open('../.github/badges/coverage-backend.svg', 'w') as f:
+              f.write(svg)
+          print(f'Badge written for {value}')
+          "
 
       - name: Commit badge
         if: github.ref == 'refs/heads/main'
