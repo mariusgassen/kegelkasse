@@ -733,7 +733,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                                 ? 'bg-green-500/20 text-green-400 border-green-500/40'
                                 : 'bg-kce-surface2 text-kce-muted border-kce-border',
                         ].join(' ')}>
-                        ✅ {t('rsvp.attending.short')}
+                        {t('rsvp.attending.short')}
                     </button>
                     <button
                         disabled={busy}
