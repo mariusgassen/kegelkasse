@@ -803,7 +803,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                             <span key={pin.id} title={pin.name}>{pin.icon}</span>
                         ))}
                     </div>
-                    <div className="text-xs text-kce-muted">{evening.date}</div>
+                    <div className="text-xs text-kce-muted">{new Date(evening.date).toLocaleDateString('de-DE', {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
                 </div>
             </div>
 
