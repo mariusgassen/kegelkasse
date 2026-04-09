@@ -622,6 +622,7 @@ export const api = {
     retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
 
     // Season closing workflow (admin only)
+    listSeasonAvailableYears: () => request<number[]>('GET', '/season/available-years'),
     listSeasonSnapshots: () => request<SeasonSnapshot[]>('GET', '/season/snapshots'),
     getSeasonSnapshot: (year: number) => request<SeasonSnapshot>('GET', `/season/snapshots/${year}`),
     getSeasonBalancePreview: (year: number) => request<{
@@ -648,14 +649,19 @@ export const api = {
         }
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        const suffix = year ? `_${year}` : ''
-        a.download = `kegelkasse_report${suffix}.${format}`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        if (format === 'pdf') {
+            window.open(url, '_blank')
+            setTimeout(() => URL.revokeObjectURL(url), 10000)
+        } else {
+            const a = document.createElement('a')
+            a.href = url
+            const suffix = year ? `_${year}` : ''
+            a.download = `kegelkasse_report${suffix}.${format}`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+        }
     },
 
     // Backups — pgbackrest (superadmin only)

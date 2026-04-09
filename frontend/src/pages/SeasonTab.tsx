@@ -43,6 +43,11 @@ export function SeasonTab() {
     const [snapshot, setSnapshot] = useState<SeasonSnapshot | null>(null)
     const [settledIds, setSettledIds] = useState<Set<number>>(new Set())
 
+    const {data: availableYears = [currentYear]} = useQuery({
+        queryKey: ['season-available-years'],
+        queryFn: api.listSeasonAvailableYears,
+    })
+
     const {data: snapshots = [], isLoading: snapsLoading} = useQuery({
         queryKey: ['season-snapshots'],
         queryFn: api.listSeasonSnapshots,
@@ -120,9 +125,10 @@ export function SeasonTab() {
         setSettledIds(new Set())
         qc.invalidateQueries({queryKey: ['season-snapshots']})
         qc.invalidateQueries({queryKey: ['season-balance-preview']})
+        qc.invalidateQueries({queryKey: ['season-available-years']})
     }
 
-    const yearOptions = Array.from({length: 6}, (_, i) => currentYear - i)
+    const yearOptions = availableYears.length > 0 ? availableYears : [currentYear]
     const settleCount = nonZeroBalances.filter(b => settledIds.has(b.regular_member_id)).length
 
     // ── Landing ────────────────────────────────────────────────────────────
@@ -130,7 +136,7 @@ export function SeasonTab() {
     if (step === 'landing') {
         return (
             <div className="flex flex-col gap-4 pt-3">
-                <div className="kce-card flex flex-col gap-4">
+                <div className="kce-card p-4 flex flex-col gap-4">
                     <h2 className="font-bold text-base text-kce-text">{t('season.title')}</h2>
 
                     <div className="flex items-center gap-3">
@@ -197,15 +203,15 @@ export function SeasonTab() {
                 <p className="text-sm text-kce-muted">{t('season.step1.hint')}</p>
 
                 {balancesLoading ? (
-                    <div className="kce-card">
+                    <div className="kce-card p-4">
                         <p className="text-sm text-kce-muted">{t('season.loading')}</p>
                     </div>
                 ) : nonZeroBalances.length === 0 ? (
-                    <div className="kce-card">
+                    <div className="kce-card p-4">
                         <p className="text-sm text-green-400">{t('season.step1.noDebts')}</p>
                     </div>
                 ) : (
-                    <div className="kce-card flex flex-col gap-0 divide-y divide-kce-border">
+                    <div className="kce-card px-4 flex flex-col gap-0 divide-y divide-kce-border">
                         {/* Select-all toggle */}
                         <div className="flex items-center justify-between py-2.5">
                             <span className="text-xs text-kce-muted font-medium">{t('season.step1.selectAll')}</span>
@@ -274,7 +280,7 @@ export function SeasonTab() {
                     <p className="text-sm text-amber-400 font-medium">{t('season.step2.warning')}</p>
                 </div>
 
-                <div className="kce-card flex flex-col gap-2">
+                <div className="kce-card p-4 flex flex-col gap-2">
                     <p className="text-sm font-medium text-kce-text">{t('season.step2.actions')}</p>
                     <ul className="flex flex-col gap-1.5 mt-1">
                         <li className="text-sm text-kce-muted flex items-start gap-2">
@@ -328,14 +334,14 @@ export function SeasonTab() {
 
     return (
         <div className="flex flex-col gap-4 pt-3">
-            <div className="kce-card flex flex-col gap-3 text-center">
+            <div className="kce-card p-4 flex flex-col gap-3 text-center">
                 <div className="text-3xl">✓</div>
                 <h2 className="font-bold text-base text-kce-text">{t('season.done.title')}</h2>
                 <p className="text-sm text-kce-muted">{t('season.done.hint')}</p>
             </div>
 
             {snapshot && (
-                <div className="kce-card grid grid-cols-2 gap-3">
+                <div className="kce-card p-4 grid grid-cols-2 gap-3">
                     <StatCell label={t('season.snapshot.members').replace('{n}', '').trim()} value={String(snapshot.member_count)} />
                     <StatCell label={t('season.snapshot.evenings').replace('{n}', '').trim()} value={String(snapshot.evening_count)} />
                     <StatCell label={t('season.snapshot.carryOver').replace('{n}', '').trim()} value={String(snapshot.carry_over_count)} />
@@ -398,7 +404,7 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
     }
 
     return (
-        <div className="kce-card flex flex-col gap-3">
+        <div className="kce-card p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
                 <span className="font-bold text-kce-text">{t('season.snapshot.year').replace('{year}', String(snap.year))}</span>
                 <span className="text-xs text-kce-muted">{fDate(snap.closed_at)}</span>
