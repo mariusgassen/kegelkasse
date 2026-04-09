@@ -244,6 +244,21 @@ def reopen_season(
     logger.info("Season %d reopened by user %d (club %d)", year, user.id, user.club_id)
 
 
+@router.get("/available-years")
+def list_available_years(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Return distinct years that have at least one evening, plus the current year."""
+    from sqlalchemy import extract, func
+    rows = (
+        db.query(extract("year", Evening.date).label("yr"))
+        .filter(Evening.club_id == user.club_id)
+        .group_by("yr")
+        .order_by(func.extract("year", Evening.date).desc())
+        .all()
+    )
+    years = sorted({int(r.yr) for r in rows} | {datetime.now().year}, reverse=True)
+    return years
+
+
 @router.get("/balance-preview/{year}")
 def get_balance_preview(
     year: int,
