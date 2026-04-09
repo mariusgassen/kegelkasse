@@ -624,7 +624,13 @@ export const api = {
     // Season closing workflow (admin only)
     listSeasonSnapshots: () => request<SeasonSnapshot[]>('GET', '/season/snapshots'),
     getSeasonSnapshot: (year: number) => request<SeasonSnapshot>('GET', `/season/snapshots/${year}`),
-    closeSeason: (year: number, notes?: string) => request<SeasonSnapshot>('POST', '/season/close', {year, notes}),
+    getSeasonBalancePreview: (year: number) => request<{
+        regular_member_id: number; name: string; nickname: string | null;
+        penalty_total: number; payments_total: number; balance: number
+    }[]>('GET', `/season/balance-preview/${year}`),
+    closeSeason: (year: number, notes?: string, settle_member_ids?: number[]) =>
+        request<SeasonSnapshot>('POST', '/season/close', {year, notes, settle_member_ids}),
+    deleteSeasonSnapshot: (year: number) => request<void>('DELETE', `/season/snapshots/${year}`),
 
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {

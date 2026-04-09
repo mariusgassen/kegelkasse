@@ -228,16 +228,31 @@ test.describe('Test push flow', () => {
             route.fulfill({ json: { subscribed: true, configured: true } })
         )
 
+        // Mock preferences so the push section (including Test button) renders
+        await page.route('**/push/preferences', (route) =>
+            route.fulfill({
+                json: {
+                    committee: true, penalty: true, evening: true,
+                    schedule: true, payment: true, game: true,
+                    member: true, comments: true,
+                    reminder_debt: true, reminder_schedule: true,
+                    reminder_schedule_days: 5, reminder_payments: true,
+                },
+            })
+        )
+
         let testPushCalled = false
         await page.route('**/push/test', async (route) => {
             testPushCalled = true
-            await route.fulfill({ json: { sent: 1 } })
+            await route.fulfill({ json: { sent: 1, logged: true, errors: [] } })
         })
 
         await page.goto('/')
         await openProfileSheet(page)
 
-        const testBtn = page.getByRole('button', { name: /test|probe/i })
+        // Wait for the push preferences section to render (Test button is inside it)
+        const testBtn = page.getByRole('button', { name: /^Test$/i })
+        await expect(testBtn).toBeVisible({ timeout: 10_000 })
         await testBtn.click()
 
         await page.waitForResponse('**/push/test', { timeout: 15_000 })

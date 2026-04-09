@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -41,22 +41,49 @@ export function SeasonTab() {
     const [notes, setNotes] = useState('')
     const [loading, setLoading] = useState(false)
     const [snapshot, setSnapshot] = useState<SeasonSnapshot | null>(null)
+    const [settledIds, setSettledIds] = useState<Set<number>>(new Set())
 
     const {data: snapshots = [], isLoading: snapsLoading} = useQuery({
         queryKey: ['season-snapshots'],
         queryFn: api.listSeasonSnapshots,
     })
 
-    const {data: balances = []} = useQuery({
-        queryKey: ['member-balances'],
-        queryFn: api.getMemberBalances,
+    const {data: balances = [], isLoading: balancesLoading} = useQuery({
+        queryKey: ['season-balance-preview', year],
+        queryFn: () => api.getSeasonBalancePreview(year),
         enabled: step !== 'landing',
     })
 
-    const nonZeroBalances: Balance[] = (balances as Balance[]).filter(
-        b => Math.abs(b.balance) >= 0.01
-    )
+    // When balances load, default all to selected
+    useEffect(() => {
+        if (balances.length > 0) {
+            setSettledIds(new Set((balances as Balance[]).map(b => b.regular_member_id)))
+        } else {
+            setSettledIds(new Set())
+        }
+    }, [balances.length, year])
+
+    const nonZeroBalances = balances as Balance[]
     const alreadyClosed = snapshots.some(s => s.year === year)
+
+    const allSelected = nonZeroBalances.length > 0 && nonZeroBalances.every(b => settledIds.has(b.regular_member_id))
+
+    function toggleMember(id: number) {
+        setSettledIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    function toggleAll() {
+        if (allSelected) {
+            setSettledIds(new Set())
+        } else {
+            setSettledIds(new Set(nonZeroBalances.map(b => b.regular_member_id)))
+        }
+    }
 
     async function startWizard() {
         setStep('preview')
@@ -65,7 +92,8 @@ export function SeasonTab() {
     async function handleConfirm() {
         setLoading(true)
         try {
-            const result = await api.closeSeason(year, notes || undefined)
+            const settle = settledIds.size > 0 ? Array.from(settledIds) : []
+            const result = await api.closeSeason(year, notes || undefined, settle)
             setSnapshot(result)
             setStep('done')
             showToast(t('season.done.title'))
@@ -89,17 +117,19 @@ export function SeasonTab() {
         setStep('landing')
         setNotes('')
         setSnapshot(null)
+        setSettledIds(new Set())
         qc.invalidateQueries({queryKey: ['season-snapshots']})
-        qc.invalidateQueries({queryKey: ['member-balances']})
+        qc.invalidateQueries({queryKey: ['season-balance-preview']})
     }
 
     const yearOptions = Array.from({length: 6}, (_, i) => currentYear - i)
+    const settleCount = nonZeroBalances.filter(b => settledIds.has(b.regular_member_id)).length
 
     // ── Landing ────────────────────────────────────────────────────────────
 
     if (step === 'landing') {
         return (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 pt-3">
                 <div className="kce-card flex flex-col gap-4">
                     <h2 className="font-bold text-base text-kce-text">{t('season.title')}</h2>
 
@@ -132,7 +162,7 @@ export function SeasonTab() {
                 </div>
 
                 {/* History */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 mt-2">
                     <h3 className="sec-heading">{t('season.history')}</h3>
                     {snapsLoading ? (
                         <p className="text-sm text-kce-muted">{t('season.loading')}</p>
@@ -140,7 +170,7 @@ export function SeasonTab() {
                         <Empty icon="📋" text={t('season.noHistory')} />
                     ) : (
                         snapshots.map(s => (
-                            <SnapshotCard key={s.id} snap={s} />
+                            <SnapshotCard key={s.id} snap={s} onReopened={reset} />
                         ))
                     )}
                 </div>
@@ -152,7 +182,7 @@ export function SeasonTab() {
 
     if (step === 'preview') {
         return (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 pt-3">
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -166,21 +196,47 @@ export function SeasonTab() {
 
                 <p className="text-sm text-kce-muted">{t('season.step1.hint')}</p>
 
-                {nonZeroBalances.length === 0 ? (
+                {balancesLoading ? (
+                    <div className="kce-card">
+                        <p className="text-sm text-kce-muted">{t('season.loading')}</p>
+                    </div>
+                ) : nonZeroBalances.length === 0 ? (
                     <div className="kce-card">
                         <p className="text-sm text-green-400">{t('season.step1.noDebts')}</p>
                     </div>
                 ) : (
                     <div className="kce-card flex flex-col gap-0 divide-y divide-kce-border">
+                        {/* Select-all toggle */}
+                        <div className="flex items-center justify-between py-2.5">
+                            <span className="text-xs text-kce-muted font-medium">{t('season.step1.selectAll')}</span>
+                            <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={toggleAll}
+                                className="w-4 h-4 accent-kce-amber"
+                            />
+                        </div>
                         {nonZeroBalances.map(b => (
                             <div key={b.regular_member_id} className="flex items-center justify-between py-2.5">
-                                <span className="text-sm text-kce-text">{displayName(b)}</span>
-                                <div className="flex items-center gap-3 text-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={settledIds.has(b.regular_member_id)}
+                                        onChange={() => toggleMember(b.regular_member_id)}
+                                        className="w-4 h-4 accent-kce-amber flex-shrink-0"
+                                    />
+                                    <span className="text-sm text-kce-text truncate">{displayName(b)}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm flex-shrink-0">
                                     <span className={b.balance < 0 ? 'text-red-400' : 'text-green-400'}>
                                         {fe(b.balance)}
                                     </span>
-                                    <span className="text-kce-muted">→</span>
-                                    <span className="text-kce-muted">0,00&nbsp;€</span>
+                                    {settledIds.has(b.regular_member_id) && (
+                                        <>
+                                            <span className="text-kce-muted">→</span>
+                                            <span className="text-kce-muted">0,00&nbsp;€</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -202,7 +258,7 @@ export function SeasonTab() {
 
     if (step === 'confirm') {
         return (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 pt-3">
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
@@ -214,8 +270,8 @@ export function SeasonTab() {
                     <h2 className="font-bold text-base text-kce-text">{t('season.step2.title')}</h2>
                 </div>
 
-                <div className="rounded-lg border border-red-800 bg-red-950/30 px-3 py-2.5">
-                    <p className="text-sm text-red-400 font-medium">{t('season.step2.warning')}</p>
+                <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2.5">
+                    <p className="text-sm text-amber-400 font-medium">{t('season.step2.warning')}</p>
                 </div>
 
                 <div className="kce-card flex flex-col gap-2">
@@ -224,8 +280,8 @@ export function SeasonTab() {
                         <li className="text-sm text-kce-muted flex items-start gap-2">
                             <span className="mt-0.5">⚖️</span>
                             <span>
-                                {nonZeroBalances.length > 0
-                                    ? `${nonZeroBalances.length}× ${t('season.step2.actionBalances')}`
+                                {settleCount > 0
+                                    ? `${settleCount}× ${t('season.step2.actionBalances')}`
                                     : t('season.step1.noDebts')}
                             </span>
                         </li>
@@ -271,7 +327,7 @@ export function SeasonTab() {
     // ── Done ────────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 pt-3">
             <div className="kce-card flex flex-col gap-3 text-center">
                 <div className="text-3xl">✓</div>
                 <h2 className="font-bold text-base text-kce-text">{t('season.done.title')}</h2>
@@ -306,9 +362,11 @@ function StatCell({label, value}: {label: string; value: string}) {
     )
 }
 
-function SnapshotCard({snap}: {snap: SeasonSnapshot}) {
+function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () => void}) {
     const t = useT()
     const [downloading, setDownloading] = useState(false)
+    const [reopening, setReopening] = useState(false)
+    const [confirmReopen, setConfirmReopen] = useState(false)
 
     async function download() {
         setDownloading(true)
@@ -318,6 +376,24 @@ function SnapshotCard({snap}: {snap: SeasonSnapshot}) {
             toastError(e)
         } finally {
             setDownloading(false)
+        }
+    }
+
+    async function handleReopen() {
+        if (!confirmReopen) {
+            setConfirmReopen(true)
+            return
+        }
+        setReopening(true)
+        try {
+            await api.deleteSeasonSnapshot(snap.year)
+            showToast(t('season.snapshot.reopenOk'))
+            onReopened()
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setReopening(false)
+            setConfirmReopen(false)
         }
     }
 
@@ -341,6 +417,38 @@ function SnapshotCard({snap}: {snap: SeasonSnapshot}) {
             >
                 {downloading ? '…' : `📄 ${t('season.snapshot.download')}`}
             </button>
+            {confirmReopen ? (
+                <div className="flex flex-col gap-2">
+                    <p className="text-xs text-amber-400">
+                        {t('season.snapshot.reopenConfirm').replace('{year}', String(snap.year))}
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            className="flex-1 text-xs py-1.5 rounded-lg bg-red-900/50 text-red-400 font-medium"
+                            disabled={reopening}
+                            onClick={handleReopen}
+                        >
+                            {reopening ? '…' : t('season.snapshot.reopen')}
+                        </button>
+                        <button
+                            type="button"
+                            className="flex-1 text-xs py-1.5 rounded-lg bg-kce-surface2 text-kce-muted"
+                            onClick={() => setConfirmReopen(false)}
+                        >
+                            {t('action.cancel')}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <button
+                    type="button"
+                    className="text-xs py-1 text-kce-muted underline underline-offset-2 hover:text-amber-400 transition-colors"
+                    onClick={() => setConfirmReopen(true)}
+                >
+                    {t('season.snapshot.reopen')}
+                </button>
+            )}
         </div>
     )
 }
