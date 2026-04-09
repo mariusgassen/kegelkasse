@@ -3,7 +3,7 @@ import {useEveningList} from '../hooks/useEvening'
 import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
-import {useT} from '@/i18n'
+import {useT, useI18n} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
@@ -749,6 +749,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
 }) {
     const rm = useAppStore.getState().regularMembers.find(m => m.id === player.regular_member_id)
     const user = useAppStore(s => s.user)
+    const locale = useI18n(s => s.locale)
     const isMe = player.regular_member_id === user?.regular_member_id
     const displayName = player.nickname || player.name
 
@@ -803,7 +804,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                             <span key={pin.id} title={pin.name}>{pin.icon}</span>
                         ))}
                     </div>
-                    <div className="text-xs text-kce-muted">{evening.date}</div>
+                    <div className="text-xs text-kce-muted">{new Date(evening.date).toLocaleDateString(locale, {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
                 </div>
             </div>
 

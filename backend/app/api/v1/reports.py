@@ -226,7 +226,15 @@ def export_report(
     for e in expenses:
         dt = e.date or e.created_at
         booking_rows.append((dt, "Ausgabe", e.description, -e.amount, ""))
-    booking_rows.sort(key=lambda r: r[0] or datetime.min)
+    def _to_dt(v):
+        if v is None:
+            return datetime.min
+        if isinstance(v, datetime):
+            return v.replace(tzinfo=None) if v.tzinfo else v
+        # datetime.date → convert to datetime
+        return datetime(v.year, v.month, v.day)
+
+    booking_rows.sort(key=lambda r: _to_dt(r[0]))
 
     # per (member_id, penalty_type_name) → (count, total_euro)
     pen_by_member_type: dict[tuple[int, str], tuple[int, float]] = {}
