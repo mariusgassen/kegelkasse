@@ -31,20 +31,26 @@ def _penalty_euro(log: PenaltyLog) -> float:
     return 0.0
 
 
-def _compute_balances(db: Session, club_id: int) -> list[dict]:
-    """Replicates get_member_balances logic — returns list of balance dicts."""
+def _compute_balances(db: Session, club_id: int, year: Optional[int] = None) -> list[dict]:
+    """Compute member balances, optionally filtered to a specific year."""
     members = db.query(RegularMember).filter(
         RegularMember.club_id == club_id,
         RegularMember.is_active == True,
         RegularMember.is_guest == False,
     ).order_by(RegularMember.name).all()
 
-    player_rows = (
+    start_date = datetime(year, 1, 1) if year else None
+    end_date = datetime(year + 1, 1, 1) if year else None
+
+    eq = (
         db.query(EveningPlayer.id, EveningPlayer.regular_member_id)
         .join(Evening, Evening.id == EveningPlayer.evening_id)
         .filter(Evening.club_id == club_id, EveningPlayer.regular_member_id.isnot(None))
-        .all()
     )
+    if year:
+        eq = eq.filter(Evening.date >= start_date, Evening.date < end_date)
+    player_rows = eq.all()
+
     member_player_ids: dict[int, list[int]] = {}
     for pid, mid in player_rows:
         member_player_ids.setdefault(mid, []).append(pid)
@@ -59,7 +65,7 @@ def _compute_balances(db: Session, club_id: int) -> list[dict]:
     for log in penalty_rows:
         penalty_by_player[log.player_id] = penalty_by_player.get(log.player_id, 0.0) + _penalty_euro(log)
 
-    absence_rows = (
+    aq = (
         db.query(PenaltyLog)
         .join(Evening, Evening.id == PenaltyLog.evening_id)
         .filter(
@@ -68,13 +74,22 @@ def _compute_balances(db: Session, club_id: int) -> list[dict]:
             PenaltyLog.regular_member_id.isnot(None),
             PenaltyLog.is_deleted == False,
         )
-        .all()
     )
+    if year:
+        aq = aq.filter(Evening.date >= start_date, Evening.date < end_date)
+    absence_rows = aq.all()
+
     absence_by_member: dict[int, float] = {}
     for log in absence_rows:
         absence_by_member[log.regular_member_id] = absence_by_member.get(log.regular_member_id, 0.0) + _penalty_euro(log)
 
-    payments = db.query(MemberPayment).filter(MemberPayment.club_id == club_id).all()
+    pq = db.query(MemberPayment).filter(MemberPayment.club_id == club_id)
+    if year:
+        pq = pq.filter(
+            MemberPayment.created_at >= start_date,
+            MemberPayment.created_at < end_date,
+        )
+    payments = pq.all()
     payments_by_member: dict[int, float] = {}
     for p in payments:
         payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
@@ -173,6 +188,7 @@ def _snapshot_to_dict(snap: SeasonSnapshot, db: Session) -> dict:
 class SeasonCloseRequest(BaseModel):
     year: int
     notes: Optional[str] = None
+    settle_member_ids: Optional[list[int]] = None  # if set, only settle these members' balances
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -202,6 +218,45 @@ def get_snapshot(year: int, db: Session = Depends(get_db), user: User = Depends(
     return _snapshot_to_dict(snap, db)
 
 
+@router.delete("/snapshots/{year}", status_code=204)
+def reopen_season(
+    year: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """Reopen a closed season: delete the snapshot and reverse carry-over payments."""
+    snap = (
+        db.query(SeasonSnapshot)
+        .filter(SeasonSnapshot.club_id == user.club_id, SeasonSnapshot.year == year)
+        .first()
+    )
+    if not snap:
+        raise HTTPException(status_code=404, detail=f"No snapshot found for year {year}")
+
+    # Reverse all carry-over payments created during season close
+    db.query(MemberPayment).filter(
+        MemberPayment.club_id == user.club_id,
+        MemberPayment.note == f"Jahresabschluss {year}",
+    ).delete(synchronize_session=False)
+
+    db.delete(snap)
+    db.commit()
+    logger.info("Season %d reopened by user %d (club %d)", year, user.id, user.club_id)
+
+
+@router.get("/balance-preview/{year}")
+def get_balance_preview(
+    year: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """Return non-zero member balances for the given year (year-specific)."""
+    if not 2000 <= year <= 2100:
+        raise HTTPException(status_code=400, detail="Invalid year")
+    balances = _compute_balances(db, user.club_id, year=year)
+    return [b for b in balances if abs(b["balance"]) >= 0.01]
+
+
 @router.post("/close", status_code=201)
 def close_season(
     data: SeasonCloseRequest,
@@ -220,14 +275,17 @@ def close_season(
     if existing:
         raise HTTPException(status_code=400, detail=f"Season {data.year} has already been closed")
 
-    # Step A — Compute current member balances
-    balances = _compute_balances(db, user.club_id)
+    # Step A — Compute year-specific member balances
+    balances = _compute_balances(db, user.club_id, year=data.year)
     total_penalties = sum(b["penalty_total"] for b in balances)
     total_payments = sum(b["payments_total"] for b in balances)
 
-    # Step B — Book carry-over payments (zeros every non-zero balance)
+    # Step B — Book carry-over payments for selected members only
+    settle_set = set(data.settle_member_ids) if data.settle_member_ids is not None else None
     carry_over_count = 0
     for b in balances:
+        if settle_set is not None and b["regular_member_id"] not in settle_set:
+            continue
         balance = b["balance"]
         if abs(round(balance, 2)) >= 0.01:
             db.add(MemberPayment(

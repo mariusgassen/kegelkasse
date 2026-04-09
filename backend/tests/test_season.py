@@ -227,3 +227,185 @@ def test_close_season_unauthenticated(client: TestClient):
 def test_close_season_member_role_forbidden(client: TestClient, auth_headers: dict):
     res = client.post("/api/v1/season/close", json={"year": 2024}, headers=auth_headers)
     assert res.status_code == 403
+
+
+def test_close_season_with_settle_member_ids(
+    client: TestClient, admin_headers: dict, db: Session, club: Club,
+    regular_member: RegularMember,
+):
+    """Only settle members explicitly listed in settle_member_ids."""
+    # Give member a debt in 2024
+    import time
+    evening = Evening(club_id=club.id, date=datetime(2024, 3, 1), is_closed=True)
+    db.add(evening)
+    db.commit()
+    db.refresh(evening)
+    player = EveningPlayer(evening_id=evening.id, regular_member_id=regular_member.id, name=regular_member.name)
+    db.add(player)
+    db.commit()
+    db.refresh(player)
+    penalty = PenaltyLog(
+        evening_id=evening.id, player_id=player.id, player_name=regular_member.name,
+        penalty_type_name="Teststrafe", amount=5.0, mode="euro", unit_amount=1.0,
+        client_timestamp=time.time(),
+    )
+    db.add(penalty)
+    db.commit()
+
+    # Close season but explicitly exclude this member from settlement
+    res = client.post(
+        "/api/v1/season/close",
+        json={"year": 2024, "settle_member_ids": []},  # empty = settle nobody
+        headers=admin_headers,
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["carry_over_count"] == 0  # nobody was settled
+
+    # No carry-over payment created
+    payment = db.query(MemberPayment).filter(
+        MemberPayment.regular_member_id == regular_member.id,
+        MemberPayment.note.like("Jahresabschluss%"),
+    ).first()
+    assert payment is None
+
+
+# ---------------------------------------------------------------------------
+# Tests — balance preview
+# ---------------------------------------------------------------------------
+
+def test_balance_preview_empty_year(client: TestClient, admin_headers: dict):
+    """Year with no evenings/payments returns empty list."""
+    res = client.get("/api/v1/season/balance-preview/2001", headers=admin_headers)
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_balance_preview_with_debt(
+    client: TestClient, admin_headers: dict, db: Session, club: Club,
+    regular_member: RegularMember,
+):
+    """Year with a debt shows non-zero balances."""
+    import time
+    evening = Evening(club_id=club.id, date=datetime(2024, 6, 1), is_closed=True)
+    db.add(evening)
+    db.commit()
+    db.refresh(evening)
+    player = EveningPlayer(evening_id=evening.id, regular_member_id=regular_member.id, name=regular_member.name)
+    db.add(player)
+    db.commit()
+    db.refresh(player)
+    penalty = PenaltyLog(
+        evening_id=evening.id, player_id=player.id, player_name=regular_member.name,
+        penalty_type_name="Teststrafe", amount=3.0, mode="euro", unit_amount=1.0,
+        client_timestamp=time.time(),
+    )
+    db.add(penalty)
+    db.commit()
+
+    res = client.get("/api/v1/season/balance-preview/2024", headers=admin_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) >= 1
+    member_entry = next((b for b in data if b["regular_member_id"] == regular_member.id), None)
+    assert member_entry is not None
+    assert member_entry["balance"] == -3.0
+
+
+def test_balance_preview_excludes_other_years(
+    client: TestClient, admin_headers: dict, db: Session, club: Club,
+    regular_member: RegularMember, evening_2023: Evening,
+):
+    """Previewing 2024 does not include debts from 2023."""
+    import time
+    player = EveningPlayer(evening_id=evening_2023.id, regular_member_id=regular_member.id, name=regular_member.name)
+    db.add(player)
+    db.commit()
+    db.refresh(player)
+    penalty = PenaltyLog(
+        evening_id=evening_2023.id, player_id=player.id, player_name=regular_member.name,
+        penalty_type_name="Teststrafe", amount=7.0, mode="euro", unit_amount=1.0,
+        client_timestamp=time.time(),
+    )
+    db.add(penalty)
+    db.commit()
+
+    # Preview for 2024 — no evenings in 2024 — should be empty
+    res = client.get("/api/v1/season/balance-preview/2024", headers=admin_headers)
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_balance_preview_invalid_year(client: TestClient, admin_headers: dict):
+    res = client.get("/api/v1/season/balance-preview/1999", headers=admin_headers)
+    assert res.status_code == 400
+
+
+def test_balance_preview_requires_admin(client: TestClient, auth_headers: dict):
+    res = client.get("/api/v1/season/balance-preview/2024", headers=auth_headers)
+    assert res.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Tests — reopen season
+# ---------------------------------------------------------------------------
+
+def test_reopen_season_deletes_snapshot(client: TestClient, admin_headers: dict):
+    client.post("/api/v1/season/close", json={"year": 2018}, headers=admin_headers)
+    res = client.delete("/api/v1/season/snapshots/2018", headers=admin_headers)
+    assert res.status_code == 204
+    # Snapshot gone
+    res2 = client.get("/api/v1/season/snapshots/2018", headers=admin_headers)
+    assert res2.status_code == 404
+
+
+def test_reopen_season_reverses_carry_over(
+    client: TestClient, admin_headers: dict, db: Session, club: Club,
+    regular_member: RegularMember,
+):
+    """Reopening a season deletes the carry-over MemberPayment entries."""
+    import time
+    evening = Evening(club_id=club.id, date=datetime(2017, 4, 1), is_closed=True)
+    db.add(evening)
+    db.commit()
+    db.refresh(evening)
+    player = EveningPlayer(evening_id=evening.id, regular_member_id=regular_member.id, name=regular_member.name)
+    db.add(player)
+    db.commit()
+    db.refresh(player)
+    penalty = PenaltyLog(
+        evening_id=evening.id, player_id=player.id, player_name=regular_member.name,
+        penalty_type_name="Teststrafe", amount=4.0, mode="euro", unit_amount=1.0,
+        client_timestamp=time.time(),
+    )
+    db.add(penalty)
+    db.commit()
+
+    client.post("/api/v1/season/close", json={"year": 2017}, headers=admin_headers)
+    # Carry-over payment should exist
+    payment = db.query(MemberPayment).filter(
+        MemberPayment.regular_member_id == regular_member.id,
+        MemberPayment.note == "Jahresabschluss 2017",
+    ).first()
+    assert payment is not None
+
+    # Reopen
+    res = client.delete("/api/v1/season/snapshots/2017", headers=admin_headers)
+    assert res.status_code == 204
+
+    db.expire_all()
+    payment_after = db.query(MemberPayment).filter(
+        MemberPayment.regular_member_id == regular_member.id,
+        MemberPayment.note == "Jahresabschluss 2017",
+    ).first()
+    assert payment_after is None
+
+
+def test_reopen_season_not_found(client: TestClient, admin_headers: dict):
+    res = client.delete("/api/v1/season/snapshots/9999", headers=admin_headers)
+    assert res.status_code == 404
+
+
+def test_reopen_season_requires_admin(client: TestClient, auth_headers: dict):
+    res = client.delete("/api/v1/season/snapshots/2024", headers=auth_headers)
+    assert res.status_code == 403

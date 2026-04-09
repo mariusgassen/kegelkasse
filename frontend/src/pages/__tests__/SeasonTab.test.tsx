@@ -12,8 +12,9 @@ vi.mock('@/api/client.ts', () => ({
     api: {
         listSeasonSnapshots: vi.fn(),
         getSeasonSnapshot: vi.fn(),
+        getSeasonBalancePreview: vi.fn(),
         closeSeason: vi.fn(),
-        getMemberBalances: vi.fn(),
+        deleteSeasonSnapshot: vi.fn(),
         downloadReport: vi.fn(),
     },
 }))
@@ -124,7 +125,7 @@ describe('SeasonTab — wizard navigation', () => {
     it('navigates to step 1 (preview) when close button is clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
         fireEvent.click(screen.getByText(/season\.close/i))
@@ -136,9 +137,7 @@ describe('SeasonTab — wizard navigation', () => {
     it('shows no-debts message in preview when all balances are zero', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([
-            { ...BALANCE, balance: 0 },
-        ] as any)
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
         fireEvent.click(screen.getByText(/season\.close/i))
@@ -147,10 +146,10 @@ describe('SeasonTab — wizard navigation', () => {
         })
     })
 
-    it('shows member balance in preview when non-zero', async () => {
+    it('shows member balance with checkbox in preview when non-zero', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([BALANCE] as any)
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([BALANCE] as any)
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
         fireEvent.click(screen.getByText(/season\.close/i))
@@ -158,12 +157,15 @@ describe('SeasonTab — wizard navigation', () => {
             // Kegelname shown
             expect(screen.getByText('Hanse')).toBeInTheDocument()
         })
+        // Checkbox for this member is rendered and checked by default
+        const checkboxes = screen.getAllByRole('checkbox')
+        expect(checkboxes.length).toBeGreaterThan(0)
     })
 
     it('navigates to confirm step when Weiter is clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
         fireEvent.click(screen.getByText(/season\.close/i))
@@ -182,10 +184,10 @@ describe('SeasonTab — season close action', () => {
         vi.clearAllMocks()
     })
 
-    it('calls api.closeSeason with correct year on confirm', async () => {
+    it('calls api.closeSeason with correct year and settle_member_ids on confirm', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([BALANCE] as any)
         vi.mocked(api.closeSeason).mockResolvedValue(SNAP)
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
@@ -198,6 +200,7 @@ describe('SeasonTab — season close action', () => {
             expect(vi.mocked(api.closeSeason)).toHaveBeenCalledWith(
                 expect.any(Number),
                 undefined,
+                expect.any(Array),
             )
         })
     })
@@ -205,7 +208,7 @@ describe('SeasonTab — season close action', () => {
     it('shows done view after successful close', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
         vi.mocked(api.closeSeason).mockResolvedValue(SNAP)
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
@@ -223,7 +226,7 @@ describe('SeasonTab — season close action', () => {
     it('navigates back to landing when "Zurück" is clicked from done', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
-        vi.mocked(api.getMemberBalances).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
         vi.mocked(api.closeSeason).mockResolvedValue(SNAP)
         await renderSeasonTab()
         await waitFor(() => screen.getByText(/season\.close/i))
@@ -236,6 +239,43 @@ describe('SeasonTab — season close action', () => {
         fireEvent.click(screen.getByText('season.done.back'))
         await waitFor(() => {
             expect(screen.getByText('season.title')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('SeasonTab — reopen season', () => {
+    beforeEach(() => {
+        vi.resetModules()
+        vi.clearAllMocks()
+    })
+
+    it('shows reopen button on snapshot card', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listSeasonSnapshots).mockResolvedValue([SNAP])
+        await renderSeasonTab()
+        await waitFor(() => {
+            expect(screen.getByText(/season\.snapshot\.reopen/i)).toBeInTheDocument()
+        })
+    })
+
+    it('calls deleteSeasonSnapshot after confirming reopen', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listSeasonSnapshots).mockResolvedValue([SNAP])
+        vi.mocked(api.deleteSeasonSnapshot).mockResolvedValue(undefined)
+        await renderSeasonTab()
+        await waitFor(() => screen.getByText(/season\.snapshot\.reopen/i))
+        // First click shows confirmation
+        fireEvent.click(screen.getByText(/season\.snapshot\.reopen/i))
+        // Confirm buttons appear
+        await waitFor(() => {
+            const reopenBtns = screen.getAllByText(/season\.snapshot\.reopen/i)
+            expect(reopenBtns.length).toBeGreaterThan(0)
+        })
+        // Click the confirm button (the one inside the confirmation area)
+        const confirmBtns = screen.getAllByText(/season\.snapshot\.reopen/i)
+        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        await waitFor(() => {
+            expect(vi.mocked(api.deleteSeasonSnapshot)).toHaveBeenCalledWith(SNAP.year)
         })
     })
 })
