@@ -649,19 +649,14 @@ export const api = {
         }
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
-        if (format === 'pdf') {
-            window.open(url, '_blank')
-            setTimeout(() => URL.revokeObjectURL(url), 10000)
-        } else {
-            const a = document.createElement('a')
-            a.href = url
-            const suffix = year ? `_${year}` : ''
-            a.download = `kegelkasse_report${suffix}.${format}`
-            document.body.appendChild(a)
-            a.click()
-            document.body.removeChild(a)
-            URL.revokeObjectURL(url)
-        }
+        const a = document.createElement('a')
+        a.href = url
+        const suffix = year ? `_${year}` : ''
+        a.download = `kegelkasse_report${suffix}.${format}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
     },
 
     // Backups — pgbackrest (superadmin only)

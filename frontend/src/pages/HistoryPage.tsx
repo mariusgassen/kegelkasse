@@ -29,6 +29,12 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
 
+    const {data: snapshots = []} = useQuery({
+        queryKey: ['season-snapshots'],
+        queryFn: api.listSeasonSnapshots,
+    })
+    const closedSeasonYears = new Set(snapshots.map(s => s.year))
+
     // Fetch expanded evening detail
     const {data: expandedEvening} = useQuery({
         queryKey: ['evening', expandedId],
@@ -302,10 +308,12 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
-                                                        <button className="btn-secondary btn-sm flex-1"
-                                                                onClick={() => doReopen(ev.id)}>
-                                                            ↩ {t('history.reopen')}
-                                                        </button>
+                                                        {!closedSeasonYears.has(new Date(ev.date).getFullYear()) && (
+                                                            <button className="btn-secondary btn-sm flex-1"
+                                                                    onClick={() => doReopen(ev.id)}>
+                                                                ↩ {t('history.reopen')}
+                                                            </button>
+                                                        )}
                                                         {confirmDeleteId === ev.id ? (
                                                             <div className="flex gap-1 flex-1">
                                                                 <button className="btn-danger btn-sm flex-1"

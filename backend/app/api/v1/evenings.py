@@ -23,6 +23,7 @@ from models.evening import Evening, EveningPlayer, Team, ClubTeam, RegularMember
 from models.game import Game, WinnerType, GameThrowLog
 from models.penalty import PenaltyLog, PenaltyMode
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
+from models.season import SeasonSnapshot
 from models.user import User
 
 logger = logging.getLogger(__name__)
@@ -144,6 +145,13 @@ def update_evening(eid: int,
     updates = data.model_dump(exclude_none=True)
     # Reopening: ensure no other evening is currently open for this club
     if updates.get("is_closed") is False and e.is_closed:
+        year = e.date.year
+        season_snap = db.query(SeasonSnapshot).filter(
+            SeasonSnapshot.club_id == e.club_id,
+            SeasonSnapshot.year == year,
+        ).first()
+        if season_snap:
+            raise HTTPException(400, f"Season {year} is closed. Reopen the season first.")
         other_open = db.query(Evening).filter(
             Evening.club_id == e.club_id,
             Evening.id != e.id,
