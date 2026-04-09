@@ -280,9 +280,9 @@ export function SeasonTab() {
 
             {snapshot && (
                 <div className="kce-card grid grid-cols-2 gap-3">
-                    <StatCell label={t('season.snapshot.members')} value={String(snapshot.member_count)} />
-                    <StatCell label={t('season.snapshot.evenings')} value={String(snapshot.evening_count)} />
-                    <StatCell label={t('season.snapshot.carryOver')} value={String(snapshot.carry_over_count)} />
+                    <StatCell label={t('season.snapshot.members').replace('{n}', '').trim()} value={String(snapshot.member_count)} />
+                    <StatCell label={t('season.snapshot.evenings').replace('{n}', '').trim()} value={String(snapshot.evening_count)} />
+                    <StatCell label={t('season.snapshot.carryOver').replace('{n}', '').trim()} value={String(snapshot.carry_over_count)} />
                     <StatCell label={t('season.snapshot.penalties')} value={fe(snapshot.total_penalties)} />
                 </div>
             )}
