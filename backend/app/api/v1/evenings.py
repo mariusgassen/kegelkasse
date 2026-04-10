@@ -93,8 +93,12 @@ def serialize_evening(e: Evening) -> dict:
 @router.get("/")
 def list_evenings(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     items = db.query(Evening).filter(Evening.club_id == user.club_id).order_by(Evening.date.desc()).all()
+    closed_years = {
+        s.year for s in db.query(SeasonSnapshot).filter(SeasonSnapshot.club_id == user.club_id).all()
+    }
     return [{"id": e.id, "date": e.date.isoformat() if e.date else None, "venue": e.venue,
-             "is_closed": e.is_closed, "player_count": len(e.players)} for e in items]
+             "is_closed": e.is_closed, "player_count": len(e.players),
+             "season_closed": e.date is not None and e.date.year in closed_years} for e in items]
 
 
 class EveningCreate(BaseModel):

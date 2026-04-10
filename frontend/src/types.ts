@@ -332,6 +332,7 @@ export interface Evening {
     venue: string | null
     note: string | null
     is_closed: boolean
+    season_closed: boolean
     players: EveningPlayer[]
     teams: Team[]
     penalty_log: PenaltyLogEntry[]
@@ -349,6 +350,7 @@ export interface EveningListItem {
     date: string
     venue: string | null
     is_closed: boolean
+    season_closed: boolean
     player_count: number
     game_count: number
     penalty_total: number

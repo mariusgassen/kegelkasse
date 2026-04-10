@@ -29,12 +29,6 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
 
-    const {data: snapshots = []} = useQuery({
-        queryKey: ['season-snapshots'],
-        queryFn: api.listSeasonSnapshots,
-    })
-    const closedSeasonYears = new Set(snapshots.map(s => s.year))
-
     // Fetch expanded evening detail
     const {data: expandedEvening} = useQuery({
         queryKey: ['evening', expandedId],
@@ -308,7 +302,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
-                                                        {closedSeasonYears.has(new Date(ev.date).getFullYear()) ? (
+                                                        {ev.season_closed ? (
                                                             <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
                                                                 📦 {t('history.archived')}
                                                             </span>
