@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -179,9 +179,16 @@ describe('SeasonTab — wizard navigation', () => {
 })
 
 describe('SeasonTab — season close action', () => {
+    let invalidateSpy: ReturnType<typeof vi.spyOn>
+
     beforeEach(() => {
         vi.resetModules()
         vi.clearAllMocks()
+        invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries')
+    })
+
+    afterEach(() => {
+        invalidateSpy.mockRestore()
     })
 
     it('calls api.closeSeason with correct year and settle_member_ids on confirm', async () => {
@@ -240,6 +247,44 @@ describe('SeasonTab — season close action', () => {
         await waitFor(() => {
             expect(screen.getByText('season.title')).toBeInTheDocument()
         })
+    })
+
+    it('invalidates ["evenings"] immediately after successful season close', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
+        vi.mocked(api.closeSeason).mockResolvedValue(SNAP)
+        await renderSeasonTab()
+        await waitFor(() => screen.getByText(/season\.close/i))
+        fireEvent.click(screen.getByText(/season\.close/i))
+        await waitFor(() => screen.getByText('season.step1.title'))
+        fireEvent.click(screen.getByText(/action\.continue/i))
+        await waitFor(() => screen.getByText('season.confirm'))
+        fireEvent.click(screen.getByText('season.confirm'))
+        await waitFor(() => {
+            expect(screen.getByText('season.done.title')).toBeInTheDocument()
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({queryKey: ['evenings']})
+    })
+
+    it('invalidates ["evenings"] when navigating back from done to landing', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listSeasonSnapshots).mockResolvedValue([])
+        vi.mocked(api.getSeasonBalancePreview).mockResolvedValue([])
+        vi.mocked(api.closeSeason).mockResolvedValue(SNAP)
+        await renderSeasonTab()
+        await waitFor(() => screen.getByText(/season\.close/i))
+        fireEvent.click(screen.getByText(/season\.close/i))
+        await waitFor(() => screen.getByText('season.step1.title'))
+        fireEvent.click(screen.getByText(/action\.continue/i))
+        await waitFor(() => screen.getByText('season.confirm'))
+        fireEvent.click(screen.getByText('season.confirm'))
+        await waitFor(() => screen.getByText('season.done.back'))
+        // Reset invalidateSpy to isolate the reset() call
+        invalidateSpy.mockClear()
+        fireEvent.click(screen.getByText('season.done.back'))
+        await waitFor(() => screen.getByText('season.title'))
+        expect(invalidateSpy).toHaveBeenCalledWith({queryKey: ['evenings']})
     })
 })
 
