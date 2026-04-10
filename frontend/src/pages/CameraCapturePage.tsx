@@ -308,8 +308,8 @@ export function CameraCapturePage({onClose}: Props) {
                                 player_id: currentPid,
                             }).catch(() => {})
                         }
-                    } else if (!isKiosk && selectedGameIdRef.current !== null) {
-                        // Detecting mode: only queue for confirmation when a game is active
+                    } else if (!isKiosk) {
+                        // Detecting mode: queue for confirmation (game may or may not be active)
                         pendingRef.current = reading
                         setPendingThrow({...reading})
                     }
@@ -827,7 +827,21 @@ export function CameraCapturePage({onClose}: Props) {
                             </div>
                         )}
 
-                        {/* 1b. Active player + lamp status */}
+                        {/* 1b. No-game test mode banner */}
+                        {!selectedGame && (
+                            <div style={{
+                                padding: '6px 10px', borderRadius: 8,
+                                background: 'rgba(234,179,8,0.12)',
+                                border: '1px solid rgba(234,179,8,0.35)',
+                                color: '#fbbf24',
+                                fontSize: 11, fontWeight: 'bold',
+                                display: 'flex', alignItems: 'center', gap: 6,
+                            }}>
+                                ⚠️ {t('camera.noGameTestMode')}
+                            </div>
+                        )}
+
+                        {/* 1c. Active player + lamp status */}
                         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
                             {(kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id)) && (
                                 <span style={{
@@ -934,9 +948,10 @@ export function CameraCapturePage({onClose}: Props) {
                                                             Σ {th.cumulative}
                                                         </span>
                                                     )}
-                                                    {selectedGame && (
-                                                        <span style={{fontSize: 9, color: '#4ade80'}}>✓</span>
-                                                    )}
+                                                    {selectedGame
+                                                        ? <span style={{fontSize: 9, color: '#4ade80', marginLeft: 'auto'}}>✓</span>
+                                                        : <span style={{fontSize: 9, color: '#fbbf24', marginLeft: 'auto'}}>Test</span>
+                                                    }
                                                 </div>
                                             )
                                         })}

@@ -756,6 +756,7 @@ export const en = {
     "camera.detectedScore": "Detected score",
     "camera.selectGame": "Current game",
     "camera.noRunningGame": "No running game.",
+    "camera.noGameTestMode": "No active game — throws will not be saved (test mode)",
     "camera.syncActive": "Throws are being synced live",
     "camera.kiosk": "Kiosk",
     "camera.enterKiosk": "Start Kiosk",
