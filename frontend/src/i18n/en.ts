@@ -175,6 +175,7 @@ export const en = {
     "history.players": "Players",
     "history.total": "Treasury",
     "history.reopen": "Reopen",
+    "history.archived": "Archived",
     "history.deleteConfirm": "Really delete this evening?",
     "stats.title": "Statistics",
     "stats.evening": "Evening analysis",
