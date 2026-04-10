@@ -1090,10 +1090,16 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
-                                                        <button className="btn-secondary btn-sm flex-1"
-                                                                onClick={() => doReopen(ev.id)}>
-                                                            ↩ {t('history.reopen')}
-                                                        </button>
+                                                        {ev.season_closed ? (
+                                                            <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
+                                                                📦 {t('history.archived')}
+                                                            </span>
+                                                        ) : (
+                                                            <button className="btn-secondary btn-sm flex-1"
+                                                                    onClick={() => doReopen(ev.id)}>
+                                                                ↩ {t('history.reopen')}
+                                                            </button>
+                                                        )}
                                                         {confirmDeleteId === ev.id ? (
                                                             <div className="flex gap-1 flex-1">
                                                                 <button className="btn-danger btn-sm flex-1"
