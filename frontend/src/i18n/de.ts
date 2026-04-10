@@ -175,6 +175,7 @@ export const de = {
     "history.players": "SpielerIn",
     "history.total": "Kasse",
     "history.reopen": "Wiedereröffnen",
+    "history.archived": "Archiviert",
     "history.deleteConfirm": "Abend wirklich löschen?",
     "stats.title": "Statistiken",
     "stats.evening": "Abend-Analyse",

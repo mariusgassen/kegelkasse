@@ -308,7 +308,11 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
-                                                        {!closedSeasonYears.has(new Date(ev.date).getFullYear()) && (
+                                                        {closedSeasonYears.has(new Date(ev.date).getFullYear()) ? (
+                                                            <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
+                                                                📦 {t('history.archived')}
+                                                            </span>
+                                                        ) : (
                                                             <button className="btn-secondary btn-sm flex-1"
                                                                     onClick={() => doReopen(ev.id)}>
                                                                 ↩ {t('history.reopen')}
