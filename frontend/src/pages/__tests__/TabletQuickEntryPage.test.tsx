@@ -312,6 +312,14 @@ describe('TabletQuickEntryPage — penalty logging', () => {
         await waitFor(() => expect(api.addPenalty).not.toHaveBeenCalled())
     })
 
+    it('deselects all players after successful penalty log', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText('Admin'))
+        await waitFor(() => expect(screen.getByText(/1 quickEntry\.selected/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/🍺 Bier/))
+        await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
+    })
+
     it('calls api.addPenalty with multiple player ids when multiple selected', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
@@ -381,6 +389,14 @@ describe('TabletQuickEntryPage — drink logging', () => {
         await renderTabletQuickEntry()
         fireEvent.click(screen.getByTitle('drinks.beer'))
         await waitFor(() => expect(api.addDrinkRound).not.toHaveBeenCalled())
+    })
+
+    it('deselects all players after successful drink log', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText('Admin'))
+        await waitFor(() => expect(screen.getByText(/1 quickEntry\.selected/)).toBeInTheDocument())
+        fireEvent.click(screen.getByTitle('drinks.beer'))
+        await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
     })
 })
 
