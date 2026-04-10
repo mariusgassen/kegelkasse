@@ -79,7 +79,7 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
         if (!eventId) return
         setBusy(true)
         try {
-            await api.setRsvp(eventId, 'attending')
+            await api.setRsvp(eventId, 'absent')
             dismiss(n.id)
         } catch (e) {
             toastError(e)
@@ -150,10 +150,10 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                     {eventId && (
                         <button
                             disabled={busy}
-                            className="btn-primary btn-sm flex-1 text-xs"
+                            className="btn-secondary btn-sm flex-1 text-xs"
                             onClick={(e) => { e.stopPropagation(); handleRsvp() }}
                         >
-                            ✓ {t('rsvp.attending.short')}
+                            {t('rsvp.absent.short')}
                         </button>
                     )}
                 </div>

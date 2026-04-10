@@ -220,18 +220,18 @@ describe('NotificationPanel — payment request notification', () => {
 describe('NotificationPanel — RSVP notification', () => {
     beforeEach(() => vi.clearAllMocks())
 
-    it('shows RSVP attending button for schedule notifications', async () => {
+    it('shows RSVP absent button for schedule notifications', async () => {
         await renderPanel(true, [RSVP_NOTIFICATION])
-        expect(screen.getByText(/rsvp\.attending\.short/)).toBeInTheDocument()
+        expect(screen.getByText(/rsvp\.absent\.short/)).toBeInTheDocument()
     })
 
-    it('calls api.setRsvp when RSVP button clicked', async () => {
+    it('calls api.setRsvp with absent when RSVP button clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.setRsvp).mockResolvedValue(undefined as any)
         await renderPanel(true, [RSVP_NOTIFICATION])
-        fireEvent.click(screen.getByText(/rsvp\.attending\.short/))
+        fireEvent.click(screen.getByText(/rsvp\.absent\.short/))
         await waitFor(() => {
-            expect(api.setRsvp).toHaveBeenCalledWith(99, 'attending')
+            expect(api.setRsvp).toHaveBeenCalledWith(99, 'absent')
         })
     })
 })
