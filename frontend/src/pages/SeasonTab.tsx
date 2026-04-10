@@ -102,6 +102,7 @@ export function SeasonTab() {
             setSnapshot(result)
             setStep('done')
             showToast(t('season.done.title'))
+            qc.invalidateQueries({queryKey: ['evenings']})
         } catch (e) {
             toastError(e)
         } finally {
@@ -126,6 +127,7 @@ export function SeasonTab() {
         qc.invalidateQueries({queryKey: ['season-snapshots']})
         qc.invalidateQueries({queryKey: ['season-balance-preview']})
         qc.invalidateQueries({queryKey: ['season-available-years']})
+        qc.invalidateQueries({queryKey: ['evenings']})
     }
 
     const yearOptions = availableYears.length > 0 ? availableYears : [currentYear]
