@@ -118,6 +118,12 @@ def create_evening(data: EveningCreate, db: Session = Depends(get_db),
         raise HTTPException(400, "Another evening is already active")
     payload = data.model_dump()
     payload["date"] = _parse_date(payload["date"])
+    season_snap = db.query(SeasonSnapshot).filter(
+        SeasonSnapshot.club_id == user.club_id,
+        SeasonSnapshot.year == payload["date"].year,
+    ).first()
+    if season_snap:
+        raise HTTPException(400, f"Season {payload['date'].year} is closed")
     e = Evening(club_id=user.club_id, created_by=user.id, **payload)
     db.add(e)
     db.commit()

@@ -16,6 +16,7 @@ from core.push import push_to_regular_member, push_to_club
 from models.club import Club, ClubSettings
 from models.evening import RegularMember, Evening, EveningPlayer
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
+from models.season import SeasonSnapshot
 from models.user import User
 
 logger = logging.getLogger(__name__)
@@ -240,6 +241,15 @@ def start_evening(
     ).first()
     if other_open:
         raise HTTPException(400, "Another evening is already active")
+
+    # Block starting an evening in a closed season
+    evening_year = se.scheduled_at.year
+    season_snap = db.query(SeasonSnapshot).filter(
+        SeasonSnapshot.club_id == se.club_id,
+        SeasonSnapshot.year == evening_year,
+    ).first()
+    if season_snap:
+        raise HTTPException(400, f"Season {evening_year} is closed")
 
     ev = Evening(
         club_id=se.club_id,

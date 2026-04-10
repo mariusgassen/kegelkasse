@@ -406,6 +406,65 @@ def test_reopen_season_not_found(client: TestClient, admin_headers: dict):
     assert res.status_code == 404
 
 
+# ---------------------------------------------------------------------------
+# Tests — guard: cannot create/start evening in a closed season
+# ---------------------------------------------------------------------------
+
+def test_create_evening_blocked_in_closed_season(
+    client: TestClient, admin_headers: dict
+):
+    """POST /evening/ must return 400 when the date falls in a closed season year."""
+    client.post("/api/v1/season/close", json={"year": 2015}, headers=admin_headers)
+    res = client.post(
+        "/api/v1/evening/",
+        json={"date": "2015-06-01"},
+        headers=admin_headers,
+    )
+    assert res.status_code == 400
+    assert "2015" in res.json()["detail"]
+
+
+def test_create_evening_allowed_in_open_season(
+    client: TestClient, admin_headers: dict, db: Session, club: Club
+):
+    """POST /evening/ succeeds when no snapshot exists for the given year."""
+    # Close 2014 only — 2016 should still be open
+    client.post("/api/v1/season/close", json={"year": 2014}, headers=admin_headers)
+    res = client.post(
+        "/api/v1/evening/",
+        json={"date": "2016-03-10"},
+        headers=admin_headers,
+    )
+    assert res.status_code == 200
+
+
+def test_start_evening_from_schedule_blocked_in_closed_season(
+    client: TestClient, admin_headers: dict, db: Session, club: Club, admin_user: User
+):
+    """POST /schedule/{sid}/start must return 400 when the scheduled date is in a closed season."""
+    from datetime import timezone
+    from models.schedule import ScheduledEvening
+
+    se = ScheduledEvening(
+        club_id=club.id,
+        scheduled_at=datetime(2013, 9, 5, 20, 0, 0, tzinfo=timezone.utc),
+        venue="Testgasse",
+        created_by=admin_user.id,
+    )
+    db.add(se)
+    db.commit()
+    db.refresh(se)
+
+    client.post("/api/v1/season/close", json={"year": 2013}, headers=admin_headers)
+
+    res = client.post(f"/api/v1/schedule/{se.id}/start", json={"member_ids": []}, headers=admin_headers)
+    assert res.status_code == 400
+    assert "2013" in res.json()["detail"]
+
+    db.query(ScheduledEvening).filter(ScheduledEvening.id == se.id).delete(synchronize_session=False)
+    db.commit()
+
+
 def test_reopen_season_requires_admin(client: TestClient, auth_headers: dict):
     res = client.delete("/api/v1/season/snapshots/2024", headers=auth_headers)
     assert res.status_code == 403
