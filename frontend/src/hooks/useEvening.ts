@@ -41,6 +41,7 @@ export function useActiveEvening() {
                     venue: pending.venue,
                     note: null,
                     is_closed: false,
+                    season_closed: false,
                     players: [],
                     teams: [],
                     penalty_log: [],
