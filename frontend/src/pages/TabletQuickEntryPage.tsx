@@ -269,6 +269,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
+            setSelectedPlayerIds([])
             setFlashingPenaltyId(pt.id)
             setTimeout(() => setFlashingPenaltyId(null), 800)
         } catch (e: unknown) {
@@ -288,6 +289,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
             })
             invalidate()
+            setSelectedPlayerIds([])
             setFlashingDrink(type)
             setTimeout(() => setFlashingDrink(null), 800)
         } catch (e: unknown) {

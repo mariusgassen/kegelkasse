@@ -143,21 +143,21 @@ describe('EveningHubPage — with active evening', () => {
         expect(screen.getByText(/evening.tab.highlights/)).toBeInTheDocument()
     })
 
-    it('shows the close (■) button for an open evening', async () => {
+    it('shows the close button for an open evening', async () => {
         await setup()
-        expect(screen.getByTitle('evening.end')).toBeInTheDocument()
+        expect(screen.getByText('evening.end')).toBeInTheDocument()
     })
 
-    it('shows close-confirm bar when close button clicked', async () => {
+    it('shows close-confirm sheet when close button clicked', async () => {
         await setup()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         expect(screen.getByText('evening.endConfirm')).toBeInTheDocument()
         expect(screen.getByText('action.cancel')).toBeInTheDocument()
     })
 
-    it('hides confirm bar when cancel is clicked', async () => {
+    it('hides confirm sheet when cancel is clicked', async () => {
         await setup()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         expect(screen.getByText('action.cancel')).toBeInTheDocument()
         fireEvent.click(screen.getByText('action.cancel'))
         expect(screen.queryByText('evening.endConfirm')).not.toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('EveningHubPage — with active evening', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
         await setup()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
             expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true })
@@ -176,7 +176,7 @@ describe('EveningHubPage — with active evening', () => {
 
     it('shows reopen button for a closed evening', async () => {
         await setup(makeEvening({ is_closed: true }))
-        expect(screen.getByTitle('evening.reopen')).toBeInTheDocument()
+        expect(screen.getByText('evening.reopen')).toBeInTheDocument()
     })
 
     it('shows empty state in highlights tab when no highlights', async () => {
@@ -278,7 +278,7 @@ describe('EveningHubPage — reopen closed evening', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
         const { invalidate } = await setupClosed()
-        fireEvent.click(screen.getByTitle('evening.reopen'))
+        fireEvent.click(screen.getByText('evening.reopen'))
         await waitFor(() => {
             expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: false })
         })
@@ -292,15 +292,15 @@ describe('EveningHubPage — reopen closed evening', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('network error'))
         await setupClosed()
-        fireEvent.click(screen.getByTitle('evening.reopen'))
+        fireEvent.click(screen.getByText('evening.reopen'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
     })
 
-    it('does not show the close (■) button for a closed evening', async () => {
+    it('does not show the close button for a closed evening', async () => {
         await setupClosed()
-        expect(screen.queryByTitle('evening.end')).not.toBeInTheDocument()
+        expect(screen.queryByText('evening.end')).not.toBeInTheDocument()
     })
 })
 
@@ -326,7 +326,7 @@ describe('EveningHubPage — close evening edge cases', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('fail'))
         await setupOpen()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
@@ -337,32 +337,16 @@ describe('EveningHubPage — close evening edge cases', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
         const { invalidate } = await setupOpen()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
             expect(invalidate).toHaveBeenCalled()
         })
     })
 
-    it('shows onHistory button in close-confirm bar when onHistory prop provided', async () => {
-        const onHistory = vi.fn()
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: makeEvening(), isLoading: false, invalidate: vi.fn(),
-            activeEveningId: 1, isPending: false,
-        } as any)
-        vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
-        await renderHubPage({ onHistory })
-        fireEvent.click(screen.getByTitle('evening.end'))
-        expect(screen.getByText('📚')).toBeInTheDocument()
-        fireEvent.click(screen.getByText('📚'))
-        expect(onHistory).toHaveBeenCalledOnce()
-    })
-
-    it('does not show onHistory button in close-confirm bar when onHistory not provided', async () => {
+    it('does not show 📚 button in close-confirm sheet', async () => {
         await setupOpen()
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         expect(screen.queryByText('📚')).not.toBeInTheDocument()
     })
 })
@@ -577,7 +561,7 @@ describe('EveningHubPage — close evening invalidates evenings query', () => {
             </QueryClientProvider>
         )
 
-        fireEvent.click(screen.getByTitle('evening.end'))
+        fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
             expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true })

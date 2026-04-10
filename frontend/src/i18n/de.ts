@@ -756,6 +756,7 @@ export const de = {
     "camera.detectedScore": "Erkannter Score",
     "camera.selectGame": "Aktuelles Spiel",
     "camera.noRunningGame": "Kein laufendes Spiel.",
+    "camera.noGameTestMode": "Kein Spiel aktiv — Würfe werden nicht gespeichert (Testmodus)",
     "camera.syncActive": "Würfe werden live synchronisiert",
     "camera.kiosk": "Kiosk",
     "camera.enterKiosk": "Kiosk starten",

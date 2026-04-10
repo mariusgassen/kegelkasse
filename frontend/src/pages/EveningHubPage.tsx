@@ -16,6 +16,7 @@ import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 import {TabletQuickEntryPage} from './TabletQuickEntryPage'
+import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useQueryClient} from '@tanstack/react-query'
 
 type SubTab = 'penalties' | 'games' | 'highlights'
@@ -145,10 +146,9 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 {/* End / reopen evening — always accessible in the tab bar */}
                 {!isClosed ? (
                     <button
-                        className="btn-danger btn-xs flex-shrink-0 ml-1"
-                        onClick={() => setCloseConfirm(true)}
-                        title={t('evening.end')}>
-                        ■
+                        className="btn-secondary btn-xs flex-shrink-0 ml-1"
+                        onClick={() => setCloseConfirm(true)}>
+                        {t('evening.end')}
                     </button>
                 ) : (
                     <button
@@ -158,37 +158,38 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                                 await api.updateEvening(evening!.id, {is_closed: false})
                                 invalidate()
                             } catch (e) { toastError(e) }
-                        }}
-                        title={t('evening.reopen')}>
-                        ↺
+                        }}>
+                        {t('evening.reopen')}
                     </button>
                 )}
             </div>
 
-            {/* Close-confirm bar — slides in below tabs when active */}
+            {/* Close-confirm sheet */}
             {closeConfirm && (
-                <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0"
-                     style={{background: 'rgba(192,57,43,0.12)', borderBottom: '1px solid rgba(192,57,43,0.3)'}}>
-                    <p className="text-xs text-kce-muted flex-1">{t('evening.endConfirm')}</p>
-                    <button className="btn-secondary btn-xs" onClick={() => setCloseConfirm(false)}>
-                        {t('action.cancel')}
-                    </button>
-                    <button className="btn-danger btn-xs" onClick={async () => {
-                        try {
-                            await api.updateEvening(evening!.id, {is_closed: true})
-                            setCloseConfirm(false)
-                            invalidate()
-                            qc.invalidateQueries({queryKey: ['evenings']})
-                        } catch (e) { toastError(e) }
-                    }}>
-                        {t('action.done')}
-                    </button>
-                    {onHistory && (
-                        <button className="btn-secondary btn-xs" onClick={onHistory}>
-                            📚
+                <Sheet
+                    open
+                    title={t('evening.end')}
+                    onClose={() => setCloseConfirm(false)}
+                >
+                    <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn-secondary btn-sm flex-1"
+                                onClick={() => setCloseConfirm(false)}>
+                            {t('action.cancel')}
                         </button>
-                    )}
-                </div>
+                        <button type="button" className="btn-primary btn-sm flex-1"
+                                onClick={async () => {
+                                    try {
+                                        await api.updateEvening(evening!.id, {is_closed: true})
+                                        setCloseConfirm(false)
+                                        invalidate()
+                                        qc.invalidateQueries({queryKey: ['evenings']})
+                                    } catch (e) { toastError(e) }
+                                }}>
+                            {t('action.done')}
+                        </button>
+                    </div>
+                </Sheet>
             )}
 
             {/* Sub-pages — always mounted, toggled via display */}
