@@ -345,15 +345,15 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     // Build merged timeline (only when no player filter active)
     type TimelineEvent =
         | { kind: 'penalty'; entry: typeof log[0]; ts: number }
-        | { kind: 'game_started'; game: typeof evening.games[0]; ts: number }
-        | { kind: 'game_finished'; game: typeof evening.games[0]; ts: number }
+        | { kind: 'game_started'; game: typeof evening.games[0]; ts: number; pending: boolean }
+        | { kind: 'game_finished'; game: typeof evening.games[0]; ts: number; pending: boolean }
 
     const timeline: TimelineEvent[] = log.map(e => ({kind: 'penalty', entry: e, ts: e.client_timestamp}))
 
     if (filterPlayer === null) {
         for (const g of evening.games) {
-            if (g.started_at) timeline.push({kind: 'game_started', game: g, ts: new Date(g.started_at).getTime()})
-            if (g.finished_at) timeline.push({kind: 'game_finished', game: g, ts: new Date(g.finished_at).getTime()})
+            if (g.started_at) timeline.push({kind: 'game_started', game: g, ts: new Date(g.started_at).getTime(), pending: g.id < 0 || !!g._pendingStart})
+            if (g.finished_at) timeline.push({kind: 'game_finished', game: g, ts: new Date(g.finished_at).getTime(), pending: g.id < 0 || !!g._pendingFinish})
         }
         timeline.sort((a, b) => b.ts - a.ts)
     }
@@ -456,8 +456,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-kce-border"/>
                                 <span
-                                    className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap">
+                                    className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     ▶ {event.game.name} · {fTime(event.ts)}
+                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-border"/>
                             </div>
@@ -468,8 +469,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
                                 <span
-                                    className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap">
+                                    className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
+                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
                                 <div className="h-px flex-1 bg-kce-amber/40"/>
                             </div>

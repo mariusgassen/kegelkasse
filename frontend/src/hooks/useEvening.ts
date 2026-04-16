@@ -238,7 +238,13 @@ export function useActiveEvening() {
                 // Game start — update status of a pending game if also queued
                 const startMatch = path.match(/\/games\/(-?\d+)\/start$/)
                 if (startMatch) {
-                    gameStatusOverride[Number(startMatch[1])] = 'running'
+                    const gid = Number(startMatch[1])
+                    gameStatusOverride[gid] = 'running'
+                    gamePatch[gid] = {
+                        ...gamePatch[gid],
+                        started_at: new Date(item.timestamp).toISOString(),
+                        _pendingStart: true,
+                    }
                     continue
                 }
 
@@ -254,6 +260,8 @@ export function useActiveEvening() {
                         winner_name: b.winner_name ?? null,
                         scores: b.scores ?? {},
                         ...(b.loser_penalty !== undefined ? {loser_penalty: b.loser_penalty} : {}),
+                        finished_at: new Date(item.timestamp).toISOString(),
+                        _pendingFinish: true,
                     }
                     continue
                 }
