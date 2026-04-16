@@ -239,10 +239,11 @@ export function useActiveEvening() {
                 const startMatch = path.match(/\/games\/(-?\d+)\/start$/)
                 if (startMatch) {
                     const gid = Number(startMatch[1])
+                    const b = body as {client_timestamp?: number}
                     gameStatusOverride[gid] = 'running'
                     gamePatch[gid] = {
                         ...gamePatch[gid],
-                        started_at: new Date(item.timestamp).toISOString(),
+                        started_at: new Date(b.client_timestamp ?? item.timestamp).toISOString(),
                         _pendingStart: true,
                     }
                     continue
@@ -253,14 +254,14 @@ export function useActiveEvening() {
                 if (finishMatch) {
                     const gid = Number(finishMatch[1])
                     gameStatusOverride[gid] = 'finished'
-                    const b = body as {winner_ref?: string; winner_name?: string; scores?: Record<string, number>; loser_penalty?: number}
+                    const b = body as {winner_ref?: string; winner_name?: string; scores?: Record<string, number>; loser_penalty?: number; client_timestamp?: number}
                     gamePatch[gid] = {
                         ...gamePatch[gid],
                         winner_ref: b.winner_ref ?? null,
                         winner_name: b.winner_name ?? null,
                         scores: b.scores ?? {},
                         ...(b.loser_penalty !== undefined ? {loser_penalty: b.loser_penalty} : {}),
-                        finished_at: new Date(item.timestamp).toISOString(),
+                        finished_at: new Date(b.client_timestamp ?? item.timestamp).toISOString(),
                         _pendingFinish: true,
                     }
                     continue

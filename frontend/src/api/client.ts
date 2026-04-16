@@ -427,14 +427,14 @@ export const api = {
     }) =>
         request<{ id: number; name: string }>('POST', `/evening/${eid}/games`, d),
     startGame: (eid: number, gid: number) =>
-        request<void>('POST', `/evening/${eid}/games/${gid}/start`),
+        request<void>('POST', `/evening/${eid}/games/${gid}/start`, {client_timestamp: Date.now()}),
     finishGame: (eid: number, gid: number, d: {
         winner_ref: string;
         winner_name: string;
         scores?: Record<string, number>;
         loser_penalty?: number;
     }) =>
-        request<void>('POST', `/evening/${eid}/games/${gid}/finish`, d),
+        request<void>('POST', `/evening/${eid}/games/${gid}/finish`, {...d, client_timestamp: Date.now()}),
     updateGame: (eid: number, gid: number, d: Partial<{
         name: string;
         is_opener: boolean;
