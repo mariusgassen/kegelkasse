@@ -125,6 +125,8 @@ export function useActiveEvening() {
         const pendingGames: Game[] = []
         // Status overrides for pending games that have start/finish also queued
         const gameStatusOverride: Partial<Record<number, GameStatus>> = {}
+        // Field patches for games from queued PATCH or finish bodies
+        const gamePatch: Partial<Record<number, Partial<Game>>> = {}
 
         for (const item of relevant) {
             const {method, path, body} = item
@@ -240,10 +242,30 @@ export function useActiveEvening() {
                     continue
                 }
 
-                // Game finish
+                // Game finish — update status and merge winner/scores
                 const finishMatch = path.match(/\/games\/(-?\d+)\/finish$/)
                 if (finishMatch) {
-                    gameStatusOverride[Number(finishMatch[1])] = 'finished'
+                    const gid = Number(finishMatch[1])
+                    gameStatusOverride[gid] = 'finished'
+                    const b = body as {winner_ref?: string; winner_name?: string; scores?: Record<string, number>; loser_penalty?: number}
+                    gamePatch[gid] = {
+                        ...gamePatch[gid],
+                        winner_ref: b.winner_ref ?? null,
+                        winner_name: b.winner_name ?? null,
+                        scores: b.scores ?? {},
+                        ...(b.loser_penalty !== undefined ? {loser_penalty: b.loser_penalty} : {}),
+                    }
+                    continue
+                }
+            }
+
+            // PATCH on a game — merge updated metadata fields
+            if (method === 'PATCH') {
+                const patchMatch = path.match(/\/games\/(-?\d+)$/)
+                if (patchMatch) {
+                    const gid = Number(patchMatch[1])
+                    const b = body as Partial<Game>
+                    gamePatch[gid] = {...gamePatch[gid], ...b}
                     continue
                 }
             }
@@ -253,11 +275,16 @@ export function useActiveEvening() {
         if (
             !deletedPenaltyIds.size && !deletedDrinkIds.size && !deletedGameIds.size &&
             !pendingPenalties.length && !pendingDrinks.length && !pendingGames.length &&
-            !Object.keys(gameStatusOverride).length
+            !Object.keys(gameStatusOverride).length && !Object.keys(gamePatch).length
         ) return serverEvening
 
-        const applyStatusOverride = (g: Game): Game =>
-            gameStatusOverride[g.id] ? {...g, status: gameStatusOverride[g.id]!} : g
+        const applyGameOverrides = (g: Game): Game => {
+            const status = gameStatusOverride[g.id] ? {status: gameStatusOverride[g.id]!} : {}
+            const patch = gamePatch[g.id] ?? {}
+            return Object.keys(status).length || Object.keys(patch).length
+                ? {...g, ...patch, ...status}
+                : g
+        }
 
         return {
             ...serverEvening,
@@ -272,10 +299,10 @@ export function useActiveEvening() {
             games: [
                 ...serverEvening.games
                     .filter(g => !deletedGameIds.has(g.id))
-                    .map(applyStatusOverride),
+                    .map(applyGameOverrides),
                 ...pendingGames
                     .filter(g => !deletedGameIds.has(g.id))
-                    .map(applyStatusOverride),
+                    .map(applyGameOverrides),
             ],
         }
     }, [serverEvening, queueItems, activeEveningId])

@@ -96,12 +96,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         return [...map.entries()].sort(([a], [b]) => a - b)
     }, [penaltyTypes])
 
-    // Last 8 events mixed (penalties + drinks), newest first
+    // Last 8 events mixed (manual penalties + drinks), newest first.
+    // Exclude absence entries (player_id === null) and auto-created game loser penalties (game_id !== null).
     const recentEvents = useMemo(() => {
         if (!evening) return []
         type Event = {key: string; icon: string; label: string; time: number; id: number; type: 'penalty' | 'drink'}
         const events: Event[] = []
-        for (const p of evening.penalty_log) {
+        for (const p of evening.penalty_log.filter(p => p.player_id !== null && p.game_id === null)) {
             const count = p.amount > 1 ? ` ×${p.amount}` : ''
             events.push({
                 key: `p-${p.id}`,
@@ -269,7 +270,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 amount: 1,
                 mode: 'count',
                 unit_amount: pt.default_amount,
-                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                client_timestamp: Date.now(),
             })
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
@@ -291,7 +292,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             await api.addDrinkRound(eveningId, {
                 drink_type: type,
                 participant_ids: selectedPlayerIds,
-                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                client_timestamp: Date.now(),
             })
             invalidate()
             setSelectedPlayerIds([])
@@ -941,21 +942,25 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     key={ev.key}
                                     type="button"
                                     disabled={isDeleting}
-                                    title={isPendingItem ? t('sync.pendingItem') : undefined}
                                     className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{
                                         background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--kce-surface2)',
-                                        border: `1px solid ${isConfirming ? '#dc2626' : 'var(--kce-border)'}`,
-                                        opacity: isPendingItem ? 0.65 : 1,
+                                        border: `1px solid ${isConfirming ? '#dc2626' : isPendingItem ? 'rgba(251,191,36,0.4)' : 'var(--kce-border)'}`,
                                     }}
                                     onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
                                     onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}
                                 >
-                                    <span className="text-sm leading-none">{isConfirming ? '🗑' : isPendingItem ? '⏳' : ev.icon}</span>
+                                    <span className="text-sm leading-none">{isConfirming ? '🗑' : ev.icon}</span>
                                     <span className={`text-[10px] font-bold whitespace-nowrap ${isConfirming ? 'text-red-400' : 'text-kce-cream'}`}>
                                         {isConfirming ? '✕ löschen?' : ev.label}
                                     </span>
                                     <span className="text-[9px] text-kce-muted">{fTime(ev.time)}</span>
+                                    {isPendingItem && !isConfirming && (
+                                        <span className="text-[9px] px-1 py-0.5 rounded font-bold"
+                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                            ⏳ {t('sync.pendingBadge')}
+                                        </span>
+                                    )}
                                 </button>
                             )
                         })}

@@ -161,7 +161,7 @@ export function GamesPage() {
                 per_point_penalty: parseAmount(perPointPenalty),
                 note: gameNote.trim() || undefined,
                 sort_order: games.length,
-                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                client_timestamp: Date.now(),
             })
             // Auto-add standard teams if toggled and no teams exist yet
             if (autoAddTeams && teams.length === 0) {
