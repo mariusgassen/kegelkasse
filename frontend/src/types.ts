@@ -283,6 +283,8 @@ export interface Game {
     client_timestamp: number
     active_player_id: number | null
     throws: GameThrowLog[]
+    _pendingStart?: boolean
+    _pendingFinish?: boolean
 }
 
 export interface DrinkRound {
