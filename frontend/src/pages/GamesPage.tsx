@@ -302,8 +302,10 @@ export function GamesPage() {
                                 {game.is_opener ? '👑 ' : ''}{game.name}
                             </span>
                             {game.id < 0 && (
-                                <span className="text-[10px] text-kce-muted flex-shrink-0"
-                                      title={t('sync.pendingItem')}>⏳</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                      style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                    ⏳ {t('sync.pendingBadge')}
+                                </span>
                             )}
                             {game.status === 'running' && game.started_at && (
                                 <span

@@ -293,6 +293,7 @@ export const de = {
     "role.member": "Mitglied",
     "sync.offline": "Offline – Änderungen werden synchronisiert sobald du wieder online bist.",
     "sync.pending": "Ausstehende Änderungen",
+    "sync.pendingBadge": "Ausstehend",
     "sync.queued": "Offline gespeichert – wird synchronisiert wenn du wieder online bist.",
     "sync.flushed": "Offline-Änderungen synchronisiert.",
     "sync.flushErrors": "Einige Offline-Änderungen konnten nicht synchronisiert werden.",
