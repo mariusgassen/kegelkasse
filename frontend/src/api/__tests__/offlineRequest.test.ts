@@ -318,7 +318,7 @@ describe('request — negative game ID is queued without hitting server', () => 
         expect(mockEnqueue).toHaveBeenCalledWith(
             'POST',
             '/evening/5/games/-999999/start',
-            undefined,
+            expect.objectContaining({client_timestamp: expect.any(Number)}),
         )
     })
 })

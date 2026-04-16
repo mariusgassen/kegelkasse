@@ -707,8 +707,12 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
     return {"id": g.id, "name": g.name}
 
 
+class GameStart(BaseModel):
+    client_timestamp: Optional[int] = None  # ms since epoch; used to preserve the true offline start time
+
+
 @router.post("/{eid}/games/{gid}/start")
-def start_game(eid: int, gid: int, db: Session = Depends(get_db),
+def start_game(eid: int, gid: int, data: Optional[GameStart] = None, db: Session = Depends(get_db),
                user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
@@ -716,7 +720,11 @@ def start_game(eid: int, gid: int, db: Session = Depends(get_db),
     if g.status != "open":
         raise HTTPException(400, "Game is not in open state")
     g.status = "running"
-    g.started_at = datetime.now(UTC)
+    client_ts = data.client_timestamp if data else None
+    g.started_at = (
+        datetime.fromtimestamp(client_ts / 1000, tz=UTC)
+        if client_ts else datetime.now(UTC)
+    )
     # Clear any stale camera throws from a previous run
     db.query(GameThrowLog).filter(GameThrowLog.game_id == gid).delete()
     db.commit()
@@ -855,6 +863,7 @@ class GameFinish(BaseModel):
     winner_name: str
     scores: dict = {}
     loser_penalty: Optional[float] = None  # override game default
+    client_timestamp: Optional[int] = None  # ms since epoch; used to preserve the true offline finish time
 
 
 def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, user: User,
@@ -919,7 +928,10 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
         g.loser_penalty = data.loser_penalty
     if g.status != "finished":
         g.status = "finished"
-        g.finished_at = datetime.now(UTC)
+        g.finished_at = (
+            datetime.fromtimestamp(data.client_timestamp / 1000, tz=UTC)
+            if data.client_timestamp else datetime.now(UTC)
+        )
     _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
     # King: opener game with individual winner → set king flag
     if g.is_opener and data.winner_ref.startswith("p:"):
