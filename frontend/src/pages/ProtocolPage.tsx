@@ -63,7 +63,7 @@ interface ProtocolPageProps {
 export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const t = useT()
     const qc = useQueryClient()
-    const {evening, invalidate} = useActiveEvening()
+    const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const setPenaltyTypes = useAppStore(s => s.setPenaltyTypes)
     const regularMembers = useAppStore(s => s.regularMembers)
@@ -270,10 +270,14 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
     async function confirmDelete(lid: number) {
         try {
-            await api.deletePenalty(evening!.id, lid)
-            invalidate()
-            qc.invalidateQueries({queryKey: ['member-balances']})
-            qc.invalidateQueries({queryKey: ['guest-balances']})
+            if (lid < 0) {
+                await cancelPendingItem(lid, 'penalty')
+            } else {
+                await api.deletePenalty(evening!.id, lid)
+                invalidate()
+                qc.invalidateQueries({queryKey: ['member-balances']})
+                qc.invalidateQueries({queryKey: ['guest-balances']})
+            }
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -482,10 +486,12 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             .reduce((s, l) => s + entryEuroValue(l), 0)
                         : null
                     const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
+                    const isPendingEntry = entry.id < 0
                     return (
                         <div key={`p-${entry.id}`}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
-                            <span className="text-xl flex-shrink-0">{entry.icon}</span>
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence || isPendingEntry ? 'opacity-70' : ''}`}
+                             title={isPendingEntry ? t('sync.pendingItem') : undefined}>
+                            <span className="text-xl flex-shrink-0">{isPendingEntry ? '⏳' : entry.icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{entry.player_name}</div>
                                 <div className="text-xs text-kce-muted truncate flex items-center gap-1">
@@ -505,9 +511,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 }
                                 <div className="text-xs text-kce-muted">{fTime(entry.client_timestamp)}</div>
                             </div>
-                            <button className="btn-ghost btn-xs flex-shrink-0 text-kce-muted"
-                                    onClick={() => openEditSheet(entry)}>✏️
-                            </button>
+                            {!isPendingEntry && (
+                                <button className="btn-ghost btn-xs flex-shrink-0 text-kce-muted"
+                                        onClick={() => openEditSheet(entry)}>✏️
+                                </button>
+                            )}
                             {confirmDeleteId === entry.id ? (
                                 <div className="flex gap-1 flex-shrink-0">
                                     <button className="btn-danger btn-xs"
@@ -534,19 +542,26 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             {drinkRounds.length === 0
                 ? <Empty icon="🍺" text={t('drinks.noRounds')}/>
                 : drinkRounds.map(r => {
+                    const isPendingDrink = r.id < 0
                     const icon = r.drink_type === 'beer' ? '🍺' : '🥃'
                     const label = r.drink_type === 'beer' ? t('drinks.beer') : t('drinks.shots')
                     return (
-                        <div key={r.id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                            <span className="text-xl flex-shrink-0">{icon}</span>
+                        <div key={r.id}
+                             className={`kce-card p-3 mb-2 flex items-center gap-3${isPendingDrink ? ' opacity-70' : ''}`}
+                             title={isPendingDrink ? t('sync.pendingItem') : undefined}>
+                            <span className="text-xl flex-shrink-0">{isPendingDrink ? '⏳' : icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
                                 <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
                             </div>
                             {!evening.is_closed && (
                                 <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
-                                    await api.deleteDrinkRound(evening.id, r.id)
-                                    invalidate()
+                                    if (isPendingDrink) {
+                                        await cancelPendingItem(r.id, 'drink')
+                                    } else {
+                                        await api.deleteDrinkRound(evening.id, r.id)
+                                        invalidate()
+                                    }
                                 }}>✕</button>
                             )}
                         </div>

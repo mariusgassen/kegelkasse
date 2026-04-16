@@ -298,6 +298,7 @@ export const de = {
     "sync.flushErrors": "Einige Offline-Änderungen konnten nicht synchronisiert werden.",
     "sync.pendingEvening": "Abend offline gestartet – wird synchronisiert sobald du wieder online bist.",
     "sync.forceSync": "Jetzt synchronisieren",
+    "sync.pendingItem": "Noch nicht synchronisiert – bitte kurz warten.",
     "sync.category.evening": "Abend",
     "sync.category.evening.plural": "Abende",
     "sync.category.penalty": "Strafe",

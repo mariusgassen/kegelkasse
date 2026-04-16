@@ -32,7 +32,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function GamesPage() {
     const t = useT()
-    const {evening, invalidate} = useActiveEvening()
+    const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const gameTemplates = useAppStore(s => s.gameTemplates)
     const user = useAppStore(s => s.user)
 
@@ -243,8 +243,13 @@ export function GamesPage() {
 
     async function doDelete(gid: number) {
         try {
-            await api.deleteGame(evening!.id, gid)
-            invalidate()
+            if (gid < 0) {
+                // Pending game — cancel the queued creation instead of hitting the server
+                await cancelPendingItem(gid, 'game')
+            } else {
+                await api.deleteGame(evening!.id, gid)
+                invalidate()
+            }
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -288,7 +293,7 @@ export function GamesPage() {
             {games.length === 0
                 ? <Empty icon="🏆" text={t('game.none')}/>
                 : games.map(game => (
-                    <div key={game.id} className="kce-card p-3 mb-2">
+                    <div key={game.id} className={`kce-card p-3 mb-2${game.id < 0 ? ' opacity-70' : ''}`}>
                         {/* Header row */}
                         <div className="flex items-center gap-2 mb-2">
                             <span
@@ -296,6 +301,10 @@ export function GamesPage() {
                             <span className="text-sm font-bold flex-1 truncate">
                                 {game.is_opener ? '👑 ' : ''}{game.name}
                             </span>
+                            {game.id < 0 && (
+                                <span className="text-[10px] text-kce-muted flex-shrink-0"
+                                      title={t('sync.pendingItem')}>⏳</span>
+                            )}
                             {game.status === 'running' && game.started_at && (
                                 <span
                                     className="text-xs text-green-400 font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>

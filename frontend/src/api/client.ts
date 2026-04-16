@@ -136,11 +136,30 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
                 return {id: tempId, name, nickname: null, is_guest: isGuest, is_active: true} as T
             }
 
+            // Special case: creating a game offline — assign a tempId so the pending game
+            // appears in the UI immediately and its start/finish operations can be
+            // rewritten to the real ID on flush.
+            if (method === 'POST' && /^\/evening\/-?\d+\/games$/.test(path)) {
+                const tempId = -Date.now()
+                await offlineQueue.enqueue(method, path, body, tempId)
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+                return {id: tempId, name: (body as {name?: string})?.name ?? ''} as T
+            }
+
             await offlineQueue.enqueue(method, path, body)
             window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
             return null as T
         }
         throw new NetworkError()
+    }
+
+    // If the path references a negative (pending/temp) game ID the game hasn't been
+    // created on the server yet, so hitting the server would return 404.  Queue the
+    // operation directly — flush will rewrite the temp ID to the real one.
+    if (!_bypassQueue && /\/games\/-\d+/.test(path) && isQueuableMutation(method, path)) {
+        await offlineQueue.enqueue(method, path, body)
+        window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+        return null as T
     }
 
     let res: Response
@@ -150,6 +169,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
         })
     } catch {
         if (!_bypassQueue && isQueuableMutation(method, path)) {
+            // Game creation on network failure: assign tempId so the game is visible offline.
+            if (method === 'POST' && /^\/evening\/-?\d+\/games$/.test(path)) {
+                const tempId = -Date.now()
+                await offlineQueue.enqueue(method, path, body, tempId)
+                window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+                return {id: tempId, name: (body as {name?: string})?.name ?? ''} as T
+            }
             await offlineQueue.enqueue(method, path, body)
             window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
             // Return null so callers treat this as success (sheet closes, etc.)
@@ -690,6 +716,9 @@ export const api = {
     },
 }
 
+/** True while a flush is in progress — prevents concurrent duplicate flushes. */
+let _flushInProgress = false
+
 /**
  * Flush all queued offline mutations in timestamp order.
  *
@@ -699,75 +728,82 @@ export const api = {
  * the temp ID string are rewritten with the real ID before being sent.
  *
  * Returns the number of successfully applied changes and any errors.
+ * If another flush is already in progress, returns immediately with zeros.
  */
 export async function flushOfflineQueue(): Promise<{ applied: number; errors: number }> {
-    const queued = await offlineQueue.getAll()
-    if (queued.length === 0) return {applied: 0, errors: 0}
-
-    const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
-    let applied = 0
-    let errors = 0
-
-    // tempId (string) → realId (string) mapping built up as items are processed
-    const tempIdMap: Record<string, string> = {}
-
-    function rewrite(value: string): string {
-        let result = value
-        for (const [tempId, realId] of Object.entries(tempIdMap)) {
-            result = result.split(tempId).join(realId)
-        }
-        return result
-    }
-
-    _bypassQueue = true
+    if (_flushInProgress) return {applied: 0, errors: 0}
+    _flushInProgress = true
     try {
-        for (const item of sorted) {
-            try {
-                const resolvedPath = rewrite(item.path)
-                const resolvedBody = item.body != null
-                    ? JSON.parse(rewrite(JSON.stringify(item.body)))
-                    : item.body
+        const queued = await offlineQueue.getAll()
+        if (queued.length === 0) return {applied: 0, errors: 0}
 
-                const result = await request<unknown>(item.method, resolvedPath, resolvedBody)
+        const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
+        let applied = 0
+        let errors = 0
 
-                // If this item created a resource with a temp ID, record the mapping
-                // and notify the rest of the app so the UI can update live.
-                if (
-                    item.tempId !== undefined &&
-                    result != null &&
-                    typeof result === 'object' &&
-                    'id' in (result as object)
-                ) {
-                    const realId = (result as {id: number}).id
-                    tempIdMap[String(item.tempId)] = String(realId)
-                    window.dispatchEvent(new CustomEvent('kegelkasse:temp-id-resolved', {
-                        detail: {tempId: item.tempId, realId},
-                    }))
-                    // Clean up the pending evening record if applicable
-                    if (item.tempId < 0) {
-                        pendingStore.remove(item.tempId).catch(() => {})
-                    }
-                }
+        // tempId (string) → realId (string) mapping built up as items are processed
+        const tempIdMap: Record<string, string> = {}
 
-                if (item.id !== undefined) await offlineQueue.remove(item.id)
-                applied++
-            } catch (e) {
-                if (e instanceof NetworkError) {
-                    // Still offline — stop flushing
-                    break
-                }
-                // Server rejected (404, conflict, etc.) — discard and continue
-                if (item.id !== undefined) await offlineQueue.remove(item.id)
-                errors++
+        function rewrite(value: string): string {
+            let result = value
+            for (const [tempId, realId] of Object.entries(tempIdMap)) {
+                result = result.split(tempId).join(realId)
             }
+            return result
         }
-    } finally {
-        _bypassQueue = false
-    }
 
-    window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
-    if (applied > 0) {
-        window.dispatchEvent(new CustomEvent('kegelkasse:sync-flushed', {detail: {applied}}))
+        _bypassQueue = true
+        try {
+            for (const item of sorted) {
+                try {
+                    const resolvedPath = rewrite(item.path)
+                    const resolvedBody = item.body != null
+                        ? JSON.parse(rewrite(JSON.stringify(item.body)))
+                        : item.body
+
+                    const result = await request<unknown>(item.method, resolvedPath, resolvedBody)
+
+                    // If this item created a resource with a temp ID, record the mapping
+                    // and notify the rest of the app so the UI can update live.
+                    if (
+                        item.tempId !== undefined &&
+                        result != null &&
+                        typeof result === 'object' &&
+                        'id' in (result as object)
+                    ) {
+                        const realId = (result as {id: number}).id
+                        tempIdMap[String(item.tempId)] = String(realId)
+                        window.dispatchEvent(new CustomEvent('kegelkasse:temp-id-resolved', {
+                            detail: {tempId: item.tempId, realId},
+                        }))
+                        // Clean up the pending evening record if applicable
+                        if (item.tempId < 0) {
+                            pendingStore.remove(item.tempId).catch(() => {})
+                        }
+                    }
+
+                    if (item.id !== undefined) await offlineQueue.remove(item.id)
+                    applied++
+                } catch (e) {
+                    if (e instanceof NetworkError) {
+                        // Still offline — stop flushing
+                        break
+                    }
+                    // Server rejected (404, conflict, etc.) — discard and continue
+                    if (item.id !== undefined) await offlineQueue.remove(item.id)
+                    errors++
+                }
+            }
+        } finally {
+            _bypassQueue = false
+        }
+
+        window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+        if (applied > 0) {
+            window.dispatchEvent(new CustomEvent('kegelkasse:sync-flushed', {detail: {applied}}))
+        }
+        return {applied, errors}
+    } finally {
+        _flushInProgress = false
     }
-    return {applied, errors}
 }
