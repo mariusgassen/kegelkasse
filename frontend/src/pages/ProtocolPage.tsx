@@ -217,7 +217,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 amount: effectiveAmount,
                 mode,
                 unit_amount: mode === 'count' ? selectedPenaltyType.default_amount : undefined,
-                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                client_timestamp: Date.now(),
             })
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
@@ -245,7 +245,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 amount: effectiveAmount,
                 mode: customMode,
                 unit_amount: effectiveUnitAmount,
-                client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                client_timestamp: Date.now(),
             })
             if (saveAsTemplate) {
                 const newPt = await api.createPenaltyType({
@@ -489,11 +489,18 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     const isPendingEntry = entry.id < 0
                     return (
                         <div key={`p-${entry.id}`}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence || isPendingEntry ? 'opacity-70' : ''}`}
-                             title={isPendingEntry ? t('sync.pendingItem') : undefined}>
-                            <span className="text-xl flex-shrink-0">{isPendingEntry ? '⏳' : entry.icon}</span>
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
+                            <span className="text-xl flex-shrink-0">{entry.icon}</span>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{entry.player_name}</div>
+                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
+                                    <span className="truncate">{entry.player_name}</span>
+                                    {isPendingEntry && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                            ⏳ {t('sync.pendingBadge')}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="text-xs text-kce-muted truncate flex items-center gap-1">
                                     {entry.penalty_type_name}
                                     {entryGame && <span className="text-kce-muted">· {entryGame.name}</span>}
@@ -546,12 +553,18 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     const icon = r.drink_type === 'beer' ? '🍺' : '🥃'
                     const label = r.drink_type === 'beer' ? t('drinks.beer') : t('drinks.shots')
                     return (
-                        <div key={r.id}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3${isPendingDrink ? ' opacity-70' : ''}`}
-                             title={isPendingDrink ? t('sync.pendingItem') : undefined}>
-                            <span className="text-xl flex-shrink-0">{isPendingDrink ? '⏳' : icon}</span>
+                        <div key={r.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                            <span className="text-xl flex-shrink-0">{icon}</span>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold">{label}{r.variety ? ` · ${r.variety}` : ''}</div>
+                                <div className="text-sm font-bold flex items-center gap-1.5">
+                                    <span>{label}{r.variety ? ` · ${r.variety}` : ''}</span>
+                                    {isPendingDrink && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                            ⏳ {t('sync.pendingBadge')}
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
                             </div>
                             {!evening.is_closed && (
@@ -739,7 +752,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                         drink_type: drinkType,
                                         variety: drinkVariety || undefined,
                                         participant_ids: drinkPlayerIds as number[],
-                                        client_timestamp: Math.min(Date.now(), new Date(evening!.date).getTime()),
+                                        client_timestamp: Date.now(),
                                     })
                                     invalidate()
                                     setDrinkSheet(false)
