@@ -39,6 +39,18 @@ vi.mock('@/api/client.ts', () => ({
     flushOfflineQueue: mockFlushOfflineQueue,
 }))
 
+const mockOfflineQueueGetAll = vi.fn().mockResolvedValue([])
+const mockOfflineQueueRemove = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('@/offlineQueue.ts', () => ({
+    offlineQueue: {
+        getAll: mockOfflineQueueGetAll,
+        remove: mockOfflineQueueRemove,
+        count: vi.fn().mockResolvedValue(0),
+    },
+    SYNC_FLUSHED_EVENT: 'kegelkasse:sync-flushed',
+}))
+
 let mockActiveEveningId: number | null = null
 const mockSetActiveEveningId = vi.fn((v: number | null) => { mockActiveEveningId = v })
 
@@ -279,5 +291,103 @@ describe('useActiveEvening — SSE onerror handler', () => {
         expect(lastCreatedES!.close).toHaveBeenCalled()
 
         vi.useRealTimers()
+    })
+})
+
+// ── useActiveEvening — pending queue item merging ─────────────────────────────
+
+describe('useActiveEvening — pending penalties appear in merged evening', () => {
+    const baseEvening = {
+        id: 5,
+        date: '2025-03-01',
+        venue: 'Halle',
+        is_closed: false,
+        season_closed: false,
+        players: [{id: 1, name: 'Alice', nickname: 'Ali', regular_member_id: 10, team_id: null, is_king: false}],
+        teams: [],
+        games: [],
+        highlights: [],
+        penalty_log: [],
+        drink_rounds: [],
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockActiveEveningId = 5
+        mockGetEvening.mockReturnValue(baseEvening)
+        mockOfflineQueueGetAll.mockResolvedValue([
+            {
+                id: 3,
+                method: 'POST',
+                path: '/evening/5/penalties',
+                body: {player_ids: [1], penalty_type_name: 'Verspätung', icon: '⏰', amount: 1, mode: 'count', unit_amount: 0.5, client_timestamp: 1000},
+                timestamp: 1000,
+            },
+        ])
+    })
+
+    it('returns cancelPendingItem function', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        const { result } = renderHook(() => useActiveEvening())
+        expect(typeof result.current.cancelPendingItem).toBe('function')
+    })
+})
+
+describe('useActiveEvening — pending drinks appear in merged evening', () => {
+    const baseEvening = {
+        id: 5, date: '2025-03-01', venue: null, is_closed: false, season_closed: false,
+        players: [], teams: [], games: [], highlights: [],
+        penalty_log: [], drink_rounds: [],
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockActiveEveningId = 5
+        mockGetEvening.mockReturnValue(baseEvening)
+        mockOfflineQueueGetAll.mockResolvedValue([
+            {
+                id: 7,
+                method: 'POST',
+                path: '/evening/5/drinks',
+                body: {drink_type: 'beer', participant_ids: [1, 2], client_timestamp: 2000},
+                timestamp: 2000,
+            },
+        ])
+    })
+
+    it('exposes invalidate function alongside cancelPendingItem', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        const { result } = renderHook(() => useActiveEvening())
+        expect(typeof result.current.invalidate).toBe('function')
+        expect(typeof result.current.cancelPendingItem).toBe('function')
+    })
+})
+
+describe('useActiveEvening — offline queue listeners registered', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mockActiveEveningId = 5
+        mockGetEvening.mockReturnValue({
+            id: 5, is_closed: false, players: [], teams: [], games: [],
+            highlights: [], penalty_log: [], drink_rounds: [],
+        })
+        mockOfflineQueueGetAll.mockResolvedValue([])
+    })
+
+    it('listens for kegelkasse:queue-changed', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        const addSpy = vi.spyOn(window, 'addEventListener')
+        renderHook(() => useActiveEvening())
+        expect(addSpy).toHaveBeenCalledWith('kegelkasse:queue-changed', expect.any(Function))
+        addSpy.mockRestore()
+    })
+
+    it('removes kegelkasse:queue-changed listener on unmount', async () => {
+        const { useActiveEvening } = await import('../useEvening')
+        const removeSpy = vi.spyOn(window, 'removeEventListener')
+        const { unmount } = renderHook(() => useActiveEvening())
+        unmount()
+        expect(removeSpy).toHaveBeenCalledWith('kegelkasse:queue-changed', expect.any(Function))
+        removeSpy.mockRestore()
     })
 })

@@ -1,9 +1,18 @@
-import {useEffect, useRef} from 'react'
+import {useEffect, useRef, useMemo, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState, NetworkError, flushOfflineQueue} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {pendingStore} from '@/pendingStore.ts'
-import type {Evening} from '@/types.ts'
+import {offlineQueue, SYNC_FLUSHED_EVENT, type QueuedRequest} from '@/offlineQueue.ts'
+import type {
+    DrinkRound,
+    Evening,
+    Game,
+    GameStatus,
+    PenaltyLogEntry,
+    TurnMode,
+    WinnerType,
+} from '@/types.ts'
 
 export function useActiveEvening() {
     const activeEveningId = useAppStore(s => s.activeEveningId)
@@ -25,9 +34,44 @@ export function useActiveEvening() {
         return () => window.removeEventListener('kegelkasse:temp-id-resolved', onResolved)
     }, [activeEveningId, setActiveEveningId, qc])
 
+    // ── Offline queue items — reloaded whenever the queue changes ──────────────
+    // These are used to overlay pending mutations over the server-fetched data so
+    // that penalties, drinks, and games added while offline appear immediately.
+    const [queueItems, setQueueItems] = useState<QueuedRequest[]>([])
+
+    useEffect(() => {
+        let cancelled = false
+        async function reloadQueue() {
+            try {
+                const items = await offlineQueue.getAll()
+                if (!cancelled) setQueueItems(items)
+            } catch { /* IndexedDB unavailable */ }
+        }
+        reloadQueue()
+        window.addEventListener('kegelkasse:queue-changed', reloadQueue)
+        window.addEventListener(SYNC_FLUSHED_EVENT, reloadQueue)
+        return () => {
+            cancelled = true
+            window.removeEventListener('kegelkasse:queue-changed', reloadQueue)
+            window.removeEventListener(SYNC_FLUSHED_EVENT, reloadQueue)
+        }
+    }, [])
+
+    // After a successful sync flush, invalidate the evening query so the real
+    // server data replaces the pending overlay.
+    useEffect(() => {
+        function onFlushed() {
+            if (activeEveningId && activeEveningId > 0) {
+                qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
+            }
+        }
+        window.addEventListener(SYNC_FLUSHED_EVENT, onFlushed)
+        return () => window.removeEventListener(SYNC_FLUSHED_EVENT, onFlushed)
+    }, [activeEveningId, qc])
+
     const isPending = !!activeEveningId && activeEveningId < 0
 
-    const {data: evening, isLoading, isError, error} = useQuery({
+    const {data: serverEvening, isLoading, isError, error} = useQuery({
         queryKey: ['evening', activeEveningId],
         queryFn: async (): Promise<Evening | null> => {
             if (!activeEveningId) return null
@@ -59,6 +103,182 @@ export function useActiveEvening() {
         // Retry network errors (e.g. backend restart) but not data errors (e.g. 404)
         retry: (failureCount, err) => err instanceof NetworkError && failureCount < 4,
     })
+
+    // ── Merge pending queue mutations into the server-fetched evening ──────────
+    // This makes offline-added items (penalties, drinks, games) visible in the UI
+    // immediately while they wait to be flushed to the server.
+    const evening = useMemo((): Evening | null | undefined => {
+        if (!serverEvening || !activeEveningId) return serverEvening
+        if (queueItems.length === 0) return serverEvening
+
+        // Only consider items belonging to this specific evening
+        const eidStr = String(activeEveningId)
+        const prefix = `/evening/${eidStr}/`
+        const relevant = queueItems.filter(item => item.path.startsWith(prefix))
+        if (relevant.length === 0) return serverEvening
+
+        const deletedPenaltyIds = new Set<number>()
+        const deletedDrinkIds = new Set<number>()
+        const deletedGameIds = new Set<number>()
+        const pendingPenalties: PenaltyLogEntry[] = []
+        const pendingDrinks: DrinkRound[] = []
+        const pendingGames: Game[] = []
+        // Status overrides for pending games that have start/finish also queued
+        const gameStatusOverride: Partial<Record<number, GameStatus>> = {}
+
+        for (const item of relevant) {
+            const {method, path, body} = item
+
+            // ── DELETE operations — track which items were removed offline ──
+            if (method === 'DELETE') {
+                const penMatch = path.match(/\/penalties\/(-?\d+)$/)
+                if (penMatch) { deletedPenaltyIds.add(Number(penMatch[1])); continue }
+                const drinkMatch = path.match(/\/drinks\/(-?\d+)$/)
+                if (drinkMatch) { deletedDrinkIds.add(Number(drinkMatch[1])); continue }
+                const gameMatch = path.match(/\/games\/(-?\d+)$/)
+                if (gameMatch) { deletedGameIds.add(Number(gameMatch[1])); continue }
+            }
+
+            // ── POST operations — construct fake items from the queued body ──
+            if (method === 'POST') {
+                // Penalties
+                if (/\/penalties$/.test(path)) {
+                    const b = body as {
+                        player_ids?: number[]
+                        penalty_type_name?: string
+                        icon?: string
+                        amount?: number
+                        mode?: string
+                        unit_amount?: number
+                        client_timestamp?: number
+                    }
+                    for (let i = 0; i < (b.player_ids ?? []).length; i++) {
+                        const pid = b.player_ids![i]
+                        const player = serverEvening.players.find(p => p.id === pid)
+                        pendingPenalties.push({
+                            id: -((item.id ?? 0) * 100 + i),
+                            player_id: pid,
+                            team_id: null,
+                            player_name: player?.nickname || player?.name || '?',
+                            penalty_type_name: b.penalty_type_name ?? '',
+                            icon: b.icon ?? '',
+                            amount: b.amount ?? 1,
+                            mode: (b.mode ?? 'count') as 'euro' | 'count',
+                            unit_amount: b.unit_amount ?? null,
+                            regular_member_id: player?.regular_member_id ?? null,
+                            game_id: null,
+                            client_timestamp: b.client_timestamp ?? Date.now(),
+                        })
+                    }
+                    continue
+                }
+
+                // Drink rounds
+                if (/\/drinks$/.test(path)) {
+                    const b = body as {
+                        drink_type?: string
+                        variety?: string
+                        participant_ids?: number[]
+                        client_timestamp?: number
+                    }
+                    pendingDrinks.push({
+                        id: -(item.id ?? 0),
+                        drink_type: (b.drink_type ?? 'beer') as 'beer' | 'shots',
+                        variety: b.variety ?? null,
+                        participant_ids: b.participant_ids ?? [],
+                        client_timestamp: b.client_timestamp ?? Date.now(),
+                    })
+                    continue
+                }
+
+                // Games (only items that carried a tempId — addGame creates these)
+                if (/\/games$/.test(path) && item.tempId !== undefined) {
+                    const b = body as {
+                        name?: string
+                        template_id?: number
+                        is_opener?: boolean
+                        winner_type?: string
+                        turn_mode?: string | null
+                        loser_penalty?: number
+                        per_point_penalty?: number
+                        note?: string
+                        sort_order?: number
+                        client_timestamp?: number
+                    }
+                    pendingGames.push({
+                        id: item.tempId,
+                        name: b.name ?? '',
+                        template_id: b.template_id ?? null,
+                        is_opener: b.is_opener ?? false,
+                        winner_type: (
+                            b.winner_type === 'team' || b.winner_type === 'individual'
+                                ? b.winner_type
+                                : 'individual'
+                        ) as WinnerType,
+                        turn_mode: (b.turn_mode ?? null) as TurnMode | null,
+                        winner_ref: null,
+                        winner_name: null,
+                        scores: {},
+                        loser_penalty: b.loser_penalty ?? 0,
+                        per_point_penalty: b.per_point_penalty ?? 0,
+                        note: b.note ?? null,
+                        sort_order: b.sort_order ?? serverEvening.games.length,
+                        status: 'open',
+                        started_at: null,
+                        finished_at: null,
+                        client_timestamp: b.client_timestamp ?? Date.now(),
+                        active_player_id: null,
+                        throws: [],
+                    })
+                    continue
+                }
+
+                // Game start — update status of a pending game if also queued
+                const startMatch = path.match(/\/games\/(-?\d+)\/start$/)
+                if (startMatch) {
+                    gameStatusOverride[Number(startMatch[1])] = 'running'
+                    continue
+                }
+
+                // Game finish
+                const finishMatch = path.match(/\/games\/(-?\d+)\/finish$/)
+                if (finishMatch) {
+                    gameStatusOverride[Number(finishMatch[1])] = 'finished'
+                    continue
+                }
+            }
+        }
+
+        // Fast-exit if nothing actually changed
+        if (
+            !deletedPenaltyIds.size && !deletedDrinkIds.size && !deletedGameIds.size &&
+            !pendingPenalties.length && !pendingDrinks.length && !pendingGames.length &&
+            !Object.keys(gameStatusOverride).length
+        ) return serverEvening
+
+        const applyStatusOverride = (g: Game): Game =>
+            gameStatusOverride[g.id] ? {...g, status: gameStatusOverride[g.id]!} : g
+
+        return {
+            ...serverEvening,
+            penalty_log: [
+                ...serverEvening.penalty_log.filter(p => !deletedPenaltyIds.has(p.id)),
+                ...pendingPenalties,
+            ],
+            drink_rounds: [
+                ...serverEvening.drink_rounds.filter(d => !deletedDrinkIds.has(d.id)),
+                ...pendingDrinks,
+            ],
+            games: [
+                ...serverEvening.games
+                    .filter(g => !deletedGameIds.has(g.id))
+                    .map(applyStatusOverride),
+                ...pendingGames
+                    .filter(g => !deletedGameIds.has(g.id))
+                    .map(applyStatusOverride),
+            ],
+        }
+    }, [serverEvening, queueItems, activeEveningId])
 
     // SSE subscription — invalidates query instantly when server signals a change.
     // Auto-reconnects with exponential backoff (1s → 2s → 4s … max 30s) so users
@@ -130,7 +350,46 @@ export function useActiveEvening() {
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['evening', activeEveningId]})
 
-    return {evening, isLoading, invalidate, activeEveningId, isPending}
+    /**
+     * Cancel a pending (not-yet-synced) queue item by removing it from the offline
+     * queue rather than sending a DELETE to the server (which would 404 since the
+     * resource was never created).
+     *
+     * Fake ID encoding used by the pending-merge logic:
+     *   penalty  → -(queueItemId * 1000 + playerIndex)
+     *   drink    → -(queueItemId)
+     *   game     → item.tempId  (large negative timestamp, e.g. -1745678901234)
+     *
+     * For game cancellation all related operations (start, finish, etc.) whose path
+     * contains the temp game ID string are also removed.
+     */
+    async function cancelPendingItem(fakeId: number, type: 'penalty' | 'drink' | 'game') {
+        try {
+            if (type === 'penalty') {
+                // Recover the queue item ID from the encoded fake penalty ID
+                const queueItemId = Math.floor(Math.abs(fakeId) / 1000)
+                if (queueItemId > 0) await offlineQueue.remove(queueItemId)
+            } else if (type === 'drink') {
+                const queueItemId = Math.abs(fakeId)
+                if (queueItemId > 0) await offlineQueue.remove(queueItemId)
+            } else {
+                // Game: remove the creation item and all subsequent operations that
+                // reference this temp ID in their path (start, finish, etc.)
+                const all = await offlineQueue.getAll()
+                const tempIdStr = String(fakeId)
+                for (const item of all) {
+                    const isCreation = item.tempId === fakeId
+                    const isRelated = item.path.includes(tempIdStr)
+                    if ((isCreation || isRelated) && item.id !== undefined) {
+                        await offlineQueue.remove(item.id)
+                    }
+                }
+            }
+        } catch { /* IndexedDB unavailable */ }
+        window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
+    }
+
+    return {evening, isLoading, invalidate, activeEveningId, isPending, cancelPendingItem}
 }
 
 export function useEveningList() {

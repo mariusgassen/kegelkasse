@@ -298,6 +298,7 @@ export const en = {
     "sync.flushErrors": "Some offline changes could not be synced.",
     "sync.pendingEvening": "Evening created offline – will sync when you're back online.",
     "sync.forceSync": "Sync now",
+    "sync.pendingItem": "Not yet synced – please wait a moment.",
     "sync.category.evening": "Evening",
     "sync.category.evening.plural": "Evenings",
     "sync.category.penalty": "Penalty",

@@ -34,7 +34,7 @@ interface Props {
 export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const t = useT()
     const qc = useQueryClient()
-    const {evening, invalidate} = useActiveEvening()
+    const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const user = useAppStore(s => s.user)
 
@@ -230,6 +230,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }
 
     async function deleteRecentEvent(key: string, id: number, type: 'penalty' | 'drink') {
+        // Pending item (id < 0) — cancel the queued operation directly (no server call)
+        if (id < 0) {
+            await cancelPendingItem(id, type)
+            return
+        }
         if (deletingKey !== null) return
         if (confirmingKey !== key) {
             setConfirmingKey(key)
@@ -928,22 +933,25 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     <div className="field-label mb-1">{t('quickEntry.recent')}</div>
                     <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth: 'none'}}>
                         {recentEvents.map(ev => {
-                            const isConfirming = confirmingKey === ev.key
+                            const isPendingItem = ev.id < 0
+                            const isConfirming = !isPendingItem && confirmingKey === ev.key
                             const isDeleting = deletingKey === ev.key
                             return (
                                 <button
                                     key={ev.key}
                                     type="button"
                                     disabled={isDeleting}
+                                    title={isPendingItem ? t('sync.pendingItem') : undefined}
                                     className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{
                                         background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--kce-surface2)',
                                         border: `1px solid ${isConfirming ? '#dc2626' : 'var(--kce-border)'}`,
+                                        opacity: isPendingItem ? 0.65 : 1,
                                     }}
                                     onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
                                     onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}
                                 >
-                                    <span className="text-sm leading-none">{isConfirming ? '🗑' : ev.icon}</span>
+                                    <span className="text-sm leading-none">{isConfirming ? '🗑' : isPendingItem ? '⏳' : ev.icon}</span>
                                     <span className={`text-[10px] font-bold whitespace-nowrap ${isConfirming ? 'text-red-400' : 'text-kce-cream'}`}>
                                         {isConfirming ? '✕ löschen?' : ev.label}
                                     </span>

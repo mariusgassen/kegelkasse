@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 const mockEnqueue = vi.fn().mockResolvedValue(undefined)
 const mockGetAll = vi.fn().mockResolvedValue([])
 const mockOfflineQueueRemove = vi.fn().mockResolvedValue(undefined)
+const mockIsQueuableMutation = vi.fn()
 
 vi.mock('@/offlineQueue', () => ({
     offlineQueue: {
@@ -18,7 +19,8 @@ vi.mock('@/offlineQueue', () => ({
         remove: mockOfflineQueueRemove,
         count: vi.fn().mockResolvedValue(0),
     },
-    isQueuableMutation: vi.fn(),
+    isQueuableMutation: mockIsQueuableMutation,
+    SYNC_FLUSHED_EVENT: 'kegelkasse:sync-flushed',
 }))
 
 const mockPendingSave = vi.fn().mockResolvedValue(undefined)
@@ -230,5 +232,93 @@ describe('flushOfflineQueue — NetworkError stops loop', () => {
         expect(result.applied).toBe(0)
         // Only first item processed before break (fetch called once)
         expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+})
+
+// ── flushOfflineQueue — mutex (concurrent calls) ──────────────────────────────
+
+describe('flushOfflineQueue — mutex prevents concurrent execution', () => {
+    afterEach(() => {
+        vi.clearAllMocks()
+        mockGetAll.mockResolvedValue([])
+    })
+
+    it('second concurrent call returns {applied:0,errors:0} immediately', async () => {
+        // Make getAll hang indefinitely so the first flush stays in progress
+        let resolveGetAll!: (v: unknown[]) => void
+        mockGetAll
+            .mockReturnValueOnce(new Promise(resolve => { resolveGetAll = resolve }))
+            .mockResolvedValue([])
+
+        const { flushOfflineQueue } = await import('../client')
+
+        // Start first flush (hangs at getAll)
+        const p1 = flushOfflineQueue()
+        // Second call while first is still in progress — should return early
+        const result2 = await flushOfflineQueue()
+
+        expect(result2).toEqual({ applied: 0, errors: 0 })
+
+        // Unblock the first flush
+        resolveGetAll([])
+        await p1
+    })
+})
+
+// ── addGame offline — tempId assignment ───────────────────────────────────────
+
+describe('request — addGame offline returns fake game with tempId', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.stubGlobal('navigator', { onLine: false })
+        mockIsQueuableMutation.mockReturnValue(true)
+    })
+
+    afterEach(() => {
+        vi.stubGlobal('navigator', { onLine: true })
+    })
+
+    it('returns an object with a negative id equal to the enqueued tempId', async () => {
+        const { api } = await import('../client')
+        const result = await api.addGame(5, {name: 'Testspiel', client_timestamp: 1000})
+        expect(result).not.toBeNull()
+        expect(result.id).toBeLessThan(0)
+        expect(result.name).toBe('Testspiel')
+    })
+
+    it('enqueues the request with a tempId', async () => {
+        const { api } = await import('../client')
+        await api.addGame(5, {name: 'X', client_timestamp: 1000})
+        expect(mockEnqueue).toHaveBeenCalledWith(
+            'POST',
+            '/evening/5/games',
+            expect.any(Object),
+            expect.any(Number),
+        )
+        const calls = mockEnqueue.mock.calls
+        const enqueuedTempId = calls[calls.length - 1][3] as number
+        expect(enqueuedTempId).toBeLessThan(0)
+    })
+})
+
+// ── request — negative game ID routes to queue even when online ───────────────
+
+describe('request — negative game ID is queued without hitting server', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.stubGlobal('navigator', { onLine: true })
+        mockIsQueuableMutation.mockReturnValue(true)
+    })
+
+    it('queues start-game on a pending game without fetching', async () => {
+        const { api } = await import('../client')
+        // id < 0 means the game is pending / not yet synced
+        await api.startGame(5, -999999)
+        expect(mockFetch).not.toHaveBeenCalled()
+        expect(mockEnqueue).toHaveBeenCalledWith(
+            'POST',
+            '/evening/5/games/-999999/start',
+            undefined,
+        )
     })
 })
