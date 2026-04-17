@@ -210,20 +210,12 @@
     }
 
     .nav-btn {
-        @apply flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-kce-muted text-[9px] font-extrabold border-none bg-transparent cursor-pointer transition-all;
-    }
-
-    .nav-btn .icon {
-        @apply text-base;
-        line-height: 1;
-        height: 1.2em;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        @apply flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-kce-muted text-[10px] font-bold border-none bg-transparent cursor-pointer transition-all min-h-[44px];
     }
 
     .nav-btn.active {
-        @apply bg-kce-amber text-kce-bg;
+        color: var(--kce-primary);
+        background: color-mix(in srgb, var(--kce-primary) 12%, transparent);
     }
 
     .penalty-strip {
