@@ -556,10 +556,10 @@ describe('App — authenticated interactions', () => {
 
     it('clicking refresh button calls invalidateQueries without throwing', async () => {
         await renderApp()
-        await waitFor(() => screen.getByText('↻'))
-        fireEvent.click(screen.getByText('↻'))
+        const refreshBtn = await screen.findByRole('button', { name: /refresh/i })
+        fireEvent.click(refreshBtn)
         // Just verify no error is thrown; handleRefresh runs async
-        await waitFor(() => screen.getByText('↻'))
+        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument()
     })
 })
 

@@ -17,6 +17,18 @@ import {usePage} from './hooks/usePage'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {useNotificationStore, unreadCount} from './store/notifications'
+import {
+    Trophy,
+    Wallet,
+    CalendarDays,
+    Users,
+    BarChart2,
+    Settings,
+    RotateCw,
+    Bell,
+    WifiOff,
+    type LucideIcon,
+} from 'lucide-react'
 
 // Lazy-loaded page components to keep initial bundle small
 import {EveningHubPage} from './pages/EveningHubPage'
@@ -107,13 +119,13 @@ export function applyClubTheme(club: {
     }
 }
 
-const NAV: { id: PageId; icon: string; labelKey: string }[] = [
-    {id: 'evening', icon: '🎳', labelKey: 'nav.evening'},
-    {id: 'treasury', icon: '💰', labelKey: 'nav.treasury'},
-    {id: 'schedule', icon: '📅', labelKey: 'nav.schedule'},
-    {id: 'committee', icon: '🚌', labelKey: 'nav.committee'},
-    {id: 'stats', icon: '📊', labelKey: 'nav.stats'},
-    {id: 'club', icon: '⚙️', labelKey: 'nav.club'},
+const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
+    {id: 'evening', Icon: Trophy, labelKey: 'nav.evening'},
+    {id: 'treasury', Icon: Wallet, labelKey: 'nav.treasury'},
+    {id: 'schedule', Icon: CalendarDays, labelKey: 'nav.schedule'},
+    {id: 'committee', Icon: Users, labelKey: 'nav.committee'},
+    {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
+    {id: 'club', Icon: Settings, labelKey: 'nav.club'},
 ]
 
 export default function App() {
@@ -305,7 +317,9 @@ export default function App() {
                  style={{background: 'var(--kce-bg)'}}>
                 <AppLogoAnimated size={64}/>
                 <div className="text-center">
-                    <p className="text-kce-cream font-bold text-sm mb-1">📡 {t('error.serverDown')}</p>
+                    <p className="text-kce-cream font-bold text-sm mb-1 flex items-center justify-center gap-2">
+                        <WifiOff size={16} strokeWidth={2}/> {t('error.serverDown')}
+                    </p>
                     <p className="text-kce-muted text-xs">{t('error.network')}</p>
                 </div>
                 <button className="btn-primary px-6" onClick={() => {
@@ -349,33 +363,32 @@ export default function App() {
                     </div>
                     {activeEveningId && (
                         <button
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                            className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
                             style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)', border: '1px solid color-mix(in srgb, var(--kce-primary) 60%, transparent)'}}
                             onClick={() => setPage('config')}>
-                            🎳 {t('evening.active')}
+                            <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
                         </button>
                     )}
                     {/* Refresh button */}
                     <button
+                        aria-label="Refresh"
                         className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity"
                         style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
                         onClick={handleRefresh}
                         disabled={refreshing}>
-                        <span style={{
-                            display: 'inline-block',
-                            fontSize: 14,
+                        <RotateCw size={14} strokeWidth={2} style={{
                             transition: 'transform 0.6s ease',
                             transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)',
-                        }}>↻</span>
+                        }}/>
                     </button>
-                    {/* Notification bell — only shown when push is active or notifications exist */}
+                    {/* Notification bell */}
                     {showNotificationBell && (
                         <button
                             aria-label={t('notifications.title')}
                             className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
                             style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
                             onClick={() => setNotifOpen(true)}>
-                            <span style={{fontSize: 14, lineHeight: 1}}>🔔</span>
+                            <Bell size={14} strokeWidth={2}/>
                             {badgeCount > 0 && (
                                 <span
                                     className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
@@ -406,7 +419,7 @@ export default function App() {
                     {NAV.filter(n => n.id !== 'club' || user?.role === 'admin' || user?.role === 'superadmin').map(n => (
                         <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
                                 onClick={() => setPage(n.id)}>
-                            <span className="icon">{n.icon}</span>
+                            <n.Icon size={16} strokeWidth={page === n.id ? 2.5 : 2}/>
                             <span className="truncate max-w-full">{t(n.labelKey as any)}</span>
                         </button>
                     ))}

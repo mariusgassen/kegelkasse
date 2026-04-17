@@ -253,9 +253,11 @@ test.describe('Test push flow', () => {
         // Wait for the push preferences section to render (Test button is inside it)
         const testBtn = page.getByRole('button', { name: /^Test$/i })
         await expect(testBtn).toBeVisible({ timeout: 10_000 })
-        await testBtn.click()
 
-        await page.waitForResponse('**/push/test', { timeout: 15_000 })
+        // Register listener BEFORE clicking so a fast mock response isn't missed
+        const responsePromise = page.waitForResponse('**/push/test', { timeout: 15_000 })
+        await testBtn.click()
+        await responsePromise
         expect(testPushCalled).toBe(true)
     })
 })
