@@ -788,6 +788,7 @@ export const en = {
     "quickEntry.modeBlock": "Block",
     "quickEntry.advanceTurn": "Next",
     "quickEntry.gameScore": "Score",
+    "quickEntry.newGame": "New game",
     "comment.show": "Comments",
     "comment.collapse": "Hide comments",
     "comment.none": "No comments yet.",
