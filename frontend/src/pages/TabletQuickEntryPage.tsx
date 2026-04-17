@@ -3,8 +3,8 @@
  * Three-column layout: players | penalties | drinks (separate).
  * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
  *
- * Camera strip (top): shows live throws for the running game, with per-throw
- * void and turn-order management (alternating teams / block mode).
+ * The game zone lives inside the player column (col 1): no separate full-width strip.
+ * Admins can create a new game from within the overlay without leaving the page.
  */
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
@@ -14,7 +14,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
-import type {EveningPlayer, Game, PenaltyType, Team} from '@/types.ts'
+import type {EveningPlayer, Game, GameTemplate, PenaltyType, Team} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -36,6 +36,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const qc = useQueryClient()
     const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
+    const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
 
     // Penalty / drink state
@@ -62,6 +63,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [editPins, setEditPins] = useState(0)
     const [editCumulative, setEditCumulative] = useState<number | null>(null)
     const [savingEditId, setSavingEditId] = useState<number | null>(null)
+
+    // New-game creation (admin-only, shown when no active game)
+    const [showNewGame, setShowNewGame] = useState(false)
+    const [creatingGame, setCreatingGame] = useState(false)
 
     // Auto-advance refs — track game + throw count to detect new arrivals without false-positives
     const autoGameIdRef = useRef<number | undefined>(undefined)   // undefined = uninitialized
@@ -224,6 +229,28 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
     }
 
+    async function handleCreateGame(tmpl: GameTemplate) {
+        setCreatingGame(true)
+        try {
+            await api.addGame(eveningId, {
+                name: tmpl.name,
+                template_id: tmpl.id,
+                is_opener: tmpl.is_opener,
+                winner_type: tmpl.winner_type,
+                turn_mode: tmpl.turn_mode,
+                loser_penalty: tmpl.default_loser_penalty,
+                per_point_penalty: tmpl.per_point_penalty,
+                client_timestamp: Date.now(),
+            })
+            invalidate()
+            setShowNewGame(false)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setCreatingGame(false)
+        }
+    }
+
     function togglePlayer(id: number) {
         setSelectedPlayerIds(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -378,6 +405,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }
 
     const noSelection = selectedPlayerIds.length === 0
+    const lastThrow = liveThrows.length > 0 ? liveThrows[liveThrows.length - 1] : null
 
     // Shared button style helpers
     function penaltyBtnStyle(isFlashing: boolean) {
@@ -396,8 +424,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
     }
 
-    const lastThrow = liveThrows.length > 0 ? liveThrows[liveThrows.length - 1] : null
-
     return (
         <div style={{
             position: 'fixed',
@@ -407,7 +433,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             display: 'flex',
             flexDirection: 'column',
         }}>
-            {/* ── Header — respects top + side safe areas ── */}
+            {/* ── Header — minimal: title + close only ── */}
             <div
                 className="flex items-center gap-2 flex-shrink-0"
                 style={{
@@ -419,392 +445,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
-                <span className="font-bold text-kce-amber text-sm">⚡ {t('quickEntry.title')}</span>
-                <span className="text-xs text-kce-muted flex-1 truncate">
-                    {noSelection
-                        ? t('quickEntry.selectPlayer')
-                        : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
-                </span>
-                <button
-                    type="button"
-                    className="btn-secondary btn-xs"
-                    onClick={() => setSelectedPlayerIds(sortedPlayers.map(p => p.id))}
-                >
-                    {t('action.all')}
-                </button>
-                <button
-                    type="button"
-                    className="btn-secondary btn-xs"
-                    onClick={() => setSelectedPlayerIds([])}
-                >
-                    {t('action.none')}
-                </button>
+                <span className="font-bold text-kce-amber text-sm flex-1">⚡ {t('quickEntry.title')}</span>
                 <button type="button" className="btn-secondary btn-xs" onClick={onClose}>
                     ✕
                 </button>
             </div>
-
-            {/* ── Teams required warning ── */}
-            {teams.length === 0 && (
-                <div style={{
-                    flexShrink: 0, padding: '8px 12px',
-                    background: 'rgba(239,68,68,0.1)',
-                    borderBottom: '1px solid rgba(239,68,68,0.3)',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                    <span style={{fontSize: 12}}>⚠️</span>
-                    <span style={{fontSize: 11, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
-                </div>
-            )}
-
-            {/* ── Camera throw strip + turn order (for any active game) ── */}
-            {activeGame && (
-                <div style={{
-                    flexShrink: 0,
-                    background: 'color-mix(in srgb, var(--kce-primary) 8%, var(--kce-surface))',
-                    borderBottom: '1px solid var(--kce-border)',
-                    paddingLeft: 'max(env(safe-area-inset-left), 10px)',
-                    paddingRight: 'max(env(safe-area-inset-right), 10px)',
-                    paddingTop: 6,
-                    paddingBottom: 6,
-                }}>
-                    {/* Row 1: Turn order indicator */}
-                    <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5}}>
-                        <span style={{
-                            fontSize: 10, fontWeight: 'bold',
-                            color: 'var(--kce-primary)', flexShrink: 0,
-                        }}>
-                            🎳 {activeGame.name}
-                            {activeGame.status === 'open' && (
-                                <span style={{fontSize: 9, color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 4}}>
-                                    (offen)
-                                </span>
-                            )}
-                        </span>
-
-                        {/* Turn mode badge — read-only, set on the game */}
-                        {activeGame.turn_mode && (
-                            <span style={{
-                                fontSize: 9, padding: '1px 6px',
-                                borderRadius: 6, border: '1px solid var(--kce-border)',
-                                color: 'var(--kce-muted)', background: 'var(--kce-surface2)',
-                                flexShrink: 0,
-                            }}>
-                                {t(`game.turnMode.${activeGame.turn_mode}` as any)}
-                            </span>
-                        )}
-
-                        <div style={{flex: 1}}/>
-
-                        {/* Start game button — open games only */}
-                        {activeGame.status === 'open' && isAdmin(user) && (
-                            <button
-                                type="button"
-                                className="btn-primary btn-xs"
-                                style={{flexShrink: 0, fontSize: 10}}
-                                onClick={handleStartGame}
-                            >
-                                ▶ {t('game.start')}
-                            </button>
-                        )}
-
-                        {/* Finish game button (admin only, running games only) */}
-                        {activeGame.status === 'running' && isAdmin(user) && (
-                            <button
-                                type="button"
-                                className="btn-secondary btn-xs"
-                                style={{flexShrink: 0, fontSize: 10}}
-                                onClick={() => setFinishGameOpen(f => !f)}
-                            >
-                                🏁 {t('quickEntry.finishGame')}
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Row 2: Current player + next queue + score */}
-                    {turnOrder.length > 0 && (
-                        <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                            {/* Current player */}
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: 4,
-                                background: 'var(--kce-primary)',
-                                borderRadius: 8, padding: '3px 8px', flexShrink: 0,
-                            }}>
-                                <span style={{fontSize: 9, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
-                                <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
-                                    {currentPlayer?.name ?? '—'}
-                                </span>
-                            </div>
-
-                            {/* Next 3 in queue — always show 3 slots using modulo so cycle is visible */}
-                            {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
-                                const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
-                                return (
-                                    <span key={i} style={{
-                                        fontSize: 10, color: 'var(--kce-muted)',
-                                        background: 'var(--kce-surface2)',
-                                        borderRadius: 6, padding: '2px 6px', flexShrink: 0,
-                                        border: '1px solid var(--kce-border)',
-                                    }}>
-                                        {p.name}
-                                    </span>
-                                )
-                            })}
-
-                            <div style={{flex: 1}}/>
-
-                            {/* Block mode: switch team button */}
-                            {gameTurnMode === 'block' && teams.length >= 1 && (
-                                <button
-                                    type="button"
-                                    className="btn-primary btn-xs"
-                                    style={{fontSize: 10, flexShrink: 0}}
-                                    onClick={switchTeam}
-                                >
-                                    ⇄ {t('quickEntry.switchTeam')}
-                                    {teams.length > 1 && (
-                                        <span style={{opacity: 0.75, marginLeft: 4}}>
-                                            → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
-                                        </span>
-                                    )}
-                                </button>
-                            )}
-
-                            {/* Manual advance button */}
-                            <button
-                                type="button"
-                                className="btn-secondary btn-xs"
-                                style={{flexShrink: 0, fontSize: 10}}
-                                onClick={advanceTurn}
-                            >
-                                {t('quickEntry.advanceTurn')} ▶
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Row 3: Throw history strip + heatmap toggle */}
-                    {liveThrows.length > 0 && (
-                        <>
-                        <div style={{display: 'flex', gap: 4, overflowX: 'auto', marginTop: 5, paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
-                            {[...liveThrows].reverse().map(th => {
-                                const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
-                                const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
-                                const isEditing = editingThrowId === th.id
-                                if (isEditing) {
-                                    return (
-                                        <div key={th.id} style={{
-                                            display: 'flex', alignItems: 'center', gap: 4,
-                                            background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface2))',
-                                            borderRadius: 6, padding: '3px 6px',
-                                            flexShrink: 0,
-                                            border: '1px solid var(--kce-primary)',
-                                        }}>
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
-                                            <input
-                                                type="number" min="0" max="9"
-                                                value={editPins}
-                                                onChange={e => setEditPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
-                                                style={{
-                                                    width: 36, fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
-                                                    padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-primary)',
-                                                    color: 'var(--kce-amber)', textAlign: 'center',
-                                                }}
-                                            />
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>Σ</span>
-                                            <input
-                                                type="number" min="0"
-                                                value={editCumulative ?? ''}
-                                                placeholder="—"
-                                                onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
-                                                style={{
-                                                    width: 44, fontSize: 11, fontFamily: 'monospace',
-                                                    padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-border)',
-                                                    color: 'var(--kce-cream)', textAlign: 'center',
-                                                }}
-                                            />
-                                            <button
-                                                type="button"
-                                                disabled={savingEditId === th.id}
-                                                style={{fontSize: 11, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
-                                                onClick={() => handleSaveEdit(activeGame.id)}
-                                            >✓</button>
-                                            <button
-                                                type="button"
-                                                style={{fontSize: 10, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
-                                                onClick={cancelEdit}
-                                            >✕</button>
-                                        </div>
-                                    )
-                                }
-                                return (
-                                    <div key={th.id} style={{
-                                        display: 'flex', alignItems: 'center', gap: 3,
-                                        background: 'var(--kce-surface2)',
-                                        borderRadius: 6, padding: '2px 4px 2px 6px',
-                                        flexShrink: 0,
-                                        border: '1px solid var(--kce-border)',
-                                    }}>
-                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
-                                        {throwerName && (
-                                            <span style={{fontSize: 9, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
-                                                {throwerName}
-                                            </span>
-                                        )}
-                                        <span style={{
-                                            fontSize: 13, fontFamily: 'monospace',
-                                            fontWeight: 'bold', color: 'var(--kce-amber)',
-                                        }}>
-                                            {th.pins}
-                                        </span>
-                                        {th.cumulative !== null && (
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>
-                                                Σ{th.cumulative}
-                                            </span>
-                                        )}
-                                        {isAdmin(user) && (
-                                            <button
-                                                type="button"
-                                                style={{fontSize: 9, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
-                                                title={t('quickEntry.editThrow')}
-                                                onClick={() => startEdit(th)}
-                                            >✎</button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            disabled={voidingThrowId === th.id}
-                                            style={{
-                                                fontSize: 10, color: '#f87171',
-                                                background: 'none', border: 'none',
-                                                cursor: 'pointer', padding: '0 2px',
-                                                opacity: voidingThrowId === th.id ? 0.4 : 1,
-                                            }}
-                                            title={t('quickEntry.voidThrow')}
-                                            onClick={() => handleVoidThrow(activeGame.id, th.id)}
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                            {/* Heatmap toggle */}
-                            {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
-                                <button
-                                    type="button"
-                                    className="btn-secondary btn-xs"
-                                    style={{flexShrink: 0, fontSize: 9, marginLeft: 2}}
-                                    onClick={() => setShowHeatmap(h => !h)}
-                                >
-                                    🎯
-                                </button>
-                            )}
-                        </div>
-                        {/* Pin heatmap */}
-                        {showHeatmap && (() => {
-                            const throwsWithPins = liveThrows.filter(th => th.pin_states && th.pin_states.length === 9)
-                            const counts = Array(9).fill(0)
-                            for (const th of throwsWithPins) {
-                                for (let i = 0; i < 9; i++) {
-                                    if (th.pin_states[i]) counts[i]++
-                                }
-                            }
-                            const maxCount = Math.max(...counts, 1)
-                            // True 1-2-3-2-1 diamond positions (same as cameraEngine PIN_POSITIONS)
-                            const PIN_POS: [number, number][] = [
-                                [0.50, 0.10],
-                                [0.30, 0.30], [0.70, 0.30],
-                                [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
-                                [0.30, 0.70], [0.70, 0.70],
-                                [0.50, 0.90],
-                            ]
-                            return (
-                                <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 10}}>
-                                    <div style={{position: 'relative', width: 80, height: 70, flexShrink: 0}}>
-                                        {PIN_POS.map(([px, py], i) => {
-                                            const ratio = counts[i] / maxCount
-                                            const bg = ratio === 0
-                                                ? 'transparent'
-                                                : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
-                                            return (
-                                                <div key={i} style={{
-                                                    position: 'absolute',
-                                                    left: `${px * 100}%`, top: `${py * 100}%`,
-                                                    transform: 'translate(-50%, -50%)',
-                                                    width: 18, height: 18, borderRadius: '50%',
-                                                    background: bg,
-                                                    border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                }}>
-                                                    {counts[i] > 0 && (
-                                                        <span style={{fontSize: 7, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--kce-amber)'}}>
-                                                            {counts[i]}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                    <div style={{fontSize: 9, color: 'var(--kce-muted)'}}>
-                                        {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
-                                    </div>
-                                </div>
-                            )
-                        })()}
-                        </>
-                    )}
-
-                    {/* Finish game panel (expanded) */}
-                    {finishGameOpen && isAdmin(user) && (
-                        <div style={{
-                            marginTop: 8,
-                            padding: '10px 12px',
-                            background: 'var(--kce-surface)',
-                            borderRadius: 10,
-                            border: '1px solid var(--kce-border)',
-                        }}>
-                            <div style={{
-                                fontSize: 11, fontWeight: 'bold',
-                                color: 'var(--kce-cream)', marginBottom: 8,
-                            }}>
-                                🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
-                                {lastThrow?.cumulative != null && (
-                                    <span style={{color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 8}}>
-                                        {t('quickEntry.gameScore')}: <strong style={{color: 'var(--kce-cream)'}}>{lastThrow.cumulative}</strong>
-                                    </span>
-                                )}
-                            </div>
-                            <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
-                                {activeGame.winner_type === 'team' && evening!.teams.map(team => (
-                                    <button key={team.id} type="button"
-                                            className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
-                                            onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
-                                        {team.name}
-                                    </button>
-                                ))}
-                                {activeGame.winner_type === 'individual' && evening!.players.map(p => (
-                                    <button key={p.id} type="button"
-                                            className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
-                                            onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
-                                        {p.name}
-                                    </button>
-                                ))}
-                            </div>
-                            <div style={{display: 'flex', gap: 6}}>
-                                <button className="btn-secondary btn-sm" style={{flex: 1}}
-                                        onClick={() => { setFinishGameOpen(false); setFinishWinnerRef('') }}>
-                                    {t('action.cancel')}
-                                </button>
-                                <button className="btn-primary btn-sm" style={{flex: 1}}
-                                        disabled={!finishWinnerRef || finishSaving}
-                                        onClick={handleFinishGame}>
-                                    ✓ {t('game.finish')}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* ── Three-column body — respects side safe areas ── */}
             <div style={{
@@ -815,47 +460,484 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 paddingRight: 'env(safe-area-inset-right)',
             }}>
 
-                {/* Column 1: Players */}
-                <div
-                    className="overflow-y-auto p-2 flex flex-col gap-1"
-                    style={{width: '30%', borderRight: '1px solid var(--kce-border)', flexShrink: 0}}
-                >
-                    <div className="field-label px-1 mb-0.5">{t('penalty.who')}</div>
-                    {sortedPlayers.map(p => {
-                        const isMe = user?.regular_member_id !== null &&
-                            p.regular_member_id === user?.regular_member_id
-                        const isSelected = selectedPlayerIds.includes(p.id)
-                        const isCurrent = currentPlayer?.id === p.id
-                        return (
-                            <button
-                                key={p.id}
-                                type="button"
-                                className={`w-full text-left px-2 py-2 rounded-xl border font-bold text-xs
-                                    transition-all active:scale-95 flex items-center gap-1
-                                    ${isSelected
-                                        ? 'border-kce-amber text-kce-amber'
-                                        : isCurrent
-                                            ? 'border-kce-primary text-kce-primary'
-                                            : 'border-kce-border text-kce-cream'}
-                                `}
-                                style={{
-                                    background: isSelected
-                                        ? 'rgba(232,160,32,0.12)'
-                                        : isCurrent
-                                            ? 'color-mix(in srgb, var(--kce-primary) 12%, transparent)'
-                                            : 'var(--kce-surface2)',
-                                }}
-                                onClick={() => togglePlayer(p.id)}
-                            >
-                                {isCurrent && <span style={{fontSize: 11}}>🎳</span>}
-                                {p.is_king && <span className="text-sm">👑</span>}
-                                <span className="flex-1 truncate">{p.name}</span>
-                                {isMe && (
-                                    <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
+                {/* Column 1: Game zone + Players */}
+                <div style={{
+                    width: '30%',
+                    borderRight: '1px solid var(--kce-border)',
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 0,
+                }}>
+                    {/* ── Game zone ── */}
+                    <div style={{
+                        flexShrink: 0,
+                        background: 'color-mix(in srgb, var(--kce-primary) 8%, var(--kce-surface))',
+                        borderBottom: activeGame || isAdmin(user) ? '1px solid var(--kce-border)' : undefined,
+                    }}>
+                        {activeGame ? (
+                            <div style={{paddingLeft: 10, paddingRight: 10, paddingTop: 6, paddingBottom: 6}}>
+                                {/* Row 1: game name + start/finish buttons */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5}}>
+                                    <span style={{
+                                        fontSize: 10, fontWeight: 'bold',
+                                        color: 'var(--kce-primary)', flexShrink: 0,
+                                    }}>
+                                        🎳 {activeGame.name}
+                                        {activeGame.status === 'open' && (
+                                            <span style={{fontSize: 9, color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 4}}>
+                                                (offen)
+                                            </span>
+                                        )}
+                                    </span>
+
+                                    {/* Turn mode badge */}
+                                    {activeGame.turn_mode && (
+                                        <span style={{
+                                            fontSize: 9, padding: '1px 6px',
+                                            borderRadius: 6, border: '1px solid var(--kce-border)',
+                                            color: 'var(--kce-muted)', background: 'var(--kce-surface2)',
+                                            flexShrink: 0,
+                                        }}>
+                                            {t(`game.turnMode.${activeGame.turn_mode}` as any)}
+                                        </span>
+                                    )}
+
+                                    <div style={{flex: 1}}/>
+
+                                    {/* Start game button — open games only */}
+                                    {activeGame.status === 'open' && isAdmin(user) && (
+                                        <button
+                                            type="button"
+                                            className="btn-primary btn-xs"
+                                            style={{flexShrink: 0, fontSize: 10}}
+                                            onClick={handleStartGame}
+                                        >
+                                            ▶ {t('game.start')}
+                                        </button>
+                                    )}
+
+                                    {/* Finish game button (admin only, running games only) */}
+                                    {activeGame.status === 'running' && isAdmin(user) && (
+                                        <button
+                                            type="button"
+                                            className="btn-secondary btn-xs"
+                                            style={{flexShrink: 0, fontSize: 10}}
+                                            onClick={() => setFinishGameOpen(f => !f)}
+                                        >
+                                            🏁 {t('quickEntry.finishGame')}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Teams required warning — block mode only */}
+                                {activeGame.turn_mode === 'block' && teams.length === 0 && (
+                                    <div style={{
+                                        padding: '4px 8px', marginBottom: 5,
+                                        background: 'rgba(239,68,68,0.1)',
+                                        borderRadius: 6,
+                                        border: '1px solid rgba(239,68,68,0.3)',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                    }}>
+                                        <span style={{fontSize: 11}}>⚠️</span>
+                                        <span style={{fontSize: 10, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
+                                    </div>
                                 )}
+
+                                {/* Row 2: Current player + next queue + switch/advance */}
+                                {turnOrder.length > 0 && (
+                                    <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: liveThrows.length > 0 ? 5 : 0}}>
+                                        {/* Current player */}
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 4,
+                                            background: 'var(--kce-primary)',
+                                            borderRadius: 8, padding: '3px 8px', flexShrink: 0,
+                                        }}>
+                                            <span style={{fontSize: 9, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
+                                            <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
+                                                {currentPlayer?.name ?? '—'}
+                                            </span>
+                                        </div>
+
+                                        {/* Next 3 in queue */}
+                                        {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
+                                            const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
+                                            return (
+                                                <span key={i} style={{
+                                                    fontSize: 10, color: 'var(--kce-muted)',
+                                                    background: 'var(--kce-surface2)',
+                                                    borderRadius: 6, padding: '2px 6px', flexShrink: 0,
+                                                    border: '1px solid var(--kce-border)',
+                                                }}>
+                                                    {p.name}
+                                                </span>
+                                            )
+                                        })}
+
+                                        <div style={{flex: 1}}/>
+
+                                        {/* Block mode: switch team button */}
+                                        {gameTurnMode === 'block' && teams.length >= 1 && (
+                                            <button
+                                                type="button"
+                                                className="btn-primary btn-xs"
+                                                style={{fontSize: 10, flexShrink: 0}}
+                                                onClick={switchTeam}
+                                            >
+                                                ⇄ {t('quickEntry.switchTeam')}
+                                                {teams.length > 1 && (
+                                                    <span style={{opacity: 0.75, marginLeft: 4}}>
+                                                        → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )}
+
+                                        {/* Manual advance button */}
+                                        <button
+                                            type="button"
+                                            className="btn-secondary btn-xs"
+                                            style={{flexShrink: 0, fontSize: 10}}
+                                            onClick={advanceTurn}
+                                        >
+                                            {t('quickEntry.advanceTurn')} ▶
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Row 3: Throw history strip + heatmap toggle */}
+                                {liveThrows.length > 0 && (
+                                    <>
+                                    <div style={{display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
+                                        {[...liveThrows].reverse().map(th => {
+                                            const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
+                                            const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
+                                            const isEditing = editingThrowId === th.id
+                                            if (isEditing) {
+                                                return (
+                                                    <div key={th.id} style={{
+                                                        display: 'flex', alignItems: 'center', gap: 4,
+                                                        background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface2))',
+                                                        borderRadius: 6, padding: '3px 6px',
+                                                        flexShrink: 0,
+                                                        border: '1px solid var(--kce-primary)',
+                                                    }}>
+                                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                                        <input
+                                                            type="number" min="0" max="9"
+                                                            value={editPins}
+                                                            onChange={e => setEditPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
+                                                            style={{
+                                                                width: 36, fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
+                                                                padding: '1px 4px', borderRadius: 4,
+                                                                background: 'var(--kce-surface)', border: '1px solid var(--kce-primary)',
+                                                                color: 'var(--kce-amber)', textAlign: 'center',
+                                                            }}
+                                                        />
+                                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>Σ</span>
+                                                        <input
+                                                            type="number" min="0"
+                                                            value={editCumulative ?? ''}
+                                                            placeholder="—"
+                                                            onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
+                                                            style={{
+                                                                width: 44, fontSize: 11, fontFamily: 'monospace',
+                                                                padding: '1px 4px', borderRadius: 4,
+                                                                background: 'var(--kce-surface)', border: '1px solid var(--kce-border)',
+                                                                color: 'var(--kce-cream)', textAlign: 'center',
+                                                            }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            disabled={savingEditId === th.id}
+                                                            style={{fontSize: 11, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                            onClick={() => handleSaveEdit(activeGame.id)}
+                                                        >✓</button>
+                                                        <button
+                                                            type="button"
+                                                            style={{fontSize: 10, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                            onClick={cancelEdit}
+                                                        >✕</button>
+                                                    </div>
+                                                )
+                                            }
+                                            return (
+                                                <div key={th.id} style={{
+                                                    display: 'flex', alignItems: 'center', gap: 3,
+                                                    background: 'var(--kce-surface2)',
+                                                    borderRadius: 6, padding: '2px 4px 2px 6px',
+                                                    flexShrink: 0,
+                                                    border: '1px solid var(--kce-border)',
+                                                }}>
+                                                    <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                                    {throwerName && (
+                                                        <span style={{fontSize: 9, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
+                                                            {throwerName}
+                                                        </span>
+                                                    )}
+                                                    <span style={{
+                                                        fontSize: 13, fontFamily: 'monospace',
+                                                        fontWeight: 'bold', color: 'var(--kce-amber)',
+                                                    }}>
+                                                        {th.pins}
+                                                    </span>
+                                                    {th.cumulative !== null && (
+                                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                                            Σ{th.cumulative}
+                                                        </span>
+                                                    )}
+                                                    {isAdmin(user) && (
+                                                        <button
+                                                            type="button"
+                                                            style={{fontSize: 9, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                            title={t('quickEntry.editThrow')}
+                                                            onClick={() => startEdit(th)}
+                                                        >✎</button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        disabled={voidingThrowId === th.id}
+                                                        style={{
+                                                            fontSize: 10, color: '#f87171',
+                                                            background: 'none', border: 'none',
+                                                            cursor: 'pointer', padding: '0 2px',
+                                                            opacity: voidingThrowId === th.id ? 0.4 : 1,
+                                                        }}
+                                                        title={t('quickEntry.voidThrow')}
+                                                        onClick={() => handleVoidThrow(activeGame.id, th.id)}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                        {/* Heatmap toggle */}
+                                        {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
+                                            <button
+                                                type="button"
+                                                className="btn-secondary btn-xs"
+                                                style={{flexShrink: 0, fontSize: 9, marginLeft: 2}}
+                                                onClick={() => setShowHeatmap(h => !h)}
+                                            >
+                                                🎯
+                                            </button>
+                                        )}
+                                    </div>
+                                    {/* Pin heatmap */}
+                                    {showHeatmap && (() => {
+                                        const throwsWithPins = liveThrows.filter(th => th.pin_states && th.pin_states.length === 9)
+                                        const counts = Array(9).fill(0)
+                                        for (const th of throwsWithPins) {
+                                            for (let i = 0; i < 9; i++) {
+                                                if (th.pin_states[i]) counts[i]++
+                                            }
+                                        }
+                                        const maxCount = Math.max(...counts, 1)
+                                        // True 1-2-3-2-1 diamond positions (same as cameraEngine PIN_POSITIONS)
+                                        const PIN_POS: [number, number][] = [
+                                            [0.50, 0.10],
+                                            [0.30, 0.30], [0.70, 0.30],
+                                            [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
+                                            [0.30, 0.70], [0.70, 0.70],
+                                            [0.50, 0.90],
+                                        ]
+                                        return (
+                                            <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 10}}>
+                                                <div style={{position: 'relative', width: 80, height: 70, flexShrink: 0}}>
+                                                    {PIN_POS.map(([px, py], i) => {
+                                                        const ratio = counts[i] / maxCount
+                                                        const bg = ratio === 0
+                                                            ? 'transparent'
+                                                            : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
+                                                        return (
+                                                            <div key={i} style={{
+                                                                position: 'absolute',
+                                                                left: `${px * 100}%`, top: `${py * 100}%`,
+                                                                transform: 'translate(-50%, -50%)',
+                                                                width: 18, height: 18, borderRadius: '50%',
+                                                                background: bg,
+                                                                border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            }}>
+                                                                {counts[i] > 0 && (
+                                                                    <span style={{fontSize: 7, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--kce-amber)'}}>
+                                                                        {counts[i]}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                                <div style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                                    {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
+                                                </div>
+                                            </div>
+                                        )
+                                    })()}
+                                    </>
+                                )}
+
+                                {/* Finish game panel (expanded) */}
+                                {finishGameOpen && isAdmin(user) && (
+                                    <div style={{
+                                        marginTop: 8,
+                                        padding: '10px 12px',
+                                        background: 'var(--kce-surface)',
+                                        borderRadius: 10,
+                                        border: '1px solid var(--kce-border)',
+                                    }}>
+                                        <div style={{
+                                            fontSize: 11, fontWeight: 'bold',
+                                            color: 'var(--kce-cream)', marginBottom: 8,
+                                        }}>
+                                            🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
+                                            {lastThrow?.cumulative != null && (
+                                                <span style={{color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 8}}>
+                                                    {t('quickEntry.gameScore')}: <strong style={{color: 'var(--kce-cream)'}}>{lastThrow.cumulative}</strong>
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
+                                            {activeGame.winner_type === 'team' && evening!.teams.map(team => (
+                                                <button key={team.id} type="button"
+                                                        className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
+                                                        onClick={() => setFinishWinnerRef(`t:${team.id}`)}>
+                                                    {team.name}
+                                                </button>
+                                            ))}
+                                            {activeGame.winner_type === 'individual' && evening!.players.map(p => (
+                                                <button key={p.id} type="button"
+                                                        className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
+                                                        onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
+                                                    {p.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div style={{display: 'flex', gap: 6}}>
+                                            <button className="btn-secondary btn-sm" style={{flex: 1}}
+                                                    onClick={() => { setFinishGameOpen(false); setFinishWinnerRef('') }}>
+                                                {t('action.cancel')}
+                                            </button>
+                                            <button className="btn-primary btn-sm" style={{flex: 1}}
+                                                    disabled={!finishWinnerRef || finishSaving}
+                                                    onClick={handleFinishGame}>
+                                                ✓ {t('game.finish')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : isAdmin(user) ? (
+                            /* No active game — admin can create one */
+                            <div>
+                                {!showNewGame ? (
+                                    <button
+                                        type="button"
+                                        className="btn-secondary btn-xs"
+                                        style={{margin: '6px 10px'}}
+                                        onClick={() => setShowNewGame(true)}
+                                    >
+                                        ＋ {t('quickEntry.newGame')}
+                                    </button>
+                                ) : (
+                                    <div style={{padding: '6px 10px'}}>
+                                        <div className="field-label mb-1">{t('club.gameTemplates')}</div>
+                                        <div style={{display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6}}>
+                                            {gameTemplates.map(tmpl => (
+                                                <button
+                                                    key={tmpl.id}
+                                                    type="button"
+                                                    className="chip"
+                                                    disabled={creatingGame}
+                                                    onClick={() => handleCreateGame(tmpl)}
+                                                >
+                                                    {tmpl.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn-secondary btn-xs"
+                                            onClick={() => setShowNewGame(false)}
+                                        >
+                                            {t('action.cancel')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {/* ── Player list ── */}
+                    <div style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        padding: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                    }}>
+                        {/* Header row: label + selection status + All/None */}
+                        <div style={{display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2}}>
+                            <span className="field-label">{t('penalty.who')}</span>
+                            <span style={{flex: 1, fontSize: 10, color: 'var(--kce-muted)', textAlign: 'center'}}>
+                                {noSelection
+                                    ? t('quickEntry.selectPlayer')
+                                    : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
+                            </span>
+                            <button
+                                type="button"
+                                className="btn-secondary btn-xs"
+                                onClick={() => setSelectedPlayerIds(sortedPlayers.map(p => p.id))}
+                            >
+                                {t('action.all')}
                             </button>
-                        )
-                    })}
+                            <button
+                                type="button"
+                                className="btn-secondary btn-xs"
+                                onClick={() => setSelectedPlayerIds([])}
+                            >
+                                {t('action.none')}
+                            </button>
+                        </div>
+
+                        {/* Player buttons */}
+                        {sortedPlayers.map(p => {
+                            const isMe = user?.regular_member_id !== null &&
+                                p.regular_member_id === user?.regular_member_id
+                            const isSelected = selectedPlayerIds.includes(p.id)
+                            const isCurrent = currentPlayer?.id === p.id
+                            return (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    className={`w-full text-left px-2 py-2 rounded-xl border font-bold text-xs
+                                        transition-all active:scale-95 flex items-center gap-1
+                                        ${isSelected
+                                            ? 'border-kce-amber text-kce-amber'
+                                            : isCurrent
+                                                ? 'border-kce-primary text-kce-primary'
+                                                : 'border-kce-border text-kce-cream'}
+                                    `}
+                                    style={{
+                                        background: isSelected
+                                            ? 'rgba(232,160,32,0.12)'
+                                            : isCurrent
+                                                ? 'color-mix(in srgb, var(--kce-primary) 12%, transparent)'
+                                                : 'var(--kce-surface2)',
+                                    }}
+                                    onClick={() => togglePlayer(p.id)}
+                                >
+                                    {isCurrent && <span style={{fontSize: 11}}>🎳</span>}
+                                    {p.is_king && <span className="text-sm">👑</span>}
+                                    <span className="flex-1 truncate">{p.name}</span>
+                                    {isMe && (
+                                        <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
+                                    )}
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
 
                 {/* Column 2: Penalties */}
