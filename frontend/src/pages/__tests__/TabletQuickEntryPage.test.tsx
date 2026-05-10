@@ -19,6 +19,8 @@ vi.mock('@/store/app.ts', () => ({
         const store = {
             user: null,
             penaltyTypes: [],
+            regularMembers: [],
+            guestPenaltyCap: null,
         }
         return sel ? sel(store) : store
     }),
@@ -114,7 +116,7 @@ describe('TabletQuickEntryPage — basic rendering', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
     })
@@ -138,8 +140,9 @@ describe('TabletQuickEntryPage — basic rendering', () => {
 
     it('shows player list with names', async () => {
         await renderTabletQuickEntry()
-        expect(screen.getByText('Admin')).toBeInTheDocument()
-        expect(screen.getByText('Hansi')).toBeInTheDocument()
+        // Names appear in both column 1 (selection) and column 3 (overview)
+        expect(screen.getAllByText('Admin').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('Hansi').length).toBeGreaterThanOrEqual(1)
     })
 
     it('shows penalty type buttons', async () => {
@@ -149,10 +152,10 @@ describe('TabletQuickEntryPage — basic rendering', () => {
         expect(screen.getByText(/⚠️ Strafe/)).toBeInTheDocument()
     })
 
-    it('shows beer drink button', async () => {
+    it('shows drink-round CTA in header', async () => {
         await renderTabletQuickEntry()
-        // Drink buttons use title attribute, content is just emoji
-        expect(screen.getByTitle('drinks.beer')).toBeInTheDocument()
+        // The "🍺 Runde" header button uses aria-label = quickEntry.drinkRound
+        expect(screen.getByLabelText('quickEntry.drinkRound')).toBeInTheDocument()
     })
 })
 
@@ -167,15 +170,15 @@ describe('TabletQuickEntryPage — player selection', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
     })
 
     it('shows selected count when player is selected', async () => {
         await renderTabletQuickEntry()
-        // Click on first player
-        fireEvent.click(screen.getByText('Admin'))
+        // Click first 'Admin' = the column-1 selection button
+        fireEvent.click(screen.getAllByText('Admin')[0])
         await waitFor(() => {
             expect(screen.getByText(/quickEntry\.selected/)).toBeInTheDocument()
         })
@@ -184,11 +187,12 @@ describe('TabletQuickEntryPage — player selection', () => {
     it('shows Ich badge for current user', async () => {
         const { useAppStore } = await import('@/store/app.ts')
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         await renderTabletQuickEntry()
-        expect(screen.getByText('Ich')).toBeInTheDocument()
+        // Ich badge appears in both selection column and overview column
+        expect(screen.getAllByText('Ich').length).toBeGreaterThanOrEqual(1)
     })
 })
 
@@ -214,7 +218,7 @@ describe('TabletQuickEntryPage — running game', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)  // admin to see finish game button
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -253,7 +257,7 @@ describe('TabletQuickEntryPage — recent log entries', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
     })
@@ -279,7 +283,7 @@ describe('TabletQuickEntryPage — penalty logging', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -289,8 +293,8 @@ describe('TabletQuickEntryPage — penalty logging', () => {
     it('calls api.addPenalty when player selected and penalty button clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        // Select a player
-        fireEvent.click(screen.getByText('Admin'))
+        // Select a player (first match = column 1 selection button)
+        fireEvent.click(screen.getAllByText('Admin')[0])
         // Click penalty button (🍺 Bier)
         await waitFor(() => {
             fireEvent.click(screen.getByText(/🍺 Bier/))
@@ -315,7 +319,7 @@ describe('TabletQuickEntryPage — penalty logging', () => {
 
     it('deselects all players after successful penalty log', async () => {
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByText('Admin'))
+        fireEvent.click(screen.getAllByText('Admin')[0])
         await waitFor(() => expect(screen.getByText(/1 quickEntry\.selected/)).toBeInTheDocument())
         fireEvent.click(screen.getByText(/🍺 Bier/))
         await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
@@ -324,8 +328,8 @@ describe('TabletQuickEntryPage — penalty logging', () => {
     it('calls api.addPenalty with multiple player ids when multiple selected', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByText('Admin'))
-        fireEvent.click(screen.getByText('Hansi'))
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        fireEvent.click(screen.getAllByText('Hansi')[0])
         await waitFor(() => {
             fireEvent.click(screen.getByText(/🍺 Bier/))
         })
@@ -341,7 +345,7 @@ describe('TabletQuickEntryPage — penalty logging', () => {
 // Drink logging
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('TabletQuickEntryPage — drink logging', () => {
+describe('TabletQuickEntryPage — drink logging (sheet flow)', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
@@ -352,18 +356,34 @@ describe('TabletQuickEntryPage — drink logging', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.addDrinkRound).mockResolvedValue({} as any)
     })
 
-    it('calls api.addDrinkRound beer when player selected and beer button clicked', async () => {
+    it('opens drink sheet when CTA clicked', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
+        await waitFor(() => {
+            expect(screen.getByText('quickEntry.pickDrink')).toBeInTheDocument()
+            expect(screen.getByText('quickEntry.pickParticipants')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.addDrinkRound with beer + selected participants on submit', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByText('Admin'))
-        fireEvent.click(screen.getByTitle('drinks.beer'))
+        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
+        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
+        // Pick beer (default) and toggle Admin in sheet (sheet renders its own player list)
+        const adminMatches = screen.getAllByText('Admin')
+        // Sheet button is the last one (rendered last in DOM after column 1)
+        fireEvent.click(adminMatches[adminMatches.length - 1])
+        // Submit — drinks.add button is the primary submit
+        const submitBtns = screen.getAllByText(/drinks\.add/)
+        fireEvent.click(submitBtns[submitBtns.length - 1])
         await waitFor(() => {
             expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({
                 drink_type: 'beer',
@@ -372,11 +392,18 @@ describe('TabletQuickEntryPage — drink logging', () => {
         })
     })
 
-    it('calls api.addDrinkRound shots when player selected and shots button clicked', async () => {
+    it('calls api.addDrinkRound with shots when shots toggle picked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByText('Admin'))
-        fireEvent.click(screen.getByTitle('drinks.shots'))
+        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
+        await waitFor(() => screen.getByText('quickEntry.pickDrink'))
+        // Pick shots — its label "drinks.shots" appears as the toggle button text
+        fireEvent.click(screen.getByText('drinks.shots'))
+        // Toggle Admin participant (last 'Admin' match = sheet button)
+        const adminMatches = screen.getAllByText('Admin')
+        fireEvent.click(adminMatches[adminMatches.length - 1])
+        const submitBtns = screen.getAllByText(/drinks\.add/)
+        fireEvent.click(submitBtns[submitBtns.length - 1])
         await waitFor(() => {
             expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({
                 drink_type: 'shots',
@@ -385,19 +412,138 @@ describe('TabletQuickEntryPage — drink logging', () => {
         })
     })
 
-    it('does not call api.addDrinkRound when no player selected', async () => {
+    it('does not call api.addDrinkRound when no participants picked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByTitle('drinks.beer'))
+        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
+        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
+        // Submit without picking anyone — submit button is disabled
+        const submitBtns = screen.getAllByText(/drinks\.add/)
+        const submit = submitBtns[submitBtns.length - 1].closest('button') as HTMLButtonElement
+        expect(submit.disabled).toBe(true)
+        fireEvent.click(submit)
         await waitFor(() => expect(api.addDrinkRound).not.toHaveBeenCalled())
     })
 
-    it('deselects all players after successful drink log', async () => {
+    it('pre-fills participants from current player selection when CTA opened', async () => {
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByText('Admin'))
-        await waitFor(() => expect(screen.getByText(/1 quickEntry\.selected/)).toBeInTheDocument())
-        fireEvent.click(screen.getByTitle('drinks.beer'))
-        await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
+        // Select Admin in column 1 first (first 'Admin' = column 1 selection button)
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        // Open sheet — should pre-fill participants with [10]
+        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
+        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
+        // Submit count should be (1) — verify by looking for the button label
+        const submitBtns = screen.getAllByText(/drinks\.add/)
+        const lastBtn = submitBtns[submitBtns.length - 1].closest('button')!
+        expect(lastBtn.textContent).toContain('(1)')
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-player overview column
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('TabletQuickEntryPage — overview column', () => {
+    const EVENING_WITH_PENALTIES = {
+        ...ACTIVE_EVENING,
+        penalty_log: [
+            // Admin: 2× Bier (1.00) + 3× Strafe (0.50) → 2.00 + 1.50 = 3.50
+            { id: 1, player_id: 10, player_name: 'Admin', penalty_type_name: 'Bier',
+              icon: '🍺', amount: 2, mode: 'count', unit_amount: 1.00,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+            { id: 2, player_id: 10, player_name: 'Admin', penalty_type_name: 'Strafe',
+              icon: '⚠️', amount: 3, mode: 'count', unit_amount: 0.50,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+            // Hansi: 1× Bier (1.00) → 1.00
+            { id: 3, player_id: 11, player_name: 'Hansi', penalty_type_name: 'Bier',
+              icon: '🍺', amount: 1, mode: 'count', unit_amount: 1.00,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+        ],
+        drink_rounds: [
+            { id: 1, drink_type: 'beer', participant_ids: [10, 11], client_timestamp: Date.now() },
+            { id: 2, drink_type: 'shots', participant_ids: [10], client_timestamp: Date.now() },
+        ],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: EVENING_WITH_PENALTIES as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+    })
+
+    it('renders overview column heading', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('quickEntry.overview')).toBeInTheDocument()
+    })
+
+    it('renders per-player penalty totals (count-mode + euro-mode), euro-formatted', async () => {
+        await renderTabletQuickEntry()
+        // Admin: 3.50 € — unique to overview (no penalty group has 3.50)
+        expect(screen.getByText(/3,50/)).toBeInTheDocument()
+        // Hansi: 1.00 € — appears as penalty group label too, so check ≥ 2 occurrences
+        expect(screen.getAllByText(/1,00/).length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('renders grand total of all penalties', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('quickEntry.totalPenalty')).toBeInTheDocument()
+        // Total = 3.50 + 1.00 = 4.50
+        expect(screen.getByText(/4,50/)).toBeInTheDocument()
+    })
+
+    it('shows drink counts per player when drink rounds exist', async () => {
+        await renderTabletQuickEntry()
+        // Admin: 1 beer + 1 shot → "🍺 1" and "🥃 1" should appear
+        expect(screen.getByText(/🥃 1/)).toBeInTheDocument()
+        // Two players have "🍺 1" (Admin + Hansi participated in beer round)
+        expect(screen.getAllByText(/🍺 1/).length).toBeGreaterThanOrEqual(2)
+    })
+})
+
+describe('TabletQuickEntryPage — overview column with running game', () => {
+    const RUNNING_GAME_WITH_THROWS = {
+        id: 1, name: 'Hauptspiel', status: 'running', is_opener: true,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 2.00,
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: 'alternating',
+        started_at: '2026-01-10T20:30:00', finished_at: null,
+        note: '', is_deleted: false, game_players: [],
+        active_player_id: null,
+        throws: [
+            { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
+            { id: 2, throw_num: 2, pins: 5, cumulative: 12, pin_states: Array(9).fill(false), player_id: 10 },
+        ],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [RUNNING_GAME_WITH_THROWS] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.setActivePlayer).mockResolvedValue(undefined as any)
+    })
+
+    it('shows current cumulative score for player with throws', async () => {
+        await renderTabletQuickEntry()
+        // Admin (player_id 10) → cumulative 12 from last throw
+        expect(screen.getByText(/🎳 12/)).toBeInTheDocument()
     })
 })
 
@@ -416,7 +562,7 @@ describe('TabletQuickEntryPage — select all / none', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
     })
@@ -464,7 +610,7 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -568,7 +714,7 @@ describe('TabletQuickEntryPage — new game auto-start', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [GAME_TEMPLATE] }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [GAME_TEMPLATE], regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -621,7 +767,7 @@ describe('TabletQuickEntryPage — throw strip', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -682,7 +828,7 @@ describe('TabletQuickEntryPage — recent event deletion', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: null, penaltyTypes: PENALTY_TYPES }
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
@@ -747,7 +893,7 @@ describe('TabletQuickEntryPage — start game', () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')

@@ -1,8 +1,9 @@
 /**
- * Quick Entry overlay — fullscreen panel for fast penalty & drink logging.
+ * Quick Entry overlay — fullscreen panel for fast penalty logging.
  * Sticky header carries the full game zone (identity, turn order, throw strip,
- * finish/new-game drawers) so col 1 only needs to hold the player picker.
- * Body below is three columns: players | penalties | drinks.
+ * finish/new-game drawers) plus a "Runde" CTA for drink rounds.
+ * Body below is three columns: players (selection) | penalties | per-player overview.
+ * Drink rounds are entered via a bottom sheet (drink-first flow: pick beer/shots, then participants).
  * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
  */
 import {useEffect, useMemo, useRef, useState} from 'react'
@@ -13,7 +14,8 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
-import type {EveningPlayer, Game, GameTemplate, PenaltyType, Team} from '@/types.ts'
+import {Sheet} from '@/components/ui/Sheet.tsx'
+import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -37,6 +39,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
+    const regularMembers = useAppStore(s => s.regularMembers)
+    const guestPenaltyCap = useAppStore(s => s.guestPenaltyCap)
 
     // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
@@ -46,6 +50,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [loadingDrink, setLoadingDrink] = useState<'beer' | 'shots' | null>(null)
     const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
     const [deletingKey, setDeletingKey] = useState<string | null>(null)
+
+    // Drink round sheet (drink-first flow: pick beer/shots → multi-select participants)
+    const [drinkSheetOpen, setDrinkSheetOpen] = useState(false)
+    const [drinkSheetType, setDrinkSheetType] = useState<'beer' | 'shots'>('beer')
+    const [drinkSheetParticipantIds, setDrinkSheetParticipantIds] = useState<number[]>([])
 
     // Turn order state (mode comes from the game's turn_mode field)
     const [blockTeamIdx, setBlockTeamIdx] = useState(0)
@@ -101,6 +110,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         return [...map.entries()].sort(([a], [b]) => a - b)
     }, [penaltyTypes])
 
+    // Per-entry euro value (matches ProtocolPage logic so totals stay consistent across views)
+    const entryEuroValue = (l: PenaltyLogEntry): number => {
+        if (l.mode === 'euro') return l.amount
+        if (l.unit_amount != null) return l.amount * l.unit_amount
+        const pt = penaltyTypes.find(pt => pt.name === l.penalty_type_name)
+        return pt ? l.amount * pt.default_amount : 0
+    }
+
     // Last 8 events mixed (manual penalties + drinks), newest first.
     // Exclude absence entries (player_id === null) and auto-created game loser penalties (game_id !== null).
     const recentEvents = useMemo(() => {
@@ -136,6 +153,61 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const activeGame: Game | undefined = useMemo(() =>
         evening?.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted),
         [evening])
+
+    // Per-player overview for the right column (penalty € total, current game score, drink counts).
+    // Reuses ProtocolPage aggregation pattern; guest cap applied per player.
+    const playerOverview = useMemo(() => {
+        if (!evening) return new Map<number, {penaltyEuro: number; gameScore: number | null; beerCount: number; shotsCount: number}>()
+        const map = new Map<number, {penaltyEuro: number; gameScore: number | null; beerCount: number; shotsCount: number}>()
+        for (const p of players) {
+            map.set(p.id, {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0})
+        }
+        // Penalty totals (uncapped first)
+        for (const l of evening.penalty_log) {
+            if (l.player_id == null) continue
+            const cur = map.get(l.player_id)
+            if (!cur) continue
+            cur.penaltyEuro += entryEuroValue(l)
+        }
+        // Apply guest cap
+        if (guestPenaltyCap != null) {
+            for (const [pid, agg] of map) {
+                const player = players.find(p => p.id === pid)
+                const member = regularMembers.find(m => m.id === player?.regular_member_id)
+                if (member?.is_guest) {
+                    agg.penaltyEuro = Math.min(agg.penaltyEuro, guestPenaltyCap)
+                }
+            }
+        }
+        // Drink rounds
+        for (const r of evening.drink_rounds) {
+            for (const pid of r.participant_ids) {
+                const cur = map.get(pid)
+                if (!cur) continue
+                if (r.drink_type === 'beer') cur.beerCount += 1
+                else cur.shotsCount += 1
+            }
+        }
+        // Current game score per player (last cumulative on their throws, fallback to sum of pins)
+        const game = evening.games.find(g => (g.status === 'running' || g.status === 'open') && !(g as any).is_deleted)
+        if (game?.status === 'running') {
+            for (const p of players) {
+                const myThrows = game.throws.filter(th => th.player_id === p.id)
+                if (myThrows.length === 0) continue
+                const last = myThrows[myThrows.length - 1]
+                const cur = map.get(p.id)!
+                cur.gameScore = last.cumulative ?? myThrows.reduce((s, th) => s + th.pins, 0)
+            }
+        }
+        return map
+        // entryEuroValue is closure over penaltyTypes so penaltyTypes covers it
+    }, [evening, players, penaltyTypes, regularMembers, guestPenaltyCap])
+
+    const overviewTotalEuro = useMemo(() => {
+        let s = 0
+        for (const v of playerOverview.values()) s += v.penaltyEuro
+        return s
+    }, [playerOverview])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
 
@@ -313,17 +385,32 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
     }
 
-    async function logDrink(type: 'beer' | 'shots') {
-        if (selectedPlayerIds.length === 0 || loadingDrink !== null) return
+    function openDrinkSheet() {
+        // Pre-fill participants from current player selection (if any), otherwise empty
+        setDrinkSheetParticipantIds(selectedPlayerIds.length > 0 ? [...selectedPlayerIds] : [])
+        setDrinkSheetType('beer')
+        setDrinkSheetOpen(true)
+    }
+
+    function toggleDrinkParticipant(id: number) {
+        setDrinkSheetParticipantIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        )
+    }
+
+    async function submitDrinkRound() {
+        if (drinkSheetParticipantIds.length === 0 || loadingDrink !== null) return
+        const type = drinkSheetType
         setLoadingDrink(type)
         try {
             await api.addDrinkRound(eveningId, {
                 drink_type: type,
-                participant_ids: selectedPlayerIds,
+                participant_ids: drinkSheetParticipantIds,
                 client_timestamp: Date.now(),
             })
             invalidate()
-            setSelectedPlayerIds([])
+            setDrinkSheetOpen(false)
+            setDrinkSheetParticipantIds([])
             setFlashingDrink(type)
             setTimeout(() => setFlashingDrink(null), 800)
         } catch (e: unknown) {
@@ -425,14 +512,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
     }
 
-    function drinkBtnStyle(isFlashing: boolean) {
-        return {
-            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--kce-surface2)',
-            borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
-            color: isFlashing ? '#86efac' : 'var(--kce-cream)',
-        }
-    }
-
     return (
         <div style={{
             position: 'fixed',
@@ -458,6 +537,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
                     <button type="button" className="btn-secondary btn-xs" onClick={onClose} aria-label="Close">
                         ✕
+                    </button>
+                    <button
+                        type="button"
+                        className="btn-secondary btn-xs"
+                        onClick={openDrinkSheet}
+                        aria-label={t('quickEntry.drinkRound')}
+                        style={flashingDrink ? {
+                            background: 'rgba(34,197,94,0.15)',
+                            borderColor: '#16a34a',
+                            color: '#86efac',
+                        } : undefined}
+                    >
+                        {flashingDrink === 'beer' ? '✓ 🍺' : flashingDrink === 'shots' ? '✓ 🥃' : '🍺'} {t('quickEntry.drinkRound')}
                     </button>
                     {activeGame ? (
                         <>
@@ -976,34 +1068,101 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     ))}
                 </div>
 
-                {/* Column 3: Drinks — compact icon-only buttons */}
+                {/* Column 3: Per-player overview — read-only stats for plausibility check */}
                 <div
-                    className="overflow-y-auto p-2 flex flex-col gap-2 items-center"
-                    style={{width: '13%', flexShrink: 0}}
+                    className="overflow-y-auto"
+                    style={{
+                        width: '22%',
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 0,
+                        padding: '8px',
+                    }}
                 >
-                    <div className="field-label mb-0.5 text-center w-full">{t('drinks.title')}</div>
-                    {(['beer', 'shots'] as const).map(dt => {
-                        const isFlashing = flashingDrink === dt
-                        const isLoading = loadingDrink === dt
-                        return (
-                            <button
-                                key={dt}
-                                type="button"
-                                disabled={noSelection || isLoading}
-                                className={`w-full px-1 py-3 rounded-xl border font-bold
-                                    transition-all active:scale-95 flex flex-col items-center gap-0.5
-                                    disabled:opacity-40 disabled:cursor-not-allowed
-                                `}
-                                style={drinkBtnStyle(isFlashing)}
-                                onClick={() => logDrink(dt)}
-                                title={dt === 'beer' ? t('drinks.beer') : t('drinks.shots')}
-                            >
-                                <span className="text-2xl leading-none">
-                                    {isFlashing ? '✓' : dt === 'beer' ? '🍺' : '🥃'}
-                                </span>
-                            </button>
-                        )
-                    })}
+                    <div className="field-label mb-1">{t('quickEntry.overview')}</div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0}}>
+                        {sortedPlayers.map(p => {
+                            const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
+                            const isMe = user?.regular_member_id !== null &&
+                                p.regular_member_id === user?.regular_member_id
+                            return (
+                                <div
+                                    key={p.id}
+                                    style={{
+                                        background: 'var(--kce-surface2)',
+                                        border: '1px solid var(--kce-border)',
+                                        borderRadius: 10,
+                                        padding: '6px 8px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 2,
+                                    }}
+                                >
+                                    <div style={{display: 'flex', alignItems: 'center', gap: 4, minWidth: 0}}>
+                                        {p.is_king && <span style={{fontSize: 11}}>👑</span>}
+                                        <span style={{
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: 'var(--kce-cream)',
+                                            flex: 1,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}>{p.name}</span>
+                                        {isMe && (
+                                            <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
+                                        )}
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                        color: 'var(--kce-muted)',
+                                    }}>
+                                        <span style={{
+                                            color: ov.penaltyEuro > 0 ? 'var(--kce-amber)' : 'var(--kce-muted)',
+                                            fontWeight: 700,
+                                        }}>
+                                            {fe(ov.penaltyEuro)}
+                                        </span>
+                                        {ov.gameScore != null && (
+                                            <span title={t('quickEntry.gameScore')}>
+                                                🎳 {ov.gameScore}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {(ov.beerCount > 0 || ov.shotsCount > 0) && (
+                                        <div style={{
+                                            display: 'flex', gap: 6,
+                                            fontSize: 9, color: 'var(--kce-muted)',
+                                        }}>
+                                            {ov.beerCount > 0 && <span>🍺 {ov.beerCount}</span>}
+                                            {ov.shotsCount > 0 && <span>🥃 {ov.shotsCount}</span>}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                    {/* Footer: grand total */}
+                    <div style={{
+                        marginTop: 6,
+                        paddingTop: 6,
+                        borderTop: '1px solid var(--kce-border)',
+                        fontSize: 10,
+                        color: 'var(--kce-muted)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                    }}>
+                        <span>{t('quickEntry.totalPenalty')}</span>
+                        <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-amber)'}}>
+                            {fe(overviewTotalEuro)}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -1055,6 +1214,122 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     </div>
                 </div>
             )}
+
+            {/* ── Drink-round sheet (drink-first flow) ── */}
+            <Sheet
+                open={drinkSheetOpen}
+                onClose={() => setDrinkSheetOpen(false)}
+                title={t('quickEntry.drinkRound')}
+                onSubmit={submitDrinkRound}
+            >
+                {/* Drink type toggle */}
+                <div className="field-label mb-1">{t('quickEntry.pickDrink')}</div>
+                <div style={{display: 'flex', gap: 8, marginBottom: 12}}>
+                    {(['beer', 'shots'] as const).map(dt => {
+                        const isActive = drinkSheetType === dt
+                        return (
+                            <button
+                                key={dt}
+                                type="button"
+                                onClick={() => setDrinkSheetType(dt)}
+                                className="flex-1 px-3 py-3 rounded-xl border font-bold text-sm transition-all active:scale-95"
+                                style={{
+                                    background: isActive
+                                        ? 'rgba(232,160,32,0.15)'
+                                        : 'var(--kce-surface2)',
+                                    borderColor: isActive ? 'var(--kce-amber)' : 'var(--kce-border)',
+                                    color: isActive ? 'var(--kce-amber)' : 'var(--kce-cream)',
+                                }}
+                            >
+                                <span style={{fontSize: 20, marginRight: 6}}>
+                                    {dt === 'beer' ? '🍺' : '🥃'}
+                                </span>
+                                {dt === 'beer' ? t('drinks.beer') : t('drinks.shots')}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                {/* Participants */}
+                <div className="flex items-center justify-between mb-1">
+                    <span className="field-label">{t('quickEntry.pickParticipants')}</span>
+                    <div className="flex gap-1">
+                        <button
+                            type="button"
+                            className="btn-secondary btn-xs"
+                            onClick={() => setDrinkSheetParticipantIds(sortedPlayers.map(p => p.id))}
+                        >
+                            {t('action.all')}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-secondary btn-xs"
+                            onClick={() => setDrinkSheetParticipantIds([])}
+                        >
+                            {t('action.none')}
+                        </button>
+                        {selectedPlayerIds.length > 0 && (
+                            <button
+                                type="button"
+                                className="btn-secondary btn-xs"
+                                onClick={() => setDrinkSheetParticipantIds([...selectedPlayerIds])}
+                            >
+                                {t('quickEntry.applySelection')}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: 6,
+                    marginBottom: 12,
+                    maxHeight: '40vh',
+                    overflowY: 'auto',
+                }}>
+                    {sortedPlayers.map(p => {
+                        const isOn = drinkSheetParticipantIds.includes(p.id)
+                        const isMe = user?.regular_member_id !== null &&
+                            p.regular_member_id === user?.regular_member_id
+                        return (
+                            <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => toggleDrinkParticipant(p.id)}
+                                className="px-3 py-2 rounded-xl border font-bold text-sm transition-all active:scale-95 flex items-center gap-1"
+                                style={{
+                                    background: isOn ? 'rgba(232,160,32,0.12)' : 'var(--kce-surface2)',
+                                    borderColor: isOn ? 'var(--kce-amber)' : 'var(--kce-border)',
+                                    color: isOn ? 'var(--kce-amber)' : 'var(--kce-cream)',
+                                }}
+                            >
+                                {isOn && <span>✓</span>}
+                                {p.is_king && <span>👑</span>}
+                                <span className="flex-1 truncate text-left">{p.name}</span>
+                                {isMe && <span className="text-[9px] font-bold text-kce-amber">Ich</span>}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        className="btn-secondary flex-1"
+                        onClick={() => setDrinkSheetOpen(false)}
+                    >
+                        {t('action.cancel')}
+                    </button>
+                    <button
+                        type="submit"
+                        className="btn-primary flex-1"
+                        disabled={drinkSheetParticipantIds.length === 0 || loadingDrink !== null}
+                    >
+                        {drinkSheetType === 'beer' ? '🍺' : '🥃'} {t('drinks.add')} ({drinkSheetParticipantIds.length})
+                    </button>
+                </div>
+            </Sheet>
         </div>
     )
 }
