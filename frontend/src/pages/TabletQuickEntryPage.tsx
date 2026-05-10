@@ -6,7 +6,7 @@
  * Drink rounds are entered via a bottom sheet (drink-first flow: pick beer/shots, then participants).
  * Fully respects iOS safe-area insets (notch, home indicator, rounded corners).
  */
-import {useEffect, useMemo, useRef, useState} from 'react'
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
@@ -212,6 +212,39 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const n = playerOverview.size
         return n > 0 ? overviewTotalEuro / n : 0
     }, [overviewTotalEuro, playerOverview])
+
+    // Overview column: sort by penalty € descending, alphabetical tiebreak.
+    const overviewSortedPlayers = useMemo(() =>
+        [...players].sort((a, b) => {
+            const pa = playerOverview.get(a.id)?.penaltyEuro ?? 0
+            const pb = playerOverview.get(b.id)?.penaltyEuro ?? 0
+            if (pb !== pa) return pb - pa
+            return a.name.localeCompare(b.name)
+        }), [players, playerOverview])
+
+    // FLIP animation refs for the overview column.
+    const overviewRowRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+    const overviewPrevTopRef = useRef<Map<number, number>>(new Map())
+    useLayoutEffect(() => {
+        const prev = overviewPrevTopRef.current
+        const next = new Map<number, number>()
+        overviewRowRefs.current.forEach((el, id) => {
+            next.set(id, el.getBoundingClientRect().top)
+        })
+        next.forEach((top, id) => {
+            const old = prev.get(id)
+            if (old != null && old !== top) {
+                const el = overviewRowRefs.current.get(id)
+                if (el) {
+                    el.animate(
+                        [{transform: `translateY(${old - top}px)`}, {transform: 'translateY(0)'}],
+                        {duration: 350, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'},
+                    )
+                }
+            }
+        })
+        overviewPrevTopRef.current = next
+    }, [overviewSortedPlayers])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
 
@@ -1085,13 +1118,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 >
                     <div className="field-label mb-1 flex-shrink-0">{t('quickEntry.overview')}</div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0, overflowY: 'auto'}}>
-                        {sortedPlayers.map(p => {
+                        {overviewSortedPlayers.map(p => {
                             const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
                             return (
                                 <div
                                     key={p.id}
+                                    ref={el => {
+                                        if (el) overviewRowRefs.current.set(p.id, el)
+                                        else overviewRowRefs.current.delete(p.id)
+                                    }}
                                     style={{
                                         background: 'var(--kce-surface2)',
                                         border: '1px solid var(--kce-border)',
