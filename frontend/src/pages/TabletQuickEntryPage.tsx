@@ -54,6 +54,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Finish game state
     const [finishGameOpen, setFinishGameOpen] = useState(false)
     const [finishWinnerRef, setFinishWinnerRef] = useState('')
+    const [finishScores, setFinishScores] = useState<Record<string, string>>({})
     const [finishSaving, setFinishSaving] = useState(false)
     const [voidingThrowId, setVoidingThrowId] = useState<number | null>(null)
 
@@ -231,7 +232,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     async function handleCreateGame(tmpl: GameTemplate) {
         setCreatingGame(true)
         try {
-            await api.addGame(eveningId, {
+            const game = await api.addGame(eveningId, {
                 name: tmpl.name,
                 template_id: tmpl.id,
                 is_opener: tmpl.is_opener,
@@ -241,6 +242,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 per_point_penalty: tmpl.per_point_penalty,
                 client_timestamp: Date.now(),
             })
+            await api.startGame(eveningId, game.id)
             invalidate()
             setShowNewGame(false)
         } catch (e: unknown) {
@@ -374,9 +376,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         if (!runningGame || !finishWinnerRef || !evening) return
         setFinishSaving(true)
         try {
-            const lastThrow = liveThrows.slice(-1)[0]
             const scores: Record<string, number> = {}
-            if (lastThrow?.cumulative != null) scores[finishWinnerRef] = lastThrow.cumulative
+            for (const [ref, val] of Object.entries(finishScores)) {
+                const n = parseFloat(val)
+                if (!isNaN(n)) scores[ref] = n
+            }
+            // Fall back to last camera-throw cumulative for winner if no manual score entered
+            const lastThrow = liveThrows.slice(-1)[0]
+            if (!(finishWinnerRef in scores) && lastThrow?.cumulative != null) {
+                scores[finishWinnerRef] = lastThrow.cumulative
+            }
             let winnerName = finishWinnerRef
             if (finishWinnerRef.startsWith('p:')) {
                 const pid = parseInt(finishWinnerRef.slice(2))
@@ -395,6 +404,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             setFinishGameOpen(false)
             setFinishWinnerRef('')
+            setFinishScores({})
             resetTurn()
         } catch (e: unknown) {
             toastError(e)
@@ -763,13 +773,49 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button key={p.id} type="button"
                                         className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
                                         onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
-                                    {p.name}
+                                    {p.nickname || p.name}
                                 </button>
                             ))}
                         </div>
+                        {/* Score inputs */}
+                        <div style={{marginBottom: 8}}>
+                            <div style={{fontSize: 10, color: 'var(--kce-muted)', marginBottom: 4}}>
+                                {t('game.scores')}
+                            </div>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                                {activeGame.winner_type === 'team'
+                                    ? evening!.teams.map(team => (
+                                        <div key={`t:${team.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                            <span style={{fontSize: 11, color: 'var(--kce-cream)', flex: 1}}>{team.name}</span>
+                                            <input
+                                                className="kce-input"
+                                                type="number" min="0"
+                                                style={{width: 64}}
+                                                value={finishScores[`t:${team.id}`] ?? ''}
+                                                onChange={e => setFinishScores(prev => ({...prev, [`t:${team.id}`]: e.target.value}))}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    ))
+                                    : evening!.players.map(p => (
+                                        <div key={`p:${p.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                            <span style={{fontSize: 11, color: 'var(--kce-cream)', flex: 1}}>{p.nickname || p.name}</span>
+                                            <input
+                                                className="kce-input"
+                                                type="number" min="0"
+                                                style={{width: 64}}
+                                                value={finishScores[`p:${p.id}`] ?? ''}
+                                                onChange={e => setFinishScores(prev => ({...prev, [`p:${p.id}`]: e.target.value}))}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                        </div>
                         <div style={{display: 'flex', gap: 6}}>
                             <button className="btn-secondary btn-sm" style={{flex: 1}}
-                                    onClick={() => { setFinishGameOpen(false); setFinishWinnerRef('') }}>
+                                    onClick={() => { setFinishGameOpen(false); setFinishWinnerRef(''); setFinishScores({}) }}>
                                 {t('action.cancel')}
                             </button>
                             <button className="btn-primary btn-sm" style={{flex: 1}}
