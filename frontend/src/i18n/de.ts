@@ -791,6 +791,7 @@ export const de = {
     "quickEntry.newGame": "Neues Spiel",
     "quickEntry.overview": "Übersicht",
     "quickEntry.totalPenalty": "Σ Strafen",
+    "quickEntry.averagePenalty": "Ø Strafen",
     "quickEntry.drinkRound": "Runde",
     "quickEntry.pickDrink": "Getränk wählen",
     "quickEntry.pickParticipants": "Wer war dabei?",

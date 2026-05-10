@@ -146,7 +146,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 type: 'drink',
             })
         }
-        return events.sort((a, b) => b.time - a.time).slice(0, 8)
+        return events.sort((a, b) => b.time - a.time).slice(0, 30)
     }, [evening])
 
     // Active game for the strip: show for any open or running game (turn order is useful pre-start too)
@@ -208,6 +208,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         for (const v of playerOverview.values()) s += v.penaltyEuro
         return s
     }, [playerOverview])
+    const overviewAvgEuro = useMemo(() => {
+        const n = playerOverview.size
+        return n > 0 ? overviewTotalEuro / n : 0
+    }, [overviewTotalEuro, playerOverview])
     // Keep `runningGame` as alias for the finish-game actions (only valid when actually running)
     const runningGame = activeGame?.status === 'running' ? activeGame : undefined
 
@@ -1070,7 +1074,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Column 3: Per-player overview — read-only stats for plausibility check */}
                 <div
-                    className="overflow-y-auto"
                     style={{
                         width: '22%',
                         flexShrink: 0,
@@ -1080,8 +1083,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         padding: '8px',
                     }}
                 >
-                    <div className="field-label mb-1">{t('quickEntry.overview')}</div>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0}}>
+                    <div className="field-label mb-1 flex-shrink-0">{t('quickEntry.overview')}</div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0, overflowY: 'auto'}}>
                         {sortedPlayers.map(p => {
                             const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
                             const isMe = user?.regular_member_id !== null &&
@@ -1147,7 +1150,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             )
                         })}
                     </div>
-                    {/* Footer: grand total */}
+                    {/* Footer: grand total + average per player (pinned, never overlaps list) */}
                     <div style={{
                         marginTop: 6,
                         paddingTop: 6,
@@ -1155,13 +1158,22 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         fontSize: 10,
                         color: 'var(--kce-muted)',
                         display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
+                        flexDirection: 'column',
+                        gap: 2,
+                        flexShrink: 0,
                     }}>
-                        <span>{t('quickEntry.totalPenalty')}</span>
-                        <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-amber)'}}>
-                            {fe(overviewTotalEuro)}
-                        </span>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <span>{t('quickEntry.totalPenalty')}</span>
+                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-amber)'}}>
+                                {fe(overviewTotalEuro)}
+                            </span>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <span>{t('quickEntry.averagePenalty')}</span>
+                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-cream)'}}>
+                                {fe(overviewAvgEuro)}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1281,8 +1293,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </div>
 
                 <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    display: 'flex',
+                    flexWrap: 'wrap',
                     gap: 6,
                     marginBottom: 12,
                     maxHeight: '40vh',
@@ -1297,16 +1309,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 key={p.id}
                                 type="button"
                                 onClick={() => toggleDrinkParticipant(p.id)}
-                                className="px-3 py-2 rounded-xl border font-bold text-sm transition-all active:scale-95 flex items-center gap-1"
-                                style={{
-                                    background: isOn ? 'rgba(232,160,32,0.12)' : 'var(--kce-surface2)',
-                                    borderColor: isOn ? 'var(--kce-amber)' : 'var(--kce-border)',
-                                    color: isOn ? 'var(--kce-amber)' : 'var(--kce-cream)',
-                                }}
+                                className={`chip inline-flex items-center gap-1 ${isOn ? 'active' : ''}`}
                             >
                                 {isOn && <span>✓</span>}
                                 {p.is_king && <span>👑</span>}
-                                <span className="flex-1 truncate text-left">{p.name}</span>
+                                <span>{p.name}</span>
                                 {isMe && <span className="text-[9px] font-bold text-kce-amber">Ich</span>}
                             </button>
                         )
