@@ -31,6 +31,7 @@ vi.mock('@/api/client.ts', () => ({
         deletePenalty: vi.fn(),
         addDrinkRound: vi.fn(),
         deleteDrinkRound: vi.fn(),
+        addGame: vi.fn(),
         startGame: vi.fn(),
         finishGame: vi.fn(),
         setActivePlayer: vi.fn(),
@@ -516,6 +517,77 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         fireEvent.click(screen.getByText('action.cancel'))
         await waitFor(() => {
             expect(screen.queryByText(/quickEntry\.selectWinner/)).not.toBeInTheDocument()
+        })
+    })
+
+    it('shows score inputs for each player in finish panel', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        await waitFor(() => screen.getByText(/quickEntry\.selectWinner/))
+        expect(screen.getByText(/game\.scores/)).toBeInTheDocument()
+        const inputs = screen.getAllByPlaceholderText('0')
+        expect(inputs.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('includes manually entered scores in api.finishGame call', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        await waitFor(() => screen.getByText(/quickEntry\.selectWinner/))
+        const inputs = screen.getAllByPlaceholderText('0')
+        fireEvent.change(inputs[0], { target: { value: '42' } })
+        const winnerButtons = screen.getAllByText('Admin')
+        fireEvent.click(winnerButtons[0])
+        await waitFor(() => expect(screen.getByText(/game\.finish/)).not.toBeDisabled())
+        fireEvent.click(screen.getByText(/game\.finish/))
+        await waitFor(() => {
+            expect(api.finishGame).toHaveBeenCalledWith(42, 1, expect.objectContaining({
+                scores: expect.objectContaining({ 'p:10': 42 }),
+            }))
+        })
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New game auto-start
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('TabletQuickEntryPage — new game auto-start', () => {
+    const GAME_TEMPLATE = {
+        id: 5, name: 'Hauptspiel', is_opener: false, winner_type: 'individual',
+        turn_mode: 'alternating', default_loser_penalty: 2.00, per_point_penalty: 0,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [GAME_TEMPLATE] }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addGame).mockResolvedValue({ id: 99, name: 'Hauptspiel' } as any)
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+    })
+
+    it('calls api.startGame immediately after api.addGame when creating a game', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.newGame/))
+        await waitFor(() => screen.getByText('Hauptspiel'))
+        fireEvent.click(screen.getByText('Hauptspiel'))
+        await waitFor(() => {
+            expect(api.addGame).toHaveBeenCalledWith(42, expect.objectContaining({
+                name: 'Hauptspiel',
+                template_id: 5,
+            }))
+            expect(api.startGame).toHaveBeenCalledWith(42, 99)
         })
     })
 })
