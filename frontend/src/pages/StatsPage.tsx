@@ -1854,9 +1854,6 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
         else if (eveningCorr.members[0]) setPickedMemberId(eveningCorr.members[0].evening_player_id)
     }, [eveningCorr, myMemberId, pickedMemberId])
 
-    if (eveningId == null) return null
-
-    const member = eveningCorr?.members.find(m => m.evening_player_id === pickedMemberId) ?? null
     const sortedMembers = useMemo(() => {
         if (!eveningCorr) return []
         return [...eveningCorr.members].sort((a, b) => {
@@ -1865,6 +1862,10 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
             return b.bins.length - a.bins.length
         })
     }, [eveningCorr, myMemberId])
+
+    if (eveningId == null) return null
+
+    const member = eveningCorr?.members.find(m => m.evening_player_id === pickedMemberId) ?? null
 
     return (
         <div className="kce-card p-3 mb-4">
