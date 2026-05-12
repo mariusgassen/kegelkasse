@@ -781,6 +781,72 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
     return result
 
 
+# ── Guest cost transfer ──
+
+class GuestCostTransfer(BaseModel):
+    guest_id: int
+    target_member_id: int
+    amount: float
+    note: Optional[str] = None
+
+
+@router.post("/guest-cost-transfer", status_code=201)
+def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_admin)):
+    """Pass on a guest's outstanding cost to a regular member.
+
+    Stats / PenaltyLog are untouched. Two paired MemberPayment rows are
+    created: a positive credit on the guest (offsetting their debt) and a
+    negative debit on the target member (taking on the cost).
+    """
+    if data.amount <= 0:
+        raise HTTPException(400, "amount must be positive")
+    if data.guest_id == data.target_member_id:
+        raise HTTPException(400, "guest and target must differ")
+
+    guest = db.query(RegularMember).filter(
+        RegularMember.id == data.guest_id, RegularMember.club_id == user.club_id
+    ).first()
+    if not guest:
+        raise HTTPException(404, "guest not found")
+    if not guest.is_guest:
+        raise HTTPException(400, "source must be a guest")
+
+    target = db.query(RegularMember).filter(
+        RegularMember.id == data.target_member_id, RegularMember.club_id == user.club_id
+    ).first()
+    if not target:
+        raise HTTPException(404, "target member not found")
+    if target.is_guest:
+        raise HTTPException(400, "target must be a regular member")
+
+    extra = f": {data.note}" if data.note else ""
+    guest_payment = MemberPayment(
+        club_id=user.club_id,
+        regular_member_id=guest.id,
+        amount=data.amount,
+        note=f"Übertragen auf {target.nickname or target.name}{extra}",
+        created_by=user.id,
+    )
+    target_payment = MemberPayment(
+        club_id=user.club_id,
+        regular_member_id=target.id,
+        amount=-data.amount,
+        note=f"Übernommen von {guest.nickname or guest.name}{extra}",
+        created_by=user.id,
+    )
+    db.add_all([guest_payment, target_payment])
+    db.commit()
+    db.refresh(guest_payment)
+    db.refresh(target_payment)
+    logger.info("guest cost transfer: %s€ from guest=%s to member=%s by user=%s",
+                data.amount, guest.id, target.id, user.id)
+    return {
+        "guest_payment_id": guest_payment.id,
+        "target_payment_id": target_payment.id,
+    }
+
+
 # ── Club expenses ──
 
 class ExpenseCreate(BaseModel):

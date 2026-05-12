@@ -498,6 +498,8 @@ export const api = {
             created_at: string | null
         }>('POST', '/club/member-payments', d),
     deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
+    transferGuestCosts: (d: { guest_id: number; target_member_id: number; amount: number; note?: string }) =>
+        request<{ guest_payment_id: number; target_payment_id: number }>('POST', '/club/guest-cost-transfer', d),
 
     // Club expenses
     getExpenses: () => request<{

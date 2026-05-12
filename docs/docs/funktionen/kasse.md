@@ -75,6 +75,20 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ---
 
+## Gäste & Kostenübertragung
+
+Gäste werden in der **Übersicht** unter „👤 Gäste ausstehend" separat geführt. Neben dem üblichen **Begleichen**-Knopf finden Admins dort die Aktion **↪️ Übertragen**:
+
+1. Tippe bei einem Gast-Eintrag auf **↪️ Übertragen**
+2. Wähle das **Mitglied**, das die Kosten übernimmt
+3. Der Betrag ist mit dem offenen Saldo des Gastes vorbelegt — bei Bedarf anpassen (z. B. für eine teilweise Übernahme)
+4. Optional eine Notiz hinzufügen (z. B. „übernimmt Bier-Runde")
+5. **Übertragen** bestätigen
+
+Damit werden zwei verknüpfte Buchungen erstellt: dem Gast wird der Betrag gutgeschrieben (Konto auf 0), das Mitglied wird in derselben Höhe belastet. Beide Buchungen tragen Notizen, die aufeinander verweisen. **Statistiken und Strafenlog bleiben unverändert** — nur die Kasse wird umgebucht.
+
+---
+
 ## Konten
 
 Der **Konten**-Tab zeigt den aktuellen Saldo jedes Mitglieds.
