@@ -1443,22 +1443,43 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
     )
 }
 
+function pearsonDirectionKey(r: number | null): TranslationKey {
+    if (r === null) return 'stats.correlation.dirNone'
+    if (Math.abs(r) < 0.2) return 'stats.correlation.dirNone'
+    return r > 0 ? 'stats.correlation.dirPositive' : 'stats.correlation.dirNegative'
+}
+
 function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
     r: number | null
     t: (k: TranslationKey) => string
     labelKey?: TranslationKey
 }) {
     const badge = rBadge(r, t)
+    const [open, setOpen] = useState(false)
     return (
-        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
-             style={{background: 'var(--kce-surface2)'}}>
-            <div className="flex flex-col">
-                <div className="text-[10px] text-kce-muted uppercase font-bold">{t(labelKey)}</div>
-                <div className="text-xs font-bold" style={{color: badge.color}}>{badge.label}</div>
+        <div className="rounded-lg" style={{background: 'var(--kce-surface2)'}}>
+            <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="flex flex-col">
+                    <div className="text-[10px] text-kce-muted uppercase font-bold">{t(labelKey)}</div>
+                    <div className="text-xs font-bold" style={{color: badge.color}}>{badge.label}</div>
+                </div>
+                <div className="text-2xl font-extrabold" style={{color: badge.color}}>
+                    {r === null ? '–' : r.toFixed(2)}
+                </div>
             </div>
-            <div className="text-2xl font-extrabold" style={{color: badge.color}}>
-                {r === null ? '–' : r.toFixed(2)}
-            </div>
+            {r !== null && (
+                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                    {t(pearsonDirectionKey(r))}
+                    <button type="button"
+                            className="ml-1 underline decoration-dotted"
+                            onClick={() => setOpen(v => !v)}>
+                        {open ? t('stats.correlation.rExplainHide') : t('stats.correlation.rExplainShow')}
+                    </button>
+                    {open && (
+                        <div className="mt-1 leading-snug">{t('stats.correlation.rExplain')}</div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
@@ -1885,91 +1906,164 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
 }
 
 
-function MultiMemberLineChart({members}: {
-    members: { id: number; label: string; color: string; points: { t: string; v: number }[] }[]
-}) {
-    const [hover, setHover] = useState<{ memberId: number; idx: number } | null>(null)
-    const allPoints = members.flatMap(m => m.points)
-    if (allPoints.length === 0) return null
-    const allTs = [...new Set(allPoints.map(p => p.t))].sort()
-    const tIdx = new Map(allTs.map((t, i) => [t, i]))
-    const maxV = Math.max(0.01, ...allPoints.map(p => p.v))
-    const n = allTs.length
-    const xS = (i: number) => SC_PAD.left + (n === 1 ? SC_IW / 2 : (i / (n - 1)) * SC_IW)
-    const yS = (v: number) => SC_PAD.top + SC_IH - (v / maxV) * SC_IH
+// ── Per-evening heat lanes (compare-all view) ───────────────────────────────
+//
+// One horizontal lane per member. The amber-tinted background cells show
+// Δpenalty per time bin (intensity = relative € spike); the orange line
+// overlays cumulative drinks ("intoxication") rising over the evening.
+// Visual goal: spot where rising intoxication coincides with penalty heat.
 
-    const fmtTime = (iso: string) => {
-        try {
-            return new Date(iso).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
-        } catch {
-            return ''
-        }
-    }
-    const tickIdx = n <= 6 ? allTs.map((_, i) => i) : [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor(3 * n / 4), n - 1]
+const LANE_H = 38
+const LANE_NAME_W = 84
+const LANE_RIGHT_PAD = 56
+
+function MemberHeatLane({
+    bins, color, label, isMe, rPearson, globalMaxDelta, globalMaxCum, onFocus,
+}: {
+    bins: { t: string; delta_penalty: number; cum_drinks: number }[]
+    color: string
+    label: string
+    isMe: boolean
+    rPearson: number | null
+    globalMaxDelta: number
+    globalMaxCum: number
+    onFocus: () => void
+}) {
+    if (bins.length === 0) return null
+    const n = bins.length
+    const innerW = 320 - LANE_NAME_W - LANE_RIGHT_PAD
+    const cellW = innerW / n
+    const cumPath = bins.map((b, i) => {
+        const x = LANE_NAME_W + (i + 0.5) * cellW
+        const y = LANE_H - 4 - (b.cum_drinks / globalMaxCum) * (LANE_H - 10)
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+    }).join(' ')
 
     return (
-        <div>
-            <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 220}}>
-                {[0.25, 0.5, 0.75, 1].map(f => (
-                    <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
-                          y1={SC_PAD.top + (1 - f) * SC_IH} y2={SC_PAD.top + (1 - f) * SC_IH}
-                          stroke="var(--kce-border)" strokeWidth={0.5} opacity={0.4}/>
-                ))}
-                <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
-                      stroke="var(--kce-border)"/>
-                <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
-                      stroke="var(--kce-border)"/>
-                {/* Y labels */}
-                {[0, 0.5, 1].map(f => (
-                    <text key={`y${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="end" fontSize={9} fill="var(--kce-muted)">
-                        {(maxV * f).toFixed(maxV < 5 ? 1 : 0)}
-                    </text>
-                ))}
-                {/* X labels */}
-                {tickIdx.map(i => (
-                    <text key={`x${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12}
-                          textAnchor="middle" fontSize={8} fill="var(--kce-muted)">{fmtTime(allTs[i])}</text>
-                ))}
-                {/* Lines per member */}
-                {members.map(m => {
-                    if (m.points.length === 0) return null
-                    const d = m.points
-                        .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xS(tIdx.get(p.t)!)} ${yS(p.v)}`)
-                        .join(' ')
+        <button type="button"
+                onClick={onFocus}
+                aria-label={label}
+                className={`block w-full rounded-lg overflow-hidden mb-1 transition-all active:opacity-70 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
+                style={{background: 'var(--kce-surface2)'}}>
+            <svg viewBox={`0 0 320 ${LANE_H}`} className="w-full block" preserveAspectRatio="none"
+                 style={{height: LANE_H}}>
+                {/* Member name */}
+                <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
+                      dominantBaseline="middle" fill="var(--kce-text)">
+                    {label.length > 11 ? `${label.slice(0, 10)}…` : label}
+                </text>
+                {isMe && (
+                    <text x={6} y={LANE_H - 4} fontSize={7} fontWeight={700}
+                          fill="var(--kce-amber)">Ich</text>
+                )}
+
+                {/* Background heat cells: Δpenalty intensity */}
+                {bins.map((b, i) => {
+                    const intensity = globalMaxDelta > 0 ? Math.min(1, b.delta_penalty / globalMaxDelta) : 0
                     return (
-                        <path key={m.id} d={d} fill="none"
-                              stroke={m.color} strokeWidth={1.6}
-                              strokeLinejoin="round" opacity={0.85}/>
+                        <rect key={i}
+                              x={LANE_NAME_W + i * cellW} y={2}
+                              width={Math.max(0.5, cellW - 0.5)} height={LANE_H - 4}
+                              fill={`rgba(232, 160, 32, ${intensity * 0.85})`}/>
                     )
                 })}
-                {/* Hover dots */}
-                {members.map(m =>
-                    m.points.map((p, i) => (
-                        <circle key={`${m.id}-${i}`}
-                                cx={xS(tIdx.get(p.t)!)} cy={yS(p.v)}
-                                r={hover?.memberId === m.id && hover?.idx === i ? 4 : 2.2}
-                                fill={m.color}
-                                style={{cursor: 'pointer'}}
-                                onClick={() => setHover(
-                                    hover?.memberId === m.id && hover?.idx === i
-                                        ? null
-                                        : {memberId: m.id, idx: i},
-                                )}/>
-                    )),
+
+                {/* Cumulative drinks line ("intoxication") */}
+                <path d={cumPath} fill="none" stroke="#f97316" strokeWidth={1.6}
+                      strokeLinejoin="round" opacity={0.95}/>
+                {/* End-dot for the line */}
+                {bins.length > 0 && (() => {
+                    const last = bins[bins.length - 1]
+                    const x = LANE_NAME_W + (bins.length - 0.5) * cellW
+                    const y = LANE_H - 4 - (last.cum_drinks / globalMaxCum) * (LANE_H - 10)
+                    return <circle cx={x} cy={y} r={2.5} fill="#f97316"/>
+                })()}
+
+                {/* Totals at the right edge */}
+                {(() => {
+                    const totalPenalty = bins.reduce((s, b) => s + b.delta_penalty, 0)
+                    const totalDrinks = bins[bins.length - 1].cum_drinks
+                    return (
+                        <>
+                            <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={9} textAnchor="end"
+                                  fill="var(--kce-amber)" fontWeight={700}>
+                                €{totalPenalty.toFixed(1)}
+                            </text>
+                            <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
+                                  fill="#f97316" fontWeight={700}>
+                                🍻 {totalDrinks}
+                            </text>
+                        </>
+                    )
+                })()}
+
+                {/* Color tag bar at far left of name area */}
+                <rect x={0} y={0} width={3} height={LANE_H} fill={color}/>
+
+                {/* Optional r badge in name area, small */}
+                {rPearson !== null && (
+                    <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={8} textAnchor="end"
+                          dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
+                        r={rPearson.toFixed(2)}
+                    </text>
                 )}
             </svg>
-            {hover && (() => {
-                const m = members.find(x => x.id === hover.memberId)
-                const p = m?.points[hover.idx]
-                if (!m || !p) return null
-                return (
-                    <div className="text-[10px] text-kce-muted text-center -mt-1">
-                        <span className="font-bold" style={{color: m.color}}>{m.label}</span>
-                        {' · '}{fmtTime(p.t)} · {p.v.toFixed(1)}
-                    </div>
-                )
-            })()}
+        </button>
+    )
+}
+
+function MemberHeatLanes({
+    members, memberColors, myMemberId, onFocus, t,
+}: {
+    members: import('@/types').EveningCorrelationMember[]
+    memberColors: Map<number, string>
+    myMemberId: number | null | undefined
+    onFocus: (memberId: number) => void
+    t: (k: TranslationKey) => string
+}) {
+    const globalMaxDelta = Math.max(
+        0.01,
+        ...members.flatMap(m => m.bins.map(b => b.delta_penalty)),
+    )
+    const globalMaxCum = Math.max(
+        1,
+        ...members.flatMap(m => m.bins.map(b => b.cum_drinks)),
+    )
+    // Sort members by total drinks desc (most-intoxicated at top)
+    const sorted = [...members].sort((a, b) => {
+        const ad = a.bins.length ? a.bins[a.bins.length - 1].cum_drinks : 0
+        const bd = b.bins.length ? b.bins[b.bins.length - 1].cum_drinks : 0
+        return bd - ad
+    })
+    return (
+        <div>
+            <div className="text-[10px] text-kce-muted mb-2">
+                {t('stats.correlation.heatLaneHint')}
+            </div>
+            {sorted.map(m => (
+                <MemberHeatLane
+                    key={m.evening_player_id}
+                    bins={m.bins}
+                    color={memberColors.get(m.evening_player_id) ?? 'var(--kce-muted)'}
+                    label={m.nickname || m.name}
+                    isMe={m.regular_member_id != null && m.regular_member_id === myMemberId}
+                    rPearson={m.derivative_pearson_r}
+                    globalMaxDelta={globalMaxDelta}
+                    globalMaxCum={globalMaxCum}
+                    onFocus={() => onFocus(m.evening_player_id)}
+                />
+            ))}
+            {/* Legend */}
+            <div className="flex items-center gap-3 mt-2 text-[10px] text-kce-muted">
+                <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-2 rounded-sm" style={{background: 'rgba(232,160,32,0.85)'}}/>
+                    {t('stats.correlation.deltaPenalty')}
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="inline-block w-3" style={{height: 2, background: '#f97316'}}/>
+                    {t('stats.correlation.cumDrinks')}
+                </span>
+            </div>
         </div>
     )
 }
@@ -2068,35 +2162,18 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
 
             {isLoading && <Empty icon="⏳" text="…"/>}
 
-            {/* Compare-all mode */}
+            {/* Compare-all mode — one heat-lane per member */}
             {!isLoading && pickedMemberId == null && (
                 compareMembers.length === 0
                     ? <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>
                     : (
-                        <>
-                            <div className="text-[10px] font-bold text-kce-muted uppercase mb-1">
-                                {t('stats.correlation.cumPenalty')}
-                            </div>
-                            <MultiMemberLineChart
-                                members={compareMembers.map(m => ({
-                                    id: m.evening_player_id,
-                                    label: m.nickname || m.name,
-                                    color: memberColors.get(m.evening_player_id)!,
-                                    points: m.bins.map(b => ({t: b.t, v: b.cum_penalty})),
-                                }))}
-                            />
-                            <div className="text-[10px] font-bold text-kce-muted uppercase mt-2 mb-1">
-                                {t('stats.correlation.cumDrinks')}
-                            </div>
-                            <MultiMemberLineChart
-                                members={compareMembers.map(m => ({
-                                    id: m.evening_player_id,
-                                    label: m.nickname || m.name,
-                                    color: memberColors.get(m.evening_player_id)!,
-                                    points: m.bins.map(b => ({t: b.t, v: b.cum_drinks})),
-                                }))}
-                            />
-                        </>
+                        <MemberHeatLanes
+                            members={compareMembers}
+                            memberColors={memberColors}
+                            myMemberId={myMemberId}
+                            onFocus={id => setPickedMemberId(id)}
+                            t={t}
+                        />
                     )
             )}
 
