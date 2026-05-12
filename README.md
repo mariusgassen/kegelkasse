@@ -158,6 +158,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Yearly rollup by regular member: evenings attended, total penalty amount (€), penalty count, game wins, beer rounds, shot rounds
 - Personal stats in user profile
 - Year selector with CSS bar chart visualization
+- Per-evening analysis: donut chart with penalty distribution, hall of fame, cumulative timeline chart (tap a penalty dot to see the source penalty), and a **Games & Results** drawer listing every game with status, winner, scores, and throw summary
 
 ### Push notifications & reminders
 
