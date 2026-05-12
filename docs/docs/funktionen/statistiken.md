@@ -53,8 +53,10 @@ Im Jahresrückblick gibt es eine Korrelations-Sektion mit drei Tabs, die untersu
 
 Direkt in der **Abend-Detail-Sektion** (oben auf der Statistik-Seite, abhängig vom gewählten Abend) erscheint zusätzlich das Panel **Strafen × Getränke (Verlauf)**: Pill-Picker für Mitglied (inklusive „**Alle**"-Pill als Standard für den Vergleich) und Zeitfenster (5 / 15 / 30 Min).
 
-- Im **Vergleichs-Modus** („Alle" ausgewählt) zeigt das Panel zwei mehrlinige Charts: kumulierte Strafen (€) pro Mitglied und kumulierte Getränke pro Mitglied, jede Linie in der Farbe des Mitglieds. Damit lässt sich auf einen Blick erkennen, welche Mitglieder im Lauf des Abends ähnliche Muster zeigen und wer ausreißt.
-- Tap auf ein Mitglied-Pill öffnet den **Fokus-Modus**: kumulierte Strafen-/Getränke-Kurve (Dual-Axis-Line), ein Δ-Bar-Chart pro Zeitfenster und das Pearson *r* der Veränderungen — als Hinweis darauf, ob das Mitglied im Laufe des Abends gleichzeitig zu Strafen und Runden neigt.
+- Im **Vergleichs-Modus** („Alle" ausgewählt) stapelt das Panel eine **Heat-Lane** pro Mitglied: Hintergrund-Zellen pro Zeitfenster werden amber je nach Strafen-€-Spitze eingefärbt (heller → kühl, dunkler → heiß), während eine orange Linie die aufgelaufenen Getränke („Rausch-Pegel") über den Abend hinweg darstellt. Wenn die Getränke-Linie durch heiße Zellen steigt, fallen Trinken und Strafen zusammen — sofort am Bild ablesbar.
+- Tap auf eine Lane (oder ein Mitglied-Pill) öffnet den **Fokus-Modus**: kumulierte Strafen-/Getränke-Kurve (Dual-Axis-Line), ein Δ-Bar-Chart pro Zeitfenster und das Pearson *r* der Veränderungen — als Hinweis darauf, ob das Mitglied im Laufe des Abends gleichzeitig zu Strafen und Runden neigt.
+
+Die Pearson-*r*-Badge zeigt zusätzlich eine Klartext-Interpretation an: positiv = „Mehr Strafen → mehr Getränke (gleichläufig)", negativ = „Mehr Strafen → weniger Getränke (gegenläufig)", nahe 0 = „Kein klarer Zusammenhang". Über den „Was bedeutet das?"-Link lässt sich eine ausführlichere Erklärung des Werte-Bereichs (−1 bis +1) und der Faustregel (±0,2 mittel, ±0,5 stark) ausklappen.
 
 Werte:
 
