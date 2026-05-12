@@ -742,7 +742,8 @@ describe('StatsPage — correlation section', () => {
             expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
         })
         // Defaults to 15 min bin
-        const lastCall = vi.mocked(api.getEveningCorrelation).mock.calls.at(-1)
+        const calls = vi.mocked(api.getEveningCorrelation).mock.calls
+        const lastCall = calls[calls.length - 1]
         expect(lastCall?.[1]).toBe(15)
     })
 
@@ -758,7 +759,8 @@ describe('StatsPage — correlation section', () => {
         const bin30 = await screen.findByText(/30 stats.correlation.minutes/)
         fireEvent.click(bin30)
         await waitFor(() => {
-            const lastCall = vi.mocked(api.getEveningCorrelation).mock.calls.at(-1)
+            const calls = vi.mocked(api.getEveningCorrelation).mock.calls
+        const lastCall = calls[calls.length - 1]
             expect(lastCall?.[1]).toBe(30)
         })
     })
