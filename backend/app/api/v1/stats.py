@@ -264,7 +264,7 @@ def get_correlation_stats(year: int, db: Session = Depends(get_db), user: User =
         "evenings_count": 0,
         "total_penalty_euro": 0.0,
         "total_drink_count": 0,
-        "_pairs": [],  # list[tuple[float, int]] for personal r
+        "evening_points": [],  # list[{evening_id, date, penalty_euro, drink_count}]
     })
 
     for e in evenings:
@@ -301,13 +301,18 @@ def get_correlation_stats(year: int, db: Session = Depends(get_db), user: User =
             acc["evenings_count"] += 1
             acc["total_penalty_euro"] += p_penalty
             acc["total_drink_count"] += p_drinks
-            acc["_pairs"].append((p_penalty, p_drinks))
+            acc["evening_points"].append({
+                "evening_id": e.id,
+                "date": e.date.isoformat(),
+                "penalty_euro": round(p_penalty, 2),
+                "drink_count": p_drinks,
+            })
 
     members_list = []
     for acc in member_acc.values():
-        pairs = acc.pop("_pairs")
-        xs = [p[0] for p in pairs]
-        ys = [float(p[1]) for p in pairs]
+        points = acc["evening_points"]
+        xs = [p["penalty_euro"] for p in points]
+        ys = [float(p["drink_count"]) for p in points]
         acc["total_penalty_euro"] = round(acc["total_penalty_euro"], 2)
         acc["personal_pearson_r"] = _pearson(xs, ys)
         members_list.append(acc)

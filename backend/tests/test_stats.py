@@ -569,6 +569,20 @@ class TestCorrelationStats:
         assert pt["penalty_euro"] == 3.5
         assert pt["drink_count"] == 2  # beer + shots combined
 
+    def test_member_evening_points_present(self, client: TestClient, member_headers: dict, db: Session,
+                                           evening_2025: Evening, player: EveningPlayer, member: RegularMember):
+        self._add_penalty(db, evening_2025, player, 2.5)
+        self._add_drink(db, evening_2025, [player.id], "beer")
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["regular_member_id"] == member.id)
+        assert "evening_points" in me
+        assert len(me["evening_points"]) == 1
+        pt = me["evening_points"][0]
+        assert pt["evening_id"] == evening_2025.id
+        assert pt["penalty_euro"] == 2.5
+        assert pt["drink_count"] == 1
+        assert "date" in pt
+
     def test_member_totals_and_pairs(self, client: TestClient, member_headers: dict, db: Session,
                                      club: Club, member: RegularMember,
                                      evening_2025: Evening, player: EveningPlayer):

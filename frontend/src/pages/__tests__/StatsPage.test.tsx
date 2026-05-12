@@ -214,9 +214,18 @@ async function setupWithEvenings() {
         ],
         members: [
             { regular_member_id: 1, name: 'Hans', nickname: null, evenings_count: 3,
-              total_penalty_euro: 12.5, total_drink_count: 8, personal_pearson_r: 0.7 },
+              total_penalty_euro: 12.5, total_drink_count: 8, personal_pearson_r: 0.7,
+              evening_points: [
+                  { evening_id: 10, date: '2026-03-15', penalty_euro: 4.0, drink_count: 3 },
+                  { evening_id: 11, date: '2026-01-20', penalty_euro: 5.5, drink_count: 4 },
+                  { evening_id: 12, date: '2026-04-05', penalty_euro: 3.0, drink_count: 1 },
+              ] },
             { regular_member_id: 2, name: 'Franzi', nickname: 'Fra', evenings_count: 2,
-              total_penalty_euro: 8.0, total_drink_count: 4, personal_pearson_r: null },
+              total_penalty_euro: 8.0, total_drink_count: 4, personal_pearson_r: null,
+              evening_points: [
+                  { evening_id: 10, date: '2026-03-15', penalty_euro: 3.0, drink_count: 2 },
+                  { evening_id: 11, date: '2026-01-20', penalty_euro: 5.0, drink_count: 2 },
+              ] },
         ],
     } as any)
     vi.mocked(api.getEveningCorrelation).mockResolvedValue({
@@ -688,16 +697,17 @@ describe('StatsPage — correlation section', () => {
         storeState.regularMembers = []
     })
 
-    it('renders the correlation title and all four tab labels', async () => {
+    it('renders the correlation title and the three year-level tab labels', async () => {
         await setupWithEvenings()
         await renderStatsPage()
         await waitFor(() => {
-            expect(screen.getByText('stats.correlation.title')).toBeInTheDocument()
+            // The title appears in both the year-level section and the
+            // evening-detail EveningCorrelationPanel.
+            expect(screen.getAllByText('stats.correlation.title').length).toBeGreaterThanOrEqual(1)
         })
         expect(screen.getByText('stats.correlation.tab.perEvening')).toBeInTheDocument()
         expect(screen.getByText('stats.correlation.tab.perMember')).toBeInTheDocument()
         expect(screen.getByText('stats.correlation.tab.strength')).toBeInTheDocument()
-        expect(screen.getByText('stats.correlation.tab.timeline')).toBeInTheDocument()
     })
 
     it('calls api.getCorrelationStats with the active year', async () => {
@@ -713,9 +723,10 @@ describe('StatsPage — correlation section', () => {
         await setupWithEvenings()
         await renderStatsPage()
         await waitFor(() => {
-            // 0.62 → strong
+            // Year-level overall_pearson_r = 0.62 → strong
             expect(screen.getByText('0.62')).toBeInTheDocument()
-            expect(screen.getByText('stats.correlation.strong')).toBeInTheDocument()
+            // Multiple r badges (year + within-evening panel) may render strong/moderate labels
+            expect(screen.getAllByText('stats.correlation.strong').length).toBeGreaterThanOrEqual(1)
         })
     })
 
@@ -732,12 +743,11 @@ describe('StatsPage — correlation section', () => {
         })
     })
 
-    it('switching to the timeline tab fetches evening correlation', async () => {
+    it('renders the within-evening correlation panel in the evening section', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
         await renderStatsPage()
-        await waitFor(() => screen.getByText('stats.correlation.tab.timeline'))
-        fireEvent.click(screen.getByText('stats.correlation.tab.timeline'))
+        // The panel auto-fetches once the evening is loaded — no tab click needed.
         await waitFor(() => {
             expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
         })
@@ -747,12 +757,10 @@ describe('StatsPage — correlation section', () => {
         expect(lastCall?.[1]).toBe(15)
     })
 
-    it('changing the bin size re-fetches with new bin_minutes', async () => {
+    it('changing the bin size in the evening panel re-fetches with new bin_minutes', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
         await renderStatsPage()
-        await waitFor(() => screen.getByText('stats.correlation.tab.timeline'))
-        fireEvent.click(screen.getByText('stats.correlation.tab.timeline'))
         await waitFor(() => {
             expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
         })
@@ -760,7 +768,7 @@ describe('StatsPage — correlation section', () => {
         fireEvent.click(bin30)
         await waitFor(() => {
             const calls = vi.mocked(api.getEveningCorrelation).mock.calls
-        const lastCall = calls[calls.length - 1]
+            const lastCall = calls[calls.length - 1]
             expect(lastCall?.[1]).toBe(30)
         })
     })
