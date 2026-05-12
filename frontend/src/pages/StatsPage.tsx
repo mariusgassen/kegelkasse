@@ -532,7 +532,7 @@ function GamesDetailSheet({evening, t, onClose}: {
     t: (k: any) => string
     onClose: () => void
 }) {
-    const games = [...evening.games].sort((a, b) => a.sort_order - b.sort_order)
+    const games = [...evening.games].sort((a, b) => a.client_timestamp - b.client_timestamp)
 
     const playerName = (pid: number) => {
         const p = evening.players.find(pl => pl.id === pid)
