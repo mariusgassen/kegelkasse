@@ -33,6 +33,16 @@ Navigiere zu **Statistiken** (📊) in der Navigation.
 
 Einzelne Spieler können ein- und ausgeklappt werden, um die Detailwerte zu sehen oder die Übersicht zu komprimieren.
 
+## Abend-Detail
+
+Über die Abend-Auswahl oben auf der Statistik-Seite lässt sich ein einzelner Abend analysieren:
+
+- **Donut-Diagramm**: Strafenverteilung pro Spieler (anwesend/abwesend)
+- **🍺 / 🥃-Karten**: Öffnen die Getränke-Runden-Übersicht
+- **🏆 Spiele-Karte**: Öffnet die **Spiele & Ergebnisse**-Übersicht mit Status, Sieger, Punkten und Wurf-Statistik je Spiel
+- **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können angetippt werden, um die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) einzublenden
+- **Hall of Fame**: Auszeichnungen wie StrafenkaiserIn, Bier-Champ, Spiele-KönigIn
+
 ## Persönliche Statistiken
 
 Im **Profil** (Profilsymbol oben rechts) sind die eigenen Jahresstatistiken einsehbar:

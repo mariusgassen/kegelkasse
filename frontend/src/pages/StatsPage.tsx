@@ -9,7 +9,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
-import type {Evening, EveningPlayer} from '@/types.ts'
+import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -23,17 +23,21 @@ const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
-type ChartSeries = { id: number; name: string; color: string; events: { ts: number; delta: number }[] }
+type ChartEvent = { ts: number; delta: number; entry?: PenaltyLogEntry }
+type ChartSeries = { id: number; name: string; color: string; events: ChartEvent[] }
+type SelectedPoint = { seriesId: number; entryId: number }
 
 const PAD = {top: 12, right: 12, bottom: 22, left: 38}
 const VW = 400, VH = 140
 const IW = VW - PAD.left - PAD.right
 const IH = VH - PAD.top - PAD.bottom
 
-function CumulativeChart({series, yFormat, title}: {
+function CumulativeChart({series, yFormat, title, selected, onSelect}: {
     series: ChartSeries[]
     yFormat: (v: number) => string
     title: string
+    selected?: SelectedPoint | null
+    onSelect?: (point: SelectedPoint | null) => void
 }) {
     const allTs = series.flatMap(s => s.events.map(e => e.ts))
     const hasData = allTs.length > 0
@@ -71,7 +75,9 @@ function CumulativeChart({series, yFormat, title}: {
     return (
         <div className="mb-1">
             <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">{title}</div>
-            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} style={{overflow: 'visible', display: 'block'}}>
+            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
+                 style={{overflow: 'visible', display: 'block'}}
+                 onClick={onSelect ? () => onSelect(null) : undefined}>
                 {/* Grid */}
                 {yTicks.filter(t => t.v > 0).map((tick, i) => (
                     <line key={i} x1={PAD.left} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
@@ -99,8 +105,25 @@ function CumulativeChart({series, yFormat, title}: {
                     let cum = 0
                     return [...s.events].sort((a, b) => a.ts - b.ts).map((e, i) => {
                         cum += e.delta
-                        return <circle key={i} cx={xS(e.ts)} cy={yS(cum)} r="2.5"
-                                       fill={s.color} stroke="var(--kce-bg)" strokeWidth="1"/>
+                        const isSelected = !!(selected && e.entry && selected.seriesId === s.id && selected.entryId === e.entry.id)
+                        const cx = xS(e.ts), cy = yS(cum)
+                        const interactive = !!(onSelect && e.entry)
+                        return (
+                            <g key={i}
+                               style={interactive ? {cursor: 'pointer'} : undefined}
+                               onClick={interactive ? (evt) => {
+                                   evt.stopPropagation()
+                                   onSelect!(isSelected ? null : {seriesId: s.id, entryId: e.entry!.id})
+                               } : undefined}>
+                                {interactive && (
+                                    <circle cx={cx} cy={cy} r="9" fill="transparent"/>
+                                )}
+                                <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
+                                        fill={s.color} stroke="var(--kce-bg)"
+                                        strokeWidth={isSelected ? 1.5 : 1}
+                                        style={{transition: 'r 0.12s'}}/>
+                            </g>
+                        )
                     })
                 })}
                 {/* Axes */}
@@ -115,9 +138,10 @@ function CumulativeChart({series, yFormat, title}: {
 
 // ── Evening timeline section ────────────────────────────────────────────────
 
-function EveningTimeline({evening}: { evening: Evening }) {
+function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string }) {
     const allIds = evening.players.map(p => p.id)
     const [selected, setSelected] = useState<number[]>(allIds)
+    const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null)
 
     // Stable color per player (by index in evening.players, not filtered index)
     const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
@@ -131,7 +155,11 @@ function EveningTimeline({evening}: { evening: Evening }) {
         id: p.id, name: p.name, color: colorOf(p.id),
         events: evening.penalty_log
             .filter(l => l.player_id === p.id && !('is_deleted' in l && (l as any).is_deleted))
-            .map(l => ({ts: l.client_timestamp, delta: l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)})),
+            .map(l => ({
+                ts: l.client_timestamp,
+                delta: l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0),
+                entry: l,
+            })),
     }))
 
     const drinkSeries: ChartSeries[] = activePlayers.map(p => ({
@@ -140,6 +168,17 @@ function EveningTimeline({evening}: { evening: Evening }) {
             .filter(r => r.participant_ids.includes(p.id))
             .map(r => ({ts: r.client_timestamp, delta: 1})),
     }))
+
+    const selectedDetail = selectedPoint
+        ? (() => {
+            const ser = penaltySeries.find(s => s.id === selectedPoint.seriesId)
+            const ev = ser?.events.find(e => e.entry?.id === selectedPoint.entryId)
+            if (!ser || !ev || !ev.entry) return null
+            const fTime = (ts: number) =>
+                new Date(ts).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
+            return {player: ser.name, color: ser.color, entry: ev.entry, amount: ev.delta, time: fTime(ev.ts)}
+        })()
+        : null
 
     const hasAnyPenalty = penaltySeries.some(s => s.events.length > 0)
     const hasAnyDrink = drinkSeries.some(s => s.events.length > 0)
@@ -183,7 +222,28 @@ function EveningTimeline({evening}: { evening: Evening }) {
 
             <div className="kce-card p-3">
                 {anyPenaltyTotal && (
-                    <CumulativeChart series={penaltySeries} yFormat={feShort} title="Strafen €"/>
+                    <>
+                        <CumulativeChart
+                            series={penaltySeries} yFormat={feShort} title="Strafen €"
+                            selected={selectedPoint}
+                            onSelect={setSelectedPoint}
+                        />
+                        {selectedDetail ? (
+                            <div className="flex items-center gap-2 mb-2 px-1.5 py-1 rounded text-[11px]"
+                                 style={{background: selectedDetail.color + '22', borderLeft: `2px solid ${selectedDetail.color}`}}>
+                                <span className="text-kce-muted flex-shrink-0">{selectedDetail.time}</span>
+                                <span className="font-bold flex-shrink-0" style={{color: selectedDetail.color}}>{selectedDetail.player}</span>
+                                <span className="text-kce-cream truncate flex-1">
+                                    {selectedDetail.entry.icon ? `${selectedDetail.entry.icon} ` : ''}{selectedDetail.entry.penalty_type_name}
+                                </span>
+                                <span className="text-red-400 font-bold flex-shrink-0">{feShort(selectedDetail.amount)}</span>
+                            </div>
+                        ) : (
+                            <div className="text-[9px] text-kce-muted/60 italic mb-2 px-1.5">
+                                ☝️ {t('stats.tapPenaltyDot')}
+                            </div>
+                        )}
+                    </>
                 )}
                 {anyDrinkTotal && (
                     <CumulativeChart series={drinkSeries} yFormat={v => `${Math.round(v)}`} title="Getränke"/>
@@ -245,6 +305,9 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [showAbsent, setShowAbsent] = useState(true)
     const [drinkDetail, setDrinkDetail] = useState<'beer' | 'shots' | null>(null)
+    const [gamesOpen, setGamesOpen] = useState(false)
+    const gameCount = evening.games.length
+    const finishedGameCount = evening.games.filter(g => g.status === 'finished').length
 
     // Present players: group by player_id
     const presentTotals = evening.players.map(p => {
@@ -289,6 +352,14 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     <div className="font-display font-bold text-kce-amber text-xl leading-tight">🥃 {shotRounds}</div>
                     <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
                 </button>
+                {gameCount > 0 && (
+                    <button type="button"
+                            className="kce-card p-3 text-center active:opacity-70 transition-opacity col-span-2"
+                            onClick={() => setGamesOpen(true)}>
+                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🏆 {finishedGameCount}/{gameCount}</div>
+                        <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
+                    </button>
+                )}
             </div>
             {drinkDetail && (
                 <DrinkRoundsDetailSheet
@@ -297,6 +368,9 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     t={t}
                     onClose={() => setDrinkDetail(null)}
                 />
+            )}
+            {gamesOpen && (
+                <GamesDetailSheet evening={evening} t={t} onClose={() => setGamesOpen(false)}/>
             )}
             </>
         )
@@ -379,14 +453,21 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     </svg>
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
-                    <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
-                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🍺 {beerRounds}</div>
+                    <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
+                        <div className="font-display font-bold text-kce-amber text-lg leading-tight">🍺 {beerRounds}</div>
                         <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
                     </button>
-                    <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('shots')}>
-                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🥃 {shotRounds}</div>
+                    <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('shots')}>
+                        <div className="font-display font-bold text-kce-amber text-lg leading-tight">🥃 {shotRounds}</div>
                         <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
                     </button>
+                    {gameCount > 0 && (
+                        <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity"
+                                onClick={() => setGamesOpen(true)}>
+                            <div className="font-display font-bold text-kce-amber text-lg leading-tight">🏆 {finishedGameCount}/{gameCount}</div>
+                            <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="kce-card p-2">
@@ -437,7 +518,137 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                 onClose={() => setDrinkDetail(null)}
             />
         )}
+        {gamesOpen && (
+            <GamesDetailSheet evening={evening} t={t} onClose={() => setGamesOpen(false)}/>
+        )}
         </>
+    )
+}
+
+// ── Games detail sheet ──────────────────────────────────────────────────────
+
+function GamesDetailSheet({evening, t, onClose}: {
+    evening: Evening
+    t: (k: any) => string
+    onClose: () => void
+}) {
+    const games = [...evening.games].sort((a, b) => a.sort_order - b.sort_order)
+
+    const playerName = (pid: number) => {
+        const p = evening.players.find(pl => pl.id === pid)
+        return p ? (p.nickname || p.name) : '?'
+    }
+    const teamName = (tid: number) => evening.teams.find(team => team.id === tid)?.name ?? '?'
+
+    const refLabel = (ref: string) => {
+        if (ref.startsWith('p:')) return playerName(parseInt(ref.slice(2)))
+        if (ref.startsWith('t:')) return teamName(parseInt(ref.slice(2)))
+        return ref
+    }
+
+    const fTime = (iso: string | null) =>
+        iso ? new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'}) : null
+
+    const statusLabel = (g: Game) => {
+        if (g.status === 'finished') return {text: t('stats.gameStatusFinished'), color: 'var(--kce-amber)'}
+        if (g.status === 'running') return {text: t('stats.gameStatusRunning'), color: '#22c55e'}
+        return {text: t('stats.gameStatusOpen'), color: 'var(--kce-muted)'}
+    }
+
+    return (
+        <Sheet open onClose={onClose} title={t('stats.gamesDetail')}>
+            {games.length === 0 ? (
+                <div className="text-sm text-kce-muted text-center py-4">{t('stats.noGames')}</div>
+            ) : (
+                <div className="space-y-2">
+                    {games.map(g => {
+                        const status = statusLabel(g)
+                        const scoreEntries = Object.entries(g.scores ?? {})
+                            .map(([ref, score]) => ({ref, label: refLabel(ref), score, isWinner: g.winner_ref === ref}))
+                            .sort((a, b) => b.score - a.score)
+                        const throws = g.throws ?? []
+                        const totalPins = throws.reduce((s, th) => s + th.pins, 0)
+                        const throwCount = throws.length
+                        const avgPins = throwCount > 0 ? (totalPins / throwCount).toFixed(1) : null
+                        const startedAt = fTime(g.started_at)
+                        const finishedAt = fTime(g.finished_at)
+                        return (
+                            <div key={g.id} className="kce-card p-3">
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                    <div className="font-bold text-kce-cream text-sm flex items-center gap-1 min-w-0">
+                                        {g.is_opener && <span title="Eröffnungsspiel">👑</span>}
+                                        <span className="truncate">{g.name}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
+                                          style={{color: status.color}}>
+                                        {status.text}
+                                    </span>
+                                </div>
+
+                                {g.winner_name && (
+                                    <div className="text-xs text-kce-amber font-bold mb-1.5">
+                                        🏆 {g.winner_name}
+                                    </div>
+                                )}
+
+                                {(startedAt || finishedAt) && (
+                                    <div className="text-[10px] text-kce-muted mb-1.5">
+                                        {startedAt && <>⏱ {startedAt}</>}
+                                        {startedAt && finishedAt && ' · '}
+                                        {finishedAt && <>🏁 {finishedAt}</>}
+                                    </div>
+                                )}
+
+                                {scoreEntries.length > 0 && (
+                                    <div className="mb-1.5">
+                                        <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">
+                                            {t('stats.scores')}
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            {scoreEntries.map(s => (
+                                                <div key={s.ref} className="flex items-center justify-between text-xs">
+                                                    <span className={s.isWinner ? 'text-kce-amber font-bold' : 'text-kce-cream'}>
+                                                        {s.isWinner ? '🏆 ' : ''}{s.label}
+                                                    </span>
+                                                    <span className={s.isWinner ? 'text-kce-amber font-bold' : 'text-kce-muted'}>
+                                                        {s.score}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {throwCount > 0 && (
+                                    <div className="flex justify-around text-center pt-1.5 border-t border-kce-border">
+                                        <div>
+                                            <div className="font-bold text-kce-cream text-xs">{totalPins}</div>
+                                            <div className="text-[9px] text-kce-muted">{t('stats.totalPins')}</div>
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-kce-cream text-xs">{throwCount}</div>
+                                            <div className="text-[9px] text-kce-muted">{t('stats.throwCount')}</div>
+                                        </div>
+                                        {avgPins !== null && (
+                                            <div>
+                                                <div className="font-bold text-kce-amber text-xs">{avgPins}</div>
+                                                <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {g.note && (
+                                    <div className="text-[11px] text-kce-muted mt-1.5 italic">
+                                        {g.note}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </Sheet>
     )
 }
 
@@ -1125,7 +1336,7 @@ export function StatsPage() {
                                 </>
                             )}
 
-                            <EveningTimeline evening={evening}/>
+                            <EveningTimeline evening={evening} t={t}/>
 
                             {evening.highlights.length > 0 && (
                                 <>
