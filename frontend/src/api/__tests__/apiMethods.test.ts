@@ -479,6 +479,19 @@ describe('api.deleteMemberPayment', () => {
     })
 })
 
+describe('api.transferGuestCosts', () => {
+    it('POSTs to /club/guest-cost-transfer with body', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ guest_payment_id: 1, target_payment_id: 2 }))
+        const { api } = await import('../client')
+        await api.transferGuestCosts({ guest_id: 11, target_member_id: 22, amount: 7.50, note: 'Beer round' })
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/guest-cost-transfer')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
+            guest_id: 11, target_member_id: 22, amount: 7.50, note: 'Beer round',
+        })
+    })
+})
+
 describe('api.getMyBalance', () => {
     it('GETs /club/my-balance', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ balance: 0 }))

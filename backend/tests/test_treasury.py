@@ -474,3 +474,107 @@ class TestPaymentRequestReject:
         db.commit()
         resp = client.patch(f"/api/v1/club/payment-requests/{req.id}/reject", headers=auth_headers)
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/club/guest-cost-transfer
+# ---------------------------------------------------------------------------
+
+class TestGuestCostTransfer:
+    @pytest.fixture()
+    def guest(self, db, club):
+        g = RegularMember(club_id=club.id, name="Gast Hans", nickname="Hansi", is_guest=True)
+        db.add(g)
+        db.commit()
+        db.refresh(g)
+        return g
+
+    def test_admin_can_transfer(self, client: TestClient, db, club, guest, regular_member, admin_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": guest.id, "target_member_id": regular_member.id,
+                  "amount": 12.50, "note": "Bier-Runde"},
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+        guest_p = db.query(MemberPayment).filter(MemberPayment.id == body["guest_payment_id"]).one()
+        target_p = db.query(MemberPayment).filter(MemberPayment.id == body["target_payment_id"]).one()
+        assert guest_p.regular_member_id == guest.id
+        assert guest_p.amount == 12.50
+        assert "Max" in (guest_p.note or "")
+        assert "Bier-Runde" in (guest_p.note or "")
+        assert target_p.regular_member_id == regular_member.id
+        assert target_p.amount == -12.50
+        assert "Hansi" in (target_p.note or "")
+
+    def test_member_cannot_transfer(self, client: TestClient, guest, regular_member, auth_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=auth_headers,
+            json={"guest_id": guest.id, "target_member_id": regular_member.id, "amount": 5.0},
+        )
+        assert resp.status_code == 403
+
+    def test_requires_auth(self, client: TestClient, guest, regular_member):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            json={"guest_id": guest.id, "target_member_id": regular_member.id, "amount": 5.0},
+        )
+        assert resp.status_code == 401
+
+    def test_missing_guest_returns_404(self, client: TestClient, regular_member, admin_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": 999999, "target_member_id": regular_member.id, "amount": 5.0},
+        )
+        assert resp.status_code == 404
+
+    def test_missing_target_returns_404(self, client: TestClient, guest, admin_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": guest.id, "target_member_id": 999999, "amount": 5.0},
+        )
+        assert resp.status_code == 404
+
+    def test_source_must_be_guest(self, client: TestClient, db, club, regular_member, admin_headers):
+        other = RegularMember(club_id=club.id, name="Andere", is_guest=False)
+        db.add(other)
+        db.commit()
+        db.refresh(other)
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": other.id, "target_member_id": regular_member.id, "amount": 5.0},
+        )
+        assert resp.status_code == 400
+
+    def test_target_must_not_be_guest(self, client: TestClient, db, club, guest, admin_headers):
+        other_guest = RegularMember(club_id=club.id, name="Gast2", is_guest=True)
+        db.add(other_guest)
+        db.commit()
+        db.refresh(other_guest)
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": guest.id, "target_member_id": other_guest.id, "amount": 5.0},
+        )
+        assert resp.status_code == 400
+
+    def test_amount_must_be_positive(self, client: TestClient, guest, regular_member, admin_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": guest.id, "target_member_id": regular_member.id, "amount": 0},
+        )
+        assert resp.status_code == 400
+
+    def test_guest_and_target_must_differ(self, client: TestClient, guest, admin_headers):
+        resp = client.post(
+            "/api/v1/club/guest-cost-transfer",
+            headers=admin_headers,
+            json={"guest_id": guest.id, "target_member_id": guest.id, "amount": 5.0},
+        )
+        assert resp.status_code == 400

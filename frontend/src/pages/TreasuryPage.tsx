@@ -248,6 +248,45 @@ export function TreasuryPage() {
         }
     }
 
+    // Guest cost transfer sheet — credit guest + debit chosen regular member
+    const [transferGuest, setTransferGuest] = useState<{ id: number; name: string } | null>(null)
+    const [transferTargetId, setTransferTargetId] = useState<number | null>(null)
+    const [transferAmount, setTransferAmount] = useState('')
+    const [transferNote, setTransferNote] = useState('')
+    const [transferring, setTransferring] = useState(false)
+
+    function openTransferSheet(id: number, name: string, prefillAmount: number) {
+        setTransferGuest({id, name})
+        setTransferTargetId(null)
+        setTransferAmount(prefillAmount > 0 ? prefillAmount.toFixed(2) : '')
+        setTransferNote('')
+    }
+
+    async function submitTransfer() {
+        if (!transferGuest || !transferTargetId) return
+        const abs = parseAmount(transferAmount)
+        if (!abs || abs <= 0) return
+        setTransferring(true)
+        try {
+            await api.transferGuestCosts({
+                guest_id: transferGuest.id,
+                target_member_id: transferTargetId,
+                amount: abs,
+                note: transferNote || undefined,
+            })
+            refetchBalances()
+            refetchGuestBalances()
+            qc.invalidateQueries({queryKey: ['member-payments', transferGuest.id]})
+            qc.invalidateQueries({queryKey: ['member-payments', transferTargetId]})
+            qc.invalidateQueries({queryKey: ['all-payments']})
+            setTransferGuest(null)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setTransferring(false)
+        }
+    }
+
     // New booking sheet — unified for Club expenses and member payments
     const [bookingSheet, setBookingSheet] = useState(false)
     const [bookingTarget, setBookingTarget] = useState<'club' | number>('club')
@@ -611,7 +650,7 @@ export function TreasuryPage() {
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.guestsHint')}</p>
                             {guestDebtors.map(b => (
                                 <div key={b.regular_member_id}
-                                     className="kce-card p-3 mb-2 flex items-center gap-3">
+                                     className="kce-card p-3 mb-2 flex items-center gap-2 flex-wrap">
                                     <span className="text-sm">👤</span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
@@ -621,10 +660,16 @@ export function TreasuryPage() {
                                     </div>
                                     <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
                                     {admin && (
-                                        <button className="btn-primary btn-sm flex-shrink-0"
-                                                onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
-                                            {t('treasury.payment.settle')}
-                                        </button>
+                                        <>
+                                            <button className="btn-secondary btn-sm flex-shrink-0"
+                                                    onClick={() => openTransferSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                ↪️ {t('treasury.transfer.button')}
+                                            </button>
+                                            <button className="btn-primary btn-sm flex-shrink-0"
+                                                    onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                {t('treasury.payment.settle')}
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -956,6 +1001,56 @@ export function TreasuryPage() {
                     }
                 </div>
             )}
+
+            {/* Guest cost transfer sheet */}
+            <Sheet open={!!transferGuest} onClose={() => setTransferGuest(null)}
+                   title={`↪️ ${t('treasury.transfer.title')}`} onSubmit={submitTransfer}>
+                <div className="flex flex-col gap-3">
+                    <p className="text-xs text-kce-muted">
+                        {t('treasury.transfer.hint')}
+                    </p>
+                    <div>
+                        <label className="field-label">
+                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-kce-text">{transferGuest?.name ?? ''}</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('treasury.transfer.target')}</label>
+                        {memberPickerList.length === 0
+                            ? <p className="text-xs text-kce-muted">{t('treasury.transfer.noTargets')}</p>
+                            : (
+                                <div className="flex gap-2 flex-wrap">
+                                    {memberPickerList.map(m => (
+                                        <button key={m.regular_member_id} type="button"
+                                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${transferTargetId === m.regular_member_id ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                                onClick={() => setTransferTargetId(m.regular_member_id)}>
+                                            {m.nickname || m.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                    </div>
+                    <div>
+                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
+                                   value={transferAmount} onChange={e => setTransferAmount(e.target.value)}
+                                   placeholder="0,00"/>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('treasury.payment.note')}</label>
+                        <input className="kce-input" value={transferNote}
+                               onChange={e => setTransferNote(e.target.value)}
+                               placeholder={t('treasury.transfer.notePlaceholder')}/>
+                    </div>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={transferring || !transferTargetId || parseAmount(transferAmount) <= 0}>
+                        ✓ {t('treasury.transfer.submit')}
+                    </button>
+                </div>
+            </Sheet>
 
             {/* Payment sheet */}
             <Sheet open={!!paymentTarget} onClose={() => setPaymentTarget(null)}

@@ -1,41 +1,49 @@
-# Enhance stats per evening
+# Guest cost transfer
 
-## Goal
+Pass on a guest's outstanding penalty cost to a chosen regular member without
+touching stats / PenaltyLog. Implements a "double-entry" booking: the guest is
+credited, the regular member is debited, both via `MemberPayment` rows that
+reference each other in their notes.
 
-Two improvements to the evening analysis section on StatsPage:
+## Decisions (confirmed with user)
 
-1. **Games & results drawer** — show all games and their results in an additional drawer that opens from a games-overview card next to the donut chart.
-2. **Click penalty dots on the cumulative chart** — clicking a data point in the per-person penalty graph reveals the penalty that caused the jump (icon, name, amount, time).
+- Two paired `MemberPayment` entries (credit guest, debit regular member).
+- Amount is editable, prefilled with the guest's current outstanding debt.
+- Entry point: only on the Overview tab guest debtor card (admin only).
 
 ## Plan
 
-- [ ] Add a "🏆 Spiele" stat card to `EveningDonutChart`, mirroring the existing 🍺 / 🥃 cards. The whole card is clickable and opens a new `GamesDetailSheet`.
-- [ ] New `GamesDetailSheet` component:
-  - Lists every game ordered by `sort_order`.
-  - For each game: name (with 🏆/👑 markers), status badge (open / running / finished), winner name, start/finish time, per-player scores, throw-count + avg pins for finished games.
-  - Empty state when no games exist.
-- [ ] Make penalty dots on `CumulativeChart` clickable:
-  - Extend `ChartSeries.events` with the source `PenaltyLogEntry` (only for penalty series; drink series stays inert).
-  - Track a `selectedEvent` in `EveningTimeline`; clicking a dot selects it, clicking again deselects.
-  - Render an info row beneath the chart with: time, player name, icon + penalty type, amount.
-- [ ] Add i18n keys for the new UI strings (de + en).
-- [ ] Run `cd frontend && npm run build` to verify types.
-- [ ] Update Feature Roadmap row in CLAUDE.md (Feature #7 stats notes).
+### Backend
+- [x] `POST /club/guest-cost-transfer` in `backend/app/api/v1/club.py`
+  - body: `{ guest_id, target_member_id, amount, note? }`
+  - validates admin role, same club, guest `is_guest=True`, target `is_guest=False`
+  - amount must be > 0
+  - creates 2 `MemberPayment` rows atomically:
+    - guest: `+amount`, note = `"Übertragen auf {target.name}" [+ ": {note}"]`
+    - target: `-amount`, note = `"Übernommen von {guest.name}" [+ ": {note}"]`
+  - returns `{ guest_payment_id, target_payment_id }`
+- [x] pytest in `backend/tests/test_treasury.py`: happy path, 401, 403 (non-admin), 404 (guest/target missing), 400 (guest_id=target, target is guest, guest is regular, cross-club, amount<=0)
 
-## Notes
+### Frontend
+- [x] `api.transferGuestCosts({ guest_id, target_member_id, amount, note? })` in `frontend/src/api/client.ts`
+- [x] Transfer sheet in `TreasuryPage.tsx`: pick target member (chips from `memberPickerList`), amount input (prefilled with guest's debt), optional note, submit
+- [x] "↪️ Übertragen" button on each guest debtor card in the Overview tab (admin only, next to "Begleichen")
+- [x] After submit: invalidate `member-balances`, `guest-balances`, `all-payments`, expanded `member-payments`
+- [x] api-client Vitest in `frontend/src/api/__tests__/apiMethods.test.ts`
 
-- Game data is already on `evening.games` so no backend changes needed.
-- Penalty entry source is already in `evening.penalty_log`; the cumulative chart can re-use that reference.
-- Keep the design language: `kce-card`, amber accents, small/uppercase muted labels.
+### i18n
+- [x] `treasury.transfer.button` / `.title` / `.target` / `.notePlaceholder` / `.submit` / `.fromGuest` / `.hint` / `.noTargets` in `de.ts` + `en.ts`
+
+### Docs
+- [x] CLAUDE.md feature roadmap: new row "Gast-Kosten-Übertragung"
+- [x] README feature catalog (Treasury section)
+- [x] `docs/docs/funktionen/kasse.md` new section "Gäste & Kostenübertragung"
 
 ## Review
 
-- Added new **🏆 Spiele**-Karte to `EveningDonutChart` (right-hand column next to 🍺/🥃 and in the no-data 2-col grid). Card shows `finished/total` count, opens `GamesDetailSheet`.
-- New `GamesDetailSheet` lists every game sorted by `sort_order`: name with 👑 opener marker, status pill (Offen/Läuft/Fertig), winner row, started/finished times, scores sorted desc with 🏆 winner highlight, throw stats (total pins, throw count, avg) for finished games, optional note. Empty state when no games.
-- Extended `ChartSeries.events` with optional `entry: PenaltyLogEntry`. Penalty events now carry their source entry; drink events stay unchanged so drink dots remain inert.
-- `CumulativeChart` accepts `selected` + `onSelect`. Each penalty dot has a wider transparent hit target, grows to `r=4.5` when selected. Clicking the SVG background clears the selection.
-- `EveningTimeline` tracks the selected point and renders an info row beneath the penalty chart: timestamp, player name (in player color), penalty icon + type, amount. When nothing is selected, a small muted hint asks the user to tap a dot.
-- i18n: added `stats.games`, `stats.gamesDetail`, `stats.gameStatusOpen/Running/Finished`, `stats.tapPenaltyDot`, `stats.scores` to both `de.ts` and `en.ts`.
-- Docs: updated `docs/docs/funktionen/statistiken.md` with new Abend-Detail section. README "Statistics" bullet expanded.
-- CLAUDE.md Feature #7 row updated.
-- Build: `npm run build` clean. Vitest StatsPage (33) + i18n parity (4) tests pass.
+- Backend endpoint `POST /club/guest-cost-transfer` lives at `backend/app/api/v1/club.py:784–845`. Validates admin role, same club, source must be `is_guest=True`, target must be `is_guest=False`, amount > 0, source ≠ target. Creates two `MemberPayment` rows in one commit; both reference each other in the German `note` ("Übertragen auf {target}" / "Übernommen von {guest}", with optional ":{note}" suffix).
+- 9 pytest cases added (`TestGuestCostTransfer` in `backend/tests/test_treasury.py`): happy path, 401, 403, 404×2, 400×4. Full backend suite: 713 passed. Ruff clean.
+- Frontend: `api.transferGuestCosts()` in `frontend/src/api/client.ts`. New transfer sheet + `↪️ Übertragen` button on each guest debtor card in the Overview tab (admin only) of `TreasuryPage.tsx`. Sheet prefills amount with the guest's open balance, lets admin pick the target from `memberPickerList` (excludes other guests), accepts an optional note. After submit, invalidates `member-balances`, `guest-balances`, `all-payments`, and both members' `member-payments` queries.
+- i18n: 9 new keys `treasury.transfer.*` in `de.ts` + `en.ts`, kept in sync.
+- 1 new Vitest case in `apiMethods.test.ts`. Full frontend suite: 1708 passed. `npm run build` green.
+- Docs updated: `CLAUDE.md` roadmap row #42, README feature catalog (Treasury section), `docs/docs/funktionen/kasse.md` new section "Gäste & Kostenübertragung".
