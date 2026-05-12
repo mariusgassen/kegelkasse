@@ -47,11 +47,14 @@ Einzelne Spieler können ein- und ausgeklappt werden, um die Detailwerte zu sehe
 
 Im Jahresrückblick gibt es eine Korrelations-Sektion mit drei Tabs, die untersuchen, wie Strafen und Getränke (Bier + Schnaps zusammen) zusammenhängen.
 
-- **Pro Abend**: Streudiagramm — ein Punkt pro Abend des gewählten Jahres. X-Achse = Strafen (€), Y-Achse = Getränke-Runden. Eine gestrichelte Trendlinie und ein Pearson-*r*-Badge zeigen, ob strafenreiche Abende auch mehr Runden bedeuten. Darunter eine Plain-Language-Zusammenfassung („Pro +1 € Strafe ≈ +X Getränke") sowie ein Quartil-Vergleich der strafenreichsten 25 % vs ruhigsten 25 % Abende.
+- **Pro Abend**: Streudiagramm — ein Punkt pro Abend des gewählten Jahres. X-Achse = Strafen (€), Y-Achse = Getränke-Runden. Eine gestrichelte Trendlinie und ein Pearson-*r*-Badge zeigen, ob strafenreiche Abende auch mehr Runden bedeuten. Darunter eine **Saison-Kumulativ-Linie** (kumulierte Strafen & Getränke über alle Abende des Jahres), eine Plain-Language-Zusammenfassung („Pro +1 € Strafe ≈ +X Getränke") sowie ein Quartil-Vergleich der strafenreichsten 25 % vs ruhigsten 25 % Abende und — ab 10 Abenden — ein **Top-5 vs ruhigste 5 Streak-Vergleich** in absoluten Zahlen.
 - **Pro Mitglied**: Streudiagramm — ein Punkt pro Mitglied **und** Abend, farbcodiert pro Mitglied. Über eine Pill-Legend lässt sich auf ein einzelnes Mitglied fokussieren; im Fokus erscheint zusätzlich eine Trendlinie und der persönliche Pearson *r*. So sind die Muster verschiedener Mitglieder direkt vergleichbar.
 - **Korrelations-Stärke**: Pro Mitglied wird Pearson *r* über alle besuchten Abende berechnet (Strafen vs Getränke an dem Abend) und als Balken dargestellt. Mitglieder mit weniger als 3 Abenden erscheinen unten als Hinweis.
 
-Direkt in der **Abend-Detail-Sektion** (oben auf der Statistik-Seite, abhängig vom gewählten Abend) erscheint zusätzlich das Panel **Strafen × Getränke (Verlauf)**: Pill-Picker für Mitglied und Zeitfenster (5 / 15 / 30 Min), dazu zwei Charts — die kumulierte Strafen-/Getränke-Kurve (Dual-Axis-Line) und ein Δ-Bar-Chart, der pro Zeitfenster zeigt, wie viele € und Getränke in dem Fenster dazu kamen. Das *r* der Veränderungen zwischen den Bins gibt einen Hinweis darauf, ob das Mitglied im Laufe des Abends gleichzeitig zu Strafen und Runden neigt.
+Direkt in der **Abend-Detail-Sektion** (oben auf der Statistik-Seite, abhängig vom gewählten Abend) erscheint zusätzlich das Panel **Strafen × Getränke (Verlauf)**: Pill-Picker für Mitglied (inklusive „**Alle**"-Pill als Standard für den Vergleich) und Zeitfenster (5 / 15 / 30 Min).
+
+- Im **Vergleichs-Modus** („Alle" ausgewählt) zeigt das Panel zwei mehrlinige Charts: kumulierte Strafen (€) pro Mitglied und kumulierte Getränke pro Mitglied, jede Linie in der Farbe des Mitglieds. Damit lässt sich auf einen Blick erkennen, welche Mitglieder im Lauf des Abends ähnliche Muster zeigen und wer ausreißt.
+- Tap auf ein Mitglied-Pill öffnet den **Fokus-Modus**: kumulierte Strafen-/Getränke-Kurve (Dual-Axis-Line), ein Δ-Bar-Chart pro Zeitfenster und das Pearson *r* der Veränderungen — als Hinweis darauf, ob das Mitglied im Laufe des Abends gleichzeitig zu Strafen und Runden neigt.
 
 Werte:
 
