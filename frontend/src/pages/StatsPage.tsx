@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 import {useEveningList} from '../hooks/useEvening'
 import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app'
@@ -10,6 +10,8 @@ import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
+import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
+import {interpretR, linearRegression} from '@/lib/stats'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1227,6 +1229,492 @@ function DrinkRoundsDetailSheet({evening, initialTab, t, onClose}: {
     )
 }
 
+// ── Correlation section ─────────────────────────────────────────────────────
+
+type CorrTab = 'evening' | 'member' | 'strength' | 'timeline'
+
+function rColor(r: number | null): string {
+    if (r === null) return 'var(--kce-muted)'
+    const a = Math.abs(r)
+    if (a >= 0.5) return '#22c55e'
+    if (a >= 0.2) return 'var(--kce-amber)'
+    return 'var(--kce-muted)'
+}
+
+function rBadge(r: number | null, t: (k: TranslationKey) => string): { label: string; color: string } {
+    if (r === null) return {label: t('stats.correlation.none'), color: rColor(null)}
+    const cat = interpretR(r)
+    if (cat === 'strong') return {label: t('stats.correlation.strong'), color: rColor(r)}
+    if (cat === 'moderate') return {label: t('stats.correlation.moderate'), color: rColor(r)}
+    return {label: t('stats.correlation.weak'), color: rColor(r)}
+}
+
+const SC_VW = 320, SC_VH = 220
+const SC_PAD = {top: 12, right: 12, bottom: 30, left: 38}
+const SC_IW = SC_VW - SC_PAD.left - SC_PAD.right
+const SC_IH = SC_VH - SC_PAD.top - SC_PAD.bottom
+
+interface ScatterPoint {
+    x: number
+    y: number
+    label?: string
+    color?: string
+    size?: number
+}
+
+function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex, onSelect}: {
+    points: ScatterPoint[]
+    xLabel: string
+    yLabel: string
+    trendLine?: boolean
+    selectedIndex?: number | null
+    onSelect?: (idx: number) => void
+}) {
+    if (points.length === 0) return null
+    const xs = points.map(p => p.x)
+    const ys = points.map(p => p.y)
+    const xMin = Math.min(...xs, 0)
+    const xMax = Math.max(...xs, xMin + 1)
+    const yMin = Math.min(...ys, 0)
+    const yMax = Math.max(...ys, yMin + 1)
+    const xRange = xMax - xMin || 1
+    const yRange = yMax - yMin || 1
+    const xS = (v: number) => SC_PAD.left + ((v - xMin) / xRange) * SC_IW
+    const yS = (v: number) => SC_PAD.top + SC_IH - ((v - yMin) / yRange) * SC_IH
+
+    const reg = trendLine && points.length >= 2
+        ? linearRegression(points.map(p => ({x: p.x, y: p.y})))
+        : null
+
+    const xTicks = [0, 0.5, 1].map(f => xMin + f * xRange)
+    const yTicks = [0, 0.5, 1].map(f => yMin + f * yRange)
+
+    return (
+        <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 260}}>
+            {/* axes */}
+            <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
+                  stroke="var(--kce-border)" strokeWidth={1}/>
+            <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                  stroke="var(--kce-border)" strokeWidth={1}/>
+            {/* y ticks */}
+            {yTicks.map((tv, i) => (
+                <g key={`y${i}`}>
+                    <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
+                          stroke="var(--kce-border)"/>
+                    <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
+                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(yRange < 5 ? 1 : 0)}</text>
+                </g>
+            ))}
+            {/* x ticks */}
+            {xTicks.map((tv, i) => (
+                <g key={`x${i}`}>
+                    <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
+                          stroke="var(--kce-border)"/>
+                    <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
+                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(xRange < 5 ? 1 : 0)}</text>
+                </g>
+            ))}
+            {/* trend line */}
+            {reg && (
+                <line
+                    x1={xS(xMin)} y1={yS(reg.slope * xMin + reg.intercept)}
+                    x2={xS(xMax)} y2={yS(reg.slope * xMax + reg.intercept)}
+                    stroke="var(--kce-amber)" strokeWidth={1} strokeDasharray="3 3" opacity={0.7}
+                />
+            )}
+            {/* dots */}
+            {points.map((p, i) => {
+                const r = p.size ?? 4
+                const isSelected = selectedIndex === i
+                return (
+                    <circle
+                        key={i}
+                        cx={xS(p.x)} cy={yS(p.y)} r={isSelected ? r + 2 : r}
+                        fill={p.color ?? 'var(--kce-amber)'}
+                        stroke={isSelected ? 'var(--kce-text)' : 'none'}
+                        strokeWidth={isSelected ? 1.5 : 0}
+                        style={{cursor: onSelect ? 'pointer' : 'default'}}
+                        onClick={onSelect ? () => onSelect(i) : undefined}
+                    />
+                )
+            })}
+            <text x={SC_VW - 4} y={SC_VH - 4} textAnchor="end" fontSize={9}
+                  fill="var(--kce-muted)">{xLabel}</text>
+            <text x={4} y={SC_PAD.top - 2} textAnchor="start" fontSize={9}
+                  fill="var(--kce-muted)">{yLabel}</text>
+        </svg>
+    )
+}
+
+function DualAxisLineChart({bins, leftLabel, rightLabel}: {
+    bins: { t: string; cum_penalty: number; cum_drinks: number; delta_penalty: number; delta_drinks: number }[]
+    leftLabel: string
+    rightLabel: string
+}) {
+    const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+    if (bins.length === 0) return null
+    const maxP = Math.max(1, ...bins.map(b => b.cum_penalty))
+    const maxD = Math.max(1, ...bins.map(b => b.cum_drinks))
+    const n = bins.length
+    const xS = (i: number) => SC_PAD.left + (n === 1 ? SC_IW / 2 : (i / (n - 1)) * SC_IW)
+    const yPenalty = (v: number) => SC_PAD.top + SC_IH - (v / maxP) * SC_IH
+    const yDrinks = (v: number) => SC_PAD.top + SC_IH - (v / maxD) * SC_IH
+
+    const pathP = bins.map((b, i) => `${i === 0 ? 'M' : 'L'} ${xS(i)} ${yPenalty(b.cum_penalty)}`).join(' ')
+    const pathD = bins.map((b, i) => `${i === 0 ? 'M' : 'L'} ${xS(i)} ${yDrinks(b.cum_drinks)}`).join(' ')
+
+    const fmtTime = (iso: string) => {
+        try {
+            return new Date(iso).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        } catch {
+            return ''
+        }
+    }
+    const tickIdx = n <= 6 ? bins.map((_, i) => i) : [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor(3 * n / 4), n - 1]
+
+    return (
+        <div>
+            <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 260}}>
+                {/* horizontal grid */}
+                {[0, 0.25, 0.5, 0.75, 1].map(f => (
+                    <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
+                          y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
+                          stroke="var(--kce-border)" strokeWidth={0.5} opacity={0.4}/>
+                ))}
+                {/* axes */}
+                <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
+                      stroke="var(--kce-border)"/>
+                <line x1={SC_PAD.left + SC_IW} y1={SC_PAD.top} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                      stroke="var(--kce-border)"/>
+                <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                      stroke="var(--kce-border)"/>
+                {/* y labels (left = penalty €) */}
+                {[0, 0.5, 1].map(f => (
+                    <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
+                          textAnchor="end" fontSize={9} fill="var(--kce-muted)">
+                        {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
+                    </text>
+                ))}
+                {/* y labels (right = drinks) */}
+                {[0, 0.5, 1].map(f => (
+                    <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
+                          textAnchor="start" fontSize={9} fill="#f97316">
+                        {Math.round(maxD * f)}
+                    </text>
+                ))}
+                {/* x labels */}
+                {tickIdx.map(i => (
+                    <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
+                          fontSize={8} fill="var(--kce-muted)">{fmtTime(bins[i].t)}</text>
+                ))}
+                {/* penalty line */}
+                <path d={pathP} fill="none" stroke="var(--kce-amber)" strokeWidth={1.8} strokeLinejoin="round"/>
+                {/* drinks line */}
+                <path d={pathD} fill="none" stroke="#f97316" strokeWidth={1.8} strokeLinejoin="round" strokeDasharray="4 2"/>
+                {/* hover dots */}
+                {bins.map((b, i) => (
+                    <g key={i} onClick={() => setHoverIdx(i === hoverIdx ? null : i)} style={{cursor: 'pointer'}}>
+                        <circle cx={xS(i)} cy={yPenalty(b.cum_penalty)} r={hoverIdx === i ? 4 : 2.5}
+                                fill="var(--kce-amber)"/>
+                        <circle cx={xS(i)} cy={yDrinks(b.cum_drinks)} r={hoverIdx === i ? 4 : 2.5}
+                                fill="#f97316"/>
+                        <rect x={xS(i) - 6} y={SC_PAD.top} width={12} height={SC_IH}
+                              fill="transparent"/>
+                    </g>
+                ))}
+                {/* legend */}
+                <g>
+                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
+                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#f97316"/>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
+                </g>
+            </svg>
+            {hoverIdx !== null && bins[hoverIdx] && (
+                <div className="text-[10px] text-kce-muted text-center -mt-1">
+                    {fmtTime(bins[hoverIdx].t)} · Δ€ {bins[hoverIdx].delta_penalty.toFixed(2)} · Δ🍻 {bins[hoverIdx].delta_drinks}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
+    r: number | null
+    t: (k: TranslationKey) => string
+    labelKey?: TranslationKey
+}) {
+    const badge = rBadge(r, t)
+    return (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+             style={{background: 'var(--kce-surface2)'}}>
+            <div className="flex flex-col">
+                <div className="text-[10px] text-kce-muted uppercase font-bold">{t(labelKey)}</div>
+                <div className="text-xs font-bold" style={{color: badge.color}}>{badge.label}</div>
+            </div>
+            <div className="text-2xl font-extrabold" style={{color: badge.color}}>
+                {r === null ? '–' : r.toFixed(2)}
+            </div>
+        </div>
+    )
+}
+
+function CorrelationSection({year, eveningList, myMemberId, t}: {
+    year: number
+    eveningList: { id: number; date: string; venue: string | null }[]
+    myMemberId: number | null | undefined
+    t: (k: TranslationKey) => string
+}) {
+    const [tab, setTab] = useState<CorrTab>('evening')
+    const [selectedDot, setSelectedDot] = useState<number | null>(null)
+
+    const {data: corr, isLoading} = useQuery<CorrelationStats>({
+        queryKey: ['correlation-stats', year],
+        queryFn: () => api.getCorrelationStats(year),
+        staleTime: 1000 * 60 * 5,
+    })
+
+    const eveningsInYear = useMemo(
+        () => eveningList
+            .filter(e => new Date(e.date).getFullYear() === year)
+            .sort((a, b) => b.date.localeCompare(a.date)),
+        [eveningList, year],
+    )
+    const [pickedEveningId, setPickedEveningId] = useState<number | null>(null)
+    const [pickedMemberId, setPickedMemberId] = useState<number | null>(null)
+    const [binMinutes, setBinMinutes] = useState<number>(15)
+
+    useEffect(() => {
+        if (pickedEveningId == null && eveningsInYear[0]) setPickedEveningId(eveningsInYear[0].id)
+    }, [eveningsInYear, pickedEveningId])
+    useEffect(() => {
+        setSelectedDot(null)
+    }, [tab, year])
+
+    const {data: eveningCorr} = useQuery<EveningCorrelation>({
+        queryKey: ['evening-correlation', pickedEveningId, binMinutes],
+        queryFn: () => api.getEveningCorrelation(pickedEveningId!, binMinutes),
+        enabled: tab === 'timeline' && pickedEveningId != null,
+        staleTime: 1000 * 60 * 5,
+    })
+
+    useEffect(() => {
+        if (!eveningCorr) return
+        if (pickedMemberId && eveningCorr.members.some(m => m.evening_player_id === pickedMemberId)) return
+        const mine = eveningCorr.members.find(m => m.regular_member_id != null && m.regular_member_id === myMemberId)
+        if (mine) {
+            setPickedMemberId(mine.evening_player_id)
+            return
+        }
+        const withEvents = eveningCorr.members.find(m => m.bins.length > 0)
+        if (withEvents) setPickedMemberId(withEvents.evening_player_id)
+        else if (eveningCorr.members[0]) setPickedMemberId(eveningCorr.members[0].evening_player_id)
+    }, [eveningCorr, myMemberId, pickedMemberId])
+
+    const fDate = (dateStr: string) =>
+        new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
+
+    const tabs: { key: CorrTab; labelKey: TranslationKey }[] = [
+        {key: 'evening', labelKey: 'stats.correlation.tab.perEvening'},
+        {key: 'member', labelKey: 'stats.correlation.tab.perMember'},
+        {key: 'strength', labelKey: 'stats.correlation.tab.strength'},
+        {key: 'timeline', labelKey: 'stats.correlation.tab.timeline'},
+    ]
+
+    const hasYearData = corr && (corr.evenings.length > 0 || corr.members.length > 0)
+
+    return (
+        <div className="kce-card p-3 mb-4">
+            <div className="flex items-baseline justify-between mb-1">
+                <div className="text-sm font-extrabold">{t('stats.correlation.title')}</div>
+            </div>
+            <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.subtitle')}</div>
+
+            <div className="flex gap-1 overflow-x-auto pb-1 mb-3" style={{scrollbarWidth: 'none'}}>
+                {tabs.map(({key, labelKey}) => (
+                    <button
+                        key={key} type="button"
+                        className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${tab === key ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                        onClick={() => setTab(key)}
+                    >
+                        {t(labelKey)}
+                    </button>
+                ))}
+            </div>
+
+            {isLoading && <Empty icon="⏳" text="…"/>}
+
+            {!isLoading && tab === 'evening' && (
+                hasYearData && corr!.evenings.length > 0 ? (
+                    <>
+                        <ScatterChart
+                            points={corr!.evenings.map(e => ({
+                                x: e.penalty_euro, y: e.drink_count,
+                                label: fDate(e.date),
+                                color: 'var(--kce-amber)',
+                            }))}
+                            xLabel={t('stats.correlation.xPenalty')}
+                            yLabel={t('stats.correlation.yDrinks')}
+                            trendLine
+                            selectedIndex={selectedDot}
+                            onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
+                        />
+                        {selectedDot !== null && corr!.evenings[selectedDot] && (
+                            <div className="text-[10px] text-kce-muted text-center mb-2">
+                                {fDate(corr!.evenings[selectedDot].date)} · {fe(corr!.evenings[selectedDot].penalty_euro)} · 🍻 {corr!.evenings[selectedDot].drink_count}
+                            </div>
+                        )}
+                        <PearsonBadge r={corr!.overall_pearson_r} t={t}/>
+                    </>
+                ) : <Empty icon="📅" text={t('stats.correlation.empty')}/>
+            )}
+
+            {!isLoading && tab === 'member' && (
+                hasYearData && corr!.members.length > 0 ? (
+                    <>
+                        <ScatterChart
+                            points={corr!.members.map((m, i) => ({
+                                x: m.total_penalty_euro, y: m.total_drink_count,
+                                label: m.nickname || m.name,
+                                color: m.regular_member_id === myMemberId
+                                    ? 'var(--kce-amber)'
+                                    : PLAYER_COLORS[i % PLAYER_COLORS.length],
+                                size: 3 + Math.min(7, m.evenings_count),
+                            }))}
+                            xLabel={t('stats.correlation.xPenalty')}
+                            yLabel={t('stats.correlation.yDrinks')}
+                            selectedIndex={selectedDot}
+                            onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
+                        />
+                        {selectedDot !== null && corr!.members[selectedDot] && (
+                            <div className="text-[10px] text-kce-muted text-center mb-1">
+                                <span className="font-bold">{corr!.members[selectedDot].nickname || corr!.members[selectedDot].name}</span>
+                                {corr!.members[selectedDot].regular_member_id === myMemberId && (
+                                    <span className="text-kce-amber font-bold"> · Ich</span>
+                                )} · {fe(corr!.members[selectedDot].total_penalty_euro)} · 🍻 {corr!.members[selectedDot].total_drink_count} · {corr!.members[selectedDot].evenings_count} {t('stats.evenings')}
+                            </div>
+                        )}
+                    </>
+                ) : <Empty icon="👥" text={t('stats.correlation.empty')}/>
+            )}
+
+            {!isLoading && tab === 'strength' && hasYearData && (() => {
+                const all = corr!.members
+                const withR = all
+                    .filter(m => m.personal_pearson_r !== null)
+                    .sort((a, b) => {
+                        if (a.regular_member_id === myMemberId) return -1
+                        if (b.regular_member_id === myMemberId) return 1
+                        return Math.abs(b.personal_pearson_r!) - Math.abs(a.personal_pearson_r!)
+                    })
+                const tooFew = all.filter(m => m.personal_pearson_r === null)
+                if (withR.length === 0 && tooFew.length === 0) {
+                    return <Empty icon="📊" text={t('stats.correlation.empty')}/>
+                }
+                return (
+                    <>
+                        {withR.map(m => {
+                            const r = m.personal_pearson_r!
+                            const isMe = m.regular_member_id === myMemberId
+                            return (
+                                <div key={m.regular_member_id}
+                                     className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
+                                     style={{background: 'var(--kce-surface2)'}}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="text-xs font-bold truncate flex items-center gap-1">
+                                            {m.nickname || m.name}
+                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                        </div>
+                                        <div className="text-xs font-extrabold flex-shrink-0"
+                                             style={{color: rColor(r)}}>{r.toFixed(2)}</div>
+                                    </div>
+                                    <div className="h-1 rounded-full overflow-hidden"
+                                         style={{background: 'var(--kce-bg)'}}>
+                                        <div className="h-full rounded-full"
+                                             style={{width: `${Math.abs(r) * 100}%`, background: rColor(r)}}/>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                        {tooFew.length > 0 && (
+                            <div className="text-[10px] text-kce-muted mt-2">
+                                {t('stats.correlation.notEnoughEvenings')}: {tooFew.map(m => m.nickname || m.name).join(', ')}
+                            </div>
+                        )}
+                    </>
+                )
+            })()}
+
+            {!isLoading && tab === 'timeline' && (
+                eveningsInYear.length === 0 ? (
+                    <Empty icon="📅" text={t('stats.correlation.empty')}/>
+                ) : (
+                    <>
+                        <div className="flex flex-col gap-2 mb-3">
+                            <select
+                                className="kce-input text-xs"
+                                value={pickedEveningId ?? ''}
+                                onChange={e => {
+                                    setPickedEveningId(Number(e.target.value))
+                                    setPickedMemberId(null)
+                                }}
+                                aria-label={t('stats.correlation.selectEvening')}
+                            >
+                                {eveningsInYear.map(e => (
+                                    <option key={e.id} value={e.id}>
+                                        {fDate(e.date)}{e.venue ? ` · ${e.venue}` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {eveningCorr && eveningCorr.members.length > 0 && (
+                                <select
+                                    className="kce-input text-xs"
+                                    value={pickedMemberId ?? ''}
+                                    onChange={e => setPickedMemberId(Number(e.target.value))}
+                                    aria-label={t('stats.correlation.selectMember')}
+                                >
+                                    {eveningCorr.members.map(m => (
+                                        <option key={m.evening_player_id} value={m.evening_player_id}>
+                                            {m.nickname || m.name}{m.regular_member_id === myMemberId ? ' · Ich' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            <div className="flex gap-1">
+                                <span className="text-[10px] text-kce-muted self-center mr-1">{t('stats.correlation.binMinutes')}:</span>
+                                {[5, 15, 30].map(m => (
+                                    <button key={m} type="button"
+                                            className={`text-[10px] font-bold px-2 py-1 rounded-lg ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                            onClick={() => setBinMinutes(m)}>
+                                        {m} {t('stats.correlation.minutes')}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {(() => {
+                            const m = eveningCorr?.members.find(x => x.evening_player_id === pickedMemberId) ?? null
+                            if (!m) return <Empty icon="⏳" text="…"/>
+                            if (m.bins.length === 0) return <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>
+                            return (
+                                <>
+                                    <DualAxisLineChart
+                                        bins={m.bins}
+                                        leftLabel={t('stats.correlation.cumPenalty')}
+                                        rightLabel={t('stats.correlation.cumDrinks')}
+                                    />
+                                    <PearsonBadge r={m.derivative_pearson_r} t={t}
+                                                  labelKey="stats.correlation.derivativeR"/>
+                                </>
+                            )
+                        })()}
+                    </>
+                )
+            )}
+        </div>
+    )
+}
+
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export function StatsPage() {
@@ -1527,6 +2015,13 @@ export function StatsPage() {
                     </div>
 
                     <YearEveningsBarChart eveningList={eveningList} year={year} t={t}/>
+
+                    <CorrelationSection
+                        year={year}
+                        eveningList={eveningList}
+                        myMemberId={user?.regular_member_id}
+                        t={t}
+                    />
 
                     {!mq && players.length >= 3 && (
                         <YearPodium players={players} myMemberId={user?.regular_member_id} t={t} onSelect={(p, rank) => setSelectedPlayer({player: p, rank})}/>

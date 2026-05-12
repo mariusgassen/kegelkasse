@@ -504,3 +504,294 @@ class TestThrowStats:
     def test_member_throws_requires_auth(self, client: TestClient, member: RegularMember):
         r = client.get(f"/api/v1/stats/members/{member.id}/throws")
         assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/correlation/{year}
+# ---------------------------------------------------------------------------
+
+class TestCorrelationStats:
+    def _add_penalty(self, db, evening, player, amount, ts_ms=None):
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening.id,
+            player_id=player.id,
+            player_name=player.name,
+            penalty_type_name="X",
+            amount=amount,
+            unit_amount=amount,
+            mode=PenaltyMode.euro,
+            client_timestamp=ts_ms if ts_ms is not None else time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        return log
+
+    def _add_drink(self, db, evening, player_ids, kind="beer", ts_ms=None):
+        dr = DrinkRound(
+            evening_id=evening.id,
+            drink_type=kind,
+            participant_ids=list(player_ids),
+            is_deleted=False,
+            client_timestamp=ts_ms if ts_ms is not None else time.time() * 1000,
+        )
+        db.add(dr)
+        db.commit()
+        return dr
+
+    def test_returns_structure(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["year"] == 2025
+        assert "overall_pearson_r" in data
+        assert "evenings" in data
+        assert "members" in data
+
+    def test_empty_year(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/correlation/1990", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["overall_pearson_r"] is None
+        assert data["evenings"] == []
+        assert data["members"] == []
+
+    def test_evening_point_sums(self, client: TestClient, member_headers: dict, db: Session,
+                                evening_2025: Evening, player: EveningPlayer):
+        self._add_penalty(db, evening_2025, player, 2.5)
+        self._add_penalty(db, evening_2025, player, 1.0)
+        self._add_drink(db, evening_2025, [player.id], "beer")
+        self._add_drink(db, evening_2025, [player.id], "shots")
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        data = r.json()
+        assert len(data["evenings"]) == 1
+        pt = data["evenings"][0]
+        assert pt["penalty_euro"] == 3.5
+        assert pt["drink_count"] == 2  # beer + shots combined
+
+    def test_member_totals_and_pairs(self, client: TestClient, member_headers: dict, db: Session,
+                                     club: Club, member: RegularMember,
+                                     evening_2025: Evening, player: EveningPlayer):
+        from datetime import datetime
+        # second evening
+        e2 = Evening(club_id=club.id, date=datetime(2025, 7, 1), is_closed=True)
+        db.add(e2)
+        db.flush()
+        p2 = EveningPlayer(evening_id=e2.id, regular_member_id=member.id, name=member.name)
+        db.add(p2)
+        db.commit()
+        db.refresh(p2)
+        # third evening
+        e3 = Evening(club_id=club.id, date=datetime(2025, 8, 1), is_closed=True)
+        db.add(e3)
+        db.flush()
+        p3 = EveningPlayer(evening_id=e3.id, regular_member_id=member.id, name=member.name)
+        db.add(p3)
+        db.commit()
+        db.refresh(p3)
+
+        self._add_penalty(db, evening_2025, player, 1.0)
+        self._add_drink(db, evening_2025, [player.id])
+        self._add_penalty(db, e2, p2, 2.0)
+        self._add_drink(db, e2, [p2.id])
+        self._add_drink(db, e2, [p2.id])
+        self._add_penalty(db, e3, p3, 3.0)
+        self._add_drink(db, e3, [p3.id])
+        self._add_drink(db, e3, [p3.id])
+        self._add_drink(db, e3, [p3.id])
+
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        data = r.json()
+        me = next(m for m in data["members"] if m["regular_member_id"] == member.id)
+        assert me["total_penalty_euro"] == 6.0
+        assert me["total_drink_count"] == 6
+        assert me["evenings_count"] == 3
+        # perfectly correlated → r = 1
+        assert me["personal_pearson_r"] == 1.0
+
+    def test_single_evening_member_r_null(self, client: TestClient, member_headers: dict, db: Session,
+                                          evening_2025: Evening, player: EveningPlayer, member: RegularMember):
+        self._add_penalty(db, evening_2025, player, 1.0)
+        self._add_drink(db, evening_2025, [player.id])
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["regular_member_id"] == member.id)
+        assert me["personal_pearson_r"] is None
+
+    def test_zero_variance_drinks_r_null(self, client: TestClient, member_headers: dict, db: Session,
+                                         club: Club, member: RegularMember,
+                                         evening_2025: Evening, player: EveningPlayer):
+        from datetime import datetime
+        e2 = Evening(club_id=club.id, date=datetime(2025, 7, 1), is_closed=True)
+        db.add(e2)
+        db.flush()
+        p2 = EveningPlayer(evening_id=e2.id, regular_member_id=member.id, name=member.name)
+        db.add(p2)
+        e3 = Evening(club_id=club.id, date=datetime(2025, 8, 1), is_closed=True)
+        db.add(e3)
+        db.flush()
+        p3 = EveningPlayer(evening_id=e3.id, regular_member_id=member.id, name=member.name)
+        db.add(p3)
+        db.commit()
+        # different penalties, all same drink count (1)
+        self._add_penalty(db, evening_2025, player, 1.0)
+        self._add_drink(db, evening_2025, [player.id])
+        self._add_penalty(db, e2, p2, 2.0)
+        self._add_drink(db, e2, [p2.id])
+        self._add_penalty(db, e3, p3, 3.0)
+        self._add_drink(db, e3, [p3.id])
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["regular_member_id"] == member.id)
+        assert me["personal_pearson_r"] is None
+
+    def test_deleted_excluded(self, client: TestClient, member_headers: dict, db: Session,
+                              evening_2025: Evening, player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id, player_id=player.id, player_name="x",
+            penalty_type_name="del", amount=5.0, unit_amount=5.0,
+            mode=PenaltyMode.euro, is_deleted=True,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        assert r.json()["evenings"][0]["penalty_euro"] == 0.0
+
+    def test_requires_auth(self, client: TestClient):
+        r = client.get("/api/v1/stats/correlation/2025")
+        assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/correlation/evening/{evening_id}
+# ---------------------------------------------------------------------------
+
+class TestEveningCorrelation:
+    def _add_penalty(self, db, evening, player, amount, ts_ms):
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening.id, player_id=player.id,
+            player_name=player.name, penalty_type_name="X",
+            amount=amount, unit_amount=amount, mode=PenaltyMode.euro,
+            client_timestamp=ts_ms,
+        )
+        db.add(log)
+        db.commit()
+        return log
+
+    def _add_drink(self, db, evening, player_ids, ts_ms, kind="beer"):
+        dr = DrinkRound(
+            evening_id=evening.id, drink_type=kind,
+            participant_ids=list(player_ids), is_deleted=False,
+            client_timestamp=ts_ms,
+        )
+        db.add(dr)
+        db.commit()
+        return dr
+
+    def test_returns_structure(self, client: TestClient, member_headers: dict,
+                               evening_2025: Evening, player: EveningPlayer):
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["evening_id"] == evening_2025.id
+        assert data["bin_minutes"] == 15
+        assert "members" in data
+
+    def test_bins_and_cumulative(self, client: TestClient, member_headers: dict, db: Session,
+                                 evening_2025: Evening, player: EveningPlayer):
+        # 5 bins of 15 min — events spread across them
+        base = 1_700_000_000_000  # arbitrary fixed ms
+        self._add_penalty(db, evening_2025, player, 1.0, base + 0)               # bin 0
+        self._add_penalty(db, evening_2025, player, 2.0, base + 16 * 60_000)     # bin 1
+        self._add_drink(db, evening_2025, [player.id], base + 17 * 60_000)       # bin 1
+        self._add_penalty(db, evening_2025, player, 3.0, base + 32 * 60_000)     # bin 2
+        self._add_drink(db, evening_2025, [player.id], base + 33 * 60_000)       # bin 2
+        self._add_drink(db, evening_2025, [player.id], base + 49 * 60_000)       # bin 3
+        r = client.get(
+            f"/api/v1/stats/correlation/evening/{evening_2025.id}?bin_minutes=15",
+            headers=member_headers,
+        )
+        data = r.json()
+        me = next(m for m in data["members"] if m["evening_player_id"] == player.id)
+        assert len(me["bins"]) >= 4
+        # cumulative correctness
+        assert me["bins"][-1]["cum_penalty"] == 6.0
+        assert me["bins"][-1]["cum_drinks"] == 3
+        # derivative r should be finite (penalties and drinks both vary)
+        assert me["derivative_pearson_r"] is not None
+
+    def test_empty_member_returns_no_bins(self, client: TestClient, member_headers: dict,
+                                          evening_2025: Evening, player: EveningPlayer):
+        # Player has no events
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["evening_player_id"] == player.id)
+        assert me["bins"] == []
+        assert me["derivative_pearson_r"] is None
+
+    def test_only_penalties_no_drinks_zero_variance(self, client: TestClient, member_headers: dict,
+                                                    db: Session,
+                                                    evening_2025: Evening, player: EveningPlayer):
+        base = 1_700_000_000_000
+        self._add_penalty(db, evening_2025, player, 1.0, base + 0)
+        self._add_penalty(db, evening_2025, player, 2.0, base + 16 * 60_000)
+        self._add_penalty(db, evening_2025, player, 3.0, base + 32 * 60_000)
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["evening_player_id"] == player.id)
+        assert me["derivative_pearson_r"] is None  # zero variance on drinks
+
+    def test_bin_minutes_validation(self, client: TestClient, member_headers: dict,
+                                    evening_2025: Evening):
+        r = client.get(
+            f"/api/v1/stats/correlation/evening/{evening_2025.id}?bin_minutes=1",
+            headers=member_headers,
+        )
+        assert r.status_code == 422
+        r = client.get(
+            f"/api/v1/stats/correlation/evening/{evening_2025.id}?bin_minutes=120",
+            headers=member_headers,
+        )
+        assert r.status_code == 422
+
+    def test_deleted_events_excluded(self, client: TestClient, member_headers: dict, db: Session,
+                                     evening_2025: Evening, player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id, player_id=player.id, player_name="x",
+            penalty_type_name="del", amount=99.0, unit_amount=99.0,
+            mode=PenaltyMode.euro, is_deleted=True,
+            client_timestamp=1_700_000_000_000,
+        )
+        db.add(log)
+        dr = DrinkRound(
+            evening_id=evening_2025.id, drink_type="beer",
+            participant_ids=[player.id], is_deleted=True,
+            client_timestamp=1_700_000_000_000,
+        )
+        db.add(dr)
+        db.commit()
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
+        me = next(m for m in r.json()["members"] if m["evening_player_id"] == player.id)
+        assert me["bins"] == []
+
+    def test_404_unknown_evening(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/correlation/evening/999999", headers=member_headers)
+        assert r.status_code == 404
+
+    def test_403_other_club(self, client: TestClient, member_headers: dict, db: Session, club: Club):
+        from datetime import datetime
+        other = Club(name="OtherC", slug="other-corr")
+        db.add(other)
+        db.flush()
+        e_other = Evening(club_id=other.id, date=datetime(2025, 1, 1))
+        db.add(e_other)
+        db.commit()
+        r = client.get(f"/api/v1/stats/correlation/evening/{e_other.id}", headers=member_headers)
+        assert r.status_code == 403
+        db.delete(e_other)
+        db.delete(other)
+        db.commit()
+
+    def test_requires_auth(self, client: TestClient, evening_2025: Evening):
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}")
+        assert r.status_code == 401

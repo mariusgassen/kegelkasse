@@ -605,6 +605,10 @@ export const api = {
     }>('GET', `/stats/me/${year}`),
     getMyThrowStats: (year?: number) => request<import('../types').ThrowStats>('GET', `/stats/me/throws${year ? `?year=${year}` : ''}`),
     getMemberThrowStats: (memberId: number, year?: number) => request<import('../types').ThrowStats>('GET', `/stats/members/${memberId}/throws${year ? `?year=${year}` : ''}`),
+    getCorrelationStats: (year: number) =>
+        request<import('../types').CorrelationStats>('GET', `/stats/correlation/${year}`),
+    getEveningCorrelation: (eveningId: number, binMinutes: number = 15) =>
+        request<import('../types').EveningCorrelation>('GET', `/stats/correlation/evening/${eveningId}?bin_minutes=${binMinutes}`),
 
     // Sync
     sync: (payload: { client_id: string; last_sync?: number; changes: any[] }) =>

@@ -697,6 +697,32 @@ describe('api.getMyStats', () => {
     })
 })
 
+describe('api.getCorrelationStats', () => {
+    it('GETs /stats/correlation/{year}', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ year: 2025, overall_pearson_r: null, evenings: [], members: [] }))
+        const { api } = await import('../client')
+        await api.getCorrelationStats(2025)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/correlation/2025')
+        expect(mockFetch.mock.calls[0][1]?.method).toBe('GET')
+    })
+})
+
+describe('api.getEveningCorrelation', () => {
+    it('GETs /stats/correlation/evening/{id} with default bin', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ evening_id: 7, date: '2025-06-15', bin_minutes: 15, members: [] }))
+        const { api } = await import('../client')
+        await api.getEveningCorrelation(7)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/correlation/evening/7?bin_minutes=15')
+    })
+
+    it('passes custom bin_minutes', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ evening_id: 7, date: '2025-06-15', bin_minutes: 30, members: [] }))
+        const { api } = await import('../client')
+        await api.getEveningCorrelation(7, 30)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/correlation/evening/7?bin_minutes=30')
+    })
+})
+
 // ── Push ───────────────────────────────────────────────────────────────────────
 
 describe('api.getPushStatus', () => {
