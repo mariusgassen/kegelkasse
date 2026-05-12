@@ -278,6 +278,7 @@ export interface CorrelationMemberPoint {
     total_penalty_euro: number
     total_drink_count: number
     personal_pearson_r: number | null
+    evening_points: CorrelationEveningPoint[]
 }
 
 export interface CorrelationStats {

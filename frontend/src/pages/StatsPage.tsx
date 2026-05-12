@@ -1231,7 +1231,7 @@ function DrinkRoundsDetailSheet({evening, initialTab, t, onClose}: {
 
 // ── Correlation section ─────────────────────────────────────────────────────
 
-type CorrTab = 'evening' | 'member' | 'strength' | 'timeline'
+type CorrTab = 'evening' | 'member' | 'strength'
 
 function rColor(r: number | null): string {
     if (r === null) return 'var(--kce-muted)'
@@ -1459,9 +1459,152 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
     )
 }
 
-function CorrelationSection({year, eveningList, myMemberId, t}: {
+function MemberEveningScatter({members, myMemberId, t}: {
+    members: import('@/types').CorrelationMemberPoint[]
+    myMemberId: number | null | undefined
+    t: (k: TranslationKey) => string
+}) {
+    const [focusedMember, setFocusedMember] = useState<number | null>(null)
+    const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+
+    const colorFor = (memberId: number, idx: number) =>
+        memberId === myMemberId ? 'var(--kce-amber)' : PLAYER_COLORS[idx % PLAYER_COLORS.length]
+
+    const memberColorMap = new Map<number, string>()
+    members.forEach((m, i) => memberColorMap.set(m.regular_member_id, colorFor(m.regular_member_id, i)))
+
+    // Build flat (member × evening) point list, filtered by focus if set
+    const visible = focusedMember == null ? members : members.filter(m => m.regular_member_id === focusedMember)
+    const points = visible.flatMap(m =>
+        m.evening_points.map(p => ({
+            x: p.penalty_euro,
+            y: p.drink_count,
+            color: memberColorMap.get(m.regular_member_id) ?? 'var(--kce-muted)',
+            label: m.nickname || m.name,
+            memberId: m.regular_member_id,
+            date: p.date,
+        })),
+    )
+
+    const fDate = (s: string) => new Date(s).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
+
+    return (
+        <>
+            <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
+            {/* Member legend pills */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                <button type="button"
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${focusedMember == null ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                        onClick={() => { setFocusedMember(null); setSelectedIdx(null) }}>
+                    {t('stats.correlation.allMembers')}
+                </button>
+                {members.map(m => {
+                    const isSelected = m.regular_member_id === focusedMember
+                    const isMe = m.regular_member_id === myMemberId
+                    const color = memberColorMap.get(m.regular_member_id)!
+                    return (
+                        <button key={m.regular_member_id} type="button"
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => {
+                                    setFocusedMember(m.regular_member_id === focusedMember ? null : m.regular_member_id)
+                                    setSelectedIdx(null)
+                                }}>
+                            <span className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{background: color}}/>
+                            {m.nickname || m.name}{isMe ? ' · Ich' : ''}
+                        </button>
+                    )
+                })}
+            </div>
+
+            {points.length === 0 ? (
+                <Empty icon="📊" text={t('stats.correlation.empty')}/>
+            ) : (
+                <>
+                    <ScatterChart
+                        points={points.map(p => ({x: p.x, y: p.y, color: p.color, size: 4}))}
+                        xLabel={t('stats.correlation.xPenalty')}
+                        yLabel={t('stats.correlation.yDrinks')}
+                        trendLine={focusedMember != null && points.length >= 2}
+                        selectedIndex={selectedIdx}
+                        onSelect={i => setSelectedIdx(i === selectedIdx ? null : i)}
+                    />
+                    {selectedIdx !== null && points[selectedIdx] && (
+                        <div className="text-[10px] text-kce-muted text-center mb-2">
+                            <span className="font-bold">{points[selectedIdx].label}</span>
+                            {points[selectedIdx].memberId === myMemberId && (
+                                <span className="text-kce-amber font-bold"> · Ich</span>
+                            )}
+                            {' · '}{fDate(points[selectedIdx].date)} · {fe(points[selectedIdx].x)} · 🍻 {points[selectedIdx].y}
+                        </div>
+                    )}
+                    {focusedMember != null && (() => {
+                        const m = members.find(x => x.regular_member_id === focusedMember)
+                        if (!m) return null
+                        return (
+                            <PearsonBadge r={m.personal_pearson_r} t={t}/>
+                        )
+                    })()}
+                </>
+            )}
+        </>
+    )
+}
+
+
+function EveningQuartileSummary({evenings, t}: {
+    evenings: { penalty_euro: number; drink_count: number }[]
+    t: (k: TranslationKey) => string
+}) {
+    if (evenings.length < 4) return null
+    const sorted = [...evenings].sort((a, b) => a.penalty_euro - b.penalty_euro)
+    const q = Math.max(1, Math.floor(sorted.length / 4))
+    const bottom = sorted.slice(0, q)
+    const top = sorted.slice(-q)
+    const avg = (arr: typeof evenings) =>
+        arr.length === 0 ? 0 : arr.reduce((s, e) => s + e.drink_count, 0) / arr.length
+    const avgBottom = avg(bottom)
+    const avgTop = avg(top)
+    const reg = linearRegression(evenings.map(e => ({x: e.penalty_euro, y: e.drink_count})))
+    const slopeText = reg
+        ? reg.slope >= 0
+            ? t('stats.correlation.slopeMore').replace('{n}', reg.slope.toFixed(2))
+            : t('stats.correlation.slopeLess').replace('{n}', reg.slope.toFixed(2))
+        : null
+    const ratio = avgBottom > 0 ? (avgTop / avgBottom).toFixed(1) : null
+
+    return (
+        <div className="mt-3">
+            {slopeText && (
+                <div className="text-[11px] text-kce-muted mb-2 text-center">{slopeText}</div>
+            )}
+            <div className="text-[10px] font-bold text-kce-muted uppercase mb-1">
+                {t('stats.correlation.quartileTitle')}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
+                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.quartileTop')}</div>
+                    <div className="text-base font-extrabold text-kce-amber">🍻 {avgTop.toFixed(1)}</div>
+                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                </div>
+                <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
+                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.quartileBottom')}</div>
+                    <div className="text-base font-extrabold">🍻 {avgBottom.toFixed(1)}</div>
+                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                </div>
+            </div>
+            {ratio && avgTop > avgBottom && (
+                <div className="text-[11px] font-bold text-kce-amber text-center mt-2">
+                    {t('stats.correlation.timesMore').replace('{n}', ratio)}
+                </div>
+            )}
+        </div>
+    )
+}
+
+
+function CorrelationSection({year, myMemberId, t}: {
     year: number
-    eveningList: { id: number; date: string; venue: string | null }[]
     myMemberId: number | null | undefined
     t: (k: TranslationKey) => string
 }) {
@@ -1474,42 +1617,9 @@ function CorrelationSection({year, eveningList, myMemberId, t}: {
         staleTime: 1000 * 60 * 5,
     })
 
-    const eveningsInYear = useMemo(
-        () => eveningList
-            .filter(e => new Date(e.date).getFullYear() === year)
-            .sort((a, b) => b.date.localeCompare(a.date)),
-        [eveningList, year],
-    )
-    const [pickedEveningId, setPickedEveningId] = useState<number | null>(null)
-    const [pickedMemberId, setPickedMemberId] = useState<number | null>(null)
-    const [binMinutes, setBinMinutes] = useState<number>(15)
-
-    useEffect(() => {
-        if (pickedEveningId == null && eveningsInYear[0]) setPickedEveningId(eveningsInYear[0].id)
-    }, [eveningsInYear, pickedEveningId])
     useEffect(() => {
         setSelectedDot(null)
     }, [tab, year])
-
-    const {data: eveningCorr} = useQuery<EveningCorrelation>({
-        queryKey: ['evening-correlation', pickedEveningId, binMinutes],
-        queryFn: () => api.getEveningCorrelation(pickedEveningId!, binMinutes),
-        enabled: tab === 'timeline' && pickedEveningId != null,
-        staleTime: 1000 * 60 * 5,
-    })
-
-    useEffect(() => {
-        if (!eveningCorr) return
-        if (pickedMemberId && eveningCorr.members.some(m => m.evening_player_id === pickedMemberId)) return
-        const mine = eveningCorr.members.find(m => m.regular_member_id != null && m.regular_member_id === myMemberId)
-        if (mine) {
-            setPickedMemberId(mine.evening_player_id)
-            return
-        }
-        const withEvents = eveningCorr.members.find(m => m.bins.length > 0)
-        if (withEvents) setPickedMemberId(withEvents.evening_player_id)
-        else if (eveningCorr.members[0]) setPickedMemberId(eveningCorr.members[0].evening_player_id)
-    }, [eveningCorr, myMemberId, pickedMemberId])
 
     const fDate = (dateStr: string) =>
         new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
@@ -1518,7 +1628,6 @@ function CorrelationSection({year, eveningList, myMemberId, t}: {
         {key: 'evening', labelKey: 'stats.correlation.tab.perEvening'},
         {key: 'member', labelKey: 'stats.correlation.tab.perMember'},
         {key: 'strength', labelKey: 'stats.correlation.tab.strength'},
-        {key: 'timeline', labelKey: 'stats.correlation.tab.timeline'},
     ]
 
     const hasYearData = corr && (corr.evenings.length > 0 || corr.members.length > 0)
@@ -1565,36 +1674,18 @@ function CorrelationSection({year, eveningList, myMemberId, t}: {
                             </div>
                         )}
                         <PearsonBadge r={corr!.overall_pearson_r} t={t}/>
+                        <EveningQuartileSummary evenings={corr!.evenings} t={t}/>
                     </>
                 ) : <Empty icon="📅" text={t('stats.correlation.empty')}/>
             )}
 
             {!isLoading && tab === 'member' && (
                 hasYearData && corr!.members.length > 0 ? (
-                    <>
-                        <ScatterChart
-                            points={corr!.members.map((m, i) => ({
-                                x: m.total_penalty_euro, y: m.total_drink_count,
-                                label: m.nickname || m.name,
-                                color: m.regular_member_id === myMemberId
-                                    ? 'var(--kce-amber)'
-                                    : PLAYER_COLORS[i % PLAYER_COLORS.length],
-                                size: 3 + Math.min(7, m.evenings_count),
-                            }))}
-                            xLabel={t('stats.correlation.xPenalty')}
-                            yLabel={t('stats.correlation.yDrinks')}
-                            selectedIndex={selectedDot}
-                            onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
-                        />
-                        {selectedDot !== null && corr!.members[selectedDot] && (
-                            <div className="text-[10px] text-kce-muted text-center mb-1">
-                                <span className="font-bold">{corr!.members[selectedDot].nickname || corr!.members[selectedDot].name}</span>
-                                {corr!.members[selectedDot].regular_member_id === myMemberId && (
-                                    <span className="text-kce-amber font-bold"> · Ich</span>
-                                )} · {fe(corr!.members[selectedDot].total_penalty_euro)} · 🍻 {corr!.members[selectedDot].total_drink_count} · {corr!.members[selectedDot].evenings_count} {t('stats.evenings')}
-                            </div>
-                        )}
-                    </>
+                    <MemberEveningScatter
+                        members={corr!.members}
+                        myMemberId={myMemberId}
+                        t={t}
+                    />
                 ) : <Empty icon="👥" text={t('stats.correlation.empty')}/>
             )}
 
@@ -1645,70 +1736,193 @@ function CorrelationSection({year, eveningList, myMemberId, t}: {
                 )
             })()}
 
-            {!isLoading && tab === 'timeline' && (
-                eveningsInYear.length === 0 ? (
-                    <Empty icon="📅" text={t('stats.correlation.empty')}/>
-                ) : (
-                    <>
-                        <div className="flex flex-col gap-2 mb-3">
-                            <select
-                                className="kce-input text-xs"
-                                value={pickedEveningId ?? ''}
-                                onChange={e => {
-                                    setPickedEveningId(Number(e.target.value))
-                                    setPickedMemberId(null)
-                                }}
-                                aria-label={t('stats.correlation.selectEvening')}
-                            >
-                                {eveningsInYear.map(e => (
-                                    <option key={e.id} value={e.id}>
-                                        {fDate(e.date)}{e.venue ? ` · ${e.venue}` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            {eveningCorr && eveningCorr.members.length > 0 && (
-                                <select
-                                    className="kce-input text-xs"
-                                    value={pickedMemberId ?? ''}
-                                    onChange={e => setPickedMemberId(Number(e.target.value))}
-                                    aria-label={t('stats.correlation.selectMember')}
-                                >
-                                    {eveningCorr.members.map(m => (
-                                        <option key={m.evening_player_id} value={m.evening_player_id}>
-                                            {m.nickname || m.name}{m.regular_member_id === myMemberId ? ' · Ich' : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-                            <div className="flex gap-1">
-                                <span className="text-[10px] text-kce-muted self-center mr-1">{t('stats.correlation.binMinutes')}:</span>
-                                {[5, 15, 30].map(m => (
-                                    <button key={m} type="button"
-                                            className={`text-[10px] font-bold px-2 py-1 rounded-lg ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                                            onClick={() => setBinMinutes(m)}>
-                                        {m} {t('stats.correlation.minutes')}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        {(() => {
-                            const m = eveningCorr?.members.find(x => x.evening_player_id === pickedMemberId) ?? null
-                            if (!m) return <Empty icon="⏳" text="…"/>
-                            if (m.bins.length === 0) return <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>
-                            return (
-                                <>
-                                    <DualAxisLineChart
-                                        bins={m.bins}
-                                        leftLabel={t('stats.correlation.cumPenalty')}
-                                        rightLabel={t('stats.correlation.cumDrinks')}
-                                    />
-                                    <PearsonBadge r={m.derivative_pearson_r} t={t}
-                                                  labelKey="stats.correlation.derivativeR"/>
-                                </>
-                            )
-                        })()}
-                    </>
+        </div>
+    )
+}
+
+
+function DeltaBarChart({bins, leftLabel, rightLabel}: {
+    bins: { t: string; delta_penalty: number; delta_drinks: number }[]
+    leftLabel: string
+    rightLabel: string
+}) {
+    if (bins.length === 0) return null
+    const maxP = Math.max(0.01, ...bins.map(b => b.delta_penalty))
+    const maxD = Math.max(1, ...bins.map(b => b.delta_drinks))
+    const n = bins.length
+    const slot = SC_IW / n
+    const barW = Math.max(2, slot * 0.4 - 1)
+
+    const fmtTime = (iso: string) => {
+        try {
+            return new Date(iso).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        } catch {
+            return ''
+        }
+    }
+    const tickIdx = n <= 6 ? bins.map((_, i) => i) : [0, Math.floor(n / 4), Math.floor(n / 2), Math.floor(3 * n / 4), n - 1]
+
+    return (
+        <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 220}}>
+            {/* horizontal grid */}
+            {[0.25, 0.5, 0.75].map(f => (
+                <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
+                      y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
+                      stroke="var(--kce-border)" strokeWidth={0.5} opacity={0.4}/>
+            ))}
+            {/* x baseline */}
+            <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                  stroke="var(--kce-border)"/>
+            {/* y labels (left = Δ€) */}
+            {[0, 0.5, 1].map(f => (
+                <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
+                      textAnchor="end" fontSize={9} fill="var(--kce-muted)">
+                    {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
+                </text>
+            ))}
+            {/* y labels (right = Δdrinks) */}
+            {[0, 0.5, 1].map(f => (
+                <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
+                      textAnchor="start" fontSize={9} fill="#f97316">
+                    {Math.round(maxD * f)}
+                </text>
+            ))}
+            {/* x labels */}
+            {tickIdx.map(i => (
+                <text key={`t${i}`} x={SC_PAD.left + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
+                      textAnchor="middle" fontSize={8} fill="var(--kce-muted)">{fmtTime(bins[i].t)}</text>
+            ))}
+            {/* bars */}
+            {bins.map((b, i) => {
+                const cx = SC_PAD.left + (i + 0.5) * slot
+                const hP = (b.delta_penalty / maxP) * SC_IH
+                const hD = (b.delta_drinks / maxD) * SC_IH
+                return (
+                    <g key={i}>
+                        {b.delta_penalty > 0 && (
+                            <rect x={cx - barW - 0.5} y={SC_PAD.top + SC_IH - hP} width={barW} height={hP}
+                                  fill="var(--kce-amber)" rx={1}/>
+                        )}
+                        {b.delta_drinks > 0 && (
+                            <rect x={cx + 0.5} y={SC_PAD.top + SC_IH - hD} width={barW} height={hD}
+                                  fill="#f97316" rx={1}/>
+                        )}
+                    </g>
                 )
+            })}
+            {/* legend */}
+            <g>
+                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
+                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#f97316"/>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
+            </g>
+        </svg>
+    )
+}
+
+
+function EveningCorrelationPanel({eveningId, myMemberId, t}: {
+    eveningId: number | null
+    myMemberId: number | null | undefined
+    t: (k: TranslationKey) => string
+}) {
+    const [pickedMemberId, setPickedMemberId] = useState<number | null>(null)
+    const [binMinutes, setBinMinutes] = useState<number>(15)
+
+    useEffect(() => {
+        setPickedMemberId(null)
+    }, [eveningId])
+
+    const {data: eveningCorr, isLoading} = useQuery<EveningCorrelation>({
+        queryKey: ['evening-correlation', eveningId, binMinutes],
+        queryFn: () => api.getEveningCorrelation(eveningId!, binMinutes),
+        enabled: eveningId != null,
+        staleTime: 1000 * 60 * 5,
+    })
+
+    useEffect(() => {
+        if (!eveningCorr) return
+        if (pickedMemberId && eveningCorr.members.some(m => m.evening_player_id === pickedMemberId)) return
+        const mine = eveningCorr.members.find(m => m.regular_member_id != null && m.regular_member_id === myMemberId)
+        if (mine) {
+            setPickedMemberId(mine.evening_player_id)
+            return
+        }
+        const withEvents = eveningCorr.members.find(m => m.bins.length > 0)
+        if (withEvents) setPickedMemberId(withEvents.evening_player_id)
+        else if (eveningCorr.members[0]) setPickedMemberId(eveningCorr.members[0].evening_player_id)
+    }, [eveningCorr, myMemberId, pickedMemberId])
+
+    if (eveningId == null) return null
+
+    const member = eveningCorr?.members.find(m => m.evening_player_id === pickedMemberId) ?? null
+    const sortedMembers = useMemo(() => {
+        if (!eveningCorr) return []
+        return [...eveningCorr.members].sort((a, b) => {
+            if (a.regular_member_id != null && a.regular_member_id === myMemberId) return -1
+            if (b.regular_member_id != null && b.regular_member_id === myMemberId) return 1
+            return b.bins.length - a.bins.length
+        })
+    }, [eveningCorr, myMemberId])
+
+    return (
+        <div className="kce-card p-3 mb-4">
+            <div className="text-sm font-extrabold mb-1">{t('stats.correlation.title')}</div>
+            <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.subtitle')}</div>
+
+            {/* Member pill picker */}
+            {sortedMembers.length > 0 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                    {sortedMembers.map(m => {
+                        const isSelected = m.evening_player_id === pickedMemberId
+                        const isMe = m.regular_member_id != null && m.regular_member_id === myMemberId
+                        return (
+                            <button key={m.evening_player_id} type="button"
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    onClick={() => setPickedMemberId(m.evening_player_id)}>
+                                {m.nickname || m.name}{isMe ? ' · Ich' : ''}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* Bin-size pill picker */}
+            <div className="flex gap-1.5 mb-3">
+                <span className="text-[10px] text-kce-muted self-center mr-1">{t('stats.correlation.binMinutes')}:</span>
+                {[5, 15, 30].map(m => (
+                    <button key={m} type="button"
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            onClick={() => setBinMinutes(m)}>
+                        {m} {t('stats.correlation.minutes')}
+                    </button>
+                ))}
+            </div>
+
+            {isLoading && <Empty icon="⏳" text="…"/>}
+            {!isLoading && !member && <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>}
+            {!isLoading && member && member.bins.length === 0 && (
+                <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>
+            )}
+            {!isLoading && member && member.bins.length > 0 && (
+                <>
+                    <DualAxisLineChart
+                        bins={member.bins}
+                        leftLabel={t('stats.correlation.cumPenalty')}
+                        rightLabel={t('stats.correlation.cumDrinks')}
+                    />
+                    <div className="text-[10px] text-kce-muted text-center mt-1 mb-2">
+                        {t('stats.correlation.deltaTitle')}
+                    </div>
+                    <DeltaBarChart
+                        bins={member.bins}
+                        leftLabel={t('stats.correlation.deltaPenalty')}
+                        rightLabel={t('stats.correlation.deltaDrinks')}
+                    />
+                    <PearsonBadge r={member.derivative_pearson_r} t={t}
+                                  labelKey="stats.correlation.derivativeR"/>
+                </>
             )}
         </div>
     )
@@ -1825,6 +2039,12 @@ export function StatsPage() {
                             )}
 
                             <EveningTimeline evening={evening} t={t}/>
+
+                            <EveningCorrelationPanel
+                                eveningId={effectiveId}
+                                myMemberId={user?.regular_member_id}
+                                t={t}
+                            />
 
                             {evening.highlights.length > 0 && (
                                 <>
@@ -2018,7 +2238,6 @@ export function StatsPage() {
 
                     <CorrelationSection
                         year={year}
-                        eveningList={eveningList}
                         myMemberId={user?.regular_member_id}
                         t={t}
                     />

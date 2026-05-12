@@ -160,7 +160,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Personal stats in user profile
 - Year selector with CSS bar chart visualization
 - Per-evening analysis: donut chart with penalty distribution, hall of fame, cumulative timeline chart (tap a penalty dot to see the source penalty), and a **Games & Results** drawer listing every game with status, winner, scores, and throw summary
-- **Penalties × Drinks correlation**: four-tab analysis in the year view — per-evening scatter (€ vs drink rounds with trend line and Pearson *r*), per-member scatter (totals across the year, point size = evenings attended), correlation-strength ranking per member, and within-evening dual-axis timeline (cumulative €/drinks binned to 5/15/30 min with Pearson *r* of the per-bin changes)
+- **Penalties × Drinks correlation**: three-tab analysis in the year view — per-evening scatter (€ vs drink rounds with trend line, Pearson *r*, plain-language slope and top-vs-bottom quartile means), per-(member × evening) scatter (one dot per member & evening, colour = member, focusable via pill legend with personal trend line + *r*), and correlation-strength ranking per member. The evening-detail section adds a within-evening **timeline panel**: pill pickers for member and bin size (5/15/30 min), a cumulative dual-axis line, a per-bin Δ-bar chart, and the Pearson *r* of the per-bin changes
 
 ### Push notifications & reminders
 
