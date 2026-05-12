@@ -43,6 +43,22 @@ Einzelne Spieler können ein- und ausgeklappt werden, um die Detailwerte zu sehe
 - **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können angetippt werden, um die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) einzublenden
 - **Hall of Fame**: Auszeichnungen wie StrafenkaiserIn, Bier-Champ, Spiele-KönigIn
 
+## Strafen × Getränke-Korrelation
+
+Im Jahresrückblick gibt es eine eigene Korrelations-Sektion mit vier Tabs, die untersuchen, wie Strafen und Getränke (Bier + Schnaps zusammen) zusammenhängen.
+
+- **Pro Abend**: Streudiagramm — ein Punkt pro Abend des gewählten Jahres. X-Achse = Strafen (€), Y-Achse = Getränke-Runden. Eine gestrichelte Trendlinie und ein Pearson-*r*-Badge zeigen, ob strafenreiche Abende auch mehr Runden bedeuten.
+- **Pro Mitglied**: Streudiagramm — ein Punkt pro Mitglied. X = Gesamt-Strafen, Y = Gesamt-Getränke, Punktgröße = besuchte Abende. Der eigene Punkt ist hervorgehoben.
+- **Korrelations-Stärke**: Pro Mitglied wird Pearson *r* über alle besuchten Abende berechnet (Strafen vs Getränke an dem Abend) und als Balken dargestellt. Mitglieder mit weniger als 3 Abenden erscheinen unten als Hinweis.
+- **Verlauf an einem Abend**: Für einen ausgewählten Abend und ein Mitglied wird die kumulierte Strafen- und Getränke-Kurve in 5-/15-/30-Minuten-Bins gezeigt (zwei Y-Achsen). Das *r* der Veränderungen zwischen den Bins gibt einen Hinweis darauf, ob ein Mitglied im Lauf eines Abends gleichzeitig zu Strafen und Runden neigt.
+
+Werte:
+
+- *r* ≥ 0.5 → starker Zusammenhang (grün)
+- 0.2 ≤ *r* < 0.5 → mittlerer Zusammenhang (amber)
+- |*r*| < 0.2 → schwacher Zusammenhang
+- Zu wenige Datenpunkte (< 3 Abende/Bins) → kein *r* berechnet
+
 ## Persönliche Statistiken
 
 Im **Profil** (Profilsymbol oben rechts) sind die eigenen Jahresstatistiken einsehbar:

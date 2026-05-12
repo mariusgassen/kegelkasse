@@ -263,6 +263,54 @@ export interface ThrowStats {
     evenings: EveningThrowSummary[]
 }
 
+export interface CorrelationEveningPoint {
+    evening_id: number
+    date: string
+    penalty_euro: number
+    drink_count: number
+}
+
+export interface CorrelationMemberPoint {
+    regular_member_id: number
+    name: string
+    nickname: string | null
+    evenings_count: number
+    total_penalty_euro: number
+    total_drink_count: number
+    personal_pearson_r: number | null
+}
+
+export interface CorrelationStats {
+    year: number
+    overall_pearson_r: number | null
+    evenings: CorrelationEveningPoint[]
+    members: CorrelationMemberPoint[]
+}
+
+export interface EveningCorrelationBin {
+    t: string
+    delta_penalty: number
+    delta_drinks: number
+    cum_penalty: number
+    cum_drinks: number
+}
+
+export interface EveningCorrelationMember {
+    regular_member_id: number | null
+    evening_player_id: number
+    name: string
+    nickname: string | null
+    bins: EveningCorrelationBin[]
+    derivative_pearson_r: number | null
+}
+
+export interface EveningCorrelation {
+    evening_id: number
+    date: string
+    bin_minutes: number
+    members: EveningCorrelationMember[]
+}
+
 export interface Game {
     id: number
     name: string

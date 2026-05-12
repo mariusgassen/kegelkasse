@@ -30,6 +30,8 @@ vi.mock('@/api/client.ts', () => ({
         getYearStats: vi.fn(),
         getEvening: vi.fn(),
         listPins: vi.fn(),
+        getCorrelationStats: vi.fn(),
+        getEveningCorrelation: vi.fn(),
     },
 }))
 
@@ -187,6 +189,12 @@ async function setupDefaultMocks() {
     vi.mocked(api.getYearStats).mockResolvedValue(YEAR_STATS_EMPTY as any)
     vi.mocked(api.getEvening).mockResolvedValue(MINIMAL_EVENING as any)
     vi.mocked(api.listPins).mockResolvedValue([] as any)
+    vi.mocked(api.getCorrelationStats).mockResolvedValue({
+        year: 2026, overall_pearson_r: null, evenings: [], members: [],
+    } as any)
+    vi.mocked(api.getEveningCorrelation).mockResolvedValue({
+        evening_id: 10, date: '2026-03-15', bin_minutes: 15, members: [],
+    } as any)
 }
 
 async function setupWithEvenings() {
@@ -196,6 +204,33 @@ async function setupWithEvenings() {
     vi.mocked(api.getYearStats).mockResolvedValue(YEAR_STATS as any)
     vi.mocked(api.getEvening).mockResolvedValue(MINIMAL_EVENING as any)
     vi.mocked(api.listPins).mockResolvedValue([] as any)
+    vi.mocked(api.getCorrelationStats).mockResolvedValue({
+        year: 2026,
+        overall_pearson_r: 0.62,
+        evenings: [
+            { evening_id: 10, date: '2026-03-15', penalty_euro: 8.0, drink_count: 4 },
+            { evening_id: 11, date: '2026-01-20', penalty_euro: 10.0, drink_count: 6 },
+            { evening_id: 12, date: '2026-04-05', penalty_euro: 3.0, drink_count: 2 },
+        ],
+        members: [
+            { regular_member_id: 1, name: 'Hans', nickname: null, evenings_count: 3,
+              total_penalty_euro: 12.5, total_drink_count: 8, personal_pearson_r: 0.7 },
+            { regular_member_id: 2, name: 'Franzi', nickname: 'Fra', evenings_count: 2,
+              total_penalty_euro: 8.0, total_drink_count: 4, personal_pearson_r: null },
+        ],
+    } as any)
+    vi.mocked(api.getEveningCorrelation).mockResolvedValue({
+        evening_id: 10, date: '2026-03-15', bin_minutes: 15,
+        members: [
+            { regular_member_id: 2, evening_player_id: 100, name: 'Franzi', nickname: 'Fra',
+              bins: [
+                  { t: '2026-03-15T19:00:00Z', delta_penalty: 1.0, delta_drinks: 1, cum_penalty: 1.0, cum_drinks: 1 },
+                  { t: '2026-03-15T19:15:00Z', delta_penalty: 2.0, delta_drinks: 2, cum_penalty: 3.0, cum_drinks: 3 },
+                  { t: '2026-03-15T19:30:00Z', delta_penalty: 0.0, delta_drinks: 0, cum_penalty: 3.0, cum_drinks: 3 },
+              ],
+              derivative_pearson_r: 0.95 },
+        ],
+    } as any)
 }
 
 async function setupWithUser(regular_member_id: number = 2) {
@@ -639,6 +674,92 @@ describe('StatsPage — evening stats with player data', () => {
             const chips = screen.getAllByRole('button')
             const hansChip = chips.find(b => b.textContent?.includes('Hans') && b.closest('.flex'))
             expect(hansChip).toBeTruthy()
+        })
+    })
+})
+
+// ── tests: correlation section ────────────────────────────────────────────────
+
+describe('StatsPage — correlation section', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = null
+        storeState.activeEveningId = null
+        storeState.regularMembers = []
+    })
+
+    it('renders the correlation title and all four tab labels', async () => {
+        await setupWithEvenings()
+        await renderStatsPage()
+        await waitFor(() => {
+            expect(screen.getByText('stats.correlation.title')).toBeInTheDocument()
+        })
+        expect(screen.getByText('stats.correlation.tab.perEvening')).toBeInTheDocument()
+        expect(screen.getByText('stats.correlation.tab.perMember')).toBeInTheDocument()
+        expect(screen.getByText('stats.correlation.tab.strength')).toBeInTheDocument()
+        expect(screen.getByText('stats.correlation.tab.timeline')).toBeInTheDocument()
+    })
+
+    it('calls api.getCorrelationStats with the active year', async () => {
+        await setupWithEvenings()
+        const { api } = await import('@/api/client.ts')
+        await renderStatsPage()
+        await waitFor(() => {
+            expect(vi.mocked(api.getCorrelationStats)).toHaveBeenCalledWith(2026)
+        })
+    })
+
+    it('shows the overall pearson r badge on the per-evening tab', async () => {
+        await setupWithEvenings()
+        await renderStatsPage()
+        await waitFor(() => {
+            // 0.62 → strong
+            expect(screen.getByText('0.62')).toBeInTheDocument()
+            expect(screen.getByText('stats.correlation.strong')).toBeInTheDocument()
+        })
+    })
+
+    it('switches to the strength tab and shows members sorted by |r|', async () => {
+        await setupWithEvenings()
+        await renderStatsPage()
+        await waitFor(() => screen.getByText('stats.correlation.tab.strength'))
+        fireEvent.click(screen.getByText('stats.correlation.tab.strength'))
+        await waitFor(() => {
+            // Hans has personal_pearson_r=0.7 → 0.70 rendered
+            expect(screen.getByText('0.70')).toBeInTheDocument()
+            // Franzi (nickname 'Fra') has null → bucketed under not-enough-evenings hint
+            expect(screen.getByText(/stats\.correlation\.notEnoughEvenings/)).toBeInTheDocument()
+        })
+    })
+
+    it('switching to the timeline tab fetches evening correlation', async () => {
+        await setupWithEvenings()
+        const { api } = await import('@/api/client.ts')
+        await renderStatsPage()
+        await waitFor(() => screen.getByText('stats.correlation.tab.timeline'))
+        fireEvent.click(screen.getByText('stats.correlation.tab.timeline'))
+        await waitFor(() => {
+            expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
+        })
+        // Defaults to 15 min bin
+        const lastCall = vi.mocked(api.getEveningCorrelation).mock.calls.at(-1)
+        expect(lastCall?.[1]).toBe(15)
+    })
+
+    it('changing the bin size re-fetches with new bin_minutes', async () => {
+        await setupWithEvenings()
+        const { api } = await import('@/api/client.ts')
+        await renderStatsPage()
+        await waitFor(() => screen.getByText('stats.correlation.tab.timeline'))
+        fireEvent.click(screen.getByText('stats.correlation.tab.timeline'))
+        await waitFor(() => {
+            expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
+        })
+        const bin30 = await screen.findByText(/30 stats.correlation.minutes/)
+        fireEvent.click(bin30)
+        await waitFor(() => {
+            const lastCall = vi.mocked(api.getEveningCorrelation).mock.calls.at(-1)
+            expect(lastCall?.[1]).toBe(30)
         })
     })
 })
