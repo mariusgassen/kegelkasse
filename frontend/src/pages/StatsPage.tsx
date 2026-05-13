@@ -1234,9 +1234,9 @@ type CorrTab = 'evening' | 'member' | 'strength'
 function rColor(r: number | null): string {
     if (r === null) return 'var(--kce-muted)'
     const a = Math.abs(r)
-    if (a >= 0.5) return '#22c55e'
-    if (a >= 0.2) return 'var(--kce-amber)'
-    return 'var(--kce-muted)'
+    if (a < 0.2) return 'var(--kce-muted)'
+    if (r > 0) return a >= 0.5 ? '#22c55e' : '#4ade80'
+    return a >= 0.5 ? '#ef4444' : '#f87171'
 }
 
 function rBadge(r: number | null, t: (k: TranslationKey) => string): { label: string; color: string } {
@@ -2053,7 +2053,7 @@ function MemberHeatLane({
                 return (
                     <>
                         <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={9} textAnchor="end"
-                              fill="var(--kce-amber)" fontWeight={700}>
+                              fill="var(--kce-cream)" fontWeight={700}>
                             €{totalPenalty.toFixed(1)}
                         </text>
                         <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
