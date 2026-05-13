@@ -481,6 +481,8 @@ export const de = {
     "stats.gameStatusFinished": "Fertig",
     "stats.tapPenaltyDot": "Punkt antippen für Strafen-Detail",
     "stats.scores": "Punkte",
+    "stats.heatLanes.title": "🌡️ Spuren pro Spieler",
+    "stats.heatLanes.hint": "Eine Spur pro Spieler: Hintergrund = Strafen-€ pro Zeitfenster (heller → kühl, dunkler → heiß), Linie = aufgelaufene Getränke.",
     "stats.correlation.title": "🍻 Strafen × Getränke",
     "stats.correlation.subtitle": "Hängen strafenreiche Abende mit Getränkerunden zusammen?",
     "stats.correlation.tab.perEvening": "Pro Abend",

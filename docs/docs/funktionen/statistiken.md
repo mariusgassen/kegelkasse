@@ -40,7 +40,8 @@ Einzelne Spieler können ein- und ausgeklappt werden, um die Detailwerte zu sehe
 - **Donut-Diagramm**: Strafenverteilung pro Spieler (anwesend/abwesend)
 - **🍺 / 🥃-Karten**: Öffnen die Getränke-Runden-Übersicht
 - **🏆 Spiele-Karte**: Öffnet die **Spiele & Ergebnisse**-Übersicht mit Status, Sieger, Punkten und Wurf-Statistik je Spiel
-- **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können angetippt werden, um die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) einzublenden
+- **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können antippbar — sie blenden die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) ein
+- **🌡️ Spuren pro Spieler**: Direkt unter den Verlaufs-Kurven; eine horizontale Spur pro aktivem Spieler. Hintergrund-Zellen pro Zeitfenster werden amber eingefärbt (heller → kühl, dunkler → heiß), je nach Strafen-€-Spitze; eine orange Linie zeigt die aufgelaufene Getränkezahl. Steigt die Linie durch heiße Zellen, fielen Strafen und Trinken zusammen. Zeitfenster über Pills 5 / 15 / 30 Min umschaltbar
 - **Hall of Fame**: Auszeichnungen wie StrafenkaiserIn, Bier-Champ, Spiele-KönigIn
 
 ## Strafen × Getränke-Korrelation

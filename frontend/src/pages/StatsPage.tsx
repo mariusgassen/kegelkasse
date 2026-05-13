@@ -140,10 +140,133 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
 
 // ── Evening timeline section ────────────────────────────────────────────────
 
+interface SimpleHeatBin {
+    t: string
+    delta_penalty: number
+    cum_drinks: number
+}
+
+function buildEveningHeatBins(
+    evening: Evening,
+    playerIds: number[],
+    binMs: number,
+): Map<number, SimpleHeatBin[]> {
+    const result = new Map<number, SimpleHeatBin[]>()
+    if (playerIds.length === 0) return result
+
+    const penaltyEvents = evening.penalty_log
+        .filter(l => playerIds.includes(l.player_id ?? -1) && !('is_deleted' in l && (l as any).is_deleted) && l.mode === 'euro')
+    const drinkEvents = evening.drink_rounds
+        .filter(r => r.participant_ids.some(pid => playerIds.includes(pid)))
+
+    const allTs = [
+        ...penaltyEvents.map(l => l.client_timestamp),
+        ...drinkEvents.map(r => r.client_timestamp),
+    ]
+    if (allTs.length === 0) {
+        playerIds.forEach(pid => result.set(pid, []))
+        return result
+    }
+    const t0 = Math.min(...allTs)
+    const tEnd = Math.max(...allTs)
+    let n = Math.max(1, Math.floor((tEnd - t0) / binMs) + 1)
+    if (n > 60) n = 60
+
+    for (const pid of playerIds) {
+        const deltaPenalty = new Array(n).fill(0)
+        const deltaDrinks = new Array(n).fill(0)
+        for (const l of penaltyEvents) {
+            if (l.player_id !== pid) continue
+            const idx = Math.min(n - 1, Math.max(0, Math.floor((l.client_timestamp - t0) / binMs)))
+            deltaPenalty[idx] += l.amount
+        }
+        for (const r of drinkEvents) {
+            if (!r.participant_ids.includes(pid)) continue
+            const idx = Math.min(n - 1, Math.max(0, Math.floor((r.client_timestamp - t0) / binMs)))
+            deltaDrinks[idx] += 1
+        }
+        const bins: SimpleHeatBin[] = []
+        let cumD = 0
+        for (let i = 0; i < n; i++) {
+            cumD += deltaDrinks[i]
+            bins.push({
+                t: new Date(t0 + i * binMs).toISOString(),
+                delta_penalty: deltaPenalty[i],
+                cum_drinks: cumD,
+            })
+        }
+        result.set(pid, bins)
+    }
+    return result
+}
+
+function EveningHeatLanes({
+    evening, activePlayers, colorOf, binMinutes, onChangeBin, t,
+}: {
+    evening: Evening
+    activePlayers: EveningPlayer[]
+    colorOf: (pid: number) => string
+    binMinutes: number
+    onChangeBin: (n: number) => void
+    t: (k: any) => string
+}) {
+    const playerIds = activePlayers.map(p => p.id)
+    const binMap = useMemo(
+        () => buildEveningHeatBins(evening, playerIds, binMinutes * 60_000),
+        [evening, playerIds.join(','), binMinutes],
+    )
+    const allBins = [...binMap.values()].flat()
+    if (allBins.length === 0) return null
+    const globalMaxDelta = Math.max(0.01, ...allBins.map(b => b.delta_penalty))
+    const globalMaxCum = Math.max(1, ...allBins.map(b => b.cum_drinks))
+
+    const sorted = [...activePlayers].sort((a, b) => {
+        const ad = binMap.get(a.id)
+        const bd = binMap.get(b.id)
+        const av = ad && ad.length ? ad[ad.length - 1].cum_drinks : 0
+        const bv = bd && bd.length ? bd[bd.length - 1].cum_drinks : 0
+        return bv - av
+    })
+
+    return (
+        <div className="mt-4 pt-3 border-t border-kce-border">
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-extrabold text-kce-muted uppercase">
+                    {t('stats.heatLanes.title')}
+                </div>
+                <div className="flex gap-1">
+                    {[5, 15, 30].map(m => (
+                        <button key={m} type="button"
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => onChangeBin(m)}>
+                            {m}m
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="text-[10px] text-kce-muted mb-2">{t('stats.heatLanes.hint')}</div>
+            {sorted.map(p => {
+                const bins = binMap.get(p.id) ?? []
+                return (
+                    <MemberHeatLane
+                        key={p.id}
+                        bins={bins}
+                        color={colorOf(p.id)}
+                        label={p.name}
+                        globalMaxDelta={globalMaxDelta}
+                        globalMaxCum={globalMaxCum}
+                    />
+                )
+            })}
+        </div>
+    )
+}
+
 function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string }) {
     const allIds = evening.players.map(p => p.id)
     const [selected, setSelected] = useState<number[]>(allIds)
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null)
+    const [binMinutes, setBinMinutes] = useState<number>(15)
 
     // Stable color per player (by index in evening.players, not filtered index)
     const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
@@ -249,6 +372,17 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                 )}
                 {anyDrinkTotal && (
                     <CumulativeChart series={drinkSeries} yFormat={v => `${Math.round(v)}`} title="Getränke"/>
+                )}
+
+                {(hasAnyPenalty || hasAnyDrink) && (
+                    <EveningHeatLanes
+                        evening={evening}
+                        activePlayers={activePlayers}
+                        colorOf={colorOf}
+                        binMinutes={binMinutes}
+                        onChangeBin={setBinMinutes}
+                        t={t}
+                    />
                 )}
                 {/* Legend */}
                 <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
@@ -1918,16 +2052,16 @@ const LANE_NAME_W = 84
 const LANE_RIGHT_PAD = 56
 
 function MemberHeatLane({
-    bins, color, label, isMe, rPearson, globalMaxDelta, globalMaxCum, onFocus,
+    bins, color, label, isMe = false, rPearson, globalMaxDelta, globalMaxCum, onFocus,
 }: {
     bins: { t: string; delta_penalty: number; cum_drinks: number }[]
     color: string
     label: string
-    isMe: boolean
-    rPearson: number | null
+    isMe?: boolean
+    rPearson?: number | null
     globalMaxDelta: number
     globalMaxCum: number
-    onFocus: () => void
+    onFocus?: () => void
 }) {
     if (bins.length === 0) return null
     const n = bins.length
@@ -1939,77 +2073,83 @@ function MemberHeatLane({
         return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
     }).join(' ')
 
-    return (
-        <button type="button"
-                onClick={onFocus}
-                aria-label={label}
-                className={`block w-full rounded-lg overflow-hidden mb-1 transition-all active:opacity-70 ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
-                style={{background: 'var(--kce-surface2)'}}>
-            <svg viewBox={`0 0 320 ${LANE_H}`} className="w-full block" preserveAspectRatio="none"
-                 style={{height: LANE_H}}>
-                {/* Member name */}
-                <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
-                      dominantBaseline="middle" fill="var(--kce-text)">
-                    {label.length > 11 ? `${label.slice(0, 10)}…` : label}
+    const inner = (
+        <svg viewBox={`0 0 320 ${LANE_H}`} className="w-full block" preserveAspectRatio="none"
+             style={{height: LANE_H}}>
+            {/* Member name */}
+            <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
+                  dominantBaseline="middle" fill="var(--kce-text)">
+                {label.length > 11 ? `${label.slice(0, 10)}…` : label}
+            </text>
+            {isMe && (
+                <text x={6} y={LANE_H - 4} fontSize={7} fontWeight={700}
+                      fill="var(--kce-amber)">Ich</text>
+            )}
+
+            {/* Background heat cells: Δpenalty intensity */}
+            {bins.map((b, i) => {
+                const intensity = globalMaxDelta > 0 ? Math.min(1, b.delta_penalty / globalMaxDelta) : 0
+                return (
+                    <rect key={i}
+                          x={LANE_NAME_W + i * cellW} y={2}
+                          width={Math.max(0.5, cellW - 0.5)} height={LANE_H - 4}
+                          fill={`rgba(232, 160, 32, ${intensity * 0.85})`}/>
+                )
+            })}
+
+            {/* Cumulative drinks line ("intoxication") */}
+            <path d={cumPath} fill="none" stroke="#f97316" strokeWidth={1.6}
+                  strokeLinejoin="round" opacity={0.95}/>
+            {/* End-dot for the line */}
+            {bins.length > 0 && (() => {
+                const last = bins[bins.length - 1]
+                const x = LANE_NAME_W + (bins.length - 0.5) * cellW
+                const y = LANE_H - 4 - (last.cum_drinks / globalMaxCum) * (LANE_H - 10)
+                return <circle cx={x} cy={y} r={2.5} fill="#f97316"/>
+            })()}
+
+            {/* Totals at the right edge */}
+            {(() => {
+                const totalPenalty = bins.reduce((s, b) => s + b.delta_penalty, 0)
+                const totalDrinks = bins[bins.length - 1].cum_drinks
+                return (
+                    <>
+                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={9} textAnchor="end"
+                              fill="var(--kce-amber)" fontWeight={700}>
+                            €{totalPenalty.toFixed(1)}
+                        </text>
+                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
+                              fill="#f97316" fontWeight={700}>
+                            🍻 {totalDrinks}
+                        </text>
+                    </>
+                )
+            })()}
+
+            {/* Color tag bar at far left of name area */}
+            <rect x={0} y={0} width={3} height={LANE_H} fill={color}/>
+
+            {/* Optional r badge in name area, small */}
+            {rPearson != null && (
+                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={8} textAnchor="end"
+                      dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
+                    r={rPearson.toFixed(2)}
                 </text>
-                {isMe && (
-                    <text x={6} y={LANE_H - 4} fontSize={7} fontWeight={700}
-                          fill="var(--kce-amber)">Ich</text>
-                )}
-
-                {/* Background heat cells: Δpenalty intensity */}
-                {bins.map((b, i) => {
-                    const intensity = globalMaxDelta > 0 ? Math.min(1, b.delta_penalty / globalMaxDelta) : 0
-                    return (
-                        <rect key={i}
-                              x={LANE_NAME_W + i * cellW} y={2}
-                              width={Math.max(0.5, cellW - 0.5)} height={LANE_H - 4}
-                              fill={`rgba(232, 160, 32, ${intensity * 0.85})`}/>
-                    )
-                })}
-
-                {/* Cumulative drinks line ("intoxication") */}
-                <path d={cumPath} fill="none" stroke="#f97316" strokeWidth={1.6}
-                      strokeLinejoin="round" opacity={0.95}/>
-                {/* End-dot for the line */}
-                {bins.length > 0 && (() => {
-                    const last = bins[bins.length - 1]
-                    const x = LANE_NAME_W + (bins.length - 0.5) * cellW
-                    const y = LANE_H - 4 - (last.cum_drinks / globalMaxCum) * (LANE_H - 10)
-                    return <circle cx={x} cy={y} r={2.5} fill="#f97316"/>
-                })()}
-
-                {/* Totals at the right edge */}
-                {(() => {
-                    const totalPenalty = bins.reduce((s, b) => s + b.delta_penalty, 0)
-                    const totalDrinks = bins[bins.length - 1].cum_drinks
-                    return (
-                        <>
-                            <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={9} textAnchor="end"
-                                  fill="var(--kce-amber)" fontWeight={700}>
-                                €{totalPenalty.toFixed(1)}
-                            </text>
-                            <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
-                                  fill="#f97316" fontWeight={700}>
-                                🍻 {totalDrinks}
-                            </text>
-                        </>
-                    )
-                })()}
-
-                {/* Color tag bar at far left of name area */}
-                <rect x={0} y={0} width={3} height={LANE_H} fill={color}/>
-
-                {/* Optional r badge in name area, small */}
-                {rPearson !== null && (
-                    <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={8} textAnchor="end"
-                          dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
-                        r={rPearson.toFixed(2)}
-                    </text>
-                )}
-            </svg>
-        </button>
+            )}
+        </svg>
     )
+
+    const className = `block w-full rounded-lg overflow-hidden mb-1 transition-all ${onFocus ? 'active:opacity-70' : ''} ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`
+    const style = {background: 'var(--kce-surface2)'}
+    if (onFocus) {
+        return (
+            <button type="button" onClick={onFocus} aria-label={label}
+                    className={className} style={style}>
+                {inner}
+            </button>
+        )
+    }
+    return <div className={className} style={style}>{inner}</div>
 }
 
 function MemberHeatLanes({
