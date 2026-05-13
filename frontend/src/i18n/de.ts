@@ -469,6 +469,7 @@ export const de = {
     "stats.eveningBars": "Strafen pro Abend",
     "stats.toggleAbsent": "Abwesende",
     "stats.penaltyBreakdown": "Strafen-Übersicht",
+    "stats.penaltyTimeline": "Verlauf",
     "stats.gameResults": "Spiele",
     "stats.drinkRoundsDetail": "Getränke-Runden",
     "stats.drinkParticipants": "Teilnehmer",
