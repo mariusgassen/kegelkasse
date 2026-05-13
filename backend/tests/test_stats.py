@@ -671,6 +671,35 @@ class TestCorrelationStats:
         r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
         assert r.json()["evenings"][0]["penalty_euro"] == 0.0
 
+    def test_count_mode_penalties_included(self, client: TestClient, member_headers: dict, db: Session,
+                                           evening_2025: Evening, player: EveningPlayer,
+                                           member: RegularMember):
+        """Year correlation evening/member rollup must include count-mode penalties
+        (amount × unit_amount), matching the convention in evenings.py / treasury.py."""
+        from models.penalty import PenaltyMode
+        # 4 × €0.75 = €3.00 (count mode)
+        log_count = PenaltyLog(
+            evening_id=evening_2025.id, player_id=player.id, player_name=player.name,
+            penalty_type_name="Niete", amount=4.0, unit_amount=0.75,
+            mode=PenaltyMode.count, client_timestamp=time.time() * 1000,
+        )
+        # €2.00 (euro mode)
+        log_euro = PenaltyLog(
+            evening_id=evening_2025.id, player_id=player.id, player_name=player.name,
+            penalty_type_name="Late", amount=2.0, unit_amount=2.0,
+            mode=PenaltyMode.euro, client_timestamp=time.time() * 1000,
+        )
+        db.add_all([log_count, log_euro])
+        db.commit()
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        data = r.json()
+        # Evening total: €3.00 + €2.00 = €5.00
+        assert data["evenings"][0]["penalty_euro"] == pytest.approx(5.0)
+        # Member rollup must reflect the same
+        me = next(m for m in data["members"] if m["regular_member_id"] == member.id)
+        assert me["total_penalty_euro"] == pytest.approx(5.0)
+        assert me["evening_points"][0]["penalty_euro"] == pytest.approx(5.0)
+
     def test_requires_auth(self, client: TestClient):
         r = client.get("/api/v1/stats/correlation/2025")
         assert r.status_code == 401
@@ -787,6 +816,33 @@ class TestEveningCorrelation:
         r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
         me = next(m for m in r.json()["members"] if m["evening_player_id"] == player.id)
         assert me["bins"] == []
+
+    def test_count_mode_penalties_included(self, client: TestClient, member_headers: dict, db: Session,
+                                           evening_2025: Evening, player: EveningPlayer):
+        """Count-mode penalties (amount × unit_amount) must contribute to per-bin Δpenalty,
+        matching the convention used by every other view in the app. Regression for #267."""
+        from models.penalty import PenaltyMode
+        base = 1_700_000_000_000
+        # 3 × €0.50 = €1.50 (count mode)
+        log = PenaltyLog(
+            evening_id=evening_2025.id, player_id=player.id, player_name=player.name,
+            penalty_type_name="Niete", amount=3.0, unit_amount=0.5,
+            mode=PenaltyMode.count, client_timestamp=base,
+        )
+        db.add(log)
+        # 1 × €2.00 (euro mode)
+        self._add_penalty(db, evening_2025, player, 2.0, base + 60_000)
+        # need a drink in a different bin so the bin grid has more than one cell
+        self._add_drink(db, evening_2025, [player.id], base + 16 * 60_000)
+        db.commit()
+
+        r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}", headers=member_headers)
+        assert r.status_code == 200
+        me = next(m for m in r.json()["members"] if m["evening_player_id"] == player.id)
+        # Sum across bins should equal €1.50 + €2.00 = €3.50
+        total = sum(b["delta_penalty"] for b in me["bins"])
+        assert total == pytest.approx(3.5)
+        assert me["bins"][-1]["cum_penalty"] == pytest.approx(3.5)
 
     def test_404_unknown_evening(self, client: TestClient, member_headers: dict):
         r = client.get("/api/v1/stats/correlation/evening/999999", headers=member_headers)

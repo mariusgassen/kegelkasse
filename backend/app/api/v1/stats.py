@@ -33,6 +33,16 @@ def _pearson(xs: list[float], ys: list[float]) -> float | None:
     return round(cov / denom, 3)
 
 
+def _penalty_euro(log) -> float:
+    """Total € value of a penalty log entry, matching the convention used everywhere else
+    in the app (euro mode → amount; count mode → count × unit_amount)."""
+    if log.mode == PenaltyMode.euro:
+        return float(log.amount)
+    if log.unit_amount is not None:
+        return float(log.amount) * float(log.unit_amount)
+    return 0.0
+
+
 @router.get("/year/{year}")
 def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Yearly rollup — penalty totals, game wins, drink counts per regular member."""
@@ -271,8 +281,8 @@ def get_correlation_stats(year: int, db: Session = Depends(get_db), user: User =
         ev_penalty = 0.0
         ev_drinks = 0
         for log in e.penalty_log:
-            if not log.is_deleted and log.mode == PenaltyMode.euro:
-                ev_penalty += log.amount
+            if not log.is_deleted:
+                ev_penalty += _penalty_euro(log)
         for r in e.drink_rounds:
             if not r.is_deleted:
                 ev_drinks += len(r.participant_ids or [])
@@ -288,8 +298,8 @@ def get_correlation_stats(year: int, db: Session = Depends(get_db), user: User =
                 continue  # guest — skip from member rollup
             p_penalty = 0.0
             for log in e.penalty_log:
-                if log.player_id == p.id and not log.is_deleted and log.mode == PenaltyMode.euro:
-                    p_penalty += log.amount
+                if log.player_id == p.id and not log.is_deleted:
+                    p_penalty += _penalty_euro(log)
             p_drinks = 0
             for r in e.drink_rounds:
                 if not r.is_deleted and p.id in (r.participant_ids or []):
@@ -345,8 +355,12 @@ def get_evening_correlation(
     if evening.club_id != user.club_id:
         raise HTTPException(status_code=403, detail="Evening belongs to a different club")
 
+    # Include count-mode penalties (amount * unit_amount) so the within-evening
+    # total matches what every other view in the app shows. We still skip
+    # absent-member entries (player_id is None) because they can't be drawn on a
+    # heat lane — they aren't tied to a specific player.
     penalties = [log for log in evening.penalty_log
-                 if not log.is_deleted and log.mode == PenaltyMode.euro and log.player_id is not None]
+                 if not log.is_deleted and log.player_id is not None]
     drinks = [r for r in evening.drink_rounds if not r.is_deleted]
 
     all_ts = [log.client_timestamp for log in penalties] + [r.client_timestamp for r in drinks]
@@ -355,7 +369,7 @@ def get_evening_correlation(
     members_out: list[dict] = []
     for p in evening.players:
         # per-member events
-        p_penalties = [(log.client_timestamp, log.amount) for log in penalties if log.player_id == p.id]
+        p_penalties = [(log.client_timestamp, _penalty_euro(log)) for log in penalties if log.player_id == p.id]
         p_drinks = [r.client_timestamp for r in drinks if p.id in (r.participant_ids or [])]
 
         if not p_penalties and not p_drinks:
