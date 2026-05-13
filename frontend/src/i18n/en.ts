@@ -469,6 +469,7 @@ export const en = {
     "stats.eveningBars": "Penalties per evening",
     "stats.toggleAbsent": "Absent",
     "stats.penaltyBreakdown": "Penalty Breakdown",
+    "stats.penaltyTimeline": "Timeline",
     "stats.gameResults": "Games",
     "stats.drinkRoundsDetail": "Drink Rounds",
     "stats.drinkParticipants": "Participants",

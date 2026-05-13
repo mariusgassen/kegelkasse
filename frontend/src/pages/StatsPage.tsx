@@ -294,20 +294,25 @@ function ThrowTrendSmall({evenings}: { evenings: {avg_pins: number; date: string
 
 // ── Evening donut chart ─────────────────────────────────────────────────────
 
-function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRounds, t}: {
+function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRounds, t, onSelectPlayer}: {
     evening: Evening
     totalEuro: number
     penaltyCount: number
     beerRounds: number
     shotRounds: number
     t: (k: any) => string
+    onSelectPlayer: (player: EveningPlayer) => void
 }) {
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [showAbsent, setShowAbsent] = useState(true)
     const [drinkDetail, setDrinkDetail] = useState<'beer' | 'shots' | null>(null)
     const [gamesOpen, setGamesOpen] = useState(false)
+    const [timelineOpen, setTimelineOpen] = useState(false)
     const gameCount = evening.games.length
     const finishedGameCount = evening.games.filter(g => g.status === 'finished').length
+    const gameCountLabel = gameCount === 0 || finishedGameCount === gameCount
+        ? String(gameCount)
+        : `${finishedGameCount}/${gameCount}`
 
     // Present players: group by player_id
     const presentTotals = evening.players.map(p => {
@@ -343,7 +348,12 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
             <>
             <div className="grid grid-cols-2 gap-2 mb-4">
                 <StatBox value={fe(totalEuro)} label={t('stats.totalEuro')}/>
-                <StatBox value={String(penaltyCount)} label={t('stats.penalties')}/>
+                <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity"
+                        onClick={() => setTimelineOpen(true)}
+                        disabled={penaltyCount === 0}>
+                    <div className="font-display font-bold text-kce-amber text-xl leading-tight">{penaltyCount}</div>
+                    <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.penalties')}</div>
+                </button>
                 <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
                     <div className="font-display font-bold text-kce-amber text-xl leading-tight">🍺 {beerRounds}</div>
                     <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
@@ -356,7 +366,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     <button type="button"
                             className="kce-card p-3 text-center active:opacity-70 transition-opacity col-span-2"
                             onClick={() => setGamesOpen(true)}>
-                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🏆 {finishedGameCount}/{gameCount}</div>
+                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🏆 {gameCountLabel}</div>
                         <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
                     </button>
                 )}
@@ -371,6 +381,14 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
             )}
             {gamesOpen && (
                 <GamesDetailSheet evening={evening} t={t} onClose={() => setGamesOpen(false)}/>
+            )}
+            {timelineOpen && (
+                <PenaltyTimelineSheet
+                    evening={evening}
+                    t={t}
+                    onSelectPlayer={p => { setTimelineOpen(false); onSelectPlayer(p) }}
+                    onClose={() => setTimelineOpen(false)}
+                />
             )}
             </>
         )
@@ -464,7 +482,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     {gameCount > 0 && (
                         <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity"
                                 onClick={() => setGamesOpen(true)}>
-                            <div className="font-display font-bold text-kce-amber text-lg leading-tight">🏆 {finishedGameCount}/{gameCount}</div>
+                            <div className="font-display font-bold text-kce-amber text-lg leading-tight">🏆 {gameCountLabel}</div>
                             <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
                         </button>
                     )}
@@ -475,14 +493,21 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                     <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">
                         {t('stats.penaltyDistribution')}
                     </div>
-                    {hasAbsent && (
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {hasAbsent && (
+                            <button type="button"
+                                    className="chip text-[9px]"
+                                    style={showAbsent ? {borderColor: 'var(--kce-amber)', color: 'var(--kce-amber)', background: 'color-mix(in srgb, var(--kce-amber) 15%, transparent)'} : {borderColor: 'var(--kce-border)', color: 'var(--kce-muted)', opacity: 0.6}}
+                                    onClick={() => { setShowAbsent(v => !v); setSelectedId(null) }}>
+                                🏠 {t('stats.toggleAbsent')}
+                            </button>
+                        )}
                         <button type="button"
-                                className="chip flex-shrink-0 text-[9px]"
-                                style={showAbsent ? {borderColor: 'var(--kce-amber)', color: 'var(--kce-amber)', background: 'color-mix(in srgb, var(--kce-amber) 15%, transparent)'} : {borderColor: 'var(--kce-border)', color: 'var(--kce-muted)', opacity: 0.6}}
-                                onClick={() => { setShowAbsent(v => !v); setSelectedId(null) }}>
-                            🏠 {t('stats.toggleAbsent')}
+                                className="chip text-[9px]"
+                                onClick={() => setTimelineOpen(true)}>
+                            📋 {t('stats.penaltyTimeline')}
                         </button>
-                    )}
+                    </div>
                 </div>
                 <div className="flex flex-col gap-1">
                     {segments.map(seg => {
@@ -520,6 +545,14 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
         )}
         {gamesOpen && (
             <GamesDetailSheet evening={evening} t={t} onClose={() => setGamesOpen(false)}/>
+        )}
+        {timelineOpen && (
+            <PenaltyTimelineSheet
+                evening={evening}
+                t={t}
+                onSelectPlayer={p => { setTimelineOpen(false); onSelectPlayer(p) }}
+                onClose={() => setTimelineOpen(false)}
+            />
         )}
         </>
     )
@@ -643,6 +676,59 @@ function GamesDetailSheet({evening, t, onClose}: {
                                         {g.note}
                                     </div>
                                 )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </Sheet>
+    )
+}
+
+// ── Penalty timeline sheet ──────────────────────────────────────────────────
+
+function PenaltyTimelineSheet({evening, t, onSelectPlayer, onClose}: {
+    evening: Evening
+    t: (k: any) => string
+    onSelectPlayer: (player: EveningPlayer) => void
+    onClose: () => void
+}) {
+    const entries = evening.penalty_log
+        .filter(l => !('is_deleted' in l && (l as any).is_deleted))
+        .sort((a, b) => a.client_timestamp - b.client_timestamp)
+
+    const fTime = (ts: number) =>
+        new Date(ts).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
+
+    return (
+        <Sheet open onClose={onClose} title={t('stats.penaltyTimeline')}>
+            {entries.length === 0 ? (
+                <div className="text-sm text-kce-muted text-center py-4">{t('stats.noPenalties')}</div>
+            ) : (
+                <div className="space-y-1.5">
+                    {entries.map(l => {
+                        const amount = l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)
+                        const player = l.player_id != null ? evening.players.find(p => p.id === l.player_id) : null
+                        const displayName = player ? (player.nickname || player.name) : l.player_name
+                        return (
+                            <div key={l.id} className="flex items-center gap-2 text-xs">
+                                <span className="text-kce-muted flex-shrink-0 tabular-nums">{fTime(l.client_timestamp)}</span>
+                                <span className="text-kce-cream truncate flex-1">
+                                    {l.icon ? `${l.icon} ` : ''}{l.penalty_type_name}
+                                </span>
+                                {player ? (
+                                    <button type="button"
+                                            className="chip text-[10px] flex-shrink-0"
+                                            onClick={() => onSelectPlayer(player)}>
+                                        {player.is_king ? '👑 ' : ''}{displayName}
+                                    </button>
+                                ) : (
+                                    <span className="chip text-[10px] flex-shrink-0"
+                                          style={{opacity: 0.7, cursor: 'default'}}>
+                                        🏠 {displayName}
+                                    </span>
+                                )}
+                                <span className="text-red-400 font-bold flex-shrink-0 tabular-nums">{feShort(amount)}</span>
                             </div>
                         )
                     })}
@@ -964,7 +1050,9 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
     const isMe = player.regular_member_id === user?.regular_member_id
     const displayName = player.nickname || player.name
 
-    const penalties = evening.penalty_log.filter(l => l.player_id === player.id)
+    const penalties = evening.penalty_log
+        .filter(l => l.player_id === player.id && !('is_deleted' in l && (l as any).is_deleted))
+        .sort((a, b) => a.client_timestamp - b.client_timestamp)
     const penaltyTotal = penalties.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
     const wins = evening.games.filter(g => g.winner_ref === `p:${player.id}`).length
     const beerRoundsPlayer = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(player.id))
@@ -2531,6 +2619,7 @@ export function StatsPage() {
                                 beerRounds={eveningStats.beerRounds}
                                 shotRounds={eveningStats.shotRounds}
                                 t={t}
+                                onSelectPlayer={p => setEveningPlayerDetail(p)}
                             />
 
                             {eveningStats.hallOfFame.length > 0 && (
