@@ -140,133 +140,10 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
 
 // ── Evening timeline section ────────────────────────────────────────────────
 
-interface SimpleHeatBin {
-    t: string
-    delta_penalty: number
-    cum_drinks: number
-}
-
-function buildEveningHeatBins(
-    evening: Evening,
-    playerIds: number[],
-    binMs: number,
-): Map<number, SimpleHeatBin[]> {
-    const result = new Map<number, SimpleHeatBin[]>()
-    if (playerIds.length === 0) return result
-
-    const penaltyEvents = evening.penalty_log
-        .filter(l => playerIds.includes(l.player_id ?? -1) && !('is_deleted' in l && (l as any).is_deleted) && l.mode === 'euro')
-    const drinkEvents = evening.drink_rounds
-        .filter(r => r.participant_ids.some(pid => playerIds.includes(pid)))
-
-    const allTs = [
-        ...penaltyEvents.map(l => l.client_timestamp),
-        ...drinkEvents.map(r => r.client_timestamp),
-    ]
-    if (allTs.length === 0) {
-        playerIds.forEach(pid => result.set(pid, []))
-        return result
-    }
-    const t0 = Math.min(...allTs)
-    const tEnd = Math.max(...allTs)
-    let n = Math.max(1, Math.floor((tEnd - t0) / binMs) + 1)
-    if (n > 60) n = 60
-
-    for (const pid of playerIds) {
-        const deltaPenalty = new Array(n).fill(0)
-        const deltaDrinks = new Array(n).fill(0)
-        for (const l of penaltyEvents) {
-            if (l.player_id !== pid) continue
-            const idx = Math.min(n - 1, Math.max(0, Math.floor((l.client_timestamp - t0) / binMs)))
-            deltaPenalty[idx] += l.amount
-        }
-        for (const r of drinkEvents) {
-            if (!r.participant_ids.includes(pid)) continue
-            const idx = Math.min(n - 1, Math.max(0, Math.floor((r.client_timestamp - t0) / binMs)))
-            deltaDrinks[idx] += 1
-        }
-        const bins: SimpleHeatBin[] = []
-        let cumD = 0
-        for (let i = 0; i < n; i++) {
-            cumD += deltaDrinks[i]
-            bins.push({
-                t: new Date(t0 + i * binMs).toISOString(),
-                delta_penalty: deltaPenalty[i],
-                cum_drinks: cumD,
-            })
-        }
-        result.set(pid, bins)
-    }
-    return result
-}
-
-function EveningHeatLanes({
-    evening, activePlayers, colorOf, binMinutes, onChangeBin, t,
-}: {
-    evening: Evening
-    activePlayers: EveningPlayer[]
-    colorOf: (pid: number) => string
-    binMinutes: number
-    onChangeBin: (n: number) => void
-    t: (k: any) => string
-}) {
-    const playerIds = activePlayers.map(p => p.id)
-    const binMap = useMemo(
-        () => buildEveningHeatBins(evening, playerIds, binMinutes * 60_000),
-        [evening, playerIds.join(','), binMinutes],
-    )
-    const allBins = [...binMap.values()].flat()
-    if (allBins.length === 0) return null
-    const globalMaxDelta = Math.max(0.01, ...allBins.map(b => b.delta_penalty))
-    const globalMaxCum = Math.max(1, ...allBins.map(b => b.cum_drinks))
-
-    const sorted = [...activePlayers].sort((a, b) => {
-        const ad = binMap.get(a.id)
-        const bd = binMap.get(b.id)
-        const av = ad && ad.length ? ad[ad.length - 1].cum_drinks : 0
-        const bv = bd && bd.length ? bd[bd.length - 1].cum_drinks : 0
-        return bv - av
-    })
-
-    return (
-        <div className="mt-4 pt-3 border-t border-kce-border">
-            <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-extrabold text-kce-muted uppercase">
-                    {t('stats.heatLanes.title')}
-                </div>
-                <div className="flex gap-1">
-                    {[5, 15, 30].map(m => (
-                        <button key={m} type="button"
-                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                                onClick={() => onChangeBin(m)}>
-                            {m}m
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div className="text-[10px] text-kce-muted mb-2">{t('stats.heatLanes.hint')}</div>
-            {sorted.map(p => {
-                const bins = binMap.get(p.id) ?? []
-                return (
-                    <MemberHeatLane
-                        key={p.id}
-                        bins={bins}
-                        color={colorOf(p.id)}
-                        label={p.name}
-                        globalMaxDelta={globalMaxDelta}
-                        globalMaxCum={globalMaxCum}
-                    />
-                )
-            })}
-        </div>
-    )
-}
-
 function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string }) {
     const allIds = evening.players.map(p => p.id)
     const [selected, setSelected] = useState<number[]>(allIds)
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null)
-    const [binMinutes, setBinMinutes] = useState<number>(15)
 
     // Stable color per player (by index in evening.players, not filtered index)
     const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
@@ -304,9 +181,6 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
             return {player: ser.name, color: ser.color, entry: ev.entry, amount: ev.delta, time: fTime(ev.ts)}
         })()
         : null
-
-    const hasAnyPenalty = penaltySeries.some(s => s.events.length > 0)
-    const hasAnyDrink = drinkSeries.some(s => s.events.length > 0)
 
     // Check across ALL players (not just selected) to decide if the section should render at all
     const anyPenaltyTotal = evening.players.some(p =>
@@ -374,16 +248,6 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     <CumulativeChart series={drinkSeries} yFormat={v => `${Math.round(v)}`} title="Getränke"/>
                 )}
 
-                {(hasAnyPenalty || hasAnyDrink) && (
-                    <EveningHeatLanes
-                        evening={evening}
-                        activePlayers={activePlayers}
-                        colorOf={colorOf}
-                        binMinutes={binMinutes}
-                        onChangeBin={setBinMinutes}
-                        t={t}
-                    />
-                )}
                 {/* Legend */}
                 <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
                     {activePlayers.map(p => (
@@ -1465,7 +1329,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                         key={i}
                         cx={xS(p.x)} cy={yS(p.y)} r={isSelected ? r + 2 : r}
                         fill={p.color ?? 'var(--kce-amber)'}
-                        stroke={isSelected ? 'var(--kce-text)' : 'none'}
+                        stroke={isSelected ? 'var(--kce-cream)' : 'none'}
                         strokeWidth={isSelected ? 1.5 : 0}
                         style={{cursor: onSelect ? 'pointer' : 'default'}}
                         onClick={onSelect ? () => onSelect(i) : undefined}
@@ -1612,6 +1476,80 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
                     {open && (
                         <div className="mt-1 leading-snug">{t('stats.correlation.rExplain')}</div>
                     )}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// Tangible drinks-per-€ rate badge with optional comparison against a baseline.
+function DrinkRateBadge({
+    label, rate, drinks, penalty, baselineRate, baselineLabel, t,
+}: {
+    label: string
+    rate: number | null
+    drinks: number
+    penalty: number
+    baselineRate?: number | null
+    baselineLabel?: string
+    t: (k: TranslationKey) => string
+}) {
+    const [open, setOpen] = useState(false)
+    const fmtRate = (v: number) => v >= 10 ? v.toFixed(0) : v.toFixed(2)
+    const ratio = baselineRate != null && baselineRate > 0 && rate != null ? rate / baselineRate : null
+    const pct = ratio != null ? Math.round((ratio - 1) * 100) : null
+    const compareColor = pct == null ? 'var(--kce-muted)'
+        : pct >= 20 ? '#22c55e'
+        : pct <= -20 ? 'var(--kce-muted)'
+        : 'var(--kce-amber)'
+    return (
+        <div className="rounded-lg mt-2" style={{background: 'var(--kce-surface2)'}}>
+            <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="flex flex-col min-w-0">
+                    <div className="text-[10px] text-kce-muted uppercase font-bold">{label}</div>
+                    <div className="text-xs text-kce-cream truncate">
+                        🍻 {drinks} · €{penalty.toFixed(2)}
+                    </div>
+                </div>
+                <div className="text-right">
+                    <div className="text-2xl font-extrabold text-kce-amber leading-none">
+                        {rate == null ? '–' : fmtRate(rate)}
+                    </div>
+                    <div className="text-[9px] text-kce-muted">{t('stats.correlation.rateUnit')}</div>
+                </div>
+            </div>
+            {pct != null && baselineLabel && (
+                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                    <span style={{color: compareColor}} className="font-bold">
+                        {pct > 0 ? '+' : ''}{pct}%
+                    </span>
+                    {' '}
+                    {pct >= 0
+                        ? t('stats.correlation.rateAbove').replace('{label}', baselineLabel)
+                        : t('stats.correlation.rateBelow').replace('{label}', baselineLabel)}
+                    {ratio != null && (
+                        <span className="text-kce-muted/70"> ({ratio.toFixed(2)}×)</span>
+                    )}
+                    <button type="button"
+                            className="ml-1 underline decoration-dotted"
+                            onClick={() => setOpen(v => !v)}>
+                        {open ? t('stats.correlation.rExplainHide') : t('stats.correlation.rExplainShow')}
+                    </button>
+                    {open && (
+                        <div className="mt-1 leading-snug">{t('stats.correlation.rateExplain')}</div>
+                    )}
+                </div>
+            )}
+            {pct == null && rate != null && (
+                <div className="px-3 pb-2 text-[10px] text-kce-muted leading-snug">
+                    {t('stats.correlation.rateExplain')}
+                </div>
+            )}
+            {rate == null && (
+                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                    {penalty === 0
+                        ? t('stats.correlation.rateNoPenalty')
+                        : t('stats.correlation.rateNoDrinks')}
                 </div>
             )}
         </div>
@@ -2078,7 +2016,7 @@ function MemberHeatLane({
              style={{height: LANE_H}}>
             {/* Member name */}
             <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
-                  dominantBaseline="middle" fill="var(--kce-text)">
+                  dominantBaseline="middle" fill="var(--kce-cream)">
                 {label.length > 11 ? `${label.slice(0, 10)}…` : label}
             </text>
             {isMe && (
@@ -2251,6 +2189,28 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
         return map
     }, [sortedMembers, myMemberId])
 
+    // Per-member totals (drinks + penalty € over the whole evening) and a club-wide
+    // average drinks-per-€ rate used as the comparison baseline.
+    const totals = useMemo(() => {
+        if (!eveningCorr) {
+            return {byMember: new Map<number, {drinks: number; penalty: number; rate: number | null}>(),
+                eveningDrinks: 0, eveningPenalty: 0, eveningRate: null as number | null}
+        }
+        const byMember = new Map<number, {drinks: number; penalty: number; rate: number | null}>()
+        let eveningDrinks = 0
+        let eveningPenalty = 0
+        for (const m of eveningCorr.members) {
+            const drinks = m.bins.length ? m.bins[m.bins.length - 1].cum_drinks : 0
+            const penalty = m.bins.reduce((s, b) => s + b.delta_penalty, 0)
+            const rate = penalty > 0 ? drinks / penalty : null
+            byMember.set(m.evening_player_id, {drinks, penalty, rate})
+            eveningDrinks += drinks
+            eveningPenalty += penalty
+        }
+        const eveningRate = eveningPenalty > 0 ? eveningDrinks / eveningPenalty : null
+        return {byMember, eveningDrinks, eveningPenalty, eveningRate}
+    }, [eveningCorr])
+
     if (eveningId == null) return null
 
     const member = pickedMemberId == null ? null
@@ -2307,13 +2267,22 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                 compareMembers.length === 0
                     ? <Empty icon="🤷" text={t('stats.correlation.noEvents')}/>
                     : (
-                        <MemberHeatLanes
-                            members={compareMembers}
-                            memberColors={memberColors}
-                            myMemberId={myMemberId}
-                            onFocus={id => setPickedMemberId(id)}
-                            t={t}
-                        />
+                        <>
+                            <MemberHeatLanes
+                                members={compareMembers}
+                                memberColors={memberColors}
+                                myMemberId={myMemberId}
+                                onFocus={id => setPickedMemberId(id)}
+                                t={t}
+                            />
+                            <DrinkRateBadge
+                                label={t('stats.correlation.eveningRate')}
+                                rate={totals.eveningRate}
+                                drinks={totals.eveningDrinks}
+                                penalty={totals.eveningPenalty}
+                                t={t}
+                            />
+                        </>
                     )
             )}
 
@@ -2338,6 +2307,21 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                     />
                     <PearsonBadge r={member.derivative_pearson_r} t={t}
                                   labelKey="stats.correlation.derivativeR"/>
+                    {(() => {
+                        const tot = totals.byMember.get(member.evening_player_id)
+                        if (!tot) return null
+                        return (
+                            <DrinkRateBadge
+                                label={t('stats.correlation.memberRate')}
+                                rate={tot.rate}
+                                drinks={tot.drinks}
+                                penalty={tot.penalty}
+                                baselineRate={totals.eveningRate}
+                                baselineLabel={t('stats.correlation.eveningAvg')}
+                                t={t}
+                            />
+                        )
+                    })()}
                 </>
             )}
         </div>
