@@ -481,6 +481,8 @@ export const en = {
     "stats.gameStatusFinished": "Done",
     "stats.tapPenaltyDot": "Tap a dot for penalty detail",
     "stats.scores": "Scores",
+    "stats.heatLanes.title": "🌡️ Lanes per player",
+    "stats.heatLanes.hint": "One lane per player: background = penalty € intensity per time window (lighter → cool, darker → hot), the line is cumulative drinks.",
     "stats.correlation.title": "🍻 Penalties × Drinks",
     "stats.correlation.subtitle": "Do penalty-heavy evenings also have more drink rounds?",
     "stats.correlation.tab.perEvening": "Per evening",
