@@ -533,6 +533,7 @@ export const en = {
     "stats.correlation.noEveningPicked": "Please pick an evening.",
     "stats.correlation.eveningRate": "🍻 Drink rate this evening",
     "stats.correlation.memberRate": "🍻 Drink rate (this player)",
+    "stats.correlation.yearRate": "🍻 Drink rate across the year",
     "stats.correlation.eveningAvg": "the evening average",
     "stats.correlation.rateUnit": "drinks per € penalty",
     "stats.correlation.rateAbove": "more drinks per € of penalty than {label}",

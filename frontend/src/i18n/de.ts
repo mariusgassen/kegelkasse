@@ -533,6 +533,7 @@ export const de = {
     "stats.correlation.noEveningPicked": "Bitte einen Abend wählen.",
     "stats.correlation.eveningRate": "🍻 Trinkrate an diesem Abend",
     "stats.correlation.memberRate": "🍻 Trinkrate dieser Person",
+    "stats.correlation.yearRate": "🍻 Trinkrate über das Jahr",
     "stats.correlation.eveningAvg": "dem Abendsschnitt",
     "stats.correlation.rateUnit": "Getränke pro € Strafe",
     "stats.correlation.rateAbove": "mehr Getränke pro € Strafe als {label}",
