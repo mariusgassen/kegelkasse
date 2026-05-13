@@ -1900,9 +1900,58 @@ function CorrelationSection({year, myMemberId, t}: {
                         return b.personal_pearson_r! - a.personal_pearson_r!
                     })
                 const tooFew = all.filter(m => m.personal_pearson_r === null)
-                if (withR.length === 0 && tooFew.length === 0) {
-                    return <Empty icon="📊" text={t('stats.correlation.empty')}/>
+
+                // Fallback when no member has 3+ evenings yet (e.g. only 1–2 evenings into the year):
+                // rank by drink rate (drinks per € of penalty) so the tab still says something useful.
+                if (withR.length === 0) {
+                    const withRate = all
+                        .filter(m => m.total_penalty_euro > 0 && m.evening_points.length > 0)
+                        .map(m => ({...m, rate: m.total_drink_count / m.total_penalty_euro}))
+                        .sort((a, b) => {
+                            if (a.regular_member_id === myMemberId) return -1
+                            if (b.regular_member_id === myMemberId) return 1
+                            return b.rate - a.rate
+                        })
+                    if (withRate.length === 0) {
+                        return <Empty icon="📊" text={t('stats.correlation.empty')}/>
+                    }
+                    const maxRate = Math.max(...withRate.map(m => m.rate))
+                    return (
+                        <>
+                            <div className="text-[10px] text-kce-muted mb-2 leading-snug">
+                                {t('stats.correlation.fallbackRate')}
+                            </div>
+                            {withRate.map(m => {
+                                const isMe = m.regular_member_id === myMemberId
+                                const pct = maxRate > 0 ? (m.rate / maxRate) * 100 : 0
+                                return (
+                                    <div key={m.regular_member_id}
+                                         className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
+                                         style={{background: 'var(--kce-surface2)'}}>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="text-xs font-bold truncate flex items-center gap-1">
+                                                {m.nickname || m.name}
+                                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            </div>
+                                            <div className="text-xs font-extrabold flex-shrink-0 text-kce-amber">
+                                                {m.rate.toFixed(2)} 🍻/€
+                                            </div>
+                                        </div>
+                                        <div className="h-1.5 rounded-full overflow-hidden"
+                                             style={{background: 'var(--kce-bg)'}}>
+                                            <div className="h-full rounded-full"
+                                                 style={{width: `${pct}%`, background: 'var(--kce-amber)'}}/>
+                                        </div>
+                                        <div className="text-[9px] text-kce-muted mt-1">
+                                            🍻 {m.total_drink_count} · €{m.total_penalty_euro.toFixed(2)} · {m.evening_points.length} {m.evening_points.length === 1 ? t('stats.eveningSingular') : t('stats.eveningsPlural')}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </>
+                    )
                 }
+
                 return (
                     <>
                         {/* Scale ticks: −1 · 0 · +1 */}
