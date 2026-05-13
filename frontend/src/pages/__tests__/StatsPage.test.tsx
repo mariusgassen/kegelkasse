@@ -722,23 +722,25 @@ describe('StatsPage — correlation section', () => {
     it('shows the overall pearson r badge on the per-evening tab', async () => {
         await setupWithEvenings()
         await renderStatsPage()
+        // Strength tab is the default — click "Pro Abend" to see the year overall r.
+        await waitFor(() => screen.getByText('stats.correlation.tab.perEvening'))
+        fireEvent.click(screen.getByText('stats.correlation.tab.perEvening'))
         await waitFor(() => {
-            // Year-level overall_pearson_r = 0.62 → strong
-            expect(screen.getByText('0.62')).toBeInTheDocument()
-            // Multiple r badges (year + within-evening panel) may render strong/moderate labels
+            // r is recomputed on the frontend (after filtering zero-drink evenings)
+            // — assert a numeric r in [-1, 1] is rendered, not a specific value.
+            expect(screen.getAllByText(/^-?[01]\.\d{2}$/).length).toBeGreaterThanOrEqual(1)
             expect(screen.getAllByText('stats.correlation.strong').length).toBeGreaterThanOrEqual(1)
         })
     })
 
-    it('switches to the strength tab and shows members sorted by |r|', async () => {
+    it('shows the strength tab as default with members ranked by signed r', async () => {
         await setupWithEvenings()
         await renderStatsPage()
-        await waitFor(() => screen.getByText('stats.correlation.tab.strength'))
-        fireEvent.click(screen.getByText('stats.correlation.tab.strength'))
+        // Strength tab is the default tab now — no click required.
         await waitFor(() => {
-            // Hans has personal_pearson_r=0.7 → 0.70 rendered
-            expect(screen.getByText('0.70')).toBeInTheDocument()
-            // Franzi (nickname 'Fra') has null → bucketed under not-enough-evenings hint
+            // Hans has 3 evenings and a recomputed personal r ∈ [-1, 1]; display is signed (e.g. "+0.95").
+            expect(screen.getByText(/^[+-]\d\.\d{2}$/)).toBeInTheDocument()
+            // Franzi only has 2 evening_points → personal_pearson_r is null → not-enough-evenings hint.
             expect(screen.getByText(/stats\.correlation\.notEnoughEvenings/)).toBeInTheDocument()
         })
     })

@@ -11,7 +11,7 @@ import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
-import {interpretR, linearRegression} from '@/lib/stats'
+import {interpretR, linearRegression, pearson} from '@/lib/stats'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1589,9 +1589,9 @@ function MemberEveningScatter({members, myMemberId, t}: {
         <>
             <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
             {/* Member legend pills */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+            <div className="flex gap-1.5 flex-wrap mb-2">
                 <button type="button"
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${focusedMember == null ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                        className={`chip ${focusedMember == null ? 'active' : ''}`}
                         onClick={() => { setFocusedMember(null); setSelectedIdx(null) }}>
                     {t('stats.correlation.allMembers')}
                 </button>
@@ -1601,7 +1601,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                     const color = memberColorMap.get(m.regular_member_id)!
                     return (
                         <button key={m.regular_member_id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`chip flex items-center gap-1 ${isSelected ? 'active' : ''}`}
                                 onClick={() => {
                                     setFocusedMember(m.regular_member_id === focusedMember ? null : m.regular_member_id)
                                     setSelectedIdx(null)
@@ -1763,7 +1763,7 @@ function CorrelationSection({year, myMemberId, t}: {
     myMemberId: number | null | undefined
     t: (k: TranslationKey) => string
 }) {
-    const [tab, setTab] = useState<CorrTab>('evening')
+    const [tab, setTab] = useState<CorrTab>('strength')
     const [selectedDot, setSelectedDot] = useState<number | null>(null)
 
     const {data: corr, isLoading} = useQuery<CorrelationStats>({
@@ -1776,16 +1776,53 @@ function CorrelationSection({year, myMemberId, t}: {
         setSelectedDot(null)
     }, [tab, year])
 
+    // Zero-drink evenings indicate missing data (we just weren't logging that night),
+    // not a genuine "no drinks" observation — drop them everywhere and recompute r.
+    const filteredCorr = useMemo<CorrelationStats | undefined>(() => {
+        if (!corr) return corr
+        const evenings = corr.evenings.filter(e => e.drink_count > 0)
+        const overall_pearson_r = pearson(
+            evenings.map(e => e.penalty_euro),
+            evenings.map(e => e.drink_count),
+        )
+        const members = corr.members.map(m => {
+            const evening_points = m.evening_points.filter(p => p.drink_count > 0)
+            const total_penalty_euro = evening_points.reduce((s, p) => s + p.penalty_euro, 0)
+            const total_drink_count = evening_points.reduce((s, p) => s + p.drink_count, 0)
+            const personal_pearson_r = pearson(
+                evening_points.map(p => p.penalty_euro),
+                evening_points.map(p => p.drink_count),
+            )
+            return {
+                ...m,
+                evening_points,
+                evenings_count: evening_points.length,
+                total_penalty_euro,
+                total_drink_count,
+                personal_pearson_r,
+            }
+        })
+        return {...corr, evenings, overall_pearson_r, members}
+    }, [corr])
+
+    // Year-wide "drinks per € of penalty" — tangible baseline shown in the per-evening tab.
+    const yearRate = useMemo(() => {
+        if (!filteredCorr) return {drinks: 0, penalty: 0, rate: null as number | null}
+        const drinks = filteredCorr.evenings.reduce((s, e) => s + e.drink_count, 0)
+        const penalty = filteredCorr.evenings.reduce((s, e) => s + e.penalty_euro, 0)
+        return {drinks, penalty, rate: penalty > 0 ? drinks / penalty : null}
+    }, [filteredCorr])
+
     const fDate = (dateStr: string) =>
         new Date(dateStr).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
 
     const tabs: { key: CorrTab; labelKey: TranslationKey }[] = [
+        {key: 'strength', labelKey: 'stats.correlation.tab.strength'},
         {key: 'evening', labelKey: 'stats.correlation.tab.perEvening'},
         {key: 'member', labelKey: 'stats.correlation.tab.perMember'},
-        {key: 'strength', labelKey: 'stats.correlation.tab.strength'},
     ]
 
-    const hasYearData = corr && (corr.evenings.length > 0 || corr.members.length > 0)
+    const hasYearData = filteredCorr && (filteredCorr.evenings.length > 0 || filteredCorr.members.length > 0)
 
     return (
         <div className="kce-card p-3 mb-4">
@@ -1809,10 +1846,10 @@ function CorrelationSection({year, myMemberId, t}: {
             {isLoading && <Empty icon="⏳" text="…"/>}
 
             {!isLoading && tab === 'evening' && (
-                hasYearData && corr!.evenings.length > 0 ? (
+                hasYearData && filteredCorr!.evenings.length > 0 ? (
                     <>
                         <ScatterChart
-                            points={corr!.evenings.map(e => ({
+                            points={filteredCorr!.evenings.map(e => ({
                                 x: e.penalty_euro, y: e.drink_count,
                                 label: fDate(e.date),
                                 color: 'var(--kce-amber)',
@@ -1823,22 +1860,29 @@ function CorrelationSection({year, myMemberId, t}: {
                             selectedIndex={selectedDot}
                             onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
                         />
-                        {selectedDot !== null && corr!.evenings[selectedDot] && (
+                        {selectedDot !== null && filteredCorr!.evenings[selectedDot] && (
                             <div className="text-[10px] text-kce-muted text-center mb-2">
-                                {fDate(corr!.evenings[selectedDot].date)} · {fe(corr!.evenings[selectedDot].penalty_euro)} · 🍻 {corr!.evenings[selectedDot].drink_count}
+                                {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count}
                             </div>
                         )}
-                        <PearsonBadge r={corr!.overall_pearson_r} t={t}/>
-                        <YearCumulativeDualAxis evenings={corr!.evenings} t={t}/>
-                        <EveningQuartileSummary evenings={corr!.evenings} t={t}/>
+                        <PearsonBadge r={filteredCorr!.overall_pearson_r} t={t}/>
+                        <DrinkRateBadge
+                            label={t('stats.correlation.yearRate')}
+                            rate={yearRate.rate}
+                            drinks={yearRate.drinks}
+                            penalty={yearRate.penalty}
+                            t={t}
+                        />
+                        <YearCumulativeDualAxis evenings={filteredCorr!.evenings} t={t}/>
+                        <EveningQuartileSummary evenings={filteredCorr!.evenings} t={t}/>
                     </>
                 ) : <Empty icon="📅" text={t('stats.correlation.empty')}/>
             )}
 
             {!isLoading && tab === 'member' && (
-                hasYearData && corr!.members.length > 0 ? (
+                hasYearData && filteredCorr!.members.length > 0 ? (
                     <MemberEveningScatter
-                        members={corr!.members}
+                        members={filteredCorr!.members}
                         myMemberId={myMemberId}
                         t={t}
                     />
@@ -1846,13 +1890,14 @@ function CorrelationSection({year, myMemberId, t}: {
             )}
 
             {!isLoading && tab === 'strength' && hasYearData && (() => {
-                const all = corr!.members
+                const all = filteredCorr!.members
                 const withR = all
                     .filter(m => m.personal_pearson_r !== null)
                     .sort((a, b) => {
                         if (a.regular_member_id === myMemberId) return -1
                         if (b.regular_member_id === myMemberId) return 1
-                        return Math.abs(b.personal_pearson_r!) - Math.abs(a.personal_pearson_r!)
+                        // Sort by signed r descending: strong positive first, strong negative last.
+                        return b.personal_pearson_r! - a.personal_pearson_r!
                     })
                 const tooFew = all.filter(m => m.personal_pearson_r === null)
                 if (withR.length === 0 && tooFew.length === 0) {
@@ -1860,9 +1905,16 @@ function CorrelationSection({year, myMemberId, t}: {
                 }
                 return (
                     <>
+                        {/* Scale ticks: −1 · 0 · +1 */}
+                        <div className="relative h-3 mb-1 text-[9px] text-kce-muted font-bold">
+                            <span className="absolute left-0">−1</span>
+                            <span className="absolute left-1/2 -translate-x-1/2">0</span>
+                            <span className="absolute right-0">+1</span>
+                        </div>
                         {withR.map(m => {
                             const r = m.personal_pearson_r!
                             const isMe = m.regular_member_id === myMemberId
+                            const pct = Math.abs(r) * 50  // half-width fraction
                             return (
                                 <div key={m.regular_member_id}
                                      className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
@@ -1873,12 +1925,22 @@ function CorrelationSection({year, myMemberId, t}: {
                                             {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                         </div>
                                         <div className="text-xs font-extrabold flex-shrink-0"
-                                             style={{color: rColor(r)}}>{r.toFixed(2)}</div>
+                                             style={{color: rColor(r)}}>
+                                            {r > 0 ? '+' : ''}{r.toFixed(2)}
+                                        </div>
                                     </div>
-                                    <div className="h-1 rounded-full overflow-hidden"
+                                    {/* Diverging bar: centered at 0, fills left for negative, right for positive */}
+                                    <div className="relative h-1.5 rounded-full overflow-hidden"
                                          style={{background: 'var(--kce-bg)'}}>
-                                        <div className="h-full rounded-full"
-                                             style={{width: `${Math.abs(r) * 100}%`, background: rColor(r)}}/>
+                                        <div className="absolute top-0 bottom-0 w-px"
+                                             style={{left: '50%', background: 'var(--kce-border)'}}/>
+                                        {r >= 0 ? (
+                                            <div className="absolute top-0 bottom-0 rounded-r-full"
+                                                 style={{left: '50%', width: `${pct}%`, background: rColor(r)}}/>
+                                        ) : (
+                                            <div className="absolute top-0 bottom-0 rounded-l-full"
+                                                 style={{right: '50%', width: `${pct}%`, background: rColor(r)}}/>
+                                        )}
                                     </div>
                                 </div>
                             )
@@ -2218,17 +2280,17 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
     const compareMembers = sortedMembers.filter(m => m.bins.length > 0)
 
     return (
-        <div className="kce-card p-3 mb-4">
-            <div className="text-sm font-extrabold mb-1">{t('stats.correlation.title')}</div>
+        <div className="kce-card p-3 mb-4 mt-6">
+            <div className="sec-heading text-sm mb-1">{t('stats.correlation.title')}</div>
             <div className="text-[10px] text-kce-muted mb-2">
                 {pickedMemberId == null ? t('stats.correlation.compareAllHint') : t('stats.correlation.subtitle')}
             </div>
 
             {/* Member pill picker — "Alle" + per-member */}
             {sortedMembers.length > 0 && (
-                <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2 -mx-3 px-3" style={{scrollbarWidth: 'none'}}>
+                <div className="flex gap-1.5 flex-wrap mb-2">
                     <button type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pickedMemberId == null ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`chip ${pickedMemberId == null ? 'active' : ''}`}
                             onClick={() => setPickedMemberId(null)}>
                         {t('stats.correlation.allMembers')}
                     </button>
@@ -2238,7 +2300,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                         const color = memberColors.get(m.evening_player_id)!
                         return (
                             <button key={m.evening_player_id} type="button"
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    className={`chip flex items-center gap-1 ${isSelected ? 'active' : ''}`}
                                     onClick={() => setPickedMemberId(m.evening_player_id)}>
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: color}}/>
                                 {m.nickname || m.name}{isMe ? ' · Ich' : ''}
@@ -2249,11 +2311,11 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
             )}
 
             {/* Bin-size pill picker */}
-            <div className="flex gap-1.5 mb-3">
-                <span className="text-[10px] text-kce-muted self-center mr-1">{t('stats.correlation.binMinutes')}:</span>
+            <div className="flex gap-1.5 flex-wrap items-center mb-3">
+                <span className="text-[10px] text-kce-muted mr-1">{t('stats.correlation.binMinutes')}:</span>
                 {[5, 15, 30].map(m => (
                     <button key={m} type="button"
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${binMinutes === m ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`chip ${binMinutes === m ? 'active' : ''}`}
                             onClick={() => setBinMinutes(m)}>
                         {m} {t('stats.correlation.minutes')}
                     </button>
