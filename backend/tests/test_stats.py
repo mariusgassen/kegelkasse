@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from core.security import create_access_token, get_password_hash
 from models.club import Club
 from models.drink import DrinkRound
-from models.evening import Evening, EveningPlayer, RegularMember
+from models.evening import Evening, EveningPlayer, RegularMember, Team
 from models.game import Game, GameThrowLog
 from models.penalty import PenaltyLog, PenaltyType
 from models.user import User, UserRole
@@ -34,6 +34,7 @@ def cleanup(db: Session, club: Club):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).delete(synchronize_session=False)
         db.query(DrinkRound).filter(DrinkRound.evening_id == e.id).delete(synchronize_session=False)
         db.query(Game).filter(Game.evening_id == e.id).delete(synchronize_session=False)
+        db.query(Team).filter(Team.evening_id == e.id).delete(synchronize_session=False)
     db.query(Evening).filter(Evening.club_id == club.id).delete(synchronize_session=False)
     db.query(PenaltyType).filter(PenaltyType.club_id == club.id).delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
@@ -175,6 +176,36 @@ class TestYearStats:
     def test_requires_auth(self, client: TestClient):
         r = client.get("/api/v1/stats/year/2025")
         assert r.status_code == 401
+
+    def test_team_win_counts_for_each_member(self, client: TestClient, member_headers: dict,
+                                             db: Session,
+                                             evening_2025: Evening, player: EveningPlayer,
+                                             member: RegularMember):
+        # Member is part of the winning team — their game_wins must include the team win,
+        # but the ranking must never expose the team itself as a player.
+        from models.game import Game, WinnerType
+        team = Team(evening_id=evening_2025.id, name="Winners")
+        db.add(team)
+        db.flush()
+        player.team_id = team.id
+        g = Game(
+            evening_id=evening_2025.id,
+            name="Team Win",
+            winner_type=WinnerType.team,
+            winner_ref=f"t:{team.id}",
+            winner_name=team.name,
+            status="finished",
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(g)
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        data = r.json()
+        me = next(p for p in data["players"] if p["regular_member_id"] == member.id)
+        assert me["game_wins"] == 1
+        # Sanity: ranking entries always carry a regular_member_id or a guest_ prefixed key,
+        # never a bare team name.
+        assert all(p["name"] != team.name for p in data["players"])
 
     def test_deleted_penalties_excluded(self, client: TestClient, member_headers: dict,
                                         db: Session,

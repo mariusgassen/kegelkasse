@@ -888,9 +888,11 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                     <div><label className="field-label">{t('club.template.description')}</label>
                         <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
                     <div><label className="field-label">{t('club.template.winnerType')}</label>
-                        <select className="kce-input" value={wtype} onChange={e => setWtype(e.target.value)}>
+                        <select className="kce-input" value={wtype}
+                                disabled={isOpener}
+                                onChange={e => setWtype(e.target.value)}>
                             <option value="individual">{t('club.template.winnerType.individual')}</option>
-                            <option value="team">{t('club.template.winnerType.team')}</option>
+                            <option value="team" disabled={isOpener}>{t('club.template.winnerType.team')}</option>
                         </select></div>
                     {wtype === 'team' && (
                         <div>
@@ -908,7 +910,11 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                     )}
                     <div className="flex items-center gap-3">
                         <input type="checkbox" id="is-opener" checked={isOpener}
-                               onChange={e => setIsOpener(e.target.checked)}/>
+                               onChange={e => {
+                                   const next = e.target.checked
+                                   setIsOpener(next)
+                                   if (next) setWtype('individual')
+                               }}/>
                         <label htmlFor="is-opener" className="text-sm font-bold cursor-pointer">
                             {t('club.template.isOpener')}
                         </label>

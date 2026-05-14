@@ -687,6 +687,9 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
              user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     wt = data.winner_type if data.winner_type in ("team", "individual") else "individual"
+    # Opener (König-Spiel) is always individual — the crown belongs to a single member.
+    if data.is_opener and wt == "team":
+        raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
     g = Game(
         evening_id=e.id,
         name=data.name,
@@ -933,36 +936,24 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             if data.client_timestamp else datetime.now(UTC)
         )
     _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
-    # King: opener game → set king flag on the winning member(s).
-    # Team can never be king — when a team wins, every member of that team becomes king.
-    if g.is_opener:
+    # King: opener game with individual winner → set king flag.
+    # Opener games are constrained to winner_type=individual on creation/update,
+    # so a team winner_ref here is invalid input and silently ignored.
+    if g.is_opener and data.winner_ref.startswith("p:"):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
         db.flush()
-        winners: list[EveningPlayer] = []
         try:
-            if data.winner_ref.startswith("p:"):
-                winner_pid = int(data.winner_ref[2:])
-                wp = db.query(EveningPlayer).filter(
-                    EveningPlayer.id == winner_pid,
-                    EveningPlayer.evening_id == e.id,
-                ).first()
-                if wp:
-                    winners = [wp]
-            elif data.winner_ref.startswith("t:"):
-                winner_tid = int(data.winner_ref[2:])
-                winners = db.query(EveningPlayer).filter(
-                    EveningPlayer.evening_id == e.id,
-                    EveningPlayer.team_id == winner_tid,
-                ).all()
+            winner_pid = int(data.winner_ref[2:])
+            winner_player = db.query(EveningPlayer).filter(EveningPlayer.id == winner_pid).first()
+            if winner_player:
+                winner_player.is_king = True
+                if winner_player.regular_member_id:
+                    background_tasks.add_task(
+                        push_to_regular_member, db, winner_player.regular_member_id, "👑 Du bist König!",
+                        f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
+                        "/#evening:games", "games")
         except (ValueError, IndexError):
-            winners = []
-        for wp in winners:
-            wp.is_king = True
-            if wp.regular_member_id:
-                background_tasks.add_task(
-                    push_to_regular_member, db, wp.regular_member_id, "👑 Du bist König!",
-                    f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
-                    "/#evening:games", "games")
+            pass
     db.commit()
     logger.info("Game finished: id=%s name=%r winner=%r evening_id=%s by user_id=%s", g.id, g.name, data.winner_ref, eid, user.id)
     # Auto-recalculate absence penalties after each game finish (silent, no push)
@@ -990,6 +981,13 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     if not g: raise HTTPException(404)
     changed = data.model_dump(exclude_none=True)
     penalty_changed = "loser_penalty" in changed or "per_point_penalty" in changed
+    # Opener (König-Spiel) is always individual.
+    final_opener = changed.get("is_opener", g.is_opener)
+    final_winner_type = changed.get("winner_type", g.winner_type)
+    if isinstance(final_winner_type, WinnerType):
+        final_winner_type = final_winner_type.value
+    if final_opener and final_winner_type == "team":
+        raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
     for k, v in changed.items():
         setattr(g, k, v)
     # Re-apply loser penalties if game is finished and penalty amount changed

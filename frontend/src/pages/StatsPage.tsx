@@ -1054,12 +1054,14 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
         .filter(l => l.player_id === player.id && !('is_deleted' in l && (l as any).is_deleted))
         .sort((a, b) => a.client_timestamp - b.client_timestamp)
     const penaltyTotal = penalties.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
-    const wins = evening.games.filter(g => g.winner_ref === `p:${player.id}`).length
+    const playerWon = (g: { winner_ref: string | null }) =>
+        g.winner_ref === `p:${player.id}` || (!!player.team_id && g.winner_ref === `t:${player.team_id}`)
+    const wins = evening.games.filter(playerWon).length
     const beerRoundsPlayer = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(player.id))
     const shotRoundsPlayer = evening.drink_rounds.filter(r => r.drink_type === 'shots' && r.participant_ids.includes(player.id))
 
     const gamesWithPlayer = evening.games.filter(g =>
-        g.winner_ref === `p:${player.id}` || (g.throws ?? []).some(th => th.player_id === player.id)
+        playerWon(g) || (g.throws ?? []).some(th => th.player_id === player.id)
     )
 
     const playerThrows = evening.games.flatMap(g => g.throws ?? []).filter(th => th.player_id === player.id)
@@ -1150,7 +1152,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                     <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
                     <div className="space-y-1.5">
                         {gamesWithPlayer.map(g => {
-                            const won = g.winner_ref === `p:${player.id}`
+                            const won = g.winner_ref === `p:${player.id}` || (!!player.team_id && g.winner_ref === `t:${player.team_id}`)
                             const gameThrows = (g.throws ?? []).filter(th => th.player_id === player.id)
                             const gamePins = gameThrows.reduce((s, th) => s + th.pins, 0)
                             return (
@@ -2690,7 +2692,7 @@ export function StatsPage() {
                                             const rm = useAppStore.getState().regularMembers.find(m => m.id === p.regular_member_id)
                                             const pTotal = evening.penalty_log.filter(l => l.player_id === p.id).reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0)
                                             const beerC = evening.drink_rounds.filter(r => r.drink_type === 'beer' && r.participant_ids.includes(p.id)).length
-                                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}`).length
+                                            const wins = evening.games.filter(g => g.winner_ref === `p:${p.id}` || (!!p.team_id && g.winner_ref === `t:${p.team_id}`)).length
                                             // Throw stats for this player across all games of the evening
                                             const playerThrows = evening.games.flatMap(g => g.throws ?? []).filter(th => th.player_id === p.id)
                                             const totalPins = playerThrows.reduce((s, th) => s + th.pins, 0)
@@ -2965,11 +2967,27 @@ function computeEveningStats(evening: Evening, myMemberId: number | null | undef
     const topNull = byPlayer(nullCount)
     const cleanest = [...evening.players].sort((a, b) => strafenTotal(a.id) - strafenTotal(b.id))[0]
 
-    const winnersMap: Record<string, number> = {}
+    // Spielkönig: count game wins per **member**. When a team wins, every member of that team scores a win.
+    // Teams themselves can never be Spielkönig — the title is awarded to a person.
+    const winsByPlayerId: Record<number, number> = {}
     evening.games.forEach(g => {
-        if (g.winner_name) winnersMap[g.winner_name] = (winnersMap[g.winner_name] || 0) + 1
+        if (!g.winner_ref) return
+        if (g.winner_ref.startsWith('p:')) {
+            const pid = Number(g.winner_ref.slice(2))
+            if (Number.isFinite(pid)) winsByPlayerId[pid] = (winsByPlayerId[pid] || 0) + 1
+        } else if (g.winner_ref.startsWith('t:')) {
+            const tid = Number(g.winner_ref.slice(2))
+            if (!Number.isFinite(tid)) return
+            evening.players.filter(p => p.team_id === tid).forEach(p => {
+                winsByPlayerId[p.id] = (winsByPlayerId[p.id] || 0) + 1
+            })
+        }
     })
-    const topWinner = Object.entries(winnersMap).sort((a, b) => b[1] - a[1])[0]
+    const topWinnerEntry = Object.entries(winsByPlayerId).sort((a, b) => b[1] - a[1])[0]
+    const topWinnerPlayer = topWinnerEntry ? evening.players.find(p => p.id === Number(topWinnerEntry[0])) : null
+    const topWinner: [string, number] | undefined = topWinnerPlayer
+        ? [topWinnerPlayer.name, topWinnerEntry![1]]
+        : undefined
 
     const hof = [
         topStrafen && strafenTotal(topStrafen.id) > 0 && {

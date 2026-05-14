@@ -125,6 +125,29 @@ class TestCreateGame:
         assert data["name"] == "Große Hausnummer"
         assert "id" in data
 
+    def test_opener_with_team_winner_type_rejected(self, client: TestClient, evening, auth_headers):
+        # König-Spiel is always individual.
+        resp = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Bad Opener",
+            "is_opener": True,
+            "winner_type": "team",
+            "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        assert resp.status_code == 400
+
+    def test_update_to_opener_with_team_winner_type_rejected(
+            self, client: TestClient, db, evening, auth_headers):
+        # Existing team game cannot be flipped to opener via PATCH.
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Team Game",
+            "winner_type": "team",
+            "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        gid = r.json()["id"]
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}",
+                            json={"is_opener": True}, headers=auth_headers)
+        assert resp.status_code == 400
+
     def test_game_appears_in_evening_detail(self, client: TestClient, evening, user, auth_headers):
         client.post(f"/api/v1/evening/{evening.id}/games", json={
             "name": "Test Game",
@@ -234,43 +257,15 @@ class TestFinishGame:
         assert player.is_king is True
         assert player2.is_king is False
 
-    def test_opener_team_winner_sets_king_on_all_team_members(
+    def test_opener_team_winner_does_not_crown_anyone(
             self, client: TestClient, db, evening, player, player2, user, auth_headers):
-        # Two-player team wins the opener — both members must become king.
+        # Defensive guard: even if a team winner_ref slips into finish (shouldn't,
+        # since create/update reject is_opener+team), no king flag must be set.
         team_a = Team(evening_id=evening.id, name="Winners")
-        team_b = Team(evening_id=evening.id, name="Losers")
-        db.add_all([team_a, team_b])
-        db.flush()
-        # third player on the losing team to verify the flag stays False there
-        player3 = EveningPlayer(evening_id=evening.id, name="Loser Guest", team_id=team_b.id)
-        db.add(player3)
-        player.team_id = team_a.id
-        player2.team_id = team_a.id
-        db.commit()
-        db.refresh(player3)
-
-        gid = self._create_and_start_game(client, evening, auth_headers, is_opener=True)
-        resp = client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={
-            "winner_ref": f"t:{team_a.id}",
-            "winner_name": team_a.name,
-            "scores": {},
-        }, headers=auth_headers)
-        assert resp.status_code == 200
-        db.refresh(player)
-        db.refresh(player2)
-        db.refresh(player3)
-        assert player.is_king is True
-        assert player2.is_king is True
-        assert player3.is_king is False
-
-    def test_opener_team_winner_clears_previous_king(
-            self, client: TestClient, db, evening, player, player2, user, auth_headers):
-        # Previous king (individual) must lose the crown when a team wins a re-edit.
-        team_a = Team(evening_id=evening.id, name="Crowned")
         db.add(team_a)
         db.flush()
+        player.team_id = team_a.id
         player2.team_id = team_a.id
-        player.is_king = True  # stale state from a previous opener finish
         db.commit()
 
         gid = self._create_and_start_game(client, evening, auth_headers, is_opener=True)
@@ -282,7 +277,7 @@ class TestFinishGame:
         db.refresh(player)
         db.refresh(player2)
         assert player.is_king is False
-        assert player2.is_king is True
+        assert player2.is_king is False
 
     def test_loser_penalty_created(self, client: TestClient, db, evening, player, player2, user, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers, loser_penalty=2.0)

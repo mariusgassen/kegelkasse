@@ -94,11 +94,13 @@ export function GamesPage() {
         if (!tmpl) return
         setTemplateId(tid)
         setGameName(tmpl.name)
-        setIsOpener(tmpl.is_opener && !hasOpener)
+        const isOpenerFromTmpl = tmpl.is_opener && !hasOpener
+        setIsOpener(isOpenerFromTmpl)
         setLoserPenalty(String(tmpl.default_loser_penalty))
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
-        const wt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
-        setWinnerType(wt)
+        const tmplWt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
+        // Opener (König-Spiel) is always individual, regardless of the template's winner_type.
+        setWinnerType(isOpenerFromTmpl ? 'individual' : tmplWt)
         if (tmpl.turn_mode) setTurnMode(tmpl.turn_mode)
     }
 
@@ -425,20 +427,27 @@ export function GamesPage() {
                     ) : (
                         <button type="button"
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${isOpener ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
-                                onClick={() => setIsOpener(v => !v)}>
+                                onClick={() => {
+                                    setIsOpener(v => {
+                                        const next = !v
+                                        if (next) setWinnerType('individual')
+                                        return next
+                                    })
+                                }}>
                             <span>{isOpener ? '✓' : '+'}</span>
                             {t('game.isOpener')}
                         </button>
                     )}
 
-                    {/* Winner type */}
+                    {/* Winner type — opener (König-Spiel) is always individual */}
                     <div>
                         <div className="field-label">{t('club.template.winnerType')}</div>
                         <div className="flex gap-1.5">
                             {(['individual', 'team'] as WinnerType[]).map(wt => (
                                 <button key={wt} type="button"
-                                        className={`chip flex-1 text-center ${winnerType === wt ? 'active' : ''}`}
-                                        onClick={() => setWinnerType(wt)}>
+                                        disabled={isOpener && wt === 'team'}
+                                        className={`chip flex-1 text-center ${winnerType === wt ? 'active' : ''} ${isOpener && wt === 'team' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        onClick={() => { if (!(isOpener && wt === 'team')) setWinnerType(wt) }}>
                                     {t(`club.template.winnerType.${wt}` as any)}
                                 </button>
                             ))}
@@ -661,20 +670,27 @@ export function GamesPage() {
                     {(editIsOpener || !hasOpener || editTarget?.is_opener) && (
                         <button type="button"
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${editIsOpener ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
-                                onClick={() => setEditIsOpener(v => !v)}>
+                                onClick={() => {
+                                    setEditIsOpener(v => {
+                                        const next = !v
+                                        if (next) setEditWinnerType('individual')
+                                        return next
+                                    })
+                                }}>
                             <span>{editIsOpener ? '✓' : '+'}</span>
                             {t('game.isOpener')}
                         </button>
                     )}
 
-                    {/* Winner type */}
+                    {/* Winner type — opener (König-Spiel) is always individual */}
                     <div>
                         <div className="field-label">{t('club.template.winnerType')}</div>
                         <div className="flex gap-1.5">
                             {(['individual', 'team'] as WinnerType[]).map(wt => (
                                 <button key={wt} type="button"
-                                        className={`chip flex-1 text-center ${editWinnerType === wt ? 'active' : ''}`}
-                                        onClick={() => setEditWinnerType(wt)}>
+                                        disabled={editIsOpener && wt === 'team'}
+                                        className={`chip flex-1 text-center ${editWinnerType === wt ? 'active' : ''} ${editIsOpener && wt === 'team' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        onClick={() => { if (!(editIsOpener && wt === 'team')) setEditWinnerType(wt) }}>
                                     {t(`club.template.winnerType.${wt}` as any)}
                                 </button>
                             ))}

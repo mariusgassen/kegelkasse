@@ -186,15 +186,11 @@ def export_report(
     for p in payments:
         payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
 
-    # king per evening: names of all players that have is_king=True
-    # (when a team wins the opener, every member of that team is a king)
-    king_names_per_evening: dict[int, list[str]] = {}
+    # king per evening: player that has is_king=True
+    king_per_evening: dict[int, str] = {}
     for p in players_in_scope:
         if p.is_king:
-            king_names_per_evening.setdefault(p.evening_id, []).append(p.name)
-    king_per_evening: dict[int, str] = {
-        eid: " & ".join(names) for eid, names in king_names_per_evening.items()
-    }
+            king_per_evening[p.evening_id] = p.name
 
     # games per evening count
     games_per_evening: dict[int, int] = {}
