@@ -933,22 +933,36 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             if data.client_timestamp else datetime.now(UTC)
         )
     _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
-    # King: opener game with individual winner → set king flag
-    if g.is_opener and data.winner_ref.startswith("p:"):
+    # King: opener game → set king flag on the winning member(s).
+    # Team can never be king — when a team wins, every member of that team becomes king.
+    if g.is_opener:
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
         db.flush()
+        winners: list[EveningPlayer] = []
         try:
-            winner_pid = int(data.winner_ref[2:])
-            winner_player = db.query(EveningPlayer).filter(EveningPlayer.id == winner_pid).first()
-            if winner_player:
-                winner_player.is_king = True
-                if winner_player.regular_member_id:
-                    background_tasks.add_task(
-                        push_to_regular_member, db, winner_player.regular_member_id, "👑 Du bist König!",
-                        f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
-                        "/#evening:games", "games")
+            if data.winner_ref.startswith("p:"):
+                winner_pid = int(data.winner_ref[2:])
+                wp = db.query(EveningPlayer).filter(
+                    EveningPlayer.id == winner_pid,
+                    EveningPlayer.evening_id == e.id,
+                ).first()
+                if wp:
+                    winners = [wp]
+            elif data.winner_ref.startswith("t:"):
+                winner_tid = int(data.winner_ref[2:])
+                winners = db.query(EveningPlayer).filter(
+                    EveningPlayer.evening_id == e.id,
+                    EveningPlayer.team_id == winner_tid,
+                ).all()
         except (ValueError, IndexError):
-            pass
+            winners = []
+        for wp in winners:
+            wp.is_king = True
+            if wp.regular_member_id:
+                background_tasks.add_task(
+                    push_to_regular_member, db, wp.regular_member_id, "👑 Du bist König!",
+                    f"Du hast das Eröffnungsspiel am {e_date_str} gewonnen.",
+                    "/#evening:games", "games")
     db.commit()
     logger.info("Game finished: id=%s name=%r winner=%r evening_id=%s by user_id=%s", g.id, g.name, data.winner_ref, eid, user.id)
     # Auto-recalculate absence penalties after each game finish (silent, no push)

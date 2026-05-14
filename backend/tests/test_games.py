@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
-from models.evening import Evening, EveningPlayer, RegularMember
+from models.evening import Evening, EveningPlayer, RegularMember, Team
 from models.penalty import PenaltyLog
 from models.game import Game, GameThrowLog
 from models.drink import DrinkRound
@@ -97,6 +97,7 @@ def cleanup_evenings(db, club):
     db.query(GameThrowLog).delete(synchronize_session=False)
     db.query(Game).delete(synchronize_session=False)
     db.query(EveningPlayer).delete(synchronize_session=False)
+    db.query(Team).delete(synchronize_session=False)
     db.query(Evening).filter(Evening.club_id == club.id).delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.commit()
@@ -232,6 +233,56 @@ class TestFinishGame:
         db.refresh(player2)
         assert player.is_king is True
         assert player2.is_king is False
+
+    def test_opener_team_winner_sets_king_on_all_team_members(
+            self, client: TestClient, db, evening, player, player2, user, auth_headers):
+        # Two-player team wins the opener — both members must become king.
+        team_a = Team(evening_id=evening.id, name="Winners")
+        team_b = Team(evening_id=evening.id, name="Losers")
+        db.add_all([team_a, team_b])
+        db.flush()
+        # third player on the losing team to verify the flag stays False there
+        player3 = EveningPlayer(evening_id=evening.id, name="Loser Guest", team_id=team_b.id)
+        db.add(player3)
+        player.team_id = team_a.id
+        player2.team_id = team_a.id
+        db.commit()
+        db.refresh(player3)
+
+        gid = self._create_and_start_game(client, evening, auth_headers, is_opener=True)
+        resp = client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={
+            "winner_ref": f"t:{team_a.id}",
+            "winner_name": team_a.name,
+            "scores": {},
+        }, headers=auth_headers)
+        assert resp.status_code == 200
+        db.refresh(player)
+        db.refresh(player2)
+        db.refresh(player3)
+        assert player.is_king is True
+        assert player2.is_king is True
+        assert player3.is_king is False
+
+    def test_opener_team_winner_clears_previous_king(
+            self, client: TestClient, db, evening, player, player2, user, auth_headers):
+        # Previous king (individual) must lose the crown when a team wins a re-edit.
+        team_a = Team(evening_id=evening.id, name="Crowned")
+        db.add(team_a)
+        db.flush()
+        player2.team_id = team_a.id
+        player.is_king = True  # stale state from a previous opener finish
+        db.commit()
+
+        gid = self._create_and_start_game(client, evening, auth_headers, is_opener=True)
+        client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={
+            "winner_ref": f"t:{team_a.id}",
+            "winner_name": team_a.name,
+            "scores": {},
+        }, headers=auth_headers)
+        db.refresh(player)
+        db.refresh(player2)
+        assert player.is_king is False
+        assert player2.is_king is True
 
     def test_loser_penalty_created(self, client: TestClient, db, evening, player, player2, user, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers, loser_penalty=2.0)
