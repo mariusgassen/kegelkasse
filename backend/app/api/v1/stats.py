@@ -72,7 +72,8 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
                     player_stats[key]["penalty_count"] += 1
             for g in e.games:
                 if not g.is_deleted:
-                    if g.winner_ref in (f"p:{p.id}",):
+                    # A win counts when the player won individually OR was on the winning team.
+                    if g.winner_ref == f"p:{p.id}" or (p.team_id and g.winner_ref == f"t:{p.team_id}"):
                         player_stats[key]["game_wins"] += 1
                     for th in g.throws:
                         if th.player_id == p.id:

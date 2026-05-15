@@ -687,6 +687,9 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
              user: User = Depends(require_club_member)):
     e = get_club_evening(eid, user, db)
     wt = data.winner_type if data.winner_type in ("team", "individual") else "individual"
+    # Opener (König-Spiel) is always individual — the crown belongs to a single member.
+    if data.is_opener and wt == "team":
+        raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
     g = Game(
         evening_id=e.id,
         name=data.name,
@@ -933,7 +936,9 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             if data.client_timestamp else datetime.now(UTC)
         )
     _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
-    # King: opener game with individual winner → set king flag
+    # King: opener game with individual winner → set king flag.
+    # Opener games are constrained to winner_type=individual on creation/update,
+    # so a team winner_ref here is invalid input and silently ignored.
     if g.is_opener and data.winner_ref.startswith("p:"):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
         db.flush()
@@ -976,6 +981,13 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     if not g: raise HTTPException(404)
     changed = data.model_dump(exclude_none=True)
     penalty_changed = "loser_penalty" in changed or "per_point_penalty" in changed
+    # Opener (König-Spiel) is always individual.
+    final_opener = changed.get("is_opener", g.is_opener)
+    final_winner_type = changed.get("winner_type", g.winner_type)
+    if isinstance(final_winner_type, WinnerType):
+        final_winner_type = final_winner_type.value
+    if final_opener and final_winner_type == "team":
+        raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
     for k, v in changed.items():
         setattr(g, k, v)
     # Re-apply loser penalties if game is finished and penalty amount changed
