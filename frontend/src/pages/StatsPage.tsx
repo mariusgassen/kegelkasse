@@ -1572,7 +1572,9 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
     )
 }
 
-// Tangible drinks-per-€ rate badge with optional comparison against a baseline.
+// Tangible €-per-drink rate badge with optional comparison against a baseline.
+// rate = penalty / drinks → reads as "each drink cost X €". Lower than the baseline
+// means a relatively cheap evening (drank a lot per € fined), higher means expensive.
 function DrinkRateBadge({
     label, rate, drinks, penalty, baselineRate, baselineLabel, t,
 }: {
@@ -1585,13 +1587,13 @@ function DrinkRateBadge({
     t: (k: TranslationKey) => string
 }) {
     const [open, setOpen] = useState(false)
-    const fmtRate = (v: number) => v >= 10 ? v.toFixed(0) : v.toFixed(2)
     const ratio = baselineRate != null && baselineRate > 0 && rate != null ? rate / baselineRate : null
     const pct = ratio != null ? Math.round((ratio - 1) * 100) : null
+    // Above baseline = each drink costs more (worse) → amber; below = cheaper drinks → green.
     const compareColor = pct == null ? 'var(--kce-muted)'
-        : pct >= 20 ? '#22c55e'
-        : pct <= -20 ? 'var(--kce-muted)'
-        : 'var(--kce-amber)'
+        : pct <= -20 ? '#22c55e'
+        : pct >= 20 ? 'var(--kce-amber)'
+        : 'var(--kce-muted)'
     return (
         <div className="rounded-lg mt-2" style={{background: 'var(--kce-surface2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
@@ -1603,7 +1605,7 @@ function DrinkRateBadge({
                 </div>
                 <div className="text-right">
                     <div className="text-2xl font-extrabold text-kce-amber leading-none">
-                        {rate == null ? '–' : fmtRate(rate)}
+                        {rate == null ? '–' : fe(rate)}
                     </div>
                     <div className="text-[9px] text-kce-muted">{t('stats.correlation.rateUnit')}</div>
                 </div>
@@ -1637,9 +1639,9 @@ function DrinkRateBadge({
             )}
             {rate == null && (
                 <div className="px-3 pb-2 text-[10px] text-kce-muted">
-                    {penalty === 0
-                        ? t('stats.correlation.rateNoPenalty')
-                        : t('stats.correlation.rateNoDrinks')}
+                    {drinks === 0
+                        ? t('stats.correlation.rateNoDrinks')
+                        : t('stats.correlation.rateNoPenalty')}
                 </div>
             )}
         </div>
@@ -1895,12 +1897,12 @@ function CorrelationSection({year, myMemberId, t}: {
         return {...corr, evenings, overall_pearson_r, members}
     }, [corr])
 
-    // Year-wide "drinks per € of penalty" — tangible baseline shown in the per-evening tab.
+    // Year-wide "€ penalty per drink" — tangible baseline shown in the per-evening tab.
     const yearRate = useMemo(() => {
         if (!filteredCorr) return {drinks: 0, penalty: 0, rate: null as number | null}
         const drinks = filteredCorr.evenings.reduce((s, e) => s + e.drink_count, 0)
         const penalty = filteredCorr.evenings.reduce((s, e) => s + e.penalty_euro, 0)
-        return {drinks, penalty, rate: penalty > 0 ? drinks / penalty : null}
+        return {drinks, penalty, rate: drinks > 0 ? penalty / drinks : null}
     }, [filteredCorr])
 
     const fDate = (dateStr: string) =>
@@ -1992,11 +1994,11 @@ function CorrelationSection({year, myMemberId, t}: {
                 const tooFew = all.filter(m => m.personal_pearson_r === null)
 
                 // Fallback when no member has 3+ evenings yet (e.g. only 1–2 evenings into the year):
-                // rank by drink rate (drinks per € of penalty) so the tab still says something useful.
+                // rank by € penalty per drink so the tab still says something useful.
                 if (withR.length === 0) {
                     const withRate = all
-                        .filter(m => m.total_penalty_euro > 0 && m.evening_points.length > 0)
-                        .map(m => ({...m, rate: m.total_drink_count / m.total_penalty_euro}))
+                        .filter(m => m.total_drink_count > 0 && m.evening_points.length > 0)
+                        .map(m => ({...m, rate: m.total_penalty_euro / m.total_drink_count}))
                         .sort((a, b) => {
                             if (a.regular_member_id === myMemberId) return -1
                             if (b.regular_member_id === myMemberId) return 1
@@ -2024,7 +2026,7 @@ function CorrelationSection({year, myMemberId, t}: {
                                                 {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
                                             </div>
                                             <div className="text-xs font-extrabold flex-shrink-0 text-kce-amber">
-                                                {m.rate.toFixed(2)} 🍻/€
+                                                {fe(m.rate)} / 🍻
                                             </div>
                                         </div>
                                         <div className="h-1.5 rounded-full overflow-hidden"
@@ -2391,7 +2393,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
     }, [sortedMembers, myMemberId])
 
     // Per-member totals (drinks + penalty € over the whole evening) and a club-wide
-    // average drinks-per-€ rate used as the comparison baseline.
+    // average €-per-drink rate used as the comparison baseline.
     const totals = useMemo(() => {
         if (!eveningCorr) {
             return {byMember: new Map<number, {drinks: number; penalty: number; rate: number | null}>(),
@@ -2403,12 +2405,12 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
         for (const m of eveningCorr.members) {
             const drinks = m.bins.length ? m.bins[m.bins.length - 1].cum_drinks : 0
             const penalty = m.bins.reduce((s, b) => s + b.delta_penalty, 0)
-            const rate = penalty > 0 ? drinks / penalty : null
+            const rate = drinks > 0 ? penalty / drinks : null
             byMember.set(m.evening_player_id, {drinks, penalty, rate})
             eveningDrinks += drinks
             eveningPenalty += penalty
         }
-        const eveningRate = eveningPenalty > 0 ? eveningDrinks / eveningPenalty : null
+        const eveningRate = eveningDrinks > 0 ? eveningPenalty / eveningDrinks : null
         return {byMember, eveningDrinks, eveningPenalty, eveningRate}
     }, [eveningCorr])
 
