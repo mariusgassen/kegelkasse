@@ -650,26 +650,28 @@ export function TreasuryPage() {
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.guestsHint')}</p>
                             {guestDebtors.map(b => (
                                 <div key={b.regular_member_id}
-                                     className="kce-card p-3 mb-2 flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm">👤</span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
-                                        <div className="text-xs text-kce-muted">
-                                            {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
+                                     className="kce-card p-3 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm">👤</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
+                                            <div className="text-xs text-kce-muted">
+                                                {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
+                                            </div>
                                         </div>
+                                        <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
                                     </div>
-                                    <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
                                     {admin && (
-                                        <>
-                                            <button className="btn-secondary btn-sm flex-shrink-0"
+                                        <div className="flex gap-2 mt-2 justify-end">
+                                            <button className="btn-secondary btn-sm"
                                                     onClick={() => openTransferSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 ↪️ {t('treasury.transfer.button')}
                                             </button>
-                                            <button className="btn-primary btn-sm flex-shrink-0"
+                                            <button className="btn-primary btn-sm"
                                                     onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 {t('treasury.payment.settle')}
                                             </button>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             ))}
