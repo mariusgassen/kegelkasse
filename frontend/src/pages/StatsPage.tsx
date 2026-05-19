@@ -2101,13 +2101,13 @@ function CorrelationSection({year, myMemberId, t}: {
 
 
 function DeltaBarChart({bins, leftLabel, rightLabel}: {
-    bins: { t: string; delta_penalty: number; delta_drinks: number }[]
+    bins: { t: string; delta_penalty: number; cum_drinks: number }[]
     leftLabel: string
     rightLabel: string
 }) {
     if (bins.length === 0) return null
     const maxP = Math.max(0.01, ...bins.map(b => b.delta_penalty))
-    const maxD = Math.max(1, ...bins.map(b => b.delta_drinks))
+    const maxD = Math.max(1, ...bins.map(b => b.cum_drinks))
     const n = bins.length
     const slot = SC_IW / n
     const barW = Math.max(2, slot * 0.4 - 1)
@@ -2155,14 +2155,14 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {bins.map((b, i) => {
                 const cx = SC_PAD.left + (i + 0.5) * slot
                 const hP = (b.delta_penalty / maxP) * SC_IH
-                const hD = (b.delta_drinks / maxD) * SC_IH
+                const hD = (b.cum_drinks / maxD) * SC_IH
                 return (
                     <g key={i}>
                         {b.delta_penalty > 0 && (
                             <rect x={cx - barW - 0.5} y={SC_PAD.top + SC_IH - hP} width={barW} height={hP}
                                   fill="var(--kce-amber)" rx={1}/>
                         )}
-                        {b.delta_drinks > 0 && (
+                        {b.cum_drinks > 0 && (
                             <rect x={cx + 0.5} y={SC_PAD.top + SC_IH - hD} width={barW} height={hD}
                                   fill="#f97316" rx={1}/>
                         )}

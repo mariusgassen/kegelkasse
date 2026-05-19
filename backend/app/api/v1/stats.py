@@ -423,7 +423,7 @@ def get_evening_correlation(
 
         r = _pearson(
             [b["delta_penalty"] for b in bins_arr],
-            [float(b["delta_drinks"]) for b in bins_arr],
+            [float(b["cum_drinks"]) for b in bins_arr],
         )
 
         members_out.append({
