@@ -227,7 +227,7 @@ export const api = {
     deleteAccount: () => request<void>('DELETE', '/auth/me'),
     createInvite: () => request<{ token: string; expires_at: string; invite_url: string }>('POST', '/auth/invite'),
     createResetToken: (userId: number) =>
-        request<{ token: string; reset_url: string }>('POST', '/auth/create-reset-token', {user_id: userId}),
+        request<{ token: string; reset_url: string; username: string | null }>('POST', '/auth/create-reset-token', {user_id: userId}),
     resetPassword: (token: string, newPassword: string) =>
         request<void>('POST', '/auth/reset-password', {token, new_password: newPassword}),
     getInviteInfo: (token: string) =>
@@ -266,6 +266,7 @@ export const api = {
             id: number;
             name: string;
             role: string;
+            username: string | null;
             regular_member_id: number | null;
             is_active: boolean;
             avatar: string | null

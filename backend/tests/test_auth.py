@@ -64,6 +64,18 @@ class TestLogin:
         assert resp.status_code == 200
         assert "access_token" in resp.json()
 
+    def test_login_with_username_case_insensitive(self, client: TestClient, db, user):
+        user.username = "testmember"
+        db.commit()
+        resp = client.post("/api/v1/auth/login", json={"email": "TestMember", "password": "testpass"})
+        assert resp.status_code == 200
+        assert "access_token" in resp.json()
+
+    def test_login_with_email_case_insensitive(self, client: TestClient, user):
+        resp = client.post("/api/v1/auth/login", json={"email": "MEMBER@TEST.DE", "password": "testpass"})
+        assert resp.status_code == 200
+        assert "access_token" in resp.json()
+
     def test_login_wrong_password(self, client: TestClient, user):
         resp = client.post("/api/v1/auth/login", json={"email": "member@test.de", "password": "wrong"})
         assert resp.status_code == 401
@@ -346,6 +358,18 @@ class TestCreateResetToken:
         data = resp.json()
         assert "token" in data
         assert "reset_url" in data
+        assert "username" in data
+
+    def test_reset_token_returns_username(self, client: TestClient, db, admin_user, admin_headers, user):
+        user.username = "resetme"
+        db.commit()
+        resp = client.post(
+            "/api/v1/auth/create-reset-token",
+            json={"user_id": user.id},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "resetme"
 
     def test_member_cannot_create_reset_token(self, client: TestClient, user, auth_headers):
         resp = client.post(

@@ -200,7 +200,7 @@ def get_members(include_inactive: bool = False, db: Session = Depends(get_db),
     users = q.order_by(User.name).all()
     return [{"id": u.id, "name": u.name, "role": u.role,
              "regular_member_id": u.regular_member_id, "is_active": u.is_active,
-             "avatar": u.avatar} for u in users]
+             "avatar": u.avatar, "username": u.username} for u in users]
 
 
 @router.patch("/members/{member_id}/role")

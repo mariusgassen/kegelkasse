@@ -52,6 +52,7 @@ export function MembersPage() {
     const [resetSheet, setResetSheet] = useState(false)
     const [resetUrl, setResetUrl] = useState<string | null>(null)
     const [resetUserName, setResetUserName] = useState('')
+    const [resetUsername, setResetUsername] = useState<string | null>(null)
     const [resetCopied, setResetCopied] = useState(false)
 
     // Link sheet — link app user to roster member
@@ -68,6 +69,7 @@ export function MembersPage() {
             const res = await api.createResetToken(userId)
             setResetUrl(window.location.origin + res.reset_url)
             setResetUserName(userName)
+            setResetUsername(res.username)
             setResetCopied(false)
             setResetSheet(true)
         } catch (e: unknown) {
@@ -288,6 +290,7 @@ export function MembersPage() {
                                     ))}
                                 </div>
                                 {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
+                                {u.username && admin && <div className="text-[10px] text-kce-muted truncate">@{u.username}</div>}
                                 {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
                             </div>
                             <span
@@ -550,6 +553,11 @@ export function MembersPage() {
                     <p className="text-xs text-kce-muted">
                         {t('auth.reset.createLink')} — gültig 7 Tage, einmalig verwendbar.
                     </p>
+                    {resetUsername && (
+                        <div className="text-xs text-kce-muted">
+                            {t('auth.username')}: <span className="font-mono text-kce-cream">@{resetUsername}</span>
+                        </div>
+                    )}
                     {resetUrl && (
                         <>
                             <div className="bg-kce-bg rounded-lg p-3 text-xs font-mono text-kce-cream break-all">
