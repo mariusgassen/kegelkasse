@@ -114,6 +114,15 @@ class TestGetMembers:
         ids = [m["id"] for m in resp.json()]
         assert user.id in ids
 
+    def test_returns_username_field(self, client: TestClient, db: Session, auth_headers: dict, user: User):
+        user.username = "clubmember"
+        db.commit()
+        resp = client.get("/api/v1/club/members", headers=auth_headers)
+        assert resp.status_code == 200
+        member = next(m for m in resp.json() if m["id"] == user.id)
+        assert "username" in member
+        assert member["username"] == "clubmember"
+
     def test_requires_auth(self, client: TestClient):
         resp = client.get("/api/v1/club/members")
         assert resp.status_code == 401

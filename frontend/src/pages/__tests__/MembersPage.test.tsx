@@ -94,19 +94,19 @@ const MEMBERS_WITH_UNLINKED = [
 ]
 
 const APP_USERS = [
-    { id: 10, name: 'Admin User', role: 'admin', regular_member_id: 1, is_active: true, avatar: null },
-    { id: 11, name: 'Franz Schmidt', role: 'member', regular_member_id: 2, is_active: true, avatar: null },
+    { id: 10, name: 'Admin User', role: 'admin', username: 'admin', regular_member_id: 1, is_active: true, avatar: null },
+    { id: 11, name: 'Franz Schmidt', role: 'member', username: 'franz', regular_member_id: 2, is_active: true, avatar: null },
 ]
 
 const APP_USERS_WITH_INACTIVE = [
     ...APP_USERS,
-    { id: 12, name: 'Inactive Pete', role: 'member', regular_member_id: null, is_active: false, avatar: null },
+    { id: 12, name: 'Inactive Pete', role: 'member', username: null, regular_member_id: null, is_active: false, avatar: null },
 ]
 
 // App user with no linked roster member
 const APP_USERS_UNLINKED = [
-    { id: 10, name: 'Admin User', role: 'admin', regular_member_id: 1, is_active: true, avatar: null },
-    { id: 13, name: 'No Roster User', role: 'member', regular_member_id: null, is_active: true, avatar: null },
+    { id: 10, name: 'Admin User', role: 'admin', username: 'admin', regular_member_id: 1, is_active: true, avatar: null },
+    { id: 13, name: 'No Roster User', role: 'member', username: null, regular_member_id: null, is_active: true, avatar: null },
 ]
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -688,7 +688,7 @@ describe('MembersPage — reset password sheet', () => {
     it('opens reset sheet when 🔑 clicked', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
-        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=abc' } as any)
+        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=abc', username: 'admin' } as any)
         await renderMembersPage()
         await waitFor(() => screen.getAllByText('🔑'))
         fireEvent.click(screen.getAllByText('🔑')[0])
@@ -701,7 +701,7 @@ describe('MembersPage — reset password sheet', () => {
     it('calls api.createResetToken with correct user id', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
-        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=xyz' } as any)
+        vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=xyz', username: 'franz' } as any)
         await renderMembersPage()
         await waitFor(() => screen.getAllByText('🔑'))
         // Admin (self) is sorted first, so Franz Schmidt (id=11) is the second 🔑 button

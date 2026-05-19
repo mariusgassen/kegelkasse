@@ -42,14 +42,15 @@ def _user_dict(u: User) -> dict:
 
 @router.post("/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    # Accept email or username in the email field
-    user = (db.query(User).filter(User.email == req.email).first()
-            or db.query(User).filter(User.username == req.email).first())
+    # Accept email or username in the email field; compare case-insensitively
+    identifier = req.email.strip().lower()
+    user = (db.query(User).filter(User.email == identifier).first()
+            or db.query(User).filter(User.username == identifier).first())
     if not user or not verify_password(req.password, user.hashed_password):
-        logger.warning("Failed login attempt for identifier: %s", req.email)
+        logger.warning("Failed login attempt for identifier: %s", identifier)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
-        logger.warning("Login attempt for deactivated account: %s (user_id=%s)", req.email, user.id)
+        logger.warning("Login attempt for deactivated account: %s (user_id=%s)", identifier, user.id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account deactivated")
     token = create_access_token({"sub": str(user.id)})
     logger.info("User logged in: %s (user_id=%s)", user.email, user.id)
@@ -150,7 +151,7 @@ def create_reset_token(req: CreateResetTokenRequest, db: Session = Depends(get_d
                                created_by=current_user.id, expires_at=expires)
     db.add(reset)
     db.commit()
-    return {"token": token_val, "reset_url": f"/reset?reset={token_val}"}
+    return {"token": token_val, "reset_url": f"/reset?reset={token_val}", "username": user.username}
 
 
 class ResetPasswordRequest(BaseModel):
