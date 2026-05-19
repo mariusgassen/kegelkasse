@@ -210,8 +210,8 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                         <button key={p.id} type="button"
                                 className="chip flex items-center gap-1"
                                 style={on
-                                    ? {borderColor: col, color: col, background: col + '22'}
-                                    : {opacity: 0.4}}
+                                    ? {borderColor: col, color: col, background: col + '22', transition: 'none'}
+                                    : {opacity: 0.4, transition: 'none'}}
                                 onClick={() => toggle(p.id)}>
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: col}}/>
                             {p.is_king ? '👑 ' : ''}{p.name}
