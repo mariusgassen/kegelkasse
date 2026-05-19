@@ -650,8 +650,8 @@ export function TreasuryPage() {
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.guestsHint')}</p>
                             {guestDebtors.map(b => (
                                 <div key={b.regular_member_id}
-                                     className="kce-card p-3 mb-2">
-                                    <div className="flex items-center gap-2">
+                                     className="kce-card mb-2 overflow-hidden">
+                                    <div className="p-3 flex items-center gap-3">
                                         <span className="text-sm">👤</span>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
@@ -660,16 +660,18 @@ export function TreasuryPage() {
                                             </div>
                                         </div>
                                         <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
-                                    </div>
-                                    {admin && (
-                                        <div className="flex gap-2 mt-2 justify-end">
-                                            <button className="btn-secondary btn-sm"
-                                                    onClick={() => openTransferSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
-                                                ↪️ {t('treasury.transfer.button')}
-                                            </button>
-                                            <button className="btn-primary btn-sm"
+                                        {admin && (
+                                            <button className="btn-primary btn-sm flex-shrink-0"
                                                     onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 {t('treasury.payment.settle')}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {admin && (
+                                        <div className="border-t border-kce-border px-3 pb-3 pt-2">
+                                            <button className="btn-secondary btn-sm w-full"
+                                                    onClick={() => openTransferSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                ↪️ {t('treasury.transfer.button')}
                                             </button>
                                         </div>
                                     )}
