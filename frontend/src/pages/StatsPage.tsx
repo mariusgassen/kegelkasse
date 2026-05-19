@@ -208,11 +208,9 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     const col = colorOf(p.id)
                     return (
                         <button key={p.id} type="button"
-                                className="chip"
-                                style={on
-                                    ? {borderColor: col, color: col, background: col + '22'}
-                                    : {opacity: 0.4}}
+                                className={`chip flex items-center gap-1${on ? '' : ' opacity-40'}`}
                                 onClick={() => toggle(p.id)}>
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: col}}/>
                             {p.is_king ? '👑 ' : ''}{p.name}
                         </button>
                     )
@@ -2220,12 +2218,11 @@ function MemberHeatLane({
             {/* Member name */}
             <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
                   dominantBaseline="middle" fill="var(--kce-cream)">
-                {label.length > 11 ? `${label.slice(0, 10)}…` : label}
+                {isMe
+                    ? (label.length > 7 ? `${label.slice(0, 6)}…` : label)
+                    : (label.length > 11 ? `${label.slice(0, 10)}…` : label)}
+                {isMe && <tspan fill="#e8a020" fontSize={7} dx={3}> Ich</tspan>}
             </text>
-            {isMe && (
-                <text x={6} y={LANE_H - 4} fontSize={7} fontWeight={700}
-                      fill="var(--kce-amber)">Ich</text>
-            )}
 
             {/* Background heat cells: Δpenalty intensity */}
             {bins.map((b, i) => {
