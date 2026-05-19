@@ -21,7 +21,7 @@ function feShort(v: number) {
     return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
-const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#f97316', '#14b8a6', '#f43f5e']
+const PLAYER_COLORS = ['#e8a020', '#22c55e', '#3b82f6', '#ec4899', '#a78bfa', '#06b6d4', '#14b8a6', '#f43f5e']
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
@@ -1486,7 +1486,7 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* y labels (right = drinks) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="start" fontSize={9} fill="#f97316">
+                          textAnchor="start" fontSize={9} fill="#3b82f6">
                         {Math.round(maxD * f)}
                     </text>
                 ))}
@@ -1498,14 +1498,14 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* penalty line */}
                 <path d={pathP} fill="none" stroke="var(--kce-amber)" strokeWidth={1.8} strokeLinejoin="round"/>
                 {/* drinks line */}
-                <path d={pathD} fill="none" stroke="#f97316" strokeWidth={1.8} strokeLinejoin="round" strokeDasharray="4 2"/>
+                <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth={1.8} strokeLinejoin="round" strokeDasharray="4 2"/>
                 {/* hover dots */}
                 {bins.map((b, i) => (
                     <g key={i} onClick={() => setHoverIdx(i === hoverIdx ? null : i)} style={{cursor: 'pointer'}}>
                         <circle cx={xS(i)} cy={yPenalty(b.cum_penalty)} r={hoverIdx === i ? 4 : 2.5}
                                 fill="var(--kce-amber)"/>
                         <circle cx={xS(i)} cy={yDrinks(b.cum_drinks)} r={hoverIdx === i ? 4 : 2.5}
-                                fill="#f97316"/>
+                                fill="#3b82f6"/>
                         <rect x={xS(i) - 6} y={SC_PAD.top} width={12} height={SC_IH}
                               fill="transparent"/>
                     </g>
@@ -1514,7 +1514,7 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 <g>
                     <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
                     <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
-                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#f97316"/>
+                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#3b82f6"/>
                     <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
                 </g>
             </svg>
@@ -2141,7 +2141,7 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {/* y labels (right = Δdrinks) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="start" fontSize={9} fill="#f97316">
+                      textAnchor="start" fontSize={9} fill="#3b82f6">
                     {Math.round(maxD * f)}
                 </text>
             ))}
@@ -2163,7 +2163,7 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
                         )}
                         {b.cum_drinks > 0 && (
                             <rect x={cx + 0.5} y={SC_PAD.top + SC_IH - hD} width={barW} height={hD}
-                                  fill="#f97316" rx={1}/>
+                                  fill="#3b82f6" rx={1}/>
                         )}
                     </g>
                 )
@@ -2172,7 +2172,7 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             <g>
                 <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
                 <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
-                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#f97316"/>
+                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="#3b82f6"/>
                 <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
             </g>
         </svg>
@@ -2237,14 +2237,14 @@ function MemberHeatLane({
             })}
 
             {/* Cumulative drinks line ("intoxication") */}
-            <path d={cumPath} fill="none" stroke="#f97316" strokeWidth={1.6}
+            <path d={cumPath} fill="none" stroke="#3b82f6" strokeWidth={1.6}
                   strokeLinejoin="round" opacity={0.95}/>
             {/* End-dot for the line */}
             {bins.length > 0 && (() => {
                 const last = bins[bins.length - 1]
                 const x = LANE_NAME_W + (bins.length - 0.5) * cellW
                 const y = LANE_H - 4 - (last.cum_drinks / globalMaxCum) * (LANE_H - 10)
-                return <circle cx={x} cy={y} r={2.5} fill="#f97316"/>
+                return <circle cx={x} cy={y} r={2.5} fill="#3b82f6"/>
             })()}
 
             {/* Totals at the right edge */}
@@ -2258,7 +2258,7 @@ function MemberHeatLane({
                             €{totalPenalty.toFixed(1)}
                         </text>
                         <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
-                              fill="#f97316" fontWeight={700}>
+                              fill="#3b82f6" fontWeight={700}>
                             🍻 {totalDrinks}
                         </text>
                     </>
@@ -2339,7 +2339,7 @@ function MemberHeatLanes({
                     {t('stats.correlation.deltaPenalty')}
                 </span>
                 <span className="flex items-center gap-1">
-                    <span className="inline-block w-3" style={{height: 2, background: '#f97316'}}/>
+                    <span className="inline-block w-3" style={{height: 2, background: '#3b82f6'}}/>
                     {t('stats.correlation.cumDrinks')}
                 </span>
             </div>
