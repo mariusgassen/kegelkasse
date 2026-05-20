@@ -281,17 +281,25 @@ def get_correlation_stats(year: int, db: Session = Depends(get_db), user: User =
     for e in evenings:
         ev_penalty = 0.0
         ev_drinks = 0
+        player_count = len(e.players)
         for log in e.penalty_log:
-            if not log.is_deleted:
+            # Exclude absence penalties (player_id is None) — only present-player penalties.
+            if not log.is_deleted and log.player_id is not None:
                 ev_penalty += _penalty_euro(log)
         for r in e.drink_rounds:
             if not r.is_deleted:
                 ev_drinks += len(r.participant_ids or [])
+        if player_count > 0:
+            avg_penalty = round(ev_penalty / player_count, 2)
+            avg_drinks = round(ev_drinks / player_count, 2)
+        else:
+            avg_penalty = 0.0
+            avg_drinks = 0.0
         evening_points.append({
             "evening_id": e.id,
             "date": e.date.isoformat(),
-            "penalty_euro": round(ev_penalty, 2),
-            "drink_count": ev_drinks,
+            "penalty_euro": avg_penalty,
+            "drink_count": avg_drinks,
         })
 
         for p in e.players:
