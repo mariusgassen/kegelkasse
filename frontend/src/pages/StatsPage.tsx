@@ -1391,7 +1391,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
                           stroke="var(--kce-border)"/>
                     <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
-                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(yRange < 5 ? 1 : 0)}</text>
+                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* x ticks */}
@@ -1400,7 +1400,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
                           stroke="var(--kce-border)"/>
                     <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(xRange < 5 ? 1 : 0)}</text>
+                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* trend line */}
@@ -1427,9 +1427,10 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     />
                 )
             })}
-            <text x={SC_VW - 4} y={SC_VH - 4} textAnchor="end" fontSize={9}
+            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={9}
                   fill="var(--kce-muted)">{xLabel}</text>
-            <text x={4} y={SC_PAD.top - 2} textAnchor="start" fontSize={9}
+            <text transform={`translate(10, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
+                  textAnchor="middle" dominantBaseline="middle" fontSize={9}
                   fill="var(--kce-muted)">{yLabel}</text>
         </svg>
     )
@@ -1955,7 +1956,7 @@ function CorrelationSection({year, myMemberId, t}: {
                         />
                         {selectedDot !== null && filteredCorr!.evenings[selectedDot] && (
                             <div className="text-[10px] text-kce-muted text-center mb-2">
-                                {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count.toFixed(1)}
+                                {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count.toFixed(2)}
                             </div>
                         )}
                         <PearsonBadge r={filteredCorr!.overall_pearson_r} t={t}/>
