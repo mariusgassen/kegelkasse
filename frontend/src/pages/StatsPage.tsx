@@ -21,7 +21,9 @@ function feShort(v: number) {
     return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
-const PLAYER_COLORS = ['#e8a020', '#22c55e', '#60a5fa', '#ec4899', '#a78bfa', '#34d399', '#14b8a6', '#f43f5e']
+// Golden-angle color generator — produces maximally spaced hues with no repeats
+const playerColor = (index: number) =>
+    `hsl(${Math.round((index * 137.508) % 360)}, 72%, 58%)`
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
@@ -146,7 +148,7 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null)
 
     // Stable color per player (by index in evening.players, not filtered index)
-    const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
+    const colorOf = (pid: number) => playerColor(allIds.indexOf(pid))
 
     const toggle = (id: number) =>
         setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -208,10 +210,8 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     const col = colorOf(p.id)
                     return (
                         <button key={p.id} type="button"
-                                className="chip flex items-center gap-1"
-                                style={on
-                                    ? {borderColor: col, color: col, background: col + '22', transition: 'none'}
-                                    : {opacity: 0.4, transition: 'none'}}
+                                className={`chip flex items-center gap-1${on ? ' active' : ''}`}
+                                style={on ? {transition: 'none'} : {opacity: 0.4, transition: 'none'}}
                                 onClick={() => toggle(p.id)}>
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: col}}/>
                             {p.is_king ? '👑 ' : ''}{p.name}
@@ -408,7 +408,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
             ...p,
             arcLen,
             rotation,
-            color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+            color: playerColor(i),
         }
         accumulated += arcLen
         return seg
@@ -1658,7 +1658,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
     const colorFor = (memberId: number, idx: number) =>
-        memberId === myMemberId ? 'var(--kce-amber)' : PLAYER_COLORS[idx % PLAYER_COLORS.length]
+        memberId === myMemberId ? 'var(--kce-amber)' : playerColor(idx)
 
     const memberColorMap = new Map<number, string>()
     members.forEach((m, i) => memberColorMap.set(m.regular_member_id, colorFor(m.regular_member_id, i)))
@@ -2386,7 +2386,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                 m.evening_player_id,
                 m.regular_member_id === myMemberId
                     ? 'var(--kce-amber)'
-                    : PLAYER_COLORS[i % PLAYER_COLORS.length],
+                    : playerColor(i),
             )
         })
         return map
