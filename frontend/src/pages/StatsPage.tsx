@@ -21,9 +21,16 @@ function feShort(v: number) {
     return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
-// Golden-angle color generator — produces maximally spaced hues with no repeats
-const playerColor = (index: number) =>
-    `hsl(${Math.round((index * 137.508) % 360)}, 72%, 58%)`
+// Golden-angle color generator — produces maximally spaced hues with no repeats.
+// Skips the 15–70° amber zone to avoid clashing with the app's primary color.
+const playerColor = (index: number) => {
+    let hue = (index * 137.508) % 360
+    if (hue > 15 && hue < 70) hue = (hue + 80) % 360
+    return `hsl(${Math.round(hue)}, 72%, 58%)`
+}
+// Returns a 13%-opacity version of a playerColor or the amber CSS variable
+const withAlpha = (col: string) =>
+    col.startsWith('var(') ? 'rgba(232,160,32,0.13)' : col.replace('hsl(', 'hsla(').replace(')', ', 0.13)')
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
@@ -210,8 +217,10 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     const col = colorOf(p.id)
                     return (
                         <button key={p.id} type="button"
-                                className={`chip flex items-center gap-1${on ? ' active' : ''}`}
-                                style={on ? {transition: 'none'} : {opacity: 0.4, transition: 'none'}}
+                                className="chip flex items-center gap-1"
+                                style={on
+                                    ? {borderColor: col, color: col, background: withAlpha(col), transition: 'none'}
+                                    : {opacity: 0.4, transition: 'none'}}
                                 onClick={() => toggle(p.id)}>
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: col}}/>
                             {p.is_king ? '👑 ' : ''}{p.name}
@@ -1694,7 +1703,10 @@ function MemberEveningScatter({members, myMemberId, t}: {
                     const color = memberColorMap.get(m.regular_member_id)!
                     return (
                         <button key={m.regular_member_id} type="button"
-                                className={`chip flex items-center gap-1 ${isSelected ? 'active' : ''}`}
+                                className="chip flex items-center gap-1"
+                                style={isSelected
+                                    ? {borderColor: color, color: color, background: withAlpha(color), transition: 'none'}
+                                    : {transition: 'none'}}
                                 onClick={() => {
                                     setFocusedMember(m.regular_member_id === focusedMember ? null : m.regular_member_id)
                                     setSelectedIdx(null)
@@ -2441,7 +2453,10 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                         const color = memberColors.get(m.evening_player_id)!
                         return (
                             <button key={m.evening_player_id} type="button"
-                                    className={`chip flex items-center gap-1 ${isSelected ? 'active' : ''}`}
+                                    className="chip flex items-center gap-1"
+                                    style={isSelected
+                                        ? {borderColor: color, color: color, background: withAlpha(color), transition: 'none'}
+                                        : {transition: 'none'}}
                                     onClick={() => setPickedMemberId(m.evening_player_id)}>
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: color}}/>
                                 {m.nickname || m.name}{isMe ? ' · Ich' : ''}
