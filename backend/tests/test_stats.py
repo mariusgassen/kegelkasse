@@ -736,7 +736,6 @@ class TestCorrelationStats:
         club: Club, member: RegularMember, evening_2025: Evening, player: EveningPlayer,
     ):
         """Evening-level point uses per-player averages when multiple players are present."""
-        from models.penalty import PenaltyMode
         # Add a second player to the same evening.
         member2 = RegularMember(club_id=club.id, name="Player Two")
         db.add(member2)
