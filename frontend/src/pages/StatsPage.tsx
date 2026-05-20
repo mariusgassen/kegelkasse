@@ -21,7 +21,9 @@ function feShort(v: number) {
     return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
-const PLAYER_COLORS = ['#e8a020', '#22c55e', '#60a5fa', '#ec4899', '#a78bfa', '#34d399', '#14b8a6', '#f43f5e']
+// Golden-angle color generator — produces maximally spaced hues with no repeats
+const playerColor = (index: number) =>
+    `hsl(${Math.round((index * 137.508) % 360)}, 72%, 58%)`
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
@@ -146,7 +148,7 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
     const [selectedPoint, setSelectedPoint] = useState<SelectedPoint | null>(null)
 
     // Stable color per player (by index in evening.players, not filtered index)
-    const colorOf = (pid: number) => PLAYER_COLORS[allIds.indexOf(pid) % PLAYER_COLORS.length]
+    const colorOf = (pid: number) => playerColor(allIds.indexOf(pid))
 
     const toggle = (id: number) =>
         setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -406,7 +408,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
             ...p,
             arcLen,
             rotation,
-            color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+            color: playerColor(i),
         }
         accumulated += arcLen
         return seg
@@ -1656,7 +1658,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
     const colorFor = (memberId: number, idx: number) =>
-        memberId === myMemberId ? 'var(--kce-amber)' : PLAYER_COLORS[idx % PLAYER_COLORS.length]
+        memberId === myMemberId ? 'var(--kce-amber)' : playerColor(idx)
 
     const memberColorMap = new Map<number, string>()
     members.forEach((m, i) => memberColorMap.set(m.regular_member_id, colorFor(m.regular_member_id, i)))
@@ -2384,7 +2386,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                 m.evening_player_id,
                 m.regular_member_id === myMemberId
                     ? 'var(--kce-amber)'
-                    : PLAYER_COLORS[i % PLAYER_COLORS.length],
+                    : playerColor(i),
             )
         })
         return map
