@@ -731,6 +731,68 @@ class TestCorrelationStats:
         assert me["total_penalty_euro"] == pytest.approx(5.0)
         assert me["evening_points"][0]["penalty_euro"] == pytest.approx(5.0)
 
+    def test_per_player_averages_multi_player(
+        self, client: TestClient, member_headers: dict, db: Session,
+        club: Club, member: RegularMember, evening_2025: Evening, player: EveningPlayer,
+    ):
+        """Evening-level point uses per-player averages when multiple players are present."""
+        from models.penalty import PenaltyMode
+        # Add a second player to the same evening.
+        member2 = RegularMember(club_id=club.id, name="Player Two")
+        db.add(member2)
+        db.flush()
+        player2 = EveningPlayer(evening_id=evening_2025.id, regular_member_id=member2.id, name=member2.name)
+        db.add(player2)
+        db.commit()
+        db.refresh(player2)
+
+        # player: 2.0€ penalty, 2 drinks
+        self._add_penalty(db, evening_2025, player, 2.0)
+        self._add_drink(db, evening_2025, [player.id])
+        self._add_drink(db, evening_2025, [player.id])
+        # player2: 4.0€ penalty, 4 drinks
+        self._add_penalty(db, evening_2025, player2, 4.0)
+        self._add_drink(db, evening_2025, [player2.id])
+        self._add_drink(db, evening_2025, [player2.id])
+        self._add_drink(db, evening_2025, [player2.id])
+        self._add_drink(db, evening_2025, [player2.id])
+
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        pt = r.json()["evenings"][0]
+        # Total: 6.0€ / 2 players = 3.0€; 6 drinks / 2 players = 3.0
+        assert pt["penalty_euro"] == pytest.approx(3.0)
+        assert pt["drink_count"] == pytest.approx(3.0)
+
+    def test_absence_penalty_excluded_from_evening_point(
+        self, client: TestClient, member_headers: dict, db: Session,
+        club: Club, member: RegularMember, evening_2025: Evening, player: EveningPlayer,
+    ):
+        """Absence penalties (player_id=None) must not count toward the evening avg."""
+        from models.penalty import PenaltyMode
+        absent = RegularMember(club_id=club.id, name="Absent Member")
+        db.add(absent)
+        db.commit()
+        # Absence penalty — no player_id
+        absence_log = PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=None,
+            regular_member_id=absent.id,
+            player_name=absent.name,
+            penalty_type_name="Abwesenheit",
+            amount=5.0, unit_amount=5.0,
+            mode=PenaltyMode.euro,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(absence_log)
+        # Normal penalty for the present player
+        self._add_penalty(db, evening_2025, player, 2.0)
+        db.commit()
+
+        r = client.get("/api/v1/stats/correlation/2025", headers=member_headers)
+        pt = r.json()["evenings"][0]
+        # Only present-player penalty counted, averaged over 1 player
+        assert pt["penalty_euro"] == pytest.approx(2.0)
+
     def test_requires_auth(self, client: TestClient):
         r = client.get("/api/v1/stats/correlation/2025")
         assert r.status_code == 401

@@ -1955,7 +1955,7 @@ function CorrelationSection({year, myMemberId, t}: {
                         />
                         {selectedDot !== null && filteredCorr!.evenings[selectedDot] && (
                             <div className="text-[10px] text-kce-muted text-center mb-2">
-                                {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count}
+                                {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count.toFixed(1)}
                             </div>
                         )}
                         <PearsonBadge r={filteredCorr!.overall_pearson_r} t={t}/>
