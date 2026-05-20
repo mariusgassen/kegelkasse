@@ -208,10 +208,8 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     const col = colorOf(p.id)
                     return (
                         <button key={p.id} type="button"
-                                className="chip flex items-center gap-1"
-                                style={on
-                                    ? {borderColor: col, color: col, background: col + '22', transition: 'none'}
-                                    : {opacity: 0.4, transition: 'none'}}
+                                className={`chip flex items-center gap-1${on ? ' active' : ''}`}
+                                style={on ? {transition: 'none'} : {opacity: 0.4, transition: 'none'}}
                                 onClick={() => toggle(p.id)}>
                             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: col}}/>
                             {p.is_king ? '👑 ' : ''}{p.name}
