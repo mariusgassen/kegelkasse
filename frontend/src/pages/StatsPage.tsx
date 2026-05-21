@@ -21,16 +21,18 @@ function feShort(v: number) {
     return '€' + v.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
 }
 
-// Golden-angle color generator — produces maximally spaced hues with no repeats.
-// Skips the 15–70° amber zone to avoid clashing with the app's primary color.
-const playerColor = (index: number) => {
-    let hue = (index * 137.508) % 360
-    if (hue > 15 && hue < 70) hue = (hue + 80) % 360
-    return `hsl(${Math.round(hue)}, 72%, 58%)`
-}
-// Returns a 13%-opacity version of a playerColor or the amber CSS variable
+// 20 distinct Tailwind colours — no amber (reserved for app primary / "me" highlight).
+// Ordered for max visual spread across the first 8–10 slots (most clubs).
+const PLAYER_COLORS = [
+    '#22c55e', '#60a5fa', '#ec4899', '#a78bfa', '#34d399',
+    '#14b8a6', '#f43f5e', '#f97316', '#84cc16', '#06b6d4',
+    '#8b5cf6', '#d946ef', '#ef4444', '#0ea5e9', '#6366f1',
+    '#10b981', '#a855f7', '#fb7185', '#4ade80', '#818cf8',
+]
+const playerColor = (index: number) => PLAYER_COLORS[index % PLAYER_COLORS.length]
+// 13%-opacity tint: hex colors get '#rrggbb22', amber CSS variable gets rgba()
 const withAlpha = (col: string) =>
-    col.startsWith('var(') ? 'rgba(232,160,32,0.13)' : col.replace('hsl(', 'hsla(').replace(')', ', 0.13)')
+    col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
 
 // ── Cumulative chart ────────────────────────────────────────────────────────
 
@@ -239,7 +241,7 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                         />
                         {selectedDetail ? (
                             <div className="flex items-center gap-2 mb-2 px-1.5 py-1 rounded text-[11px]"
-                                 style={{background: selectedDetail.color + '22', borderLeft: `2px solid ${selectedDetail.color}`}}>
+                                 style={{background: withAlpha(selectedDetail.color), borderLeft: `2px solid ${selectedDetail.color}`}}>
                                 <span className="text-kce-muted flex-shrink-0">{selectedDetail.time}</span>
                                 <span className="font-bold flex-shrink-0" style={{color: selectedDetail.color}}>{selectedDetail.player}</span>
                                 <span className="text-kce-cream truncate flex-1">
@@ -525,7 +527,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                         return (
                             <div key={seg.id}
                                  className="flex items-center justify-between gap-2 rounded px-1 py-0.5 transition-colors"
-                                 style={{background: isSelected ? seg.color + '22' : 'transparent', cursor: 'pointer'}}
+                                 style={{background: isSelected ? withAlpha(seg.color) : 'transparent', cursor: 'pointer'}}
                                  onClick={() => setSelectedId(isSelected ? null : seg.id)}>
                                 <div className="flex items-center gap-1.5 min-w-0">
                                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
