@@ -1708,7 +1708,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                                 className="chip flex items-center gap-1"
                                 style={isSelected
                                     ? {borderColor: color, color: color, background: withAlpha(color), transition: 'none'}
-                                    : {transition: 'none'}}
+                                    : (focusedMember != null ? {opacity: 0.4, transition: 'none'} : {transition: 'none'})}
                                 onClick={() => {
                                     setFocusedMember(m.regular_member_id === focusedMember ? null : m.regular_member_id)
                                     setSelectedIdx(null)
@@ -2458,7 +2458,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                                     className="chip flex items-center gap-1"
                                     style={isSelected
                                         ? {borderColor: color, color: color, background: withAlpha(color), transition: 'none'}
-                                        : {transition: 'none'}}
+                                        : (pickedMemberId != null ? {opacity: 0.4, transition: 'none'} : {transition: 'none'})}
                                     onClick={() => setPickedMemberId(m.evening_player_id)}>
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: color}}/>
                                 {m.nickname || m.name}{isMe ? ' · Ich' : ''}
