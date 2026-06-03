@@ -11,6 +11,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
+import {parseAmount} from '@/utils/parse.ts'
 import type {RegularMember} from '@/types.ts'
 
 export function MembersPage() {
@@ -25,6 +26,8 @@ export function MembersPage() {
     const [showInactive, setShowInactive] = useState(false)
     const [showInactiveRoster, setShowInactiveRoster] = useState(false)
     const [removeConfirm, setRemoveConfirm] = useState<RegularMember | null>(null)
+    const [removePayoutAmount, setRemovePayoutAmount] = useState('')
+    const [removeBalance, setRemoveBalance] = useState<number | null>(null)
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
         if (v) clearHashParams()
@@ -145,9 +148,34 @@ export function MembersPage() {
         }
     }
 
+    async function openRemoveConfirm(m: RegularMember) {
+        setRemoveConfirm(m)
+        setRemovePayoutAmount('')
+        setRemoveBalance(null)
+        try {
+            const balances = await api.getMemberBalances()
+            const b = balances.find(b => b.regular_member_id === m.id)
+            const balance = b?.balance ?? 0
+            setRemoveBalance(balance)
+            // Pre-fill payout with what the member is owed (payments minus penalties)
+            if (balance > 0.01) {
+                setRemovePayoutAmount(balance.toFixed(2))
+            }
+        } catch {
+            // balance is optional — form still works without it
+        }
+    }
+
     async function remove(m: RegularMember) {
         try {
             await api.deleteRegularMember(m.id)
+            const payoutAmt = parseAmount(removePayoutAmount)
+            if (payoutAmt > 0) {
+                await api.treasuryPayout({
+                    payouts: [{regular_member_id: m.id, amount: payoutAmt}],
+                    note: t('member.payoutNote'),
+                })
+            }
             await Promise.all([refetchRoster(), refetchUsers(), refetchAllRoster()])
             showToast(t('member.removedFromClub'))
             setRemoveConfirm(null)
@@ -433,7 +461,7 @@ export function MembersPage() {
                                         </button>
                                         <button className="btn-danger btn-xs"
                                                 title={t('member.removeFromClub')}
-                                                onClick={() => setRemoveConfirm(m)}>✕</button>
+                                                onClick={() => openRemoveConfirm(m)}>✕</button>
                                     </>
                                 )}
                             </div>
@@ -528,6 +556,29 @@ export function MembersPage() {
                             <div className="font-bold text-sm">{removeConfirm.nickname || removeConfirm.name}</div>
                         </div>
                     )}
+                    {/* Payout on departure */}
+                    <div>
+                        <label className="field-label">{t('member.payoutLabel')}</label>
+                        <p className="text-[10px] text-kce-muted mb-1.5">{t('member.payoutHint')}</p>
+                        {removeBalance !== null && removeBalance <= 0.01 && (
+                            <p className="text-[10px] text-kce-muted mb-1.5">
+                                {removeBalance < -0.01
+                                    ? <span className="text-red-400">{t('member.payoutOwes')}</span>
+                                    : <span className="text-kce-muted">{t('member.payoutSettled')}</span>
+                                }
+                            </p>
+                        )}
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <input
+                                className="kce-input flex-1"
+                                type="text" inputMode="decimal"
+                                placeholder="0,00"
+                                value={removePayoutAmount}
+                                onChange={e => setRemovePayoutAmount(e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <div className="flex gap-2">
                         <button className="btn-secondary btn-sm flex-1" onClick={() => setRemoveConfirm(null)}>
                             {t('action.cancel')}
