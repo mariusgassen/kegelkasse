@@ -875,3 +875,173 @@ class TestCommitteeToggle:
                             headers=auth_headers,
                             json={"is_committee": True})
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# DELETE /club/regular-members/{mid} — cascade deactivates linked user
+# ---------------------------------------------------------------------------
+
+class TestDeleteRegularMemberCascade:
+    def test_deactivates_roster_entry(self, client: TestClient, admin_headers: dict,
+                                      regular_member: RegularMember, db: Session):
+        resp = client.delete(f"/api/v1/club/regular-members/{regular_member.id}",
+                             headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(regular_member)
+        assert regular_member.is_active is False
+
+    def test_also_deactivates_linked_user(self, client: TestClient, admin_headers: dict,
+                                           regular_member: RegularMember, db: Session, club: Club):
+        linked_user = User(
+            email="linked_cascade_ext@test.de",
+            name="Linked User",
+            hashed_password="x",
+            role=UserRole.member,
+            club_id=club.id,
+            is_active=True,
+            regular_member_id=regular_member.id,
+        )
+        db.add(linked_user)
+        db.commit()
+        db.refresh(linked_user)
+
+        resp = client.delete(f"/api/v1/club/regular-members/{regular_member.id}",
+                             headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(linked_user)
+        assert linked_user.is_active is False
+
+    def test_member_cannot_remove(self, client: TestClient, auth_headers: dict,
+                                   regular_member: RegularMember):
+        resp = client.delete(f"/api/v1/club/regular-members/{regular_member.id}",
+                             headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_404_unknown_member(self, client: TestClient, admin_headers: dict):
+        resp = client.delete("/api/v1/club/regular-members/999999", headers=admin_headers)
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# PATCH /club/regular-members/{mid}/reactivate
+# ---------------------------------------------------------------------------
+
+class TestReactivateRegularMember:
+    def test_reactivates_inactive_member(self, client: TestClient, admin_headers: dict,
+                                          regular_member: RegularMember, db: Session):
+        regular_member.is_active = False
+        db.commit()
+
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(regular_member)
+        assert regular_member.is_active is True
+
+    def test_also_reactivates_linked_user(self, client: TestClient, admin_headers: dict,
+                                           regular_member: RegularMember, db: Session, club: Club):
+        linked_user = User(
+            email="linked_reactivate_ext@test.de",
+            name="Linked Reactivate",
+            hashed_password="x",
+            role=UserRole.member,
+            club_id=club.id,
+            is_active=False,
+            regular_member_id=regular_member.id,
+        )
+        db.add(linked_user)
+        regular_member.is_active = False
+        db.commit()
+        db.refresh(linked_user)
+
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(linked_user)
+        assert linked_user.is_active is True
+
+    def test_member_cannot_reactivate(self, client: TestClient, auth_headers: dict,
+                                       regular_member: RegularMember, db: Session):
+        regular_member.is_active = False
+        db.commit()
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
+                            headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_404_unknown_member(self, client: TestClient, admin_headers: dict):
+        resp = client.patch("/api/v1/club/regular-members/999999/reactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /club/treasury-payout
+# ---------------------------------------------------------------------------
+
+class TestTreasuryPayout:
+    @pytest.fixture()
+    def payout_member(self, db: Session, club: Club) -> RegularMember:
+        m = RegularMember(club_id=club.id, name="Payout Member", is_active=True)
+        db.add(m)
+        db.commit()
+        db.refresh(m)
+        return m
+
+    def test_creates_negative_payment_entries(self, client: TestClient, admin_headers: dict,
+                                               payout_member: RegularMember, db: Session, club: Club):
+        resp = client.post("/api/v1/club/treasury-payout", headers=admin_headers, json={
+            "payouts": [{"regular_member_id": payout_member.id, "amount": 12.50}],
+            "note": "Jahresüberschuss",
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["created"] == 1
+        payment = db.query(MemberPayment).filter(
+            MemberPayment.club_id == club.id,
+            MemberPayment.regular_member_id == payout_member.id,
+        ).first()
+        assert payment is not None
+        assert payment.amount == pytest.approx(-12.50)
+        assert payment.note == "Jahresüberschuss"
+
+    def test_skips_zero_amount_entries(self, client: TestClient, admin_headers: dict,
+                                        payout_member: RegularMember):
+        resp = client.post("/api/v1/club/treasury-payout", headers=admin_headers, json={
+            "payouts": [{"regular_member_id": payout_member.id, "amount": 0}],
+        })
+        assert resp.status_code == 400
+
+    def test_multiple_members(self, client: TestClient, admin_headers: dict,
+                               payout_member: RegularMember, db: Session, club: Club):
+        m2 = RegularMember(club_id=club.id, name="Payout Member 2", is_active=True)
+        db.add(m2)
+        db.commit()
+        db.refresh(m2)
+
+        resp = client.post("/api/v1/club/treasury-payout", headers=admin_headers, json={
+            "payouts": [
+                {"regular_member_id": payout_member.id, "amount": 10.0},
+                {"regular_member_id": m2.id, "amount": 20.0},
+            ],
+        })
+        assert resp.status_code == 201
+        assert resp.json()["created"] == 2
+
+    def test_404_for_unknown_member(self, client: TestClient, admin_headers: dict):
+        resp = client.post("/api/v1/club/treasury-payout", headers=admin_headers, json={
+            "payouts": [{"regular_member_id": 999999, "amount": 10.0}],
+        })
+        assert resp.status_code == 404
+
+    def test_member_cannot_payout(self, client: TestClient, auth_headers: dict,
+                                   payout_member: RegularMember):
+        resp = client.post("/api/v1/club/treasury-payout", headers=auth_headers, json={
+            "payouts": [{"regular_member_id": payout_member.id, "amount": 5.0}],
+        })
+        assert resp.status_code == 403
+
+    def test_unauthenticated_fails(self, client: TestClient, payout_member: RegularMember):
+        resp = client.post("/api/v1/club/treasury-payout", json={
+            "payouts": [{"regular_member_id": payout_member.id, "amount": 5.0}],
+        })
+        assert resp.status_code == 401

@@ -311,12 +311,14 @@ export const api = {
             invite_url: string;
             member_name: string
         }>('POST', `/club/regular-members/${mid}/invite`),
-    listRegularMembers: () => request<RegularMember[]>('GET', '/club/regular-members'),
+    listRegularMembers: (includeInactive = false) =>
+        request<RegularMember[]>('GET', includeInactive ? '/club/regular-members?include_inactive=true' : '/club/regular-members'),
     createRegularMember: (d: { name: string; nickname?: string; is_guest?: boolean }) =>
         request<RegularMember>('POST', '/club/regular-members', d),
     updateRegularMember: (id: number, d: { name: string; nickname?: string; is_guest?: boolean }) =>
         request<RegularMember>('PUT', `/club/regular-members/${id}`, d),
     deleteRegularMember: (id: number) => request<void>('DELETE', `/club/regular-members/${id}`),
+    reactivateRegularMember: (id: number) => request<void>('PATCH', `/club/regular-members/${id}/reactivate`),
 
     // Penalty types
     listPenaltyTypes: () => request<PenaltyType[]>('GET', '/club/penalty-types'),
@@ -501,6 +503,8 @@ export const api = {
     deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
     transferGuestCosts: (d: { guest_id: number; target_member_id: number; amount: number; note?: string }) =>
         request<{ guest_payment_id: number; target_payment_id: number }>('POST', '/club/guest-cost-transfer', d),
+    treasuryPayout: (d: { payouts: { regular_member_id: number; amount: number }[]; note?: string }) =>
+        request<{ created: number }>('POST', '/club/treasury-payout', d),
 
     // Club expenses
     getExpenses: () => request<{

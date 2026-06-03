@@ -287,6 +287,44 @@ export function TreasuryPage() {
         }
     }
 
+    // Treasury payout sheet
+    const [payoutSheet, setPayoutSheet] = useState(false)
+    const [payoutAmounts, setPayoutAmounts] = useState<Record<number, string>>({})
+    const [payoutNote, setPayoutNote] = useState('')
+    const [savingPayout, setSavingPayout] = useState(false)
+
+    function openPayoutSheet() {
+        const defaults: Record<number, string> = {}
+        for (const b of balances) {
+            // Pre-fill with credit amount (positive balance = club owes member)
+            defaults[b.regular_member_id] = b.balance > 0.01 ? b.balance.toFixed(2) : ''
+        }
+        setPayoutAmounts(defaults)
+        setPayoutNote('')
+        setPayoutSheet(true)
+    }
+
+    async function submitPayout() {
+        const payouts = Object.entries(payoutAmounts)
+            .map(([id, v]) => ({regular_member_id: parseInt(id, 10), amount: parseAmount(v)}))
+            .filter(e => e.amount > 0)
+        if (payouts.length === 0) return
+        setSavingPayout(true)
+        try {
+            await api.treasuryPayout({payouts, note: payoutNote.trim() || undefined})
+            refetchBalances()
+            qc.invalidateQueries({queryKey: ['all-payments']})
+            setPayoutSheet(false)
+            showToast(t('treasury.payout.done'))
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSavingPayout(false)
+        }
+    }
+
+    const payoutTotal = Object.values(payoutAmounts).reduce((s, v) => s + (parseAmount(v) || 0), 0)
+
     // New booking sheet — unified for Club expenses and member payments
     const [bookingSheet, setBookingSheet] = useState(false)
     const [bookingTarget, setBookingTarget] = useState<'club' | number>('club')
@@ -462,6 +500,15 @@ export function TreasuryPage() {
                         </div>
                         <span className="text-4xl opacity-20">💰</span>
                     </div>
+
+                    {admin && (
+                        <div className="flex gap-2 mb-3">
+                            <button className="btn-secondary btn-sm flex-1"
+                                    onClick={openPayoutSheet}>
+                                {t('treasury.payout.button')}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
@@ -1161,6 +1208,65 @@ export function TreasuryPage() {
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingBooking || !bookingValid}>
                         ✓ {t('action.save')}
+                    </button>
+                </div>
+            </Sheet>
+
+            {/* Treasury payout sheet */}
+            <Sheet open={payoutSheet} onClose={() => setPayoutSheet(false)}
+                   title={t('treasury.payout.title')} onSubmit={submitPayout}>
+                <div className="flex flex-col gap-3">
+                    <p className="text-xs text-kce-muted">{t('treasury.payout.hint')}</p>
+
+                    <div>
+                        <label className="field-label">{t('treasury.payout.noteLabel')}</label>
+                        <input className="kce-input" value={payoutNote}
+                               onChange={e => setPayoutNote(e.target.value)}
+                               placeholder={t('treasury.payout.notePlaceholder')}/>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        {(balances as Balance[]).filter(b => {
+                            const rm = regularMembers.find(r => r.id === b.regular_member_id)
+                            return rm && !rm.is_guest
+                        }).map(b => (
+                            <div key={b.regular_member_id} className="flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
+                                    <div className="text-[10px] text-kce-muted">
+                                        {b.balance >= 0.01
+                                            ? <span className="text-green-400">+{fe(b.balance)}</span>
+                                            : b.balance <= -0.01
+                                                ? <span className="text-red-400">{fe(b.balance)}</span>
+                                                : <span>{fe(0)}</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    <span className="text-kce-muted text-xs select-none">€</span>
+                                    <input
+                                        className="kce-input w-24 text-right"
+                                        type="text" inputMode="decimal"
+                                        placeholder="0,00"
+                                        value={payoutAmounts[b.regular_member_id] ?? ''}
+                                        onChange={e => setPayoutAmounts(prev => ({
+                                            ...prev,
+                                            [b.regular_member_id]: e.target.value
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-kce-border">
+                        <span className="text-sm font-bold text-kce-muted">{t('treasury.payout.total')}</span>
+                        <span className="font-bold text-sm">{fe(payoutTotal)}</span>
+                    </div>
+
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={savingPayout || payoutTotal <= 0}>
+                        {t('treasury.payout.submit')} · {fe(payoutTotal)}
                     </button>
                 </div>
             </Sheet>

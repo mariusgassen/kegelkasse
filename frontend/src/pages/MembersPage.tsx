@@ -23,6 +23,8 @@ export function MembersPage() {
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
 
     const [showInactive, setShowInactive] = useState(false)
+    const [showInactiveRoster, setShowInactiveRoster] = useState(false)
+    const [removeConfirm, setRemoveConfirm] = useState<RegularMember | null>(null)
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
         if (v) clearHashParams()
@@ -33,6 +35,14 @@ export function MembersPage() {
     const {data: appUsers = [], refetch: refetchUsers} = useQuery({
         queryKey: ['club-members', admin],
         queryFn: () => api.getMembers(admin),
+        staleTime: 60000,
+    })
+
+    // Inactive roster members (former members)
+    const {data: allRosterMembers = [], refetch: refetchAllRoster} = useQuery({
+        queryKey: ['roster-members-all'],
+        queryFn: () => api.listRegularMembers(true),
+        enabled: admin,
         staleTime: 60000,
     })
 
@@ -137,8 +147,19 @@ export function MembersPage() {
 
     async function remove(m: RegularMember) {
         try {
-            await api.deleteRegularMember(m.id);
-            await refetchRoster()
+            await api.deleteRegularMember(m.id)
+            await Promise.all([refetchRoster(), refetchUsers(), refetchAllRoster()])
+            showToast(t('member.removedFromClub'))
+            setRemoveConfirm(null)
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }
+
+    async function reactivateRoster(m: RegularMember) {
+        try {
+            await api.reactivateRegularMember(m.id)
+            await Promise.all([refetchRoster(), refetchUsers(), refetchAllRoster()])
         } catch (e: unknown) {
             toastError(e)
         }
@@ -410,7 +431,9 @@ export function MembersPage() {
                                                     setMergeSheet(true)
                                                 }}>⇄
                                         </button>
-                                        <button className="btn-danger btn-xs" onClick={() => remove(m)}>✕</button>
+                                        <button className="btn-danger btn-xs"
+                                                title={t('member.removeFromClub')}
+                                                onClick={() => setRemoveConfirm(m)}>✕</button>
                                     </>
                                 )}
                             </div>
@@ -457,6 +480,65 @@ export function MembersPage() {
                     )
                 })}
             </>)}
+
+            {/* ── Ehemalige Mitglieder (Inactive Roster) ── */}
+            {admin && (() => {
+                const inactiveRoster = allRosterMembers.filter(m => !m.is_guest && !m.is_active)
+                if (inactiveRoster.length === 0) return null
+                return (
+                    <>
+                        <div className="flex items-center justify-between mt-4 mb-1">
+                            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">
+                                {t('member.inactiveRoster')}
+                            </div>
+                            <button className="text-[10px] text-kce-muted underline"
+                                    onClick={() => setShowInactiveRoster(v => !v)}>
+                                {showInactiveRoster ? t('member.hideInactiveRoster') : `${t('member.showInactiveRoster')} (${inactiveRoster.length})`}
+                            </button>
+                        </div>
+                        {showInactiveRoster && inactiveRoster.map(m => (
+                            <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
+                                    {(m.nickname || m.name)[0].toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold truncate line-through">{m.nickname || m.name}</div>
+                                    {m.nickname && <div className="text-xs text-kce-muted truncate">{m.name}</div>}
+                                </div>
+                                <button className="btn-secondary btn-xs opacity-100"
+                                        onClick={() => reactivateRoster(m)}>
+                                    {t('member.reactivateRoster')}
+                                </button>
+                            </div>
+                        ))}
+                    </>
+                )
+            })()}
+
+            {/* Confirm remove from club sheet */}
+            <Sheet open={!!removeConfirm} onClose={() => setRemoveConfirm(null)}
+                   title={t('member.removeConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-kce-muted">{t('member.removeConfirmHint')}</p>
+                    {removeConfirm && (
+                        <div className="kce-card p-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
+                                {(removeConfirm.nickname || removeConfirm.name)[0].toUpperCase()}
+                            </div>
+                            <div className="font-bold text-sm">{removeConfirm.nickname || removeConfirm.name}</div>
+                        </div>
+                    )}
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setRemoveConfirm(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-danger btn-sm flex-1"
+                                onClick={() => removeConfirm && remove(removeConfirm)}>
+                            {t('member.removeFromClub')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
 
             {/* Link to roster sheet */}
             <Sheet open={linkSheet} onClose={() => setLinkSheet(false)}

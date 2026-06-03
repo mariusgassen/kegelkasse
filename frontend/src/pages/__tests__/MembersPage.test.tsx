@@ -47,6 +47,7 @@ vi.mock('@/api/client.ts', () => ({
         updateMemberRole: vi.fn(),
         deactivateMember: vi.fn(),
         reactivateMember: vi.fn(),
+        reactivateRegularMember: vi.fn(),
         createInvite: vi.fn(),
     },
 }))
@@ -410,16 +411,18 @@ describe('MembersPage — unlinked roster member', () => {
         expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
     })
 
-    it('calls api.deleteRegularMember when ✕ clicked on roster member', async () => {
+    it('calls api.deleteRegularMember when ✕ clicked on roster member (via confirmation sheet)', async () => {
         await setupWithUnlinked()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
         await waitFor(() => screen.getByText('Klauschen'))
-        // Find the ✕ buttons — last one in roster section
-        // ✕ order: [0]=deactivate Franz app user, [1]=delete Klaus roster, [2]=delete Gast
+        // Find the ✕ buttons — roster member delete opens confirmation sheet
         const deleteBtns = screen.getAllByText('✕')
         fireEvent.click(deleteBtns[1])
+        // Confirm via the remove button in the confirmation sheet (i18n returns key)
+        await waitFor(() => screen.getByText('member.removeFromClub'))
+        fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => {
             expect(api.deleteRegularMember).toHaveBeenCalledWith(4)
         })
@@ -1129,10 +1132,9 @@ describe('MembersPage — error handlers', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.deleteRegularMember).mockRejectedValueOnce(new Error('delete fail'))
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Hansi'))
-        // ✕ buttons in the roster section call remove()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        // The last ✕ is the guest delete button (no confirmation needed for guests)
         const deleteBtns = screen.getAllByText('✕')
-        // Last ones should be roster member delete buttons (not deactivate)
         fireEvent.click(deleteBtns[deleteBtns.length - 1])
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
