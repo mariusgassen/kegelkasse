@@ -493,9 +493,10 @@ export function MembersPage() {
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
                                 {admin && (<>
                                     <button className="btn-secondary btn-xs"
-                                            title={t('member.reactivateRoster')}
-                                            onClick={() => reactivateRoster(m)}>↩</button>
-                                    <button className="btn-danger btn-xs" onClick={() => remove(m)}>✕</button>
+                                            onClick={() => reactivateRoster(m)}>
+                                        {t('member.reactivateRoster')}
+                                    </button>
+                                    <button className="btn-danger btn-xs" onClick={() => openRemoveConfirm(m)}>✕</button>
                                 </>)}
                             </div>
                         </div>
