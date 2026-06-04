@@ -320,11 +320,19 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_admin)):
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
-    m.is_active = False
-    # Also deactivate the linked user account so they can no longer log in
-    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
-    if linked_user:
-        linked_user.is_active = False
+    if m.is_guest:
+        # Guest deletion — fully deactivate (remove from active roster)
+        m.is_active = False
+    else:
+        # Regular member leaving — convert to guest so they can still play, block login, clear pins
+        m.is_guest = True
+        for pin in db.query(ClubPin).filter(ClubPin.holder_regular_member_id == mid).all():
+            pin.holder_regular_member_id = None
+            pin.holder_name = None
+            pin.assigned_at = None
+        linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+        if linked_user:
+            linked_user.is_active = False
     db.commit()
     logger.info("Regular member removed from club: member=%d by admin=%d", mid, user.id)
     return {"ok": True}
@@ -333,9 +341,10 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
 @router.patch("/regular-members/{mid}/reactivate")
 def reactivate_regular_member(mid: int, db: Session = Depends(get_db),
                                user: User = Depends(require_club_admin)):
-    """Admin only: reactivate a removed regular member and their linked user account."""
+    """Admin only: promote a guest back to regular member and restore their linked user account."""
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
+    m.is_guest = False
     m.is_active = True
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:

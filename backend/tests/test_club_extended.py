@@ -888,7 +888,30 @@ class TestDeleteRegularMemberCascade:
                              headers=admin_headers)
         assert resp.status_code == 200
         db.refresh(regular_member)
-        assert regular_member.is_active is False
+        # Regular member removal converts to guest (stays active, can still be added to evenings)
+        assert regular_member.is_guest is True
+        assert regular_member.is_active is True
+
+    def test_clears_pin_holder(self, client: TestClient, admin_headers: dict,
+                               regular_member: RegularMember, db: Session, club: Club):
+        from datetime import datetime, timezone
+        pin = ClubPin(
+            club_id=club.id,
+            name="Goldnadel",
+            holder_regular_member_id=regular_member.id,
+            holder_name=regular_member.name,
+            assigned_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        )
+        db.add(pin)
+        db.commit()
+        db.refresh(pin)
+
+        resp = client.delete(f"/api/v1/club/regular-members/{regular_member.id}",
+                             headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(pin)
+        assert pin.holder_regular_member_id is None
+        assert pin.holder_name is None
 
     def test_also_deactivates_linked_user(self, client: TestClient, admin_headers: dict,
                                            regular_member: RegularMember, db: Session, club: Club):
@@ -929,13 +952,14 @@ class TestDeleteRegularMemberCascade:
 class TestReactivateRegularMember:
     def test_reactivates_inactive_member(self, client: TestClient, admin_headers: dict,
                                           regular_member: RegularMember, db: Session):
-        regular_member.is_active = False
+        regular_member.is_guest = True
         db.commit()
 
         resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
                             headers=admin_headers)
         assert resp.status_code == 200
         db.refresh(regular_member)
+        assert regular_member.is_guest is False
         assert regular_member.is_active is True
 
     def test_also_reactivates_linked_user(self, client: TestClient, admin_headers: dict,
@@ -950,7 +974,7 @@ class TestReactivateRegularMember:
             regular_member_id=regular_member.id,
         )
         db.add(linked_user)
-        regular_member.is_active = False
+        regular_member.is_guest = True
         db.commit()
         db.refresh(linked_user)
 
@@ -962,7 +986,7 @@ class TestReactivateRegularMember:
 
     def test_member_cannot_reactivate(self, client: TestClient, auth_headers: dict,
                                        regular_member: RegularMember, db: Session):
-        regular_member.is_active = False
+        regular_member.is_guest = True
         db.commit()
         resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
                             headers=auth_headers)
