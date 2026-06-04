@@ -49,6 +49,10 @@ vi.mock('@/api/client.ts', () => ({
         reactivateMember: vi.fn(),
         reactivateRegularMember: vi.fn(),
         createInvite: vi.fn(),
+        getMemberBalances: vi.fn().mockResolvedValue([]),
+        getGuestBalances: vi.fn().mockResolvedValue([]),
+        createMemberPayment: vi.fn().mockResolvedValue(undefined),
+        treasuryPayout: vi.fn().mockResolvedValue(undefined),
     },
 }))
 
@@ -639,11 +643,17 @@ describe('MembersPage — guest members actions', () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValueOnce([
+            { regular_member_id: 3, name: 'Gast Franz', nickname: null, payments_total: 0, penalty_total: 0, balance: 0 },
+        ] as any)
         await renderMembersPage()
         await waitFor(() => screen.getByText('Gast Franz'))
-        // Guest delete is the last ✕ (guests are at the end)
+        // Guest delete now opens confirmation sheet first
         const deleteBtns = screen.getAllByText('✕')
         fireEvent.click(deleteBtns[deleteBtns.length - 1])
+        // Confirm via the remove button in the confirmation sheet
+        await waitFor(() => screen.getByText('member.removeFromClub'))
+        fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => {
             expect(api.deleteRegularMember).toHaveBeenCalledWith(3)
         })
@@ -1131,11 +1141,16 @@ describe('MembersPage — error handlers', () => {
         const { api } = await import('@/api/client.ts')
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.deleteRegularMember).mockRejectedValueOnce(new Error('delete fail'))
+        vi.mocked(api.getGuestBalances).mockResolvedValueOnce([
+            { regular_member_id: 3, name: 'Gast Franz', nickname: null, payments_total: 0, penalty_total: 0, balance: 0 },
+        ] as any)
         await renderMembersPage()
         await waitFor(() => screen.getByText('Gast Franz'))
-        // The last ✕ is the guest delete button (no confirmation needed for guests)
+        // Guest delete now opens confirmation sheet first
         const deleteBtns = screen.getAllByText('✕')
         fireEvent.click(deleteBtns[deleteBtns.length - 1])
+        await waitFor(() => screen.getByText('member.removeFromClub'))
+        fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
