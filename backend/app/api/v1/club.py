@@ -275,12 +275,14 @@ def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
 
 
 @router.get("/regular-members")
-def list_regular_members(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    rows = (db.query(RegularMember, User.avatar)
-            .outerjoin(User, User.id == RegularMember.user_id)
-            .filter(RegularMember.club_id == user.club_id, RegularMember.is_active == True)
-            .order_by(RegularMember.name)
-            .all())
+def list_regular_members(include_inactive: bool = False, db: Session = Depends(get_db),
+                         user: User = Depends(require_club_member)):
+    q = (db.query(RegularMember, User.avatar)
+         .outerjoin(User, User.id == RegularMember.user_id)
+         .filter(RegularMember.club_id == user.club_id))
+    if not include_inactive:
+        q = q.filter(RegularMember.is_active == True)
+    rows = q.order_by(RegularMember.name).all()
     return [_member_dict(m, avatar) for m, avatar in rows]
 
 
@@ -318,7 +320,35 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_admin)):
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
-    m.is_active = False
+    if m.is_guest:
+        # Guest deletion — fully deactivate (remove from active roster)
+        m.is_active = False
+    else:
+        # Regular member leaving — convert to guest so they can still play, block login, clear pins
+        m.is_guest = True
+        for pin in db.query(ClubPin).filter(ClubPin.holder_regular_member_id == mid).all():
+            pin.holder_regular_member_id = None
+            pin.holder_name = None
+            pin.assigned_at = None
+        linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+        if linked_user:
+            linked_user.is_active = False
+    db.commit()
+    logger.info("Regular member removed from club: member=%d by admin=%d", mid, user.id)
+    return {"ok": True}
+
+
+@router.patch("/regular-members/{mid}/reactivate")
+def reactivate_regular_member(mid: int, db: Session = Depends(get_db),
+                               user: User = Depends(require_club_admin)):
+    """Admin only: promote a guest back to regular member and restore their linked user account."""
+    m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not m: raise HTTPException(404)
+    m.is_guest = False
+    m.is_active = True
+    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+    if linked_user:
+        linked_user.is_active = True
     db.commit()
     return {"ok": True}
 
@@ -845,6 +875,53 @@ def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
         "guest_payment_id": guest_payment.id,
         "target_payment_id": target_payment.id,
     }
+
+
+# ── Treasury payout ──
+
+class PayoutEntry(BaseModel):
+    regular_member_id: int
+    amount: float  # positive = amount to pay out to member (reduces their balance)
+
+
+class TreasuryPayout(BaseModel):
+    payouts: list[PayoutEntry]
+    note: Optional[str] = None
+
+
+@router.post("/treasury-payout", status_code=201)
+def create_treasury_payout(data: TreasuryPayout, db: Session = Depends(get_db),
+                            user: User = Depends(require_club_admin)):
+    """Bulk payout: distribute treasury funds to members as negative payment entries."""
+    entries = [e for e in data.payouts if e.amount != 0]
+    if not entries:
+        raise HTTPException(400, "Keine Beträge angegeben")
+
+    member_ids = [e.regular_member_id for e in entries]
+    members = db.query(RegularMember).filter(
+        RegularMember.id.in_(member_ids),
+        RegularMember.club_id == user.club_id,
+    ).all()
+    valid_ids = {m.id for m in members}
+    for e in entries:
+        if e.regular_member_id not in valid_ids:
+            raise HTTPException(404, f"Mitglied {e.regular_member_id} nicht gefunden")
+
+    note_text = data.note or "Auszahlung"
+    payments = []
+    for e in entries:
+        payments.append(MemberPayment(
+            club_id=user.club_id,
+            regular_member_id=e.regular_member_id,
+            amount=-abs(e.amount),  # negative = payout from club to member
+            note=note_text,
+            created_by=user.id,
+        ))
+    db.add_all(payments)
+    db.commit()
+    logger.info("Treasury payout: %d entries, total=%.2f by admin=%d",
+                len(payments), sum(abs(e.amount) for e in entries), user.id)
+    return {"created": len(payments)}
 
 
 # ── Club expenses ──
