@@ -26,7 +26,8 @@ export function MembersPage() {
     const [showInactive, setShowInactive] = useState(false)
     const [removeConfirm, setRemoveConfirm] = useState<RegularMember | null>(null)
     const [removePayoutAmount, setRemovePayoutAmount] = useState('')
-    const [removeBalance, setRemoveBalance] = useState<number | null>(null)
+    const [removePaymentsTotal, setRemovePaymentsTotal] = useState<number | null>(null)
+    const [removePenaltyTotal, setRemovePenaltyTotal] = useState<number | null>(null)
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
         if (v) clearHashParams()
@@ -142,15 +143,20 @@ export function MembersPage() {
     async function openRemoveConfirm(m: RegularMember) {
         setRemoveConfirm(m)
         setRemovePayoutAmount('')
-        setRemoveBalance(null)
+        setRemovePaymentsTotal(null)
+        setRemovePenaltyTotal(null)
         try {
-            const balances = await api.getMemberBalances()
+            const balances = m.is_guest
+                ? await api.getGuestBalances()
+                : await api.getMemberBalances()
             const b = balances.find(b => b.regular_member_id === m.id)
-            const balance = b?.balance ?? 0
-            setRemoveBalance(balance)
-            // Pre-fill payout with what the member is owed (payments minus penalties)
-            if (balance > 0.01) {
-                setRemovePayoutAmount(balance.toFixed(2))
+            const payments = b?.payments_total ?? 0
+            const penalties = b?.penalty_total ?? 0
+            setRemovePaymentsTotal(payments)
+            setRemovePenaltyTotal(penalties)
+            // Pre-fill payout with what was physically paid in (not balance)
+            if (payments > 0.01) {
+                setRemovePayoutAmount(payments.toFixed(2))
             }
         } catch {
             // balance is optional — form still works without it
@@ -160,6 +166,14 @@ export function MembersPage() {
     async function remove(m: RegularMember) {
         try {
             await api.deleteRegularMember(m.id)
+            // Write off outstanding penalties so the balance reaches zero
+            if ((removePenaltyTotal ?? 0) > 0.01) {
+                await api.createMemberPayment({
+                    regular_member_id: m.id,
+                    amount: removePenaltyTotal!,
+                    note: t('member.writeOffNote'),
+                })
+            }
             const payoutAmt = parseAmount(removePayoutAmount)
             if (payoutAmt > 0) {
                 await api.treasuryPayout({
@@ -493,9 +507,10 @@ export function MembersPage() {
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
                                 {admin && (<>
                                     <button className="btn-secondary btn-xs"
-                                            title={t('member.reactivateRoster')}
-                                            onClick={() => reactivateRoster(m)}>↩</button>
-                                    <button className="btn-danger btn-xs" onClick={() => remove(m)}>✕</button>
+                                            onClick={() => reactivateRoster(m)}>
+                                        {t('member.reactivateRoster')}
+                                    </button>
+                                    <button className="btn-danger btn-xs" onClick={() => openRemoveConfirm(m)}>✕</button>
                                 </>)}
                             </div>
                         </div>
@@ -520,12 +535,9 @@ export function MembersPage() {
                     <div>
                         <label className="field-label">{t('member.payoutLabel')}</label>
                         <p className="text-[10px] text-kce-muted mb-1.5">{t('member.payoutHint')}</p>
-                        {removeBalance !== null && removeBalance <= 0.01 && (
-                            <p className="text-[10px] text-kce-muted mb-1.5">
-                                {removeBalance < -0.01
-                                    ? <span className="text-red-400">{t('member.payoutOwes')}</span>
-                                    : <span className="text-kce-muted">{t('member.payoutSettled')}</span>
-                                }
+                        {removePenaltyTotal !== null && removePenaltyTotal > 0.01 && (
+                            <p className="text-[10px] text-kce-amber mb-1.5">
+                                {t('member.payoutWriteOffInfo')} ({removePenaltyTotal.toFixed(2).replace('.', ',')} €)
                             </p>
                         )}
                         <div className="flex items-center gap-2">
