@@ -287,49 +287,6 @@ export function TreasuryPage() {
         }
     }
 
-    // Treasury clear payout — splits Kassenstand equally among all active members
-    const [payoutSheet, setPayoutSheet] = useState(false)
-    const [payoutAmounts, setPayoutAmounts] = useState<Record<number, string>>({})
-    const [savingPayout, setSavingPayout] = useState(false)
-
-    function openPayoutSheet() {
-        // Equal share of the total Kassenstand across all non-guest members
-        const eligible = (balances as Balance[]).filter(b => {
-            const rm = regularMembers.find(r => r.id === b.regular_member_id)
-            return rm && !rm.is_guest
-        })
-        const share = eligible.length > 0 && kassenstand > 0
-            ? kassenstand / eligible.length
-            : 0
-        const defaults: Record<number, string> = {}
-        for (const b of eligible) {
-            defaults[b.regular_member_id] = share > 0 ? share.toFixed(2) : ''
-        }
-        setPayoutAmounts(defaults)
-        setPayoutSheet(true)
-    }
-
-    async function submitPayout() {
-        const payouts = Object.entries(payoutAmounts)
-            .map(([id, v]) => ({regular_member_id: parseInt(id, 10), amount: parseAmount(v)}))
-            .filter(e => e.amount > 0)
-        if (payouts.length === 0) return
-        setSavingPayout(true)
-        try {
-            await api.treasuryPayout({payouts})
-            refetchBalances()
-            qc.invalidateQueries({queryKey: ['all-payments']})
-            setPayoutSheet(false)
-            showToast(t('treasury.payout.done'))
-        } catch (e: unknown) {
-            toastError(e)
-        } finally {
-            setSavingPayout(false)
-        }
-    }
-
-    const payoutTotal = Object.values(payoutAmounts).reduce((s, v) => s + (parseAmount(v) || 0), 0)
-
     // New booking sheet — unified for Club expenses and member payments
     const [bookingSheet, setBookingSheet] = useState(false)
     const [bookingTarget, setBookingTarget] = useState<'club' | number>('club')
@@ -503,14 +460,7 @@ export function TreasuryPage() {
                             <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fe(kassenstand)}</div>
                             <div className="text-[10px] text-kce-muted mt-1">{t('treasury.cashOnHandHint')}</div>
                         </div>
-                        {admin && kassenstand > 0.01 ? (
-                            <button className="btn-secondary btn-sm flex-shrink-0"
-                                    onClick={openPayoutSheet}>
-                                {t('treasury.payout.button')}
-                            </button>
-                        ) : (
-                            <span className="text-4xl opacity-20">💰</span>
-                        )}
+                        <span className="text-4xl opacity-20">💰</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1215,50 +1165,6 @@ export function TreasuryPage() {
                 </div>
             </Sheet>
 
-            {/* Treasury clear — equal split of Kassenstand */}
-            <Sheet open={payoutSheet} onClose={() => setPayoutSheet(false)}
-                   title={t('treasury.payout.title')} onSubmit={submitPayout}>
-                <div className="flex flex-col gap-3">
-                    <p className="text-xs text-kce-muted">{t('treasury.payout.hint')}</p>
-                    <div className="kce-card p-3 flex items-center justify-between">
-                        <span className="text-xs text-kce-muted">{t('treasury.cashOnHand')}</span>
-                        <span className="font-bold text-sm text-green-400">{fe(kassenstand)}</span>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        {(balances as Balance[]).filter(b => {
-                            const rm = regularMembers.find(r => r.id === b.regular_member_id)
-                            return rm && !rm.is_guest
-                        }).map(b => (
-                            <div key={b.regular_member_id} className="flex items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold truncate">{b.nickname || b.name}</div>
-                                </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    <span className="text-kce-muted text-xs select-none">€</span>
-                                    <input
-                                        className="kce-input w-24 text-right"
-                                        type="text" inputMode="decimal"
-                                        placeholder="0,00"
-                                        value={payoutAmounts[b.regular_member_id] ?? ''}
-                                        onChange={e => setPayoutAmounts(prev => ({
-                                            ...prev,
-                                            [b.regular_member_id]: e.target.value
-                                        }))}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-kce-border">
-                        <span className="text-sm font-bold text-kce-muted">{t('treasury.payout.total')}</span>
-                        <span className="font-bold text-sm">{fe(payoutTotal)}</span>
-                    </div>
-                    <button type="submit" className="btn-primary w-full"
-                            disabled={savingPayout || payoutTotal <= 0}>
-                        {t('treasury.payout.submit')} · {fe(payoutTotal)}
-                    </button>
-                </div>
-            </Sheet>
         </div>
     )
 }
