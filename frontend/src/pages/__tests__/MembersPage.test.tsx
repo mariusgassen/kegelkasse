@@ -658,6 +658,69 @@ describe('MembersPage — guest members actions', () => {
             expect(api.deleteRegularMember).toHaveBeenCalledWith(3)
         })
     })
+
+    it('opens promote confirmation sheet with prefilled pro-rata entry fee', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 40, balance: 60 },
+            { regular_member_id: 2, name: 'Franz Schmidt', nickname: null, payments_total: 20, penalty_total: 60, balance: -40 },
+        ] as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        // treasury = 60 + (-40) = 20, x = 2 existing members → 10.00 entry fee
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('10.00'))
+    })
+
+    it('calls api.reactivateRegularMember and logs entry fee debt on confirm', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 0, balance: 100 },
+        ] as any)
+        vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('100.00'))
+        const confirmBtns = screen.getAllByText('member.reactivateRoster')
+        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        await waitFor(() => {
+            expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
+            expect(api.createMemberPayment).toHaveBeenCalledWith({
+                regular_member_id: 3,
+                amount: -100,
+                note: 'member.entryFeeNote',
+            })
+        })
+    })
+
+    it('does not log an entry fee when amount is cleared before confirming', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 0, balance: 100 },
+        ] as any)
+        vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('100.00'))
+        fireEvent.change(input, { target: { value: '' } })
+        const confirmBtns = screen.getAllByText('member.reactivateRoster')
+        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        await waitFor(() => {
+            expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
+        })
+        expect(api.createMemberPayment).not.toHaveBeenCalled()
+    })
 })
 
 describe('MembersPage — member search edge cases', () => {
