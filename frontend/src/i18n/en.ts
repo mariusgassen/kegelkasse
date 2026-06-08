@@ -424,7 +424,7 @@ export const en = {
     "member.removeConfirm": "Remove member?",
     "member.removeConfirmHint": "The member will be removed from the active roster and can no longer log in. Statistics and penalties are preserved.",
     "member.removedFromClub": "Member removed",
-    "member.reactivateRoster": "↩ Reactivate",
+    "member.reactivateRoster": "⬆️ Make member",
     "member.payoutLabel": "Departure payout (optional)",
     "member.payoutHint": "Paid-in balance is returned. Outstanding penalties are written off on exit.",
     "member.payoutOwes": "Still owes money — no credit to pay out.",

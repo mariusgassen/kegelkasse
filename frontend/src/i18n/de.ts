@@ -424,7 +424,7 @@ export const de = {
     "member.removeConfirm": "Mitglied entfernen?",
     "member.removeConfirmHint": "Das Mitglied wird aus dem aktiven Roster entfernt und kann sich nicht mehr anmelden. Statistiken und Strafen bleiben erhalten.",
     "member.removedFromClub": "Mitglied entfernt",
-    "member.reactivateRoster": "↩ Reaktivieren",
+    "member.reactivateRoster": "⬆️ Zu Mitglied machen",
     "member.payoutLabel": "Auszahlung bei Austritt (optional)",
     "member.payoutHint": "Eingezahltes Guthaben wird zurückgezahlt. Offene Strafen werden abgeschrieben.",
     "member.payoutOwes": "Schuldet noch Geld — kein Guthaben zum Auszahlen.",
