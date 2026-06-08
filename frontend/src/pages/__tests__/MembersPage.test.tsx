@@ -415,15 +415,15 @@ describe('MembersPage — unlinked roster member', () => {
         expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
     })
 
-    it('calls api.deleteRegularMember when ✕ clicked on roster member (via confirmation sheet)', async () => {
+    it('calls api.deleteRegularMember when degrade button clicked on roster member (via confirmation sheet)', async () => {
         await setupWithUnlinked()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
         await waitFor(() => screen.getByText('Klauschen'))
-        // Find the ✕ buttons — roster member delete opens confirmation sheet
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[1])
+        // Roster member degrade-to-guest button is subtle (⬇️, not a destructive ✕) and opens a confirmation sheet
+        const degradeBtns = screen.getAllByTitle('member.removeFromClub')
+        fireEvent.click(degradeBtns[degradeBtns.length - 1])
         // Confirm via the remove button in the confirmation sheet (i18n returns key)
         await waitFor(() => screen.getByText('member.removeFromClub'))
         fireEvent.click(screen.getByText('member.removeFromClub'))
@@ -632,31 +632,76 @@ describe('MembersPage — guest members actions', () => {
         vi.clearAllMocks()
     })
 
-    it('shows delete button for guest members', async () => {
+    it('does not show a delete button for guest members — they stay in club history', async () => {
         await setupAdmin()
         await renderMembersPage()
         await waitFor(() => screen.getByText('Gast Franz'))
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+        const guestRow = screen.getByText('Gast Franz').closest('.kce-card') as HTMLElement
+        expect(within(guestRow).queryByText('✕')).not.toBeInTheDocument()
+        expect(within(guestRow).queryByTitle('member.removeFromClub')).not.toBeInTheDocument()
     })
 
-    it('calls api.deleteRegularMember when guest deleted', async () => {
+    it('opens promote confirmation sheet with prefilled pro-rata entry fee', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
-        vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
-        vi.mocked(api.getGuestBalances).mockResolvedValueOnce([
-            { regular_member_id: 3, name: 'Gast Franz', nickname: null, payments_total: 0, penalty_total: 0, balance: 0 },
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 40, balance: 60 },
+            { regular_member_id: 2, name: 'Franz Schmidt', nickname: null, payments_total: 20, penalty_total: 60, balance: -40 },
         ] as any)
         await renderMembersPage()
         await waitFor(() => screen.getByText('Gast Franz'))
-        // Guest delete now opens confirmation sheet first
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[deleteBtns.length - 1])
-        // Confirm via the remove button in the confirmation sheet
-        await waitFor(() => screen.getByText('member.removeFromClub'))
-        fireEvent.click(screen.getByText('member.removeFromClub'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        // treasury = 60 + (-40) = 20, x = 2 existing members → 10.00 entry fee
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('10.00'))
+    })
+
+    it('calls api.reactivateRegularMember and logs entry fee debt on confirm', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 0, balance: 100 },
+        ] as any)
+        vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('100.00'))
+        const confirmBtns = screen.getAllByText('member.reactivateRoster')
+        fireEvent.click(confirmBtns[confirmBtns.length - 1])
         await waitFor(() => {
-            expect(api.deleteRegularMember).toHaveBeenCalledWith(3)
+            expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
+            expect(api.createMemberPayment).toHaveBeenCalledWith({
+                regular_member_id: 3,
+                amount: -100,
+                note: 'member.entryFeeNote',
+            })
         })
+    })
+
+    it('does not log an entry fee when amount is cleared before confirming', async () => {
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 1, name: 'Hans Müller', nickname: 'Hansi', payments_total: 100, penalty_total: 0, balance: 100 },
+        ] as any)
+        vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
+        await renderMembersPage()
+        await waitFor(() => screen.getByText('Gast Franz'))
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        await waitFor(() => screen.getByText('member.promoteConfirm'))
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('100.00'))
+        fireEvent.change(input, { target: { value: '' } })
+        const confirmBtns = screen.getAllByText('member.reactivateRoster')
+        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        await waitFor(() => {
+            expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
+        })
+        expect(api.createMemberPayment).not.toHaveBeenCalled()
     })
 })
 
@@ -1137,18 +1182,22 @@ describe('MembersPage — error handlers', () => {
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
-    it('calls toastError when remove (delete) fails', async () => {
+    it('calls toastError when remove (degrade to guest) fails', async () => {
         const { api } = await import('@/api/client.ts')
         const { toastError } = await import('@/utils/error.ts')
+        vi.mocked(api.listRegularMembers).mockResolvedValue(MEMBERS_WITH_UNLINKED as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: MEMBERS_WITH_UNLINKED,
+            setRegularMembers: vi.fn(),
+        } as any)
         vi.mocked(api.deleteRegularMember).mockRejectedValueOnce(new Error('delete fail'))
-        vi.mocked(api.getGuestBalances).mockResolvedValueOnce([
-            { regular_member_id: 3, name: 'Gast Franz', nickname: null, payments_total: 0, penalty_total: 0, balance: 0 },
-        ] as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Gast Franz'))
-        // Guest delete now opens confirmation sheet first
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[deleteBtns.length - 1])
+        await waitFor(() => screen.getByText('Klauschen'))
+        // Roster member degrade-to-guest button is subtle (⬇️) and opens a confirmation sheet
+        const degradeBtns = screen.getAllByTitle('member.removeFromClub')
+        fireEvent.click(degradeBtns[degradeBtns.length - 1])
         await waitFor(() => screen.getByText('member.removeFromClub'))
         fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())

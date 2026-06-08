@@ -321,18 +321,17 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     if m.is_guest:
-        # Guest deletion — fully deactivate (remove from active roster)
-        m.is_active = False
-    else:
-        # Regular member leaving — convert to guest so they can still play, block login, clear pins
-        m.is_guest = True
-        for pin in db.query(ClubPin).filter(ClubPin.holder_regular_member_id == mid).all():
-            pin.holder_regular_member_id = None
-            pin.holder_name = None
-            pin.assigned_at = None
-        linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
-        if linked_user:
-            linked_user.is_active = False
+        # Guests stay part of the club history (evening participation, stats) — never deletable
+        raise HTTPException(400, "Gäste können nicht entfernt werden — sie bleiben Teil der Vereinshistorie")
+    # Regular member leaving — convert to guest so they can still play, block login, clear pins
+    m.is_guest = True
+    for pin in db.query(ClubPin).filter(ClubPin.holder_regular_member_id == mid).all():
+        pin.holder_regular_member_id = None
+        pin.holder_name = None
+        pin.assigned_at = None
+    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+    if linked_user:
+        linked_user.is_active = False
     db.commit()
     logger.info("Regular member removed from club: member=%d by admin=%d", mid, user.id)
     return {"ok": True}

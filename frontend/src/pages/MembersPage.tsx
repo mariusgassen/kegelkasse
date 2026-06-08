@@ -28,6 +28,8 @@ export function MembersPage() {
     const [removePayoutAmount, setRemovePayoutAmount] = useState('')
     const [removePaymentsTotal, setRemovePaymentsTotal] = useState<number | null>(null)
     const [removePenaltyTotal, setRemovePenaltyTotal] = useState<number | null>(null)
+    const [promoteConfirm, setPromoteConfirm] = useState<RegularMember | null>(null)
+    const [promoteEntryFee, setPromoteEntryFee] = useState('')
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
         if (v) clearHashParams()
@@ -146,9 +148,7 @@ export function MembersPage() {
         setRemovePaymentsTotal(null)
         setRemovePenaltyTotal(null)
         try {
-            const balances = m.is_guest
-                ? await api.getGuestBalances()
-                : await api.getMemberBalances()
+            const balances = await api.getMemberBalances()
             const b = balances.find(b => b.regular_member_id === m.id)
             const payments = b?.payments_total ?? 0
             const penalties = b?.penalty_total ?? 0
@@ -189,10 +189,40 @@ export function MembersPage() {
         }
     }
 
-    async function reactivateRoster(m: RegularMember) {
+    async function openPromoteConfirm(m: RegularMember) {
+        setPromoteConfirm(m)
+        setPromoteEntryFee('')
+        try {
+            const balances = await api.getMemberBalances()
+            const memberCount = balances.length
+            if (memberCount > 0) {
+                // Treasury incl. open debts: sum of all current member balances
+                const treasuryTotal = balances.reduce((sum, b) => sum + b.balance, 0)
+                const entryFee = Math.max(0, treasuryTotal / memberCount)
+                if (entryFee > 0.01) {
+                    setPromoteEntryFee(entryFee.toFixed(2))
+                }
+            }
+        } catch {
+            // suggested fee is optional — sheet still works without it
+        }
+    }
+
+    async function promote(m: RegularMember) {
         try {
             await api.reactivateRegularMember(m.id)
+            const feeAmt = parseAmount(promoteEntryFee)
+            if (feeAmt > 0) {
+                // Negative payment = debt the new member owes the club
+                await api.createMemberPayment({
+                    regular_member_id: m.id,
+                    amount: -feeAmt,
+                    note: t('member.entryFeeNote'),
+                })
+            }
             await Promise.all([refetchRoster(), refetchUsers()])
+            showToast(t('member.promotedToMember'))
+            setPromoteConfirm(null)
         } catch (e: unknown) {
             toastError(e)
         }
@@ -464,9 +494,9 @@ export function MembersPage() {
                                                     setMergeSheet(true)
                                                 }}>⇄
                                         </button>
-                                        <button className="btn-danger btn-xs"
+                                        <button className="btn-secondary btn-xs"
                                                 title={t('member.removeFromClub')}
-                                                onClick={() => openRemoveConfirm(m)}>✕</button>
+                                                onClick={() => openRemoveConfirm(m)}>⬇️</button>
                                     </>
                                 )}
                             </div>
@@ -505,13 +535,12 @@ export function MembersPage() {
                                     </button>
                                 )}
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
-                                {admin && (<>
+                                {admin && (
                                     <button className="btn-secondary btn-xs"
-                                            onClick={() => reactivateRoster(m)}>
+                                            onClick={() => openPromoteConfirm(m)}>
                                         {t('member.reactivateRoster')}
                                     </button>
-                                    <button className="btn-danger btn-xs" onClick={() => openRemoveConfirm(m)}>✕</button>
-                                </>)}
+                                )}
                             </div>
                         </div>
                     )
@@ -555,9 +584,49 @@ export function MembersPage() {
                         <button className="btn-secondary btn-sm flex-1" onClick={() => setRemoveConfirm(null)}>
                             {t('action.cancel')}
                         </button>
-                        <button className="btn-danger btn-sm flex-1"
+                        <button className="btn-primary btn-sm flex-1"
                                 onClick={() => removeConfirm && remove(removeConfirm)}>
                             {t('member.removeFromClub')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* Confirm promote guest to member sheet */}
+            <Sheet open={!!promoteConfirm} onClose={() => setPromoteConfirm(null)}
+                   title={t('member.promoteConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-kce-muted">{t('member.promoteConfirmHint')}</p>
+                    {promoteConfirm && (
+                        <div className="kce-card p-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
+                                {(promoteConfirm.nickname || promoteConfirm.name)[0].toUpperCase()}
+                            </div>
+                            <div className="font-bold text-sm">{promoteConfirm.nickname || promoteConfirm.name}</div>
+                        </div>
+                    )}
+                    {/* Pro-rata entry fee (1/x of treasury incl. open debts) */}
+                    <div>
+                        <label className="field-label">{t('member.entryFeeLabel')}</label>
+                        <p className="text-[10px] text-kce-muted mb-1.5">{t('member.entryFeeHint')}</p>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <input
+                                className="kce-input flex-1"
+                                type="text" inputMode="decimal"
+                                placeholder="0,00"
+                                value={promoteEntryFee}
+                                onChange={e => setPromoteEntryFee(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setPromoteConfirm(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-primary btn-sm flex-1"
+                                onClick={() => promoteConfirm && promote(promoteConfirm)}>
+                            {t('member.reactivateRoster')}
                         </button>
                     </div>
                 </div>
