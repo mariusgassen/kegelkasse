@@ -944,6 +944,17 @@ class TestDeleteRegularMemberCascade:
         resp = client.delete("/api/v1/club/regular-members/999999", headers=admin_headers)
         assert resp.status_code == 404
 
+    def test_400_guest_cannot_be_deleted(self, client: TestClient, admin_headers: dict,
+                                          regular_member: RegularMember, db: Session):
+        regular_member.is_guest = True
+        db.commit()
+        resp = client.delete(f"/api/v1/club/regular-members/{regular_member.id}",
+                             headers=admin_headers)
+        assert resp.status_code == 400
+        db.refresh(regular_member)
+        assert regular_member.is_guest is True
+        assert regular_member.is_active is True
+
 
 # ---------------------------------------------------------------------------
 # PATCH /club/regular-members/{mid}/reactivate

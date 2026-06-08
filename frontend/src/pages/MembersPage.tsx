@@ -148,9 +148,7 @@ export function MembersPage() {
         setRemovePaymentsTotal(null)
         setRemovePenaltyTotal(null)
         try {
-            const balances = m.is_guest
-                ? await api.getGuestBalances()
-                : await api.getMemberBalances()
+            const balances = await api.getMemberBalances()
             const b = balances.find(b => b.regular_member_id === m.id)
             const payments = b?.payments_total ?? 0
             const penalties = b?.penalty_total ?? 0
@@ -496,9 +494,9 @@ export function MembersPage() {
                                                     setMergeSheet(true)
                                                 }}>⇄
                                         </button>
-                                        <button className="btn-danger btn-xs"
+                                        <button className="btn-secondary btn-xs"
                                                 title={t('member.removeFromClub')}
-                                                onClick={() => openRemoveConfirm(m)}>✕</button>
+                                                onClick={() => openRemoveConfirm(m)}>⬇️</button>
                                     </>
                                 )}
                             </div>
@@ -537,13 +535,12 @@ export function MembersPage() {
                                     </button>
                                 )}
                                 <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
-                                {admin && (<>
+                                {admin && (
                                     <button className="btn-secondary btn-xs"
                                             onClick={() => openPromoteConfirm(m)}>
                                         {t('member.reactivateRoster')}
                                     </button>
-                                    <button className="btn-danger btn-xs" onClick={() => openRemoveConfirm(m)}>✕</button>
-                                </>)}
+                                )}
                             </div>
                         </div>
                     )
@@ -587,7 +584,7 @@ export function MembersPage() {
                         <button className="btn-secondary btn-sm flex-1" onClick={() => setRemoveConfirm(null)}>
                             {t('action.cancel')}
                         </button>
-                        <button className="btn-danger btn-sm flex-1"
+                        <button className="btn-primary btn-sm flex-1"
                                 onClick={() => removeConfirm && remove(removeConfirm)}>
                             {t('member.removeFromClub')}
                         </button>
