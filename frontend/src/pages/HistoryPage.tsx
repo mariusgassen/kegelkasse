@@ -216,7 +216,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                             className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
                                                             🏆 {t('nav.games')}
                                                         </div>
-                                                        {detail.games.filter(g => g.status === 'finished').map(g => (
+                                                        {detail.games.filter(g => g.status === 'finished').sort((a, b) => (a.started_at ?? '').localeCompare(b.started_at ?? '') || a.sort_order - b.sort_order).map(g => (
                                                             <div key={g.id}
                                                                  className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
                                                                 <span

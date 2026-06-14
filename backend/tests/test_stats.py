@@ -155,6 +155,32 @@ class TestYearStats:
         assert me["penalty_total"] == 2.0
         assert me["penalty_count"] == 1
 
+    def test_counts_count_mode_penalties(self, client: TestClient, member_headers: dict,
+                                         db: Session,
+                                         evening_2025: Evening, player: EveningPlayer,
+                                         member: RegularMember):
+        # Count-mode penalty value is count × unit_amount — it must be included in the
+        # yearly rollup, not dropped like the old euro-only filter did.
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=player.id,
+            player_name="Statsy",
+            penalty_type_name="Pumpe",
+            amount=3.0,          # count of 3
+            unit_amount=0.5,     # 0.50 € each → 1.50 € total
+            mode=PenaltyMode.count,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        data = r.json()
+        assert data["total_penalties"] == 1.5
+        me = next(p for p in data["players"] if p["regular_member_id"] == member.id)
+        assert me["penalty_total"] == 1.5
+        assert me["penalty_count"] == 1
+
     def test_counts_beer_rounds(self, client: TestClient, member_headers: dict,
                                 db: Session,
                                 evening_2025: Evening, player: EveningPlayer, member: RegularMember):
@@ -227,6 +253,31 @@ class TestYearStats:
         r = client.get("/api/v1/stats/year/2025", headers=member_headers)
         assert r.json()["total_penalties"] == 0.0
 
+    def test_absence_penalty_attributed_to_member(self, client: TestClient, member_headers: dict,
+                                                  db: Session, evening_2025: Evening,
+                                                  member: RegularMember):
+        # Absence penalties (player_id=None, regular_member_id set) belong to the member
+        # even though they weren't a player that evening — they must show in the ranking.
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=None,
+            regular_member_id=member.id,
+            player_name="Statsy",
+            penalty_type_name="Abwesenheit",
+            amount=5.0,
+            mode=PenaltyMode.euro,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/stats/year/2025", headers=member_headers)
+        data = r.json()
+        assert data["total_penalties"] == 5.0
+        me = next(p for p in data["players"] if p["regular_member_id"] == member.id)
+        assert me["penalty_total"] == 5.0
+        assert me["penalty_count"] == 1
+
 
 # ---------------------------------------------------------------------------
 # GET /stats/me/{year}
@@ -276,6 +327,45 @@ class TestMyStats:
         db.commit()
         r = client.get("/api/v1/stats/me/2025", headers=member_headers)
         assert r.json()["penalty_total"] == 3.0
+
+    def test_counts_my_count_mode_penalties(self, client: TestClient, member_headers: dict,
+                                            db: Session,
+                                            evening_2025: Evening, player: EveningPlayer):
+        # Count-mode penalty (count × unit_amount) must be included in personal stats.
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=player.id,
+            player_name="Statsy",
+            penalty_type_name="Pumpe",
+            amount=4.0,          # count of 4
+            unit_amount=0.25,    # 0.25 € each → 1.00 € total
+            mode=PenaltyMode.count,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/stats/me/2025", headers=member_headers)
+        assert r.json()["penalty_total"] == 1.0
+
+    def test_absence_penalty_in_my_total(self, client: TestClient, member_headers: dict,
+                                        db: Session, evening_2025: Evening, member: RegularMember):
+        # Absence penalty for an evening the member didn't play must still count.
+        from models.penalty import PenaltyMode
+        log = PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=None,
+            regular_member_id=member.id,
+            player_name="Statsy",
+            penalty_type_name="Abwesenheit",
+            amount=5.0,
+            mode=PenaltyMode.euro,
+            client_timestamp=time.time() * 1000,
+        )
+        db.add(log)
+        db.commit()
+        r = client.get("/api/v1/stats/me/2025", headers=member_headers)
+        assert r.json()["penalty_total"] == 5.0
 
     def test_game_win_counted(self, client: TestClient, member_headers: dict,
                               db: Session,
