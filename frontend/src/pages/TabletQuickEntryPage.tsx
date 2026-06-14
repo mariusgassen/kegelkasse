@@ -39,8 +39,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
-    const regularMembers = useAppStore(s => s.regularMembers)
-    const guestPenaltyCap = useAppStore(s => s.guestPenaltyCap)
 
     // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
@@ -150,35 +148,22 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         [evening])
 
     // Per-player overview for the right column (penalty € total, current game score, drink counts).
-    // Reuses ProtocolPage aggregation pattern. We keep two penalty figures per player:
-    //  • penaltyEuro        — guest cap applied (what gets booked → drives the displayed row + Σ total)
-    //  • penaltyEuroUncapped — the actual penalties incurred (drives the Ø average, which must not be
-    //                          distorted by the treasury-side guest cap)
+    // NO guest cap here: the cap is a treasury-only settlement rule. This preliminary overview shows
+    // the penalties each player *actually* incurred (a guest with 70 € shows 70 €), so the displayed
+    // rows, the Σ total and the Ø average all reflect real amounts.
     const playerOverview = useMemo(() => {
-        type Agg = {penaltyEuro: number; penaltyEuroUncapped: number; gameScore: number | null; beerCount: number; shotsCount: number}
+        type Agg = {penaltyEuro: number; gameScore: number | null; beerCount: number; shotsCount: number}
         if (!evening) return new Map<number, Agg>()
         const map = new Map<number, Agg>()
         for (const p of players) {
-            map.set(p.id, {penaltyEuro: 0, penaltyEuroUncapped: 0, gameScore: null, beerCount: 0, shotsCount: 0})
+            map.set(p.id, {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0})
         }
-        // Penalty totals per present player (uncapped first)
+        // Actual penalty totals per present player (uncapped)
         for (const l of evening.penalty_log) {
             if (l.player_id == null) continue
             const cur = map.get(l.player_id)
             if (!cur) continue
-            const v = entryEuroValue(l)
-            cur.penaltyEuro += v
-            cur.penaltyEuroUncapped += v
-        }
-        // Apply guest cap to the bookable figure only — the uncapped value stays intact for the average
-        if (guestPenaltyCap != null) {
-            for (const [pid, agg] of map) {
-                const player = players.find(p => p.id === pid)
-                const member = regularMembers.find(m => m.id === player?.regular_member_id)
-                if (member?.is_guest) {
-                    agg.penaltyEuro = Math.min(agg.penaltyEuro, guestPenaltyCap)
-                }
-            }
+            cur.penaltyEuro += entryEuroValue(l)
         }
         // Drink rounds
         for (const r of evening.drink_rounds) {
@@ -202,10 +187,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         }
         return map
         // entryEuroValue is closure over penaltyTypes so penaltyTypes covers it
-    }, [evening, players, penaltyTypes, regularMembers, guestPenaltyCap])
+    }, [evening, players, penaltyTypes])
 
     // Absence / retroactive entries (player_id === null, booked against a regular_member_id) are
-    // settled at face value with no guest cap — same as ProtocolPage's euroTotal.
+    // included at face value so the preliminary total covers everything that's been logged.
     const absenceEuro = useMemo(() => {
         if (!evening) return 0
         return evening.penalty_log
@@ -214,19 +199,18 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         // entryEuroValue closes over penaltyTypes
     }, [evening, penaltyTypes])
 
-    // Σ Strafen — matches the real treasury total: capped present players + absence entries.
+    // Σ Strafen — sum of every penalty actually logged (present players + absence entries), uncapped.
     const overviewTotalEuro = useMemo(() => {
         let s = absenceEuro
         for (const v of playerOverview.values()) s += v.penaltyEuro
         return s
     }, [playerOverview, absenceEuro])
-    // Ø Strafen — average of the *actual* penalties incurred per present player (uncapped, so the
-    // treasury-side guest cap doesn't drag the plausibility figure down).
+    // Ø Strafen — average of the actual penalties incurred per present player (uncapped).
     const overviewAvgEuro = useMemo(() => {
         const n = playerOverview.size
         if (n === 0) return 0
         let s = 0
-        for (const v of playerOverview.values()) s += v.penaltyEuroUncapped
+        for (const v of playerOverview.values()) s += v.penaltyEuro
         return s / n
     }, [playerOverview])
 
@@ -1134,7 +1118,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     <div className="field-label mb-1 flex-shrink-0">{t('quickEntry.overview')}</div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0, overflowY: 'auto'}}>
                         {overviewSortedPlayers.map(p => {
-                            const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, penaltyEuroUncapped: 0, gameScore: null, beerCount: 0, shotsCount: 0}
+                            const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
                             return (

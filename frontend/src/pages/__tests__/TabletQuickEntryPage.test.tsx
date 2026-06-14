@@ -498,10 +498,10 @@ describe('TabletQuickEntryPage — overview column', () => {
     })
 })
 
-describe('TabletQuickEntryPage — overview totals (guest cap + absences)', () => {
-    // Admin (member, not guest): 7×0.50 = 3.50 (capped == uncapped)
-    // Hansi (guest, cap 5.00): 18×0.50 = 9.00 uncapped → capped 5.00
-    // Absence entry (player_id null): 2.00 at face value, no cap
+describe('TabletQuickEntryPage — overview totals (no guest cap + absences)', () => {
+    // Admin (member): 7×0.50 = 3.50
+    // Hansi (guest): 18×0.50 = 9.00 — shown in full, the treasury-only cap is NOT applied here
+    // Absence entry (player_id null): 2.00 at face value
     const GUEST_PLAYERS = [
         { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: null, is_present: true },
         { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: null, is_present: true },
@@ -543,25 +543,25 @@ describe('TabletQuickEntryPage — overview totals (guest cap + absences)', () =
         })
     })
 
-    it('Σ total matches treasury: capped guest + absence at face value', async () => {
+    it('Σ total sums every logged penalty uncapped (incl. absence)', async () => {
         await renderTabletQuickEntry({ players: GUEST_PLAYERS })
-        // Σ = Admin 3.50 (capped==uncapped) + Hansi 5.00 (capped) + absence 2.00 = 10.50
+        // Σ = Admin 3.50 + Hansi 9.00 (uncapped) + absence 2.00 = 14.50
         expect(screen.getByText('quickEntry.totalPenalty')).toBeInTheDocument()
-        expect(screen.getByText(/10,50/)).toBeInTheDocument()
+        expect(screen.getByText(/14,50/)).toBeInTheDocument()
     })
 
-    it('Ø average uses the guest\'s actual uncapped penalties', async () => {
+    it('Ø average uses the actual penalties per present player', async () => {
         await renderTabletQuickEntry({ players: GUEST_PLAYERS })
-        // Ø = (Admin 3.50 + Hansi 9.00 uncapped) / 2 present players = 6.25 (not (3.50+5.00)/2 = 4.25)
+        // Ø = (Admin 3.50 + Hansi 9.00) / 2 present players = 6.25
         expect(screen.getByText('quickEntry.averagePenalty')).toBeInTheDocument()
         expect(screen.getByText(/6,25/)).toBeInTheDocument()
     })
 
-    it('per-player row still shows the capped guest figure', async () => {
+    it('guest row shows the real uncapped penalty, not the cap', async () => {
         await renderTabletQuickEntry({ players: GUEST_PLAYERS })
-        // Hansi (guest) row shows capped 5.00, not 9.00
-        expect(screen.getByText(/5,00/)).toBeInTheDocument()
-        expect(screen.queryByText(/9,00/)).not.toBeInTheDocument()
+        // Hansi (guest) row shows the full 9.00 — the 5.00 cap is never applied here
+        expect(screen.getByText(/9,00/)).toBeInTheDocument()
+        expect(screen.queryByText(/5,00/)).not.toBeInTheDocument()
     })
 })
 
