@@ -85,6 +85,18 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
                     else:
                         player_stats[key]["shot_rounds"] += 1
 
+        # Absence penalties (player_id=None, regular_member_id set) belong to a member
+        # who wasn't a player that evening — attribute them directly so they count
+        # toward the member's yearly total.
+        for l in e.penalty_log:
+            if l.player_id is None and l.regular_member_id is not None and not l.is_deleted:
+                ps = player_stats[l.regular_member_id]
+                ps["regular_member_id"] = l.regular_member_id
+                if not ps["name"]:
+                    ps["name"] = l.player_name or ""
+                ps["penalty_total"] += _penalty_euro(l)
+                ps["penalty_count"] += 1
+
     players_list = sorted(player_stats.values(), key=lambda x: x["penalty_total"], reverse=True)
     for p_stat in players_list:
         tc = p_stat["throw_count"]
@@ -217,6 +229,11 @@ def get_my_stats(year: int, db: Session = Depends(get_db), user: User = Depends(
     throw_count = 0
 
     for e in evenings:
+        # Absence penalties are attributed to the member even on evenings they
+        # didn't attend (player_id=None, regular_member_id set).
+        for l in e.penalty_log:
+            if l.player_id is None and l.regular_member_id == mid and not l.is_deleted:
+                penalty_total += _penalty_euro(l)
         player = next((p for p in e.players if p.regular_member_id == mid), None)
         if not player:
             continue
