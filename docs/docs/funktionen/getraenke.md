@@ -18,6 +18,14 @@ Das Getränke-Modul protokolliert Bier- und Schnappsrunden während eines Abends
 4. Wähle die **teilnehmenden Spieler**
 5. Tippe auf **Speichern**
 
+## Runde in der Schnellerfassung
+
+In der **Schnellerfassung** (⚡, Tablet-Vollbild) werden Getränkerunden genauso
+eingetragen wie Strafen: Wähle in der linken Spalte die **teilnehmenden Spieler**
+(Mehrfachauswahl) und tippe dann im mittleren Panel auf **🍺 Bier** oder
+**🥃 Schnaps**. Die Runde wird sofort für alle ausgewählten Spieler gebucht und
+die Auswahl zurückgesetzt — kein separates Dialog-Fenster nötig.
+
 ## Runde bearbeiten
 
 1. Tippe auf eine Runde in der Liste

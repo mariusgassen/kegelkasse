@@ -131,6 +131,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Log beer or shot rounds with an optional variety label
 - Track which players participated in each round
+- In the tablet quick-entry panel, log a round straight from the penalty grid (🍺/🥃 buttons reuse the same player multi-selection as penalties)
 - Soft-delete (undo) without data loss
 
 ### Schedule & RSVP
