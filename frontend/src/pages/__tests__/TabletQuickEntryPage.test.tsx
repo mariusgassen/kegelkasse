@@ -152,10 +152,11 @@ describe('TabletQuickEntryPage — basic rendering', () => {
         expect(screen.getByText(/⚠️ Strafe/)).toBeInTheDocument()
     })
 
-    it('shows drink-round CTA in header', async () => {
+    it('shows drink buttons in the penalty panel', async () => {
         await renderTabletQuickEntry()
-        // The "🍺 Runde" header button uses aria-label = quickEntry.drinkRound
-        expect(screen.getByLabelText('quickEntry.drinkRound')).toBeInTheDocument()
+        // Drinks now live as inline buttons in column 2 (no header CTA, no sheet)
+        expect(screen.getByText(/🍺 drinks\.beer/)).toBeInTheDocument()
+        expect(screen.getByText(/🥃 drinks\.shots/)).toBeInTheDocument()
     })
 })
 
@@ -345,7 +346,7 @@ describe('TabletQuickEntryPage — penalty logging', () => {
 // Drink logging
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('TabletQuickEntryPage — drink logging (sheet flow)', () => {
+describe('TabletQuickEntryPage — drink logging (inline panel flow)', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
@@ -363,27 +364,14 @@ describe('TabletQuickEntryPage — drink logging (sheet flow)', () => {
         vi.mocked(api.addDrinkRound).mockResolvedValue({} as any)
     })
 
-    it('opens drink sheet when CTA clicked', async () => {
-        await renderTabletQuickEntry()
-        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
-        await waitFor(() => {
-            expect(screen.getByText('quickEntry.pickDrink')).toBeInTheDocument()
-            expect(screen.getByText('quickEntry.pickParticipants')).toBeInTheDocument()
-        })
-    })
-
-    it('calls api.addDrinkRound with beer + selected participants on submit', async () => {
+    it('calls api.addDrinkRound with beer + selected players when beer button clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
-        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
-        // Pick beer (default) and toggle Admin in sheet (sheet renders its own player list)
-        const adminMatches = screen.getAllByText('Admin')
-        // Sheet button is the last one (rendered last in DOM after column 1)
-        fireEvent.click(adminMatches[adminMatches.length - 1])
-        // Submit — drinks.add button is the primary submit
-        const submitBtns = screen.getAllByText(/drinks\.add/)
-        fireEvent.click(submitBtns[submitBtns.length - 1])
+        // Select a player in column 1, then tap the inline 🍺 button
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        await waitFor(() => {
+            fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
+        })
         await waitFor(() => {
             expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({
                 drink_type: 'beer',
@@ -392,18 +380,13 @@ describe('TabletQuickEntryPage — drink logging (sheet flow)', () => {
         })
     })
 
-    it('calls api.addDrinkRound with shots when shots toggle picked', async () => {
+    it('calls api.addDrinkRound with shots when shots button clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
-        await waitFor(() => screen.getByText('quickEntry.pickDrink'))
-        // Pick shots — its label "drinks.shots" appears as the toggle button text
-        fireEvent.click(screen.getByText('drinks.shots'))
-        // Toggle Admin participant (last 'Admin' match = sheet button)
-        const adminMatches = screen.getAllByText('Admin')
-        fireEvent.click(adminMatches[adminMatches.length - 1])
-        const submitBtns = screen.getAllByText(/drinks\.add/)
-        fireEvent.click(submitBtns[submitBtns.length - 1])
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        await waitFor(() => {
+            fireEvent.click(screen.getByText(/🥃 drinks\.shots/))
+        })
         await waitFor(() => {
             expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({
                 drink_type: 'shots',
@@ -412,30 +395,36 @@ describe('TabletQuickEntryPage — drink logging (sheet flow)', () => {
         })
     })
 
-    it('does not call api.addDrinkRound when no participants picked', async () => {
+    it('logs a drink round for multiple selected players', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
-        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
-        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
-        // Submit without picking anyone — submit button is disabled
-        const submitBtns = screen.getAllByText(/drinks\.add/)
-        const submit = submitBtns[submitBtns.length - 1].closest('button') as HTMLButtonElement
-        expect(submit.disabled).toBe(true)
-        fireEvent.click(submit)
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        fireEvent.click(screen.getAllByText('Hansi')[0])
+        await waitFor(() => {
+            fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
+        })
+        await waitFor(() => {
+            expect(api.addDrinkRound).toHaveBeenCalledWith(42, expect.objectContaining({
+                drink_type: 'beer',
+                participant_ids: expect.arrayContaining([10, 11]),
+            }))
+        })
+    })
+
+    it('does not call api.addDrinkRound when no player selected', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        // No selection — the inline drink button is disabled
+        fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
         await waitFor(() => expect(api.addDrinkRound).not.toHaveBeenCalled())
     })
 
-    it('pre-fills participants from current player selection when CTA opened', async () => {
+    it('deselects all players after a drink round is logged', async () => {
         await renderTabletQuickEntry()
-        // Select Admin in column 1 first (first 'Admin' = column 1 selection button)
         fireEvent.click(screen.getAllByText('Admin')[0])
-        // Open sheet — should pre-fill participants with [10]
-        fireEvent.click(screen.getByLabelText('quickEntry.drinkRound'))
-        await waitFor(() => screen.getByText('quickEntry.pickParticipants'))
-        // Submit count should be (1) — verify by looking for the button label
-        const submitBtns = screen.getAllByText(/drinks\.add/)
-        const lastBtn = submitBtns[submitBtns.length - 1].closest('button')!
-        expect(lastBtn.textContent).toContain('(1)')
+        await waitFor(() => expect(screen.getByText(/1 quickEntry\.selected/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
+        await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
     })
 })
 
@@ -506,6 +495,74 @@ describe('TabletQuickEntryPage — overview column', () => {
         expect(screen.getByText(/🥃 1/)).toBeInTheDocument()
         // Two players have "🍺 1" (Admin + Hansi participated in beer round)
         expect(screen.getAllByText(/🍺 1/).length).toBeGreaterThanOrEqual(2)
+    })
+})
+
+describe('TabletQuickEntryPage — overview totals (no guest cap, present players only)', () => {
+    // Admin (member): 7×0.50 = 3.50
+    // Hansi (guest): 18×0.50 = 9.00 — shown in full, the treasury-only cap is NOT applied here
+    // Absence entry (player_id null): 2.00 — excluded from the present-players overview
+    const GUEST_PLAYERS = [
+        { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: null, is_present: true },
+        { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: null, is_present: true },
+    ]
+    const REGULAR_MEMBERS = [
+        { id: 1, name: 'Admin', nickname: null, is_guest: false },
+        { id: 2, name: 'Hansi', nickname: null, is_guest: true },
+    ]
+    const EVENING_WITH_GUEST = {
+        ...ACTIVE_EVENING,
+        players: GUEST_PLAYERS,
+        penalty_log: [
+            { id: 1, player_id: 10, player_name: 'Admin', penalty_type_name: 'Strafe',
+              icon: '⚠️', amount: 7, mode: 'count', unit_amount: 0.50,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+            { id: 2, player_id: 11, player_name: 'Hansi', penalty_type_name: 'Strafe',
+              icon: '⚠️', amount: 18, mode: 'count', unit_amount: 0.50,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+            // Retroactive absence entry (no present player)
+            { id: 3, player_id: null, player_name: null, regular_member_id: 9, penalty_type_name: 'Abwesenheit',
+              icon: '🚫', amount: 2.00, mode: 'euro', unit_amount: null,
+              game_id: null, note: null, client_timestamp: Date.now(), created_at: '' },
+        ],
+        drink_rounds: [],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: EVENING_WITH_GUEST as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: REGULAR_MEMBERS, guestPenaltyCap: 5.00 }
+            return sel ? sel(store) : store
+        })
+    })
+
+    it('Σ total sums present players uncapped, excluding absence entries', async () => {
+        await renderTabletQuickEntry({ players: GUEST_PLAYERS })
+        // Σ = Admin 3.50 + Hansi 9.00 (uncapped) = 12.50 — the 2.00 absence entry is NOT counted
+        expect(screen.getByText('quickEntry.totalPenalty')).toBeInTheDocument()
+        expect(screen.getByText(/12,50/)).toBeInTheDocument()
+        expect(screen.queryByText(/14,50/)).not.toBeInTheDocument()
+    })
+
+    it('Ø average uses the actual penalties per present player', async () => {
+        await renderTabletQuickEntry({ players: GUEST_PLAYERS })
+        // Ø = (Admin 3.50 + Hansi 9.00) / 2 present players = 6.25
+        expect(screen.getByText('quickEntry.averagePenalty')).toBeInTheDocument()
+        expect(screen.getByText(/6,25/)).toBeInTheDocument()
+    })
+
+    it('guest row shows the real uncapped penalty, not the cap', async () => {
+        await renderTabletQuickEntry({ players: GUEST_PLAYERS })
+        // Hansi (guest) row shows the full 9.00 — the 5.00 cap is never applied here
+        expect(screen.getByText(/9,00/)).toBeInTheDocument()
+        expect(screen.queryByText(/5,00/)).not.toBeInTheDocument()
     })
 })
 
