@@ -67,8 +67,7 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
             player_stats[key]["evenings"] += 1
             for l in e.penalty_log:
                 if l.player_id == p.id and not l.is_deleted:
-                    if l.mode == PenaltyMode.euro:
-                        player_stats[key]["penalty_total"] += l.amount
+                    player_stats[key]["penalty_total"] += _penalty_euro(l)
                     player_stats[key]["penalty_count"] += 1
             for g in e.games:
                 if not g.is_deleted:
@@ -95,8 +94,8 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
         "year": year,
         "evening_count": len(evenings),
         "total_penalties": sum(
-            l.amount for e in evenings for l in e.penalty_log
-            if not l.is_deleted and l.mode == PenaltyMode.euro
+            _penalty_euro(l) for e in evenings for l in e.penalty_log
+            if not l.is_deleted
         ),
         "total_beers": sum(
             len(r.participant_ids) for e in evenings for r in e.drink_rounds
@@ -223,8 +222,8 @@ def get_my_stats(year: int, db: Session = Depends(get_db), user: User = Depends(
             continue
         evenings_attended += 1
         for l in e.penalty_log:
-            if l.player_id == player.id and not l.is_deleted and l.mode == PenaltyMode.euro:
-                penalty_total += l.amount
+            if l.player_id == player.id and not l.is_deleted:
+                penalty_total += _penalty_euro(l)
         for g in e.games:
             if not g.is_deleted:
                 if g.winner_ref == f"p:{player.id}":
