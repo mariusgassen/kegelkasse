@@ -189,22 +189,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         // entryEuroValue is closure over penaltyTypes so penaltyTypes covers it
     }, [evening, players, penaltyTypes])
 
-    // Absence / retroactive entries (player_id === null, booked against a regular_member_id) are
-    // included at face value so the preliminary total covers everything that's been logged.
-    const absenceEuro = useMemo(() => {
-        if (!evening) return 0
-        return evening.penalty_log
-            .filter(l => l.player_id === null)
-            .reduce((s, l) => s + entryEuroValue(l), 0)
-        // entryEuroValue closes over penaltyTypes
-    }, [evening, penaltyTypes])
-
-    // Σ Strafen — sum of every penalty actually logged (present players + absence entries), uncapped.
+    // Σ Strafen — sum of the actual penalties of the present players only (uncapped).
+    // Absence / retroactive entries (player_id === null) are deliberately excluded: they belong to
+    // members who aren't at the table and would distort this preliminary present-players overview.
     const overviewTotalEuro = useMemo(() => {
-        let s = absenceEuro
+        let s = 0
         for (const v of playerOverview.values()) s += v.penaltyEuro
         return s
-    }, [playerOverview, absenceEuro])
+    }, [playerOverview])
     // Ø Strafen — average of the actual penalties incurred per present player (uncapped).
     const overviewAvgEuro = useMemo(() => {
         const n = playerOverview.size

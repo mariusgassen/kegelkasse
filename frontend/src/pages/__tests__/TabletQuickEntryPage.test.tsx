@@ -498,10 +498,10 @@ describe('TabletQuickEntryPage — overview column', () => {
     })
 })
 
-describe('TabletQuickEntryPage — overview totals (no guest cap + absences)', () => {
+describe('TabletQuickEntryPage — overview totals (no guest cap, present players only)', () => {
     // Admin (member): 7×0.50 = 3.50
     // Hansi (guest): 18×0.50 = 9.00 — shown in full, the treasury-only cap is NOT applied here
-    // Absence entry (player_id null): 2.00 at face value
+    // Absence entry (player_id null): 2.00 — excluded from the present-players overview
     const GUEST_PLAYERS = [
         { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: null, is_present: true },
         { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: null, is_present: true },
@@ -543,11 +543,12 @@ describe('TabletQuickEntryPage — overview totals (no guest cap + absences)', (
         })
     })
 
-    it('Σ total sums every logged penalty uncapped (incl. absence)', async () => {
+    it('Σ total sums present players uncapped, excluding absence entries', async () => {
         await renderTabletQuickEntry({ players: GUEST_PLAYERS })
-        // Σ = Admin 3.50 + Hansi 9.00 (uncapped) + absence 2.00 = 14.50
+        // Σ = Admin 3.50 + Hansi 9.00 (uncapped) = 12.50 — the 2.00 absence entry is NOT counted
         expect(screen.getByText('quickEntry.totalPenalty')).toBeInTheDocument()
-        expect(screen.getByText(/14,50/)).toBeInTheDocument()
+        expect(screen.getByText(/12,50/)).toBeInTheDocument()
+        expect(screen.queryByText(/14,50/)).not.toBeInTheDocument()
     })
 
     it('Ø average uses the actual penalties per present player', async () => {
