@@ -188,6 +188,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - IndexedDB for local data; delta sync endpoint reconciles offline changes
 - Offline banner visible when network is unavailable
 - Installable on mobile home screen
+- Auto install-suggestion banner (native prompt on Chromium; iOS "Add to Home Screen" how-to sheet); also available in Profile
 
 ### UI / UX
 

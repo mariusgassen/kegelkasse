@@ -12,6 +12,7 @@ import {LoginPage} from './pages/LoginPage'
 import {AppLogoAnimated} from './components/Logo'
 import {ToastContainer, showToast} from './components/ui/Toast'
 import {OfflineBanner} from './components/ui/OfflineBanner'
+import {InstallPrompt} from './components/InstallPrompt'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
 import {ProfileSheet} from './components/ProfileSheet'
@@ -340,6 +341,7 @@ export default function App() {
             {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
             <div className="safe-top" style={{flexShrink: 0, background: 'var(--kce-bg)'}}/>
             <OfflineBanner/>
+            <InstallPrompt/>
 
             {/* ── Header ── */}
             <header style={{
