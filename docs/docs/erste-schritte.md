@@ -31,17 +31,25 @@ Die Sitzung bleibt für **7 Tage** aktiv — du wirst danach automatisch abgemel
 
 ## App installieren (PWA)
 
-Kegelkasse kann wie eine native App auf dem Handy installiert werden:
+Kegelkasse kann wie eine native App auf dem Handy installiert werden. Solange die App noch nicht
+installiert ist, erscheint oben automatisch ein **Installations-Banner** mit einem **Installieren**-Knopf.
+Du kannst die Installation jederzeit auch über das **Profil → App installieren** starten.
+
+**Android / Chrome / Desktop:**
+1. Tippe im Banner (oder im Profil) auf **Installieren**
+2. Bestätige die Browser-Abfrage **Installieren**
 
 **iOS (Safari):**
-1. Öffne die App in Safari
-2. Tippe auf das Teilen-Symbol
-3. Wähle **Zum Home-Bildschirm**
 
-**Android (Chrome):**
-1. Öffne die App in Chrome
-2. Tippe auf die drei Punkte oben rechts
-3. Wähle **Zur Startseite hinzufügen**
+iOS bietet keine automatische Installation – tippe im Banner auf **Installieren**, dann zeigt die App eine
+Anleitung:
+1. Tippe unten in Safari auf das **Teilen-Symbol**
+2. Wähle **Zum Home-Bildschirm**
+3. Tippe oben rechts auf **Hinzufügen**
+
+:::tip
+Das Banner lässt sich mit **✕ / Nicht jetzt** ausblenden. Die Installation bleibt danach im Profil verfügbar.
+:::
 
 ## Sprache wechseln
 

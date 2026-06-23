@@ -8,6 +8,8 @@ import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
 import {PushPreferences} from '@/types'
+import {usePwaInstall} from '@/hooks/usePwaInstall'
+import {InstallHowToSheet} from '@/components/InstallPrompt'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -103,9 +105,8 @@ export function ProfileSheet({open, onClose}: Props) {
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const [pushConfigured, setPushConfigured] = useState(false)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
-    const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
-    const isStandalone = typeof window !== 'undefined' &&
-        (window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
+    const {canInstall, isIos, isStandalone, promptInstall} = usePwaInstall()
+    const [installHowToOpen, setInstallHowToOpen] = useState(false)
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
     const isDraggingRef = useRef(false)
@@ -430,6 +431,31 @@ export function ProfileSheet({open, onClose}: Props) {
                             ))}
                         </div>
                     </div>
+
+                    {/* Install app (PWA) */}
+                    {!isStandalone && (canInstall || isIos) && (
+                        <div className="kce-card p-4 flex items-center justify-between">
+                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <button
+                                onClick={async () => {
+                                    if (isIos && !canInstall) {
+                                        setInstallHowToOpen(true)
+                                        return
+                                    }
+                                    const outcome = await promptInstall()
+                                    if (outcome === 'accepted') showToast(t('install.done'))
+                                }}
+                                className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-amber text-kce-bg">
+                                📲 {t('install.banner.button')}
+                            </button>
+                        </div>
+                    )}
+                    {isStandalone && (
+                        <div className="kce-card p-4 flex items-center justify-between">
+                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <span className="text-[10px] text-green-400 font-bold">✓ {t('install.profile.installed')}</span>
+                        </div>
+                    )}
 
                     {/* Push notifications */}
                     {pushConfigured && (pushSupported ? (
@@ -760,6 +786,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     </p>
                 </div>
             </div>
+            <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
         </div>
     )
 }
