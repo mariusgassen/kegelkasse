@@ -590,7 +590,7 @@ describe('TreasuryPage — bookings delete', () => {
         expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
     })
 
-    it('calls api.deleteExpense when expense ✕ clicked', async () => {
+    it('calls api.deleteExpense when expense ✕ clicked and confirmed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteExpense).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
@@ -599,6 +599,8 @@ describe('TreasuryPage — bookings delete', () => {
         // Merged order: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
         // So expense is at index 1
         fireEvent.click(deleteBtns[1])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
             expect(api.deleteExpense).toHaveBeenCalledWith(1)
         })
@@ -1224,6 +1226,8 @@ describe('TreasuryPage — deletePayment error', () => {
         await waitFor(() => screen.getByText('Test Payment'))
         const deleteBtns = screen.getAllByText('✕')
         fireEvent.click(deleteBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
@@ -1319,7 +1323,7 @@ describe('TreasuryPage — delete payment in bookings tab', () => {
         await setupWithData()
     })
 
-    it('calls api.deleteMemberPayment when payment ✕ clicked in bookings', async () => {
+    it('calls api.deleteMemberPayment when payment ✕ clicked in bookings and confirmed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteMemberPayment).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
@@ -1328,6 +1332,8 @@ describe('TreasuryPage — delete payment in bookings tab', () => {
         // Sorted by date desc: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
         // deleteBtns[0] is payment id=10
         fireEvent.click(deleteBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
             expect(api.deleteMemberPayment).toHaveBeenCalledWith(10)
         })
@@ -1371,5 +1377,59 @@ describe('TreasuryPage — guest accounts settle button', () => {
         await waitFor(() => {
             expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
         })
+    })
+})
+
+describe('TreasuryPage — delete confirmation sheets', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('clicking expense ✕ opens the confirm sheet without calling deleteExpense', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[1]) // expense entry
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+        expect(api.deleteExpense).not.toHaveBeenCalled()
+    })
+
+    it('clicking payment ✕ opens the confirm sheet without calling deleteMemberPayment', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Einzahlung'))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[0]) // payment entry
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+        })
+        expect(api.deleteMemberPayment).not.toHaveBeenCalled()
+    })
+
+    it('confirming expense deletion calls deleteExpense once and disables the confirm button while in flight', async () => {
+        const { api } = await import('@/api/client.ts')
+        let resolveDelete: (() => void) | undefined
+        vi.mocked(api.deleteExpense).mockImplementation(
+            () => new Promise(resolve => { resolveDelete = () => resolve(undefined as any) }) as any
+        )
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[1])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const confirmBtn = screen.getByText('action.delete') as HTMLButtonElement
+        fireEvent.click(confirmBtn)
+        await waitFor(() => {
+            expect(confirmBtn).toBeDisabled()
+        })
+        expect(api.deleteExpense).toHaveBeenCalledTimes(1)
+        resolveDelete?.()
     })
 })

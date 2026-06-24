@@ -426,6 +426,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 client_timestamp: Date.now(),
             })
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
             setSelectedPlayerIds([])
             setFlashingDrink(type)
             setTimeout(() => setFlashingDrink(null), 800)
@@ -505,6 +507,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 loser_penalty: runningGame.loser_penalty,
             })
             invalidate()
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
             setFinishGameOpen(false)
             setFinishWinnerRef('')
             setFinishScores({})
@@ -629,7 +633,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         }}>
                             <span style={{fontSize: 9, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
                             <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
-                                {currentPlayer?.name ?? '—'}
+                                {(currentPlayer?.nickname || currentPlayer?.name) ?? '—'}
                             </span>
                         </div>
                         {/* Next 3 in queue */}
@@ -642,7 +646,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     borderRadius: 6, padding: '2px 6px',
                                     border: '1px solid var(--kce-border)',
                                 }}>
-                                    {p.name}
+                                    {p.nickname || p.name}
                                 </span>
                             )
                         })}

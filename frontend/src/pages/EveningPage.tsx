@@ -64,6 +64,7 @@ export function EveningPage() {
     const [teamPlayerIds, setTeamPlayerIds] = useState<(number | string)[]>([])
 
     const [closeConfirm, setCloseConfirm] = useState(false)
+    const [closing, setClosing] = useState(false)
     const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
 
     // ── Pins ──
@@ -269,11 +270,12 @@ export function EveningPage() {
                                 {t('evening.end')}
                             </button>
                         ) : (
-                            <button className="btn-secondary btn-xs" onClick={async () => {
+                            <button className="btn-secondary btn-xs" disabled={closing} onClick={async () => {
+                                setClosing(true)
                                 try {
                                     await api.updateEvening(evening.id, {is_closed: false})
                                     invalidate()
-                                } catch (e) { toastError(e) }
+                                } catch (e) { toastError(e) } finally { setClosing(false) }
                             }}>{t('evening.reopen')}</button>
                         )}
                     </div>
@@ -282,10 +284,11 @@ export function EveningPage() {
                     <div className="mt-3 pt-3 border-t border-kce-surface2">
                         <p className="text-xs text-kce-muted mb-2">{t('evening.endConfirm')}</p>
                         <div className="flex gap-2">
-                            <button className="btn-secondary btn-sm flex-1" onClick={() => setCloseConfirm(false)}>
+                            <button className="btn-secondary btn-sm flex-1" disabled={closing} onClick={() => setCloseConfirm(false)}>
                                 {t('action.cancel')}
                             </button>
-                            <button className="btn-danger btn-sm flex-1" onClick={async () => {
+                            <button className="btn-danger btn-sm flex-1" disabled={closing} onClick={async () => {
+                                setClosing(true)
                                 try {
                                     await api.updateEvening(evening.id, {is_closed: true})
                                     setCloseConfirm(false)
@@ -293,7 +296,7 @@ export function EveningPage() {
                                     qc.invalidateQueries({queryKey: ['evenings']})
                                     qc.invalidateQueries({queryKey: ['schedule']})
                                     invalidate()
-                                } catch (e) { toastError(e) }
+                                } catch (e) { toastError(e) } finally { setClosing(false) }
                             }}>{t('action.done')}</button>
                         </div>
                     </div>
@@ -411,12 +414,12 @@ export function EveningPage() {
                                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
                                     {rm?.avatar
                                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                                        : p.name[0].toUpperCase()
+                                        : (p.nickname || p.name)[0].toUpperCase()
                                     }
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold truncate flex items-center gap-1">
-                                        <span className="truncate">{p.name}</span>
+                                        <span className="truncate">{p.nickname || p.name}</span>
                                         {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                         {p.is_king && <span title="König" className="flex-shrink-0">👑</span>}
                                         {pins.filter(pin => pin.holder_regular_member_id === p.regular_member_id).map(pin => (

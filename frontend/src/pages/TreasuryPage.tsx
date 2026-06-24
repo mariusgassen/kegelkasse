@@ -194,7 +194,11 @@ export function TreasuryPage() {
         }
     }
 
+    const [confirmDeletePayment, setConfirmDeletePayment] = useState<{ id: number; memberId: number } | null>(null)
+    const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null)
+
     async function deletePayment(pid: number, mid: number) {
+        setDeletingPaymentId(pid)
         try {
             await api.deleteMemberPayment(pid)
             refetchBalances()
@@ -202,8 +206,11 @@ export function TreasuryPage() {
             qc.invalidateQueries({queryKey: ['member-payments', mid]})
             qc.invalidateQueries({queryKey: ['all-payments']})
             refetchAllPayments()
+            setConfirmDeletePayment(null)
         } catch (e: unknown) {
             toastError(e)
+        } finally {
+            setDeletingPaymentId(null)
         }
     }
 
@@ -237,14 +244,21 @@ export function TreasuryPage() {
     }
 
     // Expense operations
+    const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<number | null>(null)
+    const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
+
     async function deleteExpense(eid: number) {
+        setDeletingExpenseId(eid)
         try {
             await api.deleteExpense(eid)
             refetchExpenses()
             refetchBalances()
             refetchGuestBalances()
+            setConfirmDeleteExpense(null)
         } catch (e: unknown) {
             toastError(e)
+        } finally {
+            setDeletingExpenseId(null)
         }
     }
 
@@ -793,7 +807,7 @@ export function TreasuryPage() {
                                                             className="text-kce-muted flex-shrink-0">{fDate(p.created_at)}</span>
                                                         {admin && (
                                                             <button className="btn-danger btn-xs flex-shrink-0"
-                                                                    onClick={() => deletePayment(p.id, b.regular_member_id)}>✕</button>
+                                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</button>
                                                         )}
                                                     </div>
                                                 ))
@@ -971,7 +985,7 @@ export function TreasuryPage() {
                                         </div>
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
-                                                    onClick={() => deletePayment(p.id, p.regular_member_id)}>✕</button>
+                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</button>
                                         )}
                                     </div>
                                 )
@@ -996,7 +1010,7 @@ export function TreasuryPage() {
                                         </div>
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
-                                                    onClick={() => deleteExpense(e.id)}>✕</button>
+                                                    onClick={() => setConfirmDeleteExpense(e.id)}>✕</button>
                                         )}
                                     </div>
                                 )
@@ -1005,6 +1019,40 @@ export function TreasuryPage() {
                     }
                 </div>
             )}
+
+            {/* Confirm payment deletion */}
+            <Sheet open={!!confirmDeletePayment} onClose={() => setConfirmDeletePayment(null)}
+                   title={t('treasury.payment.deleteConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-kce-muted">{t('treasury.payment.deleteConfirmHint')}</p>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setConfirmDeletePayment(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-danger btn-sm flex-1" disabled={deletingPaymentId !== null}
+                                onClick={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId)}>
+                            {t('action.delete')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* Confirm expense deletion */}
+            <Sheet open={!!confirmDeleteExpense} onClose={() => setConfirmDeleteExpense(null)}
+                   title={t('treasury.expense.deleteConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-kce-muted">{t('treasury.expense.deleteConfirmHint')}</p>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setConfirmDeleteExpense(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-danger btn-sm flex-1" disabled={deletingExpenseId !== null}
+                                onClick={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense)}>
+                            {t('action.delete')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
 
             {/* Guest cost transfer sheet */}
             <Sheet open={!!transferGuest} onClose={() => setTransferGuest(null)}

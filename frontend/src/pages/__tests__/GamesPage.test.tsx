@@ -1184,3 +1184,33 @@ describe('GamesPage — edit sheet opener toggle', () => {
         }
     })
 })
+
+// ── icon-only button accessibility ────────────────────────────────────────────
+describe('GamesPage — icon button aria-labels', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningOnlyOpen = { ...ACTIVE_EVENING, games: [OPEN_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningOnlyOpen as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('exposes aria-label on the edit and delete-trigger buttons', async () => {
+        await renderGamesPage()
+        expect(screen.getByLabelText('action.edit')).toBeInTheDocument()
+        expect(screen.getByLabelText('action.delete')).toBeInTheDocument()
+    })
+
+    it('exposes aria-label on the confirm/cancel buttons of the inline delete confirm', async () => {
+        await renderGamesPage()
+        fireEvent.click(screen.getByLabelText('action.delete'))
+        await waitFor(() => {
+            expect(screen.getByLabelText('action.cancel')).toBeInTheDocument()
+        })
+        // Two buttons now share the 'action.delete' label: the confirm checkmark (still present
+        // from the trigger having been replaced) — assert there's at least one delete-labelled button left
+        expect(screen.getAllByLabelText('action.delete').length).toBeGreaterThan(0)
+    })
+})

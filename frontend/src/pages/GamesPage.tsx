@@ -373,18 +373,20 @@ export function GamesPage() {
                             )}
                             {game.status !== 'finished' && (
                                 <button className="btn-ghost btn-xs text-kce-muted px-2"
+                                        aria-label={t('action.edit')}
                                         onClick={() => openEditSheet(game)}>✏️
                                 </button>
                             )}
                             {confirmDeleteId === game.id ? (
                                 <div className="flex gap-1">
-                                    <button className="btn-danger btn-xs" onClick={() => doDelete(game.id)}>✓</button>
-                                    <button className="btn-secondary btn-xs"
+                                    <button className="btn-danger btn-xs" aria-label={t('action.delete')}
+                                            onClick={() => doDelete(game.id)}>✓</button>
+                                    <button className="btn-secondary btn-xs" aria-label={t('action.cancel')}
                                             onClick={() => setConfirmDeleteId(null)}>✕
                                     </button>
                                 </div>
                             ) : (
-                                <button className="btn-danger btn-xs"
+                                <button className="btn-danger btn-xs" aria-label={t('action.delete')}
                                         onClick={() => setConfirmDeleteId(game.id)}>✕</button>
                             )}
                         </div>
