@@ -426,6 +426,27 @@ describe('TabletQuickEntryPage — drink logging (inline panel flow)', () => {
         fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
         await waitFor(() => expect(screen.getByText('quickEntry.selectPlayer')).toBeInTheDocument())
     })
+
+    it('invalidates member-balances and guest-balances after logging a drink round', async () => {
+        const { api } = await import('@/api/client.ts')
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const spy = vi.spyOn(qc, 'invalidateQueries')
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        render(
+            <QueryClientProvider client={qc}>
+                <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+            </QueryClientProvider>
+        )
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        await waitFor(() => {
+            fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
+        })
+        await waitFor(() => expect(api.addDrinkRound).toHaveBeenCalled())
+        await waitFor(() => {
+            expect(spy).toHaveBeenCalledWith({queryKey: ['member-balances']})
+            expect(spy).toHaveBeenCalledWith({queryKey: ['guest-balances']})
+        })
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -747,6 +768,35 @@ describe('TabletQuickEntryPage — finish game flow', () => {
             expect(api.finishGame).toHaveBeenCalledWith(42, 1, expect.objectContaining({
                 scores: expect.objectContaining({ 'p:10': 42 }),
             }))
+        })
+    })
+
+    it('invalidates member-balances and guest-balances after finishing a game', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithGame = { ...ACTIVE_EVENING, games: [RUNNING_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithGame as any,
+            invalidate: vi.fn(),
+        } as any)
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const spy = vi.spyOn(qc, 'invalidateQueries')
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+        render(
+            <QueryClientProvider client={qc}>
+                <TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />
+            </QueryClientProvider>
+        )
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        await waitFor(() => screen.getByText(/quickEntry\.selectWinner/))
+        const winnerButtons = screen.getAllByText('Admin')
+        fireEvent.click(winnerButtons[0])
+        await waitFor(() => expect(screen.getByText(/game\.finish/)).not.toBeDisabled())
+        fireEvent.click(screen.getByText(/game\.finish/))
+        await waitFor(() => expect(api.finishGame).toHaveBeenCalled())
+        await waitFor(() => {
+            expect(spy).toHaveBeenCalledWith({queryKey: ['member-balances']})
+            expect(spy).toHaveBeenCalledWith({queryKey: ['guest-balances']})
         })
     })
 })

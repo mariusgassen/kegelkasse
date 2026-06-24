@@ -537,6 +537,23 @@ describe('EveningPage — player management', () => {
         const plusBtns = screen.getAllByText('+')
         expect(plusBtns.length).toBeGreaterThan(0)
     })
+
+    it('renders player nickname instead of name when both are present', async () => {
+        const playerWithNickname = {
+            id: 12, user_id: 3, regular_member_id: 3, display_name: 'Franz',
+            name: 'Franz Müller', nickname: 'Franzi', is_king: false, team_id: null, is_present: true,
+        }
+        const eveningWithNickname = { ...ACTIVE_EVENING, players: [...PLAYERS, playerWithNickname] }
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithNickname as any, invalidate: vi.fn(), activeEveningId: 42, isPending: false,
+        } as any)
+        await renderEveningPage()
+        await waitFor(() => {
+            expect(screen.getByText('Franzi')).toBeInTheDocument()
+            expect(screen.queryByText('Franz Müller')).not.toBeInTheDocument()
+        })
+    })
 })
 
 describe('EveningPage — team management', () => {
