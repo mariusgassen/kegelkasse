@@ -85,7 +85,7 @@ In der **Übersicht** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als
   - **Tatsächlich** (durchgezogen): die real gebuchten Zahlungen/Ausgaben (Kasse) bzw. Zahlungen (Mitglied).
   - **Inkl. Schulden / Inkl. Strafen** (gestrichelt): zusätzlich die zum jeweiligen Zeitpunkt offenen Schulden (Kasse) bzw. die verbuchten Strafen (Mitglied) — zeigt den „virtuellen" Saldo, wenn alles bezahlt wäre.
 - Die kumulative Kurve ist durchgehend: Blättern zwischen Monaten/Jahren setzt den Saldo nie auf Null zurück.
-- **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung. Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
+- **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung, sowie darunter den daraus resultierenden Saldo („Tatsächlich" und „Inkl. Schulden/Strafen" jeweils kumulativ). Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
 
 ---
 
