@@ -75,6 +75,20 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ---
 
+## Verlauf (Saldo-Graph)
+
+In der **Übersicht** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als Linien-Diagramm:
+
+- **🏛️ Kasse / 👤 Mitglied** — Umschalter zwischen dem gesamten Vereinssaldo und dem persönlichen Konto eines beliebigen Mitglieds. Bei „Mitglied" erscheint eine Pille-Liste aller Mitglieder (eigenes Konto ganz oben, mit **Ich**-Badge).
+- **Monat / Jahr / Alle** — drei Zeit-Ansichten. Bei Monat/Jahr blättern Pfeile (‹ ›) zum vorherigen/nächsten Zeitraum (deaktiviert am Rand der verfügbaren Daten). Bei „Alle" ist das Diagramm horizontal scrollbar, die Y-Achse bleibt fixiert.
+- Zwei Linien laufen parallel:
+  - **Tatsächlich** (durchgezogen): die real gebuchten Zahlungen/Ausgaben (Kasse) bzw. Zahlungen (Mitglied).
+  - **Inkl. Schulden / Inkl. Strafen** (gestrichelt): zusätzlich die zum jeweiligen Zeitpunkt offenen Schulden (Kasse) bzw. die verbuchten Strafen (Mitglied) — zeigt den „virtuellen" Saldo, wenn alles bezahlt wäre.
+- Die kumulative Kurve ist durchgehend: Blättern zwischen Monaten/Jahren setzt den Saldo nie auf Null zurück.
+- **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung. Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
+
+---
+
 ## Gäste & Kostenübertragung
 
 Gäste werden in der **Übersicht** unter „👤 Gäste ausstehend" separat geführt. Neben dem üblichen **Begleichen**-Knopf finden Admins dort die Aktion **↪️ Übertragen**:

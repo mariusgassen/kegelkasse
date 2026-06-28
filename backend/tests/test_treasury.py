@@ -1,11 +1,16 @@
 """Tests for treasury endpoints — member balances, payments, expenses, payment requests."""
+import time
+from datetime import datetime, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
 from core.security import create_access_token, get_password_hash
+from models.club import Club, ClubSettings
 from models.user import User, UserRole
-from models.evening import RegularMember
+from models.evening import RegularMember, Evening, EveningPlayer
 from models.payment import MemberPayment, ClubExpense, PaymentRequest
+from models.penalty import PenaltyLog, PenaltyMode
 
 
 # ---------------------------------------------------------------------------
@@ -72,9 +77,15 @@ def member_headers(member_user):
 @pytest.fixture(autouse=True)
 def cleanup(db, club):
     yield
+    evening_ids = [e.id for e in db.query(Evening).filter(Evening.club_id == club.id).all()]
+    if evening_ids:
+        db.query(PenaltyLog).filter(PenaltyLog.evening_id.in_(evening_ids)).delete(synchronize_session=False)
+        db.query(EveningPlayer).filter(EveningPlayer.evening_id.in_(evening_ids)).delete(synchronize_session=False)
+        db.query(Evening).filter(Evening.id.in_(evening_ids)).delete(synchronize_session=False)
     db.query(PaymentRequest).filter(PaymentRequest.club_id == club.id).delete(synchronize_session=False)
     db.query(MemberPayment).filter(MemberPayment.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubExpense).filter(ClubExpense.club_id == club.id).delete(synchronize_session=False)
+    db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.query(User).filter(User.email == "member_linked@test.de").delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.commit()
@@ -189,6 +200,185 @@ class TestListMemberPayments:
 
     def test_requires_auth(self, client: TestClient, regular_member):
         resp = client.get(f"/api/v1/club/member-payments/{regular_member.id}")
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/club/member-penalties/{mid}
+# ---------------------------------------------------------------------------
+
+class TestMemberPenalties:
+    def test_returns_empty_list(self, client: TestClient, regular_member, auth_headers):
+        resp = client.get(f"/api/v1/club/member-penalties/{regular_member.id}", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_returns_player_absence_and_excludes_deleted(
+        self, client: TestClient, db, club, regular_member, admin_user, auth_headers,
+    ):
+        evening = Evening(club_id=club.id, date=datetime(2024, 3, 1, tzinfo=timezone.utc))
+        db.add(evening)
+        db.commit()
+        db.refresh(evening)
+        ep = EveningPlayer(evening_id=evening.id, regular_member_id=regular_member.id, name=regular_member.name)
+        db.add(ep)
+        db.commit()
+        db.refresh(ep)
+
+        euro_log = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=regular_member.name,
+            penalty_type_name="Verspätet", icon="⏰", amount=2.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(),
+        )
+        count_log = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=regular_member.name,
+            penalty_type_name="Null", icon="🎳", amount=3, mode=PenaltyMode.count, unit_amount=0.5,
+            created_by=admin_user.id, client_timestamp=time.time(),
+        )
+        absence_log = PenaltyLog(
+            evening_id=evening.id, player_id=None, regular_member_id=regular_member.id,
+            player_name=regular_member.name, penalty_type_name="Abwesenheit", icon="🚫",
+            amount=5.0, mode=PenaltyMode.euro, created_by=admin_user.id, client_timestamp=time.time(),
+        )
+        deleted_log = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=regular_member.name,
+            penalty_type_name="Gelöscht", amount=99.0, mode=PenaltyMode.euro,
+            is_deleted=True, created_by=admin_user.id, client_timestamp=time.time(),
+        )
+        db.add_all([euro_log, count_log, absence_log, deleted_log])
+        db.commit()
+
+        resp = client.get(f"/api/v1/club/member-penalties/{regular_member.id}", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 3
+        assert [row["amount"] for row in data] == [2.0, 1.5, 5.0]
+        assert [row["is_absence"] for row in data] == [False, False, True]
+        assert data[0]["evening_id"] == evening.id
+        assert data[0]["evening_date"] == evening.date.isoformat()
+        assert data[2]["penalty_type_name"] == "Abwesenheit"
+
+    def test_nonexistent_member_returns_404(self, client: TestClient, auth_headers):
+        resp = client.get("/api/v1/club/member-penalties/999999", headers=auth_headers)
+        assert resp.status_code == 404
+
+    def test_requires_auth(self, client: TestClient, regular_member):
+        resp = client.get(f"/api/v1/club/member-penalties/{regular_member.id}")
+        assert resp.status_code == 401
+
+    def test_member_from_other_club_returns_404(self, client: TestClient, db, auth_headers):
+        other_club = Club(name="Other Club", slug="other-club-penalties")
+        db.add(other_club)
+        db.commit()
+        db.refresh(other_club)
+        other_member = RegularMember(club_id=other_club.id, name="Stranger", nickname="Stranger")
+        db.add(other_member)
+        db.commit()
+        db.refresh(other_member)
+
+        resp = client.get(f"/api/v1/club/member-penalties/{other_member.id}", headers=auth_headers)
+        assert resp.status_code == 404
+
+        db.query(RegularMember).filter(RegularMember.id == other_member.id).delete(synchronize_session=False)
+        db.query(Club).filter(Club.id == other_club.id).delete(synchronize_session=False)
+        db.commit()
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/club/treasury-debt-timeline
+# ---------------------------------------------------------------------------
+
+class TestTreasuryDebtTimeline:
+    def test_returns_empty_list_when_no_members(self, client: TestClient, auth_headers):
+        resp = client.get("/api/v1/club/treasury-debt-timeline", headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_member_payment_and_penalty_produce_checkpoints(
+        self, client: TestClient, db, club, regular_member, admin_user, auth_headers,
+    ):
+        evening = Evening(club_id=club.id, date=datetime(2024, 5, 1, tzinfo=timezone.utc))
+        db.add(evening)
+        db.commit()
+        db.refresh(evening)
+        ep = EveningPlayer(evening_id=evening.id, regular_member_id=regular_member.id, name=regular_member.name)
+        db.add(ep)
+        db.commit()
+        db.refresh(ep)
+
+        t0 = datetime(2024, 5, 1, 10, 0, tzinfo=timezone.utc)
+        t1 = datetime(2024, 5, 2, 10, 0, tzinfo=timezone.utc)
+        t2 = datetime(2024, 5, 3, 10, 0, tzinfo=timezone.utc)
+
+        penalty = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=regular_member.name,
+            penalty_type_name="Verspätet", icon="⏰", amount=10.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(), created_at=t0,
+        )
+        deleted_penalty = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=regular_member.name,
+            penalty_type_name="Gelöscht", amount=99.0, mode=PenaltyMode.euro,
+            is_deleted=True, created_by=admin_user.id, client_timestamp=time.time(), created_at=t1,
+        )
+        db.add_all([penalty, deleted_penalty])
+        db.commit()
+
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=4.0,
+            created_by=admin_user.id, created_at=t2,
+        )
+        db.add(payment)
+        db.commit()
+
+        resp = client.get("/api/v1/club/treasury-debt-timeline", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert [row["total_debt"] for row in data] == [10.0, 6.0]
+        assert data[0]["ts"] < data[1]["ts"]
+
+    def test_guest_penalty_capped_per_evening(
+        self, client: TestClient, db, club, admin_user, auth_headers,
+    ):
+        db.add(ClubSettings(club_id=club.id, extra={"guest_penalty_cap": 5.0}))
+        db.commit()
+
+        guest = RegularMember(club_id=club.id, name="Guest One", nickname="Guesty", is_guest=True)
+        db.add(guest)
+        db.commit()
+        db.refresh(guest)
+
+        evening = Evening(club_id=club.id, date=datetime(2024, 6, 1, tzinfo=timezone.utc))
+        db.add(evening)
+        db.commit()
+        db.refresh(evening)
+        ep = EveningPlayer(evening_id=evening.id, regular_member_id=guest.id, name=guest.name)
+        db.add(ep)
+        db.commit()
+        db.refresh(ep)
+
+        t0 = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)
+        t1 = datetime(2024, 6, 1, 11, 0, tzinfo=timezone.utc)
+        p1 = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=guest.name,
+            penalty_type_name="Null", icon="🎳", amount=3.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(), created_at=t0,
+        )
+        p2 = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=guest.name,
+            penalty_type_name="Bockwurf", icon="🎳", amount=4.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(), created_at=t1,
+        )
+        db.add_all([p1, p2])
+        db.commit()
+
+        resp = client.get("/api/v1/club/treasury-debt-timeline", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        # Raw sum would be 7.0 — capped at the club's guest_penalty_cap of 5.0.
+        assert data[-1]["total_debt"] == 5.0
+
+    def test_requires_auth(self, client: TestClient, regular_member):
+        resp = client.get("/api/v1/club/treasury-debt-timeline")
         assert resp.status_code == 401
 
 

@@ -11,6 +11,19 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
+import {
+    type BalanceEvent,
+    type Granularity,
+    clubEventsFromBookings,
+    cumulativeBaseline,
+    debtEventsFromTimeline,
+    eventsInWindow,
+    isAttributable,
+    memberPaymentEvents,
+    memberPenaltyEvents,
+    mergeDualSeries,
+    windowBounds,
+} from '@/lib/balanceHistory.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -43,6 +56,224 @@ type Expense = {
 type BookingEntry =
     | { kind: 'payment'; data: Payment }
     | { kind: 'expense'; data: Expense }
+
+// ── Balance history chart (Übersicht tab) ───────────────────────────────────
+
+const BH_PAD = {top: 12, right: 10, bottom: 22, left: 46}
+const BH_VH = 160
+const BH_VW = 400
+const BH_IH = BH_VH - BH_PAD.top - BH_PAD.bottom
+const BH_PX_PER_EVENT = 32
+
+const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> = {
+    payment: {icon: '💰', color: '#22c55e'},
+    expense: {icon: '💸', color: '#f97316'},
+    penalty: {icon: '⚠️', color: '#ef4444'},
+    debt: {icon: '📉', color: '#a78bfa'},
+}
+
+const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
+
+function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, t}: {
+    actualEvents: BalanceEvent[]
+    overlayEvents: BalanceEvent[]
+    actualLabel: string
+    virtualLabel: string
+    t: (k: any) => string
+}) {
+    const [granularity, setGranularity] = useState<Granularity>('month')
+    const [anchor, setAnchor] = useState(() => new Date())
+    const [selectedId, setSelectedId] = useState<string | null>(null)
+
+    const allEvents = [...actualEvents, ...overlayEvents]
+    const hasData = allEvents.length > 0
+    const isAll = granularity === 'all'
+
+    const win = windowBounds(granularity, anchor, allEvents)
+    const actualBaseline = cumulativeBaseline(actualEvents, win.start)
+    const overlayBaseline = cumulativeBaseline(overlayEvents, win.start)
+    const windowedActual = isAll ? actualEvents : eventsInWindow(actualEvents, win.start, win.end)
+    const windowedOverlay = isAll ? overlayEvents : eventsInWindow(overlayEvents, win.start, win.end)
+    const points = mergeDualSeries(windowedActual, windowedOverlay, actualBaseline, overlayBaseline)
+
+    function periodKey(d: Date) {
+        return granularity === 'year' ? d.getFullYear() : d.getFullYear() * 12 + d.getMonth()
+    }
+    const earliestTs = hasData ? Math.min(...allEvents.map(e => e.ts)) : Date.now()
+    const atStart = periodKey(anchor) <= periodKey(new Date(earliestTs))
+    const atEnd = periodKey(anchor) >= periodKey(new Date())
+
+    function page(dir: -1 | 1) {
+        setSelectedId(null)
+        setAnchor(prev => granularity === 'year'
+            ? new Date(prev.getFullYear() + dir, 0, 1)
+            : new Date(prev.getFullYear(), prev.getMonth() + dir, 1))
+    }
+
+    function changeGranularity(g: Granularity) {
+        setGranularity(g)
+        setAnchor(new Date())
+        setSelectedId(null)
+    }
+
+    const values = [actualBaseline, actualBaseline + overlayBaseline, ...points.map(p => p.actual), ...points.map(p => p.virtual)]
+    const minV = Math.min(0, ...values)
+    const maxV = Math.max(0, ...values)
+    const span = Math.max(maxV - minV, 1)
+
+    const chartWidth = isAll ? Math.max(BH_VW, points.length * BH_PX_PER_EVENT) : BH_VW
+    const innerWidth = chartWidth - BH_PAD.left - BH_PAD.right
+    const xEnd = isAll ? Math.max(win.end, ...allEvents.map(e => e.ts), win.start + 1) : win.end
+    const xSpan = Math.max(xEnd - win.start, 1)
+
+    const xS = (ts: number) => BH_PAD.left + ((ts - win.start) / xSpan) * innerWidth
+    const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
+
+    function buildPath(key: 'actual' | 'virtual', baseline: number) {
+        let d = `M ${xS(win.start)},${yS(baseline)}`
+        for (const p of points) d += ` H ${xS(p.ts)} V ${yS(p[key])}`
+        d += ` H ${xS(xEnd)}`
+        return d
+    }
+
+    const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i).map(v => ({v, y: yS(v)}))
+
+    const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
+    const selectedIdx = points.findIndex(p => p.event?.id === selectedId)
+
+    const selectedEvent = selectedId ? allEvents.find(e => e.id === selectedId) ?? null : null
+    const selectedMeta = selectedEvent ? KIND_META[selectedEvent.kind] : null
+    const KIND_LABEL: Record<BalanceEvent['kind'], string> = {
+        payment: t('treasury.history.kindPayment'),
+        expense: t('treasury.history.kindExpense'),
+        penalty: t('treasury.history.kindPenalty'),
+        debt: '',
+    }
+
+    function fDateTime(ts: number) {
+        return new Date(ts).toLocaleString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'})
+    }
+
+    const chart = (
+        <svg width={isAll ? chartWidth : '100%'} height={BH_VH} viewBox={`0 0 ${chartWidth} ${BH_VH}`}
+             style={{display: 'block', overflow: 'visible', flexShrink: 0}}
+             onClick={() => setSelectedId(null)}>
+            {yTicks.map((tick, i) => (
+                <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
+                      stroke="var(--kce-border)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
+                      strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
+            ))}
+            <path d={buildPath('virtual', actualBaseline + overlayBaseline)}
+                  fill="none" stroke="var(--kce-amber)" strokeWidth="2" strokeDasharray="4,3"
+                  strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
+            <path d={buildPath('actual', actualBaseline)}
+                  fill="none" stroke="#60a5fa" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round"/>
+            {points.map((p, i) => {
+                if (!p.event) return null
+                const ev = p.event
+                const meta = KIND_META[ev.kind]
+                const onOverlay = ev.kind === 'debt' || ev.kind === 'penalty'
+                const cx = xS(p.ts), cy = yS(onOverlay ? p.virtual : p.actual)
+                const attributable = isAttributable(ev)
+                const isSelected = selectedId === ev.id
+                return (
+                    <g key={ev.id}
+                       style={attributable ? {cursor: 'pointer'} : undefined}
+                       onClick={attributable ? (evt) => { evt.stopPropagation(); setSelectedId(isSelected ? null : ev.id) } : undefined}>
+                        {attributable && <circle cx={cx} cy={cy} r="9" fill="transparent"/>}
+                        <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
+                                fill={meta.color} stroke="var(--kce-bg)"
+                                strokeWidth={isSelected ? 1.5 : 1}/>
+                        {(isSelected || i % labelEvery === 0 || i === selectedIdx) && (
+                            <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="9"
+                                  fontWeight={isSelected ? 'bold' : 'normal'}
+                                  fill={isSelected ? 'var(--kce-amber)' : 'var(--kce-muted)'}>
+                                {new Date(p.ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
+                            </text>
+                        )}
+                    </g>
+                )
+            })}
+            <line x1={BH_PAD.left} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
+                  stroke="var(--kce-border)" strokeWidth="1"/>
+        </svg>
+    )
+
+    return (
+        <div className="kce-card p-3 mb-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex gap-1">
+                    {(['month', 'year', 'all'] as const).map(g => (
+                        <button key={g} type="button"
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${granularity === g ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => changeGranularity(g)}>
+                            {t(`treasury.history.${g}` as 'treasury.history.month' | 'treasury.history.year' | 'treasury.history.all')}
+                        </button>
+                    ))}
+                </div>
+                {!isAll && (
+                    <div className="flex items-center gap-1.5">
+                        <button type="button" aria-label={t('treasury.history.prevPeriod')}
+                                disabled={atStart}
+                                onClick={() => page(-1)}
+                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
+                            ‹
+                        </button>
+                        <span className="text-[11px] font-bold text-kce-muted min-w-[64px] text-center">{win.label}</span>
+                        <button type="button" aria-label={t('treasury.history.nextPeriod')}
+                                disabled={atEnd}
+                                onClick={() => page(1)}
+                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
+                            ›
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {!hasData ? (
+                <Empty icon="📈" text={t('treasury.history.noData')}/>
+            ) : isAll ? (
+                <div className="flex">
+                    <svg width={BH_PAD.left + 4} height={BH_VH} viewBox={`0 0 ${BH_PAD.left + 4} ${BH_VH}`}
+                         style={{flexShrink: 0, overflow: 'visible'}}>
+                        {yTicks.map((tick, i) => (
+                            <text key={i} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
+                                  fontSize="9" fill="var(--kce-muted)">{fe(tick.v)}</text>
+                        ))}
+                    </svg>
+                    <div className="overflow-x-auto flex-1">{chart}</div>
+                </div>
+            ) : chart}
+
+            {hasData && (selectedEvent && selectedMeta ? (
+                <div className="flex items-center gap-2 mt-2 px-1.5 py-1 rounded text-[11px]"
+                     style={{background: withAlpha(selectedMeta.color), borderLeft: `2px solid ${selectedMeta.color}`}}>
+                    <span className="text-kce-muted flex-shrink-0">{fDateTime(selectedEvent.ts)}</span>
+                    <span className="flex-shrink-0">{selectedEvent.icon ?? selectedMeta.icon}</span>
+                    <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[selectedEvent.kind]}</span>
+                    <span className="text-kce-cream truncate flex-1">{selectedEvent.label}</span>
+                    <span className="font-bold flex-shrink-0" style={{color: selectedMeta.color}}>{fe(selectedEvent.delta)}</span>
+                </div>
+            ) : (
+                <div className="text-[9px] text-kce-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
+            ))}
+
+            {hasData && (
+                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-1.5 rounded-full" style={{background: '#60a5fa'}}/>
+                        <span className="text-[10px] text-kce-muted font-bold">{actualLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-amber)', opacity: 0.85}}/>
+                        <span className="text-[10px] text-kce-muted font-bold">{virtualLabel}</span>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
 
 export function TreasuryPage() {
     const t = useT()
@@ -89,11 +320,11 @@ export function TreasuryPage() {
         staleTime: 1000 * 30,
     })
 
-    // All payments — loaded for bookings tab
+    // All payments — loaded for bookings tab + overview (Kasse balance-history graph)
     const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
-        enabled: tab === 'bookings',
+        enabled: tab === 'bookings' || tab === 'overview',
         staleTime: 1000 * 30,
     })
 
@@ -132,6 +363,35 @@ export function TreasuryPage() {
         queryKey: ['member-payments', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPayments(expandedMember) : null,
         enabled: !!expandedMember,
+        staleTime: 1000 * 30,
+    })
+
+    // Balance-history graph (Übersicht tab) — Kasse (club) vs Mitglied (individual) scope
+    const [historyScope, setHistoryScope] = useState<'club' | 'member'>('club')
+    const [historyMemberId, setHistoryMemberId] = useState<number | null>(null)
+    const allHistoryMembers = [...balances, ...(guestBalances as Balance[])] as Balance[]
+    const myHistoryDefault = allHistoryMembers.find(m => m.regular_member_id === user?.regular_member_id)
+    const effectiveHistoryMemberId = historyMemberId
+        ?? myHistoryDefault?.regular_member_id
+        ?? allHistoryMembers[0]?.regular_member_id
+        ?? null
+
+    const {data: debtTimeline = []} = useQuery({
+        queryKey: ['treasury-debt-timeline'],
+        queryFn: api.getTreasuryDebtTimeline,
+        enabled: tab === 'overview' && historyScope === 'club',
+        staleTime: 1000 * 30,
+    })
+    const {data: historyMemberPayments = []} = useQuery({
+        queryKey: ['member-payments', effectiveHistoryMemberId],
+        queryFn: () => effectiveHistoryMemberId ? api.getMemberPayments(effectiveHistoryMemberId) : null,
+        enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
+        staleTime: 1000 * 30,
+    })
+    const {data: historyMemberPenalties = []} = useQuery({
+        queryKey: ['member-penalties', effectiveHistoryMemberId],
+        queryFn: () => effectiveHistoryMemberId ? api.getMemberPenalties(effectiveHistoryMemberId) : null,
+        enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
         staleTime: 1000 * 30,
     })
 
@@ -376,6 +636,15 @@ export function TreasuryPage() {
     const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
         .sort((a, b) => a.balance - b.balance)
 
+    // Balance-history graph events — Kasse: actual cash bookings + outstanding-debt overlay;
+    // Mitglied: actual payments + penalty overlay (payments minus penalties = true balance)
+    const historyActualEvents = historyScope === 'club'
+        ? clubEventsFromBookings(allPayments as Payment[], expenses as Expense[])
+        : memberPaymentEvents(historyMemberPayments as MemberPayment[])
+    const historyOverlayEvents = historyScope === 'club'
+        ? debtEventsFromTimeline(debtTimeline)
+        : memberPenaltyEvents(historyMemberPenalties as any[])
+
     // Merged bookings for Buchungen tab — sorted by effective date desc
     // For expenses: use `date` field if set, otherwise `created_at`
     const mergedBookings: BookingEntry[] = [
@@ -476,6 +745,46 @@ export function TreasuryPage() {
                         </div>
                         <span className="text-4xl opacity-20">💰</span>
                     </div>
+
+                    {/* ── Balance-history graph ── */}
+                    <div className="kce-card p-3 mb-3">
+                        <div className="sec-heading mb-2">{t('treasury.history.heading')}</div>
+                        <ModeToggle
+                            options={[
+                                {value: 'club', label: `🏛️ ${t('treasury.history.scopeClub')}`},
+                                {value: 'member', label: `👤 ${t('treasury.history.scopeMember')}`},
+                            ]}
+                            value={historyScope}
+                            onChange={v => setHistoryScope(v as 'club' | 'member')}/>
+                        {historyScope === 'member' && allHistoryMembers.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mt-2">
+                                {[...allHistoryMembers].sort((a, b) => {
+                                    if (a.regular_member_id === user?.regular_member_id) return -1
+                                    if (b.regular_member_id === user?.regular_member_id) return 1
+                                    return 0
+                                }).map(m => {
+                                    const isActive = effectiveHistoryMemberId === m.regular_member_id
+                                    const isMe = m.regular_member_id === user?.regular_member_id
+                                    return (
+                                        <button key={m.regular_member_id} type="button"
+                                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                                onClick={() => setHistoryMemberId(m.regular_member_id)}>
+                                            {m.nickname || m.name}
+                                            {isMe && <span className={`ml-1 text-[9px] font-bold ${isActive ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <BalanceHistoryChart
+                        key={historyScope === 'club' ? 'club' : `member-${effectiveHistoryMemberId}`}
+                        actualEvents={historyActualEvents}
+                        overlayEvents={historyOverlayEvents}
+                        actualLabel={t('treasury.history.actual')}
+                        virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
+                        t={t}/>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
