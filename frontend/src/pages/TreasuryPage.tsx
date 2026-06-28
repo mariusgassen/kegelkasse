@@ -164,10 +164,10 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                       strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
             ))}
             <path d={buildPath('virtual', actualBaseline + overlayBaseline)}
-                  fill="none" stroke="var(--kce-amber)" strokeWidth="2" strokeDasharray="4,3"
+                  fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
                   strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
             <path d={buildPath('actual', actualBaseline)}
-                  fill="none" stroke="#60a5fa" strokeWidth="2.2"
+                  fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
                   strokeLinecap="round" strokeLinejoin="round"/>
             {points.map((p, i) => {
                 if (!p.event) return null
@@ -188,7 +188,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                         {(isSelected || i % labelEvery === 0 || i === selectedIdx) && (
                             <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="9"
                                   fontWeight={isSelected ? 'bold' : 'normal'}
-                                  fill={isSelected ? 'var(--kce-amber)' : 'var(--kce-muted)'}>
+                                  fill={isSelected ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
                                 {new Date(p.ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
                             </text>
                         )}
@@ -247,14 +247,23 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
             ) : chart}
 
             {hasData && (selectedEvent && selectedMeta ? (
-                <div className="flex items-center gap-2 mt-2 px-1.5 py-1 rounded text-[11px]"
-                     style={{background: withAlpha(selectedMeta.color), borderLeft: `2px solid ${selectedMeta.color}`}}>
-                    <span className="text-kce-muted flex-shrink-0">{fDateTime(selectedEvent.ts)}</span>
-                    <span className="flex-shrink-0">{selectedEvent.icon ?? selectedMeta.icon}</span>
-                    <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[selectedEvent.kind]}</span>
-                    <span className="text-kce-cream truncate flex-1">{selectedEvent.label}</span>
-                    <span className="font-bold flex-shrink-0" style={{color: selectedMeta.color}}>{fe(selectedEvent.delta)}</span>
-                </div>
+                <>
+                    <div className="flex items-center gap-2 mt-2 px-1.5 py-1 rounded text-[11px]"
+                         style={{background: withAlpha(selectedMeta.color), borderLeft: `2px solid ${selectedMeta.color}`}}>
+                        <span className="text-kce-muted flex-shrink-0">{fDateTime(selectedEvent.ts)}</span>
+                        <span className="flex-shrink-0">{selectedEvent.icon ?? selectedMeta.icon}</span>
+                        <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[selectedEvent.kind]}</span>
+                        <span className="text-kce-cream truncate flex-1">{selectedEvent.label}</span>
+                        <span className="font-bold flex-shrink-0" style={{color: selectedMeta.color}}>{fe(selectedEvent.delta)}</span>
+                    </div>
+                    {selectedIdx >= 0 && (
+                        <div className="flex items-center gap-3 mt-1 px-1.5 text-[10px]">
+                            <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
+                            <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{actualLabel}: {fe(points[selectedIdx].actual)}</span>
+                            <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>{virtualLabel}: {fe(points[selectedIdx].virtual)}</span>
+                        </div>
+                    )}
+                </>
             ) : (
                 <div className="text-[9px] text-kce-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
             ))}
@@ -262,11 +271,11 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
             {hasData && (
                 <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
                     <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: '#60a5fa'}}/>
+                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-cream)'}}/>
                         <span className="text-[10px] text-kce-muted font-bold">{actualLabel}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-amber)', opacity: 0.85}}/>
+                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-primary)', opacity: 0.85}}/>
                         <span className="text-[10px] text-kce-muted font-bold">{virtualLabel}</span>
                     </div>
                 </div>

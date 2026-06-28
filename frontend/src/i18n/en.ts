@@ -437,6 +437,7 @@ export const en = {
     "treasury.history.prevPeriod": "Previous period",
     "treasury.history.nextPeriod": "Next period",
     "treasury.history.actual": "Actual",
+    "treasury.history.balanceAfter": "Balance after:",
     "treasury.history.virtualClub": "Incl. debt",
     "treasury.history.virtualMember": "Incl. penalties",
     "treasury.history.noData": "No data yet.",

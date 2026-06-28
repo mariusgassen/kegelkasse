@@ -437,6 +437,7 @@ export const de = {
     "treasury.history.prevPeriod": "Vorheriger Zeitraum",
     "treasury.history.nextPeriod": "Nächster Zeitraum",
     "treasury.history.actual": "Tatsächlich",
+    "treasury.history.balanceAfter": "Saldo danach:",
     "treasury.history.virtualClub": "Inkl. Schulden",
     "treasury.history.virtualMember": "Inkl. Strafen",
     "treasury.history.noData": "Noch keine Daten.",
