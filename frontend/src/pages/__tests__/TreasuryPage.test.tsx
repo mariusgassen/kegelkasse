@@ -231,6 +231,46 @@ describe('TreasuryPage — overview tab', () => {
     })
 })
 
+describe('TreasuryPage — balance-history chart x-axis labels', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    it('renders only one date label even when two bookings share the same calendar day', async () => {
+        // Two payments on the same calendar day (1st of the current month, different times) —
+        // with <=6 points, labelEvery is 1, so both would render a "DD.MM." label pre-fix.
+        const now = new Date()
+        const morning = new Date(now.getFullYear(), now.getMonth(), 1, 9, 0, 0)
+        const afternoon = new Date(now.getFullYear(), now.getMonth(), 1, 15, 0, 0)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([
+            { id: 20, regular_member_id: 1, member_name: 'Admin', amount: 10.00, note: null, created_at: morning.toISOString() },
+            { id: 21, regular_member_id: 5, member_name: 'Hans', amount: -3.00, note: null, created_at: afternoon.toISOString() },
+        ] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => {
+            const dateLabels = Array.from(container.querySelectorAll('svg text'))
+                .map(el => el.textContent)
+                .filter((txt): txt is string => !!txt && /^\d{2}\.\d{2}\.$/.test(txt))
+            expect(dateLabels.length).toBeGreaterThan(0)
+            expect(new Set(dateLabels).size).toBe(dateLabels.length)
+        })
+    })
+})
+
 describe('TreasuryPage — accounts tab', () => {
     beforeEach(async () => {
         vi.clearAllMocks()

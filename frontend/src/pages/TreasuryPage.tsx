@@ -141,6 +141,16 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
     const selectedIdx = points.findIndex(p => p.event?.id === selectedId)
 
+    const fAxisDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
+
+    const labelOwnerByDate = new Map<string, number>()
+    points.forEach((p, i) => {
+        if (!(i % labelEvery === 0 || i === selectedIdx)) return
+        const dateKey = fAxisDate(p.ts)
+        if (!labelOwnerByDate.has(dateKey) || i === selectedIdx) labelOwnerByDate.set(dateKey, i)
+    })
+    const labelOwnerIndices = new Set(labelOwnerByDate.values())
+
     const selectedEvent = selectedId ? allEvents.find(e => e.id === selectedId) ?? null : null
     const selectedMeta = selectedEvent ? KIND_META[selectedEvent.kind] : null
     const KIND_LABEL: Record<BalanceEvent['kind'], string> = {
@@ -185,11 +195,11 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                         <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
                                 fill={meta.color} stroke="var(--kce-bg)"
                                 strokeWidth={isSelected ? 1.5 : 1}/>
-                        {(isSelected || i % labelEvery === 0 || i === selectedIdx) && (
+                        {labelOwnerIndices.has(i) && (
                             <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="9"
                                   fontWeight={isSelected ? 'bold' : 'normal'}
                                   fill={isSelected ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
-                                {new Date(p.ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
+                                {fAxisDate(p.ts)}
                             </text>
                         )}
                     </g>
