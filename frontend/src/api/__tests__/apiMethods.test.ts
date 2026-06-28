@@ -1126,6 +1126,24 @@ describe('api.getAllPayments', () => {
     })
 })
 
+describe('api.getMemberPenalties', () => {
+    it('GETs /club/member-penalties/{mid}', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const { api } = await import('../client')
+        await api.getMemberPenalties(3)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/member-penalties/3')
+    })
+})
+
+describe('api.getTreasuryDebtTimeline', () => {
+    it('GETs /club/treasury-debt-timeline', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const { api } = await import('../client')
+        await api.getTreasuryDebtTimeline()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/treasury-debt-timeline')
+    })
+})
+
 describe('api.getExpenses', () => {
     it('GETs /club/expenses', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk([]))

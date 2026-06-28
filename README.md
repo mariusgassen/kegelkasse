@@ -148,6 +148,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Per-evening ranking by penalty amount with drinks overview
 - Text export (Share/Copy) for WhatsApp & notes
+- **Balance-history graph**: interactive SVG chart on the Overview tab showing the running balance over time as a step line; toggle between **Kasse** (overall club cash) and **Mitglied** (any individual member's personal balance, with an "Ich"-badged member picker); **Month / Year / All** views with continuous cumulative paging (never resets to zero) and a horizontally scrollable "All" timeline with a fixed y-axis; two parallel lines — actual (real bookings) and virtual (incl. outstanding debt for Kasse, incl. penalties for Mitglied); clicking a point reveals the underlying booking/penalty (date, kind, amount)
 - Member accounts: track balances and record payments (admin)
 - Club expenses (e.g. lane rental) tracked separately
 - **Bezahllink**: members request payment via PayPal.me link; admin confirms manually

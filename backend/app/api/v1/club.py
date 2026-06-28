@@ -11,6 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from pydantic import BaseModel
+from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
@@ -672,6 +673,45 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
              "created_at": p.created_at.isoformat() if p.created_at else None} for p in payments]
 
 
+@router.get("/member-penalties/{mid}")
+def list_member_penalties(mid: int, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_member)):
+    """Chronological penalty history for one member, across all evenings."""
+    member = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not member: raise HTTPException(404)
+
+    player_ids = [
+        pid for (pid,) in db.query(EveningPlayer.id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
+        .all()
+    ]
+
+    q = (
+        db.query(PenaltyLog, Evening)
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            PenaltyLog.is_deleted == False,
+            or_(
+                PenaltyLog.player_id.in_(player_ids),
+                and_(PenaltyLog.player_id.is_(None), PenaltyLog.regular_member_id == mid),
+            ),
+        )
+        .order_by(PenaltyLog.created_at.asc())
+    )
+    return [{
+        "id": log.id,
+        "amount": _penalty_euro(log),
+        "icon": log.icon,
+        "penalty_type_name": log.penalty_type_name,
+        "evening_id": log.evening_id,
+        "evening_date": evening.date.isoformat() if evening.date else None,
+        "is_absence": log.player_id is None,
+        "created_at": log.created_at.isoformat() if log.created_at else None,
+    } for log, evening in q.all()]
+
+
 class PaymentCreate(BaseModel):
     regular_member_id: int
     amount: float
@@ -808,6 +848,111 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
             "balance": round(payments_total - penalty_total, 2),
         })
     return result
+
+
+# ── Treasury debt timeline (balance-history graph) ──
+
+@router.get("/treasury-debt-timeline")
+def get_treasury_debt_timeline(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Chronological checkpoints of total outstanding member+guest debt across the club's whole history.
+
+    Used as the 'virtual balance' overlay (actual cash + uncollected debt) on the treasury balance-history
+    graph. Mirrors get_member_balances / get_guest_balances semantics (incl. the per-evening guest penalty
+    cap), but replays every payment/penalty event chronologically instead of returning today's snapshot.
+    """
+    club = db.query(Club).filter(Club.id == user.club_id).first()
+    s = club.settings if club else None
+    guest_cap: float | None = (s.extra or {}).get("guest_penalty_cap") if s else None
+
+    members = db.query(RegularMember).filter(RegularMember.club_id == user.club_id).all()
+    if not members:
+        return []
+    member_ids = [m.id for m in members]
+    guest_ids = {m.id for m in members if m.is_guest}
+    non_guest_ids = [mid for mid in member_ids if mid not in guest_ids]
+
+    player_rows = (
+        db.query(EveningPlayer.id, EveningPlayer.regular_member_id, EveningPlayer.evening_id)
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
+        .all()
+    )
+    player_info: dict[int, tuple[int, int]] = {pid: (mid, eid) for pid, mid, eid in player_rows}
+    all_player_ids = list(player_info.keys())
+
+    penalty_rows = (
+        db.query(PenaltyLog)
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            PenaltyLog.is_deleted == False,
+            or_(
+                PenaltyLog.player_id.in_(all_player_ids),
+                and_(PenaltyLog.player_id.is_(None), PenaltyLog.regular_member_id.in_(non_guest_ids)),
+            ),
+        )
+        .all()
+    )
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.club_id == user.club_id,
+        MemberPayment.regular_member_id.in_(member_ids),
+    ).all()
+
+    # Merge penalties (signed debt increases) and payments (debt decreases) into one chronological stream.
+    combined: list[tuple] = []
+    for log in penalty_rows:
+        if log.player_id is not None:
+            mid, eid = player_info.get(log.player_id, (None, None))
+        else:
+            mid, eid = log.regular_member_id, log.evening_id
+        if mid is None or log.created_at is None:
+            continue
+        combined.append((log.created_at, mid, _penalty_euro(log), eid))
+    payment_events = [(p.created_at, p.regular_member_id, p.amount) for p in payments if p.created_at is not None]
+    combined.sort(key=lambda row: row[0])
+    payment_events.sort(key=lambda row: row[0])
+
+    balances: dict[int, float] = {}
+    guest_evening_raw: dict[tuple[int, int], float] = {}
+    total_debt = 0.0
+    checkpoints: list[dict] = []
+    prev_rounded: float | None = None
+
+    def apply_delta(mid: int, raw_delta: float, ts):
+        nonlocal total_debt, prev_rounded
+        old_bal = balances.get(mid, 0.0)
+        old_debt = max(0.0, -old_bal)
+        new_bal = old_bal + raw_delta
+        balances[mid] = new_bal
+        new_debt = max(0.0, -new_bal)
+        total_debt += (new_debt - old_debt)
+        rounded = round(total_debt, 2)
+        if rounded != prev_rounded:
+            checkpoints.append({"ts": ts.isoformat(), "total_debt": rounded})
+            prev_rounded = rounded
+
+    pi, qi = 0, 0
+    while pi < len(combined) or qi < len(payment_events):
+        next_penalty = combined[pi] if pi < len(combined) else None
+        next_payment = payment_events[qi] if qi < len(payment_events) else None
+        if next_payment is None or (next_penalty is not None and next_penalty[0] <= next_payment[0]):
+            ts, mid, amount, eid = next_penalty
+            if mid in guest_ids and guest_cap is not None:
+                key = (mid, eid)
+                old_raw = guest_evening_raw.get(key, 0.0)
+                new_raw = old_raw + amount
+                guest_evening_raw[key] = new_raw
+                capped_delta = min(new_raw, guest_cap) - min(old_raw, guest_cap)
+                apply_delta(mid, -capped_delta, ts)
+            else:
+                apply_delta(mid, -amount, ts)
+            pi += 1
+        else:
+            ts, mid, amount = next_payment
+            apply_delta(mid, amount, ts)
+            qi += 1
+
+    return checkpoints
 
 
 # ── Guest cost transfer ──

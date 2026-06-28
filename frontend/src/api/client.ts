@@ -489,6 +489,14 @@ export const api = {
     getMemberPayments: (mid: number) => request<{
         id: number; amount: number; note: string | null; created_at: string | null
     }[]>('GET', `/club/member-payments/${mid}`),
+    getMemberPenalties: (mid: number) => request<{
+        id: number; amount: number; icon: string; penalty_type_name: string;
+        evening_id: number; evening_date: string | null; is_absence: boolean;
+        created_at: string | null
+    }[]>('GET', `/club/member-penalties/${mid}`),
+    getTreasuryDebtTimeline: () => request<{
+        ts: string; total_debt: number
+    }[]>('GET', '/club/treasury-debt-timeline'),
     getAllPayments: () => request<{
         id: number; regular_member_id: number; member_name: string;
         amount: number; note: string | null; created_at: string | null
