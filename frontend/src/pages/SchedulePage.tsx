@@ -5,6 +5,7 @@ import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Loading} from '@/components/ui/Loading.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -302,7 +303,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                 </div>
 
                 {rsvpsLoading ? (
-                    <p className="text-sm text-kce-muted text-center py-4">{t('action.loading')}</p>
+                    <Loading/>
                 ) : (
                     <>
                         {/* Attendance checklist */}
@@ -777,7 +778,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
     return (
         <Sheet open onClose={onClose} title={`${t('schedule.rsvpTitle')} · ${fDateTimeLong(se.scheduled_at)}`}>
             <div className="space-y-4">
-                {isLoading && <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>}
+                {isLoading && <Loading/>}
                 {!isLoading && rsvps && (
                     <>
                         {attending.length > 0 && (
@@ -965,7 +966,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             )}
 
             {isLoading
-                ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
+                ? <Loading/>
                 : closed.length === 0
                     ? <Empty icon="📚" text={t('history.none')}/>
                     : closed.map(ev => {
@@ -1269,7 +1270,7 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
             </div>
 
             {isLoading
-                ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
+                ? <Loading/>
                 : upcoming.length === 0
                     ? <Empty icon="📅" text={t('schedule.none')}/>
                     : <>

@@ -7,6 +7,7 @@ import {api} from '../api/client'
 import {useT, useI18n} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Loading} from '@/components/ui/Loading.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -1952,7 +1953,7 @@ function CorrelationSection({year, myMemberId, t}: {
                 ))}
             </div>
 
-            {isLoading && <Empty icon="⏳" text="…"/>}
+            {isLoading && <Loading className="py-8"/>}
 
             {!isLoading && tab === 'evening' && (
                 hasYearData && filteredCorr!.evenings.length > 0 ? (
@@ -2482,7 +2483,7 @@ function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                 ))}
             </div>
 
-            {isLoading && <Empty icon="⏳" text="…"/>}
+            {isLoading && <Loading className="py-8"/>}
 
             {/* Compare-all mode — one heat-lane per member */}
             {!isLoading && pickedMemberId == null && (
@@ -2839,7 +2840,7 @@ export function StatsPage() {
                             )}
                         </>
                     ) : (
-                        <Empty icon="📈" text={t('action.loading')}/>
+                        <Loading className="py-8"/>
                     )}
                 </>
             )}

@@ -3,6 +3,7 @@ import {api, authState} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useI18n, useT} from '@/i18n'
 import {AppLogo} from '@/components/Logo.tsx'
+import {InlineError} from '@/components/ui/InlineError.tsx'
 import {clearAuthParams} from '@/hooks/usePage.ts'
 
 interface LoginPageProps {
@@ -154,7 +155,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                        onChange={e => setPw(e.target.value)}
                                        placeholder="••••••••" required/>
                             </div>
-                            {error && <p className="text-red-400 text-xs">{error}</p>}
+                            <InlineError text={error}/>
                             <button type="submit" className="btn-primary mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.loginButton')}
                             </button>
@@ -192,7 +193,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                            onChange={e => setPw(e.target.value)} placeholder="••••••••" required
                                            autoFocus/>
                                 </div>
-                                {error && <p className="text-red-400 text-xs">{error}</p>}
+                                <InlineError text={error}/>
                                 <button type="submit" className="btn-primary mt-1" disabled={loading}>
                                     {loading ? t('action.loading') : t('auth.reset.button')}
                                 </button>
@@ -244,7 +245,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 <input className="kce-input" type="password" value={pw}
                                        onChange={e => setPw(e.target.value)} placeholder="••••••••" required/>
                             </div>
-                            {error && <p className="text-red-400 text-xs">{error}</p>}
+                            <InlineError text={error}/>
                             <button type="submit" className="btn-primary mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.register.button')}
                             </button>
