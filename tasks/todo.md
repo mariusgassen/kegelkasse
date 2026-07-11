@@ -34,28 +34,35 @@ below traces back to a concrete file:line finding from the codebase survey.
   block hardcoded `'Fehler beim Senden'` instead of using `t()` — added new
   `broadcast.error` key to `de.ts`/`en.ts`.
 
-### 2. Navigation / discoverability
+### 2. Navigation / discoverability ✅ done
 
-- [ ] **`EveningPage` (team/player management, close evening) has no visible
-  nav entry.** Currently only reachable via the small "AKTIV" header pill
-  (`App.tsx:366-373`), mounted at a hidden `'config'` route
-  (`App.tsx:43-146,433-445`). Add a proper nav entry point for admins managing
-  an active evening.
-- [ ] **`MembersPage` (roster, avatars, pins) unreachable for regular members.**
-  Only nested inside `ClubAdminPage.tsx:89-93`, and the "club" nav tab is
-  hidden entirely for non-admins (`App.tsx:421`). Give regular members a way
-  to view their own club roster (read-only), separate from the admin
-  management view.
-- [ ] **Duplicate close/reopen-evening controls.** Two independent
-  implementations for the same action: `EveningHubPage.tsx:146-165` (sub-tab
-  strip) and `EveningPage.tsx:266-304` (evening-info card). Consolidate to one.
-- [ ] **Two different "committee" surfaces share the same label/icon.**
-  `ClubAdminPage.tsx`'s admin sub-tab (`CommitteeAdminTab`) vs. main-nav
-  `CommitteePage.tsx` — differentiate labeling so admins don't confuse them.
-- [ ] **`StatsPage.tsx` is one long scroll with no sub-tab/anchor nav** unlike
-  every sibling page (Treasury/Committee/ClubAdmin all use tab strips). Add a
-  tab strip or sticky section nav across its major sections (evening detail,
-  highlights, player cards, correlation, year podium, member list).
+- [x] **`EveningPage` (team/player management, close evening) has no visible
+  nav entry.** Added a "⚙️ Verwalten" button to `EveningHubPage.tsx`'s tab
+  strip (calls the existing `onNavigate` prop) so it's reachable in-context,
+  not just via the small "AKTIV" header pill.
+- [x] **`MembersPage` (roster, avatars, pins) unreachable for regular members.**
+  Added a new `'members'` nav tab in `App.tsx`, shown only for non-admin
+  users (mutually exclusive with the admin-only `'club'` tab, so total
+  visible-tab count stays at 6 for both roles). `MembersPage` needed no
+  changes — its mutation UI was already internally gated by `isAdmin(user)`.
+- [x] **Duplicate close/reopen-evening controls.** Extracted shared
+  `frontend/src/hooks/useCloseReopenEvening.ts`, used by both
+  `EveningHubPage.tsx` and `EveningPage.tsx`. Standardized on the Sheet-based
+  confirm (matches Consistency section's guidance to reserve Sheet for
+  higher-stakes actions) and made `EveningPage`'s fuller invalidation
+  (clear `activeEveningId`, invalidate `['schedule']`) canonical for both —
+  fixing a real behavioral divergence, not just a style duplication.
+- [x] **Two different "committee" surfaces — milder than first reported.**
+  Re-verified: the main-nav label is actually "Neuigkeiten"/"News", not
+  "Committee" — not confusable by label. The one real defect (hardcoded,
+  non-i18n `'🚌 VGA'` sub-tab label in `ClubAdminPage.tsx:68`) is fixed:
+  now `t('club.tab.committee')` → "🛠️ VA-Verwaltung" / "🛠️ Committee admin",
+  a tools icon distinct from the 🚌 already used for Kegelfahrten.
+- [x] **`StatsPage.tsx` is one long scroll with no sub-tab/anchor nav.**
+  Split into "Abend" / "Jahr" tabs via `useHashTab`, matching the tab-strip
+  pattern from `CommitteePage`/`ClubAdminPage`/`TreasuryPage`. Removed the
+  now-redundant inline sub-headings for both sections since the tab label
+  conveys that role.
 
 ### 3. Consistency
 
@@ -150,8 +157,33 @@ below traces back to a concrete file:line finding from the codebase survey.
 - Verified: `npm run build` clean (tsc + vite), full Vitest suite green
   (1776/1776), i18n key parity between `de.ts`/`en.ts` confirmed (979/979,
   no drift).
-- Not yet started: Navigation/discoverability, Consistency, Accessibility,
-  Responsiveness sections.
+- Not yet started: Consistency, Accessibility, Responsiveness sections.
+
+### Round 2: Navigation / discoverability (done)
+
+- `App.tsx`: new `'members'` `PageId`, `NAV` entry (`UserRound` icon), and
+  `NAV_PAGES` entry; nav filter now shows `'club'` only to admins and
+  `'members'` only to non-admins (mutually exclusive, same total tab count).
+- `EveningHubPage.tsx`: added a "⚙️ Verwalten" button next to close/reopen
+  in the tab strip, wired to the existing `onNavigate` prop.
+- New `frontend/src/hooks/useCloseReopenEvening.ts` shared by
+  `EveningHubPage.tsx` and `EveningPage.tsx`; `EveningPage.tsx`'s confirm UI
+  switched from an inline two-step confirm to the same Sheet pattern as
+  `EveningHubPage.tsx`. Canonical close behavior now always clears
+  `activeEveningId` and invalidates both `['evenings']` and `['schedule']`.
+- `ClubAdminPage.tsx:68`: hardcoded `'🚌 VGA'` → `t('club.tab.committee')`.
+- `StatsPage.tsx`: added an "Abend"/"Jahr" `useHashTab` tab strip; wrapped
+  the two existing sections in `{tab === 'evening' && (...)}` /
+  `{tab === 'year' && (...)}` (matches `CommitteePage`'s sub-tab convention
+  of conditional rendering, not the top-level "always mounted" pattern).
+- Test updates: `App.test.tsx` gained a `MembersPage` mock (mirroring every
+  other top-level page) and assertions for the new mutually-exclusive
+  `'members'`/`'club'` tabs; `ClubAdminPage.test.tsx`'s VGA-label test
+  updated for the new i18n key; `StatsPage.test.tsx`'s `renderStatsPage()`
+  helper gained an optional `tab` param (14 tests updated to pass `'year'`
+  since their content now lives behind the new year tab).
+- Verified: `npm run build` clean, full Vitest suite green (1776/1776),
+  i18n key parity confirmed (981/981, no drift).
 
 ---
 

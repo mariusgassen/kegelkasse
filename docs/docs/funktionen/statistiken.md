@@ -8,9 +8,9 @@ sidebar_label: Statistiken
 
 Die **Statistiken** bieten ein Jahresranking für alle Stammspieler des Vereins sowie persönliche Jahresauswertungen im eigenen Profil.
 
-## Jahresranking
+Navigiere zu **Statistiken** (📊) in der Navigation. Die Seite ist in zwei Tabs aufgeteilt: **Abend** (Abend-Detail, siehe unten) und **Jahr** (Jahresranking + Korrelations-Sektion).
 
-Navigiere zu **Statistiken** (📊) in der Navigation.
+## Jahresranking
 
 ### Ansicht
 

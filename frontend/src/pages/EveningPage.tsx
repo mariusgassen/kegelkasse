@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useQuery} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -20,6 +21,7 @@ export function EveningPage() {
     const isOnline = useOnline()
     const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
+    const {closeConfirm, setCloseConfirm, closing, confirmClose, reopen} = useCloseReopenEvening(evening?.id, invalidate)
 
     // ── Start evening form ──
     const [startDate, setStartDate] = useState(today())
@@ -33,7 +35,6 @@ export function EveningPage() {
     const [starting, setStarting] = useState(false)
     // attendance sheet shown after evening is created
     const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
-    const qc = useQueryClient()
 
     // ── Highlights ──
     const [highlightText, setHighlightText] = useState('')
@@ -63,8 +64,6 @@ export function EveningPage() {
     const [teamName, setTeamName] = useState('')
     const [teamPlayerIds, setTeamPlayerIds] = useState<(number | string)[]>([])
 
-    const [closeConfirm, setCloseConfirm] = useState(false)
-    const [closing, setClosing] = useState(false)
     const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
 
     // ── Pins ──
@@ -270,38 +269,34 @@ export function EveningPage() {
                                 {t('evening.end')}
                             </button>
                         ) : (
-                            <button className="btn-secondary btn-xs" disabled={closing} onClick={async () => {
-                                setClosing(true)
-                                try {
-                                    await api.updateEvening(evening.id, {is_closed: false})
-                                    invalidate()
-                                } catch (e) { toastError(e) } finally { setClosing(false) }
-                            }}>{t('evening.reopen')}</button>
+                            <button className="btn-secondary btn-xs" disabled={closing} onClick={reopen}>
+                                {t('evening.reopen')}
+                            </button>
                         )}
                     </div>
                 </div>
-                {closeConfirm && (
-                    <div className="mt-3 pt-3 border-t border-kce-surface2">
-                        <p className="text-xs text-kce-muted mb-2">{t('evening.endConfirm')}</p>
-                        <div className="flex gap-2">
-                            <button className="btn-secondary btn-sm flex-1" disabled={closing} onClick={() => setCloseConfirm(false)}>
-                                {t('action.cancel')}
-                            </button>
-                            <button className="btn-danger btn-sm flex-1" disabled={closing} onClick={async () => {
-                                setClosing(true)
-                                try {
-                                    await api.updateEvening(evening.id, {is_closed: true})
-                                    setCloseConfirm(false)
-                                    setActiveEveningId(null)
-                                    qc.invalidateQueries({queryKey: ['evenings']})
-                                    qc.invalidateQueries({queryKey: ['schedule']})
-                                    invalidate()
-                                } catch (e) { toastError(e) } finally { setClosing(false) }
-                            }}>{t('action.done')}</button>
-                        </div>
-                    </div>
-                )}
             </div>
+
+            {/* Close-confirm sheet */}
+            {closeConfirm && (
+                <Sheet
+                    open
+                    title={t('evening.end')}
+                    onClose={() => setCloseConfirm(false)}
+                >
+                    <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
+                                onClick={() => setCloseConfirm(false)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button type="button" className="btn-primary btn-sm flex-1" disabled={closing}
+                                onClick={confirmClose}>
+                            {t('action.done')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
 
             {/* ── Pins alert (holders present as players) ── */}
             {players.length > 0 && pins.length > 0 && !evening.is_closed && (

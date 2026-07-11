@@ -250,9 +250,9 @@ describe('ClubAdminPage — tab navigation', () => {
         expect(screen.getByText('club.tab.pins')).toBeInTheDocument()
     })
 
-    it('shows VGA tab button', async () => {
+    it('shows committee tab button', async () => {
         await renderClubAdminPage()
-        expect(screen.getByText(/VGA/)).toBeInTheDocument()
+        expect(screen.getByText('club.tab.committee')).toBeInTheDocument()
     })
 
     it('does not show clubs tab for non-superadmin', async () => {
