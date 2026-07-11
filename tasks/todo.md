@@ -13,22 +13,26 @@ below traces back to a concrete file:line finding from the codebase survey.
 
 ## Plan
 
-### 1. Cheap bugs
+### 1. Cheap bugs ✅ done
 
-- [ ] **`--kce-amber` CSS var never declared.** Declare `--kce-amber` in
-  `:root` in `frontend/src/index.css` (alias for `--kce-primary`, next to the
-  other `--kce-*` tokens at lines 43-52) so all 30+ existing `var(--kce-amber)`
-  references resolve instead of silently failing. Affected files: `StatsPage.tsx`,
-  `TabletQuickEntryPage.tsx`, `CameraCapturePage.tsx`, `ProtocolPage.tsx`,
-  `GamesPage.tsx:308`, `CommitteePage.tsx:769`, `ClubAdminPage.tsx:1398`,
-  `components/ProfileSheet.tsx:69,73`.
-- [ ] **Hardcoded hex duplicating tokens.** Replace `fill="#e8a020"`
-  (`StatsPage.tsx:2242`) and gradient stops `#c4701a`/`#e8a020`
-  (`StatsPage.tsx:862-864,994,1105,2737`) with `var(--kce-primary)`.
-- [ ] **Hardcoded strings bypassing i18n.** Replace with `t()` calls using
-  existing/new keys: `ClubAdminPage.tsx:1392` ("Noch keine Backups vorhanden."),
-  `ClubAdminPage.tsx:1402,1480` ("Fehler"), `StatsPage.tsx:2830` ("Lade..." →
-  reuse existing `action.loading` key already used elsewhere).
+- [x] **`--kce-amber` CSS var never declared.** Declared `--kce-amber: var(--kce-primary)`
+  in `:root` in `frontend/src/index.css`, so all existing `var(--kce-amber)`
+  references across `StatsPage.tsx`, `TabletQuickEntryPage.tsx`,
+  `CameraCapturePage.tsx`, `ProtocolPage.tsx`, `GamesPage.tsx`,
+  `CommitteePage.tsx`, `ClubAdminPage.tsx`, `ProfileSheet.tsx` now resolve.
+- [x] **Hardcoded hex duplicating tokens.** Replaced the 4 exact `#e8a020`
+  duplicates of `--kce-primary` in `StatsPage.tsx` (gold-podium gradient end
+  stop ×3, "Ich" tspan fill, gold border color) with `var(--kce-primary)`.
+  Left the `#c4701a` gradient *start* stops as-is — they're a distinct darker
+  shade with no corresponding token, not a duplicate; replacing them would
+  have collapsed the gradient into a flat fill.
+- [x] **Hardcoded strings bypassing i18n.** `ClubAdminPage.tsx`'s backup-empty
+  state and per-backup error badge now use the existing (previously unused)
+  `backup.empty` / `backup.error` keys; `StatsPage.tsx`'s loading state now
+  reuses `action.loading`. Also found and fixed a 4th instance in the same
+  category while in the file: `ClubAdminPage.tsx`'s broadcast-push catch
+  block hardcoded `'Fehler beim Senden'` instead of using `t()` — added new
+  `broadcast.error` key to `de.ts`/`en.ts`.
 
 ### 2. Navigation / discoverability
 
@@ -132,4 +136,19 @@ below traces back to a concrete file:line finding from the codebase survey.
 
 ## Review
 
-_(to be filled in after implementation)_
+### Round 1: Cheap bugs (done)
+
+- `--kce-amber` now declared in `:root` (`frontend/src/index.css`) as an
+  alias for `--kce-primary`. Fixes 30+ previously-silent color references.
+- `StatsPage.tsx`: 4 hardcoded `#e8a020` values → `var(--kce-primary)`.
+  Gradient start stops (`#c4701a`) intentionally left hardcoded — not a
+  token duplicate.
+- i18n: `ClubAdminPage.tsx` backup-empty/backup-error/broadcast-error and
+  `StatsPage.tsx` loading state now go through `t()`. Added one new key pair
+  (`broadcast.error`) to `de.ts`/`en.ts`; reused two existing-but-unused keys
+  (`backup.empty`, `backup.error`).
+- Verified: `npm run build` clean (tsc + vite), full Vitest suite green
+  (1776/1776), i18n key parity between `de.ts`/`en.ts` confirmed (979/979,
+  no drift).
+- Not yet started: Navigation/discoverability, Consistency, Accessibility,
+  Responsiveness sections.

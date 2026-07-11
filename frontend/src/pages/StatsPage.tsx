@@ -860,7 +860,7 @@ function YearPodium({players, myMemberId, t, onSelect}: {
 
     const PODIUM_CONFIG = [
         {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,#9ca3af,#d1d5db)', label: '🥈', borderColor: '#9ca3af'},
-        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,#c4701a,#e8a020)', label: '🥇', borderColor: '#e8a020'},
+        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,#c4701a,var(--kce-primary))', label: '🥇', borderColor: 'var(--kce-primary)'},
         {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,#cd7f32)', label: '🥉', borderColor: '#cd7f32'},
     ]
 
@@ -991,7 +991,7 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
             {/* Player header */}
             <div className="flex items-center gap-3 mb-5">
                 <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-lg flex-shrink-0"
-                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                     style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
                     {rm?.avatar
                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                         : displayName[0].toUpperCase()
@@ -1102,7 +1102,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
                 <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-lg flex-shrink-0"
-                     style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                     style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
                     {rm?.avatar
                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                         : displayName[0].toUpperCase()
@@ -2239,7 +2239,7 @@ function MemberHeatLane({
                 {isMe
                     ? (label.length > 7 ? `${label.slice(0, 6)}…` : label)
                     : (label.length > 11 ? `${label.slice(0, 10)}…` : label)}
-                {isMe && <tspan fill="#e8a020" fontSize={7} dx={3}> Ich</tspan>}
+                {isMe && <tspan fill="var(--kce-primary)" fontSize={7} dx={3}> Ich</tspan>}
             </text>
 
             {/* Background heat cells: Δpenalty intensity — tinted with the club primary */}
@@ -2734,7 +2734,7 @@ export function StatsPage() {
                                             return (
                                                 <button key={p.id} type="button" className="kce-card p-3 w-full text-left active:opacity-70 transition-opacity" onClick={() => setEveningPlayerDetail(p)}>
                                                     <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                                         style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)', margin: '0 auto'}}>
+                                                         style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))', margin: '0 auto'}}>
                                                         {rm?.avatar
                                                             ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                                             : p.name[0].toUpperCase()
@@ -2827,7 +2827,7 @@ export function StatsPage() {
                             )}
                         </>
                     ) : (
-                        <Empty icon="📈" text="Lade..."/>
+                        <Empty icon="📈" text={t('action.loading')}/>
                     )}
                 </>
             )}
