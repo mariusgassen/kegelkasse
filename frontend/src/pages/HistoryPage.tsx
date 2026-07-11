@@ -6,6 +6,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Loading} from '@/components/ui/Loading.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 
@@ -139,7 +140,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
             )}
 
             {isLoading
-                ? <p className="text-kce-muted text-sm text-center py-4">{t('action.loading')}</p>
+                ? <Loading/>
                 : closed.length === 0
                     ? <Empty icon="📚" text={t('history.none')}/>
                     : closed.map(ev => {

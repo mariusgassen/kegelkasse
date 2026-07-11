@@ -64,27 +64,58 @@ below traces back to a concrete file:line finding from the codebase survey.
   now-redundant inline sub-headings for both sections since the tab label
   conveys that role.
 
-### 3. Consistency
+### 3. Consistency ✅ done
 
-- [ ] **Error display split between `showToast()` and ad hoc inline banners.**
-  Replace inline red-banner error rendering with `showToast()` (or a single
-  shared inline-error component if inline display is intentionally needed) in:
-  `LoginPage.tsx:157,195,247`, `EveningPage.tsx:452,566`,
-  `ProtocolPage.tsx:514-515`, `ClubAdminPage.tsx:1480,1402`,
-  `SeasonTab.tsx:436`.
-- [ ] **No shared loading-state component.** Introduce one (e.g. a small
-  `Loading` component) and use it consistently instead of: plain `<p>` in
-  `CommitteePage.tsx:155,372,685`, `SchedulePage.tsx:305,780,968,1272`,
-  `HistoryPage.tsx:142`; and the misused `Empty` component in
-  `StatsPage.tsx:1954,2484,2830`.
-- [ ] **Delete-confirmation UX differs by page.** Standardize on the inline
-  two-step chip confirm (✕→✓/✕) already used in `ProtocolPage.tsx:528-541`,
-  `GamesPage.tsx:380`, `HistoryPage.tsx:315`,
-  `SchedulePage.tsx:1103,1331-1338`, `CommitteePage.tsx:257,447,905` for
-  lightweight deletes; keep the full `Sheet` modal pattern
-  (`MembersPage.tsx:551-588`) reserved for higher-stakes actions only, and
-  migrate `TreasuryPage.tsx:1352-1378` (delete payment/expense) to the inline
-  pattern unless its stakes justify staying a Sheet.
+- [x] **Error display split between `showToast()` and ad hoc inline banners.**
+  Re-surveyed before touching code: only `LoginPage.tsx` actually had inline
+  catch-block error banners (`error`/`setError` state, 3 identical
+  `{error && <p className="text-red-400 text-xs">{error}</p>}` sites at
+  login/reset/register forms). The other flagged lines were stale/false
+  positives — `EveningPage.tsx:452,566` is a `.map()` closing brace and a
+  static "no teams yet" hint (not error state); `ProtocolPage.tsx:514-515`
+  is currency-red styling for money owed, and its catch blocks already use
+  `toastError()`; `SeasonTab.tsx:436` is a danger-button style, also already
+  on `toastError()`; `ClubAdminPage.tsx:1402` is a per-record `error` flag
+  badge (not catch-block state) and `:1480` is a react-query list-load
+  error, not a transient mutation error. Login is pre-auth UX where a toast
+  could be missed before the user notices it — kept inline rather than
+  converting to `showToast()`, but extracted the 3 duplicate banners into a
+  shared `frontend/src/components/ui/InlineError.tsx` component (satisfies
+  the task's "shared inline-error component" fallback). Left
+  `ClubAdminPage.tsx`'s backups-list load error inline (list-load errors
+  need persistent context, not a transient toast) — out of scope beyond
+  this item. New Vitest: `InlineError` renders text / renders nothing when
+  empty, added to `components/ui/__tests__/components.test.tsx`. Full
+  suite: 1784/1784 passing, `npm run build` clean.
+- [x] **No shared loading-state component.** Added
+  `frontend/src/components/ui/Loading.tsx` (`text`/`className` props,
+  defaults to `t('action.loading')` centered muted text, `py-4`). Replaced
+  all flagged sites: `CommitteePage.tsx` (3x, `py-8`), `SchedulePage.tsx`
+  (4x, default `py-4`), `HistoryPage.tsx` (1x), and the misused `Empty`
+  loading placeholders (icon `⏳`/text `…`, or icon `📈`/text
+  `action.loading` — semantically an empty-state component repurposed for
+  loading) in `StatsPage.tsx` (3x, `py-8`). Left two smaller inline
+  loading `<p>`s (`SchedulePage.tsx:1123`, `HistoryPage.tsx:333`) as-is —
+  not in the original flagged set and visually distinct (compact
+  `text-xs`/`py-2` inline-list loading, not page/section-level). New
+  Vitest: `Loading` renders default text / renders custom text override,
+  added to `components/ui/__tests__/components.test.tsx`. Full suite:
+  1786/1786 passing, `npm run build` clean.
+- [x] **Delete-confirmation UX differs by page — verified, no migration
+  needed.** Re-checked `TreasuryPage.tsx:1355-1395` against the inline
+  two-step chip confirm pattern (`ProtocolPage.tsx:528-541` etc.). Since
+  this todo item was written, the Treasury audit-trail work (roadmap item
+  #5 above) added an optional free-text `reason` input to both delete
+  sheets (`deletePaymentReason`/`deleteExpenseReason` → sent as
+  `?reason=` to `deleteMemberPayment`/`deleteExpense`, persisted as
+  `PenaltyLog`-style `delete_reason` for the audit trail). A text input
+  has no room in the inline ✕→✓/✕ chip pattern (two icon buttons, no
+  field), and deleting a financial transaction is exactly the
+  "higher-stakes action" the item's own carve-out reserves `Sheet` for —
+  so the existing Sheet is the correct choice here, not a deviation to
+  fix. No code change made for this item; verified by reading the current
+  implementation rather than assuming the original (pre-audit-trail)
+  survey still applies.
 
 ### 4. Accessibility
 
@@ -184,6 +215,37 @@ below traces back to a concrete file:line finding from the codebase survey.
   since their content now lives behind the new year tab).
 - Verified: `npm run build` clean, full Vitest suite green (1776/1776),
   i18n key parity confirmed (981/981, no drift).
+
+### Round 3: Consistency (done)
+
+- Re-surveyed every flagged line before editing (an agent-driven check),
+  since Round 1/2's line numbers had already drifted from later commits —
+  most of the todo's original 3.1 line references turned out to be false
+  positives (currency styling, danger-button styling, per-record status
+  flags, already-`toastError()`'d catch blocks) rather than actual inline
+  error banners.
+- New `frontend/src/components/ui/InlineError.tsx` — extracted from 3
+  duplicate `{error && <p className="text-red-400 text-xs">{error}</p>}`
+  sites in `LoginPage.tsx` (login/reset/register forms). Kept inline
+  (pre-auth UX, toast could be missed) rather than converting to
+  `showToast()`.
+- New `frontend/src/components/ui/Loading.tsx` (`text`/`className` props) —
+  replaced 8 ad hoc loading `<p>`s across `CommitteePage.tsx`,
+  `SchedulePage.tsx`, `HistoryPage.tsx`, and the misused `Empty`-as-loading
+  placeholders in `StatsPage.tsx`.
+- `TreasuryPage.tsx` payment/expense delete confirmation verified and left
+  as `Sheet` — the Treasury audit-trail work (this file, item #5, shipped
+  earlier) already added a `reason` text input to those sheets, which
+  doesn't fit the inline ✕→✓/✕ chip pattern and is exactly the
+  higher-stakes case the item's own text carves out for `Sheet`. No code
+  change; documented the reasoning so this isn't re-flagged.
+- No `CLAUDE.md`/`README.md`/version bump — all three changes are
+  behavior-preserving internal refactors (same rendered text, same UX),
+  not new or changed user-facing features, consistent with how Round 1
+  (cheap bugs) was also not versioned.
+- Verified: `npm run build` clean (tsc + vite), full Vitest suite green
+  (1786/1786, +10 new tests for `InlineError`/`Loading`).
+- Not yet started: Accessibility, Responsiveness sections.
 
 ---
 

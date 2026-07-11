@@ -23,6 +23,38 @@ vi.mock('@/store/app.ts', () => ({
     isAdmin: vi.fn(() => false),
 }))
 
+// ── InlineError ───────────────────────────────────────────────────────────────
+
+describe('InlineError', () => {
+    it('renders the error text', async () => {
+        const { InlineError } = await import('../InlineError')
+        render(<InlineError text="Something went wrong" />)
+        expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+    })
+
+    it('renders nothing when text is empty', async () => {
+        const { InlineError } = await import('../InlineError')
+        const { container } = render(<InlineError text="" />)
+        expect(container.firstChild).toBeNull()
+    })
+})
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+
+describe('Loading', () => {
+    it('renders default loading text', async () => {
+        const { Loading } = await import('../Loading')
+        render(<Loading />)
+        expect(screen.getByText('action.loading')).toBeInTheDocument()
+    })
+
+    it('renders custom text when provided', async () => {
+        const { Loading } = await import('../Loading')
+        render(<Loading text="Please wait…" />)
+        expect(screen.getByText('Please wait…')).toBeInTheDocument()
+    })
+})
+
 // ── Empty ─────────────────────────────────────────────────────────────────────
 
 describe('Empty', () => {
