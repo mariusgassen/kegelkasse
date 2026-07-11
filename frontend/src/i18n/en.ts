@@ -793,6 +793,7 @@ export const en = {
     "broadcast.body": "Message",
     "broadcast.send": "Send push",
     "broadcast.sent": "Message sent",
+    "broadcast.error": "Failed to send",
     "broadcast.url": "Link (optional)",
     "highlight.title": "✨ Highlights",
     "highlight.add": "Add highlight",

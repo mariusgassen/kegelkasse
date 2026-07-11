@@ -659,7 +659,7 @@ function BroadcastPushCard() {
             setBBody('')
             setBUrl('/')
         } catch {
-            showToast('Fehler beim Senden')
+            showToast(t('broadcast.error'))
         } finally {
             setSending(false)
         }
@@ -1389,7 +1389,7 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
                 </div>
             )}
             {/* Backup list */}
-            {backups.length === 0 && <Empty icon="💾" text="Noch keine Backups vorhanden."/>}
+            {backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
             {backups.map(b => (
                 <div key={b.label} className="rounded-xl p-3 space-y-1.5"
                      style={{background: 'var(--kce-surface2)'}}>
@@ -1399,7 +1399,7 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
                             {BACKUP_TYPE_LABEL[b.type] ?? b.type}
                         </span>
                         <span className="text-xs font-mono truncate flex-1">{b.label}</span>
-                        {b.error && <span className="text-[10px] text-red-400 font-bold">Fehler</span>}
+                        {b.error && <span className="text-[10px] text-red-400 font-bold">{t('backup.error')}</span>}
                         <button
                             onClick={() => handleDownload(b.label)}
                             disabled={!!downloading}

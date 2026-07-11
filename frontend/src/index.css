@@ -49,6 +49,7 @@
     --kce-border: #3d2e28;
     --kce-cream: #f5ede0;
     --kce-muted: #7a6258;
+    --kce-amber: var(--kce-primary);
 }
 
 @layer base {
