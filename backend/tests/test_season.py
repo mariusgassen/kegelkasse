@@ -382,12 +382,13 @@ def test_reopen_season_reverses_carry_over(
     db.commit()
 
     client.post("/api/v1/season/close", json={"year": 2017}, headers=admin_headers)
-    # Carry-over payment should exist
+    # Carry-over payment should exist, tagged with a transfer_group_id (not just the note text)
     payment = db.query(MemberPayment).filter(
         MemberPayment.regular_member_id == regular_member.id,
         MemberPayment.note == "Jahresabschluss 2017",
     ).first()
     assert payment is not None
+    assert payment.transfer_group_id == f"season-close-{club.id}-2017"
 
     # Reopen
     res = client.delete("/api/v1/season/snapshots/2017", headers=admin_headers)
@@ -399,6 +400,34 @@ def test_reopen_season_reverses_carry_over(
         MemberPayment.note == "Jahresabschluss 2017",
     ).first()
     assert payment_after is None
+
+
+def test_reopen_season_reverses_legacy_note_only_carry_over(
+    client: TestClient, admin_headers: dict, db: Session, club: Club,
+    regular_member: RegularMember,
+):
+    """Seasons closed before transfer_group_id existed are still reversible via the note-text fallback."""
+    evening = Evening(club_id=club.id, date=datetime(2016, 4, 1), is_closed=True)
+    db.add(evening)
+    db.commit()
+    db.refresh(evening)
+
+    snap = SeasonSnapshot(club_id=club.id, year=2016, member_count=1, evening_count=1, carry_over_count=1)
+    legacy_payment = MemberPayment(
+        club_id=club.id, regular_member_id=regular_member.id, amount=-4.0,
+        note="Jahresabschluss 2016",  # no transfer_group_id — simulates a pre-migration row
+    )
+    db.add_all([snap, legacy_payment])
+    db.commit()
+
+    res = client.delete("/api/v1/season/snapshots/2016", headers=admin_headers)
+    assert res.status_code == 204
+
+    db.expire_all()
+    assert db.query(MemberPayment).filter(
+        MemberPayment.regular_member_id == regular_member.id,
+        MemberPayment.note == "Jahresabschluss 2016",
+    ).first() is None
 
 
 def test_reopen_season_not_found(client: TestClient, admin_headers: dict):

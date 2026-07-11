@@ -468,6 +468,15 @@ describe('api.createMemberPayment', () => {
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/member-payments')
         expect(mockFetch.mock.calls[0][1].method).toBe('POST')
     })
+
+    it('includes a generated idempotency_key in the body', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ id: 1 }))
+        const { api } = await import('../client')
+        await api.createMemberPayment({ regular_member_id: 1, amount: 5.00 })
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+        expect(typeof body.idempotency_key).toBe('string')
+        expect(body.idempotency_key.length).toBeGreaterThan(0)
+    })
 })
 
 describe('api.deleteMemberPayment', () => {
@@ -476,6 +485,13 @@ describe('api.deleteMemberPayment', () => {
         const { api } = await import('../client')
         await api.deleteMemberPayment(7)
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/member-payments/7')
+    })
+
+    it('appends the reason as a query param when provided', async () => {
+        mockFetch.mockResolvedValueOnce(noContent())
+        const { api } = await import('../client')
+        await api.deleteMemberPayment(7, 'Tippfehler')
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/member-payments/7?reason=Tippfehler')
     })
 })
 
@@ -1162,6 +1178,15 @@ describe('api.createExpense', () => {
         expect(url).toBe('/api/v1/club/expenses')
         expect(opts.method).toBe('POST')
     })
+
+    it('includes a generated idempotency_key in the body', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ id: 1 }))
+        const { api } = await import('../client')
+        await api.createExpense({ amount: 20.00, description: 'Kegel-Öl' })
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body)
+        expect(typeof body.idempotency_key).toBe('string')
+        expect(body.idempotency_key.length).toBeGreaterThan(0)
+    })
 })
 
 describe('api.deleteExpense', () => {
@@ -1171,6 +1196,13 @@ describe('api.deleteExpense', () => {
         await api.deleteExpense(4)
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/expenses/4')
         expect(mockFetch.mock.calls[0][1].method).toBe('DELETE')
+    })
+
+    it('appends the reason as a query param when provided', async () => {
+        mockFetch.mockResolvedValueOnce(noContent())
+        const { api } = await import('../client')
+        await api.deleteExpense(4, 'Doppelt erfasst')
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/expenses/4?reason=Doppelt%20erfasst')
     })
 })
 

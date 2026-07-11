@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_admin, require_club_member
@@ -22,6 +23,11 @@ router = APIRouter(prefix="/season", tags=["season"])
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _season_close_transfer_group_id(club_id: int, year: int) -> str:
+    """Deterministic transfer_group_id for a club's season-close carry-over payments."""
+    return f"season-close-{club_id}-{year}"
+
 
 def _penalty_euro(log: PenaltyLog) -> float:
     if log.mode == "euro":
@@ -83,7 +89,7 @@ def _compute_balances(db: Session, club_id: int, year: Optional[int] = None) -> 
     for log in absence_rows:
         absence_by_member[log.regular_member_id] = absence_by_member.get(log.regular_member_id, 0.0) + _penalty_euro(log)
 
-    pq = db.query(MemberPayment).filter(MemberPayment.club_id == club_id)
+    pq = db.query(MemberPayment).filter(MemberPayment.club_id == club_id, MemberPayment.is_deleted == False)
     if year:
         pq = pq.filter(
             MemberPayment.created_at >= start_date,
@@ -233,10 +239,15 @@ def reopen_season(
     if not snap:
         raise HTTPException(status_code=404, detail=f"No snapshot found for year {year}")
 
-    # Reverse all carry-over payments created during season close
+    # Reverse all carry-over payments created during season close. Matched by
+    # transfer_group_id going forward; the note-text match is kept as a
+    # fallback for seasons closed before transfer_group_id existed.
     db.query(MemberPayment).filter(
         MemberPayment.club_id == user.club_id,
-        MemberPayment.note == f"Jahresabschluss {year}",
+        or_(
+            MemberPayment.transfer_group_id == _season_close_transfer_group_id(user.club_id, year),
+            MemberPayment.note == f"Jahresabschluss {year}",
+        ),
     ).delete(synchronize_session=False)
 
     db.delete(snap)
@@ -309,6 +320,7 @@ def close_season(
                 amount=round(-balance, 2),
                 note=f"Jahresabschluss {data.year}",
                 created_by=user.id,
+                transfer_group_id=_season_close_transfer_group_id(user.club_id, data.year),
             ))
             carry_over_count += 1
 

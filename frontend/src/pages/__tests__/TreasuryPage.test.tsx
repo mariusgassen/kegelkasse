@@ -642,7 +642,24 @@ describe('TreasuryPage — bookings delete', () => {
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
-            expect(api.deleteExpense).toHaveBeenCalledWith(1)
+            expect(api.deleteExpense).toHaveBeenCalledWith(1, undefined)
+        })
+    })
+
+    it('passes a typed reason through to api.deleteExpense', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteExpense).mockResolvedValueOnce(undefined as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[1])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.change(screen.getByPlaceholderText('treasury.expense.deleteReasonPlaceholder'), {
+            target: {value: 'Doppelt erfasst'},
+        })
+        fireEvent.click(screen.getByText('action.delete'))
+        await waitFor(() => {
+            expect(api.deleteExpense).toHaveBeenCalledWith(1, 'Doppelt erfasst')
         })
     })
 })
@@ -1375,7 +1392,24 @@ describe('TreasuryPage — delete payment in bookings tab', () => {
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
-            expect(api.deleteMemberPayment).toHaveBeenCalledWith(10)
+            expect(api.deleteMemberPayment).toHaveBeenCalledWith(10, undefined)
+        })
+    })
+
+    it('passes a typed reason through to api.deleteMemberPayment', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteMemberPayment).mockResolvedValueOnce(undefined as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Einzahlung'))
+        const deleteBtns = screen.getAllByText('✕')
+        fireEvent.click(deleteBtns[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.change(screen.getByPlaceholderText('treasury.payment.deleteReasonPlaceholder'), {
+            target: {value: 'Tippfehler'},
+        })
+        fireEvent.click(screen.getByText('action.delete'))
+        await waitFor(() => {
+            expect(api.deleteMemberPayment).toHaveBeenCalledWith(10, 'Tippfehler')
         })
     })
 })

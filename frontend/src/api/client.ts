@@ -37,6 +37,11 @@ import {
 const API_BASE = '/api/v1'
 let _token: string | null = localStorage.getItem('kegelkasse_token')
 
+/** Client-generated key so retried/double-tapped money mutations aren't booked twice. */
+function newIdempotencyKey(): string {
+    return crypto.randomUUID()
+}
+
 export class UnauthorizedError extends Error {
     constructor() {
         super(tl('error.session'))
@@ -507,8 +512,9 @@ export const api = {
             amount: number;
             note: string | null;
             created_at: string | null
-        }>('POST', '/club/member-payments', d),
-    deleteMemberPayment: (pid: number) => request<void>('DELETE', `/club/member-payments/${pid}`),
+        }>('POST', '/club/member-payments', {...d, idempotency_key: newIdempotencyKey()}),
+    deleteMemberPayment: (pid: number, reason?: string) =>
+        request<void>('DELETE', `/club/member-payments/${pid}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
     transferGuestCosts: (d: { guest_id: number; target_member_id: number; amount: number; note?: string }) =>
         request<{ guest_payment_id: number; target_payment_id: number }>('POST', '/club/guest-cost-transfer', d),
     treasuryPayout: (d: { payouts: { regular_member_id: number; amount: number }[]; note?: string }) =>
@@ -519,8 +525,10 @@ export const api = {
         id: number; amount: number; description: string; created_at: string | null; date: string | null
     }[]>('GET', '/club/expenses'),
     createExpense: (d: { amount: number; description: string; date?: string }) =>
-        request<{ id: number; amount: number; description: string; created_at: string | null; date: string | null }>('POST', '/club/expenses', d),
-    deleteExpense: (eid: number) => request<void>('DELETE', `/club/expenses/${eid}`),
+        request<{ id: number; amount: number; description: string; created_at: string | null; date: string | null }>(
+            'POST', '/club/expenses', {...d, idempotency_key: newIdempotencyKey()}),
+    deleteExpense: (eid: number, reason?: string) =>
+        request<void>('DELETE', `/club/expenses/${eid}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
 
     // My balance
     getMyBalance: () => request<{

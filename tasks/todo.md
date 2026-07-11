@@ -152,3 +152,127 @@ below traces back to a concrete file:line finding from the codebase survey.
   no drift).
 - Not yet started: Navigation/discoverability, Consistency, Accessibility,
   Responsiveness sections.
+
+---
+
+# Treasury (Kasse) — High-Priority Correctness & Data-Integrity Fixes
+
+Source: treasury improvement recommendations (see conversation). This file
+tracks implementation of items 1-7 (the "high priority" tier) from that
+report. Items 8-18 (maintainability + feature gaps) are deferred — not in
+scope for this pass.
+
+Working branch: `claude/treasury-management-improvements-lpvs0g`.
+
+## Plan
+
+### 1. TOCTOU race on payment-request confirm/reject (quick win)
+- [x] `confirm_payment_request` / `reject_payment_request` (`club.py`):
+  add `.with_for_update()` on the `PaymentRequest` row lookup so two
+  concurrent admin taps can't both pass the `status == pending` check.
+- [x] pytest: existing single-request confirm/reject tests still pass.
+
+### 2. Missing amount validation on `POST /club/member-payments`
+- [x] Reject `amount == 0` (mirror `create_expense`'s check) in
+  `PaymentCreate`/`create_member_payment`.
+- [x] pytest: 400 on zero amount.
+
+### 3. Silent payment deletion (no member notification)
+- [x] `delete_member_payment`: push-notify the affected member (reuse
+  `push_to_regular_member`, mirror the pattern used in `create_member_payment`).
+- [x] pytest: notification is dispatched on delete (checked via `NotificationLog`).
+
+### 4. Linked transactions correlated only by note-string matching
+- [x] Add `transfer_group_id` (nullable, indexed string) column to
+  `MemberPayment` via new Alembic migration.
+- [x] `transfer_guest_costs`: set matching `transfer_group_id` on both paired
+  rows instead of relying solely on note text.
+- [x] Season close/reopen (`season.py`): tag carry-over payments with a
+  `transfer_group_id` derived from `(club_id, year)` and use it to find them
+  on reopen; kept the literal `f"Jahresabschluss {year}"` note-text match as
+  an OR fallback so seasons closed before this migration are still reversible.
+- [x] pytest: guest-cost-transfer round trip finds both rows via
+  `transfer_group_id`; season reopen still correctly reverses carry-over
+  (new + legacy note-only row) — `test_reopen_season_reverses_legacy_note_only_carry_over`.
+
+### 5. No audit trail / hard deletes on `MemberPayment` / `ClubExpense`
+- [x] Add `is_deleted`, `deleted_at`, `deleted_by`, `delete_reason` columns
+  to both models (mirror `PenaltyLog.is_deleted` pattern) via migration.
+- [x] Convert `delete_member_payment` / `delete_expense` from hard `db.delete()`
+  to soft-delete (set flags), accept an optional reason via a `?reason=` query param.
+- [x] Update every read path that sums these tables (`get_member_balances`,
+  `get_guest_balances`, `get_my_balance`, `get_treasury_debt_timeline`,
+  `remind_debtors`, `list_all_payments`, `list_expenses`,
+  `season.py::_compute_balances`) to filter `is_deleted == False`.
+- [x] Add `logger.info(...)` calls consistently on all treasury mutations
+  that currently lack them (create/delete payment, create/delete expense).
+- [x] Frontend: delete-confirmation sheet in `TreasuryPage.tsx` gains an
+  optional reason field; still shows a confirm step.
+- [x] pytest: soft-deleted rows excluded from balances but still queryable;
+  reason/deleted_by persisted.
+
+### 6. Idempotency for double-submitted money mutations
+- [x] Add `idempotency_key` (nullable, globally unique) column to
+  `MemberPayment` and `ClubExpense`.
+- [x] `create_member_payment` / `create_expense`: accept optional
+  `idempotency_key`; if a row with that key already exists for the club,
+  return the existing row instead of creating a duplicate.
+- [x] **Scope correction**: the original framing ("offline-queue-reachable")
+  was wrong — `isQueuableMutation` in `offlineQueue.ts` explicitly excludes
+  `/club/member-payments` and `/club/expenses` from offline queueing (they
+  "need real response values or must not be replayed blindly"). The real
+  risk is a plain double-tap or network-retry on a live connection, not
+  offline replay. Implemented by generating a `crypto.randomUUID()` inside
+  `api.createMemberPayment`/`api.createExpense` on every call — no
+  offlineQueue.ts changes needed.
+- [x] pytest + Vitest: duplicate submission with same key returns the
+  original row, no second row created; api client generates a key per call.
+
+### 7. `MemberPayment.amount` stale doc-comment
+- [x] Fix the "always positive" comment in `backend/app/models/payment.py`
+  to reflect actual signed usage (deposits positive, payouts/transfers can
+  be negative).
+
+## Deferred (not in this pass)
+Items 8-18 from the original report (Decimal/Numeric currency migration,
+shared balance-computation helper, transaction categories, typed settings,
+server-side cash endpoint, recurring dues, bank reconciliation, budget/forecast,
+confirm-preview on payment entry, duplicated PayPal JSX). Revisit after this
+pass ships.
+
+## Docs (per CLAUDE.md — before committing)
+- [x] Update `CLAUDE.md` Feature Roadmap (Kasse row, #3) to note the
+  audit-trail/soft-delete/idempotency additions since they change
+  user-visible behavior (reason prompt on delete).
+- [x] Update `README.md` feature catalog.
+
+## Review
+
+All 7 high-priority items implemented, tested, and verified:
+
+- **Migration**: `backend/alembic/versions/047_treasury_audit_and_idempotency.py`
+  adds `is_deleted`/`deleted_at`/`deleted_by`/`delete_reason`/`idempotency_key`
+  to `member_payment` + `club_expense`, plus `transfer_group_id` to
+  `member_payment`. Not verified against a live Postgres instance (no Docker
+  daemon in this sandbox) — closely mirrors the existing `046_season_snapshot.py`
+  pattern (partial-nullable unique index, FK-scoped columns).
+- **Backend**: `backend/app/api/v1/club.py` and `backend/app/api/v1/season.py`.
+- **Tests**: `backend/tests/test_treasury.py` (new tests + 2 existing hard-delete
+  assertions updated to soft-delete semantics), `backend/tests/test_season.py`
+  (transfer_group_id assertion + legacy-fallback test).
+  Full suite: **780 passed** (pytest), ruff clean.
+- **Frontend**: `frontend/src/api/client.ts` (idempotency key generation,
+  reason query param), `frontend/src/pages/TreasuryPage.tsx` (reason input in
+  both delete sheets), i18n keys added to `de.ts`/`en.ts`.
+  Full suite: **1782 passed** (vitest), `npm run build` clean (tsc + vite).
+- **Scope correction on item 6**: see the note under item 6 above — the
+  offline-queue framing in the original report was inaccurate for these two
+  specific endpoints (they're excluded from queueing); implementation and
+  rationale adjusted accordingly, real risk (double-tap/retry) still covered.
+- **Backward compatibility**: season-close reopen matches on
+  `transfer_group_id` OR the legacy note string, so seasons closed before
+  this migration remain reversible.
+- Version bumped `1.14.2` → `1.15.0` (MINOR — new user-visible behavior:
+  delete reason prompt, deletion push notification).
+- Deferred items 8-18 (Decimal/Numeric currency, shared balance helper,
+  transaction categories, etc.) untouched, as planned.

@@ -161,12 +161,35 @@ class TestCreateMemberPayment:
         }, headers=admin_headers)
         assert resp.status_code == 404
 
+    def test_zero_amount_returns_400(self, client: TestClient, regular_member, admin_headers):
+        resp = client.post("/api/v1/club/member-payments", json={
+            "regular_member_id": regular_member.id,
+            "amount": 0,
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+
     def test_requires_auth(self, client: TestClient, regular_member):
         resp = client.post("/api/v1/club/member-payments", json={
             "regular_member_id": regular_member.id,
             "amount": 5.0,
         })
         assert resp.status_code == 401
+
+    def test_idempotency_key_prevents_duplicate(self, client: TestClient, db, regular_member, admin_headers):
+        payload = {
+            "regular_member_id": regular_member.id,
+            "amount": 9.0,
+            "idempotency_key": "test-key-abc",
+        }
+        first = client.post("/api/v1/club/member-payments", json=payload, headers=admin_headers)
+        second = client.post("/api/v1/club/member-payments", json=payload, headers=admin_headers)
+        assert first.status_code == 201
+        assert second.status_code == 201
+        assert first.json()["id"] == second.json()["id"]
+        assert db.query(MemberPayment).filter(
+            MemberPayment.regular_member_id == regular_member.id,
+            MemberPayment.idempotency_key == "test-key-abc",
+        ).count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -396,9 +419,49 @@ class TestDeleteMemberPayment:
         )
         db.add(payment)
         db.commit()
+        resp = client.delete(f"/api/v1/club/member-payments/{payment.id}?reason=Tippfehler", headers=admin_headers)
+        assert resp.status_code == 204
+        db.expire_all()
+        deleted = db.query(MemberPayment).filter(MemberPayment.id == payment.id).first()
+        assert deleted is not None  # soft-deleted, not gone
+        assert deleted.is_deleted is True
+        assert deleted.deleted_by == admin_user.id
+        assert deleted.delete_reason == "Tippfehler"
+        assert deleted.deleted_at is not None
+
+    def test_deleted_payment_excluded_from_list_and_balance(
+        self, client: TestClient, db, club, regular_member, admin_user, admin_headers, user, auth_headers,
+    ):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=6.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        client.delete(f"/api/v1/club/member-payments/{payment.id}", headers=admin_headers)
+
+        listed = client.get(f"/api/v1/club/member-payments/{regular_member.id}", headers=auth_headers)
+        assert listed.json() == []
+
+        balances = client.get("/api/v1/club/member-balances", headers=auth_headers)
+        member_data = next(m for m in balances.json() if m["regular_member_id"] == regular_member.id)
+        assert member_data["payments_total"] == 0.0
+
+    def test_deleting_payment_notifies_member(
+        self, client: TestClient, db, club, regular_member, admin_user, admin_headers, member_user,
+    ):
+        from models.push import NotificationLog
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=4.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
         resp = client.delete(f"/api/v1/club/member-payments/{payment.id}", headers=admin_headers)
         assert resp.status_code == 204
-        assert db.query(MemberPayment).filter(MemberPayment.id == payment.id).first() is None
+        log = db.query(NotificationLog).filter(
+            NotificationLog.user_id == member_user.id,
+            NotificationLog.title.contains("storniert"),
+        ).first()
+        assert log is not None
 
     def test_member_cannot_delete_payment(self, client: TestClient, db, club, regular_member, admin_user, auth_headers):
         payment = MemberPayment(
@@ -411,6 +474,18 @@ class TestDeleteMemberPayment:
         db.commit()
         resp = client.delete(f"/api/v1/club/member-payments/{payment.id}", headers=auth_headers)
         assert resp.status_code == 403
+
+    def test_deleting_already_deleted_payment_returns_404(
+        self, client: TestClient, db, club, regular_member, admin_user, admin_headers,
+    ):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        client.delete(f"/api/v1/club/member-payments/{payment.id}", headers=admin_headers)
+        resp = client.delete(f"/api/v1/club/member-payments/{payment.id}", headers=admin_headers)
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -469,6 +544,15 @@ class TestCreateExpense:
         resp = client.post("/api/v1/club/expenses", json={"amount": 10.0, "description": "X"})
         assert resp.status_code == 401
 
+    def test_idempotency_key_prevents_duplicate(self, client: TestClient, db, admin_headers):
+        payload = {"amount": 42.0, "description": "Doppelt gebucht?", "idempotency_key": "expense-key-1"}
+        first = client.post("/api/v1/club/expenses", json=payload, headers=admin_headers)
+        second = client.post("/api/v1/club/expenses", json=payload, headers=admin_headers)
+        assert first.status_code == 201
+        assert second.status_code == 201
+        assert first.json()["id"] == second.json()["id"]
+        assert db.query(ClubExpense).filter(ClubExpense.idempotency_key == "expense-key-1").count() == 1
+
 
 # ---------------------------------------------------------------------------
 # DELETE /api/v1/club/expenses/{eid}
@@ -484,9 +568,22 @@ class TestDeleteExpense:
         )
         db.add(expense)
         db.commit()
-        resp = client.delete(f"/api/v1/club/expenses/{expense.id}", headers=admin_headers)
+        resp = client.delete(f"/api/v1/club/expenses/{expense.id}?reason=Falsch+erfasst", headers=admin_headers)
         assert resp.status_code == 204
-        assert db.query(ClubExpense).filter(ClubExpense.id == expense.id).first() is None
+        db.expire_all()
+        deleted = db.query(ClubExpense).filter(ClubExpense.id == expense.id).first()
+        assert deleted is not None  # soft-deleted, not gone
+        assert deleted.is_deleted is True
+        assert deleted.deleted_by == admin_user.id
+        assert deleted.delete_reason == "Falsch erfasst"
+
+    def test_deleted_expense_excluded_from_list(self, client: TestClient, db, club, admin_user, admin_headers, auth_headers):
+        expense = ClubExpense(club_id=club.id, amount=15.0, description="Weg damit", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        client.delete(f"/api/v1/club/expenses/{expense.id}", headers=admin_headers)
+        resp = client.get("/api/v1/club/expenses", headers=auth_headers)
+        assert resp.json() == []
 
     def test_member_cannot_delete_expense(self, client: TestClient, db, club, admin_user, auth_headers):
         expense = ClubExpense(
@@ -697,6 +794,8 @@ class TestGuestCostTransfer:
         assert target_p.regular_member_id == regular_member.id
         assert target_p.amount == -12.50
         assert "Hansi" in (target_p.note or "")
+        assert guest_p.transfer_group_id is not None
+        assert guest_p.transfer_group_id == target_p.transfer_group_id
 
     def test_member_cannot_transfer(self, client: TestClient, guest, regular_member, auth_headers):
         resp = client.post(

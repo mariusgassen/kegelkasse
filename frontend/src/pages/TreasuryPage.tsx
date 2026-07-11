@@ -475,17 +475,19 @@ export function TreasuryPage() {
 
     const [confirmDeletePayment, setConfirmDeletePayment] = useState<{ id: number; memberId: number } | null>(null)
     const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null)
+    const [deletePaymentReason, setDeletePaymentReason] = useState('')
 
-    async function deletePayment(pid: number, mid: number) {
+    async function deletePayment(pid: number, mid: number, reason: string) {
         setDeletingPaymentId(pid)
         try {
-            await api.deleteMemberPayment(pid)
+            await api.deleteMemberPayment(pid, reason || undefined)
             refetchBalances()
             refetchGuestBalances()
             qc.invalidateQueries({queryKey: ['member-payments', mid]})
             qc.invalidateQueries({queryKey: ['all-payments']})
             refetchAllPayments()
             setConfirmDeletePayment(null)
+            setDeletePaymentReason('')
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -525,15 +527,17 @@ export function TreasuryPage() {
     // Expense operations
     const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<number | null>(null)
     const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
+    const [deleteExpenseReason, setDeleteExpenseReason] = useState('')
 
-    async function deleteExpense(eid: number) {
+    async function deleteExpense(eid: number, reason: string) {
         setDeletingExpenseId(eid)
         try {
-            await api.deleteExpense(eid)
+            await api.deleteExpense(eid, reason || undefined)
             refetchExpenses()
             refetchBalances()
             refetchGuestBalances()
             setConfirmDeleteExpense(null)
+            setDeleteExpenseReason('')
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -1349,16 +1353,20 @@ export function TreasuryPage() {
             )}
 
             {/* Confirm payment deletion */}
-            <Sheet open={!!confirmDeletePayment} onClose={() => setConfirmDeletePayment(null)}
+            <Sheet open={!!confirmDeletePayment} onClose={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}
                    title={t('treasury.payment.deleteConfirm')}>
                 <div className="flex flex-col gap-4">
                     <p className="text-sm text-kce-muted">{t('treasury.payment.deleteConfirmHint')}</p>
+                    <input className="kce-input" value={deletePaymentReason}
+                           onChange={e => setDeletePaymentReason(e.target.value)}
+                           placeholder={t('treasury.payment.deleteReasonPlaceholder')} />
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setConfirmDeletePayment(null)}>
+                        <button className="btn-secondary btn-sm flex-1"
+                                onClick={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}>
                             {t('action.cancel')}
                         </button>
                         <button className="btn-danger btn-sm flex-1" disabled={deletingPaymentId !== null}
-                                onClick={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId)}>
+                                onClick={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId, deletePaymentReason)}>
                             {t('action.delete')}
                         </button>
                     </div>
@@ -1366,16 +1374,20 @@ export function TreasuryPage() {
             </Sheet>
 
             {/* Confirm expense deletion */}
-            <Sheet open={!!confirmDeleteExpense} onClose={() => setConfirmDeleteExpense(null)}
+            <Sheet open={!!confirmDeleteExpense} onClose={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}
                    title={t('treasury.expense.deleteConfirm')}>
                 <div className="flex flex-col gap-4">
                     <p className="text-sm text-kce-muted">{t('treasury.expense.deleteConfirmHint')}</p>
+                    <input className="kce-input" value={deleteExpenseReason}
+                           onChange={e => setDeleteExpenseReason(e.target.value)}
+                           placeholder={t('treasury.expense.deleteReasonPlaceholder')} />
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setConfirmDeleteExpense(null)}>
+                        <button className="btn-secondary btn-sm flex-1"
+                                onClick={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}>
                             {t('action.cancel')}
                         </button>
                         <button className="btn-danger btn-sm flex-1" disabled={deletingExpenseId !== null}
-                                onClick={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense)}>
+                                onClick={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense, deleteExpenseReason)}>
                             {t('action.delete')}
                         </button>
                     </div>
