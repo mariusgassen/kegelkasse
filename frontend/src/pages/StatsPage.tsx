@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from 'react'
 import {useEveningList} from '../hooks/useEvening'
+import {useHashTab} from '@/hooks/usePage.ts'
 import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
@@ -2557,6 +2558,7 @@ export function StatsPage() {
     const user = useAppStore(s => s.user)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const currentYear = new Date().getFullYear()
+    const [tab, setTab] = useHashTab<'evening' | 'year'>('evening', ['evening', 'year'])
     const [year, setYear] = useState(currentYear)
     const [memberSearch, setMemberSearch] = useState('')
     const [showAllMembers, setShowAllMembers] = useState(false)
@@ -2610,9 +2612,19 @@ export function StatsPage() {
         <div className="page-scroll px-3 py-3 pb-24">
             <div className="sec-heading">{t('stats.title')}</div>
 
-            {/* ── Evening analysis ── */}
-            <div className="sec-heading text-sm">{t('stats.evening')}</div>
+            {/* ── Tab strip ── */}
+            <div className="flex gap-1 mb-3">
+                {(['evening', 'year'] as const).map(tb => (
+                    <button key={tb} type="button"
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            onClick={() => setTab(tb)}>
+                        {tb === 'evening' ? t('stats.evening') : t('stats.year')}
+                    </button>
+                ))}
+            </div>
 
+            {tab === 'evening' && (
+            <>
             {sortedEvenings.length === 0 ? (
                 <Empty icon="🎳" text={t('stats.noData')}/>
             ) : (
@@ -2831,10 +2843,13 @@ export function StatsPage() {
                     )}
                 </>
             )}
+            </>
+            )}
 
+            {tab === 'year' && (
+            <>
             {/* ── Jahresrückblick ── */}
-            <div className="sec-heading text-sm flex items-center justify-between mt-6">
-                <span>{t('stats.year')}</span>
+            <div className="flex items-center justify-end mb-2">
                 <div className="flex gap-1">
                     {yearsWithEvenings.map(y => (
                         <button key={y} type="button"
@@ -2932,6 +2947,8 @@ export function StatsPage() {
                         </button>
                     )}
                 </>
+            )}
+            </>
             )}
         </div>
 

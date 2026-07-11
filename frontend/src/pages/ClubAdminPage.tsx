@@ -65,7 +65,7 @@ export function ClubAdminPage() {
         {id: 'templates', label: t('club.tab.templates')},
         {id: 'teams', label: t('club.tab.teams')},
         {id: 'pins', label: t('club.tab.pins')},
-        {id: 'committee', label: '🚌 VGA'},
+        {id: 'committee', label: t('club.tab.committee')},
         {id: 'season', label: `📆 ${t('season.tab')}`},
         ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
         ...(user?.role === 'superadmin' ? [{id: 'backups', label: t('club.tab.backups')}] : []),

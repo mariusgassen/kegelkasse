@@ -161,6 +161,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### Statistics
 
+- "Abend" / "Jahr" tab split — per-evening analysis and the yearly rollup live behind two tabs instead of one long scroll
 - Yearly rollup by regular member: evenings attended, total penalty amount (€), penalty count, game wins, beer rounds, shot rounds
 - Personal stats in user profile
 - Year selector with CSS bar chart visualization
@@ -194,6 +195,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### UI / UX
 
+- Read-only member roster tab for regular (non-admin) members — admins manage the roster via the Verein tab instead
+- "⚙️ Verwalten" button in the evening tab strip surfaces team/player management and closing the evening in-context
 - Dark/light mode toggle
 - Toast notifications for every create/update/delete action
 - AdminGuard component — wraps any section to show a lock icon to non-admins

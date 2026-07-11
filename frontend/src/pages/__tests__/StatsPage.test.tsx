@@ -177,9 +177,14 @@ function makeWrapper() {
     }
 }
 
-async function renderStatsPage() {
+async function renderStatsPage(tab?: 'evening' | 'year') {
     const { StatsPage } = await import('../StatsPage')
-    return render(<StatsPage />, { wrapper: makeWrapper() })
+    const result = render(<StatsPage />, { wrapper: makeWrapper() })
+    if (tab === 'year') {
+        await waitFor(() => expect(screen.getByText('stats.year')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('stats.year'))
+    }
+    return result
 }
 
 async function setupDefaultMocks() {
@@ -291,7 +296,7 @@ describe('StatsPage — loading and empty states', () => {
         await setupDefaultMocks()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getYearStats).mockResolvedValue(YEAR_STATS_EMPTY as any)
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(screen.getByText(/stats\.noYearData/)).toBeInTheDocument()
         })
@@ -330,7 +335,7 @@ describe('StatsPage — year section', () => {
 
     it('shows a year chip button for each year that has evenings', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // EVENING_LIST has both dates in 2026 → one chip for 2026
             const chips = screen.getAllByRole('button', { name: '2026' })
@@ -353,7 +358,7 @@ describe('StatsPage — year section', () => {
 
     it('renders year stats summary boxes when data is available', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // evening_count = 4
             expect(screen.getByText('4')).toBeInTheDocument()
@@ -362,7 +367,7 @@ describe('StatsPage — year section', () => {
 
     it('renders total-beers stat box', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // total_beers = 12
             expect(screen.getByText('🍺 12')).toBeInTheDocument()
@@ -382,7 +387,7 @@ describe('StatsPage — member ranking', () => {
 
     it('renders member search input when year data exists', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(screen.getByPlaceholderText('stats.memberSearch')).toBeInTheDocument()
         })
@@ -390,7 +395,7 @@ describe('StatsPage — member ranking', () => {
 
     it('renders member names in ranking list', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // Hans and Franzi appear in both podium and ranking list
             expect(screen.getAllByText('Hans').length).toBeGreaterThanOrEqual(1)
@@ -400,7 +405,7 @@ describe('StatsPage — member ranking', () => {
 
     it('renders year penalties heading', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(screen.getByText('stats.yearPenalties')).toBeInTheDocument()
         })
@@ -408,7 +413,7 @@ describe('StatsPage — member ranking', () => {
 
     it('filters members by search query', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(screen.getAllByText('Hans').length).toBeGreaterThanOrEqual(1)
         })
@@ -423,7 +428,7 @@ describe('StatsPage — member ranking', () => {
 
     it('shows "show all" button when more than 5 members exist and search is empty', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // YEAR_STATS has 6 members, default shows 5, button should appear
             expect(screen.getByText(/stats\.showAllMembers/)).toBeInTheDocument()
@@ -432,7 +437,7 @@ describe('StatsPage — member ranking', () => {
 
     it('clicking "show all" expands to display all members', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(screen.queryByText('Peter')).not.toBeInTheDocument()
         })
@@ -445,7 +450,7 @@ describe('StatsPage — member ranking', () => {
 
     it('clicking "show all" again collapses the list', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         const showAllBtn = await screen.findByText(/stats\.showAllMembers/)
         fireEvent.click(showAllBtn)
         await waitFor(() => {
@@ -491,7 +496,7 @@ describe('StatsPage — current user highlighting', () => {
     it('highlights current user card with amber ring', async () => {
         await setupWithEvenings()
         await setupWithUser(1) // regular_member_id=1 is "Hans"
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             const ichBadges = screen.getAllByText('Ich')
             expect(ichBadges.length).toBeGreaterThanOrEqual(1)
@@ -699,7 +704,7 @@ describe('StatsPage — correlation section', () => {
 
     it('renders the correlation title and the three year-level tab labels', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // The title appears in both the year-level section and the
             // evening-detail EveningCorrelationPanel.
@@ -713,7 +718,7 @@ describe('StatsPage — correlation section', () => {
     it('calls api.getCorrelationStats with the active year', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             expect(vi.mocked(api.getCorrelationStats)).toHaveBeenCalledWith(2026)
         })
@@ -721,7 +726,7 @@ describe('StatsPage — correlation section', () => {
 
     it('shows the overall pearson r badge on the per-evening tab', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         // Strength tab is the default — click "Pro Abend" to see the year overall r.
         await waitFor(() => screen.getByText('stats.correlation.tab.perEvening'))
         fireEvent.click(screen.getByText('stats.correlation.tab.perEvening'))
@@ -735,7 +740,7 @@ describe('StatsPage — correlation section', () => {
 
     it('shows the strength tab as default with members ranked by signed r', async () => {
         await setupWithEvenings()
-        await renderStatsPage()
+        await renderStatsPage('year')
         // Strength tab is the default tab now — no click required.
         await waitFor(() => {
             // Hans has 3 evenings and a recomputed personal r ∈ [-1, 1]; display is signed (e.g. "+0.95").

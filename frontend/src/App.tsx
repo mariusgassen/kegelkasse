@@ -23,6 +23,7 @@ import {
     Wallet,
     CalendarDays,
     Users,
+    UserRound,
     BarChart2,
     Settings,
     RotateCw,
@@ -39,8 +40,9 @@ import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
 import {SchedulePage} from './pages/SchedulePage'
 import {CommitteePage} from './pages/CommitteePage'
+import {MembersPage} from './pages/MembersPage'
 
-type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee'
+type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee' | 'members'
 
 export function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -127,6 +129,7 @@ const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
     {id: 'committee', Icon: Users, labelKey: 'nav.committee'},
     {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
     {id: 'club', Icon: Settings, labelKey: 'nav.club'},
+    {id: 'members', Icon: UserRound, labelKey: 'nav.members'},
 ]
 
 export default function App() {
@@ -142,7 +145,7 @@ export default function App() {
     } = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'committee', 'stats', 'club']
+    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'committee', 'stats', 'club', 'members']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
@@ -418,7 +421,12 @@ export default function App() {
 
                 {/* Nav */}
                 <nav className="flex items-stretch gap-1 px-2 mx-1 rounded-xl" style={{background: 'var(--kce-surface2)'}}>
-                    {NAV.filter(n => n.id !== 'club' || user?.role === 'admin' || user?.role === 'superadmin').map(n => (
+                    {NAV.filter(n => {
+                        const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
+                        if (n.id === 'club') return isAdminRole
+                        if (n.id === 'members') return !isAdminRole
+                        return true
+                    }).map(n => (
                         <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
                                 onClick={() => setPage(n.id)}>
                             <n.Icon size={16} strokeWidth={page === n.id ? 2.5 : 2}/>
@@ -438,6 +446,7 @@ export default function App() {
                     ['committee', <CommitteePage/>],
                     ['stats', <StatsPage/>],
                     ['club', <ClubAdminPage/>],
+                    ['members', <MembersPage/>],
                 ] as [PageId, ReactNode][]).map(([id, el]) => (
                     <div key={id} style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
                         {el}

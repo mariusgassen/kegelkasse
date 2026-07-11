@@ -1,6 +1,7 @@
 /**
  * Evening hub — sub-tab wrapper for Protokoll | Spiele | Highlights.
- * Evening configuration is accessed separately via the AKTIV header button.
+ * Evening configuration (players/teams/close) is also reachable via the
+ * AKTIV header button and the "Verwalten" button in the tab strip below.
  */
 import {useEffect, useRef, useState} from 'react'
 import {useT} from '@/i18n'
@@ -17,7 +18,7 @@ import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 import {TabletQuickEntryPage} from './TabletQuickEntryPage'
 import {Sheet} from '@/components/ui/Sheet.tsx'
-import {useQueryClient} from '@tanstack/react-query'
+import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 
 type SubTab = 'penalties' | 'games' | 'highlights'
 
@@ -29,9 +30,8 @@ interface Props {
 export function EveningHubPage({onNavigate, onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const qc = useQueryClient()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights'])
-    const [closeConfirm, setCloseConfirm] = useState(false)
+    const {closeConfirm, setCloseConfirm, closing, confirmClose, reopen} = useCloseReopenEvening(evening?.id, invalidate)
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
     const [highlightText, setHighlightText] = useState('')
     const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
@@ -143,6 +143,13 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                         {tb.label}
                     </button>
                 ))}
+                {/* Manage evening (players/teams/close) — always accessible in the tab bar */}
+                <button
+                    className="btn-secondary btn-xs flex-shrink-0 ml-1"
+                    onClick={onNavigate}>
+                    {t('evening.manage')}
+                </button>
+
                 {/* End / reopen evening — always accessible in the tab bar */}
                 {!isClosed ? (
                     <button
@@ -153,12 +160,8 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 ) : (
                     <button
                         className="btn-secondary btn-xs flex-shrink-0 ml-1"
-                        onClick={async () => {
-                            try {
-                                await api.updateEvening(evening!.id, {is_closed: false})
-                                invalidate()
-                            } catch (e) { toastError(e) }
-                        }}>
+                        disabled={closing}
+                        onClick={reopen}>
                         {t('evening.reopen')}
                     </button>
                 )}
@@ -173,19 +176,12 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 >
                     <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary btn-sm flex-1"
+                        <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>
                             {t('action.cancel')}
                         </button>
-                        <button type="button" className="btn-primary btn-sm flex-1"
-                                onClick={async () => {
-                                    try {
-                                        await api.updateEvening(evening!.id, {is_closed: true})
-                                        setCloseConfirm(false)
-                                        invalidate()
-                                        qc.invalidateQueries({queryKey: ['evenings']})
-                                    } catch (e) { toastError(e) }
-                                }}>
+                        <button type="button" className="btn-primary btn-sm flex-1" disabled={closing}
+                                onClick={confirmClose}>
                             {t('action.done')}
                         </button>
                     </div>

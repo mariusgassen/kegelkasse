@@ -84,6 +84,10 @@ vi.mock('@/pages/CommitteePage.tsx', () => ({
     CommitteePage: () => <div data-testid="committee-page" />,
 }))
 
+vi.mock('@/pages/MembersPage.tsx', () => ({
+    MembersPage: () => <div data-testid="members-page" />,
+}))
+
 vi.mock('@/hooks/useEvening.ts', () => ({
     useActiveEvening: vi.fn(() => ({
         evening: null,
@@ -281,6 +285,8 @@ describe('App — authenticated', () => {
         await waitFor(() => {
             // The ⚙️ club tab should not appear for plain members
             expect(screen.queryByText('nav.club')).not.toBeInTheDocument()
+            // Plain members get a read-only "members" tab instead
+            expect(screen.getByText('nav.members')).toBeInTheDocument()
         })
     })
 
@@ -289,6 +295,8 @@ describe('App — authenticated', () => {
         await renderApp()
         await waitFor(() => {
             expect(screen.getByText('nav.club')).toBeInTheDocument()
+            // Admins manage members via the club tab, not a separate one
+            expect(screen.queryByText('nav.members')).not.toBeInTheDocument()
         })
     })
 })
