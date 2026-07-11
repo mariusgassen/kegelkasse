@@ -1,15 +1,14 @@
-# UI/UX Improvements — Round 1: Cheap Bugs, Navigation/Discoverability, Consistency
+# UI/UX Improvements Roadmap
 
-Scope for this round: the three categories the user picked from the UI/UX
-recommendation pass (accessibility and responsiveness deferred to a later
-round — findings for those exist in the prior chat but are not tracked here).
+Covers all 5 categories from the UI/UX recommendation pass: cheap bugs,
+navigation/discoverability, consistency, accessibility, responsiveness.
 
 This file is the roadmap only — implementation has not started. Each item
 below traces back to a concrete file:line finding from the codebase survey.
 
 ## Decisions (confirmed with user)
 
-- Round 1 = Cheap bugs + Navigation/discoverability + Consistency only.
+- Roadmap covers every finding from the survey, not a subset.
 - Roadmap is written first; implementation starts only after this is reviewed.
 
 ## Plan
@@ -75,6 +74,54 @@ below traces back to a concrete file:line finding from the codebase survey.
   (`MembersPage.tsx:551-588`) reserved for higher-stakes actions only, and
   migrate `TreasuryPage.tsx:1352-1378` (delete payment/expense) to the inline
   pattern unless its stakes justify staying a Sheet.
+
+### 4. Accessibility
+
+- [ ] **Text contrast likely fails WCAG AA.** `--kce-muted: #7a6258` on
+  `--kce-bg: #1a1410` (`frontend/src/index.css:46,51`) computes to ~3.2:1,
+  below the 4.5:1 minimum for normal text. Used almost everywhere for
+  timestamps/hints/axis labels. Introduce a higher-contrast muted token (or
+  raise this one) for body-readable meta text.
+- [ ] **Chart label text is both tiny and low-contrast.** `fontSize="9"` +
+  `fill="var(--kce-muted)"` in `StatsPage.tsx:101-107,834-839` and
+  `TreasuryPage.tsx:199-203,251-252`, rendered inside a fixed viewBox scaled
+  to phone width — effectively 8-9px real text on a low-contrast color.
+- [ ] **Shared `Sheet` component has no focus management.** No
+  `role="dialog"`, `aria-modal`, initial focus, or focus-restore on close
+  (`components/ui/Sheet.tsx:91-122`). `ProfileSheet.tsx:328` re-implements
+  this itself instead of it living in the shared component every other
+  sheet in the app uses — fixing it once in `Sheet.tsx` benefits every page.
+- [ ] **Chart interactions are mouse/touch-only.** Donut segments and chart
+  dots have no `tabIndex`/`role`/`aria-label`, unreachable via keyboard or
+  screen reader: `StatsPage.tsx:444-456` (donut segments),
+  `StatsPage.tsx:125-138` (dot markers), `TreasuryPage.tsx:190-197` (chart
+  event points).
+- [ ] **Touch targets undersized for the club's older user base.** `.btn-xs`
+  (~22-24px, `index.css:155-157`) used for consequential void/edit-throw
+  buttons in `TabletQuickEntryPage.tsx:754-774,714-724`; Sheet's close
+  button is 28×28px (`Sheet.tsx:110-117`) — both under the ~44px
+  recommended minimum.
+- [ ] **Icon-only buttons mostly lack `aria-label`** (only 6/32 files use it
+  at all) — Sheet close, throw edit/void, camera close buttons need
+  accessible names.
+
+### 5. Responsiveness
+
+- [ ] **Zero Tailwind breakpoints (`sm:/md:/lg:/xl:`) anywhere in the
+  codebase.** Layout adapts only via flex/percentage widths, not
+  viewport-aware breakpoints.
+- [ ] **`TabletQuickEntryPage.tsx:967-969,1104-1112` hardcodes a fixed
+  22%/22%/flex-1 three-column layout** with no stacking fallback — breaks
+  down on portrait orientation or smaller tablets, despite this page being
+  the app's best-designed flow otherwise (2-tap penalty/drink logging).
+- [ ] **PWA manifest forces `orientation: 'portrait'`** (`vite.config.ts:51`)
+  while `TabletQuickEntryPage`/`CameraCapturePage` are explicitly landscape
+  kiosk UIs — a real conflict that could fight orientation lock on
+  installed Android PWAs.
+- [ ] **Silent service-worker auto-update.** `registerType: 'autoUpdate'`
+  with `sw.ts:12-14` calling `skipWaiting()`+`clientsClaim()` immediately on
+  install, no in-app "update available" prompt — could cause an unexplained
+  reload mid-evening for a non-technical user.
 
 ### Docs (per CLAUDE.md — do before committing, once implementation happens)
 
