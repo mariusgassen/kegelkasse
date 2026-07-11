@@ -639,7 +639,9 @@ def get_member_balances(db: Session = Depends(get_db), user: User = Depends(requ
         absence_by_member[l.regular_member_id] = absence_by_member.get(l.regular_member_id, 0.0) + _penalty_euro(l)
 
     # Payments
-    payments = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id).all()
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
+    ).all()
     payments_by_member: dict[int, float] = {}
     for p in payments:
         payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
@@ -667,7 +669,8 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
     member = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not member: raise HTTPException(404)
     payments = db.query(MemberPayment).filter(
-        MemberPayment.regular_member_id == mid, MemberPayment.club_id == user.club_id
+        MemberPayment.regular_member_id == mid, MemberPayment.club_id == user.club_id,
+        MemberPayment.is_deleted == False,
     ).order_by(MemberPayment.created_at.desc()).all()
     return [{"id": p.id, "amount": p.amount, "note": p.note,
              "created_at": p.created_at.isoformat() if p.created_at else None} for p in payments]
@@ -716,12 +719,27 @@ class PaymentCreate(BaseModel):
     regular_member_id: int
     amount: float
     note: Optional[str] = None
+    idempotency_key: Optional[str] = None
+
+
+def _payment_dict(p: MemberPayment) -> dict:
+    return {"id": p.id, "amount": p.amount, "note": p.note,
+            "created_at": p.created_at.isoformat() if p.created_at else None}
 
 
 @router.post("/member-payments", status_code=201)
 def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks,
                            db: Session = Depends(get_db),
                            user: User = Depends(require_club_admin)):
+    if data.amount == 0:
+        raise HTTPException(400, "Betrag darf nicht 0 sein")
+    if data.idempotency_key:
+        existing = db.query(MemberPayment).filter(
+            MemberPayment.club_id == user.club_id,
+            MemberPayment.idempotency_key == data.idempotency_key,
+        ).first()
+        if existing:
+            return _payment_dict(existing)
     member = db.query(RegularMember).filter(
         RegularMember.id == data.regular_member_id, RegularMember.club_id == user.club_id
     ).first()
@@ -732,25 +750,39 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         amount=data.amount,
         note=data.note,
         created_by=user.id,
+        idempotency_key=data.idempotency_key,
     )
     db.add(payment)
     db.commit()
     db.refresh(payment)
+    logger.info("member payment created: id=%s member=%s amount=%.2f by user=%s",
+                payment.id, data.regular_member_id, data.amount, user.id)
     fee = f"{data.amount:.2f}".replace('.', ',')
     background_tasks.add_task(
         push_to_regular_member, db, data.regular_member_id, "💰 Einzahlung erfasst",
         f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
-    return {"id": payment.id, "amount": payment.amount, "note": payment.note,
-            "created_at": payment.created_at.isoformat() if payment.created_at else None}
+    return _payment_dict(payment)
 
 
 @router.delete("/member-payments/{pid}", status_code=204)
-def delete_member_payment(pid: int, db: Session = Depends(get_db),
+def delete_member_payment(pid: int, background_tasks: BackgroundTasks, reason: Optional[str] = None,
+                           db: Session = Depends(get_db),
                            user: User = Depends(require_club_admin)):
-    p = db.query(MemberPayment).filter(MemberPayment.id == pid, MemberPayment.club_id == user.club_id).first()
+    p = db.query(MemberPayment).filter(
+        MemberPayment.id == pid, MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
+    ).first()
     if not p: raise HTTPException(404)
-    db.delete(p)
+    p.is_deleted = True
+    p.deleted_at = datetime.now(timezone.utc)
+    p.deleted_by = user.id
+    p.delete_reason = reason
     db.commit()
+    logger.info("member payment deleted: id=%s member=%s amount=%.2f by user=%s reason=%s",
+                p.id, p.regular_member_id, p.amount, user.id, reason)
+    fee = f"{p.amount:.2f}".replace('.', ',')
+    background_tasks.add_task(
+        push_to_regular_member, db, p.regular_member_id, "🗑️ Buchung storniert",
+        f"Eine Buchung über {fee}€ wurde aus deinem Konto entfernt.", "/#treasury:bookings", category="payments")
 
 
 @router.get("/member-payments")
@@ -759,7 +791,7 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
     payments = (
         db.query(MemberPayment, RegularMember)
         .join(RegularMember, RegularMember.id == MemberPayment.regular_member_id)
-        .filter(MemberPayment.club_id == user.club_id)
+        .filter(MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False)
         .order_by(MemberPayment.created_at.desc())
         .all()
     )
@@ -828,6 +860,7 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
     payments = db.query(MemberPayment).filter(
         MemberPayment.club_id == user.club_id,
         MemberPayment.regular_member_id.in_([g.id for g in guests]),
+        MemberPayment.is_deleted == False,
     ).all()
     payments_by_member: dict[int, float] = {}
     for p in payments:
@@ -896,6 +929,7 @@ def get_treasury_debt_timeline(db: Session = Depends(get_db), user: User = Depen
     payments = db.query(MemberPayment).filter(
         MemberPayment.club_id == user.club_id,
         MemberPayment.regular_member_id.in_(member_ids),
+        MemberPayment.is_deleted == False,
     ).all()
 
     # Merge penalties (signed debt increases) and payments (debt decreases) into one chronological stream.
@@ -995,12 +1029,14 @@ def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
         raise HTTPException(400, "target must be a regular member")
 
     extra = f": {data.note}" if data.note else ""
+    transfer_group_id = str(uuid.uuid4())
     guest_payment = MemberPayment(
         club_id=user.club_id,
         regular_member_id=guest.id,
         amount=data.amount,
         note=f"Übertragen auf {target.nickname or target.name}{extra}",
         created_by=user.id,
+        transfer_group_id=transfer_group_id,
     )
     target_payment = MemberPayment(
         club_id=user.club_id,
@@ -1008,6 +1044,7 @@ def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
         amount=-data.amount,
         note=f"Übernommen von {guest.nickname or guest.name}{extra}",
         created_by=user.id,
+        transfer_group_id=transfer_group_id,
     )
     db.add_all([guest_payment, target_payment])
     db.commit()
@@ -1074,6 +1111,7 @@ class ExpenseCreate(BaseModel):
     amount: float
     description: str
     date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
+    idempotency_key: Optional[str] = None
 
 
 def _serialize_expense(e: ClubExpense) -> dict:
@@ -1089,7 +1127,7 @@ def list_expenses(db: Session = Depends(get_db), user: User = Depends(require_cl
     """All club expenses, newest first."""
     expenses = (
         db.query(ClubExpense)
-        .filter(ClubExpense.club_id == user.club_id)
+        .filter(ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False)
         .order_by(ClubExpense.created_at.desc())
         .all()
     )
@@ -1101,6 +1139,13 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
                    user: User = Depends(require_club_admin)):
     if data.amount == 0:
         raise HTTPException(400, "Betrag darf nicht 0 sein")
+    if data.idempotency_key:
+        existing = db.query(ClubExpense).filter(
+            ClubExpense.club_id == user.club_id,
+            ClubExpense.idempotency_key == data.idempotency_key,
+        ).first()
+        if existing:
+            return _serialize_expense(existing)
     parsed_date = None
     if data.date:
         try:
@@ -1113,23 +1158,30 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
         description=data.description,
         created_by=user.id,
         date=parsed_date,
+        idempotency_key=data.idempotency_key,
     )
     db.add(expense)
     db.commit()
     db.refresh(expense)
+    logger.info("club expense created: id=%s amount=%.2f by user=%s", expense.id, data.amount, user.id)
     return _serialize_expense(expense)
 
 
 @router.delete("/expenses/{eid}", status_code=204)
-def delete_expense(eid: int, db: Session = Depends(get_db),
+def delete_expense(eid: int, reason: Optional[str] = None, db: Session = Depends(get_db),
                    user: User = Depends(require_club_admin)):
     expense = db.query(ClubExpense).filter(
-        ClubExpense.id == eid, ClubExpense.club_id == user.club_id
+        ClubExpense.id == eid, ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False
     ).first()
     if not expense:
         raise HTTPException(404)
-    db.delete(expense)
+    expense.is_deleted = True
+    expense.deleted_at = datetime.now(timezone.utc)
+    expense.deleted_by = user.id
+    expense.delete_reason = reason
     db.commit()
+    logger.info("club expense deleted: id=%s amount=%.2f by user=%s reason=%s",
+                expense.id, expense.amount, user.id, reason)
 
 
 # ── My balance (own member) ──
@@ -1171,6 +1223,7 @@ def get_my_balance(db: Session = Depends(get_db), user: User = Depends(require_c
         p.amount for p in db.query(MemberPayment).filter(
             MemberPayment.club_id == user.club_id,
             MemberPayment.regular_member_id == user.regular_member_id,
+            MemberPayment.is_deleted == False,
         ).all()
     )
 
@@ -1283,7 +1336,7 @@ def confirm_payment_request(rid: int, background_tasks: BackgroundTasks,
     """Admin: confirm request → creates a MemberPayment and marks request confirmed."""
     req = db.query(PaymentRequest).filter(
         PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
-    ).first()
+    ).with_for_update().first()
     if not req:
         raise HTTPException(404)
     if req.status != PaymentRequestStatus.pending:
@@ -1318,7 +1371,7 @@ def reject_payment_request(rid: int, background_tasks: BackgroundTasks,
     """Admin: reject a payment request."""
     req = db.query(PaymentRequest).filter(
         PaymentRequest.id == rid, PaymentRequest.club_id == user.club_id
-    ).first()
+    ).with_for_update().first()
     if not req:
         raise HTTPException(404)
     if req.status != PaymentRequestStatus.pending:
@@ -1452,7 +1505,9 @@ def remind_debtors(background_tasks: BackgroundTasks, db: Session = Depends(get_
     for log in absence_rows:
         absence_by_member[log.regular_member_id] = absence_by_member.get(log.regular_member_id, 0.0) + _penalty_euro(log)
 
-    payments = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id).all()
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
+    ).all()
     payments_by_member: dict[int, float] = {}
     for p in payments:
         payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Date, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, Float, String, Date, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.sql import func
 import enum
 
@@ -12,15 +12,25 @@ class PaymentRequestStatus(str, enum.Enum):
 
 
 class MemberPayment(Base):
-    """Cash payment recorded by admin for a regular member."""
+    """Cash payment recorded by admin for a regular member.
+
+    `amount` is signed: deposits/credits are positive, payouts/transfer-debits
+    (see treasury-payout, guest-cost-transfer) are negative.
+    """
     __tablename__ = "member_payment"
     id = Column(Integer, primary_key=True, index=True)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=False)
     regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=False)
-    amount = Column(Float, nullable=False)   # always positive — payment received
+    amount = Column(Float, nullable=False)
     note = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_deleted = Column(Boolean, default=False, nullable=False)  # soft delete
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(Integer, ForeignKey("user.id"), nullable=True)
+    delete_reason = Column(String, nullable=True)
+    idempotency_key = Column(String, nullable=True, unique=True)  # client-generated, prevents double-submit
+    transfer_group_id = Column(String, nullable=True, index=True)  # links paired rows (guest-cost-transfer, season carry-over)
 
 
 class PaymentRequest(Base):
@@ -47,3 +57,8 @@ class ClubExpense(Base):
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     date = Column(Date(), nullable=True)  # optional backdated date for the entry
+    is_deleted = Column(Boolean, default=False, nullable=False)  # soft delete
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(Integer, ForeignKey("user.id"), nullable=True)
+    delete_reason = Column(String, nullable=True)
+    idempotency_key = Column(String, nullable=True, unique=True)  # client-generated, prevents double-submit
