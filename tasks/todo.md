@@ -436,3 +436,36 @@ All 7 high-priority items implemented, tested, and verified:
   delete reason prompt, deletion push notification).
 - Deferred items 8-18 (Decimal/Numeric currency, shared balance helper,
   transaction categories, etc.) untouched, as planned.
+
+---
+
+# Treasury UI clarity (make treasury tangible)
+
+Problem: Kassenstand is one opaque number; own paid/outstanding status is buried
+in the debtors list; no explanation of the money model; layout bug (netExpenses
+card rendered as third child inside the 2-col grid).
+
+## Plan
+
+- [x] `lib/treasurySummary.ts` — pure helpers `treasurySummary()` (paid-in, expenses, cash, outstanding, credit, projected cash) + `paidShare()` with Vitest tests
+- [x] Overview: "Mein Konto" card at top — own balance, Strafen/Bezahlt breakdown, paid-share progress bar, PayPal/report-payment actions (moved out of debtor row)
+- [x] Overview: Kassenstand hero gets explicit breakdown rows (⬆ Eingezahlt / ⬇ Ausgaben / Noch offen / → Wenn alle zahlen)
+- [x] Overview: collapsible "Wie funktioniert die Kasse?" explainer card
+- [x] Fix grid layout bug (remove netExpenses card from overview grid)
+- [x] Debtor + account rows: paid-share progress bar; replace hardcoded "Strafen/Bezahlt" with i18n keys
+- [x] i18n keys de.ts + en.ts (flow, my-account, help)
+- [x] Tests: lib/__tests__/treasurySummary.test.ts (12) + 7 TreasuryPage tests for new sections
+- [x] Docs: docs/docs/funktionen/kasse.md (rewrote stale Übersicht section, fixed 4-tab table to actual 3 tabs, merged stale Buchungen/Ausgaben sections into Kassenbuch), README.md, CLAUDE.md roadmap note
+- [x] Version bump 1.16.0 → 1.17.0 (MINOR)
+- [x] npm run build clean, full Vitest suite 1816/1816 green (58 files), backend ruff clean (untouched)
+
+## Review
+
+- Own PayPal pay/report block moved from the overview debtor row into the new
+  "Mein Konto" card (single source on overview); the copy inside the expanded
+  accounts-tab row is unchanged.
+- `treasurySummary.outstanding` includes guests (matches the projected-cash
+  math); the "Offen" stat card keeps its member-only sum + count, guests stay
+  in their own section — intentional.
+- Overview guest rows and accounts rows now share the same `PaidShareBar`.
+- No backend changes; balances/expenses endpoints untouched.

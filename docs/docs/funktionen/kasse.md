@@ -12,38 +12,50 @@ Navigiere zu **Kasse** (💰) in der Navigation.
 
 ## Tabs
 
-Die Kasse ist in vier Reiter unterteilt:
+Die Kasse ist in drei Reiter unterteilt:
 
 | Tab | Inhalt |
 |-----|--------|
-| **📊 Übersicht** | Straf-Ranking, Spielsiege, Getränke des aktiven Abends |
+| **📊 Übersicht** | Mein Konto, Kassenstand mit Geldfluss, offene Beträge & Guthaben |
 | **👤 Konten** | Mitgliedssalden — wer hat noch Schulden? |
-| **📋 Buchungen** | Alle Zahlungsbuchungen (Einzahlungen/Abbuchungen) |
-| **🧾 Ausgaben** | Vereinsausgaben (z. B. Bahnmiete) |
+| **📒 Kassenbuch** | Alle Buchungen (Einzahlungen, Auszahlungen, Vereinsausgaben) |
 
 ---
 
 ## Übersicht
 
-Die Übersicht zeigt die Daten des aktiven Abends:
+Die Übersicht beantwortet auf einen Blick die zwei wichtigsten Fragen: *Was habe ich bezahlt und was ist noch offen?* und *Wie viel Geld ist wirklich in der Kasse?*
 
-| Spalte | Beschreibung |
-|--------|-------------|
-| **Rang** | Position nach Gesamtbetrag (höchste Strafe = Platz 1) |
-| **Spieler** | Name des Spielers |
-| **Strafen (€)** | Gesamtsumme aller Strafen in Euro |
-| **Spiele** | Anzahl der Spielsiege |
-| **Bier** | Anzahl Bierrunden |
-| **Schnaps** | Anzahl Schnappsrunden |
+### Mein Konto
 
-Am Ende wird die **Gesamtsumme aller Strafen** angezeigt.
+Ganz oben steht dein eigenes Konto:
 
-### Export (Text)
+- **Noch zu zahlen** (rot), **Guthaben** (grün) oder **✓ Alles bezahlt**
+- Daneben deine Gesamtsummen: **Strafen** und **Bezahlt**
+- Ein **Fortschrittsbalken** zeigt, welcher Anteil deiner Strafen bereits bezahlt ist
+- Bei offenem Betrag (und hinterlegtem PayPal-Handle): direkt **Jetzt zahlen** (PayPal) oder **Zahlung melden**
 
-Die Kassenübersicht kann als Text exportiert werden:
+### Kassenstand mit Geldfluss
 
-1. Tippe auf **Teilen** oder **Kopieren**
-2. Der Inhalt wird als formatierter Text exportiert (z. B. für WhatsApp oder Notizen)
+Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zustande kommt:
+
+| Zeile | Bedeutung |
+|-------|-----------|
+| ⬆ **Eingezahlt (Mitglieder + Gäste)** | Alles, was je real in die Kasse eingezahlt wurde |
+| ⬇ **Ausgaben (netto)** | Vereinsausgaben abzüglich sonstiger Einnahmen |
+| 💰 **Kassenstand** | Eingezahlt minus Ausgaben — echtes Geld in der Kasse |
+| 🔴 **Noch nicht bezahlt (offen)** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
+| → **Kassenstand, wenn alle zahlen** | Kassenstand plus offene Beträge |
+
+Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Noch nicht bezahlt".
+
+### Wie funktioniert die Kasse?
+
+Direkt unter dem Kassenstand erklärt eine aufklappbare Karte (❓) das Modell in vier Sätzen: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
+
+### Offen & Guthaben
+
+Darunter folgen zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und den Fortschrittsbalken (bezahlter Anteil der Strafen) — so ist sofort greifbar, wie weit jedes Konto vom Ausgleich entfernt ist.
 
 ---
 
@@ -119,26 +131,16 @@ Tippe in das **Suchfeld** um Mitglieder schnell zu finden.
 
 ---
 
-## Buchungen
+## Kassenbuch (Buchungen)
 
-Der **Buchungen**-Tab listet alle gebuchten Zahlungen:
+Der **Kassenbuch**-Tab listet alle Buchungen chronologisch:
 
-- Einzahlungen von Mitgliedern
-- Abbuchungen (Vereinsausgaben, Korrekturen)
+- Einzahlungen und Auszahlungen von Mitgliedern
+- Vereinsausgaben und sonstige Einnahmen (z. B. Bahnmiete, Vereinsfahrt)
 
-Mit dem **Suchfeld** lassen sich Buchungen nach Datum, Betrag oder Notiz filtern.
+Mit dem **Suchfeld** lassen sich Buchungen nach Name, Notiz oder Beschreibung filtern.
 
----
-
-## Ausgaben
-
-Vereinsausgaben (z. B. Bahnmiete, Vereinsfahrt) können als eigene Posten erfasst werden:
-
-1. Tippe auf **+ Ausgabe**
-2. Gib **Beschreibung** und **Betrag** ein
-3. Speichern
-
-Die **Gesamtausgaben** werden separat vom Strafeneingang ausgewiesen.
+Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und bei Vereinsbuchungen ein Datum.
 
 ---
 
