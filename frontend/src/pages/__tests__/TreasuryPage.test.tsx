@@ -426,6 +426,109 @@ describe('TreasuryPage — my balance section', () => {
     })
 })
 
+describe('TreasuryPage — overview clarity sections', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    it('shows money-flow breakdown rows under the cash hero', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.flow\.paidIn/)).toBeInTheDocument()
+            expect(screen.getByText(/treasury\.flow\.expenses/)).toBeInTheDocument()
+            // Hansi owes 5.50 → outstanding + projected rows are visible
+            expect(screen.getByText(/treasury\.flow\.outstanding/)).toBeInTheDocument()
+            expect(screen.getByText(/treasury\.flow\.projected/)).toBeInTheDocument()
+        })
+    })
+
+    it('hides outstanding/projected rows when nobody owes anything', async () => {
+        await setupDefaultMocks()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.flow\.paidIn/)).toBeInTheDocument()
+        })
+        expect(screen.queryByText(/treasury\.flow\.outstanding/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/treasury\.flow\.projected/)).not.toBeInTheDocument()
+    })
+
+    it('shows the My-account card with debt state for the current member', async () => {
+        await setupWithData()
+        await setupAsMember()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            // Hansi (regular_member_id=5) has −5.50 → owes
+            expect(screen.getByText(/treasury\.my\.title/)).toBeInTheDocument()
+            expect(screen.getByText(/treasury\.my\.owe/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows credit state in the My-account card for a member with surplus', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: 'Hansi', balance: 7.00, payments_total: 12.00, penalty_total: 5.00 },
+        ] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        await setupAsMember()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.my\.credit$/)).toBeInTheDocument()
+        })
+    })
+
+    it('does not show the My-account card without a linked member', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.flow\.paidIn/)).toBeInTheDocument()
+        })
+        expect(screen.queryByText(/treasury\.my\.title/)).not.toBeInTheDocument()
+    })
+
+    it('toggles the how-it-works explainer open and closed', async () => {
+        await setupDefaultMocks()
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.help\.title/))
+        expect(screen.queryByText('treasury.help.penalties')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText(/treasury\.help\.title/))
+        expect(screen.getByText('treasury.help.penalties')).toBeInTheDocument()
+        expect(screen.getByText('treasury.help.cash')).toBeInTheDocument()
+        fireEvent.click(screen.getByText(/treasury\.help\.title/))
+        expect(screen.queryByText('treasury.help.penalties')).not.toBeInTheDocument()
+    })
+
+    it('renders paid-share progress bar for a debtor with partial payments', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: 'Hansi', balance: -5.00, payments_total: 5.00, penalty_total: 10.00 },
+        ] as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        // 5 of 10 € penalties paid → a 50%-wide bar
+        const bar = container.querySelector('div[style*="width: 50%"]')
+        expect(bar).not.toBeNull()
+    })
+})
+
 describe('TreasuryPage — booking sheet', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
