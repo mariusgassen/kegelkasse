@@ -112,11 +112,24 @@ export function ProfileSheet({open, onClose}: Props) {
     const isDraggingRef = useRef(false)
     const dragYRef = useRef(0)
     const handleRef = useRef<HTMLDivElement>(null)
+    const panelRef = useRef<HTMLDivElement>(null)
+    const previouslyFocusedRef = useRef<HTMLElement | null>(null)
 
     useEffect(() => {
         if (!open) {
             setDragY(0)
             dragYRef.current = 0
+        }
+    }, [open])
+
+    // Move focus into the sheet on open, restore it to the trigger element on close
+    useEffect(() => {
+        if (open) {
+            previouslyFocusedRef.current = document.activeElement as HTMLElement | null
+            panelRef.current?.focus()
+        } else {
+            previouslyFocusedRef.current?.focus()
+            previouslyFocusedRef.current = null
         }
     }, [open])
 
@@ -329,10 +342,13 @@ export function ProfileSheet({open, onClose}: Props) {
             if (e.target === e.currentTarget) onClose()
         }}>
             <div
+                ref={panelRef}
+                tabIndex={-1}
                 className="sheet-panel safe-bottom"
                 style={{
                     transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
                     transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
+                    outline: 'none',
                 }}
             >
                 <div

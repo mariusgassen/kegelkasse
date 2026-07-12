@@ -571,9 +571,10 @@ export function CameraCapturePage({onClose}: Props) {
                     borderBottom: '1px solid var(--kce-border)',
                     background: 'var(--kce-surface)',
                 }}>
-                    <button onClick={onClose} style={{
+                    <button onClick={onClose} aria-label={t('action.close')} style={{
                         color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1,
-                        background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 12,
+                        minWidth: 44, minHeight: 44,
                     }}>✕</button>
                     <span style={{fontWeight: 'bold', color: 'var(--kce-cream)', flex: 1, fontSize: 14}}>
                         📷 {t('camera.title')}

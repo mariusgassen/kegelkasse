@@ -714,12 +714,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             <button
                                                 type="button"
                                                 disabled={savingEditId === th.id}
-                                                style={{fontSize: 11, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                aria-label={t('action.save')}
+                                                style={{fontSize: 14, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
                                                 onClick={() => activeGame && handleSaveEdit(activeGame.id)}
                                             >✓</button>
                                             <button
                                                 type="button"
-                                                style={{fontSize: 10, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                aria-label={t('action.cancel')}
+                                                style={{fontSize: 13, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
                                                 onClick={cancelEdit}
                                             >✕</button>
                                         </div>
@@ -753,8 +755,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         {isAdmin(user) && (
                                             <button
                                                 type="button"
-                                                style={{fontSize: 9, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px'}}
+                                                style={{fontSize: 12, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
                                                 title={t('quickEntry.editThrow')}
+                                                aria-label={t('quickEntry.editThrow')}
                                                 onClick={() => startEdit(th)}
                                             >✎</button>
                                         )}
@@ -762,12 +765,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             type="button"
                                             disabled={voidingThrowId === th.id}
                                             style={{
-                                                fontSize: 10, color: '#f87171',
+                                                fontSize: 13, color: '#f87171',
                                                 background: 'none', border: 'none',
-                                                cursor: 'pointer', padding: '0 2px',
+                                                cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32,
                                                 opacity: voidingThrowId === th.id ? 0.4 : 1,
                                             }}
                                             title={t('quickEntry.voidThrow')}
+                                            aria-label={t('quickEntry.voidThrow')}
                                             onClick={() => activeGame && handleVoidThrow(activeGame.id, th.id)}
                                         >
                                             ✕
@@ -954,19 +958,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
             </div>
 
-            {/* ── Three-column body — respects side safe areas ── */}
-            <div style={{
+            {/* ── Three-column body on wide landscape tablets, stacked below `lg` (portrait / smaller tablets) — respects side safe areas ── */}
+            <div className="flex flex-col lg:flex-row" style={{
                 flex: 1,
                 minHeight: 0,
-                display: 'flex',
+                overflowY: 'auto',
                 paddingLeft: 'env(safe-area-inset-left)',
                 paddingRight: 'env(safe-area-inset-right)',
             }}>
 
                 {/* Column 1: Players (game zone now lives in the header) */}
-                <div style={{
-                    width: '22%',
-                    borderRight: '1px solid var(--kce-border)',
+                <div className="w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-kce-border max-h-[30vh] lg:max-h-none order-2 lg:order-none" style={{
                     flexShrink: 0,
                     display: 'flex',
                     flexDirection: 'column',
@@ -1046,7 +1048,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </div>
 
                 {/* Column 2: Drinks + Penalties — both driven by the column-1 player selection */}
-                <div className="flex-1 overflow-y-auto p-3" style={{borderRight: '1px solid var(--kce-border)'}}>
+                <div className="flex-1 overflow-y-auto p-3 border-b lg:border-b-0 lg:border-r border-kce-border order-1 lg:order-none">
                     {/* Drinks — same multi-select flow as penalties (no separate sheet) */}
                     <div className="mb-4">
                         <div className="field-label mb-2">{t('drinks.title')}</div>
@@ -1102,8 +1104,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Column 3: Per-player overview — read-only stats for plausibility check */}
                 <div
+                    className="w-full lg:w-[22%] max-h-[30vh] lg:max-h-none order-3 lg:order-none"
                     style={{
-                        width: '22%',
                         flexShrink: 0,
                         display: 'flex',
                         flexDirection: 'column',

@@ -13,6 +13,7 @@ import {AppLogoAnimated} from './components/Logo'
 import {ToastContainer, showToast} from './components/ui/Toast'
 import {OfflineBanner} from './components/ui/OfflineBanner'
 import {InstallPrompt} from './components/InstallPrompt'
+import {UpdatePrompt} from './components/UpdatePrompt'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
 import {ProfileSheet} from './components/ProfileSheet'
@@ -345,6 +346,7 @@ export default function App() {
             <div className="safe-top" style={{flexShrink: 0, background: 'var(--kce-bg)'}}/>
             <OfflineBanner/>
             <InstallPrompt/>
+            <UpdatePrompt/>
 
             {/* ── Header ── */}
             <header style={{

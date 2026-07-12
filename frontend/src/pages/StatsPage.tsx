@@ -101,12 +101,12 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                 {/* Y labels */}
                 {yTicks.map((tick, i) => (
                     <text key={i} x={PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                          fontSize="9" fill="var(--kce-muted)">{yFormat(tick.v)}</text>
+                          fontSize="10" fill="var(--kce-muted)">{yFormat(tick.v)}</text>
                 ))}
                 {/* X labels */}
                 {xTicks.map((tick, i) => (
                     <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                          fontSize="9" fill="var(--kce-muted)">{tick.label}</text>
+                          fontSize="10" fill="var(--kce-muted)">{tick.label}</text>
                 ))}
                 {/* Series */}
                 {series.map(s => (
@@ -123,12 +123,23 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                         const isSelected = !!(selected && e.entry && selected.seriesId === s.id && selected.entryId === e.entry.id)
                         const cx = xS(e.ts), cy = yS(cum)
                         const interactive = !!(onSelect && e.entry)
+                        const toggle = () => onSelect!(isSelected ? null : {seriesId: s.id, entryId: e.entry!.id})
                         return (
                             <g key={i}
+                               tabIndex={interactive ? 0 : undefined}
+                               role={interactive ? 'button' : undefined}
+                               aria-label={interactive ? `${e.entry!.penalty_type_name} – ${e.entry!.player_name} – ${fe(e.entry!.amount)}` : undefined}
                                style={interactive ? {cursor: 'pointer'} : undefined}
                                onClick={interactive ? (evt) => {
                                    evt.stopPropagation()
-                                   onSelect!(isSelected ? null : {seriesId: s.id, entryId: e.entry!.id})
+                                   toggle()
+                               } : undefined}
+                               onKeyDown={interactive ? (evt) => {
+                                   if (evt.key === 'Enter' || evt.key === ' ') {
+                                       evt.preventDefault()
+                                       evt.stopPropagation()
+                                       toggle()
+                                   }
                                } : undefined}>
                                 {interactive && (
                                     <circle cx={cx} cy={cy} r="9" fill="transparent"/>
@@ -442,8 +453,12 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                         {segments.map(seg => {
                             const isSelected = selectedId === seg.id
                             const dimmed = selectedId !== null && !isSelected
+                            const toggle = () => setSelectedId(isSelected ? null : seg.id)
                             return (
                                 <circle key={seg.id}
+                                        tabIndex={0}
+                                        role="button"
+                                        aria-label={`${seg.name} – ${fe(seg.total)}`}
                                         cx={CX} cy={CY} r={R}
                                         fill="none"
                                         stroke={seg.color}
@@ -453,8 +468,15 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                         transform={`rotate(${seg.rotation}, ${CX}, ${CY})`}
                                         strokeLinecap="butt"
                                         opacity={dimmed ? 0.35 : 1}
-                                        style={{transition: 'opacity 0.15s, stroke-width 0.15s', cursor: 'pointer'}}
-                                        onClick={e => { e.stopPropagation(); setSelectedId(isSelected ? null : seg.id) }}/>
+                                        style={{transition: 'opacity 0.15s, stroke-width 0.15s', cursor: 'pointer', outline: 'none'}}
+                                        onClick={e => { e.stopPropagation(); toggle() }}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                toggle()
+                                            }
+                                        }}/>
                             )
                         })}
                         {selected ? (
@@ -463,7 +485,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                       fill={selected.color} fontWeight="bold">
                                     {feShort(selected.total)}
                                 </text>
-                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="9"
+                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
                                       fill="var(--kce-cream)">
                                     {selected.name.length > 10 ? selected.name.slice(0, 9) + '…' : selected.name}
                                 </text>
@@ -478,7 +500,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                       fill="var(--kce-muted)">
                                     {penaltyCount} {t('stats.penalties')}
                                 </text>
-                                <text x={CX} y={CY + 22} textAnchor="middle" fontSize="9"
+                                <text x={CX} y={CY + 22} textAnchor="middle" fontSize="10"
                                       fill="var(--kce-muted)">{t('stats.totalEuro')}</text>
                             </>
                         )}
@@ -1404,7 +1426,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
                           stroke="var(--kce-border)"/>
                     <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
-                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
+                          fontSize={10} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* x ticks */}
@@ -1413,7 +1435,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
                           stroke="var(--kce-border)"/>
                     <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={9} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
+                          fontSize={10} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* trend line */}
@@ -1440,10 +1462,10 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     />
                 )
             })}
-            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={9}
+            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={10}
                   fill="var(--kce-muted)">{xLabel}</text>
             <text transform={`translate(10, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
-                  textAnchor="middle" dominantBaseline="middle" fontSize={9}
+                  textAnchor="middle" dominantBaseline="middle" fontSize={10}
                   fill="var(--kce-muted)">{yLabel}</text>
         </svg>
     )
@@ -1495,21 +1517,21 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* y labels (left = penalty €) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="end" fontSize={9} fill="var(--kce-muted)">
+                          textAnchor="end" fontSize={10} fill="var(--kce-muted)">
                         {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                     </text>
                 ))}
                 {/* y labels (right = drinks) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="start" fontSize={9} fill="var(--kce-cream)">
+                          textAnchor="start" fontSize={10} fill="var(--kce-cream)">
                         {Math.round(maxD * f)}
                     </text>
                 ))}
                 {/* x labels */}
                 {tickIdx.map(i => (
                     <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={8} fill="var(--kce-muted)">{fmtX(bins[i].t)}</text>
+                          fontSize={9} fill="var(--kce-muted)">{fmtX(bins[i].t)}</text>
                 ))}
                 {/* penalty line */}
                 <path d={pathP} fill="none" stroke="var(--kce-amber)" strokeWidth={1.8} strokeLinejoin="round"/>
@@ -1529,9 +1551,9 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* legend */}
                 <g>
                     <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--kce-muted)">{leftLabel}</text>
                     <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--kce-cream)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--kce-muted)">{rightLabel}</text>
                 </g>
             </svg>
             {hoverIdx !== null && bins[hoverIdx] && (
@@ -2153,21 +2175,21 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {/* y labels (left = Δ€) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="end" fontSize={9} fill="var(--kce-muted)">
+                      textAnchor="end" fontSize={10} fill="var(--kce-muted)">
                     {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                 </text>
             ))}
             {/* y labels (right = Δdrinks) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="start" fontSize={9} fill="var(--kce-cream)">
+                      textAnchor="start" fontSize={10} fill="var(--kce-cream)">
                     {Math.round(maxD * f)}
                 </text>
             ))}
             {/* x labels */}
             {tickIdx.map(i => (
                 <text key={`t${i}`} x={SC_PAD.left + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
-                      textAnchor="middle" fontSize={8} fill="var(--kce-muted)">{fmtTime(bins[i].t)}</text>
+                      textAnchor="middle" fontSize={9} fill="var(--kce-muted)">{fmtTime(bins[i].t)}</text>
             ))}
             {/* bars */}
             {bins.map((b, i) => {
@@ -2190,9 +2212,9 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {/* legend */}
             <g>
                 <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={8} fill="var(--kce-muted)">{leftLabel}</text>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--kce-muted)">{leftLabel}</text>
                 <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--kce-cream)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={8} fill="var(--kce-muted)">{rightLabel}</text>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--kce-muted)">{rightLabel}</text>
             </g>
         </svg>
     )
@@ -2272,11 +2294,11 @@ function MemberHeatLane({
                 const totalDrinks = bins[bins.length - 1].cum_drinks
                 return (
                     <>
-                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={9} textAnchor="end"
+                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={10} textAnchor="end"
                               fill="var(--kce-primary)" fontWeight={700}>
                             €{totalPenalty.toFixed(1)}
                         </text>
-                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={9} textAnchor="end"
+                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={10} textAnchor="end"
                               fill="var(--kce-cream)" fontWeight={700}>
                             🍻 {totalDrinks}
                         </text>
@@ -2289,7 +2311,7 @@ function MemberHeatLane({
 
             {/* Optional r badge in name area, small */}
             {rPearson != null && (
-                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={8} textAnchor="end"
+                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={9} textAnchor="end"
                       dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
                     r={rPearson.toFixed(2)}
                 </text>

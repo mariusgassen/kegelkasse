@@ -48,7 +48,8 @@
     --kce-surface2: #2e2420;
     --kce-border: #3d2e28;
     --kce-cream: #f5ede0;
-    --kce-muted: #7a6258;
+    /* #a08a7e over --kce-bg (#1a1410) is ~5.6:1 — WCAG AA for normal text (was #7a6258, ~3.2:1) */
+    --kce-muted: #a08a7e;
     --kce-amber: var(--kce-primary);
 }
 
