@@ -9,8 +9,11 @@ import { ExpirationPlugin } from 'workbox-expiration'
 declare const self: ServiceWorkerGlobalScope
 declare const __BUILD_HASH__: string
 
-// Take control immediately when a new SW version installs — prevents stale UI after deploy
-self.skipWaiting()
+// Wait for the client to confirm (via the update-available prompt) before taking over —
+// an unprompted skipWaiting() could reload the app mid-evening for a non-technical user.
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
 clientsClaim()
 
 // Precache & route injected by vite-plugin-pwa

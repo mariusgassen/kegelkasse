@@ -24,6 +24,9 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': resolve(__dirname, './src'),
+            // vite-plugin-pwa's VitePWA plugin (only registered in vite.config.ts, not here)
+            // normally exposes this virtual module — alias it to a stub so tests can resolve it.
+            'virtual:pwa-register': resolve(__dirname, './src/test/virtualPwaRegisterStub.ts'),
         },
     },
 })

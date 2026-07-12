@@ -192,6 +192,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Offline banner visible when network is unavailable
 - Installable on mobile home screen
 - Auto install-suggestion banner (native prompt on Chromium; iOS "Add to Home Screen" how-to sheet); also available in Profile
+- Update-available banner — a new service-worker version waits for explicit confirmation ("Aktualisieren") instead of silently reloading the app mid-evening
+- Manifest orientation set to `any` (not locked to portrait) so the landscape kiosk pages (Tablet Schnellerfassung, Kamera-Wurf-Erkennung) aren't fought by the OS
 
 ### UI / UX
 
@@ -202,3 +204,5 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - AdminGuard component — wraps any section to show a lock icon to non-admins
 - Mobile-optimised layout with tab navigation and bottom sheet drawers
 - German and English translations, user-selectable
+- Accessibility: WCAG-AA muted-text contrast, keyboard-operable chart points/segments (StatsPage, TreasuryPage), focus-managed bottom sheets (focus moves in on open, restores to the trigger on close), larger touch targets and `aria-label`s on icon-only buttons (sheet close, throw edit/void, camera close)
+- Responsiveness: Tablet Schnellerfassung's three-column layout stacks (penalty/drink actions first) on narrower or portrait tablets instead of breaking down

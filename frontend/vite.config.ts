@@ -39,7 +39,10 @@ export default defineConfig({
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'sw.ts',
-            registerType: 'autoUpdate',
+            registerType: 'prompt',
+            // We register the SW ourselves (useSwUpdate hook) to show an "update available" prompt
+            // instead of silently reloading mid-evening.
+            injectRegister: false,
             includeAssets: ['icon.svg'],
             manifest: {
                 name: 'Kegelkasse',
@@ -48,7 +51,9 @@ export default defineConfig({
                 theme_color: '#3d3540',
                 background_color: '#1a1410',
                 display: 'standalone',
-                orientation: 'portrait',
+                // 'any' — not 'portrait' — because TabletQuickEntryPage/CameraCapturePage are
+                // landscape kiosk UIs; a manifest-level portrait lock fights device rotation there.
+                orientation: 'any',
                 start_url: '/',
                 icons: [
                     {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},

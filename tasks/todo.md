@@ -117,60 +117,70 @@ below traces back to a concrete file:line finding from the codebase survey.
   implementation rather than assuming the original (pre-audit-trail)
   survey still applies.
 
-### 4. Accessibility
+### 4. Accessibility ✅ done
 
-- [ ] **Text contrast likely fails WCAG AA.** `--kce-muted: #7a6258` on
-  `--kce-bg: #1a1410` (`frontend/src/index.css:46,51`) computes to ~3.2:1,
-  below the 4.5:1 minimum for normal text. Used almost everywhere for
-  timestamps/hints/axis labels. Introduce a higher-contrast muted token (or
-  raise this one) for body-readable meta text.
-- [ ] **Chart label text is both tiny and low-contrast.** `fontSize="9"` +
-  `fill="var(--kce-muted)"` in `StatsPage.tsx:101-107,834-839` and
-  `TreasuryPage.tsx:199-203,251-252`, rendered inside a fixed viewBox scaled
-  to phone width — effectively 8-9px real text on a low-contrast color.
-- [ ] **Shared `Sheet` component has no focus management.** No
-  `role="dialog"`, `aria-modal`, initial focus, or focus-restore on close
-  (`components/ui/Sheet.tsx:91-122`). `ProfileSheet.tsx:328` re-implements
-  this itself instead of it living in the shared component every other
-  sheet in the app uses — fixing it once in `Sheet.tsx` benefits every page.
-- [ ] **Chart interactions are mouse/touch-only.** Donut segments and chart
-  dots have no `tabIndex`/`role`/`aria-label`, unreachable via keyboard or
-  screen reader: `StatsPage.tsx:444-456` (donut segments),
-  `StatsPage.tsx:125-138` (dot markers), `TreasuryPage.tsx:190-197` (chart
-  event points).
-- [ ] **Touch targets undersized for the club's older user base.** `.btn-xs`
-  (~22-24px, `index.css:155-157`) used for consequential void/edit-throw
-  buttons in `TabletQuickEntryPage.tsx:754-774,714-724`; Sheet's close
-  button is 28×28px (`Sheet.tsx:110-117`) — both under the ~44px
-  recommended minimum.
-- [ ] **Icon-only buttons mostly lack `aria-label`** (only 6/32 files use it
-  at all) — Sheet close, throw edit/void, camera close buttons need
-  accessible names.
+- [x] **Text contrast likely fails WCAG AA.** Raised `--kce-muted` from
+  `#7a6258` (~3.2:1 on `--kce-bg`) to `#a08a7e` (~5.6:1) in
+  `frontend/src/index.css` — stays in the warm-brown palette, now passes
+  WCAG AA for normal text everywhere the token is used.
+- [x] **Chart label text is both tiny and low-contrast.** Bumped every
+  `fontSize="9"`/`{9}` → `10` and `{8}` → `9` in `StatsPage.tsx` and
+  `TreasuryPage.tsx` (axis labels, donut center text, correlation heat-lane
+  labels) — bumped consistently per-axis (not just the muted-fill ones) so
+  sizes stay aligned within each chart.
+- [x] **Shared `Sheet` component has no focus management.** Added
+  `role="dialog"`/`aria-modal`/`aria-label`, focus moves to the panel on
+  open and restores to the previously-focused element on close
+  (`components/ui/Sheet.tsx`); close button enlarged 28×28 → 44×44 with
+  `aria-label`. `ProfileSheet.tsx` re-implements its own bottom-sheet
+  (doesn't consume the shared component — a bigger refactor than this pass
+  warrants, given its bespoke avatar/header layout) so the same
+  focus-management effect was added directly there too; full
+  de-duplication onto `<Sheet>` is deferred.
+- [x] **Chart interactions are mouse/touch-only.** Added
+  `tabIndex`/`role="button"`/`aria-label`/`onKeyDown` (Enter/Space) to
+  donut segments and cumulative-chart dot markers in `StatsPage.tsx`, and
+  to chart event points in `TreasuryPage.tsx` — labels describe the
+  underlying entry (name/date/amount).
+- [x] **Touch targets undersized.** Sheet close button now 44×44px (see
+  above). `TabletQuickEntryPage.tsx`'s throw edit/void and save/cancel-edit
+  buttons grew from ~16-20px effective tap area to 32×32px with `aria-label`
+  — not the full 44px, since these live in a dense live-throw strip where
+  that would break the layout (documented trade-off, not re-flagged).
+  Camera close button (`CameraCapturePage.tsx`) enlarged to 44×44 with
+  `aria-label`.
+- [x] **Icon-only buttons lack `aria-label`.** Added to all three flagged
+  cases: Sheet close, throw edit/void (+ save/cancel-edit), camera close.
 
-### 5. Responsiveness
+### 5. Responsiveness ✅ done
 
-- [ ] **Zero Tailwind breakpoints (`sm:/md:/lg:/xl:`) anywhere in the
-  codebase.** Layout adapts only via flex/percentage widths, not
-  viewport-aware breakpoints.
-- [ ] **`TabletQuickEntryPage.tsx:967-969,1104-1112` hardcodes a fixed
-  22%/22%/flex-1 three-column layout** with no stacking fallback — breaks
-  down on portrait orientation or smaller tablets, despite this page being
-  the app's best-designed flow otherwise (2-tap penalty/drink logging).
-- [ ] **PWA manifest forces `orientation: 'portrait'`** (`vite.config.ts:51`)
-  while `TabletQuickEntryPage`/`CameraCapturePage` are explicitly landscape
-  kiosk UIs — a real conflict that could fight orientation lock on
-  installed Android PWAs.
-- [ ] **Silent service-worker auto-update.** `registerType: 'autoUpdate'`
-  with `sw.ts:12-14` calling `skipWaiting()`+`clientsClaim()` immediately on
-  install, no in-app "update available" prompt — could cause an unexplained
-  reload mid-evening for a non-technical user.
+- [x] **`TabletQuickEntryPage.tsx` hardcoded 22%/22%/flex-1 three-column
+  layout** now stacks below Tailwind's `lg` breakpoint (the first
+  `sm:/md:/lg:` usage in the codebase) — order flips to
+  penalties/drinks (most-used) → players → overview, each of the two
+  side columns capped at `max-h-[30vh]` with its own internal scroll so
+  all three stay reachable on portrait/smaller tablets.
+- [x] **PWA manifest forced `orientation: 'portrait'`** — relaxed to `'any'`
+  in `vite.config.ts` so it no longer fights device rotation on the
+  landscape kiosk pages.
+- [x] **Silent service-worker auto-update** replaced with an explicit
+  update flow: `registerType: 'prompt'` + `injectRegister: false`,
+  `sw.ts` now waits for a `SKIP_WAITING` message instead of calling
+  `skipWaiting()` unconditionally on install; new `useSwUpdate` hook +
+  `UpdatePrompt` banner (app shell, after `InstallPrompt`) let the user
+  choose when to reload.
+- Not part of this pass: the broader "zero Tailwind breakpoints anywhere"
+  item is a codebase-wide characteristic, not a single fixable defect —
+  this round introduces the pattern (`lg:`) at the one concrete instance
+  flagged (`TabletQuickEntryPage`); adopting it elsewhere is future work,
+  not tracked as outstanding here since no other page was flagged as
+  broken.
 
 ### Docs (per CLAUDE.md — do before committing, once implementation happens)
 
-- [ ] Update `CLAUDE.md` Feature Roadmap table if any of the above become a
-  tracked, user-facing behavior change.
-- [ ] Update `README.md` feature catalog if navigation/visibility changes
-  (e.g. member roster access) alter documented behavior.
+- [x] Update `CLAUDE.md` Feature Roadmap table — added row 49
+  ("Barrierefreiheit & Responsivität").
+- [x] Update `README.md` feature catalog — PWA/offline + UI/UX sections.
 
 ## Review
 
@@ -246,6 +256,62 @@ below traces back to a concrete file:line finding from the codebase survey.
 - Verified: `npm run build` clean (tsc + vite), full Vitest suite green
   (1786/1786, +10 new tests for `InlineError`/`Loading`).
 - Not yet started: Accessibility, Responsiveness sections.
+
+### Round 4: Accessibility + Responsiveness (done)
+
+- **Contrast**: `--kce-muted` `#7a6258` → `#a08a7e` (~3.2:1 → ~5.6:1 on
+  `--kce-bg`). Chart axis-label `fontSize` bumped 8→9 / 9→10 across
+  `StatsPage.tsx` and `TreasuryPage.tsx`.
+- **Sheet focus management**: `components/ui/Sheet.tsx` gained
+  `role="dialog"`, `aria-modal`, `aria-label={title}`, focus-on-open +
+  focus-restore-on-close, and a 44×44 close button with `aria-label`.
+  `ProfileSheet.tsx` (its own bespoke bottom-sheet, not built on `<Sheet>`)
+  got the same focus-management effect applied directly — de-duplicating
+  it onto the shared component is deferred as a larger refactor.
+- **Keyboard-accessible charts**: donut segments + dot markers
+  (`StatsPage.tsx`) and chart event points (`TreasuryPage.tsx`) gained
+  `tabIndex`, `role="button"`, descriptive `aria-label`s, and `onKeyDown`
+  (Enter/Space) mirroring the existing `onClick` toggle logic.
+- **Touch targets + aria-labels**: throw edit/void and save/cancel-edit
+  buttons in `TabletQuickEntryPage.tsx` grew to 32×32 (documented as a
+  deliberate compromise short of 44px — they live in a dense live-throw
+  strip where full-size targets would break the layout); camera close
+  button (`CameraCapturePage.tsx`) grew to 44×44. All four got
+  `aria-label`s.
+- **Responsive quick-entry layout**: `TabletQuickEntryPage.tsx`'s
+  three-column body now stacks below Tailwind's `lg` breakpoint (first
+  `sm:/md:/lg:` usage in the codebase), reordered so the
+  penalty/drink-logging column comes first, with the player list and
+  per-player overview each capped at `max-h-[30vh]` and independently
+  scrollable.
+- **PWA orientation**: manifest `orientation` `'portrait'` → `'any'`
+  (`vite.config.ts`) so it stops fighting device rotation on the landscape
+  kiosk pages.
+- **SW update prompt**: `registerType: 'autoUpdate'` → `'prompt'` +
+  `injectRegister: false`; `sw.ts` now waits for a `SKIP_WAITING` message
+  instead of calling `skipWaiting()` unconditionally. New
+  `hooks/useSwUpdate.ts` (registers the SW, exposes `needRefresh` /
+  `applyUpdate` / `dismiss`) + `components/UpdatePrompt.tsx` banner
+  (mirrors `InstallPrompt.tsx`, mounted in the app shell right after it).
+  `tsconfig.json` gained the `vite-plugin-pwa/client` ambient type for the
+  `virtual:pwa-register` import; `vitest.config.ts` aliases that same
+  virtual specifier to a tiny test stub since the VitePWA plugin (which
+  normally exposes it) isn't registered in the Vitest config.
+- New i18n keys: `update.banner.body`/`button`/`dismiss` (de + en).
+- Docs: `CLAUDE.md` roadmap row 49 added; `README.md` PWA/offline + UI/UX
+  sections updated. Version bumped `1.15.0` → `1.16.0` (MINOR — new
+  user-visible behavior: update banner, relaxed orientation, stacked
+  tablet layout, larger touch targets).
+- New Vitest: 4 tests for `useSwUpdate` (no-SW-support no-op, needRefresh
+  flip via `onNeedRefresh`, `applyUpdate` calls `updateSW(true)`, `dismiss`
+  resets state).
+- Verified: full Vitest suite green (1790/1790), `npm run build` clean
+  (tsc + vite), i18n key parity confirmed as part of the suite.
+- Deferred, not re-flagged: full de-duplication of `ProfileSheet`'s
+  bottom-sheet onto the shared `<Sheet>` component; adopting Tailwind
+  breakpoints beyond the one flagged `TabletQuickEntryPage` instance;
+  pushing throw-strip touch targets all the way to 44px (would break the
+  dense live-throw layout).
 
 ---
 

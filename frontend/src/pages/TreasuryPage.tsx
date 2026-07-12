@@ -187,16 +187,27 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 const cx = xS(p.ts), cy = yS(onOverlay ? p.virtual : p.actual)
                 const attributable = isAttributable(ev)
                 const isSelected = selectedId === ev.id
+                const toggle = () => setSelectedId(isSelected ? null : ev.id)
                 return (
                     <g key={ev.id}
+                       tabIndex={attributable ? 0 : undefined}
+                       role={attributable ? 'button' : undefined}
+                       aria-label={attributable ? `${ev.label} – ${fDateTime(ev.ts)} – ${fe(ev.delta)}` : undefined}
                        style={attributable ? {cursor: 'pointer'} : undefined}
-                       onClick={attributable ? (evt) => { evt.stopPropagation(); setSelectedId(isSelected ? null : ev.id) } : undefined}>
+                       onClick={attributable ? (evt) => { evt.stopPropagation(); toggle() } : undefined}
+                       onKeyDown={attributable ? (evt) => {
+                           if (evt.key === 'Enter' || evt.key === ' ') {
+                               evt.preventDefault()
+                               evt.stopPropagation()
+                               toggle()
+                           }
+                       } : undefined}>
                         {attributable && <circle cx={cx} cy={cy} r="9" fill="transparent"/>}
                         <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
                                 fill={meta.color} stroke="var(--kce-bg)"
                                 strokeWidth={isSelected ? 1.5 : 1}/>
                         {labelOwnerIndices.has(i) && (
-                            <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="9"
+                            <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
                                   fontWeight={isSelected ? 'bold' : 'normal'}
                                   fill={isSelected ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
                                 {fAxisDate(p.ts)}
@@ -249,7 +260,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                          style={{flexShrink: 0, overflow: 'visible'}}>
                         {yTicks.map((tick, i) => (
                             <text key={i} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                                  fontSize="9" fill="var(--kce-muted)">{fe(tick.v)}</text>
+                                  fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
                         ))}
                     </svg>
                     <div className="overflow-x-auto flex-1">{chart}</div>
