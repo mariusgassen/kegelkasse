@@ -59,6 +59,10 @@ vi.mock('../TabletQuickEntryPage', () => ({
     TabletQuickEntryPage: () => <div data-testid="tablet-quick-entry">Quick Entry</div>,
 }))
 
+vi.mock('../EveningPage', () => ({
+    EveningPage: () => <div data-testid="evening-page">Manage</div>,
+}))
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function makeEvening(overrides = {}) {
@@ -85,7 +89,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 async function renderHubPage(props = {}) {
     const { EveningHubPage } = await import('../EveningHubPage')
-    return render(<EveningHubPage onNavigate={vi.fn()} {...props} />, { wrapper })
+    return render(<EveningHubPage {...props} />, { wrapper })
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -95,7 +99,7 @@ describe('EveningHubPage — no active evening', () => {
         vi.clearAllMocks()
     })
 
-    it('shows "no active evening" prompt when activeEveningId is null', async () => {
+    it('delegates to EveningPage when activeEveningId is null', async () => {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
         vi.mocked(useActiveEvening).mockReturnValue({
             evening: null, isLoading: false, invalidate: vi.fn(),
@@ -103,20 +107,7 @@ describe('EveningHubPage — no active evening', () => {
         } as any)
 
         await renderHubPage()
-        expect(screen.getByText('evening.noActive')).toBeInTheDocument()
-    })
-
-    it('calls onNavigate when start button is clicked (no evening)', async () => {
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: null, isLoading: false, invalidate: vi.fn(),
-            activeEveningId: null, isPending: false,
-        } as any)
-
-        const onNavigate = vi.fn()
-        await renderHubPage({ onNavigate })
-        fireEvent.click(screen.getByText('evening.startButton'))
-        expect(onNavigate).toHaveBeenCalledOnce()
+        expect(screen.getByTestId('evening-page')).toBeInTheDocument()
     })
 })
 
@@ -533,6 +524,32 @@ describe('EveningHubPage — protocol and games sub-pages', () => {
         await renderHubPage()
         expect(screen.queryByTestId('tablet-quick-entry')).not.toBeInTheDocument()
     })
+
+    it('renders EveningPage (manage tab) in the DOM regardless of active tab', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: makeEvening(), isLoading: false, invalidate: vi.fn(),
+            activeEveningId: 1, isPending: false,
+        } as any)
+        vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
+        await renderHubPage()
+        expect(screen.getByTestId('evening-page')).toBeInTheDocument()
+    })
+
+    it('switches to the manage tab when the Verwalten tab is clicked', async () => {
+        const setSubTab = vi.fn()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: makeEvening(), isLoading: false, invalidate: vi.fn(),
+            activeEveningId: 1, isPending: false,
+        } as any)
+        vi.mocked(useHashTab).mockReturnValue(['penalties', setSubTab] as any)
+        await renderHubPage()
+        fireEvent.click(screen.getByText('evening.manage'))
+        expect(setSubTab).toHaveBeenCalledWith('manage')
+    })
 })
 
 describe('EveningHubPage — close evening invalidates evenings query', () => {
@@ -557,7 +574,7 @@ describe('EveningHubPage — close evening invalidates evenings query', () => {
         const { EveningHubPage } = await import('../EveningHubPage')
         render(
             <QueryClientProvider client={qc}>
-                <EveningHubPage onNavigate={vi.fn()} />
+                <EveningHubPage />
             </QueryClientProvider>
         )
 
@@ -701,7 +718,7 @@ describe('EveningHubPage — tab switching', () => {
         } as any)
         vi.mocked(useHashTab).mockReturnValue(['games', vi.fn()] as any)
         await renderHubPage()
-        const gamesTabBtn = screen.getByText(/nav\.games/)
+        const gamesTabBtn = screen.getByText(/nav\.games/).closest('button')!
         expect(gamesTabBtn.className).toContain('bg-kce-amber')
     })
 })

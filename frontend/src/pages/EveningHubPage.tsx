@@ -1,7 +1,9 @@
 /**
- * Evening hub — sub-tab wrapper for Protokoll | Spiele | Highlights.
- * Evening configuration (players/teams/close) is also reachable via the
- * AKTIV header button and the "Verwalten" button in the tab strip below.
+ * Evening hub — sub-tab wrapper for Protokoll | Spiele | Highlights | Verwalten.
+ * "Verwalten" (players/teams/close) is a sub-tab like the others so the tab
+ * strip and hub context never disappear — the AKTIV header button and other
+ * shortcuts deep-link here via the #evening:manage hash instead of routing
+ * to a separate top-level page.
  */
 import {useEffect, useRef, useState} from 'react'
 import {useT} from '@/i18n'
@@ -16,21 +18,21 @@ import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
+import {EveningPage} from './EveningPage'
 import {TabletQuickEntryPage} from './TabletQuickEntryPage'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 
-type SubTab = 'penalties' | 'games' | 'highlights'
+type SubTab = 'penalties' | 'games' | 'highlights' | 'manage'
 
 interface Props {
-    onNavigate: () => void
     onHistory?: () => void
 }
 
-export function EveningHubPage({onNavigate, onHistory}: Props) {
+export function EveningHubPage({onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights'])
+    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights', 'manage'])
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
         useCloseReopenEvening(evening?.id, invalidate)
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
@@ -90,26 +92,16 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
         }, 120)
     }, [deepLinkItemId, subTab, evening]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // No active evening — prompt to configure one
+    // No active evening — EveningPage owns the full start-evening flow
     if (!activeEveningId) {
-        return (
-            <div className="page-scroll px-3 py-3 pb-24">
-                <div className="sec-heading">🎳 {t('nav.evening')}</div>
-                <div className="kce-card p-5 text-center">
-                    <div className="text-2xl mb-3">🎳</div>
-                    <div className="text-sm font-bold text-kce-cream mb-1">{t('evening.noActive')}</div>
-                    <button className="btn-primary mt-4" onClick={onNavigate}>
-                        {t('evening.startButton')}
-                    </button>
-                </div>
-            </div>
-        )
+        return <EveningPage/>
     }
 
     const TABS: { id: SubTab; label: string }[] = [
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
         {id: 'highlights', label: `✨ ${t('evening.tab.highlights')}`},
+        {id: 'manage', label: t('evening.manage')},
     ]
 
     const isClosed = evening?.is_closed ?? false
@@ -135,21 +127,15 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
             {/* Sub-tab strip */}
-            <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 flex-shrink-0"
+            <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 flex-shrink-0 overflow-x-auto"
                  style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
-                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
-                        {tb.label}
+                        <span className="block truncate">{tb.label}</span>
                     </button>
                 ))}
-                {/* Manage evening (players/teams/close) — always accessible in the tab bar */}
-                <button
-                    className="btn-secondary btn-xs flex-shrink-0 ml-1"
-                    onClick={onNavigate}>
-                    {t('evening.manage')}
-                </button>
 
                 {/* End / reopen evening — always accessible in the tab bar */}
                 {!isClosed ? (
@@ -206,6 +192,9 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 </div>
                 <div style={{position: 'absolute', inset: 0, display: subTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
+                </div>
+                <div style={{position: 'absolute', inset: 0, display: subTab === 'manage' ? 'block' : 'none'}}>
+                    <EveningPage/>
                 </div>
 
                 {/* Highlights tab */}
