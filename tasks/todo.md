@@ -1,41 +1,50 @@
-# Treasury: edit bookings (payments + expenses)
+# Bugfix: Individuelle Strafen im Bearbeiten-Sheet nicht editierbar + UTC-Zeit im Datums-Picker
 
-Currently treasury bookings (MemberPayment, ClubExpense) can only be cancelled
-(soft-delete). Add editing.
+**Problem:** Beim Bearbeiten einer Strafe zeigt das Edit-Sheet in `ProtocolPage.tsx`
+nur die Schnellstrafen-Chips. Individuelle Strafen (Freitext-Name + Icon, kein
+passender `PenaltyType`) haben dort keine Felder für Icon/Text — `editType` bleibt
+`null` und die einzige Möglichkeit ist, den Eintrag durch eine Schnellstrafe zu
+ersetzen. Backend-PATCH (`update_penalty`) akzeptiert `penalty_type_name` + `icon`
+bereits — reiner Frontend-Fix.
+
+**Problem 2 (Nachtrag vom User):** Der Datums-Picker im Edit-Sheet zeigt UTC
+statt lokaler Zeit (`toISOString().slice(0,16)` direkt auf dem Timestamp),
+obwohl die Liste lokale Zeit rendert. Eingabe soll in lokaler Zeit erfolgen.
 
 ## Plan
 
-- [x] Migration 048: `updated_at` / `updated_by` audit columns on
-      `member_payment` + `club_expense`
-- [x] Models: add the two columns to `MemberPayment` and `ClubExpense`
-- [x] Backend: `PATCH /club/member-payments/{pid}` (amount, note) and
-      `PATCH /club/expenses/{eid}` (amount, description, date) — admin only,
-      validate amount != 0, 404 for deleted/unknown, push notify member on
-      payment amount change, expose `updated_at` in list serializations
-- [x] API client: `updateMemberPayment`, `updateExpense`
-- [x] TreasuryPage: ✏️ edit button on booking rows (bookings tab payment +
-      expense rows, accounts-tab payment history) opening an edit sheet
-      (direction toggle, amount, note/description, date for expenses);
-      invalidate same queries as delete; show small ✏️ edited marker
-- [x] i18n: `treasury.booking.edit`, `treasury.booking.edited` (de + en)
-- [x] Tests: pytest for both PATCH endpoints (17 tests: happy, partial edit,
-      note/date clearing, 400, 403, 401, 404, push); Vitest for client
-      methods (2) + TreasuryPage edit flow (5)
-- [x] Docs: docs/docs/funktionen/kasse.md, README, CLAUDE.md roadmap row #3
-- [x] Version bump 1.17.0 → 1.18.0 in frontend/package.json (+ lockfile)
-- [x] Verification: `npm run build` clean, full Vitest suite 1816/1816,
-      full pytest suite 797/797, `ruff check app/` clean
+- [x] Edit-Sheet bekommt denselben Schnell/Individuell-Tab-Umschalter wie das
+  Anlegen-Sheet (`editTab`-State).
+- [x] `openEditSheet`: passt der Eintrag zu einem PenaltyType → Tab „Schnell",
+  sonst Tab „Individuell" mit vorbefülltem `editIcon`/`editName`.
+- [x] Individuell-Tab: `EmojiPickerButton` + Name-Input (gleiches Layout wie im
+  Anlegen-Sheet).
+- [x] `submitEdit`: im Individuell-Tab geänderten Namen/Icon in den Patch aufnehmen;
+  leerer Name blockiert Submit.
+- [x] Datums-Picker: `toLocalInputValue`-Helper (Timezone-Offset herausgerechnet)
+  für Anzeige + Änderungs-Vergleich; Submit schickt timezone-aware ISO
+  (`new Date(local).toISOString()`), da Backend naive Strings als UTC parst.
+- [x] Vitest-Tests: Custom-Strafe öffnet Individuell-Tab mit vorbefüllten Feldern;
+  Submit schickt geänderten Namen/Icon; Quick-Strafe verhält sich wie bisher;
+  Datums-Picker lokal vorbefüllt; Datum-Submit als timezone-aware ISO.
+- [x] Version-Patch-Bump in `frontend/package.json`.
+- [x] Roadmap (CLAUDE.md), README, docs aktualisieren.
+- [x] `npm run build` + Vitest grün.
 
 ## Review
 
-- Editing is an in-place update with an audit trail (`updated_at`,
-  `updated_by` via migration 048) rather than delete+recreate, so booking IDs
-  and `created_at` ordering stay stable for the balance-history graph and
-  transfer pairs.
-- The edit sheet mirrors the "+ Buchung" sheet (direction toggle, amount,
-  note/description, date for club expenses) but with the target fixed — a
-  payment cannot be moved to another member; that stays cancel + re-book.
-- Members get a push ("✏️ Buchung geändert", old → new amount) only when the
-  amount actually changes, matching the existing cancel notification.
-- Empty note clears a payment note; empty date clears an expense's backdate;
-  blank expense description and amount 0 are rejected with 400.
+- Fix rein frontend-seitig in `ProtocolPage.tsx`: Edit-Sheet hat jetzt einen
+  Schnell/Individuell-Umschalter analog zum Anlegen-Sheet. `openEditSheet` wählt
+  den Tab automatisch danach, ob der Eintrag zu einem `PenaltyType` passt, und
+  befüllt `editIcon`/`editName` immer vor.
+- `submitEdit` patcht im Individuell-Tab `penalty_type_name`/`icon` nur bei
+  Änderung; leerer Name deaktiviert den Speichern-Button.
+- Datums-Picker zeigt und vergleicht jetzt lokale Wanduhrzeit
+  (`toLocalInputValue`); gesendet wird timezone-aware ISO mit `Z`-Suffix
+  (Python 3.12 `fromisoformat` akzeptiert das), damit das Backend die
+  gemeinte lokale Zeit korrekt als UTC-Timestamp speichert.
+- 7 neue Vitest-Tests (Tab-Auswahl je Eintragstyp, Icon/Name-Vorbefüllung,
+  Submit mit geändertem Namen/Icon, Quick-Regression, lokale Datums-Vorbefüllung,
+  Datum-Submit als ISO). Volle Suite 1816/1816 grün, `npm run build` clean.
+- Version 1.18.0 → 1.18.1; docs (`strafen.md`), README und CLAUDE.md-Roadmap
+  (#50 Bug-Fixes Batch 4) aktualisiert.

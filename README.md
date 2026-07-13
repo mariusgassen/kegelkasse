@@ -114,6 +114,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Apply a penalty to one or more individual players in a single action
 - Apply a team penalty — automatically fans out to every player on the team
 - Penalty amount and mode (`euro` / `count`) are independently editable after creation
+- Edit sheet with Quick/Custom tabs: custom (free-text) penalties keep their icon and name editable; admin date override uses local time
 - Soft-delete (undo) without data loss
 - Spin wheel for random penalty-type selection
 - Absence penalties for missing regular members

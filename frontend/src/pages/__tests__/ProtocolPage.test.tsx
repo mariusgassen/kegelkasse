@@ -1217,6 +1217,124 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
     })
 })
 
+describe('ProtocolPage — edit custom (individual) penalty', () => {
+    const CUSTOM_ENTRY = {
+        id: 103, player_id: 10, player_name: 'Admin', penalty_type_name: 'Verspätung',
+        icon: '⏰', amount: 2.5, mode: 'euro', unit_amount: null,
+        game_id: null, note: null, client_timestamp: Date.UTC(2026, 0, 10, 19, 30), created_at: new Date().toISOString(),
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: [CUSTOM_ENTRY] }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    async function openEditSheet() {
+        await renderProtocolPage()
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        return screen.getByTestId('sheet')
+    }
+
+    it('opens custom tab with prefilled name and icon for a non-template penalty', async () => {
+        const sheet = await openEditSheet()
+        // Name input prefilled with the custom penalty name
+        const nameInput = within(sheet).getByPlaceholderText(/z\.B\. Zu spät/) as HTMLInputElement
+        expect(nameInput.value).toBe('Verspätung')
+        // EmojiPickerButton mock renders the current icon value
+        expect(within(sheet).getByText('⏰')).toBeInTheDocument()
+    })
+
+    it('sends updated penalty_type_name when custom name is changed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
+        const sheet = await openEditSheet()
+        const nameInput = within(sheet).getByPlaceholderText(/z\.B\. Zu spät/)
+        fireEvent.change(nameInput, { target: { value: 'Zu spät' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenalty).toHaveBeenCalledWith(42, 103, { penalty_type_name: 'Zu spät' })
+        })
+    })
+
+    it('sends updated icon when emoji is changed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
+        const sheet = await openEditSheet()
+        // EmojiPickerButton mock sets '🎯' on click
+        fireEvent.click(within(sheet).getByText('⏰'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenalty).toHaveBeenCalledWith(42, 103, { icon: '🎯' })
+        })
+    })
+
+    it('can switch to quick tab and shows penalty type chips', async () => {
+        const sheet = await openEditSheet()
+        fireEvent.click(within(sheet).getByText('penalty.quick'))
+        expect(within(sheet).getAllByText(/Bier/).length).toBeGreaterThan(0)
+        expect(within(sheet).queryByPlaceholderText(/z\.B\. Zu spät/)).not.toBeInTheDocument()
+    })
+
+    it('prefills the date picker with local wall-clock time (not UTC)', async () => {
+        const sheet = await openEditSheet()
+        const dateInput = sheet.querySelector('input[type="datetime-local"]') as HTMLInputElement
+        const ms = CUSTOM_ENTRY.client_timestamp
+        const expected = new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        expect(dateInput.value).toBe(expected)
+    })
+
+    it('sends a timezone-aware ISO date interpreted as local time on change', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
+        await openEditSheet()
+        const dateInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
+        fireEvent.change(dateInput, { target: { value: '2026-01-10T18:00' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenalty).toHaveBeenCalledWith(42, 103, { date: new Date('2026-01-10T18:00').toISOString() })
+        })
+    })
+})
+
+describe('ProtocolPage — edit quick penalty keeps quick tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithLog = { ...ACTIVE_EVENING, penalty_log: PENALTY_LOG }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithLog as any, invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, setPenaltyTypes: vi.fn(), regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        await setupDefaultMocks()
+    })
+
+    it('opens quick tab with type chips for a template-matching penalty', async () => {
+        await renderProtocolPage()
+        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        expect(within(sheet).getAllByText(/Bier/).length).toBeGreaterThan(0)
+        expect(within(sheet).queryByPlaceholderText(/z\.B\. Zu spät/)).not.toBeInTheDocument()
+    })
+})
+
 // ── error handlers ────────────────────────────────────────────────────────────
 describe('ProtocolPage — submitQuick error', () => {
     beforeEach(async () => {
