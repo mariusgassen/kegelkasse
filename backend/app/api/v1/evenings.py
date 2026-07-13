@@ -50,6 +50,7 @@ def serialize_evening(e: Evening) -> dict:
     return {
         "id": e.id, "date": e.date.isoformat() if e.date else None, "venue": e.venue, "note": e.note,
         "is_closed": e.is_closed,
+        "ended_at": e.ended_at.isoformat() if e.ended_at else None,
         "players": [{"id": p.id, "name": p.name, "regular_member_id": p.regular_member_id,
                      "team_id": p.team_id, "is_king": p.is_king} for p in e.players],
         "teams": [{"id": t.id, "name": t.name} for t in e.teams],
@@ -142,6 +143,7 @@ class EveningUpdate(BaseModel):
     venue: Optional[str] = None
     note: Optional[str] = None
     is_closed: Optional[bool] = None
+    ended_at: Optional[str] = None  # end timestamp; kept across reopen unless explicitly overridden
 
 
 @router.patch("/{eid}")
@@ -171,7 +173,13 @@ def update_evening(eid: int,
             raise HTTPException(400, "Another evening is already active")
     if "date" in updates:
         updates["date"] = _parse_date(updates["date"])
+    if "ended_at" in updates:
+        updates["ended_at"] = _parse_date(updates["ended_at"])
     for k, v in updates.items(): setattr(e, k, v)
+    # Closing without an explicit ended_at: keep a previously-set one (e.g. after
+    # reopen → re-close), otherwise default to now.
+    if was_open and e.is_closed and "ended_at" not in updates and e.ended_at is None:
+        e.ended_at = datetime.now(UTC)
     db.commit()
     db.refresh(e)
     if was_open and e.is_closed:
@@ -555,7 +563,7 @@ def _do_calculate_absence_penalties(
         ~RegularMember.id.in_(present_regular_ids),
     ).all()
 
-    now_ts = datetime.now(UTC).timestamp() * 1000
+    now_ts = (e.ended_at or datetime.now(UTC)).timestamp() * 1000
     for member in absent_members:
         # Either: properly cancelled (RSVP absent) → base_fee (average of present players)
         # Or: no cancellation → no_cancel_fee only (not additive); fall back to base_fee if unset
@@ -887,7 +895,7 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
     losers = [p for p in e.players if
               ("p:" + str(p.id) != winner_ref) and
               (not p.team_id or "t:" + str(p.team_id) != winner_ref)]
-    now_ts = datetime.now(UTC).timestamp() * 1000
+    now_ts = (g.finished_at or datetime.now(UTC)).timestamp() * 1000
     for p in losers:
         if is_team_game and p.team_id:
             loser_ref = f"t:{p.team_id}"

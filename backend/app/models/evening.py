@@ -40,6 +40,7 @@ class Evening(Base):
     venue = Column(String, nullable=True)
     note = Column(Text, nullable=True)
     is_closed = Column(Boolean, default=False)  # true = archived in history
+    ended_at = Column(DateTime(timezone=True), nullable=True)  # when the evening was closed; editable on close
     scheduled_evening_id = Column(Integer, ForeignKey("scheduled_evening.id", ondelete="SET NULL"), nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

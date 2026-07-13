@@ -358,6 +358,44 @@ class TestUpdateGame:
         }, headers=admin_headers)
         assert resp.status_code == 400
 
+    def test_recalculated_penalty_uses_game_finished_at(
+            self, client: TestClient, db, evening, player, player2, user, auth_headers):
+        # Finish the game with a client_timestamp far in the past — finished_at
+        # is derived from it, not from "now".
+        past_ts = int(_ts() - 3600_000)  # one hour before the test run
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Recalc Test Game",
+            "loser_penalty": 2.0,
+            "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        gid = r.json()["id"]
+        client.post(f"/api/v1/evening/{evening.id}/games/{gid}/start", headers=auth_headers)
+        client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={
+            "winner_ref": f"p:{player.id}",
+            "winner_name": player.name,
+            "scores": {f"p:{player.id}": 100, f"p:{player2.id}": 80},
+            "loser_penalty": 2.0,
+            "client_timestamp": past_ts,
+        }, headers=auth_headers)
+        game = db.query(Game).filter(Game.id == gid).first()
+        finished_at_ms = game.finished_at.timestamp() * 1000
+
+        # Editing the penalty amount on a finished game re-applies (recalculates)
+        # the loser penalties — the new PenaltyLog rows must keep the game's
+        # original finish timestamp, not "now" at edit time.
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}", json={
+            "loser_penalty": 5.0,
+        }, headers=auth_headers)
+        assert resp.status_code == 200
+        penalty = db.query(PenaltyLog).filter(
+            PenaltyLog.game_id == gid,
+            PenaltyLog.player_id == player2.id,
+            PenaltyLog.is_deleted == False,
+        ).first()
+        assert penalty is not None
+        assert penalty.amount == 5.0
+        assert penalty.client_timestamp == pytest.approx(finished_at_ms, abs=1000)
+
 
 # ---------------------------------------------------------------------------
 # DELETE /api/v1/evening/{eid}/games/{gid}

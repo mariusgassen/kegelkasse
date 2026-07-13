@@ -103,7 +103,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Evenings are started from a scheduled entry (SchedulePage); no more ad-hoc creation
 - Create evenings with date, optional venue override, and a free-text note
-- Open/close toggle — closing an evening archives it to history
+- Open/close toggle — closing an evening archives it to history; closing lets you set the evening's end timestamp (prefilled with the previously saved value, or now), so you can backdate it if you forgot to close on time — the value is kept across reopen/re-close unless explicitly changed
 - Add players ad-hoc or from the regular-member roster (linking them for stats)
 - **Highlights**: record memorable moments (Schuh geworfen, Kugel gegen die Heizung…) as free-text highlights on the evening
 - Create named teams and assign players to them; reassign or dissolve teams at any time
@@ -117,7 +117,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Edit sheet with Quick/Custom tabs: custom (free-text) penalties keep their icon and name editable; admin date override uses local time
 - Soft-delete (undo) without data loss
 - Spin wheel for random penalty-type selection
-- Absence penalties for missing regular members
+- Absence penalties for missing regular members; timestamped with the evening's end time (`ended_at`), not the moment the penalty was calculated
 
 ### Games
 
@@ -126,6 +126,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Optional pin scores per player/team stored as a JSON map
 - Opener flag highlights the crown game (König) in the UI
 - Configurable loser penalty: when set, penalty log entries are auto-created for every non-winner player when the game is finished
+- Editing a finished game recalculates its loser penalties (old entries removed, new ones created); the recalculated entries keep the game's original `finished_at` timestamp, not the edit time
 - Soft-delete (undo) without data loss
 - Admins can retroactively add or correct a game's start/end time (e.g. if starting/finishing was forgotten during the evening) via a dedicated time-edit sheet
 

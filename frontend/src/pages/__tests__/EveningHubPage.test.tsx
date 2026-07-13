@@ -170,7 +170,7 @@ describe('EveningHubPage — with active evening', () => {
         fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
-            expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true })
+            expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true, ended_at: expect.any(String) })
         })
     })
 
@@ -564,7 +564,7 @@ describe('EveningHubPage — close evening invalidates evenings query', () => {
         fireEvent.click(screen.getByText('evening.end'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
-            expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true })
+            expect(api.updateEvening).toHaveBeenCalledWith(1, { is_closed: true, ended_at: expect.any(String) })
         })
         await waitFor(() => {
             expect(invalidateQueriesSpy).toHaveBeenCalledWith(

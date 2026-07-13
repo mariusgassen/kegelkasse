@@ -1,7 +1,7 @@
 """Season closing workflow endpoints."""
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -339,6 +339,7 @@ def close_season(
     )
     for e in open_evenings:
         e.is_closed = True
+        e.ended_at = e.ended_at or datetime.now(UTC)
 
     evening_count = (
         db.query(Evening)

@@ -71,12 +71,16 @@ Wenn der Abend beendet ist:
 
 Der Abend wird in die **Historie** verschoben und kann nicht mehr bearbeitet werden (außer durch Wiedereröffnen).
 
+Beim Beenden kannst du den **Endzeitpunkt** direkt setzen — vorausgefüllt mit dem zuletzt gespeicherten Endzeitpunkt (bzw. jetzt, falls noch keiner existiert). Das ist z. B. hilfreich, wenn du das Beenden am eigentlichen Kegelabend vergessen hast und den korrekten Zeitpunkt nachträglich einträgst. Alle automatisch berechneten **Abwesenheitsstrafen** verwenden diesen Endzeitpunkt statt des Bearbeitungszeitpunkts, damit sie im Strafenprotokoll chronologisch korrekt einsortiert sind.
+
 ### Abend wiedereröffnen
 
 In der **Historie**:
 
 1. Wähle den Abend
 2. Tippe auf **Wiedereröffnen**
+
+Der gespeicherte Endzeitpunkt bleibt beim Wiedereröffnen erhalten — beim erneuten Beenden ist er vorausgefüllt und kann unverändert übernommen oder auf einen neuen Zeitpunkt gesetzt werden.
 
 ## Echtzeit-Updates
 

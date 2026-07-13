@@ -15,12 +15,20 @@ export function useCloseReopenEvening(eveningId: number | undefined, invalidate:
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const [closeConfirm, setCloseConfirm] = useState(false)
     const [closing, setClosing] = useState(false)
+    const [closeEndedAt, setCloseEndedAt] = useState('')
+
+    // Open the close-confirm dialog, prefilling the end-time picker with the
+    // evening's previously saved ended_at (kept across reopen) or now.
+    function openCloseConfirm(currentEndedAt?: string | null) {
+        setCloseEndedAt((currentEndedAt ? new Date(currentEndedAt) : new Date()).toISOString().slice(0, 16))
+        setCloseConfirm(true)
+    }
 
     async function confirmClose() {
         if (!eveningId) return
         setClosing(true)
         try {
-            await api.updateEvening(eveningId, {is_closed: true})
+            await api.updateEvening(eveningId, {is_closed: true, ended_at: closeEndedAt || undefined})
             setCloseConfirm(false)
             setActiveEveningId(null)
             qc.invalidateQueries({queryKey: ['evenings']})
@@ -47,5 +55,5 @@ export function useCloseReopenEvening(eveningId: number | undefined, invalidate:
         }
     }
 
-    return {closeConfirm, setCloseConfirm, closing, confirmClose, reopen}
+    return {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen}
 }

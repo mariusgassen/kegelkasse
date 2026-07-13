@@ -49,6 +49,8 @@ export const en = {
     "evening.end": "End evening",
     "evening.endConfirm": "Really end this evening?",
     "evening.manage": "⚙️ Manage",
+    "evening.endedAt": "End time",
+    "evening.endedAtHint": "When the evening actually ended — useful if you forgot to end it in time.",
     "evening.noActive": "No bowling evening active.",
     "evening.active": "ACTIVE",
     "evening.date": "Date",

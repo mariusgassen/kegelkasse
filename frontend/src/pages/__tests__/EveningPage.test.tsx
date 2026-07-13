@@ -458,7 +458,7 @@ describe('EveningPage — close evening flow', () => {
         await waitFor(() => screen.getByText('action.done'))
         fireEvent.click(screen.getByText('action.done'))
         await waitFor(() => {
-            expect(api.updateEvening).toHaveBeenCalledWith(42, { is_closed: true })
+            expect(api.updateEvening).toHaveBeenCalledWith(42, { is_closed: true, ended_at: expect.any(String) })
         })
     })
 })
