@@ -887,7 +887,7 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
     losers = [p for p in e.players if
               ("p:" + str(p.id) != winner_ref) and
               (not p.team_id or "t:" + str(p.team_id) != winner_ref)]
-    now_ts = datetime.now(UTC).timestamp() * 1000
+    now_ts = (g.finished_at or datetime.now(UTC)).timestamp() * 1000
     for p in losers:
         if is_team_game and p.team_id:
             loser_ref = f"t:{p.team_id}"

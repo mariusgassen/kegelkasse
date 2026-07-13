@@ -48,7 +48,7 @@ Das **Eröffnungsspiel** (erkennbar am Kronensymbol 👑) bestimmt den **König*
 Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des Spiels automatisch Strafeneinträge für alle Nicht-Gewinner erstellt.
 
 - Die Strafen sind im Strafenprotokoll mit dem **Spielkontext** gekennzeichnet
-- Beim nachträglichen Bearbeiten des Spiels werden alte Strafen gelöscht und neu erstellt
+- Beim nachträglichen Bearbeiten des Spiels werden alte Strafen gelöscht und neu erstellt — der Zeitstempel der neuen Strafen bleibt dabei der **Spielende-Zeitpunkt** (`finished_at`), nicht der Zeitpunkt der Bearbeitung
 
 ## Spiel bearbeiten
 
