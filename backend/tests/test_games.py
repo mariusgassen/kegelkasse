@@ -323,6 +323,41 @@ class TestUpdateGame:
         resp = client.patch(f"/api/v1/evening/{evening.id}/games/99999", json={"name": "X"}, headers=auth_headers)
         assert resp.status_code == 404
 
+    def test_admin_can_set_started_and_finished_at(self, client: TestClient, db, evening, admin_headers):
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Retro Fix", "client_timestamp": _ts(),
+        }, headers=admin_headers)
+        gid = r.json()["id"]
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}", json={
+            "started_at": "2025-06-15T20:00:00Z",
+            "finished_at": "2025-06-15T20:45:00Z",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+        game = db.query(Game).filter(Game.id == gid).first()
+        assert game.started_at.isoformat().startswith("2025-06-15T20:00:00")
+        assert game.finished_at.isoformat().startswith("2025-06-15T20:45:00")
+
+    def test_non_admin_cannot_set_started_at(self, client: TestClient, evening, user, auth_headers):
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "No Perm", "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        gid = r.json()["id"]
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}", json={
+            "started_at": "2025-06-15T20:00:00Z",
+        }, headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_finished_at_before_started_at_rejected(self, client: TestClient, evening, admin_headers):
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Bad Order", "client_timestamp": _ts(),
+        }, headers=admin_headers)
+        gid = r.json()["id"]
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}", json={
+            "started_at": "2025-06-15T20:45:00Z",
+            "finished_at": "2025-06-15T20:00:00Z",
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+
 
 # ---------------------------------------------------------------------------
 # DELETE /api/v1/evening/{eid}/games/{gid}

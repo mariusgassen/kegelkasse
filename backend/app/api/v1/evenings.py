@@ -24,7 +24,7 @@ from models.game import Game, WinnerType, GameThrowLog
 from models.penalty import PenaltyLog, PenaltyMode
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus
 from models.season import SeasonSnapshot
-from models.user import User
+from models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/evening", tags=["evening"])
@@ -971,6 +971,8 @@ class GameUpdate(BaseModel):
     loser_penalty: Optional[float] = None
     per_point_penalty: Optional[float] = None
     note: Optional[str] = None
+    started_at: Optional[str] = None  # ISO datetime; admin-only retroactive correction
+    finished_at: Optional[str] = None  # ISO datetime; admin-only retroactive correction
 
 
 @router.patch("/{eid}/games/{gid}")
@@ -979,7 +981,7 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     e = get_club_evening(eid, user, db)
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id).first()
     if not g: raise HTTPException(404)
-    changed = data.model_dump(exclude_none=True)
+    changed = data.model_dump(exclude_none=True, exclude={"started_at", "finished_at"})
     penalty_changed = "loser_penalty" in changed or "per_point_penalty" in changed
     # Opener (König-Spiel) is always individual.
     final_opener = changed.get("is_opener", g.is_opener)
@@ -988,8 +990,30 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
         final_winner_type = final_winner_type.value
     if final_opener and final_winner_type == "team":
         raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
+    # Retroactive start/finish timestamp correction — admin-only, since it rewrites the evening's record.
+    # Parsed and validated *before* any assignment so a rejected request leaves the session clean.
+    new_started_at = g.started_at
+    new_finished_at = g.finished_at
+    if data.started_at is not None or data.finished_at is not None:
+        if user.role not in (UserRole.admin, UserRole.superadmin):
+            raise HTTPException(status_code=403, detail="Club admin role required to edit game timestamps")
+        try:
+            if data.started_at is not None:
+                parsed = datetime.fromisoformat(data.started_at)
+                new_started_at = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+            if data.finished_at is not None:
+                parsed = datetime.fromisoformat(data.finished_at)
+                new_finished_at = parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid timestamp format")
+        if new_started_at and new_finished_at and new_finished_at < new_started_at:
+            raise HTTPException(status_code=400, detail="finished_at must not be before started_at")
+
     for k, v in changed.items():
         setattr(g, k, v)
+    g.started_at = new_started_at
+    g.finished_at = new_finished_at
+
     # Re-apply loser penalties if game is finished and penalty amount changed
     if g.status == "finished" and penalty_changed and g.winner_ref:
         _apply_game_penalties(e, g, g.winner_ref, db, user)

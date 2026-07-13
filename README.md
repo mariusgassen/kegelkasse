@@ -127,6 +127,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Opener flag highlights the crown game (König) in the UI
 - Configurable loser penalty: when set, penalty log entries are auto-created for every non-winner player when the game is finished
 - Soft-delete (undo) without data loss
+- Admins can retroactively add or correct a game's start/end time (e.g. if starting/finishing was forgotten during the evening) via a dedicated time-edit sheet
 
 ### Drinks
 

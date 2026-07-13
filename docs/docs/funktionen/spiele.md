@@ -58,6 +58,18 @@ Tippe auf ein beendetes Spiel → **Bearbeiten**:
 - Punktzahlen anpassen
 - Verliererstrafen werden automatisch neu berechnet
 
+## Start-/Endzeit nachträglich korrigieren
+
+Falls beim Kegeln vergessen wurde, ein Spiel zu starten oder zu beenden, können Admins die Zeiten nachträglich eintragen oder korrigieren:
+
+1. Tippe bei einem **laufenden** oder **beendeten** Spiel auf 🕐
+2. Trage **Startzeit** (und bei beendeten Spielen zusätzlich **Endzeit**) ein
+3. Tippe auf **Speichern**
+
+:::info Nur für Admins
+Diese Funktion ist Vereinsadmins vorbehalten, da sie den offiziellen Zeitverlauf des Abends nachträglich verändert. Die Endzeit darf nicht vor der Startzeit liegen.
+:::
+
 ## Spiel löschen
 
 Tippe auf ein Spiel → **Löschen**
