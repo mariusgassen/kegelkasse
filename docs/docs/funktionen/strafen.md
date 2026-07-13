@@ -64,8 +64,10 @@ Falls ein Stammspieler fehlt, können Abwesenheitsstrafen berechnet werden:
 ## Strafe bearbeiten
 
 1. Tippe auf eine Strafe in der Liste
-2. Ändere **Betrag** oder **Modus**
-3. Speichern
+2. Wähle den Reiter **Schnell** (Strafentyp aus der Liste) oder **Individuell** (eigenes **Icon** und **Name** frei editierbar — z. B. für Freitext-Strafen, die keinem Strafentyp entsprechen)
+3. Ändere **Betrag**, **Modus** oder **Spieler**
+4. Admins können zusätzlich das **Datum** ändern — die Uhrzeit wird in lokaler Zeit eingegeben und angezeigt
+5. Speichern
 
 ## Strafe löschen
 

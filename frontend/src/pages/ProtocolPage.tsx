@@ -21,6 +21,12 @@ function fTime(ms: number) {
     return new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
+/** Format a timestamp as local wall-clock value for <input type="datetime-local"> */
+function toLocalInputValue(ms: number) {
+    const offset = new Date(ms).getTimezoneOffset() * 60000
+    return new Date(ms - offset).toISOString().slice(0, 16)
+}
+
 /** Amount input with € or × prefix, adapts step/placeholder to mode */
 function AmountInput({mode, value, onChange, defaultAmount}: {
     mode: PenaltyMode
@@ -112,8 +118,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
     // Edit sheet
     const [editEntry, setEditEntry] = useState<PenaltyLogEntry | null>(null)
+    const [editTab, setEditTab] = useState<'quick' | 'custom'>('quick')
     const [editPlayerId, setEditPlayerId] = useState<number | null>(null)
     const [editType, setEditType] = useState<number | null>(null)
+    const [editIcon, setEditIcon] = useState('⚠️')
+    const [editName, setEditName] = useState('')
     const [editMode, setEditMode] = useState<PenaltyMode>('euro')
     const [editAmount, setEditAmount] = useState('')
     const [editDate, setEditDate] = useState('')
@@ -197,10 +206,12 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         setEditPlayerId(entry.player_id)
         const pt = penaltyTypes.find(pt => pt.name === entry.penalty_type_name)
         setEditType(pt?.id ?? null)
+        setEditTab(pt ? 'quick' : 'custom')
+        setEditIcon(entry.icon || '⚠️')
+        setEditName(entry.penalty_type_name)
         setEditMode(entry.mode)
         setEditAmount(String(entry.amount))
-        const d = new Date(entry.client_timestamp)
-        setEditDate(d.toISOString().slice(0, 16))
+        setEditDate(toLocalInputValue(entry.client_timestamp))
     }
 
     async function submitQuick() {
@@ -290,17 +301,24 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         const pt = penaltyTypes.find(p => p.id === editType)
         const patch: Parameters<typeof api.updatePenalty>[2] = {}
         if (editPlayerId !== editEntry.player_id) patch.player_id = editPlayerId ?? undefined
-        if (pt && pt.name !== editEntry.penalty_type_name) {
+        if (editTab === 'custom') {
+            const name = editName.trim()
+            if (!name) return
+            if (name !== editEntry.penalty_type_name) patch.penalty_type_name = name
+            if (editIcon !== editEntry.icon) patch.icon = editIcon
+        } else if (pt && pt.name !== editEntry.penalty_type_name) {
             patch.penalty_type_name = pt.name
             patch.icon = pt.icon
         }
         if (editMode !== editEntry.mode) patch.mode = editMode
         const newAmount = editMode === 'count'
             ? (parseInt(editAmount) || 1)
-            : (parseAmount(editAmount) || (pt?.default_amount ?? editEntry.amount))
+            : (parseAmount(editAmount) || (editTab === 'quick' ? pt?.default_amount ?? editEntry.amount : editEntry.amount))
         if (newAmount !== editEntry.amount) patch.amount = newAmount
-        const originalDate = new Date(editEntry.client_timestamp).toISOString().slice(0, 16)
-        if (editDate && editDate !== originalDate) patch.date = editDate
+        // Compare in local wall-clock; send timezone-aware ISO so the backend
+        // (which treats naive strings as UTC) stores the intended local time
+        const originalDate = toLocalInputValue(editEntry.client_timestamp)
+        if (editDate && editDate !== originalDate) patch.date = new Date(editDate).toISOString()
         setSaving(true)
         try {
             await api.updatePenalty(evening!.id, editEntry.id, patch)
@@ -767,22 +785,48 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             <Sheet open={!!editEntry} onClose={() => setEditEntry(null)} title={t('penalty.edit')}
                    onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
-                    {/* Penalty type */}
-                    <div>
-                        <div className="field-label">{t('penalty.quick')}</div>
-                        <div className="flex flex-wrap gap-1.5">
-                            {penaltyTypes.map(pt => (
-                                <button key={pt.id} type="button"
-                                        className={`chip ${editType === pt.id ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setEditType(pt.id);
-                                            setEditAmount('')
-                                        }}>
-                                    {pt.icon} {pt.name}
-                                </button>
-                            ))}
-                        </div>
+                    {/* Quick / custom toggle */}
+                    <div className="flex gap-1">
+                        {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
+                            <button key={id} type="button"
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    onClick={() => setEditTab(id)}>{label}
+                            </button>
+                        ))}
                     </div>
+
+                    {editTab === 'quick' ? (
+                        /* Penalty type */
+                        <div>
+                            <div className="field-label">{t('penalty.type')}</div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {penaltyTypes.map(pt => (
+                                    <button key={pt.id} type="button"
+                                            className={`chip ${editType === pt.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setEditType(pt.id);
+                                                setEditAmount('')
+                                            }}>
+                                        {pt.icon} {pt.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        /* Icon + Name */
+                        <div className="flex gap-2">
+                            <div>
+                                <label className="field-label">Icon</label>
+                                <EmojiPickerButton value={editIcon} onChange={setEditIcon}/>
+                            </div>
+                            <div className="flex-1">
+                                <label className="field-label">Name</label>
+                                <input className="kce-input" value={editName}
+                                       onChange={e => setEditName(e.target.value)}
+                                       placeholder="z.B. Zu spät…"/>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Mode */}
                     <ModeToggle
@@ -800,7 +844,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         mode={editMode}
                         value={editAmount}
                         onChange={setEditAmount}
-                        defaultAmount={editMode === 'euro' ? editPenaltyType?.default_amount : undefined}/>
+                        defaultAmount={editMode === 'euro' && editTab === 'quick' ? editPenaltyType?.default_amount : undefined}/>
 
                     {/* Player */}
                     <div>
@@ -825,7 +869,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </div>
                     )}
 
-                    <button type="submit" className="btn-primary w-full" disabled={saving}>
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={saving || (editTab === 'custom' && !editName.trim()) || (editTab === 'quick' && !editType)}>
                         {t('action.save')}
                     </button>
                 </div>
