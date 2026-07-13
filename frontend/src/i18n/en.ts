@@ -430,6 +430,8 @@ export const en = {
     "treasury.expense.deleteConfirmHint": "This expense will be removed.",
     "treasury.expense.deleteReasonPlaceholder": "Reason (optional)",
     "treasury.booking.add": "Booking",
+    "treasury.booking.edit": "Edit booking",
+    "treasury.booking.edited": "Edited",
     "treasury.booking.for": "For",
     "treasury.booking.club": "Club",
     "treasury.booking.income": "Income",

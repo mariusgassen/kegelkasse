@@ -479,6 +479,17 @@ describe('api.createMemberPayment', () => {
     })
 })
 
+describe('api.updateMemberPayment', () => {
+    it('PATCHes /club/member-payments/{pid} with body', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ id: 7 }))
+        const { api } = await import('../client')
+        await api.updateMemberPayment(7, { amount: 9.5, note: 'Korrigiert' })
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/member-payments/7')
+        expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ amount: 9.5, note: 'Korrigiert' })
+    })
+})
+
 describe('api.deleteMemberPayment', () => {
     it('DELETEs /club/member-payments/{pid}', async () => {
         mockFetch.mockResolvedValueOnce(noContent())
@@ -1186,6 +1197,19 @@ describe('api.createExpense', () => {
         const body = JSON.parse(mockFetch.mock.calls[0][1].body)
         expect(typeof body.idempotency_key).toBe('string')
         expect(body.idempotency_key.length).toBeGreaterThan(0)
+    })
+})
+
+describe('api.updateExpense', () => {
+    it('PATCHes /club/expenses/{eid} with body', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ id: 4 }))
+        const { api } = await import('../client')
+        await api.updateExpense(4, { amount: 25, description: 'Bahnmiete Juli', date: '2026-07-01' })
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/expenses/4')
+        expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
+            amount: 25, description: 'Bahnmiete Juli', date: '2026-07-01',
+        })
     })
 })
 

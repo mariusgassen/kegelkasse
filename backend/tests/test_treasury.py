@@ -489,6 +489,109 @@ class TestDeleteMemberPayment:
 
 
 # ---------------------------------------------------------------------------
+# PATCH /api/v1/club/member-payments/{pid}
+# ---------------------------------------------------------------------------
+
+class TestUpdateMemberPayment:
+    def test_admin_can_edit_payment(self, client: TestClient, db, club, regular_member, admin_user, admin_headers, user, auth_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0,
+            note="Alt", created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={
+            "amount": 7.5, "note": "Korrigiert",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["amount"] == 7.5
+        assert data["note"] == "Korrigiert"
+        assert data["updated_at"] is not None
+        db.expire_all()
+        updated = db.query(MemberPayment).filter(MemberPayment.id == payment.id).first()
+        assert updated.amount == 7.5
+        assert updated.updated_by == admin_user.id
+
+        # Balance reflects the edited amount
+        balances = client.get("/api/v1/club/member-balances", headers=auth_headers)
+        member_data = next(m for m in balances.json() if m["regular_member_id"] == regular_member.id)
+        assert member_data["payments_total"] == 7.5
+
+    def test_empty_note_clears_note(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0,
+            note="Alt", created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"note": ""}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["note"] is None
+        assert resp.json()["amount"] == 3.0  # amount untouched
+
+    def test_zero_amount_rejected(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"amount": 0}, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_editing_amount_notifies_member(
+        self, client: TestClient, db, club, regular_member, admin_user, admin_headers, member_user,
+    ):
+        from models.push import NotificationLog
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=4.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"amount": 8.0}, headers=admin_headers)
+        assert resp.status_code == 200
+        log = db.query(NotificationLog).filter(
+            NotificationLog.user_id == member_user.id,
+            NotificationLog.title.contains("geändert"),
+        ).first()
+        assert log is not None
+
+    def test_member_cannot_edit_payment(self, client: TestClient, db, club, regular_member, admin_user, auth_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"amount": 5.0}, headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_requires_auth(self, client: TestClient, db, club, regular_member, admin_user):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"amount": 5.0})
+        assert resp.status_code == 401
+
+    def test_editing_deleted_payment_returns_404(
+        self, client: TestClient, db, club, regular_member, admin_user, admin_headers,
+    ):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0,
+            created_by=admin_user.id, is_deleted=True,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"amount": 5.0}, headers=admin_headers)
+        assert resp.status_code == 404
+
+    def test_editing_unknown_payment_returns_404(self, client: TestClient, admin_headers):
+        resp = client.patch("/api/v1/club/member-payments/999999", json={"amount": 5.0}, headers=admin_headers)
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # GET /api/v1/club/expenses
 # ---------------------------------------------------------------------------
 
@@ -596,6 +699,102 @@ class TestDeleteExpense:
         db.commit()
         resp = client.delete(f"/api/v1/club/expenses/{expense.id}", headers=auth_headers)
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/club/expenses/{eid}
+# ---------------------------------------------------------------------------
+
+class TestUpdateExpense:
+    def test_admin_can_edit_expense(self, client: TestClient, db, club, admin_user, admin_headers, auth_headers):
+        expense = ClubExpense(
+            club_id=club.id, amount=30.0, description="Bahnmiete", created_by=admin_user.id,
+        )
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={
+            "amount": 45.0, "description": "Bahnmiete Juli", "date": "2026-07-01",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["amount"] == 45.0
+        assert data["description"] == "Bahnmiete Juli"
+        assert data["date"] == "2026-07-01"
+        assert data["updated_at"] is not None
+        db.expire_all()
+        updated = db.query(ClubExpense).filter(ClubExpense.id == expense.id).first()
+        assert updated.updated_by == admin_user.id
+
+        # Edited amount shows up in the list
+        listed = client.get("/api/v1/club/expenses", headers=auth_headers)
+        assert listed.json()[0]["amount"] == 45.0
+
+    def test_partial_edit_keeps_other_fields(self, client: TestClient, db, club, admin_user, admin_headers):
+        expense = ClubExpense(
+            club_id=club.id, amount=30.0, description="Bahnmiete", created_by=admin_user.id,
+        )
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"amount": 25.0}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["amount"] == 25.0
+        assert resp.json()["description"] == "Bahnmiete"
+
+    def test_empty_date_clears_date(self, client: TestClient, db, club, admin_user, admin_headers):
+        from datetime import date
+        expense = ClubExpense(
+            club_id=club.id, amount=30.0, description="Bahnmiete",
+            created_by=admin_user.id, date=date(2026, 6, 1),
+        )
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"date": ""}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["date"] is None
+
+    def test_zero_amount_rejected(self, client: TestClient, db, club, admin_user, admin_headers):
+        expense = ClubExpense(club_id=club.id, amount=30.0, description="X", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"amount": 0}, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_blank_description_rejected(self, client: TestClient, db, club, admin_user, admin_headers):
+        expense = ClubExpense(club_id=club.id, amount=30.0, description="X", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"description": "  "}, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_invalid_date_rejected(self, client: TestClient, db, club, admin_user, admin_headers):
+        expense = ClubExpense(club_id=club.id, amount=30.0, description="X", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"date": "kein-datum"}, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_member_cannot_edit_expense(self, client: TestClient, db, club, admin_user, auth_headers):
+        expense = ClubExpense(club_id=club.id, amount=30.0, description="X", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"amount": 5.0}, headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_requires_auth(self, client: TestClient, db, club, admin_user):
+        expense = ClubExpense(club_id=club.id, amount=30.0, description="X", created_by=admin_user.id)
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"amount": 5.0})
+        assert resp.status_code == 401
+
+    def test_editing_deleted_expense_returns_404(self, client: TestClient, db, club, admin_user, admin_headers):
+        expense = ClubExpense(
+            club_id=club.id, amount=30.0, description="X", created_by=admin_user.id, is_deleted=True,
+        )
+        db.add(expense)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/expenses/{expense.id}", json={"amount": 5.0}, headers=admin_headers)
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------

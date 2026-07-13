@@ -25,6 +25,8 @@ class MemberPayment(Base):
     note = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)  # last admin edit
+    updated_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)  # soft delete
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     deleted_by = Column(Integer, ForeignKey("user.id"), nullable=True)
@@ -56,6 +58,8 @@ class ClubExpense(Base):
     description = Column(String, nullable=False)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)  # last admin edit
+    updated_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     date = Column(Date(), nullable=True)  # optional backdated date for the entry
     is_deleted = Column(Boolean, default=False, nullable=False)  # soft delete
     deleted_at = Column(DateTime(timezone=True), nullable=True)

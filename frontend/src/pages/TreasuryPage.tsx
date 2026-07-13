@@ -42,21 +42,26 @@ type Balance = {
 
 type Payment = {
     id: number; regular_member_id: number; member_name: string;
-    amount: number; note: string | null; created_at: string | null
+    amount: number; note: string | null; created_at: string | null; updated_at: string | null
 }
 
 type MemberPayment = {
-    id: number; amount: number; note: string | null; created_at: string | null
+    id: number; amount: number; note: string | null; created_at: string | null; updated_at: string | null
 }
 
 type Expense = {
-    id: number; amount: number; description: string; created_at: string | null; date: string | null
+    id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null
 }
 
 // Unified booking entry for the Buchungen tab
 type BookingEntry =
     | { kind: 'payment'; data: Payment }
     | { kind: 'expense'; data: Expense }
+
+// Booking being edited in the edit sheet
+type EditTarget =
+    | { kind: 'payment'; id: number; memberId: number; label: string }
+    | { kind: 'expense'; id: number }
 
 // Thin progress bar: how much of the accrued penalties is already paid.
 // Makes the "Strafen vs. Bezahlt" relation tangible at a glance.
@@ -574,6 +579,59 @@ export function TreasuryPage() {
         }
     }
 
+    // Edit booking sheet — shared by member payments and club expenses
+    const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
+    const [editDirection, setEditDirection] = useState<'in' | 'out'>('in')
+    const [editAmount, setEditAmount] = useState('')
+    const [editNote, setEditNote] = useState('')
+    const [editDate, setEditDate] = useState('')
+    const [savingEdit, setSavingEdit] = useState(false)
+
+    function openEditPayment(p: { id: number; amount: number; note: string | null }, memberId: number, label: string) {
+        setEditTarget({kind: 'payment', id: p.id, memberId, label})
+        setEditDirection(p.amount >= 0 ? 'in' : 'out')
+        setEditAmount(Math.abs(p.amount).toFixed(2))
+        setEditNote(p.note ?? '')
+    }
+
+    function openEditExpense(e: Expense) {
+        setEditTarget({kind: 'expense', id: e.id})
+        // Positive expense amount = money going out, negative = income
+        setEditDirection(e.amount >= 0 ? 'out' : 'in')
+        setEditAmount(Math.abs(e.amount).toFixed(2))
+        setEditNote(e.description)
+        setEditDate(e.date ?? (e.created_at ? e.created_at.slice(0, 10) : ''))
+    }
+
+    async function submitEdit() {
+        if (!editTarget) return
+        const abs = parseAmount(editAmount)
+        if (!abs || abs <= 0) return
+        setSavingEdit(true)
+        try {
+            if (editTarget.kind === 'payment') {
+                const amount = editDirection === 'in' ? abs : -abs
+                await api.updateMemberPayment(editTarget.id, {amount, note: editNote})
+                refetchBalances()
+                refetchGuestBalances()
+                qc.invalidateQueries({queryKey: ['member-payments', editTarget.memberId]})
+                qc.invalidateQueries({queryKey: ['all-payments']})
+            } else {
+                if (!editNote.trim()) return
+                const amount = editDirection === 'out' ? abs : -abs
+                await api.updateExpense(editTarget.id, {amount, description: editNote.trim(), date: editDate})
+                refetchExpenses()
+                refetchBalances()
+                refetchGuestBalances()
+            }
+            setEditTarget(null)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSavingEdit(false)
+        }
+    }
+
     // Guest cost transfer sheet — credit guest + debit chosen regular member
     const [transferGuest, setTransferGuest] = useState<{ id: number; name: string } | null>(null)
     const [transferTargetId, setTransferTargetId] = useState<number | null>(null)
@@ -737,6 +795,7 @@ export function TreasuryPage() {
 
     const isClubBooking = bookingTarget === 'club'
     const bookingValid = parseAmount(bookingAmount) > 0 && (isClubBooking ? bookingNote.trim().length > 0 : true)
+    const editValid = parseAmount(editAmount) > 0 && (editTarget?.kind === 'expense' ? editNote.trim().length > 0 : true)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -1244,7 +1303,12 @@ export function TreasuryPage() {
                                                         <span
                                                             className="text-kce-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
                                                         <span
-                                                            className="text-kce-muted flex-shrink-0">{fDate(p.created_at)}</span>
+                                                            className="text-kce-muted flex-shrink-0">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.created_at)}</span>
+                                                        {admin && (
+                                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                                                    aria-label={t('treasury.booking.edit')}
+                                                                    onClick={() => openEditPayment(p, b.regular_member_id, b.nickname || b.name)}>✏️</button>
+                                                        )}
                                                         {admin && (
                                                             <button className="btn-danger btn-xs flex-shrink-0"
                                                                     onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</button>
@@ -1422,8 +1486,13 @@ export function TreasuryPage() {
                                             <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                 {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                             </div>
-                                            <div className="text-xs text-kce-muted">{fDate(p.created_at)}</div>
+                                            <div className="text-xs text-kce-muted">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.created_at)}</div>
                                         </div>
+                                        {admin && (
+                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                                    aria-label={t('treasury.booking.edit')}
+                                                    onClick={() => openEditPayment(p, p.regular_member_id, p.member_name)}>✏️</button>
+                                        )}
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
                                                     onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</button>
@@ -1447,8 +1516,13 @@ export function TreasuryPage() {
                                             <div className={`font-bold text-sm ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
                                                 {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
                                             </div>
-                                            <div className="text-xs text-kce-muted">{fDate(e.date ?? e.created_at)}</div>
+                                            <div className="text-xs text-kce-muted">{e.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>
                                         </div>
+                                        {admin && (
+                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                                    aria-label={t('treasury.booking.edit')}
+                                                    onClick={() => openEditExpense(e)}>✏️</button>
+                                        )}
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
                                                     onClick={() => setConfirmDeleteExpense(e.id)}>✕</button>
@@ -1500,6 +1574,70 @@ export function TreasuryPage() {
                             {t('action.delete')}
                         </button>
                     </div>
+                </div>
+            </Sheet>
+
+            {/* Edit booking sheet */}
+            <Sheet open={!!editTarget} onClose={() => setEditTarget(null)}
+                   title={`✏️ ${t('treasury.booking.edit')}`} onSubmit={submitEdit}>
+                <div className="flex flex-col gap-3">
+                    {editTarget?.kind === 'payment' && (
+                        <div>
+                            <label className="field-label">
+                                {t('treasury.booking.for')}: <span className="font-bold text-kce-text">{editTarget.label}</span>
+                            </label>
+                        </div>
+                    )}
+
+                    {/* Direction */}
+                    <ModeToggle
+                        options={editTarget?.kind === 'expense'
+                            ? [
+                                {value: 'in', label: `⬆ ${t('treasury.booking.income')}`},
+                                {value: 'out', label: `⬇ ${t('treasury.booking.expense')}`},
+                            ]
+                            : [
+                                {value: 'in', label: `⬆ ${t('treasury.payment.deposit')}`},
+                                {value: 'out', label: `⬇ ${t('treasury.payment.withdrawal')}`},
+                            ]
+                        }
+                        value={editDirection}
+                        onChange={v => setEditDirection(v as 'in' | 'out')}/>
+
+                    {/* Amount */}
+                    <div>
+                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <input className="kce-input flex-1" type="text" inputMode="decimal"
+                                   value={editAmount} onChange={e => setEditAmount(e.target.value)}
+                                   placeholder="0,00" autoFocus/>
+                        </div>
+                    </div>
+
+                    {/* Note / description */}
+                    <div>
+                        <label className="field-label">
+                            {editTarget?.kind === 'expense' ? t('treasury.expense.description') : t('treasury.payment.note')}
+                        </label>
+                        <input className="kce-input" value={editNote}
+                               onChange={e => setEditNote(e.target.value)}
+                               placeholder={editTarget?.kind === 'expense' ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
+                    </div>
+
+                    {/* Date override for club bookings */}
+                    {editTarget?.kind === 'expense' && (
+                        <div>
+                            <label className="field-label">{t('treasury.expense.date')}</label>
+                            <input type="date" className="kce-input" value={editDate}
+                                   onChange={e => setEditDate(e.target.value)}/>
+                        </div>
+                    )}
+
+                    <button type="submit" className="btn-primary w-full"
+                            disabled={savingEdit || !editValid}>
+                        ✓ {t('action.save')}
+                    </button>
                 </div>
             </Sheet>
 

@@ -673,7 +673,8 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
         MemberPayment.is_deleted == False,
     ).order_by(MemberPayment.created_at.desc()).all()
     return [{"id": p.id, "amount": p.amount, "note": p.note,
-             "created_at": p.created_at.isoformat() if p.created_at else None} for p in payments]
+             "created_at": p.created_at.isoformat() if p.created_at else None,
+             "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in payments]
 
 
 @router.get("/member-penalties/{mid}")
@@ -722,9 +723,15 @@ class PaymentCreate(BaseModel):
     idempotency_key: Optional[str] = None
 
 
+class PaymentUpdate(BaseModel):
+    amount: Optional[float] = None
+    note: Optional[str] = None
+
+
 def _payment_dict(p: MemberPayment) -> dict:
     return {"id": p.id, "amount": p.amount, "note": p.note,
-            "created_at": p.created_at.isoformat() if p.created_at else None}
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None}
 
 
 @router.post("/member-payments", status_code=201)
@@ -764,6 +771,37 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
     return _payment_dict(payment)
 
 
+@router.patch("/member-payments/{pid}")
+def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: BackgroundTasks,
+                          db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    p = db.query(MemberPayment).filter(
+        MemberPayment.id == pid, MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
+    ).first()
+    if not p: raise HTTPException(404)
+    old_amount = p.amount
+    if data.amount is not None:
+        if data.amount == 0:
+            raise HTTPException(400, "Betrag darf nicht 0 sein")
+        p.amount = data.amount
+    if data.note is not None:
+        p.note = data.note.strip() or None
+    p.updated_at = datetime.now(timezone.utc)
+    p.updated_by = user.id
+    db.commit()
+    db.refresh(p)
+    logger.info("member payment updated: id=%s member=%s amount=%.2f→%.2f by user=%s",
+                p.id, p.regular_member_id, old_amount, p.amount, user.id)
+    if data.amount is not None and data.amount != old_amount:
+        old_fee = f"{old_amount:.2f}".replace('.', ',')
+        new_fee = f"{p.amount:.2f}".replace('.', ',')
+        background_tasks.add_task(
+            push_to_regular_member, db, p.regular_member_id, "✏️ Buchung geändert",
+            f"Eine Buchung wurde von {old_fee}€ auf {new_fee}€ geändert.", "/#treasury:bookings",
+            category="payments")
+    return _payment_dict(p)
+
+
 @router.delete("/member-payments/{pid}", status_code=204)
 def delete_member_payment(pid: int, background_tasks: BackgroundTasks, reason: Optional[str] = None,
                            db: Session = Depends(get_db),
@@ -800,6 +838,7 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
         "member_name": m.nickname or m.name,
         "amount": p.amount, "note": p.note,
         "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     } for p, m in payments]
 
 
@@ -1114,10 +1153,17 @@ class ExpenseCreate(BaseModel):
     idempotency_key: Optional[str] = None
 
 
+class ExpenseUpdate(BaseModel):
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    date: Optional[str] = None  # ISO date string; empty string clears the date
+
+
 def _serialize_expense(e: ClubExpense) -> dict:
     return {
         "id": e.id, "amount": e.amount, "description": e.description,
         "created_at": e.created_at.isoformat() if e.created_at else None,
+        "updated_at": e.updated_at.isoformat() if e.updated_at else None,
         "date": e.date.isoformat() if e.date else None,
     }
 
@@ -1164,6 +1210,40 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(expense)
     logger.info("club expense created: id=%s amount=%.2f by user=%s", expense.id, data.amount, user.id)
+    return _serialize_expense(expense)
+
+
+@router.patch("/expenses/{eid}")
+def update_expense(eid: int, data: ExpenseUpdate, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_admin)):
+    expense = db.query(ClubExpense).filter(
+        ClubExpense.id == eid, ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False
+    ).first()
+    if not expense:
+        raise HTTPException(404)
+    old_amount = expense.amount
+    if data.amount is not None:
+        if data.amount == 0:
+            raise HTTPException(400, "Betrag darf nicht 0 sein")
+        expense.amount = data.amount
+    if data.description is not None:
+        if not data.description.strip():
+            raise HTTPException(400, "Beschreibung darf nicht leer sein")
+        expense.description = data.description.strip()
+    if data.date is not None:
+        if data.date == "":
+            expense.date = None
+        else:
+            try:
+                expense.date = date_type.fromisoformat(data.date)
+            except ValueError:
+                raise HTTPException(400, "Ungültiges Datum")
+    expense.updated_at = datetime.now(timezone.utc)
+    expense.updated_by = user.id
+    db.commit()
+    db.refresh(expense)
+    logger.info("club expense updated: id=%s amount=%.2f→%.2f by user=%s",
+                expense.id, old_amount, expense.amount, user.id)
     return _serialize_expense(expense)
 
 
