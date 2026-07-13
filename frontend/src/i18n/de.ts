@@ -49,6 +49,8 @@ export const de = {
     "evening.end": "Abend beenden",
     "evening.endConfirm": "Abend wirklich beenden?",
     "evening.manage": "⚙️ Verwalten",
+    "evening.endedAt": "Ende",
+    "evening.endedAtHint": "Zeitpunkt, an dem der Abend endete — z. B. wichtig, wenn du das Beenden vergessen hast.",
     "evening.noActive": "Kein Kegelabend aktiv.",
     "evening.active": "AKTIV",
     "evening.date": "Datum",

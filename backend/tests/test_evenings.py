@@ -194,6 +194,62 @@ class TestUpdateEvening:
         assert resp.status_code == 200
         assert resp.json()["is_closed"] is True
 
+    def test_close_evening_defaults_ended_at_to_now(self, client: TestClient, admin_headers: dict, evening: Evening):
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                            json={"is_closed": True})
+        assert resp.status_code == 200
+        assert resp.json()["ended_at"] is not None
+
+    def test_close_evening_with_explicit_ended_at(self, client: TestClient, admin_headers: dict, evening: Evening):
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                            json={"is_closed": True, "ended_at": "2025-06-15T23:30:00"})
+        assert resp.status_code == 200
+        assert resp.json()["ended_at"].startswith("2025-06-15T23:30:00")
+
+    def test_reopen_keeps_ended_at_and_reclose_without_override_keeps_it(
+            self, client: TestClient, admin_headers: dict, evening: Evening):
+        client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                    json={"is_closed": True, "ended_at": "2025-06-15T23:30:00"})
+        reopen_resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                                   json={"is_closed": False})
+        assert reopen_resp.json()["ended_at"].startswith("2025-06-15T23:30:00")
+        reclose_resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                                    json={"is_closed": True})
+        assert reclose_resp.json()["ended_at"].startswith("2025-06-15T23:30:00")
+
+    def test_reclose_can_override_ended_at(self, client: TestClient, admin_headers: dict, evening: Evening):
+        client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                    json={"is_closed": True, "ended_at": "2025-06-15T23:30:00"})
+        client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                    json={"is_closed": False})
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                            json={"is_closed": True, "ended_at": "2025-06-16T01:00:00"})
+        assert resp.json()["ended_at"].startswith("2025-06-16T01:00:00")
+
+    def test_absence_penalty_uses_evening_ended_at(
+            self, client: TestClient, admin_headers: dict, db: Session, club: Club, evening: Evening):
+        # Absence penalties are only auto-calculated when the evening has present players.
+        client.post(f"/api/v1/evening/{evening.id}/players", headers=admin_headers,
+                   json={"name": "Anwesend"})
+        member = RegularMember(club_id=club.id, name="Abwesend", nickname="Abwesend")
+        db.add(member)
+        db.commit()
+        db.refresh(member)
+
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
+                            json={"is_closed": True, "ended_at": "2025-06-15T23:30:00"})
+        assert resp.status_code == 200
+
+        penalty = db.query(PenaltyLog).filter(
+            PenaltyLog.evening_id == evening.id,
+            PenaltyLog.regular_member_id == member.id,
+            PenaltyLog.penalty_type_name == "Abwesenheit",
+        ).first()
+        assert penalty is not None
+        from datetime import datetime, UTC
+        expected_ms = datetime(2025, 6, 15, 23, 30, 0, tzinfo=UTC).timestamp() * 1000
+        assert penalty.client_timestamp == pytest.approx(expected_ms, abs=1000)
+
     def test_cannot_reopen_when_another_is_open(
             self, client: TestClient, admin_headers: dict, auth_headers: dict,
             db: Session, club: Club, admin_user: User):

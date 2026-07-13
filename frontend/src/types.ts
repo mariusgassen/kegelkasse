@@ -383,6 +383,7 @@ export interface Evening {
     venue: string | null
     note: string | null
     is_closed: boolean
+    ended_at: string | null
     season_closed: boolean
     players: EveningPlayer[]
     teams: Team[]

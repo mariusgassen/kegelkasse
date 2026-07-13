@@ -31,7 +31,8 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights'])
-    const {closeConfirm, setCloseConfirm, closing, confirmClose, reopen} = useCloseReopenEvening(evening?.id, invalidate)
+    const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
+        useCloseReopenEvening(evening?.id, invalidate)
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
     const [highlightText, setHighlightText] = useState('')
     const [highlightMediaUrl, setHighlightMediaUrl] = useState<string | null>(null)
@@ -154,7 +155,7 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                 {!isClosed ? (
                     <button
                         className="btn-secondary btn-xs flex-shrink-0 ml-1"
-                        onClick={() => setCloseConfirm(true)}>
+                        onClick={() => openCloseConfirm(evening?.ended_at)}>
                         {t('evening.end')}
                     </button>
                 ) : (
@@ -175,6 +176,12 @@ export function EveningHubPage({onNavigate, onHistory}: Props) {
                     onClose={() => setCloseConfirm(false)}
                 >
                     <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <div className="mb-4">
+                        <label className="field-label">{t('evening.endedAt')}</label>
+                        <input type="datetime-local" className="kce-input" value={closeEndedAt}
+                               onChange={e => setCloseEndedAt(e.target.value)}/>
+                        <p className="text-xs text-kce-muted mt-1">{t('evening.endedAtHint')}</p>
+                    </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>

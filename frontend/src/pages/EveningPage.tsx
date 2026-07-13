@@ -21,7 +21,8 @@ export function EveningPage() {
     const isOnline = useOnline()
     const {setActiveEveningId, regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
-    const {closeConfirm, setCloseConfirm, closing, confirmClose, reopen} = useCloseReopenEvening(evening?.id, invalidate)
+    const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
+        useCloseReopenEvening(evening?.id, invalidate)
 
     // ── Start evening form ──
     const [startDate, setStartDate] = useState(today())
@@ -265,7 +266,7 @@ export function EveningPage() {
                     <div className="flex gap-1.5 flex-shrink-0">
                         <button className="btn-secondary btn-xs" onClick={openEditSheet}>✏️</button>
                         {!evening.is_closed ? (
-                            <button className="btn-danger btn-xs" onClick={() => setCloseConfirm(true)}>
+                            <button className="btn-danger btn-xs" onClick={() => openCloseConfirm(evening.ended_at)}>
                                 {t('evening.end')}
                             </button>
                         ) : (
@@ -285,6 +286,12 @@ export function EveningPage() {
                     onClose={() => setCloseConfirm(false)}
                 >
                     <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <div className="mb-4">
+                        <label className="field-label">{t('evening.endedAt')}</label>
+                        <input type="datetime-local" className="kce-input" value={closeEndedAt}
+                               onChange={e => setCloseEndedAt(e.target.value)}/>
+                        <p className="text-xs text-kce-muted mt-1">{t('evening.endedAtHint')}</p>
+                    </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>

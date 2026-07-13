@@ -375,7 +375,7 @@ export const api = {
     createEvening: (d: { date: string; venue?: string; note?: string }) =>
         request<Evening>('POST', '/evening/', d),
     getEvening: (id: number) => request<Evening>('GET', `/evening/${id}`),
-    updateEvening: (id: number, d: { date?: string; venue?: string; note?: string; is_closed?: boolean }) =>
+    updateEvening: (id: number, d: { date?: string; venue?: string; note?: string; is_closed?: boolean; ended_at?: string }) =>
         request<Evening>('PATCH', `/evening/${id}`, d),
     deleteEvening: (id: number) => request<void>('DELETE', `/evening/${id}`),
 

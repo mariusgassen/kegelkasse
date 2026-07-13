@@ -103,7 +103,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Evenings are started from a scheduled entry (SchedulePage); no more ad-hoc creation
 - Create evenings with date, optional venue override, and a free-text note
-- Open/close toggle — closing an evening archives it to history
+- Open/close toggle — closing an evening archives it to history; closing lets you set the evening's end timestamp (prefilled with the previously saved value, or now), so you can backdate it if you forgot to close on time — the value is kept across reopen/re-close unless explicitly changed
 - Add players ad-hoc or from the regular-member roster (linking them for stats)
 - **Highlights**: record memorable moments (Schuh geworfen, Kugel gegen die Heizung…) as free-text highlights on the evening
 - Create named teams and assign players to them; reassign or dissolve teams at any time
@@ -117,7 +117,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Edit sheet with Quick/Custom tabs: custom (free-text) penalties keep their icon and name editable; admin date override uses local time
 - Soft-delete (undo) without data loss
 - Spin wheel for random penalty-type selection
-- Absence penalties for missing regular members
+- Absence penalties for missing regular members; timestamped with the evening's end time (`ended_at`), not the moment the penalty was calculated
 
 ### Games
 
