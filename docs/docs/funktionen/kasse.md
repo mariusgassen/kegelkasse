@@ -142,6 +142,15 @@ Mit dem **Suchfeld** lassen sich Buchungen nach Name, Notiz oder Beschreibung fi
 
 Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und bei Vereinsbuchungen ein Datum.
 
+### Buchung bearbeiten oder stornieren
+
+Admins können jede Buchung nachträglich korrigieren oder entfernen:
+
+- **✏️ Bearbeiten** öffnet ein Sheet mit den aktuellen Werten: Richtung, Betrag, Notiz/Beschreibung und bei Vereinsbuchungen das Datum lassen sich ändern. Bearbeitete Buchungen sind im Kassenbuch mit einem kleinen ✏️ neben dem Datum markiert; das betroffene Mitglied erhält bei einer Betragsänderung eine Push-Benachrichtigung.
+- **✕ Stornieren** entfernt die Buchung (Soft-Delete mit optionalem Grund) — sie bleibt für die Nachvollziehbarkeit in der Datenbank erhalten, zählt aber nicht mehr zu Salden und Kassenstand.
+
+Bearbeiten ist auch in der Zahlungs-Historie eines Mitgliedskontos (Tab **Konten**, Zeile aufklappen) möglich.
+
 ---
 
 ## Bezahllink (PayPal)

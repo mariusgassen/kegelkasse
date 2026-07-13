@@ -28,8 +28,10 @@ vi.mock('@/api/client.ts', () => ({
         getAllPayments: vi.fn(),
         getMemberPayments: vi.fn(),
         createMemberPayment: vi.fn(),
+        updateMemberPayment: vi.fn(),
         deleteMemberPayment: vi.fn(),
         createExpense: vi.fn(),
+        updateExpense: vi.fn(),
         deleteExpense: vi.fn(),
         createPaymentRequest: vi.fn(),
         confirmPaymentRequest: vi.fn(),
@@ -92,12 +94,12 @@ const REGULAR_MEMBERS = [
 ]
 
 const EXPENSES = [
-    { id: 1, amount: 20.00, description: 'Getränke', note: 'Getränke', date: null, created_at: '2026-01-10T10:00:00', created_by: 1 },
+    { id: 1, amount: 20.00, description: 'Getränke', note: 'Getränke', date: null, created_at: '2026-01-10T10:00:00', updated_at: null, created_by: 1 },
 ]
 
 const PAYMENTS = [
-    { id: 10, regular_member_id: 1, member_name: 'Admin', amount: 15.00, note: 'Einzahlung', created_at: '2026-01-12T09:00:00' },
-    { id: 11, regular_member_id: 5, member_name: 'Hans', amount: -5.50, note: null, created_at: '2026-01-05T08:00:00' },
+    { id: 10, regular_member_id: 1, member_name: 'Admin', amount: 15.00, note: 'Einzahlung', created_at: '2026-01-12T09:00:00', updated_at: null },
+    { id: 11, regular_member_id: 5, member_name: 'Hans', amount: -5.50, note: null, created_at: '2026-01-05T08:00:00', updated_at: null },
 ]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -763,6 +765,83 @@ describe('TreasuryPage — bookings delete', () => {
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
             expect(api.deleteExpense).toHaveBeenCalledWith(1, 'Doppelt erfasst')
+        })
+    })
+})
+
+describe('TreasuryPage — bookings edit', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('shows edit buttons for admin in bookings', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        // Merged order: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
+        expect(screen.getAllByLabelText('treasury.booking.edit').length).toBe(3)
+    })
+
+    it('non-admin does not see edit buttons', async () => {
+        await setupAsMember()
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        expect(screen.queryByLabelText('treasury.booking.edit')).not.toBeInTheDocument()
+    })
+
+    it('opens prefilled edit sheet for an expense and calls api.updateExpense on submit', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateExpense).mockResolvedValueOnce({ id: 1 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        const editBtns = screen.getAllByLabelText('treasury.booking.edit')
+        fireEvent.click(editBtns[1]) // expense row
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Prefilled with current values
+        expect(screen.getByDisplayValue('20.00')).toBeInTheDocument()
+        expect(screen.getByDisplayValue('Getränke')).toBeInTheDocument()
+        // Change amount and save
+        fireEvent.change(screen.getByDisplayValue('20.00'), { target: { value: '25,00' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateExpense).toHaveBeenCalledWith(1, {
+                amount: 25, description: 'Getränke', date: '2026-01-10',
+            })
+        })
+    })
+
+    it('opens prefilled edit sheet for a payment and calls api.updateMemberPayment on submit', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        const editBtns = screen.getAllByLabelText('treasury.booking.edit')
+        fireEvent.click(editBtns[0]) // newest payment row (id 10, +15.00)
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect(screen.getByDisplayValue('15.00')).toBeInTheDocument()
+        fireEvent.change(screen.getByDisplayValue('15.00'), { target: { value: '10,00' } })
+        fireEvent.change(screen.getByDisplayValue('Einzahlung'), { target: { value: 'Korrigiert' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: 10, note: 'Korrigiert' })
+        })
+    })
+
+    it('sends a negative amount when withdrawal direction is selected', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        fireEvent.click(screen.getAllByLabelText('treasury.booking.edit')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        // Flip direction to withdrawal via the mocked ModeToggle option button
+        fireEvent.click(screen.getByText('⬇ treasury.payment.withdrawal'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: -15, note: 'Einzahlung' })
         })
     })
 })

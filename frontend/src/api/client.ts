@@ -492,7 +492,7 @@ export const api = {
         penalty_total: number; payments_total: number; balance: number
     }[]>('GET', '/club/guest-balances'),
     getMemberPayments: (mid: number) => request<{
-        id: number; amount: number; note: string | null; created_at: string | null
+        id: number; amount: number; note: string | null; created_at: string | null; updated_at: string | null
     }[]>('GET', `/club/member-payments/${mid}`),
     getMemberPenalties: (mid: number) => request<{
         id: number; amount: number; icon: string; penalty_type_name: string;
@@ -504,7 +504,7 @@ export const api = {
     }[]>('GET', '/club/treasury-debt-timeline'),
     getAllPayments: () => request<{
         id: number; regular_member_id: number; member_name: string;
-        amount: number; note: string | null; created_at: string | null
+        amount: number; note: string | null; created_at: string | null; updated_at: string | null
     }[]>('GET', '/club/member-payments'),
     createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string }) =>
         request<{
@@ -513,6 +513,14 @@ export const api = {
             note: string | null;
             created_at: string | null
         }>('POST', '/club/member-payments', {...d, idempotency_key: newIdempotencyKey()}),
+    updateMemberPayment: (pid: number, d: { amount?: number; note?: string }) =>
+        request<{
+            id: number;
+            amount: number;
+            note: string | null;
+            created_at: string | null;
+            updated_at: string | null
+        }>('PATCH', `/club/member-payments/${pid}`, d),
     deleteMemberPayment: (pid: number, reason?: string) =>
         request<void>('DELETE', `/club/member-payments/${pid}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
     transferGuestCosts: (d: { guest_id: number; target_member_id: number; amount: number; note?: string }) =>
@@ -522,11 +530,14 @@ export const api = {
 
     // Club expenses
     getExpenses: () => request<{
-        id: number; amount: number; description: string; created_at: string | null; date: string | null
+        id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null
     }[]>('GET', '/club/expenses'),
     createExpense: (d: { amount: number; description: string; date?: string }) =>
-        request<{ id: number; amount: number; description: string; created_at: string | null; date: string | null }>(
+        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null }>(
             'POST', '/club/expenses', {...d, idempotency_key: newIdempotencyKey()}),
+    updateExpense: (eid: number, d: { amount?: number; description?: string; date?: string }) =>
+        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null }>(
+            'PATCH', `/club/expenses/${eid}`, d),
     deleteExpense: (eid: number, reason?: string) =>
         request<void>('DELETE', `/club/expenses/${eid}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
 
