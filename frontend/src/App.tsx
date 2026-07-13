@@ -35,7 +35,6 @@ import {
 
 // Lazy-loaded page components to keep initial bundle small
 import {EveningHubPage} from './pages/EveningHubPage'
-import {EveningPage} from './pages/EveningPage'
 import {TreasuryPage} from './pages/TreasuryPage'
 import {StatsPage} from './pages/StatsPage'
 import {ClubAdminPage} from './pages/ClubAdminPage'
@@ -43,7 +42,7 @@ import {SchedulePage} from './pages/SchedulePage'
 import {CommitteePage} from './pages/CommitteePage'
 import {MembersPage} from './pages/MembersPage'
 
-type PageId = 'evening' | 'config' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee' | 'members'
+type PageId = 'evening' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee' | 'members'
 
 export function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -146,7 +145,7 @@ export default function App() {
     } = useAppStore()
     const {locale, setLocale} = useI18n()
     const t = useT()
-    const NAV_PAGES: PageId[] = ['evening', 'config', 'treasury', 'schedule', 'committee', 'stats', 'club', 'members']
+    const NAV_PAGES: PageId[] = ['evening', 'treasury', 'schedule', 'committee', 'stats', 'club', 'members']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
@@ -372,7 +371,7 @@ export default function App() {
                         <button
                             className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
                             style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)', border: '1px solid color-mix(in srgb, var(--kce-primary) 60%, transparent)'}}
-                            onClick={() => setPage('config')}>
+                            onClick={() => { window.location.hash = 'evening:manage' }}>
                             <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
                         </button>
                     )}
@@ -441,8 +440,7 @@ export default function App() {
             {/* ── Pages (all mounted, toggled via display) ── */}
             <main style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 {([
-                    ['evening', <EveningHubPage onNavigate={() => setPage('config')} onHistory={() => setPage('schedule')}/>],
-                    ['config', <EveningPage/>],
+                    ['evening', <EveningHubPage onHistory={() => setPage('schedule')}/>],
                     ['treasury', <TreasuryPage/>],
                     ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
                     ['committee', <CommitteePage/>],

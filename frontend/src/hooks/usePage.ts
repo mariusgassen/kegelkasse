@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react'
 
 /**
  * Page state hook backed by URL hash.
- * navPages: only these are reflected in the URL hash (ephemeral pages like 'config' are not).
+ * navPages: only these are reflected in the URL hash; anything else falls back to `initial`.
  * Hash format: #mainPage  or  #mainPage:subTab
  */
 export function usePage<T extends string>(initial: T, navPages?: T[]): [T, (p: T) => void] {

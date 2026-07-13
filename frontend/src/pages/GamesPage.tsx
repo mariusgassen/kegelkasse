@@ -314,7 +314,7 @@ export function GamesPage() {
                         ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
                     </span>
                     <button className="btn-secondary btn-xs flex-shrink-0"
-                            onClick={() => { window.location.hash = 'config' }}>
+                            onClick={() => { window.location.hash = 'evening:manage' }}>
                         → {t('nav.evening')}
                     </button>
                 </div>

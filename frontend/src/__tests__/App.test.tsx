@@ -48,9 +48,8 @@ vi.mock('@/pages/LoginPage.tsx', () => ({
 }))
 
 vi.mock('@/pages/EveningHubPage.tsx', () => ({
-    EveningHubPage: ({ onNavigate, onHistory }: { onNavigate?: () => void; onHistory?: () => void }) => (
+    EveningHubPage: ({ onHistory }: { onHistory?: () => void }) => (
         <div data-testid="evening-hub-page">
-            {onNavigate && <button onClick={onNavigate}>hub-navigate</button>}
             {onHistory && <button onClick={onHistory}>hub-history</button>}
         </div>
     ),
@@ -449,15 +448,13 @@ describe('App — authenticated interactions', () => {
         })
     })
 
-    it('navigates to config page when active evening button is clicked', async () => {
+    it('deep-links to the evening manage sub-tab when active evening button is clicked', async () => {
         storeState.activeEveningId = 42
-        const setPageMock = vi.fn()
-        const { usePage } = await import('@/hooks/usePage.ts')
-        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
+        window.location.hash = ''
         await renderApp()
         await waitFor(() => screen.getByText(/evening\.active/))
         fireEvent.click(screen.getByText(/evening\.active/))
-        expect(setPageMock).toHaveBeenCalledWith('config')
+        expect(window.location.hash).toBe('#evening:manage')
     })
 
     it('navigates to another page when nav button is clicked', async () => {
@@ -530,16 +527,6 @@ describe('App — authenticated interactions', () => {
         await waitFor(() => {
             expect(screen.queryByTestId('notification-panel')).not.toBeInTheDocument()
         })
-    })
-
-    it('calls setPage(config) when EveningHubPage onNavigate fires', async () => {
-        const setPageMock = vi.fn()
-        const { usePage } = await import('@/hooks/usePage.ts')
-        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
-        await renderApp()
-        await waitFor(() => screen.getByText('hub-navigate'))
-        fireEvent.click(screen.getByText('hub-navigate'))
-        expect(setPageMock).toHaveBeenCalledWith('config')
     })
 
     it('calls setPage(schedule) when EveningHubPage onHistory fires', async () => {
