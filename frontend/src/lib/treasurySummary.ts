@@ -15,7 +15,11 @@ export interface ExpenseLike {
 export interface TreasurySummary {
     /** Everything ever paid in by members and guests (real money received). */
     paidIn: number
-    /** Net club expenses: expenses minus extra income. Positive = money left the till. */
+    /** Sum of positive club-expense entries: real money that left the till. */
+    expensesGross: number
+    /** Sum of negative club-expense entries (as a positive number): extra income booked via the expenses ledger (sponsoring, grants, …). */
+    otherIncome: number
+    /** Net club expenses: expensesGross minus otherIncome. Positive = money left the till. */
     expensesNet: number
     /** Real money currently in the till: paidIn − expensesNet. */
     cashOnHand: number
@@ -41,7 +45,9 @@ export function treasurySummary(
 ): TreasurySummary {
     const all = [...memberBalances, ...guestBalances]
     const paidIn = all.reduce((s, b) => s + b.payments_total, 0)
-    const expensesNet = expenses.reduce((s, e) => s + e.amount, 0)
+    const expensesGross = expenses.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
+    const otherIncome = expenses.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+    const expensesNet = expensesGross - otherIncome
     const cashOnHand = paidIn - expensesNet
 
     const debtors = all.filter(b => b.balance < DEBT_EPS)
@@ -52,6 +58,8 @@ export function treasurySummary(
 
     return {
         paidIn: round2(paidIn),
+        expensesGross: round2(expensesGross),
+        otherIncome: round2(otherIncome),
         expensesNet: round2(expensesNet),
         cashOnHand: round2(cashOnHand),
         outstanding: round2(outstanding),
