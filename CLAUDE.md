@@ -163,8 +163,11 @@ service worker + IndexedDB for offline support.
   ProfileSheet footer. Bump the version in `package.json` with every release or significant feature:
   `MAJOR` for breaking changes, `MINOR` for new features, `PATCH` for bug-fixes. Never edit the displayed version
   elsewhere — always update `frontend/package.json` as the single source of truth.
-- **Linting & build:** Always run `cd frontend && npm run build` locally before every push to catch TypeScript errors
-  early. Fix all errors before pushing. Also run `cd backend && poetry run ruff check app/` locally before every push to catch Python linting errors — fix all issues before pushing. Do NOT run `eslint` locally — check that via CI after pushing.
+- **Linting & build:** CI (`frontend-build.yml`, `backend-build.yml`) already runs `npm run lint`, `npm run build`,
+  and `poetry run ruff check .` on every push and PR — don't re-run the full build/lint locally before every push just
+  to duplicate that gate. Do run them locally when actively iterating on a change they'd likely catch (e.g. touching
+  many files, renaming types, or reworking imports), or to get faster feedback than waiting on CI. Fix any errors
+  before pushing regardless of whether you ran the check locally or saw it fail in CI.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Dependency freshness:** Always keep dependencies at their latest compatible versions. When Dependabot opens PRs,
@@ -202,8 +205,11 @@ service worker + IndexedDB for offline support.
   - **Frontend:** Every new utility function, store action, or pure logic module gets a Vitest test in a `__tests__/`
     sibling directory. Stubs/mocks go in `beforeEach`; always restore with `vi.unstubAllGlobals()` or `afterEach`.
     Page-level UI is lower priority but must be added when feasible.
-  - **Run tests before committing:** `cd backend && poetry run pytest -q` must pass. `cd frontend && npm run build`
-    must pass (also validates TypeScript). Fix failures before pushing — never push with a red test suite.
+  - **Run tests before committing:** CI (`backend-tests.yml`, `frontend-tests.yml`) already runs the full pytest and
+    Vitest suites on every push and PR, so don't re-run the entire suite locally as a pre-push ritual. Do run the
+    tests relevant to what you changed (e.g. `poetry run pytest tests/test_<module>.py` or `npx vitest run <file>`)
+    before committing, and run the full suite locally when a change is broad or you suspect cross-file breakage. Never
+    knowingly push code you expect to fail CI — if in doubt, run it.
 
 ## Deployment
 
