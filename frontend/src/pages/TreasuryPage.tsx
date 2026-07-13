@@ -79,6 +79,51 @@ function PaidShareBar({b}: { b: Pick<Balance, 'payments_total' | 'penalty_total'
     )
 }
 
+// One clickable row in the Kassenstand hero's money-flow breakdown. Tapping
+// it expands the underlying bookings that make up the row's total, so
+// e.g. "965,20 €" isn't just a number to take on faith.
+type FlowItem = { id?: number | null; label: string; amount: number; date?: string | null }
+
+function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, myId, noEntriesLabel}: {
+    icon: string
+    label: string
+    amountLabel: string
+    colorClass: string
+    open: boolean
+    onToggle: () => void
+    items: FlowItem[]
+    myId?: number | null
+    noEntriesLabel: string
+}) {
+    return (
+        <div>
+            <button type="button" className="flex items-center justify-between w-full text-left" onClick={onToggle}>
+                <span className="text-kce-muted">{icon} {label}</span>
+                <span className={`font-bold ${colorClass}`}>{amountLabel}</span>
+            </button>
+            {open && (
+                items.length === 0
+                    ? <div className="pl-4 py-1 text-[11px] text-kce-muted">{noEntriesLabel}</div>
+                    : (
+                        <div className="pl-4 pb-1 pt-0.5 flex flex-col gap-0.5">
+                            {items.map((it, i) => (
+                                <div key={it.id ?? i} className="flex items-center justify-between text-[11px] text-kce-muted gap-2">
+                                    <span className="truncate flex items-center gap-1 min-w-0">
+                                        <span className="truncate">{it.label}</span>
+                                        {myId != null && it.id === myId &&
+                                            <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                        {it.date && <span className="opacity-60 flex-shrink-0">· {fDate(it.date)}</span>}
+                                    </span>
+                                    <span className="flex-shrink-0">{fe(it.amount)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )
+            )}
+        </div>
+    )
+}
+
 // ── Balance history chart (Übersicht tab) ───────────────────────────────────
 
 const BH_PAD = {top: 12, right: 10, bottom: 22, left: 46}
@@ -336,6 +381,7 @@ export function TreasuryPage() {
 
     const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
     const [showHelp, setShowHelp] = useState(false)
+    const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -737,6 +783,26 @@ export function TreasuryPage() {
     const totalExpenses = summary.expensesNet
     const kassenstand = summary.cashOnHand
 
+    // Per-click breakdowns for the Kassenstand hero rows — same source data,
+    // just grouped/filtered per row instead of netted into a single figure.
+    const allBalancesForFlow = [...balances, ...(guestBalances as Balance[])] as Balance[]
+    const paidInBreakdown = allBalancesForFlow
+        .filter(b => Math.abs(b.payments_total) > 0.001)
+        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: b.payments_total}))
+        .sort((a, b) => b.amount - a.amount)
+    const expensesBreakdown = (expenses as Expense[])
+        .filter(e => e.amount > 0)
+        .map(e => ({id: e.id, label: e.description, amount: e.amount, date: e.date ?? e.created_at}))
+        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+    const otherIncomeBreakdown = (expenses as Expense[])
+        .filter(e => e.amount < 0)
+        .map(e => ({id: e.id, label: e.description, amount: Math.abs(e.amount), date: e.date ?? e.created_at}))
+        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+    const outstandingBreakdown = allBalancesForFlow
+        .filter(b => b.balance < -0.01)
+        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: Math.abs(b.balance)}))
+        .sort((a, b) => b.amount - a.amount)
+
     const totalOutstanding = balances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
@@ -961,22 +1027,34 @@ export function TreasuryPage() {
                             <span className="text-4xl opacity-20">💰</span>
                         </div>
                         <div className="mt-3 pt-2 border-t border-kce-border flex flex-col gap-1 text-xs">
-                            <div className="flex items-center justify-between">
-                                <span className="text-kce-muted">⬆ {t('treasury.flow.paidIn')}</span>
-                                <span className="font-bold text-green-400">+{fe(summary.paidIn)}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-kce-muted">⬇ {t('treasury.flow.expenses')}</span>
-                                <span className={`font-bold ${summary.expensesNet > 0 ? 'text-orange-400' : 'text-green-400'}`}>
-                                    {summary.expensesNet > 0 ? '-' : '+'}{fe(Math.abs(summary.expensesNet))}
-                                </span>
-                            </div>
+                            <FlowRow
+                                icon="⬆" label={t('treasury.flow.paidIn')}
+                                amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
+                                open={flowDetail === 'paidIn'} onToggle={() => setFlowDetail(flowDetail === 'paidIn' ? null : 'paidIn')}
+                                items={paidInBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
+                            />
+                            <FlowRow
+                                icon="⬇" label={t('treasury.flow.expenses')}
+                                amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-orange-400"
+                                open={flowDetail === 'expenses'} onToggle={() => setFlowDetail(flowDetail === 'expenses' ? null : 'expenses')}
+                                items={expensesBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
+                            />
+                            {summary.otherIncome > 0 && (
+                                <FlowRow
+                                    icon="⬆" label={t('treasury.flow.otherIncome')}
+                                    amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-green-400"
+                                    open={flowDetail === 'otherIncome'} onToggle={() => setFlowDetail(flowDetail === 'otherIncome' ? null : 'otherIncome')}
+                                    items={otherIncomeBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
+                                />
+                            )}
                             {summary.outstanding > 0 && (
                                 <>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-kce-muted">🔴 {t('treasury.flow.outstanding')}</span>
-                                        <span className="font-bold text-red-400">{fe(summary.outstanding)}</span>
-                                    </div>
+                                    <FlowRow
+                                        icon="🔴" label={t('treasury.flow.outstanding')}
+                                        amountLabel={fe(summary.outstanding)} colorClass="text-red-400"
+                                        open={flowDetail === 'outstanding'} onToggle={() => setFlowDetail(flowDetail === 'outstanding' ? null : 'outstanding')}
+                                        items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
+                                    />
                                     <div className="flex items-center justify-between pt-1 border-t border-kce-border">
                                         <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
                                         <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(summary.projectedCash)}</span>

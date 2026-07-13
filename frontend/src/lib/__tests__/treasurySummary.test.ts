@@ -8,7 +8,7 @@ describe('treasurySummary', () => {
     it('returns all zeros for empty inputs', () => {
         const s = treasurySummary([], [], [])
         expect(s).toEqual({
-            paidIn: 0, expensesNet: 0, cashOnHand: 0,
+            paidIn: 0, expensesGross: 0, otherIncome: 0, expensesNet: 0, cashOnHand: 0,
             outstanding: 0, outstandingCount: 0,
             credit: 0, creditCount: 0, projectedCash: 0,
         })
@@ -25,13 +25,25 @@ describe('treasurySummary', () => {
 
     it('computes cash on hand as paid-in minus net expenses', () => {
         const s = treasurySummary([bal(0, 100, 100)], [], [{amount: 30}, {amount: 12.5}])
+        expect(s.expensesGross).toBe(42.5)
+        expect(s.otherIncome).toBe(0)
         expect(s.expensesNet).toBe(42.5)
         expect(s.cashOnHand).toBe(57.5)
     })
 
     it('treats negative expenses as income (raises cash)', () => {
         const s = treasurySummary([bal(0, 50, 50)], [], [{amount: -20}])
+        expect(s.expensesGross).toBe(0)
+        expect(s.otherIncome).toBe(20)
         expect(s.expensesNet).toBe(-20)
+        expect(s.cashOnHand).toBe(70)
+    })
+
+    it('keeps gross expenses and other income as separate positive figures', () => {
+        const s = treasurySummary([bal(0, 100, 100)], [], [{amount: 40}, {amount: -15}, {amount: 5}])
+        expect(s.expensesGross).toBe(45)
+        expect(s.otherIncome).toBe(15)
+        expect(s.expensesNet).toBe(30)
         expect(s.cashOnHand).toBe(70)
     })
 
@@ -76,6 +88,7 @@ describe('treasurySummary', () => {
     it('rounds all monetary outputs to 2 decimals', () => {
         const s = treasurySummary([bal(-0.105, 0.1, 0.205)], [], [{amount: 0.033}])
         expect(s.paidIn).toBe(0.1)
+        expect(s.expensesGross).toBe(0.03)
         expect(s.expensesNet).toBe(0.03)
         expect(s.cashOnHand).toBe(0.07)
     })

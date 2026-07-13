@@ -42,12 +42,15 @@ Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zus
 | Zeile | Bedeutung |
 |-------|-----------|
 | ⬆ **Eingezahlt (Mitglieder + Gäste)** | Alles, was je real in die Kasse eingezahlt wurde |
-| ⬇ **Ausgaben (netto)** | Vereinsausgaben abzüglich sonstiger Einnahmen |
-| 💰 **Kassenstand** | Eingezahlt minus Ausgaben — echtes Geld in der Kasse |
+| ⬇ **Ausgaben** | Echte Vereinsausgaben (Bahnmiete, Vereinsfahrt, …) |
+| ⬆ **Sonstige Einnahmen** | Nur sichtbar, wenn vorhanden — Einnahmen, die über das Ausgaben-Konto verbucht wurden (z. B. Sponsoring, Zuschuss), statt als Mitgliedseinzahlung |
+| 💰 **Kassenstand** | Eingezahlt minus Ausgaben plus Sonstige Einnahmen — echtes Geld in der Kasse |
 | 🔴 **Noch nicht bezahlt (offen)** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
 | → **Kassenstand, wenn alle zahlen** | Kassenstand plus offene Beträge |
 
 Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Noch nicht bezahlt".
+
+Jede Zeile lässt sich **antippen**, um die zugrunde liegenden Buchungen aufzuklappen (z. B. wer wie viel eingezahlt hat, welche einzelnen Ausgaben-Posten die Summe ergeben, oder wer noch offene Beträge hat) — ohne in den Kassenbuch-Tab wechseln zu müssen.
 
 ### Wie funktioniert die Kasse?
 
