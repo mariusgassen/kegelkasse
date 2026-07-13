@@ -19,6 +19,13 @@ function fTime(iso: string) {
     return new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
+function toDatetimeLocal(iso: string | null | undefined) {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function playerLabel(p: { name: string; nickname?: string | null; is_king: boolean }) {
     const display = p.nickname || p.name
     return p.is_king ? `👑 ${display}` : display
@@ -64,6 +71,11 @@ export function GamesPage() {
     const [editLoserPenalty, setEditLoserPenalty] = useState('0')
     const [editPerPointPenalty, setEditPerPointPenalty] = useState('0')
     const [editNote, setEditNote] = useState('')
+
+    // ── Time edit sheet (admin-only retroactive start/end correction) ──
+    const [timeEditTarget, setTimeEditTarget] = useState<Game | null>(null)
+    const [editStartedAt, setEditStartedAt] = useState('')
+    const [editFinishedAt, setEditFinishedAt] = useState('')
 
     const [saving, setSaving] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -132,6 +144,12 @@ export function GamesPage() {
         setEditLoserPenalty(String(game.loser_penalty))
         setEditPerPointPenalty(String(game.per_point_penalty ?? 0))
         setEditNote(game.note ?? '')
+    }
+
+    function openTimeEditSheet(game: Game) {
+        setTimeEditTarget(game)
+        setEditStartedAt(toDatetimeLocal(game.started_at))
+        setEditFinishedAt(toDatetimeLocal(game.finished_at))
     }
 
     function winnerDisplayName(ref: string) {
@@ -236,6 +254,27 @@ export function GamesPage() {
             })
             invalidate()
             setEditTarget(null)
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function submitTimeEdit() {
+        if (!timeEditTarget) return
+        if (editStartedAt && editFinishedAt && new Date(editFinishedAt) < new Date(editStartedAt)) {
+            showToast(t('game.editTimesError'), 'error')
+            return
+        }
+        setSaving(true)
+        try {
+            const payload: Partial<{ started_at: string; finished_at: string }> = {}
+            if (editStartedAt) payload.started_at = new Date(editStartedAt).toISOString()
+            if (editFinishedAt) payload.finished_at = new Date(editFinishedAt).toISOString()
+            await api.updateGame(evening!.id, timeEditTarget.id, payload)
+            invalidate()
+            setTimeEditTarget(null)
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -375,6 +414,13 @@ export function GamesPage() {
                                 <button className="btn-ghost btn-xs text-kce-muted px-2"
                                         aria-label={t('action.edit')}
                                         onClick={() => openEditSheet(game)}>✏️
+                                </button>
+                            )}
+                            {isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished') && (
+                                <button className="btn-ghost btn-xs text-kce-muted px-2"
+                                        aria-label={t('game.editTimes')}
+                                        title={t('game.editTimes')}
+                                        onClick={() => openTimeEditSheet(game)}>🕐
                                 </button>
                             )}
                             {confirmDeleteId === game.id ? (
@@ -741,6 +787,31 @@ export function GamesPage() {
                             disabled={saving}>{t('action.save')}
                     </button>
                 </div>
+            </Sheet>
+
+            {/* ── Retroactive start/end time correction sheet (admin-only) ── */}
+            <Sheet open={!!timeEditTarget} onClose={() => setTimeEditTarget(null)} title={t('game.editTimes')}
+                   onSubmit={submitTimeEdit}>
+                {timeEditTarget && (
+                    <div className="flex flex-col gap-3">
+                        <p className="text-xs text-kce-muted">{t('game.editTimesHint')}</p>
+                        <div>
+                            <label className="field-label">{t('game.startedAt')}</label>
+                            <input className="kce-input" type="datetime-local" value={editStartedAt}
+                                   onChange={e => setEditStartedAt(e.target.value)}/>
+                        </div>
+                        {timeEditTarget.status === 'finished' && (
+                            <div>
+                                <label className="field-label">{t('game.finishedAt')}</label>
+                                <input className="kce-input" type="datetime-local" value={editFinishedAt}
+                                       onChange={e => setEditFinishedAt(e.target.value)}/>
+                            </div>
+                        )}
+                        <button type="submit" className="btn-primary w-full mt-1"
+                                disabled={saving}>{t('action.save')}
+                        </button>
+                    </div>
+                )}
             </Sheet>
 
         </div>

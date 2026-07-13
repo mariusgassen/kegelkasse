@@ -576,6 +576,65 @@ describe('GamesPage — scores display', () => {
     })
 })
 
+describe('GamesPage — retroactive time edit sheet', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+    })
+
+    it('hides the time-edit button for non-admins', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+        await renderGamesPage()
+        expect(screen.queryByText('🕐')).not.toBeInTheDocument()
+    })
+
+    it('shows the time-edit button for admins on running/finished games only', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            gameTemplates: [], regularMembers: [],
+        }))
+        await renderGamesPage()
+        // RUNNING_GAME + FINISHED_GAME → two buttons; OPEN_GAME has none.
+        expect(screen.getAllByText('🕐').length).toBe(2)
+    })
+
+    it('opens the time-edit sheet pre-filled and submits started_at/finished_at', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            gameTemplates: [], regularMembers: [],
+        }))
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const finishedWithTimes = {
+            ...FINISHED_GAME, started_at: '2026-01-10T21:00:00', finished_at: '2026-01-10T21:30:00',
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [OPEN_GAME, RUNNING_GAME, finishedWithTimes] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText('🕐')[1]) // finishedWithTimes
+        await waitFor(() => {
+            expect(screen.getByTestId('sheet-title')).toHaveTextContent('game.editTimes')
+        })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateGame).toHaveBeenCalledWith(
+                ACTIVE_EVENING.id, finishedWithTimes.id,
+                expect.objectContaining({ started_at: expect.any(String), finished_at: expect.any(String) }),
+            )
+        })
+    })
+})
+
 describe('GamesPage — delete game', () => {
     it('shows delete button for open game', async () => {
         vi.clearAllMocks()

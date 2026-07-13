@@ -450,7 +450,9 @@ export const api = {
         turn_mode: string | null;
         loser_penalty: number;
         per_point_penalty: number;
-        note: string
+        note: string;
+        started_at: string;
+        finished_at: string;
     }>) =>
         request<void>('PATCH', `/evening/${eid}/games/${gid}`, d),
     deleteGame: (eid: number, gid: number) => request<void>('DELETE', `/evening/${eid}/games/${gid}`),
