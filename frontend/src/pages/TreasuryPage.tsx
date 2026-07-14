@@ -26,7 +26,7 @@ import {
     mergeDualSeries,
     windowBounds,
 } from '@/lib/balanceHistory.ts'
-import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
+import {paidShare, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -402,6 +402,9 @@ export function TreasuryPage() {
     const [showAccountsChart, setShowAccountsChart] = useState(false)
     const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
     const [showSettled, setShowSettled] = useState(false)
+    const [showBalanceFilter, setShowBalanceFilter] = useState(false)
+    const [balanceFilterIds, setBalanceFilterIds] = useState<Set<number>>(new Set())
+    const [balanceFilterMode, setBalanceFilterMode] = useState<'exclude' | 'only'>('exclude')
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -805,6 +808,17 @@ export function TreasuryPage() {
     const totalExpenses = summary.expensesNet
     const kassenstand = summary.cashOnHand
 
+    // Balance filter — scopes the "Offen & Guthaben" tiles/lists below to a
+    // selection of players: "exclude" writes off their outstanding debt
+    // (already-paid stays, open penalties no longer counted), "only"
+    // restricts the totals/lists to just the selected members. Does not
+    // affect the Kassenstand hero (whole-club real cash) or the Konten tab.
+    const effectiveBalances = balanceFilterIds.size === 0
+        ? balances
+        : balanceFilterMode === 'exclude'
+            ? writeOffOutstandingDebt(balances, balanceFilterIds)
+            : balances.filter(b => balanceFilterIds.has(b.regular_member_id))
+
     // Per-click breakdowns for the Kassenstand hero rows — same source data,
     // just grouped/filtered per row instead of netted into a single figure.
     const allBalancesForFlow = [...balances, ...(guestBalances as Balance[])] as Balance[]
@@ -831,9 +845,19 @@ export function TreasuryPage() {
     // since credit is money the till already owes back to the member, not free cash.
     const totalPaidMembers = balances.reduce((s, b) => s + b.payments_total, 0)
     const maxAccountPenalty = balances.reduce((m, b) => Math.max(m, b.penalty_total), 0)
+    // Unfiltered debtor/credit counts — used by the Konten tab's account totals,
+    // which are not affected by the Übersicht balance filter below.
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
     const credits = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
-    const exactlySettled = balances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
+
+    // "Offen & Guthaben" section below — driven by effectiveBalances so the
+    // balance filter (exclude/only selected players) scopes these without
+    // touching the Konten tab totals above, which stay on the raw balances.
+    const filteredTotalOutstanding = effectiveBalances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
+    const filteredTotalSurplus = effectiveBalances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
+    const filteredDebtors = [...effectiveBalances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
+    const filteredCredits = effectiveBalances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
+    const filteredExactlySettled = effectiveBalances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
 
     const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
         .sort((a, b) => a.balance - b.balance)
@@ -1148,28 +1172,75 @@ export function TreasuryPage() {
                         virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
                         t={t}/>
 
+                    {/* Nach Spielern filtern — collapsible, scopes the tiles/lists below to a selection of players */}
+                    <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
+                        <button type="button" className="w-full p-3 flex items-center justify-between text-left"
+                                aria-expanded={showBalanceFilter}
+                                onClick={() => setShowBalanceFilter(v => !v)}>
+                            <span className="text-xs font-bold text-kce-muted">🔍 {t('treasury.balanceFilter.title')}</span>
+                            <span className="text-kce-muted text-xs">{showBalanceFilter ? '▲' : '▼'}</span>
+                        </button>
+                        {showBalanceFilter && (
+                            <div className="px-3 pb-3">
+                                <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
+                                <div className="flex gap-2 flex-wrap mb-2">
+                                    {[...balances].sort((a, b) => {
+                                        if (a.regular_member_id === myRegularMemberId) return -1
+                                        if (b.regular_member_id === myRegularMemberId) return 1
+                                        return 0
+                                    }).map(m => {
+                                        const selected = balanceFilterIds.has(m.regular_member_id)
+                                        const isMe = m.regular_member_id === myRegularMemberId
+                                        return (
+                                            <button key={m.regular_member_id} type="button"
+                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                                    onClick={() => setBalanceFilterIds(prev => {
+                                                        const next = new Set(prev)
+                                                        if (next.has(m.regular_member_id)) next.delete(m.regular_member_id)
+                                                        else next.add(m.regular_member_id)
+                                                        return next
+                                                    })}>
+                                                {m.nickname || m.name}
+                                                {isMe && <span className={`ml-1 text-[9px] font-bold ${selected ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                                {balanceFilterIds.size > 0 && (
+                                    <ModeToggle
+                                        options={[
+                                            {value: 'exclude', label: t('treasury.balanceFilter.modeExclude')},
+                                            {value: 'only', label: t('treasury.balanceFilter.modeOnly')},
+                                        ]}
+                                        value={balanceFilterMode}
+                                        onChange={v => setBalanceFilterMode(v as 'exclude' | 'only')}/>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.openLabel')}</span>
-                            <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
+                            <span className="font-display font-bold text-red-400 text-xl">{fe(filteredTotalOutstanding)}</span>
                             <span
-                                className="text-[10px] text-kce-muted">{debtors.length} {t('treasury.membersCount')}</span>
+                                className="text-[10px] text-kce-muted">{filteredDebtors.length} {t('treasury.membersCount')}</span>
                         </div>
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.creditLabel')}</span>
-                            <span className="font-display font-bold text-green-400 text-xl">{fe(totalSurplus)}</span>
+                            <span className="font-display font-bold text-green-400 text-xl">{fe(filteredTotalSurplus)}</span>
                             <span
-                                className="text-[10px] text-kce-muted">{credits.length} {t('treasury.membersCount')}</span>
+                                className="text-[10px] text-kce-muted">{filteredCredits.length} {t('treasury.membersCount')}</span>
                         </div>
                     </div>
 
-                    {debtors.length === 0 && credits.length === 0
+                    {filteredDebtors.length === 0 && filteredCredits.length === 0
                         ? <div
                             className="kce-card p-4 text-center text-sm font-bold text-green-400">{t('treasury.noOutstanding')}</div>
                         : null
                     }
 
-                    {debtors.length > 0 && (
+                    {filteredDebtors.length > 0 && (
                         <>
                             <div className="sec-heading flex items-center justify-between">
                                 <span>{t('treasury.openLabel')}</span>
@@ -1192,7 +1263,7 @@ export function TreasuryPage() {
                                     </button>
                                 )}
                             </div>
-                            {debtors.map((b, i) => {
+                            {filteredDebtors.map((b, i) => {
                                 const isMe = b.regular_member_id === myRegularMemberId
                                 return (
                                     <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
@@ -1226,11 +1297,11 @@ export function TreasuryPage() {
                         </>
                     )}
 
-                    {credits.length > 0 && (
+                    {filteredCredits.length > 0 && (
                         <>
                             <div className="sec-heading mt-2">{t('treasury.creditLabel')}</div>
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.creditHint')}</p>
-                            {[...credits].sort((a, b) => {
+                            {[...filteredCredits].sort((a, b) => {
                         if (a.regular_member_id === myRegularMemberId) return -1
                         if (b.regular_member_id === myRegularMemberId) return 1
                         return 0
@@ -1252,17 +1323,17 @@ export function TreasuryPage() {
                         </>
                     )}
 
-                    {exactlySettled.length > 0 && (debtors.length > 0 || credits.length > 0) && (
+                    {filteredExactlySettled.length > 0 && (filteredDebtors.length > 0 || filteredCredits.length > 0) && (
                         <div className="mt-2">
                             <button type="button" className="w-full flex items-center justify-center gap-1 text-xs text-kce-muted"
                                     aria-expanded={showSettled}
                                     onClick={() => setShowSettled(v => !v)}>
-                                <span>+ {exactlySettled.length} {t('treasury.settledCount')}</span>
+                                <span>+ {filteredExactlySettled.length} {t('treasury.settledCount')}</span>
                                 <span className="text-[9px]">{showSettled ? '▲' : '▼'}</span>
                             </button>
                             {showSettled && (
                                 <div className="flex flex-wrap justify-center gap-1.5 mt-1.5">
-                                    {[...exactlySettled].sort((a, b) => {
+                                    {[...filteredExactlySettled].sort((a, b) => {
                                         if (a.regular_member_id === myRegularMemberId) return -1
                                         if (b.regular_member_id === myRegularMemberId) return 1
                                         return 0

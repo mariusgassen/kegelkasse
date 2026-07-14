@@ -1,8 +1,11 @@
 import {describe, expect, it} from 'vitest'
-import {paidShare, treasurySummary} from '../treasurySummary'
+import {paidShare, treasurySummary, writeOffOutstandingDebt} from '../treasurySummary'
 
 const bal = (balance: number, payments_total: number, penalty_total: number) =>
     ({balance, payments_total, penalty_total})
+
+const mbal = (id: number, balance: number, payments_total: number, penalty_total: number) =>
+    ({regular_member_id: id, balance, payments_total, penalty_total})
 
 describe('treasurySummary', () => {
     it('returns all zeros for empty inputs', () => {
@@ -107,5 +110,52 @@ describe('paidShare', () => {
     it('clamps to 0..1', () => {
         expect(paidShare({payments_total: 20, penalty_total: 10})).toBe(1)
         expect(paidShare({payments_total: -5, penalty_total: 10})).toBe(0)
+    })
+})
+
+describe('writeOffOutstandingDebt', () => {
+    it('returns the same array when no members are selected', () => {
+        const balances = [mbal(1, -5, 0, 5)]
+        expect(writeOffOutstandingDebt(balances, [])).toBe(balances)
+        expect(writeOffOutstandingDebt(balances, new Set())).toBe(balances)
+    })
+
+    it('drops outstanding debt of selected members to zero', () => {
+        const result = writeOffOutstandingDebt([mbal(1, -12, 3, 15), mbal(2, 4, 9, 5)], [1])
+        expect(result.find(b => b.regular_member_id === 1)?.balance).toBe(0)
+        expect(result.find(b => b.regular_member_id === 2)?.balance).toBe(4)
+    })
+
+    it('leaves payments_total and penalty_total untouched', () => {
+        const result = writeOffOutstandingDebt([mbal(1, -12, 3, 15)], [1])
+        expect(result[0].payments_total).toBe(3)
+        expect(result[0].penalty_total).toBe(15)
+    })
+
+    it('does not touch a selected member who is in credit', () => {
+        const result = writeOffOutstandingDebt([mbal(1, 6, 10, 4)], [1])
+        expect(result[0].balance).toBe(6)
+    })
+
+    it('leaves unselected members untouched', () => {
+        const balances = [mbal(1, -5, 0, 5), mbal(2, -3, 0, 3)]
+        const result = writeOffOutstandingDebt(balances, [1])
+        expect(result[1]).toBe(balances[1])
+    })
+
+    it('accepts a Set or an array of ids', () => {
+        const balances = [mbal(1, -5, 0, 5)]
+        expect(writeOffOutstandingDebt(balances, new Set([1]))[0].balance).toBe(0)
+        expect(writeOffOutstandingDebt(balances, [1])[0].balance).toBe(0)
+    })
+
+    it('feeds into treasurySummary to project outstanding/cash without the selected members', () => {
+        const balances = [mbal(1, -20, 0, 20), mbal(2, -5, 0, 5)]
+        const before = treasurySummary(balances, [], [])
+        const after = treasurySummary(writeOffOutstandingDebt(balances, [1]), [], [])
+        expect(before.outstanding).toBe(25)
+        expect(after.outstanding).toBe(5)
+        expect(before.projectedCash - after.projectedCash).toBe(20)
+        expect(before.cashOnHand).toBe(after.cashOnHand)
     })
 })

@@ -8,6 +8,10 @@ export interface BalanceLike {
     penalty_total: number
 }
 
+export interface IdentifiedBalanceLike extends BalanceLike {
+    regular_member_id: number
+}
+
 export interface ExpenseLike {
     amount: number
 }
@@ -78,6 +82,25 @@ export function treasurySummary(
 export function paidShare(b: Pick<BalanceLike, 'payments_total' | 'penalty_total'>): number | null {
     if (b.penalty_total <= 0) return null
     return Math.min(1, Math.max(0, b.payments_total / b.penalty_total))
+}
+
+/**
+ * Excludes a set of members from future debt collection: any outstanding
+ * debt (balance < 0) of a selected member is dropped to 0 (written off),
+ * while credit balances and payments_total are left untouched — that money
+ * already moved and stays real regardless of whether it's later collected.
+ *
+ * Feeds the "exclude selected members" mode of the treasury balance filter:
+ * run the result through `treasurySummary()` (or sum balances directly) to
+ * see totals with the selected members' open debt no longer counted.
+ */
+export function writeOffOutstandingDebt<T extends IdentifiedBalanceLike>(
+    balances: T[],
+    ids: ReadonlySet<number> | number[],
+): T[] {
+    const idSet = ids instanceof Set ? ids : new Set(ids)
+    if (idSet.size === 0) return balances
+    return balances.map(b => (idSet.has(b.regular_member_id) && b.balance < 0) ? {...b, balance: 0} : b)
 }
 
 function round2(v: number) {

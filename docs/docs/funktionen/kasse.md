@@ -62,6 +62,18 @@ Darunter folgen zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) u
 
 Mitglieder mit exakt ausgeglichenem Saldo (weder Schuld noch Guthaben) erscheinen nicht als eigene Zeile, sondern als **„+ N ausgeglichen"**-Zeile darunter. Antippen klappt eine Pille-Liste der betroffenen Mitglieder auf (eigenes Konto zuerst, **Ich**-Badge) — vorher war diese Zahl nicht aufklappbar und man musste in den **Konten**-Tab wechseln, um zu sehen, wer damit gemeint ist.
 
+### Nach Spielern filtern
+
+Direkt über den beiden Kennzahl-Karten lässt sich **🔍 Nach Spielern filtern** aufklappen. Damit lassen sich die Summen und Listen darunter auf eine Auswahl von Mitgliedern eingrenzen — z. B. um zu sehen, wie der offene Betrag ohne bestimmte Spieler aussähe (etwa wenn diese den Verein bald verlassen könnten):
+
+1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
+2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
+3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
+   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
+   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
+
+Der Filter wirkt nur auf die „Offen & Guthaben"-Kacheln und -Listen in der Übersicht — der Kassenstand oben (echtes Geld in der Kasse) und der Konten-Tab bleiben unverändert.
+
 ---
 
 ## Kassenbericht (Excel / PDF)

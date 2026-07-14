@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -1023,6 +1023,101 @@ describe('TreasuryPage — accounts tab totals & share chart', () => {
 
         await waitFor(() => {
             expect(screen.getByText('0,00 € / 5,50 €')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('TreasuryPage — balance filter by players', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    // BALANCES: Admin +10 (credit), Hansi -5.50 (debt), Franz 0 (settled).
+    // Hansi's debtor row renders "-5,50 €" (unique in the fixture). Admin's
+    // credit-list row also renders "+10,00 €", but so does the unrelated
+    // Kassenstand "paid in" total (coincidentally the same amount in this
+    // fixture) — so credit-row presence is checked structurally by its
+    // distinctive class combination instead of by formatted text.
+    const creditRowSelector = 'span.font-bold.text-green-400.text-sm.flex-shrink-0'
+
+    it('stays collapsed until tapped, hiding member chips', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.balanceFilter\.title/)).toBeInTheDocument()
+        })
+        expect(within(screen.getByTestId('balance-filter')).queryByText('Hansi')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+
+        await waitFor(() => {
+            expect(within(screen.getByTestId('balance-filter')).getByText('Hansi')).toBeInTheDocument()
+        })
+    })
+
+    it('does not show the mode toggle until a member is selected', async () => {
+        await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        expect(scope.queryByText(/treasury\.balanceFilter\.modeExclude/)).not.toBeInTheDocument()
+    })
+
+    it('exclude mode (default) writes off a selected debtor\'s outstanding balance', async () => {
+        const { container } = await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+
+        // Baseline: Admin's credit-list row is present
+        expect(container.querySelectorAll(creditRowSelector).length).toBe(1)
+
+        fireEvent.click(scope.getByText('Hansi'))
+
+        await waitFor(() => {
+            // Hansi's debtor row disappears — their debt is written off, outstanding tile drops to 0
+            expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument()
+        })
+        // Admin's credit is untouched by the exclude mode (only debt is written off)
+        expect(container.querySelectorAll(creditRowSelector).length).toBe(1)
+    })
+
+    it('only mode restricts the tiles/lists to just the selected member', async () => {
+        const { container } = await renderTreasuryPage()
+        // Baseline: Admin's credit-list row is present
+        await waitFor(() => expect(container.querySelectorAll(creditRowSelector).length).toBe(1))
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(scope.getByText(/treasury\.balanceFilter\.modeOnly/)).toBeInTheDocument())
+        fireEvent.click(scope.getByText(/treasury\.balanceFilter\.modeOnly/))
+
+        await waitFor(() => {
+            // Hansi (the only selected member) still shows as a debtor
+            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
+        })
+        // Admin's credit list row is excluded from the filtered view (only Hansi is selected)
+        expect(container.querySelectorAll(creditRowSelector).length).toBe(0)
+    })
+
+    it('deselecting a member reverts the tiles/lists to the full totals', async () => {
+        await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => {
+            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
         })
     })
 })
