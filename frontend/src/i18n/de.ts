@@ -497,7 +497,7 @@ export const de = {
     "member.removeConfirm": "Mitglied entfernen?",
     "member.removeConfirmHint": "Das Mitglied wird aus dem aktiven Roster entfernt und kann sich nicht mehr anmelden. Statistiken und Strafen bleiben erhalten.",
     "member.removedFromClub": "Mitglied entfernt",
-    "member.reactivateRoster": "⬆️ Zu Mitglied machen",
+    "member.reactivateRoster": "Zu Mitglied machen",
     "member.promoteConfirm": "Zum Mitglied machen?",
     "member.promoteConfirmHint": "Der Gast wird vollwertiges Vereinsmitglied. Vorgeschlagen wird ein anteiliger Eintrittsbeitrag basierend auf dem aktuellen Kassenstand.",
     "member.entryFeeLabel": "Eintrittsbeitrag (optional)",

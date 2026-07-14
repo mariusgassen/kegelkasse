@@ -677,7 +677,7 @@ describe('MembersPage — guest members actions', () => {
         await waitFor(() => screen.getByText('member.promoteConfirm'))
         const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
         await waitFor(() => expect(input.value).toBe('100.00'))
-        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        fireEvent.click(screen.getByText(/member\.reactivateRoster/))
         await waitFor(() => {
             expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
             expect(api.createMemberPayment).toHaveBeenCalledWith({
@@ -702,7 +702,7 @@ describe('MembersPage — guest members actions', () => {
         const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
         await waitFor(() => expect(input.value).toBe('100.00'))
         fireEvent.change(input, { target: { value: '' } })
-        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        fireEvent.click(screen.getByText(/member\.reactivateRoster/))
         await waitFor(() => {
             expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
         })

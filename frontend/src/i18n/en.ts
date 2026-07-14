@@ -497,7 +497,7 @@ export const en = {
     "member.removeConfirm": "Remove member?",
     "member.removeConfirmHint": "The member will be removed from the active roster and can no longer log in. Statistics and penalties are preserved.",
     "member.removedFromClub": "Member removed",
-    "member.reactivateRoster": "⬆️ Make member",
+    "member.reactivateRoster": "Make member",
     "member.promoteConfirm": "Make member?",
     "member.promoteConfirmHint": "The guest becomes a full club member. A pro-rata entry fee based on the current treasury balance is suggested.",
     "member.entryFeeLabel": "Entry fee (optional)",
