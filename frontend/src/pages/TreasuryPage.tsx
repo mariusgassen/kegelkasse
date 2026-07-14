@@ -42,11 +42,11 @@ type Balance = {
 
 type Payment = {
     id: number; regular_member_id: number; member_name: string;
-    amount: number; note: string | null; created_at: string | null; updated_at: string | null
+    amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
 }
 
 type MemberPayment = {
-    id: number; amount: number; note: string | null; created_at: string | null; updated_at: string | null
+    id: number; amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
 }
 
 type Expense = {
@@ -634,11 +634,12 @@ export function TreasuryPage() {
     const [editDate, setEditDate] = useState('')
     const [savingEdit, setSavingEdit] = useState(false)
 
-    function openEditPayment(p: { id: number; amount: number; note: string | null }, memberId: number, label: string) {
+    function openEditPayment(p: { id: number; amount: number; note: string | null; created_at: string | null; date: string | null }, memberId: number, label: string) {
         setEditTarget({kind: 'payment', id: p.id, memberId, label})
         setEditDirection(p.amount >= 0 ? 'in' : 'out')
         setEditAmount(Math.abs(p.amount).toFixed(2))
         setEditNote(p.note ?? '')
+        setEditDate(p.date ?? (p.created_at ? p.created_at.slice(0, 10) : ''))
     }
 
     function openEditExpense(e: Expense) {
@@ -658,7 +659,7 @@ export function TreasuryPage() {
         try {
             if (editTarget.kind === 'payment') {
                 const amount = editDirection === 'in' ? abs : -abs
-                await api.updateMemberPayment(editTarget.id, {amount, note: editNote})
+                await api.updateMemberPayment(editTarget.id, {amount, note: editNote, date: editDate})
                 refetchBalances()
                 refetchGuestBalances()
                 qc.invalidateQueries({queryKey: ['member-payments', editTarget.memberId]})
@@ -763,6 +764,7 @@ export function TreasuryPage() {
                     regular_member_id: bookingTarget,
                     amount,
                     note: bookingNote || undefined,
+                    date: bookingDate || undefined,
                 })
                 refetchBalances()
                 refetchGuestBalances()
@@ -827,13 +829,13 @@ export function TreasuryPage() {
         : memberPenaltyEvents(historyMemberPenalties as any[])
 
     // Merged bookings for Buchungen tab — sorted by effective date desc
-    // For expenses: use `date` field if set, otherwise `created_at`
+    // Uses the `date` field if set (admin backdate), otherwise `created_at`
     const mergedBookings: BookingEntry[] = [
         ...(allPayments as Payment[]).map(p => ({kind: 'payment' as const, data: p})),
         ...(expenses as Expense[]).map(e => ({kind: 'expense' as const, data: e})),
     ].sort((a, b) => {
-        const ta = a.kind === 'expense' ? (a.data.date ?? a.data.created_at ?? '') : (a.data.created_at ?? '')
-        const tb = b.kind === 'expense' ? (b.data.date ?? b.data.created_at ?? '') : (b.data.created_at ?? '')
+        const ta = a.data.date ?? a.data.created_at ?? ''
+        const tb = b.data.date ?? b.data.created_at ?? ''
         return tb.localeCompare(ta)
     })
 
@@ -1457,7 +1459,7 @@ export function TreasuryPage() {
                                                         <span
                                                             className="text-kce-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
                                                         <span
-                                                            className="text-kce-muted flex-shrink-0">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.created_at)}</span>
+                                                            className="text-kce-muted flex-shrink-0">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
                                                         {admin && (
                                                             <button className="btn-secondary btn-xs flex-shrink-0"
                                                                     aria-label={t('treasury.booking.edit')}
@@ -1640,7 +1642,7 @@ export function TreasuryPage() {
                                             <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                 {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                             </div>
-                                            <div className="text-xs text-kce-muted">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.created_at)}</div>
+                                            <div className="text-xs text-kce-muted">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
                                         </div>
                                         {admin && (
                                             <button className="btn-secondary btn-xs flex-shrink-0"
@@ -1779,14 +1781,12 @@ export function TreasuryPage() {
                                placeholder={editTarget?.kind === 'expense' ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
                     </div>
 
-                    {/* Date override for club bookings */}
-                    {editTarget?.kind === 'expense' && (
-                        <div>
-                            <label className="field-label">{t('treasury.expense.date')}</label>
-                            <input type="date" className="kce-input" value={editDate}
-                                   onChange={e => setEditDate(e.target.value)}/>
-                        </div>
-                    )}
+                    {/* Date override */}
+                    <div>
+                        <label className="field-label">{t('treasury.expense.date')}</label>
+                        <input type="date" className="kce-input" value={editDate}
+                               onChange={e => setEditDate(e.target.value)}/>
+                    </div>
 
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingEdit || !editValid}>
@@ -1938,14 +1938,12 @@ export function TreasuryPage() {
                                placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
                     </div>
 
-                    {/* Date override for club bookings */}
-                    {isClubBooking && (
-                        <div>
-                            <label className="field-label">{t('treasury.expense.date')}</label>
-                            <input type="date" className="kce-input" value={bookingDate}
-                                   onChange={e => setBookingDate(e.target.value)}/>
-                        </div>
-                    )}
+                    {/* Date override */}
+                    <div>
+                        <label className="field-label">{t('treasury.expense.date')}</label>
+                        <input type="date" className="kce-input" value={bookingDate}
+                               onChange={e => setBookingDate(e.target.value)}/>
+                    </div>
 
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingBooking || !bookingValid}>

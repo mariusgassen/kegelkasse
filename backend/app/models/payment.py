@@ -33,6 +33,7 @@ class MemberPayment(Base):
     delete_reason = Column(String, nullable=True)
     idempotency_key = Column(String, nullable=True, unique=True)  # client-generated, prevents double-submit
     transfer_group_id = Column(String, nullable=True, index=True)  # links paired rows (guest-cost-transfer, season carry-over)
+    date = Column(Date(), nullable=True)  # optional backdated date for the entry
 
 
 class PaymentRequest(Base):

@@ -147,6 +147,23 @@ class TestCreateMemberPayment:
         assert data["amount"] == 5.50
         assert data["note"] == "Barzahlung"
 
+    def test_admin_can_backdate_payment(self, client: TestClient, regular_member, admin_headers):
+        resp = client.post("/api/v1/club/member-payments", json={
+            "regular_member_id": regular_member.id,
+            "amount": 5.50,
+            "date": "2026-07-01",
+        }, headers=admin_headers)
+        assert resp.status_code == 201
+        assert resp.json()["date"] == "2026-07-01"
+
+    def test_invalid_date_returns_400(self, client: TestClient, regular_member, admin_headers):
+        resp = client.post("/api/v1/club/member-payments", json={
+            "regular_member_id": regular_member.id,
+            "amount": 5.0,
+            "date": "kein-datum",
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+
     def test_member_cannot_record_payment(self, client: TestClient, regular_member, auth_headers):
         resp = client.post("/api/v1/club/member-payments", json={
             "regular_member_id": regular_member.id,
@@ -517,6 +534,42 @@ class TestUpdateMemberPayment:
         balances = client.get("/api/v1/club/member-balances", headers=auth_headers)
         member_data = next(m for m in balances.json() if m["regular_member_id"] == regular_member.id)
         assert member_data["payments_total"] == 7.5
+
+    def test_admin_can_backdate_payment(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={
+            "date": "2026-07-01",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["date"] == "2026-07-01"
+        db.expire_all()
+        updated = db.query(MemberPayment).filter(MemberPayment.id == payment.id).first()
+        assert updated.date.isoformat() == "2026-07-01"
+
+    def test_empty_date_clears_date(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
+        from datetime import date
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0,
+            created_by=admin_user.id, date=date(2026, 6, 1),
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"date": ""}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["date"] is None
+
+    def test_invalid_date_rejected(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
+        payment = MemberPayment(
+            club_id=club.id, regular_member_id=regular_member.id, amount=3.0, created_by=admin_user.id,
+        )
+        db.add(payment)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/member-payments/{payment.id}", json={"date": "kein-datum"}, headers=admin_headers)
+        assert resp.status_code == 400
 
     def test_empty_note_clears_note(self, client: TestClient, db, club, regular_member, admin_user, admin_headers):
         payment = MemberPayment(
