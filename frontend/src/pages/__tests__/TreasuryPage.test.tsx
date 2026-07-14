@@ -1382,11 +1382,15 @@ describe('TreasuryPage — downloadReport', () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/report\.export/))
         fireEvent.click(screen.getByText(/report\.export/))
+        await waitFor(() => screen.getByText('submit-sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.downloadReport).toHaveBeenCalled())
     })
 
     it('shows year select for admin', async () => {
         await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/report\.export/))
+        fireEvent.click(screen.getByText(/report\.export/))
         await waitFor(() => screen.getByText(/report\.yearAll/))
         expect(screen.getByText(/report\.yearAll/)).toBeInTheDocument()
     })
@@ -1491,6 +1495,8 @@ describe('TreasuryPage — error handlers', () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('report.export'))
         fireEvent.click(screen.getByText('report.export'))
+        await waitFor(() => screen.getByText('submit-sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
@@ -1514,6 +1520,8 @@ describe('TreasuryPage — error handlers', () => {
     it('changes exportYear select value', async () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('report.export'))
+        fireEvent.click(screen.getByText('report.export'))
+        await waitFor(() => screen.getAllByRole('combobox').length > 0)
         const yearSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement
         const currentYear = new Date().getFullYear()
         fireEvent.change(yearSelect, { target: { value: String(currentYear) } })
@@ -1523,6 +1531,8 @@ describe('TreasuryPage — error handlers', () => {
     it('changes exportFormat select value', async () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('report.export'))
+        fireEvent.click(screen.getByText('report.export'))
+        await waitFor(() => screen.getAllByRole('combobox').length > 0)
         const selects = screen.getAllByRole('combobox')
         const formatSelect = selects[1] as HTMLSelectElement
         fireEvent.change(formatSelect, { target: { value: 'pdf' } })
