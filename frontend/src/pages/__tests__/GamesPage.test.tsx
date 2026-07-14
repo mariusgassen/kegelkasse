@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -1179,6 +1179,38 @@ describe('GamesPage — per-point penalty preview', () => {
         // The per-point preview block should now be visible
         await waitFor(() => {
             expect(screen.getByText(/game\.perPointPreview/)).toBeInTheDocument()
+        })
+    })
+})
+
+// ── Loser penalty preview always shown, regardless of per_point_penalty ──────
+describe('GamesPage — loser penalty preview shown for flat-penalty games', () => {
+    const FLAT_GAME = {
+        ...RUNNING_GAME, id: 6, name: 'Flat Spiel', per_point_penalty: 0, status: 'running',
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const evening = { ...ACTIVE_EVENING, games: [FLAT_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: evening as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('shows the preview once a winner is selected even when per_point_penalty is 0', async () => {
+        await renderGamesPage()
+        const finishBtns = screen.getAllByText(/game\.finish/)
+        fireEvent.click(finishBtns[0])
+        const sheet = await waitFor(() => screen.getByTestId('sheet'))
+        expect(within(sheet).queryByText(/game\.perPointPreview/)).not.toBeInTheDocument()
+        const playerBtns = within(sheet).getAllByText(/Hans|Franz/)
+        fireEvent.click(playerBtns[0])
+        await waitFor(() => {
+            expect(within(sheet).getByText(/game\.perPointPreview/)).toBeInTheDocument()
+            expect(within(sheet).getAllByText('Franz').length).toBeGreaterThan(1)
+            expect(within(sheet).getAllByText(/2,00.€/).length).toBeGreaterThan(0)
         })
     })
 })

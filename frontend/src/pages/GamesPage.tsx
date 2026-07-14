@@ -651,15 +651,18 @@ export function GamesPage() {
                             </div>
                         </div>
 
-                        {/* Per-point penalty preview */}
-                        {finishTarget && (finishTarget.per_point_penalty ?? 0) > 0 && winnerRef && (
+                        {/* Loser penalty preview */}
+                        {finishTarget && winnerRef && (
                             <div className="rounded-lg p-3" style={{background: 'var(--kce-surface2)'}}>
                                 <div className="text-xs font-bold text-kce-muted mb-2">
-                                    {t('game.perPointPreview')} (+{fe(finishTarget.per_point_penalty)}/{t('game.perPointUnit')})
+                                    {t('game.perPointPreview')}
+                                    {(finishTarget.per_point_penalty ?? 0) > 0
+                                        ? ` (+${fe(finishTarget.per_point_penalty)}/${t('game.perPointUnit')})`
+                                        : ''}
                                 </div>
                                 {(() => {
                                     const base = parseAmount(finishPenalty)
-                                    const ppp = finishTarget.per_point_penalty
+                                    const ppp = finishTarget.per_point_penalty ?? 0
                                     const wScore = parseFloat(scoresInput[winnerRef] ?? '') || 0
                                     const isTeamGame = winnerRef.startsWith('t:')
                                     const losers = players.filter(p =>

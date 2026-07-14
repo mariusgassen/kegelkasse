@@ -735,6 +735,20 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         })
     })
 
+    it('shows a loser penalty preview once a winner is selected, even with per_point_penalty 0', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        await waitFor(() => screen.getByText(/quickEntry\.selectWinner/))
+        expect(screen.queryByText(/game\.perPointPreview/)).not.toBeInTheDocument()
+        const winnerButtons = screen.getAllByText('Admin')
+        fireEvent.click(winnerButtons[0])
+        await waitFor(() => {
+            expect(screen.getByText(/game\.perPointPreview/)).toBeInTheDocument()
+            expect(screen.getAllByText('Hansi').length).toBeGreaterThan(1)
+            expect(screen.getAllByText(/2,00.€/).length).toBeGreaterThan(0)
+        })
+    })
+
     it('closes finish panel when cancel clicked', async () => {
         await renderTabletQuickEntry()
         fireEvent.click(screen.getByText(/quickEntry\.finishGame/))

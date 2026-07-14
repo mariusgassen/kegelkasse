@@ -126,6 +126,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Optional pin scores per player/team stored as a JSON map
 - Opener flag highlights the crown game (König) in the UI
 - Configurable loser penalty: when set, penalty log entries are auto-created for every non-winner player when the game is finished
+- Once a winner is picked in the finish dialog, a **loser penalty preview** shows the exact amount each loser will be charged — always, regardless of whether the game template has a per-point add-on or just a flat loser penalty. Available both in the regular Games view and in the tablet quick-entry finish panel
 - Editing a finished game recalculates its loser penalties (old entries removed, new ones created); the recalculated entries keep the game's original `finished_at` timestamp, not the edit time
 - Soft-delete (undo) without data loss
 - Admins can retroactively add or correct a game's start/end time (e.g. if starting/finishing was forgotten during the evening) via a dedicated time-edit sheet; correcting a finished game's end time also retimes its existing loser penalties to the new timestamp (in place, without recreating them)

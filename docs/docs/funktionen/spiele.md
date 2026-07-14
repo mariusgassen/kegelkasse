@@ -49,6 +49,7 @@ Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des
 
 - Die Strafen sind im Strafenprotokoll mit dem **Spielkontext** gekennzeichnet
 - Beim nachträglichen Bearbeiten des Spiels werden alte Strafen gelöscht und neu erstellt — der Zeitstempel der neuen Strafen bleibt dabei der **Spielende-Zeitpunkt** (`finished_at`), nicht der Zeitpunkt der Bearbeitung
+- Sobald beim Beenden ein Gewinner ausgewählt ist, zeigt eine **Vorschau** direkt im Beenden-Dialog, welche Strafe jeder Verlierer bekommt — unabhängig davon, ob die Vorlage eine punktebasierte Zusatzstrafe hat oder nur eine feste Verliererstrafe. Verfügbar sowohl in der normalen Spiele-Ansicht als auch in der Tablet-Schnellerfassung.
 
 ## Spiel bearbeiten
 
