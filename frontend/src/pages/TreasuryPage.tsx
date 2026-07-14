@@ -14,10 +14,12 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {
     type BalanceEvent,
     type Granularity,
+    bucketStart,
     clubEventsFromBookings,
     cumulativeBaseline,
     debtEventsFromTimeline,
     eventsInWindow,
+    formatTick,
     isAttributable,
     memberPaymentEvents,
     memberPenaltyEvents,
@@ -193,13 +195,25 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const xEnd = isAll ? Math.max(win.end, ...allEvents.map(e => e.ts), win.start + 1) : win.end
     const xSpan = Math.max(xEnd - win.start, 1)
 
-    const xS = (ts: number) => BH_PAD.left + ((ts - win.start) / xSpan) * innerWidth
+    // Month/year views cluster points onto discrete, evenly-spaced buckets (evening/month) instead of
+    // a continuous time scale — most days in a month (or months in a year) have no activity, so
+    // proportional-to-time spacing would waste most of the chart width on empty gaps.
+    const buckets = isAll ? [] : Array.from(new Set(points.map(p => bucketStart(p.ts, granularity)))).sort((a, b) => a - b)
+    const bucketIndex = new Map(buckets.map((b, i) => [b, i]))
+    const xS = (ts: number) => {
+        if (isAll) return BH_PAD.left + ((ts - win.start) / xSpan) * innerWidth
+        if (buckets.length === 0) return BH_PAD.left
+        const idx = bucketIndex.get(bucketStart(ts, granularity)) ?? 0
+        return buckets.length === 1 ? BH_PAD.left + innerWidth / 2 : BH_PAD.left + (idx / (buckets.length - 1)) * innerWidth
+    }
     const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
 
     function buildPath(key: 'actual' | 'virtual', baseline: number) {
-        let d = `M ${xS(win.start)},${yS(baseline)}`
+        const startX = isAll ? xS(win.start) : BH_PAD.left
+        const endX = isAll ? xS(xEnd) : BH_PAD.left + innerWidth
+        let d = `M ${startX},${yS(baseline)}`
         for (const p of points) d += ` H ${xS(p.ts)} V ${yS(p[key])}`
-        d += ` H ${xS(xEnd)}`
+        d += ` H ${endX}`
         return d
     }
 
@@ -208,7 +222,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
     const selectedIdx = points.findIndex(p => p.event?.id === selectedId)
 
-    const fAxisDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
+    const fAxisDate = (ts: number) => formatTick(ts, granularity)
 
     const labelOwnerByDate = new Map<string, number>()
     points.forEach((p, i) => {
@@ -239,6 +253,10 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
                       stroke="var(--kce-border)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
                       strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
+            ))}
+            {!isAll && yTicks.map((tick, i) => (
+                <text key={`t-${i}`} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
+                      fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
             ))}
             <path d={buildPath('virtual', actualBaseline + overlayBaseline)}
                   fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
@@ -383,6 +401,7 @@ export function TreasuryPage() {
     const [showHelp, setShowHelp] = useState(false)
     const [showAccountsChart, setShowAccountsChart] = useState(false)
     const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
+    const [showSettled, setShowSettled] = useState(false)
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -1125,7 +1144,7 @@ export function TreasuryPage() {
                         key={historyScope === 'club' ? 'club' : `member-${effectiveHistoryMemberId}`}
                         actualEvents={historyActualEvents}
                         overlayEvents={historyOverlayEvents}
-                        actualLabel={t('treasury.history.actual')}
+                        actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
                         virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
                         t={t}/>
 
@@ -1234,9 +1253,30 @@ export function TreasuryPage() {
                     )}
 
                     {exactlySettled.length > 0 && (debtors.length > 0 || credits.length > 0) && (
-                        <p className="text-xs text-kce-muted text-center mt-2">
-                            + {exactlySettled.length} {t('treasury.settledCount')}
-                        </p>
+                        <div className="mt-2">
+                            <button type="button" className="w-full flex items-center justify-center gap-1 text-xs text-kce-muted"
+                                    aria-expanded={showSettled}
+                                    onClick={() => setShowSettled(v => !v)}>
+                                <span>+ {exactlySettled.length} {t('treasury.settledCount')}</span>
+                                <span className="text-[9px]">{showSettled ? '▲' : '▼'}</span>
+                            </button>
+                            {showSettled && (
+                                <div className="flex flex-wrap justify-center gap-1.5 mt-1.5">
+                                    {[...exactlySettled].sort((a, b) => {
+                                        if (a.regular_member_id === myRegularMemberId) return -1
+                                        if (b.regular_member_id === myRegularMemberId) return 1
+                                        return 0
+                                    }).map(b => (
+                                        <span key={b.regular_member_id}
+                                              className="px-2 py-1 rounded-full bg-kce-surface2 border border-kce-border text-[11px] text-kce-muted flex items-center gap-1">
+                                            {b.nickname || b.name}
+                                            {b.regular_member_id === myRegularMemberId &&
+                                                <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* ── Gäste ausstehend ── */}

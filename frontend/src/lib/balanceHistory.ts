@@ -180,3 +180,17 @@ export function formatTick(ts: number, granularity: Granularity): string {
     if (granularity === 'year') return d.toLocaleDateString('de-DE', {month: 'short'})
     return d.toLocaleDateString('de-DE', {month: 'short', year: '2-digit'})
 }
+
+// ── X-axis clustering ───────────────────────────────────────────────────────
+
+/**
+ * Start-of-bucket timestamp an event's x-position clusters onto: one calendar day (an "evening",
+ * the club's natural unit of activity) for month view, one calendar month for year view. 'all' has
+ * no bucketing — it keeps a continuous time scale since it already spans years of sparse activity.
+ */
+export function bucketStart(ts: number, granularity: Granularity): number {
+    const d = new Date(ts)
+    if (granularity === 'year') return new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+    if (granularity === 'month') return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    return ts
+}
