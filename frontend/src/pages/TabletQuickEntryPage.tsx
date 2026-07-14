@@ -925,6 +925,48 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 }
                             </div>
                         </div>
+                        {/* Loser penalty preview */}
+                        {finishWinnerRef && (
+                            <div style={{
+                                marginBottom: 8, padding: '8px 10px',
+                                background: 'var(--kce-surface)', borderRadius: 8,
+                            }}>
+                                <div style={{fontSize: 10, fontWeight: 'bold', color: 'var(--kce-muted)', marginBottom: 4}}>
+                                    {t('game.perPointPreview')}
+                                    {(activeGame.per_point_penalty ?? 0) > 0
+                                        ? ` (+${fe(activeGame.per_point_penalty)}/${t('game.perPointUnit')})`
+                                        : ''}
+                                </div>
+                                {(() => {
+                                    const base = activeGame.loser_penalty
+                                    const ppp = activeGame.per_point_penalty ?? 0
+                                    const wScore = parseFloat(finishScores[finishWinnerRef] ?? '') || 0
+                                    const isTeamGame = finishWinnerRef.startsWith('t:')
+                                    const losers = evening!.players.filter(p =>
+                                        `p:${p.id}` !== finishWinnerRef &&
+                                        (!p.team_id || `t:${p.team_id}` !== finishWinnerRef)
+                                    )
+                                    const seen = new Set<string>()
+                                    return losers.map(p => {
+                                        const ref = isTeamGame && p.team_id ? `t:${p.team_id}` : `p:${p.id}`
+                                        if (seen.has(ref)) return null
+                                        seen.add(ref)
+                                        const lScore = parseFloat(finishScores[ref] ?? '') || 0
+                                        const diff = Math.abs(wScore - lScore)
+                                        const total = base + diff * ppp
+                                        const label = isTeamGame && p.team_id
+                                            ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
+                                            : (p.nickname || p.name)
+                                        return (
+                                            <div key={ref} style={{display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0'}}>
+                                                <span style={{color: 'var(--kce-cream)'}}>{label}</span>
+                                                <span style={{color: '#f87171', fontWeight: 'bold'}}>{fe(total)}</span>
+                                            </div>
+                                        )
+                                    })
+                                })()}
+                            </div>
+                        )}
                         <div style={{display: 'flex', gap: 6}}>
                             <button className="btn-secondary btn-sm" style={{flex: 1}}
                                     onClick={() => { setFinishGameOpen(false); setFinishWinnerRef(''); setFinishScores({}) }}>
