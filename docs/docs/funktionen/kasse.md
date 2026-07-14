@@ -54,7 +54,7 @@ Jede Zeile lässt sich **antippen**, um die zugrunde liegenden Buchungen aufzukl
 
 ### Wie funktioniert die Kasse?
 
-Direkt unter dem Kassenstand erklärt eine aufklappbare Karte (❓) das Modell in vier Sätzen: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
+Am unteren Rand der Kassenstand-Karte lässt sich **❓ Wie funktioniert die Kasse?** aufklappen — eine unauffällige, kleingedruckte Zeile statt einer eigenen Karte, die das Modell in vier Sätzen erklärt: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
 
 ### Offen & Guthaben
 
@@ -72,7 +72,7 @@ Direkt über den beiden Kennzahl-Karten lässt sich **🔍 Nach Spielern filtern
    - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
    - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
 
-Der Filter wirkt nur auf die „Offen & Guthaben"-Kacheln und -Listen in der Übersicht — der Kassenstand oben (echtes Geld in der Kasse) und der Konten-Tab bleiben unverändert.
+Der Filter wirkt **global auf die gesamte Übersicht**: die Kassenstand-Karte (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion), die „Offen & Guthaben"-Kacheln und -Listen darunter, sowie — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im 📈 Verlauf-Graph. Gäste sind nie Teil der Auswahl und bleiben davon unberührt. Ausgenommen bleiben die Vereinsausgaben (nicht mitgliedsgebunden), die „Inkl. Schulden"-Verlaufslinie (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt) und der **Konten**-Tab (immer vollständige Vereinsübersicht).
 
 ---
 
@@ -116,6 +116,7 @@ In der **Übersicht** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als
   - **Mitglied:** „Eingezahlt" (durchgezogen) — die Summe der tatsächlich geleisteten Zahlungen; „Saldo" (gestrichelt) — der Kontostand nach Abzug der verbuchten Strafen. Vorher hießen beide Linien in der Mitglied-Ansicht „Tatsächlich"/„Inkl. Strafen", was ohne Kasse-Kontext wenig aussagekräftig war.
 - Die kumulative Kurve ist durchgehend: Blättern zwischen Monaten/Jahren setzt den Saldo nie auf Null zurück.
 - **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung, sowie darunter den daraus resultierenden Saldo (beide Linien jeweils kumulativ). Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
+- **Geclusterte Punkte:** Fallen mehrere Buchungen auf denselben Zeitbucket (z. B. zwei Zahlungen am selben Kegelabend in der Monats-Ansicht), verschmelzen sie zu **einem** Punkt (mit „×N"-Markierung) statt sich als übereinanderliegende, gegenseitig blockierende Kreise darzustellen, von denen vorher nur der oberste antippbar war. Antippen zeigt alle zugrunde liegenden Buchungen des Buckets untereinander in der Detailansicht.
 
 ---
 

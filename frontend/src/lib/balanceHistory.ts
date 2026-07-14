@@ -194,3 +194,33 @@ export function bucketStart(ts: number, granularity: Granularity): number {
     if (granularity === 'month') return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
     return ts
 }
+
+// ── Point clustering ─────────────────────────────────────────────────────────
+
+export type PointCluster = {
+    key: string
+    /** Whether this cluster's events are drawn on the overlay curve (debt/penalty) rather than the actual curve. */
+    onOverlay: boolean
+    /** Chronologically ordered points sharing this cluster's bucket + curve; always non-empty. */
+    points: DualPoint[]
+}
+
+/**
+ * Groups chart points that land in the same x-axis bucket (and are drawn on the same curve —
+ * actual vs. overlay) into one cluster. Reuses the exact bucket width the chart's x-axis already
+ * uses for positioning, so several bookings on the same evening (month view) or month (year view)
+ * collapse onto one clickable marker instead of stacked, mutually-hiding circles where only the
+ * last-drawn one is reachable.
+ */
+export function clusterPoints(points: DualPoint[], granularity: Granularity): PointCluster[] {
+    const clusters = new Map<string, PointCluster>()
+    for (const p of points) {
+        if (!p.event) continue
+        const onOverlay = p.event.kind === 'debt' || p.event.kind === 'penalty'
+        const key = `${bucketStart(p.ts, granularity)}-${onOverlay}`
+        const existing = clusters.get(key)
+        if (existing) existing.points.push(p)
+        else clusters.set(key, {key, onOverlay, points: [p]})
+    }
+    return Array.from(clusters.values())
+}
