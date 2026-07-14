@@ -675,7 +675,7 @@ export function MembersPage() {
                         </button>
                         <button className="btn-primary btn-sm flex-1"
                                 onClick={() => promoteConfirm && promote(promoteConfirm)}>
-                            {t('member.reactivateRoster')}
+                            ⬆️ {t('member.reactivateRoster')}
                         </button>
                     </div>
                 </div>
