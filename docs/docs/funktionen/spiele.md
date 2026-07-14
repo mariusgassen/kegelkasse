@@ -70,6 +70,8 @@ Falls beim Kegeln vergessen wurde, ein Spiel zu starten oder zu beenden, können
 Diese Funktion ist Vereinsadmins vorbehalten, da sie den offiziellen Zeitverlauf des Abends nachträglich verändert. Die Endzeit darf nicht vor der Startzeit liegen.
 :::
 
+Wird bei einem bereits beendeten Spiel nur die **Endzeit korrigiert** (ohne die Strafhöhe zu ändern), verschieben sich die bereits erstellten Verliererstrafen automatisch mit auf den neuen Zeitstempel — die Einträge im Strafenprotokoll bleiben dieselben, nur ihre Uhrzeit wird angepasst.
+
 ## Spiel löschen
 
 Tippe auf ein Spiel → **Löschen**
