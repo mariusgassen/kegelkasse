@@ -33,6 +33,7 @@ vi.mock('@/api/client.ts', () => ({
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
+vi.mock('@/components/ui/Toast', () => ({ showToast: vi.fn() }))
 vi.mock('@/components/ui/Empty.tsx', () => ({
     Empty: ({ text }: any) => <div>{text}</div>,
 }))
@@ -71,8 +72,8 @@ vi.mock('../CameraCapturePage', () => ({ CameraCapturePage: () => null }))
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 const PLAYERS = [
-    { id: 1, user_id: 10, regular_member_id: 1, display_name: 'Hans', name: 'Hans', is_king: false, team_id: null },
-    { id: 2, user_id: 11, regular_member_id: 2, display_name: 'Franz', name: 'Franz', is_king: false, team_id: null },
+    { id: 1, user_id: 10, regular_member_id: 1, display_name: 'Hans', name: 'Hans', is_king: false, team_id: 1 },
+    { id: 2, user_id: 11, regular_member_id: 2, display_name: 'Franz', name: 'Franz', is_king: false, team_id: 1 },
 ]
 
 const OPEN_GAME = {
@@ -96,7 +97,8 @@ const ACTIVE_EVENING = {
     id: 42, date: '2026-01-10', venue: 'Stammtisch',
     is_closed: false, is_deleted: false, created_by: 1,
     players: PLAYERS,
-    teams: [],
+    // Teams are set up as the first step of configuring an evening, so they exist by default in these fixtures
+    teams: [{ id: 1, name: 'Team A' }],
     games: [OPEN_GAME, RUNNING_GAME, FINISHED_GAME],
     player_count: 2, game_count: 3,
 }
@@ -483,6 +485,79 @@ describe('GamesPage — start game', () => {
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
+    })
+})
+
+describe('GamesPage — start game blocked without teams', () => {
+    // Deliberately winner_type: 'individual' — the teams-required guard applies to every
+    // game, not just team-mode ones, since teams are set up once for the whole evening.
+    const OPEN_INDIVIDUAL_GAME = {
+        ...OPEN_GAME, id: 4, name: 'Warmup 2', winner_type: 'individual', turn_mode: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        // No teams at all — no game (individual or team) must be startable
+        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_INDIVIDUAL_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningWithOpenTeamGame as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue({} as any)
+    })
+
+    it('shows a teams-required warning on the game card', async () => {
+        await renderGamesPage()
+        expect(screen.getByText(/game\.teamsRequired/)).toBeInTheDocument()
+    })
+
+    it('does not call api.startGame and shows a toast when start button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('game.teamsRequired', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
+    })
+})
+
+describe('GamesPage — start game blocked when players unassigned', () => {
+    // Deliberately winner_type: 'individual' — the unassigned-players guard applies to
+    // every game too, not just team-mode ones.
+    const OPEN_INDIVIDUAL_GAME = {
+        ...OPEN_GAME, id: 5, name: 'Warmup 3', winner_type: 'individual', turn_mode: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithUnassigned = {
+            ...ACTIVE_EVENING,
+            teams: [{ id: 1, name: 'Team A' }],
+            players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }],
+            games: [OPEN_INDIVIDUAL_GAME],
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningWithUnassigned as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue({} as any)
+    })
+
+    it('does not call api.startGame and shows a toast when start button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('team.cannotStartUnassigned', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
     })
 })
 

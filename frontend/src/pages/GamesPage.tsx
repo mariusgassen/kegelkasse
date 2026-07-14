@@ -202,9 +202,13 @@ export function GamesPage() {
             setConfirmFinishGame(runningGame)
             return
         }
-        // Block team games when players are not fully assigned
-        const game = games.find(g => g.id === gid)
-        if (game?.turn_mode !== null && game?.turn_mode !== undefined && unassignedPlayers.length > 0) {
+        // Teams are set up as the first step of configuring an evening — no game can start without them
+        if (teams.length === 0) {
+            showToast(t('game.teamsRequired'), 'error')
+            return
+        }
+        // Block starting until every player is assigned to a team
+        if (unassignedPlayers.length > 0) {
             showToast(t('team.cannotStartUnassigned'), 'error')
             return
         }
@@ -391,6 +395,9 @@ export function GamesPage() {
                         )}
                         {game.status === 'open' && (
                             <p className="text-xs text-kce-muted mb-2">{t('game.status.open')}</p>
+                        )}
+                        {game.status === 'open' && teams.length === 0 && (
+                            <p className="text-xs mb-2" style={{color: '#fca5a5'}}>⚠️ {t('game.teamsRequired')}</p>
                         )}
 
                         {/* Action buttons */}
