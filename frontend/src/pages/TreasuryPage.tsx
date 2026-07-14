@@ -1085,6 +1085,53 @@ export function TreasuryPage() {
                         </div>
                     )}
 
+                    {/* Nach Spielern filtern — collapsible, scopes the Kassenstand hero, den Verlauf-Graph (Kasse-Modus) und die Offen/Guthaben-Kacheln/Listen unten auf eine Auswahl von Mitgliedern */}
+                    <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
+                        <button type="button" className="w-full p-3 flex items-center justify-between text-left"
+                                aria-expanded={showBalanceFilter}
+                                onClick={() => setShowBalanceFilter(v => !v)}>
+                            <span className="text-xs font-bold text-kce-muted">🔍 {t('treasury.balanceFilter.title')}</span>
+                            <span className="text-kce-muted text-xs">{showBalanceFilter ? '▲' : '▼'}</span>
+                        </button>
+                        {showBalanceFilter && (
+                            <div className="px-3 pb-3">
+                                <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
+                                <div className="flex gap-2 flex-wrap mb-2">
+                                    {[...balances].sort((a, b) => {
+                                        if (a.regular_member_id === myRegularMemberId) return -1
+                                        if (b.regular_member_id === myRegularMemberId) return 1
+                                        return 0
+                                    }).map(m => {
+                                        const selected = balanceFilterIds.has(m.regular_member_id)
+                                        const isMe = m.regular_member_id === myRegularMemberId
+                                        return (
+                                            <button key={m.regular_member_id} type="button"
+                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                                    onClick={() => setBalanceFilterIds(prev => {
+                                                        const next = new Set(prev)
+                                                        if (next.has(m.regular_member_id)) next.delete(m.regular_member_id)
+                                                        else next.add(m.regular_member_id)
+                                                        return next
+                                                    })}>
+                                                {m.nickname || m.name}
+                                                {isMe && <span className={`ml-1 text-[9px] font-bold ${selected ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                                {balanceFilterIds.size > 0 && (
+                                    <ModeToggle
+                                        options={[
+                                            {value: 'exclude', label: t('treasury.balanceFilter.modeExclude')},
+                                            {value: 'only', label: t('treasury.balanceFilter.modeOnly')},
+                                        ]}
+                                        value={balanceFilterMode}
+                                        onChange={v => setBalanceFilterMode(v as 'exclude' | 'only')}/>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Kassenstand hero — with explicit money-flow breakdown */}
                     <div className="kce-card p-4 mb-3"
                          style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
@@ -1197,53 +1244,6 @@ export function TreasuryPage() {
                         actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
                         virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
                         t={t}/>
-
-                    {/* Nach Spielern filtern — collapsible, scopes the tiles/lists below to a selection of players */}
-                    <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
-                        <button type="button" className="w-full p-3 flex items-center justify-between text-left"
-                                aria-expanded={showBalanceFilter}
-                                onClick={() => setShowBalanceFilter(v => !v)}>
-                            <span className="text-xs font-bold text-kce-muted">🔍 {t('treasury.balanceFilter.title')}</span>
-                            <span className="text-kce-muted text-xs">{showBalanceFilter ? '▲' : '▼'}</span>
-                        </button>
-                        {showBalanceFilter && (
-                            <div className="px-3 pb-3">
-                                <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
-                                <div className="flex gap-2 flex-wrap mb-2">
-                                    {[...balances].sort((a, b) => {
-                                        if (a.regular_member_id === myRegularMemberId) return -1
-                                        if (b.regular_member_id === myRegularMemberId) return 1
-                                        return 0
-                                    }).map(m => {
-                                        const selected = balanceFilterIds.has(m.regular_member_id)
-                                        const isMe = m.regular_member_id === myRegularMemberId
-                                        return (
-                                            <button key={m.regular_member_id} type="button"
-                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                                    onClick={() => setBalanceFilterIds(prev => {
-                                                        const next = new Set(prev)
-                                                        if (next.has(m.regular_member_id)) next.delete(m.regular_member_id)
-                                                        else next.add(m.regular_member_id)
-                                                        return next
-                                                    })}>
-                                                {m.nickname || m.name}
-                                                {isMe && <span className={`ml-1 text-[9px] font-bold ${selected ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                                {balanceFilterIds.size > 0 && (
-                                    <ModeToggle
-                                        options={[
-                                            {value: 'exclude', label: t('treasury.balanceFilter.modeExclude')},
-                                            {value: 'only', label: t('treasury.balanceFilter.modeOnly')},
-                                        ]}
-                                        value={balanceFilterMode}
-                                        onChange={v => setBalanceFilterMode(v as 'exclude' | 'only')}/>
-                                )}
-                            </div>
-                        )}
-                    </div>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">

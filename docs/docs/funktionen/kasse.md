@@ -35,6 +35,18 @@ Ganz oben steht dein eigenes Konto:
 - Ein **Fortschrittsbalken** zeigt, welcher Anteil deiner Strafen bereits bezahlt ist
 - Bei offenem Betrag (und hinterlegtem PayPal-Handle): direkt **Jetzt zahlen** (PayPal) oder **Zahlung melden**
 
+### Nach Spielern filtern
+
+Direkt unter „Mein Konto" — noch vor der Kassenstand-Karte — lässt sich **🔍 Nach Spielern filtern** aufklappen:
+
+1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
+2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
+3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
+   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
+   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
+
+Der Filter steht bewusst **vor** allem, was er beeinflusst — er wirkt **global auf die gesamte Übersicht darunter**: die Kassenstand-Karte (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion), die „Offen & Guthaben"-Kacheln und -Listen weiter unten, sowie — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im 📈 Verlauf-Graph. „Mein Konto" darüber bleibt davon unberührt (es zeigt immer dein eigenes, ungefiltertes Konto). Gäste sind nie Teil der Auswahl und bleiben davon unberührt. Ausgenommen bleiben die Vereinsausgaben (nicht mitgliedsgebunden), die „Inkl. Schulden"-Verlaufslinie (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt) und der **Konten**-Tab (immer vollständige Vereinsübersicht).
+
 ### Kassenstand mit Geldfluss
 
 Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zustande kommt:
@@ -61,18 +73,6 @@ Am unteren Rand der Kassenstand-Karte lässt sich **❓ Wie funktioniert die Kas
 Darunter folgen zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und den Fortschrittsbalken (bezahlter Anteil der Strafen) — so ist sofort greifbar, wie weit jedes Konto vom Ausgleich entfernt ist.
 
 Mitglieder mit exakt ausgeglichenem Saldo (weder Schuld noch Guthaben) erscheinen nicht als eigene Zeile, sondern als **„+ N ausgeglichen"**-Zeile darunter. Antippen klappt eine Pille-Liste der betroffenen Mitglieder auf (eigenes Konto zuerst, **Ich**-Badge) — vorher war diese Zahl nicht aufklappbar und man musste in den **Konten**-Tab wechseln, um zu sehen, wer damit gemeint ist.
-
-### Nach Spielern filtern
-
-Direkt über den beiden Kennzahl-Karten lässt sich **🔍 Nach Spielern filtern** aufklappen. Damit lassen sich die Summen und Listen darunter auf eine Auswahl von Mitgliedern eingrenzen — z. B. um zu sehen, wie der offene Betrag ohne bestimmte Spieler aussähe (etwa wenn diese den Verein bald verlassen könnten):
-
-1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
-2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
-3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
-   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
-   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
-
-Der Filter wirkt **global auf die gesamte Übersicht**: die Kassenstand-Karte (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion), die „Offen & Guthaben"-Kacheln und -Listen darunter, sowie — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im 📈 Verlauf-Graph. Gäste sind nie Teil der Auswahl und bleiben davon unberührt. Ausgenommen bleiben die Vereinsausgaben (nicht mitgliedsgebunden), die „Inkl. Schulden"-Verlaufslinie (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt) und der **Konten**-Tab (immer vollständige Vereinsübersicht).
 
 ---
 
