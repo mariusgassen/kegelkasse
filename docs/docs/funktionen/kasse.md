@@ -128,6 +128,16 @@ Der **Konten**-Tab zeigt den aktuellen Saldo jedes Mitglieds.
 
 Admins können hier Zahlungen erfassen — siehe [Admin → Mitgliedskonten & Zahlungen](/rollen/admin#mitgliedskonten--zahlungen).
 
+:::info Guthaben ist kein „freies" Kassengeld
+Hat ein Mitglied Guthaben (mehr eingezahlt als Strafen), zählt dieser Betrag zwar zum Kassenstand (es ist reales, eingezahltes Geld), ist der Kasse aber im übertragenen Sinn „geschuldet" — er wird automatisch mit künftigen Strafen verrechnet (bzw. bei Austritt ausgezahlt). Es ist also kein frei verfügbares Vereinsgeld.
+:::
+
+### Übersicht & Anteil pro Spieler
+
+Oben im Konten-Tab zeigen zwei Kacheln die Summen über alle Konten: **Offen gesamt** (Summe aller Schulden) und **Bezahlt gesamt** (Summe aller Einzahlungen); ist darin Guthaben enthalten, weist ein Hinweis darauf hin, dass dieser Anteil der Kasse geschuldet ist.
+
+Darunter lässt sich **📊 Anteil pro Spieler** aufklappen: ein Balkendiagramm zeigt für jedes Mitglied den bezahlten (grün) und offenen (rot) Anteil seiner Strafen, im Verhältnis zum Mitglied mit den höchsten Strafen — so ist auf einen Blick erkennbar, wer am meisten zur offenen Summe beiträgt.
+
 ### Suche
 
 Tippe in das **Suchfeld** um Mitglieder schnell zu finden.
