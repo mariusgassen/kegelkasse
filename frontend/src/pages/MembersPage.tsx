@@ -14,6 +14,25 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {RegularMember} from '@/types.ts'
 
+type MemberAction = {
+    icon: string
+    label: string
+    onClick: () => void
+    danger?: boolean
+    disabled?: boolean
+}
+
+function ActionItem({icon, label, onClick, danger, disabled}: MemberAction) {
+    return (
+        <button type="button" disabled={disabled}
+                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-red-400' : ''}`}
+                onClick={onClick}>
+            <span className="text-lg flex-shrink-0" aria-hidden="true">{icon}</span>
+            <span className="text-sm font-bold flex-1">{label}</span>
+        </button>
+    )
+}
+
 export function MembersPage() {
     const t = useT()
     const isOnline = useOnline()
@@ -70,6 +89,16 @@ export function MembersPage() {
     // Merge sheet — merge duplicate roster entries
     const [mergeSheet, setMergeSheet] = useState(false)
     const [mergeDiscard, setMergeDiscard] = useState<RegularMember | null>(null)
+
+    // Row action sheet — tap a member/user row to see its available actions
+    const [actionSheet, setActionSheet] = useState<{ title: string; actions: MemberAction[] } | null>(null)
+
+    function openActionSheet(title: string, actions: MemberAction[]) {
+        setActionSheet({
+            title,
+            actions: actions.map(a => ({...a, onClick: () => { setActionSheet(null); a.onClick() }})),
+        })
+    }
 
     async function openResetSheet(userId: number, userName: string) {
         try {
@@ -356,8 +385,41 @@ export function MembersPage() {
                 ? <Empty icon="📱" text={t('member.noAppUsers')}/>
                 : activeUsers.map(u => {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
+                    const displayName = linked?.nickname || u.name
+
+                    const actions: MemberAction[] = []
+                    if (admin) {
+                        if (linked) actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(linked)})
+                        if (!linked && u.role !== 'superadmin') actions.push({
+                            icon: '🔗', label: t('member.action.linkToRoster'),
+                            onClick: () => { setLinkUserId(u.id); setLinkUserName(u.name); setLinkSheet(true) },
+                        })
+                        if (u.role !== 'superadmin') actions.push({
+                            icon: '🔑', label: t('auth.reset.createLink'), disabled: !isOnline,
+                            onClick: () => openResetSheet(u.id, u.name),
+                        })
+                        if (u.role !== 'superadmin' && u.id !== user?.id) actions.push({
+                            icon: u.role === 'admin' ? '↓' : '↑',
+                            label: u.role === 'admin' ? t('member.action.removeAdmin') : t('member.action.makeAdmin'),
+                            onClick: () => api.updateMemberRole(u.id, u.role === 'admin' ? 'member' : 'admin').then(() => refetchUsers()),
+                        })
+                        if (u.role !== 'superadmin' && u.id !== user?.id) actions.push({
+                            icon: '✕', label: t('member.action.deactivate'), danger: true,
+                            onClick: () => handleDeactivate(u.id),
+                        })
+                    }
+                    const hasActions = actions.length > 0
+
                     return (
-                        <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                        <div key={u.id}
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${hasActions ? 'active:opacity-70 cursor-pointer' : ''}`}
+                             role={hasActions ? 'button' : undefined}
+                             tabIndex={hasActions ? 0 : undefined}
+                             aria-label={hasActions ? `${t('member.actionsFor')} ${displayName}` : undefined}
+                             onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                             onKeyDown={hasActions ? e => {
+                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
+                             } : undefined}>
                             <div
                                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
                                 style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
@@ -367,7 +429,7 @@ export function MembersPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                    {linked?.nickname || u.name}
+                                    {displayName}
                                     {u.id === user?.id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                     {linked && pins.filter((p: any) => p.holder_regular_member_id === linked.id).map((p: any) => (
                                         <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
@@ -381,34 +443,7 @@ export function MembersPage() {
                                 className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
                                 {u.role}
                             </span>
-                            {admin && linked && (
-                                <button className="btn-secondary btn-xs" onClick={() => openEdit(linked)}>✏️</button>
-                            )}
-                            {admin && !linked && u.role !== 'superadmin' && (
-                                <button className="btn-secondary btn-xs" title="Mit Roster verknüpfen"
-                                        onClick={() => {
-                                            setLinkUserId(u.id);
-                                            setLinkUserName(u.name);
-                                            setLinkSheet(true)
-                                        }}>
-                                    🔗
-                                </button>
-                            )}
-                            {admin && u.role !== 'superadmin' && (
-                                <button className="btn-secondary btn-xs" title={t('auth.reset.createLink')}
-                                        disabled={!isOnline}
-                                        onClick={() => openResetSheet(u.id, u.name)}>🔑</button>
-                            )}
-                            {admin && u.role !== 'superadmin' && u.id !== user?.id && (
-                                <button className="btn-secondary btn-xs"
-                                        onClick={() => api.updateMemberRole(u.id, u.role === 'admin' ? 'member' : 'admin').then(() => refetchUsers())}>
-                                    {u.role === 'admin' ? '↓' : '↑'}
-                                </button>
-                            )}
-                            {admin && u.role !== 'superadmin' && u.id !== user?.id && (
-                                <button className="btn-danger btn-xs" title="Deaktivieren"
-                                        onClick={() => handleDeactivate(u.id)}>✕</button>
-                            )}
+                            {hasActions && <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>}
                         </div>
                     )
                 })
@@ -454,8 +489,36 @@ export function MembersPage() {
                 ? <Empty icon="👥" text={t('member.none')}/>
                 : unlinkedRoster.map(m => {
                     const inEvening = alreadyInEvening.has(m.id)
+                    const displayName = m.nickname || m.name
+
+                    const actions: MemberAction[] = []
+                    if (evening && !evening.is_closed) actions.push({
+                        icon: inEvening ? '✓' : '+',
+                        label: inEvening ? t('member.action.inEvening') : t('member.addToEvening'),
+                        disabled: inEvening,
+                        onClick: () => addToEvening(m),
+                    })
+                    if (admin) {
+                        actions.push({icon: '📨', label: t('member.action.createInvite'), disabled: !isOnline, onClick: () => openInvite(m)})
+                        actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
+                        actions.push({
+                            icon: '⇄', label: t('member.action.merge'),
+                            onClick: () => { setMergeDiscard(m); setMergeSheet(true) },
+                        })
+                        actions.push({icon: '⬇️', label: t('member.removeFromClub'), danger: true, onClick: () => openRemoveConfirm(m)})
+                    }
+                    const hasActions = actions.length > 0
+
                     return (
-                        <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                        <div key={m.id}
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${hasActions ? 'active:opacity-70 cursor-pointer' : ''}`}
+                             role={hasActions ? 'button' : undefined}
+                             tabIndex={hasActions ? 0 : undefined}
+                             aria-label={hasActions ? `${t('member.actionsFor')} ${displayName}` : undefined}
+                             onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                             onKeyDown={hasActions ? e => {
+                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
+                             } : undefined}>
                             <div
                                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
                                 style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
@@ -465,7 +528,7 @@ export function MembersPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                    {m.nickname || m.name}
+                                    {displayName}
                                     {m.id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
                                     {pins.filter((p: any) => p.holder_regular_member_id === m.id).map((p: any) => (
                                         <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
@@ -473,33 +536,8 @@ export function MembersPage() {
                                 </div>
                                 {m.nickname && <div className="text-xs text-kce-muted truncate">{m.name}</div>}
                             </div>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                                {evening && !evening.is_closed && (
-                                    <button
-                                        className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
-                                        disabled={inEvening}
-                                        onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : `+ ${t('member.addToEvening')}`}
-                                    </button>
-                                )}
-                                {admin && (
-                                    <>
-                                        <button className="btn-secondary btn-xs" disabled={!isOnline}
-                                                onClick={() => openInvite(m)} title="Einladungslink">📨
-                                        </button>
-                                        <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
-                                        <button className="btn-secondary btn-xs" title="Zusammenlegen"
-                                                onClick={() => {
-                                                    setMergeDiscard(m);
-                                                    setMergeSheet(true)
-                                                }}>⇄
-                                        </button>
-                                        <button className="btn-secondary btn-xs"
-                                                title={t('member.removeFromClub')}
-                                                onClick={() => openRemoveConfirm(m)}>⬇️</button>
-                                    </>
-                                )}
-                            </div>
+                            {inEvening && <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>}
+                            {hasActions && <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>}
                         </div>
                     )
                 })
@@ -513,8 +551,27 @@ export function MembersPage() {
                 </p>
                 {savedGuests.map(m => {
                     const inEvening = alreadyInEvening.has(m.id)
+                    const displayName = m.nickname || m.name
+
+                    const actions: MemberAction[] = []
+                    if (evening && !evening.is_closed) actions.push({
+                        icon: inEvening ? '✓' : '+',
+                        label: inEvening ? t('member.action.inEvening') : t('member.addToEvening'),
+                        disabled: inEvening,
+                        onClick: () => addToEvening(m),
+                    })
+                    actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
+                    if (admin) actions.push({icon: '⬆️', label: t('member.reactivateRoster'), onClick: () => openPromoteConfirm(m)})
+
                     return (
-                        <div key={m.id} className="kce-card p-3 mb-2 flex items-center gap-3">
+                        <div key={m.id}
+                             className="kce-card p-3 mb-2 flex items-center gap-3 active:opacity-70 cursor-pointer"
+                             role="button" tabIndex={0}
+                             aria-label={`${t('member.actionsFor')} ${displayName}`}
+                             onClick={() => openActionSheet(displayName, actions)}
+                             onKeyDown={e => {
+                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
+                             }}>
                             <div
                                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden bg-kce-muted">
                                 {m.avatar
@@ -522,30 +579,22 @@ export function MembersPage() {
                                     : (m.nickname || m.name)[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
+                                <div className="text-sm font-bold truncate">{displayName}</div>
                                 <div className="text-[10px] text-kce-muted">{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</div>
                             </div>
-                            <div className="flex gap-1.5 flex-shrink-0">
-                                {evening && !evening.is_closed && (
-                                    <button
-                                        className={`btn-xs ${inEvening ? 'btn-secondary opacity-40' : 'btn-primary'}`}
-                                        disabled={inEvening}
-                                        onClick={() => addToEvening(m)}>
-                                        {inEvening ? '✓' : `+ ${t('member.addToEvening')}`}
-                                    </button>
-                                )}
-                                <button className="btn-secondary btn-xs" onClick={() => openEdit(m)}>✏️</button>
-                                {admin && (
-                                    <button className="btn-secondary btn-xs"
-                                            onClick={() => openPromoteConfirm(m)}>
-                                        {t('member.reactivateRoster')}
-                                    </button>
-                                )}
-                            </div>
+                            {inEvening && <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>}
+                            <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>
                         </div>
                     )
                 })}
             </>)}
+
+            {/* Row action sheet — actions for the tapped member/user */}
+            <Sheet open={!!actionSheet} onClose={() => setActionSheet(null)} title={actionSheet?.title ?? ''}>
+                <div className="flex flex-col gap-2">
+                    {actionSheet?.actions.map((a, i) => <ActionItem key={i} {...a}/>)}
+                </div>
+            </Sheet>
 
             {/* Confirm remove from club sheet */}
             <Sheet open={!!removeConfirm} onClose={() => setRemoveConfirm(null)}

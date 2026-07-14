@@ -212,3 +212,5 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - German and English translations, user-selectable
 - Accessibility: WCAG-AA muted-text contrast, keyboard-operable chart points/segments (StatsPage, TreasuryPage), focus-managed bottom sheets (focus moves in on open, restores to the trigger on close), larger touch targets and `aria-label`s on icon-only buttons (sheet close, throw edit/void, camera close)
 - Responsiveness: Tablet Schnellerfassung's three-column layout stacks (penalty/drink actions first) on narrower or portrait tablets instead of breaking down
+- Evening hub sub-tab strip scrolls horizontally instead of truncating labels — same tab pattern used across the rest of the app
+- Member rows (app users, roster, guests) are tap-to-open instead of stacking multiple icon-only buttons — tapping a row opens an action sheet listing every available action with an icon and text label
