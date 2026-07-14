@@ -60,6 +60,8 @@ Direkt unter dem Kassenstand erklärt eine aufklappbare Karte (❓) das Modell i
 
 Darunter folgen zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und den Fortschrittsbalken (bezahlter Anteil der Strafen) — so ist sofort greifbar, wie weit jedes Konto vom Ausgleich entfernt ist.
 
+Mitglieder mit exakt ausgeglichenem Saldo (weder Schuld noch Guthaben) erscheinen nicht als eigene Zeile, sondern als **„+ N ausgeglichen"**-Zeile darunter. Antippen klappt eine Pille-Liste der betroffenen Mitglieder auf (eigenes Konto zuerst, **Ich**-Badge) — vorher war diese Zahl nicht aufklappbar und man musste in den **Konten**-Tab wechseln, um zu sehen, wer damit gemeint ist.
+
 ---
 
 ## Kassenbericht (Excel / PDF)
@@ -95,12 +97,13 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 In der **Übersicht** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als Linien-Diagramm:
 
 - **🏛️ Kasse / 👤 Mitglied** — Umschalter zwischen dem gesamten Vereinssaldo und dem persönlichen Konto eines beliebigen Mitglieds. Bei „Mitglied" erscheint eine Pille-Liste aller Mitglieder (eigenes Konto ganz oben, mit **Ich**-Badge).
-- **Monat / Jahr / Alle** — drei Zeit-Ansichten. Bei Monat/Jahr blättern Pfeile (‹ ›) zum vorherigen/nächsten Zeitraum (deaktiviert am Rand der verfügbaren Daten). Bei „Alle" ist das Diagramm horizontal scrollbar, die Y-Achse bleibt fixiert.
+- **Monat / Jahr / Alle** — drei Zeit-Ansichten. Bei Monat/Jahr blättern Pfeile (‹ ›) zum vorherigen/nächsten Zeitraum (deaktiviert am Rand der verfügbaren Daten). Bei „Alle" ist das Diagramm horizontal scrollbar, die Y-Achse bleibt fixiert. Bei Monat/Jahr zeigt die Y-Achse jetzt ebenfalls €-Beschriftungen (vorher nur bei „Alle" sichtbar).
+- **X-Achse geclustert statt zeitproportional:** In der Monats-Ansicht werden Punkte auf den jeweiligen Kalendertag (= Kegelabend) gruppiert und die aktiven Tage gleichmäßig über die Breite verteilt, statt proportional zur verstrichenen Zeit im Monat — bei wenigen Buchungen in einem Monat verteilten sich Punkte vorher stark ungleichmäßig (großer Leerraum um vereinzelte Ereignisse). In der Jahres-Ansicht wird analog auf den Kalendermonat geclustert (bis zu 12 gleichmäßige Stützpunkte); die X-Achsen-Beschriftung zeigt dort den Kurznamen des Monats statt des Tagesdatums.
 - Zwei Linien laufen parallel:
-  - **Tatsächlich** (durchgezogen): die real gebuchten Zahlungen/Ausgaben (Kasse) bzw. Zahlungen (Mitglied).
-  - **Inkl. Schulden / Inkl. Strafen** (gestrichelt): zusätzlich die zum jeweiligen Zeitpunkt offenen Schulden (Kasse) bzw. die verbuchten Strafen (Mitglied) — zeigt den „virtuellen" Saldo, wenn alles bezahlt wäre.
+  - **Kasse:** „Tatsächlich" (durchgezogen) — die real gebuchten Zahlungen/Ausgaben; „Inkl. Schulden" (gestrichelt) — zusätzlich die zum jeweiligen Zeitpunkt offenen Schulden, zeigt den „virtuellen" Saldo, wenn alles bezahlt wäre.
+  - **Mitglied:** „Eingezahlt" (durchgezogen) — die Summe der tatsächlich geleisteten Zahlungen; „Saldo" (gestrichelt) — der Kontostand nach Abzug der verbuchten Strafen. Vorher hießen beide Linien in der Mitglied-Ansicht „Tatsächlich"/„Inkl. Strafen", was ohne Kasse-Kontext wenig aussagekräftig war.
 - Die kumulative Kurve ist durchgehend: Blättern zwischen Monaten/Jahren setzt den Saldo nie auf Null zurück.
-- **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung, sowie darunter den daraus resultierenden Saldo („Tatsächlich" und „Inkl. Schulden/Strafen" jeweils kumulativ). Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
+- **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung, sowie darunter den daraus resultierenden Saldo (beide Linien jeweils kumulativ). Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
 
 ---
 

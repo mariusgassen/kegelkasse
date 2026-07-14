@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {
+    bucketStart,
     clubEventsFromBookings,
     cumulativeBaseline,
     debtEventsFromTimeline,
@@ -218,5 +219,34 @@ describe('formatTick', () => {
 
     it('formats short month + 2-digit year for all granularity', () => {
         expect(formatTick(ts, 'all')).toBe('Mai 24')
+    })
+})
+
+describe('bucketStart', () => {
+    it('buckets to the start of the calendar day for month granularity', () => {
+        const ts = new Date(2024, 4, 7, 21, 30).getTime()
+        expect(bucketStart(ts, 'month')).toBe(new Date(2024, 4, 7).getTime())
+    })
+
+    it('collapses multiple same-day events onto one bucket for month granularity', () => {
+        const morning = new Date(2024, 4, 7, 9, 0).getTime()
+        const evening = new Date(2024, 4, 7, 22, 0).getTime()
+        expect(bucketStart(morning, 'month')).toBe(bucketStart(evening, 'month'))
+    })
+
+    it('buckets to the start of the calendar month for year granularity', () => {
+        const ts = new Date(2024, 4, 17, 21, 30).getTime()
+        expect(bucketStart(ts, 'year')).toBe(new Date(2024, 4, 1).getTime())
+    })
+
+    it('collapses multiple same-month events onto one bucket for year granularity', () => {
+        const early = new Date(2024, 4, 2).getTime()
+        const late = new Date(2024, 4, 28).getTime()
+        expect(bucketStart(early, 'year')).toBe(bucketStart(late, 'year'))
+    })
+
+    it('leaves the timestamp untouched for all granularity', () => {
+        const ts = new Date(2024, 4, 7, 21, 30).getTime()
+        expect(bucketStart(ts, 'all')).toBe(ts)
     })
 })
