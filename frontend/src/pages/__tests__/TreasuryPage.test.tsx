@@ -1120,6 +1120,87 @@ describe('TreasuryPage — balance filter by players', () => {
             expect(screen.getByText('-5,50 €')).toBeInTheDocument()
         })
     })
+
+    // BALANCES paidIn (Admin 10 + Hansi 0 + Franz 0) = 10,00 € unfiltered.
+    it('only mode also scopes the Kassenstand hero paid-in figure', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(scope.getByText(/treasury\.balanceFilter\.modeOnly/)).toBeInTheDocument())
+        fireEvent.click(scope.getByText(/treasury\.balanceFilter\.modeOnly/))
+
+        // Only Hansi (payments_total 0) is in scope now — the till-wide Admin deposit drops out
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+0,00 €'))
+    })
+
+    it('exclude mode leaves the Kassenstand hero paid-in figure unaffected (money already received stays real)', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('Hansi'))
+
+        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+        expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €')
+    })
+})
+
+describe('TreasuryPage — balance-history chart point clustering', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    async function setupSameDayPayments() {
+        const now = new Date()
+        const morning = new Date(now.getFullYear(), now.getMonth(), 1, 9, 0, 0)
+        const afternoon = new Date(now.getFullYear(), now.getMonth(), 1, 15, 0, 0)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([
+            { id: 30, regular_member_id: 1, member_name: 'Admin', amount: 10.00, note: null, created_at: morning.toISOString() },
+            { id: 31, regular_member_id: 5, member_name: 'Hans', amount: 5.00, note: null, created_at: afternoon.toISOString() },
+        ] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    }
+
+    it('collapses two same-day bookings into a single clickable marker', async () => {
+        await setupSameDayPayments()
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => {
+            expect(container.querySelectorAll('svg [role="button"]').length).toBeGreaterThan(0)
+        })
+        expect(container.querySelectorAll('svg [role="button"]').length).toBe(1)
+    })
+
+    it('shows every clustered entry in the details view when the marker is clicked', async () => {
+        await setupSameDayPayments()
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => expect(container.querySelectorAll('svg [role="button"]').length).toBe(1))
+
+        fireEvent.click(container.querySelector('svg [role="button"]')!)
+
+        await waitFor(() => {
+            const detail = within(screen.getByTestId('history-detail'))
+            expect(detail.getByText('Admin')).toBeInTheDocument()
+            expect(detail.getByText('Hans')).toBeInTheDocument()
+        })
+    })
 })
 
 // ── additional coverage: booking sheet member picker (lines 1010-1013) ────────

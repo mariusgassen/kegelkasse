@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {
     bucketStart,
     clubEventsFromBookings,
+    clusterPoints,
     cumulativeBaseline,
     debtEventsFromTimeline,
     eventsInWindow,
@@ -11,6 +12,8 @@ import {
     memberPenaltyEvents,
     mergeDualSeries,
     windowBounds,
+    type BalanceEventKind,
+    type DualPoint,
 } from '../balanceHistory'
 
 describe('clubEventsFromBookings', () => {
@@ -248,5 +251,58 @@ describe('bucketStart', () => {
     it('leaves the timestamp untouched for all granularity', () => {
         const ts = new Date(2024, 4, 7, 21, 30).getTime()
         expect(bucketStart(ts, 'all')).toBe(ts)
+    })
+})
+
+describe('clusterPoints', () => {
+    const morning = new Date(2024, 4, 7, 9, 0).getTime()
+    const evening = new Date(2024, 4, 7, 22, 0).getTime()
+    const otherDay = new Date(2024, 4, 8, 9, 0).getTime()
+
+    function point(ts: number, event: {id: string; kind: BalanceEventKind}): DualPoint {
+        return {ts, actual: 0, virtual: 0, event: {id: event.id, ts, delta: 1, kind: event.kind, label: ''}}
+    }
+
+    it('merges same-day, same-curve points into one cluster', () => {
+        const points = [
+            point(morning, {id: 'payment-1', kind: 'payment'}),
+            point(evening, {id: 'payment-2', kind: 'payment'}),
+        ]
+        const clusters = clusterPoints(points, 'month')
+        expect(clusters).toHaveLength(1)
+        expect(clusters[0].points.map(p => p.event!.id)).toEqual(['payment-1', 'payment-2'])
+        expect(clusters[0].onOverlay).toBe(false)
+    })
+
+    it('keeps different days apart', () => {
+        const points = [
+            point(morning, {id: 'payment-1', kind: 'payment'}),
+            point(otherDay, {id: 'payment-2', kind: 'payment'}),
+        ]
+        expect(clusterPoints(points, 'month')).toHaveLength(2)
+    })
+
+    it('keeps the actual curve and the overlay curve in separate clusters even on the same day', () => {
+        const points = [
+            point(morning, {id: 'payment-1', kind: 'payment'}),
+            point(evening, {id: 'penalty-1', kind: 'penalty'}),
+        ]
+        const clusters = clusterPoints(points, 'month')
+        expect(clusters).toHaveLength(2)
+        expect(clusters.find(c => c.onOverlay)?.points[0].event!.id).toBe('penalty-1')
+        expect(clusters.find(c => !c.onOverlay)?.points[0].event!.id).toBe('payment-1')
+    })
+
+    it('skips points without an event', () => {
+        const points: DualPoint[] = [{ts: morning, actual: 0, virtual: 0, event: null}]
+        expect(clusterPoints(points, 'month')).toEqual([])
+    })
+
+    it('does not cluster distinct timestamps under all granularity (no bucketing)', () => {
+        const points = [
+            point(morning, {id: 'payment-1', kind: 'payment'}),
+            point(evening, {id: 'payment-2', kind: 'payment'}),
+        ]
+        expect(clusterPoints(points, 'all')).toHaveLength(2)
     })
 })

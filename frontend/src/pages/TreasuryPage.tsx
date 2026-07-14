@@ -16,6 +16,7 @@ import {
     type Granularity,
     bucketStart,
     clubEventsFromBookings,
+    clusterPoints,
     cumulativeBaseline,
     debtEventsFromTimeline,
     eventsInWindow,
@@ -86,7 +87,7 @@ function PaidShareBar({b}: { b: Pick<Balance, 'payments_total' | 'penalty_total'
 // e.g. "965,20 €" isn't just a number to take on faith.
 type FlowItem = { id?: number | null; label: string; amount: number; date?: string | null }
 
-function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, myId, noEntriesLabel}: {
+function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, myId, noEntriesLabel, testId}: {
     icon: string
     label: string
     amountLabel: string
@@ -96,12 +97,13 @@ function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, m
     items: FlowItem[]
     myId?: number | null
     noEntriesLabel: string
+    testId?: string
 }) {
     return (
         <div>
             <button type="button" className="flex items-center justify-between w-full text-left" onClick={onToggle}>
                 <span className="text-kce-muted">{icon} {label}</span>
-                <span className={`font-bold ${colorClass}`}>{amountLabel}</span>
+                <span className={`font-bold ${colorClass}`} data-testid={testId}>{amountLabel}</span>
             </button>
             {open && (
                 items.length === 0
@@ -152,7 +154,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
 }) {
     const [granularity, setGranularity] = useState<Granularity>('month')
     const [anchor, setAnchor] = useState(() => new Date())
-    const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null)
 
     const allEvents = [...actualEvents, ...overlayEvents]
     const hasData = allEvents.length > 0
@@ -173,7 +175,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const atEnd = periodKey(anchor) >= periodKey(new Date())
 
     function page(dir: -1 | 1) {
-        setSelectedId(null)
+        setSelectedClusterKey(null)
         setAnchor(prev => granularity === 'year'
             ? new Date(prev.getFullYear() + dir, 0, 1)
             : new Date(prev.getFullYear(), prev.getMonth() + dir, 1))
@@ -182,7 +184,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     function changeGranularity(g: Granularity) {
         setGranularity(g)
         setAnchor(new Date())
-        setSelectedId(null)
+        setSelectedClusterKey(null)
     }
 
     const values = [actualBaseline, actualBaseline + overlayBaseline, ...points.map(p => p.actual), ...points.map(p => p.virtual)]
@@ -220,20 +222,24 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i).map(v => ({v, y: yS(v)}))
 
     const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
-    const selectedIdx = points.findIndex(p => p.event?.id === selectedId)
+
+    // Cluster points sharing the same x-axis bucket + curve into one marker, so a bucket with
+    // several bookings gets a single clickable dot instead of stacked circles where only the
+    // last-drawn one is reachable; clicking it lists every underlying entry below.
+    const clusters = clusterPoints(points, granularity)
+    const selectedCluster = clusters.find(c => c.key === selectedClusterKey) ?? null
+    const selectedIndices = new Set(selectedCluster ? selectedCluster.points.map(p => points.indexOf(p)) : [])
 
     const fAxisDate = (ts: number) => formatTick(ts, granularity)
 
     const labelOwnerByDate = new Map<string, number>()
     points.forEach((p, i) => {
-        if (!(i % labelEvery === 0 || i === selectedIdx)) return
+        if (!(i % labelEvery === 0 || selectedIndices.has(i))) return
         const dateKey = fAxisDate(p.ts)
-        if (!labelOwnerByDate.has(dateKey) || i === selectedIdx) labelOwnerByDate.set(dateKey, i)
+        if (!labelOwnerByDate.has(dateKey) || selectedIndices.has(i)) labelOwnerByDate.set(dateKey, i)
     })
     const labelOwnerIndices = new Set(labelOwnerByDate.values())
 
-    const selectedEvent = selectedId ? allEvents.find(e => e.id === selectedId) ?? null : null
-    const selectedMeta = selectedEvent ? KIND_META[selectedEvent.kind] : null
     const KIND_LABEL: Record<BalanceEvent['kind'], string> = {
         payment: t('treasury.history.kindPayment'),
         expense: t('treasury.history.kindExpense'),
@@ -248,7 +254,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     const chart = (
         <svg width={isAll ? chartWidth : '100%'} height={BH_VH} viewBox={`0 0 ${chartWidth} ${BH_VH}`}
              style={{display: 'block', overflow: 'visible', flexShrink: 0}}
-             onClick={() => setSelectedId(null)}>
+             onClick={() => setSelectedClusterKey(null)}>
             {yTicks.map((tick, i) => (
                 <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
                       stroke="var(--kce-border)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
@@ -264,20 +270,32 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
             <path d={buildPath('actual', actualBaseline)}
                   fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
                   strokeLinecap="round" strokeLinejoin="round"/>
-            {points.map((p, i) => {
-                if (!p.event) return null
-                const ev = p.event
-                const meta = KIND_META[ev.kind]
-                const onOverlay = ev.kind === 'debt' || ev.kind === 'penalty'
-                const cx = xS(p.ts), cy = yS(onOverlay ? p.virtual : p.actual)
-                const attributable = isAttributable(ev)
-                const isSelected = selectedId === ev.id
-                const toggle = () => setSelectedId(isSelected ? null : ev.id)
+            {points.map((p, i) => (
+                labelOwnerIndices.has(i) ? (
+                    <text key={`label-${i}`} x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
+                          fontWeight={selectedIndices.has(i) ? 'bold' : 'normal'}
+                          fill={selectedIndices.has(i) ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
+                        {fAxisDate(p.ts)}
+                    </text>
+                ) : null
+            ))}
+            {clusters.map(cluster => {
+                const last = cluster.points[cluster.points.length - 1]
+                const lastEvent = last.event!
+                const meta = KIND_META[lastEvent.kind]
+                const cx = xS(last.ts), cy = yS(cluster.onOverlay ? last.virtual : last.actual)
+                const count = cluster.points.length
+                const attributable = cluster.points.some(p => isAttributable(p.event!))
+                const isSelected = selectedClusterKey === cluster.key
+                const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
+                const ariaLabel = count > 1
+                    ? `${count}× – ${fDateTime(last.ts)}`
+                    : `${lastEvent.label} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
                 return (
-                    <g key={ev.id}
+                    <g key={cluster.key}
                        tabIndex={attributable ? 0 : undefined}
                        role={attributable ? 'button' : undefined}
-                       aria-label={attributable ? `${ev.label} – ${fDateTime(ev.ts)} – ${fe(ev.delta)}` : undefined}
+                       aria-label={attributable ? ariaLabel : undefined}
                        style={attributable ? {cursor: 'pointer'} : undefined}
                        onClick={attributable ? (evt) => { evt.stopPropagation(); toggle() } : undefined}
                        onKeyDown={attributable ? (evt) => {
@@ -287,15 +305,14 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                                toggle()
                            }
                        } : undefined}>
-                        {attributable && <circle cx={cx} cy={cy} r="9" fill="transparent"/>}
-                        <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
+                        {attributable && <circle cx={cx} cy={cy} r="10" fill="transparent"/>}
+                        <circle cx={cx} cy={cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
                                 fill={meta.color} stroke="var(--kce-bg)"
                                 strokeWidth={isSelected ? 1.5 : 1}/>
-                        {labelOwnerIndices.has(i) && (
-                            <text x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
-                                  fontWeight={isSelected ? 'bold' : 'normal'}
-                                  fill={isSelected ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
-                                {fAxisDate(p.ts)}
+                        {count > 1 && (
+                            <text x={cx} y={cy - (isSelected ? 8.5 : 7)} textAnchor="middle" fontSize="8"
+                                  fontWeight="bold" fill={meta.color}>
+                                ×{count}
                             </text>
                         )}
                     </g>
@@ -352,23 +369,33 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 </div>
             ) : chart}
 
-            {hasData && (selectedEvent && selectedMeta ? (
+            {hasData && (selectedCluster ? (
                 <>
-                    <div className="flex items-center gap-2 mt-2 px-1.5 py-1 rounded text-[11px]"
-                         style={{background: withAlpha(selectedMeta.color), borderLeft: `2px solid ${selectedMeta.color}`}}>
-                        <span className="text-kce-muted flex-shrink-0">{fDateTime(selectedEvent.ts)}</span>
-                        <span className="flex-shrink-0">{selectedEvent.icon ?? selectedMeta.icon}</span>
-                        <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[selectedEvent.kind]}</span>
-                        <span className="text-kce-cream truncate flex-1">{selectedEvent.label}</span>
-                        <span className="font-bold flex-shrink-0" style={{color: selectedMeta.color}}>{fe(selectedEvent.delta)}</span>
+                    <div className="flex flex-col gap-1 mt-2" data-testid="history-detail">
+                        {selectedCluster.points.map(p => {
+                            const ev = p.event!
+                            const meta = KIND_META[ev.kind]
+                            return (
+                                <div key={ev.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-[11px]"
+                                     style={{background: withAlpha(meta.color), borderLeft: `2px solid ${meta.color}`}}>
+                                    <span className="text-kce-muted flex-shrink-0">{fDateTime(ev.ts)}</span>
+                                    <span className="flex-shrink-0">{ev.icon ?? meta.icon}</span>
+                                    <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[ev.kind]}</span>
+                                    <span className="text-kce-cream truncate flex-1">{ev.label}</span>
+                                    <span className="font-bold flex-shrink-0" style={{color: meta.color}}>{fe(ev.delta)}</span>
+                                </div>
+                            )
+                        })}
                     </div>
-                    {selectedIdx >= 0 && (
-                        <div className="flex items-center gap-3 mt-1 px-1.5 text-[10px]">
-                            <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
-                            <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{actualLabel}: {fe(points[selectedIdx].actual)}</span>
-                            <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>{virtualLabel}: {fe(points[selectedIdx].virtual)}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3 mt-1 px-1.5 text-[10px]">
+                        <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
+                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>
+                            {actualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].actual)}
+                        </span>
+                        <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>
+                            {virtualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].virtual)}
+                        </span>
+                    </div>
                 </>
             ) : (
                 <div className="text-[9px] text-kce-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
@@ -803,27 +830,30 @@ export function TreasuryPage() {
         }
     }
 
-    // Derived overview stats — full money flow: paid-in → expenses → cash on
-    // hand, plus outstanding debt (members + guests) and the projected cash
-    // if everyone settled up. Kept in lib/treasurySummary.ts (pure, tested).
-    const summary = treasurySummary(balances, guestBalances as Balance[], expenses as Expense[])
-    const totalExpenses = summary.expensesNet
-    const kassenstand = summary.cashOnHand
-
-    // Balance filter — scopes the "Offen & Guthaben" tiles/lists below to a
-    // selection of players: "exclude" writes off their outstanding debt
-    // (already-paid stays, open penalties no longer counted), "only"
-    // restricts the totals/lists to just the selected members. Does not
-    // affect the Kassenstand hero (whole-club real cash) or the Konten tab.
+    // Balance filter — applies globally across the overview tab: the Kassenstand
+    // hero (paid-in/outstanding/cash-on-hand/projected), its money-flow breakdown
+    // rows, the "Offen & Guthaben" tiles/lists, and the club-scope history graph's
+    // actual (cash) line all derive from effectiveBalances. "Exclude" writes off a
+    // selection's outstanding debt (already-paid stays, open penalties no longer
+    // counted); "only" restricts everything to just the selected members. Guests
+    // are never part of the selectable filter, so guest data always passes through
+    // untouched. Only the Konten tab (whole-club per-account view) stays unfiltered.
     const effectiveBalances = balanceFilterIds.size === 0
         ? balances
         : balanceFilterMode === 'exclude'
             ? writeOffOutstandingDebt(balances, balanceFilterIds)
             : balances.filter(b => balanceFilterIds.has(b.regular_member_id))
 
+    // Derived overview stats — full money flow: paid-in → expenses → cash on
+    // hand, plus outstanding debt (members + guests) and the projected cash
+    // if everyone settled up. Kept in lib/treasurySummary.ts (pure, tested).
+    const summary = treasurySummary(effectiveBalances, guestBalances as Balance[], expenses as Expense[])
+    const totalExpenses = summary.expensesNet
+    const kassenstand = summary.cashOnHand
+
     // Per-click breakdowns for the Kassenstand hero rows — same source data,
     // just grouped/filtered per row instead of netted into a single figure.
-    const allBalancesForFlow = [...balances, ...(guestBalances as Balance[])] as Balance[]
+    const allBalancesForFlow = [...effectiveBalances, ...(guestBalances as Balance[])] as Balance[]
     const paidInBreakdown = allBalancesForFlow
         .filter(b => Math.abs(b.payments_total) > 0.001)
         .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: b.payments_total}))
@@ -865,9 +895,18 @@ export function TreasuryPage() {
         .sort((a, b) => a.balance - b.balance)
 
     // Balance-history graph events — Kasse: actual cash bookings + outstanding-debt overlay;
-    // Mitglied: actual payments + penalty overlay (payments minus penalties = true balance)
+    // Mitglied: actual payments + penalty overlay (payments minus penalties = true balance).
+    // The Kasse-scope "actual" line honors the balance filter's "only" mode (guests always
+    // pass through, since they're never part of the selectable filter); "exclude" leaves it
+    // untouched since money already received doesn't stop being real. The debt/projection
+    // overlay stays whole-club regardless — it's a single club-wide timeline from the backend,
+    // not attributable to individual members.
+    const guestIds = new Set((guestBalances as Balance[]).map(b => b.regular_member_id))
+    const filteredClubPayments = (balanceFilterIds.size > 0 && balanceFilterMode === 'only')
+        ? (allPayments as Payment[]).filter(p => guestIds.has(p.regular_member_id) || balanceFilterIds.has(p.regular_member_id))
+        : (allPayments as Payment[])
     const historyActualEvents = historyScope === 'club'
-        ? clubEventsFromBookings(allPayments as Payment[], expenses as Expense[])
+        ? clubEventsFromBookings(filteredClubPayments, expenses as Expense[])
         : memberPaymentEvents(historyMemberPayments as MemberPayment[])
     const historyOverlayEvents = historyScope === 'club'
         ? debtEventsFromTimeline(debtTimeline)
@@ -1046,116 +1085,7 @@ export function TreasuryPage() {
                         </div>
                     )}
 
-                    {/* Kassenstand hero — with explicit money-flow breakdown */}
-                    <div className="kce-card p-4 mb-3"
-                         style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰
-                                    {t('treasury.cashOnHand')}
-                                </div>
-                                <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fe(kassenstand)}</div>
-                                <div className="text-[10px] text-kce-muted mt-1">{t('treasury.cashOnHandHint')}</div>
-                            </div>
-                            <span className="text-4xl opacity-20">💰</span>
-                        </div>
-                        <div className="mt-3 pt-2 border-t border-kce-border flex flex-col gap-1 text-xs">
-                            <FlowRow
-                                icon="⬆" label={t('treasury.flow.paidIn')}
-                                amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
-                                open={flowDetail === 'paidIn'} onToggle={() => setFlowDetail(flowDetail === 'paidIn' ? null : 'paidIn')}
-                                items={paidInBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
-                            />
-                            <FlowRow
-                                icon="⬇" label={t('treasury.flow.expenses')}
-                                amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-orange-400"
-                                open={flowDetail === 'expenses'} onToggle={() => setFlowDetail(flowDetail === 'expenses' ? null : 'expenses')}
-                                items={expensesBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
-                            />
-                            {summary.otherIncome > 0 && (
-                                <FlowRow
-                                    icon="⬆" label={t('treasury.flow.otherIncome')}
-                                    amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-green-400"
-                                    open={flowDetail === 'otherIncome'} onToggle={() => setFlowDetail(flowDetail === 'otherIncome' ? null : 'otherIncome')}
-                                    items={otherIncomeBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
-                                />
-                            )}
-                            {summary.outstanding > 0 && (
-                                <>
-                                    <FlowRow
-                                        icon="🔴" label={t('treasury.flow.outstanding')}
-                                        amountLabel={fe(summary.outstanding)} colorClass="text-red-400"
-                                        open={flowDetail === 'outstanding'} onToggle={() => setFlowDetail(flowDetail === 'outstanding' ? null : 'outstanding')}
-                                        items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
-                                    />
-                                    <div className="flex items-center justify-between pt-1 border-t border-kce-border">
-                                        <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
-                                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(summary.projectedCash)}</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* How does the treasury work? — collapsible explainer */}
-                    <div className="kce-card mb-3 overflow-hidden">
-                        <button type="button" className="w-full p-3 flex items-center justify-between text-left"
-                                aria-expanded={showHelp}
-                                onClick={() => setShowHelp(v => !v)}>
-                            <span className="text-xs font-bold text-kce-muted">❓ {t('treasury.help.title')}</span>
-                            <span className="text-kce-muted text-xs">{showHelp ? '▲' : '▼'}</span>
-                        </button>
-                        {showHelp && (
-                            <ul className="px-3 pb-3 flex flex-col gap-1.5 text-xs text-kce-muted list-disc list-inside">
-                                <li>{t('treasury.help.penalties')}</li>
-                                <li>{t('treasury.help.payments')}</li>
-                                <li>{t('treasury.help.cash')}</li>
-                                <li>{t('treasury.help.credit')}</li>
-                            </ul>
-                        )}
-                    </div>
-
-                    {/* ── Balance-history graph ── */}
-                    <div className="kce-card p-3 mb-3">
-                        <div className="sec-heading mb-2">{t('treasury.history.heading')}</div>
-                        <ModeToggle
-                            options={[
-                                {value: 'club', label: `🏛️ ${t('treasury.history.scopeClub')}`},
-                                {value: 'member', label: `👤 ${t('treasury.history.scopeMember')}`},
-                            ]}
-                            value={historyScope}
-                            onChange={v => setHistoryScope(v as 'club' | 'member')}/>
-                        {historyScope === 'member' && allHistoryMembers.length > 0 && (
-                            <div className="flex gap-2 flex-wrap mt-2">
-                                {[...allHistoryMembers].sort((a, b) => {
-                                    if (a.regular_member_id === user?.regular_member_id) return -1
-                                    if (b.regular_member_id === user?.regular_member_id) return 1
-                                    return 0
-                                }).map(m => {
-                                    const isActive = effectiveHistoryMemberId === m.regular_member_id
-                                    const isMe = m.regular_member_id === user?.regular_member_id
-                                    return (
-                                        <button key={m.regular_member_id} type="button"
-                                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                                onClick={() => setHistoryMemberId(m.regular_member_id)}>
-                                            {m.nickname || m.name}
-                                            {isMe && <span className={`ml-1 text-[9px] font-bold ${isActive ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <BalanceHistoryChart
-                        key={historyScope === 'club' ? 'club' : `member-${effectiveHistoryMemberId}`}
-                        actualEvents={historyActualEvents}
-                        overlayEvents={historyOverlayEvents}
-                        actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
-                        virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
-                        t={t}/>
-
-                    {/* Nach Spielern filtern — collapsible, scopes the tiles/lists below to a selection of players */}
+                    {/* Nach Spielern filtern — collapsible, scopes the Kassenstand hero, den Verlauf-Graph (Kasse-Modus) und die Offen/Guthaben-Kacheln/Listen unten auf eine Auswahl von Mitgliedern */}
                     <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
                         <button type="button" className="w-full p-3 flex items-center justify-between text-left"
                                 aria-expanded={showBalanceFilter}
@@ -1201,6 +1131,119 @@ export function TreasuryPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Kassenstand hero — with explicit money-flow breakdown */}
+                    <div className="kce-card p-4 mb-3"
+                         style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">💰
+                                    {t('treasury.cashOnHand')}
+                                </div>
+                                <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fe(kassenstand)}</div>
+                                <div className="text-[10px] text-kce-muted mt-1">{t('treasury.cashOnHandHint')}</div>
+                            </div>
+                            <span className="text-4xl opacity-20">💰</span>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-kce-border flex flex-col gap-1 text-xs">
+                            <FlowRow
+                                icon="⬆" label={t('treasury.flow.paidIn')}
+                                amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
+                                open={flowDetail === 'paidIn'} onToggle={() => setFlowDetail(flowDetail === 'paidIn' ? null : 'paidIn')}
+                                items={paidInBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
+                                testId="flow-amount-paidIn"
+                            />
+                            <FlowRow
+                                icon="⬇" label={t('treasury.flow.expenses')}
+                                amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-orange-400"
+                                open={flowDetail === 'expenses'} onToggle={() => setFlowDetail(flowDetail === 'expenses' ? null : 'expenses')}
+                                items={expensesBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
+                                testId="flow-amount-expenses"
+                            />
+                            {summary.otherIncome > 0 && (
+                                <FlowRow
+                                    icon="⬆" label={t('treasury.flow.otherIncome')}
+                                    amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-green-400"
+                                    open={flowDetail === 'otherIncome'} onToggle={() => setFlowDetail(flowDetail === 'otherIncome' ? null : 'otherIncome')}
+                                    items={otherIncomeBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
+                                    testId="flow-amount-otherIncome"
+                                />
+                            )}
+                            {summary.outstanding > 0 && (
+                                <>
+                                    <FlowRow
+                                        icon="🔴" label={t('treasury.flow.outstanding')}
+                                        amountLabel={fe(summary.outstanding)} colorClass="text-red-400"
+                                        open={flowDetail === 'outstanding'} onToggle={() => setFlowDetail(flowDetail === 'outstanding' ? null : 'outstanding')}
+                                        items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
+                                        testId="flow-amount-outstanding"
+                                    />
+                                    <div className="flex items-center justify-between pt-1 border-t border-kce-border">
+                                        <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
+                                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(summary.projectedCash)}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* How does the treasury work? — tucked away inside the hero, less prominent than a standalone card */}
+                        <div className="mt-2 pt-2 border-t border-kce-border">
+                            <button type="button" className="w-full flex items-center justify-between text-left"
+                                    aria-expanded={showHelp}
+                                    onClick={() => setShowHelp(v => !v)}>
+                                <span className="text-[10px] text-kce-muted">❓ {t('treasury.help.title')}</span>
+                                <span className="text-kce-muted text-[10px]">{showHelp ? '▲' : '▼'}</span>
+                            </button>
+                            {showHelp && (
+                                <ul className="pt-1.5 flex flex-col gap-1 text-[10px] text-kce-muted list-disc list-inside">
+                                    <li>{t('treasury.help.penalties')}</li>
+                                    <li>{t('treasury.help.payments')}</li>
+                                    <li>{t('treasury.help.cash')}</li>
+                                    <li>{t('treasury.help.credit')}</li>
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── Balance-history graph ── */}
+                    <div className="kce-card p-3 mb-3">
+                        <div className="sec-heading mb-2">{t('treasury.history.heading')}</div>
+                        <ModeToggle
+                            options={[
+                                {value: 'club', label: `🏛️ ${t('treasury.history.scopeClub')}`},
+                                {value: 'member', label: `👤 ${t('treasury.history.scopeMember')}`},
+                            ]}
+                            value={historyScope}
+                            onChange={v => setHistoryScope(v as 'club' | 'member')}/>
+                        {historyScope === 'member' && allHistoryMembers.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mt-2">
+                                {[...allHistoryMembers].sort((a, b) => {
+                                    if (a.regular_member_id === user?.regular_member_id) return -1
+                                    if (b.regular_member_id === user?.regular_member_id) return 1
+                                    return 0
+                                }).map(m => {
+                                    const isActive = effectiveHistoryMemberId === m.regular_member_id
+                                    const isMe = m.regular_member_id === user?.regular_member_id
+                                    return (
+                                        <button key={m.regular_member_id} type="button"
+                                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                                onClick={() => setHistoryMemberId(m.regular_member_id)}>
+                                            {m.nickname || m.name}
+                                            {isMe && <span className={`ml-1 text-[9px] font-bold ${isActive ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <BalanceHistoryChart
+                        key={historyScope === 'club' ? 'club' : `member-${effectiveHistoryMemberId}`}
+                        actualEvents={historyActualEvents}
+                        overlayEvents={historyOverlayEvents}
+                        actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
+                        virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
+                        t={t}/>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">

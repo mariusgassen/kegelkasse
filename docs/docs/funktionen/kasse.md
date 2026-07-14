@@ -35,6 +35,18 @@ Ganz oben steht dein eigenes Konto:
 - Ein **Fortschrittsbalken** zeigt, welcher Anteil deiner Strafen bereits bezahlt ist
 - Bei offenem Betrag (und hinterlegtem PayPal-Handle): direkt **Jetzt zahlen** (PayPal) oder **Zahlung melden**
 
+### Nach Spielern filtern
+
+Direkt unter „Mein Konto" — noch vor der Kassenstand-Karte — lässt sich **🔍 Nach Spielern filtern** aufklappen:
+
+1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
+2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
+3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
+   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
+   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
+
+Der Filter steht bewusst **vor** allem, was er beeinflusst — er wirkt **global auf die gesamte Übersicht darunter**: die Kassenstand-Karte (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion), die „Offen & Guthaben"-Kacheln und -Listen weiter unten, sowie — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im 📈 Verlauf-Graph. „Mein Konto" darüber bleibt davon unberührt (es zeigt immer dein eigenes, ungefiltertes Konto). Gäste sind nie Teil der Auswahl und bleiben davon unberührt. Ausgenommen bleiben die Vereinsausgaben (nicht mitgliedsgebunden), die „Inkl. Schulden"-Verlaufslinie (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt) und der **Konten**-Tab (immer vollständige Vereinsübersicht).
+
 ### Kassenstand mit Geldfluss
 
 Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zustande kommt:
@@ -54,25 +66,13 @@ Jede Zeile lässt sich **antippen**, um die zugrunde liegenden Buchungen aufzukl
 
 ### Wie funktioniert die Kasse?
 
-Direkt unter dem Kassenstand erklärt eine aufklappbare Karte (❓) das Modell in vier Sätzen: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
+Am unteren Rand der Kassenstand-Karte lässt sich **❓ Wie funktioniert die Kasse?** aufklappen — eine unauffällige, kleingedruckte Zeile statt einer eigenen Karte, die das Modell in vier Sätzen erklärt: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
 
 ### Offen & Guthaben
 
 Darunter folgen zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und den Fortschrittsbalken (bezahlter Anteil der Strafen) — so ist sofort greifbar, wie weit jedes Konto vom Ausgleich entfernt ist.
 
 Mitglieder mit exakt ausgeglichenem Saldo (weder Schuld noch Guthaben) erscheinen nicht als eigene Zeile, sondern als **„+ N ausgeglichen"**-Zeile darunter. Antippen klappt eine Pille-Liste der betroffenen Mitglieder auf (eigenes Konto zuerst, **Ich**-Badge) — vorher war diese Zahl nicht aufklappbar und man musste in den **Konten**-Tab wechseln, um zu sehen, wer damit gemeint ist.
-
-### Nach Spielern filtern
-
-Direkt über den beiden Kennzahl-Karten lässt sich **🔍 Nach Spielern filtern** aufklappen. Damit lassen sich die Summen und Listen darunter auf eine Auswahl von Mitgliedern eingrenzen — z. B. um zu sehen, wie der offene Betrag ohne bestimmte Spieler aussähe (etwa wenn diese den Verein bald verlassen könnten):
-
-1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
-2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
-3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
-   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
-   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
-
-Der Filter wirkt nur auf die „Offen & Guthaben"-Kacheln und -Listen in der Übersicht — der Kassenstand oben (echtes Geld in der Kasse) und der Konten-Tab bleiben unverändert.
 
 ---
 
@@ -116,6 +116,7 @@ In der **Übersicht** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als
   - **Mitglied:** „Eingezahlt" (durchgezogen) — die Summe der tatsächlich geleisteten Zahlungen; „Saldo" (gestrichelt) — der Kontostand nach Abzug der verbuchten Strafen. Vorher hießen beide Linien in der Mitglied-Ansicht „Tatsächlich"/„Inkl. Strafen", was ohne Kasse-Kontext wenig aussagekräftig war.
 - Die kumulative Kurve ist durchgehend: Blättern zwischen Monaten/Jahren setzt den Saldo nie auf Null zurück.
 - **Punkte antippen** zeigt Datum, Art (💰 Zahlung, 💸 Ausgabe, ⚠️ Strafe) und Betrag der zugrunde liegenden Buchung, sowie darunter den daraus resultierenden Saldo (beide Linien jeweils kumulativ). Schulden-Stützpunkte sind reine Hintergrund-Information und nicht antippbar.
+- **Geclusterte Punkte:** Fallen mehrere Buchungen auf denselben Zeitbucket (z. B. zwei Zahlungen am selben Kegelabend in der Monats-Ansicht), verschmelzen sie zu **einem** Punkt (mit „×N"-Markierung) statt sich als übereinanderliegende, gegenseitig blockierende Kreise darzustellen, von denen vorher nur der oberste antippbar war. Antippen zeigt alle zugrunde liegenden Buchungen des Buckets untereinander in der Detailansicht.
 
 ---
 
