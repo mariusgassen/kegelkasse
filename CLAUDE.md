@@ -165,10 +165,12 @@ service worker + IndexedDB for offline support.
   `MAJOR` for breaking changes, `MINOR` for new features, `PATCH` for bug-fixes. Never edit the displayed version
   elsewhere — always update `frontend/package.json` as the single source of truth.
 - **Linting & build:** CI (`frontend-build.yml`, `backend-build.yml`) already runs `npm run lint`, `npm run build`,
-  and `poetry run ruff check .` on every push and PR — don't re-run the full build/lint locally before every push just
-  to duplicate that gate. Do run them locally when actively iterating on a change they'd likely catch (e.g. touching
-  many files, renaming types, or reworking imports), or to get faster feedback than waiting on CI. Fix any errors
-  before pushing regardless of whether you ran the check locally or saw it fail in CI.
+  and `poetry run ruff check .` on every push and PR. For a minor/small change (one or two files, no renamed types or
+  reworked imports), skip the local full lint/build entirely and let CI be the gate — subscribe to the PR
+  (`subscribe_pr_activity`) and watch the check runs instead of re-running them yourself. Only run them locally when
+  actively iterating on a change they'd likely catch (touching many files, renaming types, reworking imports) or to
+  get faster feedback than waiting on CI on a genuinely broad change. Fix any errors before the PR is mergeable
+  regardless of whether you caught them locally or via CI.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Dependency freshness:** Always keep dependencies at their latest compatible versions. When Dependabot opens PRs,
@@ -207,10 +209,14 @@ service worker + IndexedDB for offline support.
     sibling directory. Stubs/mocks go in `beforeEach`; always restore with `vi.unstubAllGlobals()` or `afterEach`.
     Page-level UI is lower priority but must be added when feasible.
   - **Run tests before committing:** CI (`backend-tests.yml`, `frontend-tests.yml`) already runs the full pytest and
-    Vitest suites on every push and PR, so don't re-run the entire suite locally as a pre-push ritual. Do run the
-    tests relevant to what you changed (e.g. `poetry run pytest tests/test_<module>.py` or `npx vitest run <file>`)
-    before committing, and run the full suite locally when a change is broad or you suspect cross-file breakage. Never
-    knowingly push code you expect to fail CI — if in doubt, run it.
+    Vitest suites on every push and PR, so don't re-run the entire suite locally as a pre-push ritual — that's
+    CI's job, not a local checklist item. For a minor/small change, run only the test file(s) touching what you
+    changed (e.g. `poetry run pytest tests/test_<module>.py` or `npx vitest run <file>`) before committing, then
+    push and watch CI (`subscribe_pr_activity` on the PR) rather than also running the full suite locally
+    afterwards. Run the full suite locally only when a change is broad, touches shared/cross-cutting code, or you
+    have concrete reason to suspect cross-file breakage the targeted tests wouldn't catch. Never knowingly push code
+    you expect to fail CI — if in doubt about a specific risk, test that risk locally rather than defaulting to a
+    full run.
 
 ## Deployment
 
