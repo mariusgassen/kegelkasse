@@ -399,6 +399,7 @@ export function TreasuryPage() {
 
     const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
     const [showHelp, setShowHelp] = useState(false)
+    const [showExportSheet, setShowExportSheet] = useState(false)
     const [showAccountsChart, setShowAccountsChart] = useState(false)
     const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
     const [showSettled, setShowSettled] = useState(false)
@@ -538,6 +539,7 @@ export function TreasuryPage() {
         try {
             await api.downloadReport(exportYear ?? undefined, exportFormat)
             showToast(t('report.downloaded'))
+            setShowExportSheet(false)
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -915,36 +917,17 @@ export function TreasuryPage() {
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
-            <div className="sec-heading">💰 {t('nav.treasury')}</div>
-
-            {/* Export row — admin only */}
-            {admin && (
-                <div className="flex items-center gap-2 mb-3">
-                    <select
-                        value={exportYear ?? ''}
-                        onChange={e => setExportYear(e.target.value ? parseInt(e.target.value, 10) : null)}
-                        className="flex-1 bg-kce-surface2 border border-kce-border rounded-lg px-2 py-1.5 text-xs text-kce-text">
-                        <option value="">{t('report.yearAll')}</option>
-                        {Array.from({length: 5}, (_, i) => currentYear - i).map(y => (
-                            <option key={y} value={y}>{y}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={exportFormat}
-                        onChange={e => setExportFormat(e.target.value as 'xlsx' | 'pdf')}
-                        className="w-20 bg-kce-surface2 border border-kce-border rounded-lg px-2 py-1.5 text-xs text-kce-text">
-                        <option value="xlsx">Excel</option>
-                        <option value="pdf">PDF</option>
-                    </select>
+            <div className="flex items-center justify-between mb-3">
+                <div className="sec-heading mb-0">💰 {t('nav.treasury')}</div>
+                {admin && (
                     <button
                         type="button"
-                        disabled={exporting}
-                        onClick={downloadReport}
-                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-kce-surface2 text-kce-muted hover:bg-kce-surface transition-all disabled:opacity-50">
-                        {exporting ? t('report.downloading') : t('report.export')}
+                        onClick={() => setShowExportSheet(true)}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-kce-surface2 text-kce-muted hover:bg-kce-surface transition-all">
+                        {t('report.export')}
                     </button>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Tab strip */}
             <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
@@ -2059,6 +2042,38 @@ export function TreasuryPage() {
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingBooking || !bookingValid}>
                         ✓ {t('action.save')}
+                    </button>
+                </div>
+            </Sheet>
+
+            {/* Export sheet — admin only */}
+            <Sheet open={showExportSheet} onClose={() => setShowExportSheet(false)}
+                   title={`📊 ${t('report.export')}`} onSubmit={downloadReport}>
+                <div className="flex flex-col gap-3">
+                    <div>
+                        <label className="field-label">{t('report.year')}</label>
+                        <select
+                            value={exportYear ?? ''}
+                            onChange={e => setExportYear(e.target.value ? parseInt(e.target.value, 10) : null)}
+                            className="kce-input">
+                            <option value="">{t('report.yearAll')}</option>
+                            {Array.from({length: 5}, (_, i) => currentYear - i).map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('report.format')}</label>
+                        <select
+                            value={exportFormat}
+                            onChange={e => setExportFormat(e.target.value as 'xlsx' | 'pdf')}
+                            className="kce-input">
+                            <option value="xlsx">Excel</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                    <button type="submit" className="btn-primary w-full" disabled={exporting}>
+                        {exporting ? t('report.downloading') : t('report.download')}
                     </button>
                 </div>
             </Sheet>
