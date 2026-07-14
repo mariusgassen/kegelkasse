@@ -43,6 +43,7 @@ vi.mock('@/api/client.ts', () => ({
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
+vi.mock('@/components/ui/Toast', () => ({ showToast: vi.fn() }))
 vi.mock('@/lib/turnOrder.ts', () => ({
     buildTurnOrder: vi.fn(() => []),
 }))
@@ -845,6 +846,48 @@ describe('TabletQuickEntryPage — new game auto-start', () => {
     })
 })
 
+describe('TabletQuickEntryPage — new game auto-start blocked for team template without teams', () => {
+    const TEAM_GAME_TEMPLATE = {
+        id: 6, name: 'Teamspiel', is_opener: false, winner_type: 'team',
+        turn_mode: 'block', default_loser_penalty: 2.00, per_point_penalty: 0,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, teams: [], games: [] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [TEAM_GAME_TEMPLATE], regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addGame).mockResolvedValue({ id: 100, name: 'Teamspiel' } as any)
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+    })
+
+    it('creates the game but does not auto-start it, showing a toast instead', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.newGame/))
+        await waitFor(() => screen.getByText('Teamspiel'))
+        fireEvent.click(screen.getByText('Teamspiel'))
+        await waitFor(() => {
+            expect(api.addGame).toHaveBeenCalledWith(42, expect.objectContaining({
+                name: 'Teamspiel',
+                template_id: 6,
+            }))
+            expect(showToast).toHaveBeenCalledWith('game.teamsRequired', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
+    })
+})
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Throw strip
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1020,5 +1063,50 @@ describe('TabletQuickEntryPage — start game', () => {
         await waitFor(() => {
             expect(api.startGame).toHaveBeenCalledWith(42, 3)
         })
+    })
+})
+
+describe('TabletQuickEntryPage — start game blocked without teams', () => {
+    const OPEN_TEAM_GAME = {
+        id: 4, name: 'Mannschaftsspiel', status: 'open', is_opener: false,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 0,
+        per_point_penalty: 0, winner_type: 'team', turn_mode: 'block',
+        started_at: null, finished_at: null,
+        note: '', is_deleted: false, game_players: [], throws: [], active_player_id: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        // No teams on the evening — team game must not be startable
+        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_TEAM_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithOpenTeamGame as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+    })
+
+    it('shows the teams-required warning banner', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('game.teamsRequired')).toBeInTheDocument()
+    })
+
+    it('does not call api.startGame and shows a toast when start button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('game.teamsRequired', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
     })
 })

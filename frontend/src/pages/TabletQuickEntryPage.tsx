@@ -14,6 +14,7 @@ import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
+import {showToast} from '@/components/ui/Toast'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 
@@ -323,6 +324,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     async function handleStartGame() {
         if (!activeGame || activeGame.status !== 'open' || !evening) return
+        if (activeGame.winner_type === 'team' && teams.length === 0) {
+            showToast(t('game.teamsRequired'), 'error')
+            return
+        }
         try {
             await api.startGame(evening.id, activeGame.id)
             invalidate()
@@ -344,7 +349,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 per_point_penalty: tmpl.per_point_penalty,
                 client_timestamp: Date.now(),
             })
-            await api.startGame(eveningId, game.id)
+            if (tmpl.winner_type === 'team' && teams.length === 0) {
+                showToast(t('game.teamsRequired'), 'error')
+            } else {
+                await api.startGame(eveningId, game.id)
+            }
             invalidate()
             setShowNewGame(false)
         } catch (e: unknown) {
@@ -606,8 +615,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     )}
                 </div>
 
-                {/* Teams required warning — block mode without teams */}
-                {activeGame?.turn_mode === 'block' && teams.length === 0 && (
+                {/* Teams required warning — team games without teams */}
+                {activeGame?.winner_type === 'team' && teams.length === 0 && (
                     <div style={{
                         marginTop: 6, padding: '4px 8px',
                         background: 'rgba(239,68,68,0.1)',
