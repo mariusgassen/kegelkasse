@@ -124,6 +124,19 @@ async function renderMembersPage() {
     return render(<MembersPage />, { wrapper })
 }
 
+// Row actions are now behind a tap-to-open action sheet (icon + label list)
+// instead of inline per-row buttons — this opens that sheet for a given
+// member/user display name and returns it.
+async function openRowActions(name: string) {
+    await screen.findByLabelText(`member.actionsFor ${name}`)
+    // Re-query right before clicking — a pending query (pins/appUsers) can settle and
+    // re-render between the await above and this line, replacing the DOM node found by
+    // findByLabelText; clicking a stale, detached reference silently does nothing.
+    fireEvent.click(screen.getByLabelText(`member.actionsFor ${name}`))
+    await waitFor(() => screen.getByTestId('sheet'))
+    return screen.getByTestId('sheet')
+}
+
 async function setupAdmin(members = REGULAR_MEMBERS) {
     const { isAdmin, useAppStore } = await import('@/store/app.ts')
     const { api } = await import('@/api/client.ts')
@@ -342,12 +355,12 @@ describe('MembersPage — edit member from app user row', () => {
         vi.clearAllMocks()
     })
 
-    it('opens edit sheet when ✏️ clicked on app user row', async () => {
+    it('opens edit sheet when edit action clicked on app user row', async () => {
         await setupAdmin()
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('✏️'))
-        // First ✏️ is on the app user row (Admin User → linked to Hansi)
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        // Admin User (self) → linked to Hansi, shown first
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('action.edit'))
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -356,8 +369,8 @@ describe('MembersPage — edit member from app user row', () => {
     it('shows member name in edit sheet', async () => {
         await setupAdmin()
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('✏️'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('action.edit'))
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toBeInTheDocument()
         })
@@ -368,8 +381,8 @@ describe('MembersPage — edit member from app user row', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateRegularMember).mockResolvedValueOnce({ id: 1, name: 'Hansi Updated', nickname: 'Hansi', is_guest: false } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('✏️'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('action.edit'))
         await waitFor(() => screen.getByTestId('sheet'))
         // Change the name field
         const inputs = screen.getAllByRole('textbox')
@@ -408,24 +421,23 @@ describe('MembersPage — unlinked roster member', () => {
         })
     })
 
-    it('shows ✏️ edit button for unlinked roster member', async () => {
+    it('shows an edit action for unlinked roster member', async () => {
         await setupWithUnlinked()
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('✏️'))
-        expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
+        const actionSheet = await openRowActions('Klauschen')
+        expect(within(actionSheet).getByText('action.edit')).toBeInTheDocument()
     })
 
-    it('calls api.deleteRegularMember when degrade button clicked on roster member (via confirmation sheet)', async () => {
+    it('calls api.deleteRegularMember when degrade action clicked on roster member (via confirmation sheet)', async () => {
         await setupWithUnlinked()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Klauschen'))
-        // Roster member degrade-to-guest button is subtle (⬇️, not a destructive ✕) and opens a confirmation sheet
-        const degradeBtns = screen.getAllByTitle('member.removeFromClub')
-        fireEvent.click(degradeBtns[degradeBtns.length - 1])
+        // Roster member degrade-to-guest action is subtle (⬇️, not a destructive ✕) and opens a confirmation sheet
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.removeFromClub'))
         // Confirm via the remove button in the confirmation sheet (i18n returns key)
-        await waitFor(() => screen.getByText('member.removeFromClub'))
+        await waitFor(() => screen.getByText('member.removeConfirm'))
         fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => {
             expect(api.deleteRegularMember).toHaveBeenCalledWith(4)
@@ -459,19 +471,18 @@ describe('MembersPage — unlinked app user', () => {
         })
     })
 
-    it('shows 🔗 link button for unlinked app user', async () => {
+    it('shows 🔗 link action for unlinked app user', async () => {
         await setupWithUnlinkedUser()
         await renderMembersPage()
-        await waitFor(() => {
-            expect(screen.getByText('🔗')).toBeInTheDocument()
-        })
+        const actionSheet = await openRowActions('No Roster User')
+        expect(within(actionSheet).getByText('🔗')).toBeInTheDocument()
     })
 
-    it('opens link sheet when 🔗 clicked', async () => {
+    it('opens link sheet when 🔗 action clicked', async () => {
         await setupWithUnlinkedUser()
         await renderMembersPage()
-        await waitFor(() => screen.getByText('🔗'))
-        fireEvent.click(screen.getByText('🔗'))
+        const actionSheet = await openRowActions('No Roster User')
+        fireEvent.click(within(actionSheet).getByText('🔗'))
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -535,38 +546,34 @@ describe('MembersPage — role toggle and deactivate', () => {
         vi.clearAllMocks()
     })
 
-    it('shows role toggle button (↑/↓) for non-self admin users', async () => {
+    it('shows role toggle action (↑/↓) for non-self admin users', async () => {
         await setupAdmin()
         await renderMembersPage()
-        await waitFor(() => {
-            // Franz Schmidt is member (id=11), current user is id=10
-            // So ↑ should be shown for Franz
-            expect(screen.getByText('↑')).toBeInTheDocument()
-        })
+        // Franz Schmidt is member (id=11), current user is id=10 → ↑ should be offered for Franz
+        const actionSheet = await openRowActions('Franz Schmidt')
+        expect(within(actionSheet).getByText('↑')).toBeInTheDocument()
     })
 
-    it('calls api.updateMemberRole when ↑ clicked', async () => {
+    it('calls api.updateMemberRole when ↑ action clicked', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateMemberRole).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('↑'))
-        fireEvent.click(screen.getByText('↑'))
+        const actionSheet = await openRowActions('Franz Schmidt')
+        fireEvent.click(within(actionSheet).getByText('↑'))
         await waitFor(() => {
             expect(api.updateMemberRole).toHaveBeenCalledWith(11, 'admin')
         })
     })
 
-    it('calls api.deactivateMember when ✕ clicked on other user', async () => {
+    it('calls api.deactivateMember when deactivate action clicked on other user', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deactivateMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        // App user ✕ is only for non-self users (not Franz since he is different from admin)
-        // Franz Schmidt (id=11) has ✕ button
-        await waitFor(() => screen.getAllByText('✕'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        // Deactivate action is only offered for non-self users — Franz Schmidt (id=11)
+        const actionSheet = await openRowActions('Franz Schmidt')
+        fireEvent.click(within(actionSheet).getByText('✕'))
         await waitFor(() => {
             expect(api.deactivateMember).toHaveBeenCalledWith(11)
         })
@@ -649,8 +656,8 @@ describe('MembersPage — guest members actions', () => {
             { regular_member_id: 2, name: 'Franz Schmidt', nickname: null, payments_total: 20, penalty_total: 60, balance: -40 },
         ] as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Gast Franz'))
-        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        const actionSheet = await openRowActions('Gast Franz')
+        fireEvent.click(within(actionSheet).getByText('member.reactivateRoster'))
         await waitFor(() => screen.getByText('member.promoteConfirm'))
         // treasury = 60 + (-40) = 20, x = 2 existing members → 10.00 entry fee
         const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
@@ -665,13 +672,12 @@ describe('MembersPage — guest members actions', () => {
         ] as any)
         vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Gast Franz'))
-        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        const actionSheet = await openRowActions('Gast Franz')
+        fireEvent.click(within(actionSheet).getByText('member.reactivateRoster'))
         await waitFor(() => screen.getByText('member.promoteConfirm'))
         const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
         await waitFor(() => expect(input.value).toBe('100.00'))
-        const confirmBtns = screen.getAllByText('member.reactivateRoster')
-        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
         await waitFor(() => {
             expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
             expect(api.createMemberPayment).toHaveBeenCalledWith({
@@ -690,14 +696,13 @@ describe('MembersPage — guest members actions', () => {
         ] as any)
         vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Gast Franz'))
-        fireEvent.click(screen.getByText('member.reactivateRoster'))
+        const actionSheet = await openRowActions('Gast Franz')
+        fireEvent.click(within(actionSheet).getByText('member.reactivateRoster'))
         await waitFor(() => screen.getByText('member.promoteConfirm'))
         const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
         await waitFor(() => expect(input.value).toBe('100.00'))
         fireEvent.change(input, { target: { value: '' } })
-        const confirmBtns = screen.getAllByText('member.reactivateRoster')
-        fireEvent.click(confirmBtns[confirmBtns.length - 1])
+        fireEvent.click(screen.getByText('member.reactivateRoster'))
         await waitFor(() => {
             expect(api.reactivateRegularMember).toHaveBeenCalledWith(3)
         })
@@ -743,13 +748,13 @@ describe('MembersPage — reset password sheet', () => {
         vi.clearAllMocks()
     })
 
-    it('opens reset sheet when 🔑 clicked', async () => {
+    it('opens reset sheet when 🔑 action clicked', async () => {
         await setupAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=abc', username: 'admin' } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('🔑'))
-        fireEvent.click(screen.getAllByText('🔑')[0])
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('🔑'))
         await waitFor(() => {
             expect(api.createResetToken).toHaveBeenCalled()
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
@@ -761,9 +766,8 @@ describe('MembersPage — reset password sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=xyz', username: 'franz' } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('🔑'))
-        // Admin (self) is sorted first, so Franz Schmidt (id=11) is the second 🔑 button
-        fireEvent.click(screen.getAllByText('🔑')[1])
+        const actionSheet = await openRowActions('Franz Schmidt')
+        fireEvent.click(within(actionSheet).getByText('🔑'))
         await waitFor(() => {
             expect(api.createResetToken).toHaveBeenCalledWith(11)
         })
@@ -788,17 +792,15 @@ describe('MembersPage — roster member invite', () => {
         } as any)
     }
 
-    it('opens invite sheet when 📨 clicked on roster member', async () => {
+    it('opens invite sheet when 📨 action clicked on roster member', async () => {
         await setupWithUnlinkedMember()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createMemberInvite).mockResolvedValueOnce({
             invite_url: '/auth/register?token=tok', member_name: 'Klauschen',
         } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Klauschen'))
-        // 📨 buttons are in the unlinked roster section
-        const invBtns = screen.getAllByText('📨')
-        fireEvent.click(invBtns[invBtns.length - 1])
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('📨'))
         await waitFor(() => {
             expect(api.createMemberInvite).toHaveBeenCalledWith(4)
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
@@ -887,8 +889,8 @@ describe('MembersPage — link sheet with available members', () => {
         vi.mocked(api.listRegularMembers).mockResolvedValueOnce(REGULAR_MEMBERS as any)
 
         await renderMembersPage()
-        await waitFor(() => screen.getByText('🔗'))
-        fireEvent.click(screen.getByText('🔗'))
+        const actionSheetEl = await openRowActions('No Roster User')
+        fireEvent.click(within(actionSheetEl).getByText('🔗'))
         await waitFor(() => screen.getByTestId('sheet'))
 
         // Inside link sheet, unlinked members from REGULAR_MEMBERS that are not linked to anyone
@@ -924,8 +926,8 @@ describe('MembersPage — merge sheet', () => {
             setRegularMembers: vi.fn(),
         } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('⇄'))
-        fireEvent.click(screen.getAllByText('⇄')[0])
+        const actionSheetEl = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheetEl).getByText('⇄'))
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -946,9 +948,9 @@ describe('MembersPage — merge sheet', () => {
         vi.mocked(api.listRegularMembers).mockResolvedValueOnce(REGULAR_MEMBERS as any)
 
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('⇄'))
-        // Click ⇄ on Klaus (id=4), which is the only unlinked roster member
-        fireEvent.click(screen.getAllByText('⇄')[0])
+        // Klaus (id=4) is the only unlinked roster member
+        const actionSheetEl = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheetEl).getByText('⇄'))
         await waitFor(() => screen.getByTestId('sheet'))
 
         // Inside merge sheet, regularMembers excluding mergeDiscard (Klaus=4) are shown
@@ -1036,9 +1038,8 @@ describe('MembersPage — invite sheet URL display', () => {
             invite_url: '/invite/abc123', member_name: 'Klauschen'
         } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Klauschen'))
-        const inviteButtons = screen.getAllByText('📨')
-        fireEvent.click(inviteButtons[inviteButtons.length - 1])
+        const actionSheetEl = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheetEl).getByText('📨'))
         await waitFor(() => screen.getByText(/invite\/abc123/))
         expect(screen.getByText(/invite\/abc123/)).toBeInTheDocument()
     })
@@ -1050,9 +1051,8 @@ describe('MembersPage — invite sheet URL display', () => {
             invite_url: '/invite/xyz789', member_name: 'Klauschen'
         } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Klauschen'))
-        const inviteButtons = screen.getAllByText('📨')
-        fireEvent.click(inviteButtons[inviteButtons.length - 1])
+        const actionSheetEl = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheetEl).getByText('📨'))
         await waitFor(() => screen.getByText(/club\.invite\.copy/))
         expect(screen.getByText(/club\.invite\.copy/)).toBeInTheDocument()
     })
@@ -1072,9 +1072,8 @@ describe('MembersPage — reset sheet URL display', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/reset/token123' } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('🔑'))
-        const resetButtons = screen.getAllByText('🔑')
-        fireEvent.click(resetButtons[0])
+        const actionSheetEl = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheetEl).getByText('🔑'))
         await waitFor(() => screen.getByText(/reset\/token123/))
         expect(screen.getByText(/reset\/token123/)).toBeInTheDocument()
     })
@@ -1089,7 +1088,7 @@ describe('MembersPage — addToEvening button', () => {
         vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
     })
 
-    it('shows add to evening button when an evening is active and open', async () => {
+    it('shows add to evening action when an evening is active and open', async () => {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
         vi.mocked(useActiveEvening).mockReturnValue({
             evening: { id: 42, is_closed: false, players: [] },
@@ -1097,11 +1096,12 @@ describe('MembersPage — addToEvening button', () => {
         } as any)
         await setupAdmin()
         await renderMembersPage()
-        await waitFor(() => screen.getByText(/member\.addToEvening/))
-        expect(screen.getByText(/member\.addToEvening/)).toBeInTheDocument()
+        // Default roster is fully linked to app users — only the guest row offers add-to-evening
+        const actionSheet = await openRowActions('Gast Franz')
+        expect(within(actionSheet).getByText(/member\.addToEvening/)).toBeInTheDocument()
     })
 
-    it('calls api.addPlayer when add to evening button clicked', async () => {
+    it('calls api.addPlayer when add to evening action clicked', async () => {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
         vi.mocked(useActiveEvening).mockReturnValue({
             evening: { id: 42, is_closed: false, players: [] },
@@ -1111,9 +1111,8 @@ describe('MembersPage — addToEvening button', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.addPlayer).mockResolvedValueOnce(undefined as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText(/member\.addToEvening/))
-        const addButtons = screen.getAllByText(/member\.addToEvening/)
-        fireEvent.click(addButtons[0])
+        const actionSheet = await openRowActions('Gast Franz')
+        fireEvent.click(within(actionSheet).getByText(/member\.addToEvening/))
         await waitFor(() => expect(api.addPlayer).toHaveBeenCalledWith(42, expect.any(Object)))
     })
 })
@@ -1143,10 +1142,9 @@ describe('MembersPage — deactivate member', () => {
         vi.mocked(api.deactivateMember).mockResolvedValueOnce(undefined as any)
         vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
         await renderMembersPage()
-        // The deactivate button is ✕ with title="Deaktivieren" for non-self users
-        await waitFor(() => screen.getAllByTitle('Deaktivieren'))
-        const deactivateBtn = screen.getAllByTitle('Deaktivieren')[0]
-        fireEvent.click(deactivateBtn)
+        // The deactivate action is offered for non-self users — Franz Schmidt (id=11)
+        const actionSheet = await openRowActions('Franz Schmidt')
+        fireEvent.click(within(actionSheet).getByText('member.action.deactivate'))
         await waitFor(() => expect(api.deactivateMember).toHaveBeenCalled())
     })
 })
@@ -1194,11 +1192,10 @@ describe('MembersPage — error handlers', () => {
         } as any)
         vi.mocked(api.deleteRegularMember).mockRejectedValueOnce(new Error('delete fail'))
         await renderMembersPage()
-        await waitFor(() => screen.getByText('Klauschen'))
-        // Roster member degrade-to-guest button is subtle (⬇️) and opens a confirmation sheet
-        const degradeBtns = screen.getAllByTitle('member.removeFromClub')
-        fireEvent.click(degradeBtns[degradeBtns.length - 1])
-        await waitFor(() => screen.getByText('member.removeFromClub'))
+        // Roster member degrade-to-guest action is subtle (⬇️) and opens a confirmation sheet
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.removeFromClub'))
+        await waitFor(() => screen.getByText('member.removeConfirm'))
         fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
@@ -1208,8 +1205,8 @@ describe('MembersPage — error handlers', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.createResetToken).mockRejectedValueOnce(new Error('reset fail'))
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('🔑'))
-        fireEvent.click(screen.getAllByText('🔑')[0])
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('🔑'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
@@ -1225,11 +1222,8 @@ describe('MembersPage — error handlers', () => {
             setRegularMembers: vi.fn(),
         } as any)
         await renderMembersPage()
-        // 📨 buttons appear in unlinked roster section
-        await waitFor(() => screen.getAllByText('📨'))
-        const inviteBtns = screen.getAllByText('📨')
-        // Last button is in the roster section (not the general invite at the top)
-        fireEvent.click(inviteBtns[inviteBtns.length - 1])
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('📨'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
@@ -1238,8 +1232,8 @@ describe('MembersPage — error handlers', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.deactivateMember).mockRejectedValueOnce(new Error('deactivate fail'))
         await renderMembersPage()
-        await waitFor(() => screen.getAllByTitle('Deaktivieren'))
-        fireEvent.click(screen.getAllByTitle('Deaktivieren')[0])
+        const actionSheet = await openRowActions('Franz Schmidt')
+        fireEvent.click(within(actionSheet).getByText('member.action.deactivate'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
@@ -1257,9 +1251,9 @@ describe('MembersPage — error handlers', () => {
         vi.mocked(api.getMembers).mockResolvedValue(APP_USERS_UNLINKED as any)
         vi.mocked(api.listRegularMembers).mockResolvedValue(MEMBERS_WITH_UNLINKED as any)
         await renderMembersPage()
-        // 🔗 button for user without roster link
-        await waitFor(() => screen.getAllByText('🔗'))
-        fireEvent.click(screen.getAllByText('🔗')[0])
+        // 🔗 action for user without roster link
+        const actionSheet = await openRowActions('No Roster User')
+        fireEvent.click(within(actionSheet).getByText('🔗'))
         await waitFor(() => screen.getByTestId('sheet'))
         // Click any available member chip in the sheet
         const sheetEl = screen.getByTestId('sheet')
@@ -1348,8 +1342,8 @@ describe('MembersPage — reset sheet copy and share buttons', () => {
         } as any)
         vi.mocked(api.createResetToken).mockResolvedValueOnce({ reset_url: '/auth/reset?token=rst' } as any)
         await renderMembersPage()
-        await waitFor(() => screen.getAllByText('🔑'))
-        fireEvent.click(screen.getAllByText('🔑')[0])
+        const actionSheet = await openRowActions('Hansi')
+        fireEvent.click(within(actionSheet).getByText('🔑'))
         await waitFor(() => screen.getByTestId('sheet'))
     }
 
