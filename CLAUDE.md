@@ -165,12 +165,20 @@ service worker + IndexedDB for offline support.
   `MAJOR` for breaking changes, `MINOR` for new features, `PATCH` for bug-fixes. Never edit the displayed version
   elsewhere — always update `frontend/package.json` as the single source of truth.
 - **Linting & build:** CI (`frontend-build.yml`, `backend-build.yml`) already runs `npm run lint`, `npm run build`,
-  and `poetry run ruff check .` on every push and PR. For a minor/small change (one or two files, no renamed types or
-  reworked imports), skip the local full lint/build entirely and let CI be the gate — subscribe to the PR
-  (`subscribe_pr_activity`) and watch the check runs instead of re-running them yourself. Only run them locally when
-  actively iterating on a change they'd likely catch (touching many files, renaming types, reworking imports) or to
-  get faster feedback than waiting on CI on a genuinely broad change. Fix any errors before the PR is mergeable
-  regardless of whether you caught them locally or via CI.
+  and `poetry run ruff check .` on every push and PR, and these pipelines finish in just a few minutes. Default to
+  letting CI be the gate for **every** change, not just small ones: skip running the full local lint/build/test
+  suite as a pre-push ritual, push, `subscribe_pr_activity` on the PR, and watch the check runs — that's the fast,
+  low-check-in-time path, and re-running everything locally on top of it is wasted time. Only run something locally
+  when actively iterating on a change it would likely catch (touching many files, renaming types, reworking
+  imports) or a single file you're editing repeatedly — not as a blanket "verify everything before I push" step.
+  Fix any errors before the PR is mergeable regardless of whether you caught them locally or via CI.
+- **Parallel agents → rebase before push:** Multiple agents/sessions often work on separate branches off `main`
+  concurrently, so a branch can fall behind between when work started and when it's ready to push, and PRs
+  frequently need a rebase as a result. Before pushing, `git fetch origin main` and check whether the branch has
+  diverged (`git log HEAD..origin/main --oneline`); if it has, rebase onto the latest `main` and resolve conflicts
+  rather than force-discarding either side's changes. Check again after CI finishes on the PR — another PR can merge
+  into `main` while your CI was running — and re-rebase (and re-push) if `main` moved before treating the PR as
+  mergeable.
 - **Backend dependencies:** Whenever `backend/pyproject.toml` is changed (adding, removing, or updating a package),
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Dependency freshness:** Always keep dependencies at their latest compatible versions. When Dependabot opens PRs,
@@ -209,14 +217,15 @@ service worker + IndexedDB for offline support.
     sibling directory. Stubs/mocks go in `beforeEach`; always restore with `vi.unstubAllGlobals()` or `afterEach`.
     Page-level UI is lower priority but must be added when feasible.
   - **Run tests before committing:** CI (`backend-tests.yml`, `frontend-tests.yml`) already runs the full pytest and
-    Vitest suites on every push and PR, so don't re-run the entire suite locally as a pre-push ritual — that's
-    CI's job, not a local checklist item. For a minor/small change, run only the test file(s) touching what you
-    changed (e.g. `poetry run pytest tests/test_<module>.py` or `npx vitest run <file>`) before committing, then
-    push and watch CI (`subscribe_pr_activity` on the PR) rather than also running the full suite locally
-    afterwards. Run the full suite locally only when a change is broad, touches shared/cross-cutting code, or you
-    have concrete reason to suspect cross-file breakage the targeted tests wouldn't catch. Never knowingly push code
-    you expect to fail CI — if in doubt about a specific risk, test that risk locally rather than defaulting to a
-    full run.
+    Vitest suites on every push and PR in just a few minutes, so don't re-run the entire suite locally as a pre-push
+    ritual — checking the PR's pipeline is the verification step, not a local checklist item, and this applies
+    broadly, not only to minor changes. At most, run the test file(s) touching what you changed (e.g.
+    `poetry run pytest tests/test_<module>.py` or `npx vitest run <file>`) before committing if you want faster
+    local signal while iterating, then push and watch CI (`subscribe_pr_activity` on the PR) rather than also
+    running the full suite locally afterwards. Run the full suite locally only when you have concrete reason to
+    suspect cross-file breakage the targeted tests wouldn't catch — not as a default habit. Never knowingly push
+    code you expect to fail CI — if in doubt about a specific risk, test that risk locally rather than defaulting to
+    a full run.
 
 ## Deployment
 
