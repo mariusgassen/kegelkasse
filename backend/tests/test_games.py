@@ -9,7 +9,7 @@ from models.evening import Evening, EveningPlayer, RegularMember, Team
 from models.penalty import PenaltyLog
 from models.game import Game, GameThrowLog
 from models.drink import DrinkRound
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +395,50 @@ class TestUpdateGame:
         assert penalty is not None
         assert penalty.amount == 5.0
         assert penalty.client_timestamp == pytest.approx(finished_at_ms, abs=1000)
+
+    def test_retiming_finished_at_retimes_existing_penalties(
+            self, client: TestClient, db, evening, player, player2, user, auth_headers, admin_headers):
+        r = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Retime Test Game",
+            "loser_penalty": 2.0,
+            "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        gid = r.json()["id"]
+        client.post(f"/api/v1/evening/{evening.id}/games/{gid}/start", headers=auth_headers)
+        client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={
+            "winner_ref": f"p:{player.id}",
+            "winner_name": player.name,
+            "scores": {f"p:{player.id}": 100, f"p:{player2.id}": 80},
+            "loser_penalty": 2.0,
+            "client_timestamp": int(_ts()),
+        }, headers=auth_headers)
+        penalty_before = db.query(PenaltyLog).filter(
+            PenaltyLog.game_id == gid,
+            PenaltyLog.player_id == player2.id,
+            PenaltyLog.is_deleted == False,
+        ).first()
+        original_id = penalty_before.id
+
+        # Correct only the finish time (no amount change) — the existing
+        # auto-penalty must move to the new timestamp, not stay at the old one.
+        # Must stay after the game's started_at (set to "now" above).
+        new_finished_iso = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        resp = client.patch(f"/api/v1/evening/{evening.id}/games/{gid}", json={
+            "finished_at": new_finished_iso,
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+
+        game = db.query(Game).filter(Game.id == gid).first()
+        expected_ms = game.finished_at.timestamp() * 1000
+        penalty_after = db.query(PenaltyLog).filter(
+            PenaltyLog.game_id == gid,
+            PenaltyLog.player_id == player2.id,
+            PenaltyLog.is_deleted == False,
+        ).first()
+        assert penalty_after is not None
+        assert penalty_after.id == original_id  # retimed in place, not recreated
+        assert penalty_after.amount == 2.0
+        assert penalty_after.client_timestamp == pytest.approx(expected_ms, abs=1000)
 
 
 # ---------------------------------------------------------------------------

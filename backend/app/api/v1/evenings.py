@@ -1000,8 +1000,10 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="Opener game must have winner_type=individual")
     # Retroactive start/finish timestamp correction — admin-only, since it rewrites the evening's record.
     # Parsed and validated *before* any assignment so a rejected request leaves the session clean.
-    new_started_at = g.started_at
-    new_finished_at = g.finished_at
+    # Existing values are normalized to UTC-aware too (some DB backends round-trip naive datetimes
+    # even for timezone-aware columns) so a partial update never mixes naive/aware comparisons below.
+    new_started_at = g.started_at.replace(tzinfo=UTC) if g.started_at and not g.started_at.tzinfo else g.started_at
+    new_finished_at = g.finished_at.replace(tzinfo=UTC) if g.finished_at and not g.finished_at.tzinfo else g.finished_at
     if data.started_at is not None or data.finished_at is not None:
         if user.role not in (UserRole.admin, UserRole.superadmin):
             raise HTTPException(status_code=403, detail="Club admin role required to edit game timestamps")
@@ -1017,14 +1019,24 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
         if new_started_at and new_finished_at and new_finished_at < new_started_at:
             raise HTTPException(status_code=400, detail="finished_at must not be before started_at")
 
+    finished_at_changed = new_finished_at != g.finished_at
+
     for k, v in changed.items():
         setattr(g, k, v)
     g.started_at = new_started_at
     g.finished_at = new_finished_at
 
     # Re-apply loser penalties if game is finished and penalty amount changed
+    # (this also retimes them to the — possibly just-updated — g.finished_at).
     if g.status == "finished" and penalty_changed and g.winner_ref:
         _apply_game_penalties(e, g, g.winner_ref, db, user)
+    elif g.status == "finished" and finished_at_changed and g.finished_at:
+        # Only the timestamp moved — retime the existing auto-penalties in place
+        # instead of deleting/recreating them.
+        db.query(PenaltyLog).filter(
+            PenaltyLog.game_id == g.id,
+            PenaltyLog.is_deleted == False,
+        ).update({"client_timestamp": g.finished_at.timestamp() * 1000})
     db.commit()
     return {"ok": True}
 
