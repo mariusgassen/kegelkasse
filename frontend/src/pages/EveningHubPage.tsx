@@ -131,9 +131,9 @@ export function EveningHubPage({onHistory}: Props) {
                  style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
-                            className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
-                        <span className="block truncate">{tb.label}</span>
+                        {tb.label}
                     </button>
                 ))}
 
