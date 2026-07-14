@@ -244,6 +244,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     // Turn order — mode is fixed on the game, not a runtime choice
     const teams = evening?.teams ?? []
+    // Players without a team assignment — a game can't start until every player is on a team
+    const unassignedPlayers = teams.length > 0 ? players.filter(p => p.team_id === null) : []
     const gameTurnMode = activeGame?.turn_mode ?? 'alternating'
     const turnOrder = useMemo(() =>
         buildTurnOrder(players, teams, gameTurnMode, blockTeamIdx),
@@ -324,8 +326,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     async function handleStartGame() {
         if (!activeGame || activeGame.status !== 'open' || !evening) return
-        if (activeGame.winner_type === 'team' && teams.length === 0) {
+        if (teams.length === 0) {
             showToast(t('game.teamsRequired'), 'error')
+            return
+        }
+        if (unassignedPlayers.length > 0) {
+            showToast(t('team.cannotStartUnassigned'), 'error')
             return
         }
         try {
@@ -349,8 +355,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 per_point_penalty: tmpl.per_point_penalty,
                 client_timestamp: Date.now(),
             })
-            if (tmpl.winner_type === 'team' && teams.length === 0) {
+            if (teams.length === 0) {
                 showToast(t('game.teamsRequired'), 'error')
+            } else if (unassignedPlayers.length > 0) {
+                showToast(t('team.cannotStartUnassigned'), 'error')
             } else {
                 await api.startGame(eveningId, game.id)
             }
@@ -615,8 +623,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     )}
                 </div>
 
-                {/* Teams required warning — team games without teams */}
-                {activeGame?.winner_type === 'team' && teams.length === 0 && (
+                {/* Teams required warning — every game needs teams set up on the evening first */}
+                {activeGame && teams.length === 0 && (
                     <div style={{
                         marginTop: 6, padding: '4px 8px',
                         background: 'rgba(239,68,68,0.1)',
@@ -625,6 +633,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     }}>
                         <span style={{fontSize: 11}}>⚠️</span>
                         <span style={{fontSize: 10, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
+                    </div>
+                )}
+
+                {/* Unassigned-players warning — teams exist but not all players are on one */}
+                {activeGame && teams.length > 0 && unassignedPlayers.length > 0 && (
+                    <div style={{
+                        marginTop: 6, padding: '4px 8px',
+                        background: 'rgba(251,191,36,0.1)',
+                        borderRadius: 6, border: '1px solid rgba(251,191,36,0.35)',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                        <span style={{fontSize: 11}}>⚠️</span>
+                        <span style={{fontSize: 10, color: 'var(--kce-amber)'}}>
+                            {unassignedPlayers.length} {t('team.playersUnassigned')}
+                        </span>
                     </div>
                 )}
 

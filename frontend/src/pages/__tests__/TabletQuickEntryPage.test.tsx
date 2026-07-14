@@ -61,8 +61,8 @@ const PENALTY_TYPES = [
 ]
 
 const PLAYERS = [
-    { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: null, is_present: true },
-    { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: null, is_present: true },
+    { id: 10, user_id: 1, regular_member_id: 1, display_name: 'Admin', name: 'Admin', is_king: false, team_id: 1, is_present: true },
+    { id: 11, user_id: 2, regular_member_id: 2, display_name: 'Hansi', name: 'Hansi', is_king: false, team_id: 1, is_present: true },
 ]
 
 const ACTIVE_EVENING = {
@@ -73,7 +73,8 @@ const ACTIVE_EVENING = {
     is_deleted: false,
     created_by: 1,
     players: PLAYERS,
-    teams: [],
+    // Teams are set up as the first step of configuring an evening, so they exist by default in these fixtures
+    teams: [{ id: 1, name: 'Team A' }],
     games: [],
     penalty_log: [],
     drink_rounds: [],
@@ -860,10 +861,12 @@ describe('TabletQuickEntryPage — new game auto-start', () => {
     })
 })
 
-describe('TabletQuickEntryPage — new game auto-start blocked for team template without teams', () => {
-    const TEAM_GAME_TEMPLATE = {
-        id: 6, name: 'Teamspiel', is_opener: false, winner_type: 'team',
-        turn_mode: 'block', default_loser_penalty: 2.00, per_point_penalty: 0,
+describe('TabletQuickEntryPage — new game auto-start blocked without teams', () => {
+    // Deliberately winner_type: 'individual' — teams are set up once for the whole evening,
+    // so the guard blocks auto-start for every template, not just team-mode ones.
+    const GAME_TEMPLATE_NO_TEAMS = {
+        id: 6, name: 'Warmup', is_opener: false, winner_type: 'individual',
+        turn_mode: null, default_loser_penalty: 2.00, per_point_penalty: 0,
     }
 
     beforeEach(async () => {
@@ -876,11 +879,11 @@ describe('TabletQuickEntryPage — new game auto-start blocked for team template
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel?: any) => {
-            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [TEAM_GAME_TEMPLATE], regularMembers: [], guestPenaltyCap: null }
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [GAME_TEMPLATE_NO_TEAMS], regularMembers: [], guestPenaltyCap: null }
             return sel ? sel(store) : store
         })
         const { api } = await import('@/api/client.ts')
-        vi.mocked(api.addGame).mockResolvedValue({ id: 100, name: 'Teamspiel' } as any)
+        vi.mocked(api.addGame).mockResolvedValue({ id: 100, name: 'Warmup' } as any)
         vi.mocked(api.startGame).mockResolvedValue(undefined as any)
     })
 
@@ -889,14 +892,58 @@ describe('TabletQuickEntryPage — new game auto-start blocked for team template
         const { showToast } = await import('@/components/ui/Toast')
         await renderTabletQuickEntry()
         fireEvent.click(screen.getByText(/quickEntry\.newGame/))
-        await waitFor(() => screen.getByText('Teamspiel'))
-        fireEvent.click(screen.getByText('Teamspiel'))
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getByText('Warmup'))
         await waitFor(() => {
             expect(api.addGame).toHaveBeenCalledWith(42, expect.objectContaining({
-                name: 'Teamspiel',
+                name: 'Warmup',
                 template_id: 6,
             }))
             expect(showToast).toHaveBeenCalledWith('game.teamsRequired', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
+    })
+})
+
+describe('TabletQuickEntryPage — new game auto-start blocked when players unassigned', () => {
+    const GAME_TEMPLATE_NO_TEAMS = {
+        id: 7, name: 'Warmup', is_opener: false, winner_type: 'individual',
+        turn_mode: null, default_loser_penalty: 2.00, per_point_penalty: 0,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: {
+                ...ACTIVE_EVENING,
+                teams: [{ id: 1, name: 'Team A' }],
+                players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }],
+                games: [],
+            } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, gameTemplates: [GAME_TEMPLATE_NO_TEAMS], regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addGame).mockResolvedValue({ id: 101, name: 'Warmup' } as any)
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+    })
+
+    it('creates the game but does not auto-start it, showing a toast instead', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        const unassignedPlayers = [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }]
+        await renderTabletQuickEntry({ players: unassignedPlayers })
+        fireEvent.click(screen.getByText(/quickEntry\.newGame/))
+        await waitFor(() => screen.getByText('Warmup'))
+        fireEvent.click(screen.getByText('Warmup'))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('team.cannotStartUnassigned', 'error')
         })
         expect(api.startGame).not.toHaveBeenCalled()
     })
@@ -1081,10 +1128,12 @@ describe('TabletQuickEntryPage — start game', () => {
 })
 
 describe('TabletQuickEntryPage — start game blocked without teams', () => {
-    const OPEN_TEAM_GAME = {
-        id: 4, name: 'Mannschaftsspiel', status: 'open', is_opener: false,
+    // Deliberately winner_type: 'individual' — the teams-required guard applies to every
+    // game, not just team-mode ones, since teams are set up once for the whole evening.
+    const OPEN_INDIVIDUAL_GAME = {
+        id: 4, name: 'Warmup 2', status: 'open', is_opener: false,
         sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 0,
-        per_point_penalty: 0, winner_type: 'team', turn_mode: 'block',
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: null,
         started_at: null, finished_at: null,
         note: '', is_deleted: false, game_players: [], throws: [], active_player_id: null,
     }
@@ -1092,8 +1141,8 @@ describe('TabletQuickEntryPage — start game blocked without teams', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        // No teams on the evening — team game must not be startable
-        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_TEAM_GAME] }
+        // No teams on the evening — no game (individual or team) must be startable
+        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_INDIVIDUAL_GAME] }
         vi.mocked(useActiveEvening).mockReturnValue({
             evening: eveningWithOpenTeamGame as any,
             invalidate: vi.fn(),
@@ -1120,6 +1169,55 @@ describe('TabletQuickEntryPage — start game blocked without teams', () => {
         fireEvent.click(screen.getByText(/game\.start/))
         await waitFor(() => {
             expect(showToast).toHaveBeenCalledWith('game.teamsRequired', 'error')
+        })
+        expect(api.startGame).not.toHaveBeenCalled()
+    })
+})
+
+describe('TabletQuickEntryPage — start game blocked when players unassigned', () => {
+    const OPEN_INDIVIDUAL_GAME = {
+        id: 5, name: 'Warmup 3', status: 'open', is_opener: false,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 0,
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: null,
+        started_at: null, finished_at: null,
+        note: '', is_deleted: false, game_players: [], throws: [], active_player_id: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithUnassigned = {
+            ...ACTIVE_EVENING,
+            teams: [{ id: 1, name: 'Team A' }],
+            players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }],
+            games: [OPEN_INDIVIDUAL_GAME],
+        }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithUnassigned as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+    })
+
+    it('shows the unassigned-players warning banner', async () => {
+        await renderTabletQuickEntry({ players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }] })
+        expect(screen.getByText(/team\.playersUnassigned/)).toBeInTheDocument()
+    })
+
+    it('does not call api.startGame and shows a toast when start button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast')
+        await renderTabletQuickEntry({ players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }] })
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('team.cannotStartUnassigned', 'error')
         })
         expect(api.startGame).not.toHaveBeenCalled()
     })
