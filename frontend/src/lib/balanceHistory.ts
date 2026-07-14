@@ -21,9 +21,9 @@ export type DualPoint = {
     event: BalanceEvent | null
 }
 
-type ClubPayment = { id: number; regular_member_id: number; member_name: string; amount: number; note: string | null; created_at: string | null }
+type ClubPayment = { id: number; regular_member_id: number; member_name: string; amount: number; note: string | null; created_at: string | null; date?: string | null }
 type ClubExpense = { id: number; amount: number; description: string; created_at: string | null; date: string | null }
-type MemberPayment = { id: number; amount: number; note: string | null; created_at: string | null }
+type MemberPayment = { id: number; amount: number; note: string | null; created_at: string | null; date?: string | null }
 type MemberPenalty = {
     id: number; amount: number; icon: string; penalty_type_name: string
     evening_id: number; evening_date: string | null; is_absence: boolean; created_at: string | null
@@ -46,7 +46,7 @@ function byTs(a: BalanceEvent, b: BalanceEvent): number {
 export function clubEventsFromBookings(payments: ClubPayment[], expenses: ClubExpense[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
     for (const p of payments) {
-        const ts = parseTs(p.created_at)
+        const ts = parseTs(p.date ?? p.created_at)
         if (ts === null) continue
         events.push({id: `payment-${p.id}`, ts, delta: p.amount, kind: 'payment', label: p.member_name})
     }
@@ -62,7 +62,7 @@ export function clubEventsFromBookings(payments: ClubPayment[], expenses: ClubEx
 export function memberPaymentEvents(payments: MemberPayment[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
     for (const p of payments) {
-        const ts = parseTs(p.created_at)
+        const ts = parseTs(p.date ?? p.created_at)
         if (ts === null) continue
         events.push({id: `payment-${p.id}`, ts, delta: p.amount, kind: 'payment', label: p.note ?? ''})
     }

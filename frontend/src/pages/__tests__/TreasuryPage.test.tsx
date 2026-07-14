@@ -826,7 +826,7 @@ describe('TreasuryPage — bookings edit', () => {
         fireEvent.change(screen.getByDisplayValue('Einzahlung'), { target: { value: 'Korrigiert' } })
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
-            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: 10, note: 'Korrigiert' })
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: 10, note: 'Korrigiert', date: '2026-01-12' })
         })
     })
 
@@ -841,7 +841,7 @@ describe('TreasuryPage — bookings edit', () => {
         fireEvent.click(screen.getByText('⬇ treasury.payment.withdrawal'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
-            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: -15, note: 'Einzahlung' })
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: -15, note: 'Einzahlung', date: '2026-01-12' })
         })
     })
 })
@@ -1149,16 +1149,16 @@ describe('TreasuryPage — booking sheet date input for club expense', () => {
         expect(dateInput).toBeInTheDocument()
     })
 
-    it('date input is NOT shown when a member is selected as booking target', async () => {
+    it('date input stays visible when a member is selected as booking target', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/treasury\.booking\.add/))
         fireEvent.click(screen.getByText(/treasury\.booking\.add/))
         await waitFor(() => screen.getByTestId('sheet'))
-        // Select Hansi (member) — date input should disappear
+        // Select Hansi (member) — date input can still be used to backdate the payment
         fireEvent.click(screen.getByText('Hansi'))
-        expect(screen.queryByText('treasury.expense.date')).not.toBeInTheDocument()
+        expect(screen.getByText('treasury.expense.date')).toBeInTheDocument()
     })
 
     it('passes the custom date to api.createExpense when date changed', async () => {

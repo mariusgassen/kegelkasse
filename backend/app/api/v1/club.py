@@ -674,7 +674,8 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
     ).order_by(MemberPayment.created_at.desc()).all()
     return [{"id": p.id, "amount": p.amount, "note": p.note,
              "created_at": p.created_at.isoformat() if p.created_at else None,
-             "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in payments]
+             "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+             "date": p.date.isoformat() if p.date else None} for p in payments]
 
 
 @router.get("/member-penalties/{mid}")
@@ -720,18 +721,21 @@ class PaymentCreate(BaseModel):
     regular_member_id: int
     amount: float
     note: Optional[str] = None
+    date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
     idempotency_key: Optional[str] = None
 
 
 class PaymentUpdate(BaseModel):
     amount: Optional[float] = None
     note: Optional[str] = None
+    date: Optional[str] = None  # ISO date string; empty string clears the date
 
 
 def _payment_dict(p: MemberPayment) -> dict:
     return {"id": p.id, "amount": p.amount, "note": p.note,
             "created_at": p.created_at.isoformat() if p.created_at else None,
-            "updated_at": p.updated_at.isoformat() if p.updated_at else None}
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            "date": p.date.isoformat() if p.date else None}
 
 
 @router.post("/member-payments", status_code=201)
@@ -751,12 +755,19 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         RegularMember.id == data.regular_member_id, RegularMember.club_id == user.club_id
     ).first()
     if not member: raise HTTPException(404)
+    parsed_date = None
+    if data.date:
+        try:
+            parsed_date = date_type.fromisoformat(data.date)
+        except ValueError:
+            raise HTTPException(400, "Ungültiges Datum")
     payment = MemberPayment(
         club_id=user.club_id,
         regular_member_id=data.regular_member_id,
         amount=data.amount,
         note=data.note,
         created_by=user.id,
+        date=parsed_date,
         idempotency_key=data.idempotency_key,
     )
     db.add(payment)
@@ -786,6 +797,14 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
         p.amount = data.amount
     if data.note is not None:
         p.note = data.note.strip() or None
+    if data.date is not None:
+        if data.date == "":
+            p.date = None
+        else:
+            try:
+                p.date = date_type.fromisoformat(data.date)
+            except ValueError:
+                raise HTTPException(400, "Ungültiges Datum")
     p.updated_at = datetime.now(timezone.utc)
     p.updated_by = user.id
     db.commit()
@@ -839,6 +858,7 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
         "amount": p.amount, "note": p.note,
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        "date": p.date.isoformat() if p.date else None,
     } for p, m in payments]
 
 

@@ -153,13 +153,13 @@ Der **Kassenbuch**-Tab listet alle Buchungen chronologisch:
 
 Mit dem **Suchfeld** lassen sich Buchungen nach Name, Notiz oder Beschreibung filtern.
 
-Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und bei Vereinsbuchungen ein Datum.
+Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und ein Datum (zum Nachtragen vergangener Buchungen).
 
 ### Buchung bearbeiten oder stornieren
 
 Admins können jede Buchung nachträglich korrigieren oder entfernen:
 
-- **✏️ Bearbeiten** öffnet ein Sheet mit den aktuellen Werten: Richtung, Betrag, Notiz/Beschreibung und bei Vereinsbuchungen das Datum lassen sich ändern. Bearbeitete Buchungen sind im Kassenbuch mit einem kleinen ✏️ neben dem Datum markiert; das betroffene Mitglied erhält bei einer Betragsänderung eine Push-Benachrichtigung.
+- **✏️ Bearbeiten** öffnet ein Sheet mit den aktuellen Werten: Richtung, Betrag, Notiz/Beschreibung und Datum lassen sich ändern — sowohl bei Vereinsbuchungen als auch bei Mitglieder-Zahlungen. Bearbeitete Buchungen sind im Kassenbuch mit einem kleinen ✏️ neben dem Datum markiert; das betroffene Mitglied erhält bei einer Betragsänderung eine Push-Benachrichtigung.
 - **✕ Stornieren** entfernt die Buchung (Soft-Delete mit optionalem Grund) — sie bleibt für die Nachvollziehbarkeit in der Datenbank erhalten, zählt aber nicht mehr zu Salden und Kassenstand.
 
 Bearbeiten ist auch in der Zahlungs-Historie eines Mitgliedskontos (Tab **Konten**, Zeile aufklappen) möglich.
