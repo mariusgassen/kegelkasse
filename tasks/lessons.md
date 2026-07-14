@@ -29,7 +29,9 @@ Updated after every significant correction — reviewed at session start.
 ### General
 - Every new API endpoint needs pytest tests: happy path + 401 + 403 + main error cases (404, 400).
 - Every new frontend utility/store action needs a Vitest test. Never defer tests to "later".
-- Run `cd backend && poetry run pytest -q` and `cd frontend && npm run build` before every push.
+- Don't run the full pytest/build/lint suite locally before every push — CI runs it all in a few minutes. Push, then
+  `subscribe_pr_activity` and watch the PR's check runs. Only run the specific file(s) you touched locally if you
+  want faster iteration feedback.
 
 ### Cleanup fixtures
 - Each pytest module needs an autouse `cleanup` fixture that deletes rows in correct FK order (children before parents) and depends on `club` so it runs before club teardown.
@@ -42,11 +44,19 @@ Updated after every significant correction — reviewed at session start.
 ## Git & CI
 
 ### Commits
-- Run `cd backend && poetry run ruff check app/` and `cd frontend && npm run build` before every push.
-- Fix all TypeScript and ruff errors before pushing — never push with a red build.
+- Don't run `ruff check` / `npm run build` locally as a pre-push ritual — CI (`backend-build.yml`,
+  `frontend-build.yml`) gates on both and finishes in a few minutes. Push and watch the PR's checks instead.
+- Fix all TypeScript and ruff errors before the PR is mergeable — never leave a PR with a red build, whether you
+  caught the error locally or via CI.
 
 ### Branch discipline
 - Always develop on the designated feature branch. Never push to `main` directly.
+
+### Parallel agents & rebasing
+- Multiple agents work on separate branches off `main` at the same time, so branches routinely fall behind. Before
+  pushing, `git fetch origin main` and check for divergence (`git log HEAD..origin/main --oneline`); rebase if
+  `main` moved. Check again after CI finishes on the PR — `main` can move again while CI was running — and
+  re-rebase before treating the PR as mergeable.
 
 ---
 
