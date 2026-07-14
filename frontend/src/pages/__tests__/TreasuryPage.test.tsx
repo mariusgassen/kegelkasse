@@ -983,6 +983,50 @@ describe('TreasuryPage — accounts tab layout', () => {
     })
 })
 
+describe('TreasuryPage — accounts tab totals & share chart', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['accounts', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    // BALANCES: Admin +10 (credit), Hans/Hansi -5.50 (debt), Franz 0 (settled)
+
+    it('shows total open and total paid across all accounts', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText('treasury.accounts.totalOpen')).toBeInTheDocument()
+            expect(screen.getByText('treasury.accounts.totalPaid')).toBeInTheDocument()
+            expect(screen.getByText('5,50 €')).toBeInTheDocument() // total outstanding (Hansi only)
+            expect(screen.getByText('10,00 €')).toBeInTheDocument() // total paid in (Admin's deposit)
+        })
+    })
+
+    it('notes that credit is owed back by the till instead of counting as free cash', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.accounts\.creditOwed/)).toBeInTheDocument()
+        })
+    })
+
+    it('keeps the per-player share chart collapsed until tapped', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.accounts\.shareChart/)).toBeInTheDocument()
+        })
+        // Chart-specific "paid / total penalty" row for Hansi is not rendered while collapsed
+        expect(screen.queryByText('0,00 € / 5,50 €')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByText(/treasury\.accounts\.shareChart/))
+
+        await waitFor(() => {
+            expect(screen.getByText('0,00 € / 5,50 €')).toBeInTheDocument()
+        })
+    })
+})
+
 // ── additional coverage: booking sheet member picker (lines 1010-1013) ────────
 
 describe('TreasuryPage — booking sheet member picker', () => {

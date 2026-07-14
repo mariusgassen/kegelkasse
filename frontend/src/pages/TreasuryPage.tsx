@@ -381,6 +381,7 @@ export function TreasuryPage() {
 
     const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
     const [showHelp, setShowHelp] = useState(false)
+    const [showAccountsChart, setShowAccountsChart] = useState(false)
     const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
 
     // Club data (for PayPal handle)
@@ -805,6 +806,10 @@ export function TreasuryPage() {
 
     const totalOutstanding = balances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
+    // Total paid in by members (gross deposits) — separate from totalSurplus (credit),
+    // since credit is money the till already owes back to the member, not free cash.
+    const totalPaidMembers = balances.reduce((s, b) => s + b.payments_total, 0)
+    const maxAccountPenalty = balances.reduce((m, b) => Math.max(m, b.penalty_total), 0)
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
     const credits = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
     const exactlySettled = balances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
@@ -1309,6 +1314,77 @@ export function TreasuryPage() {
                             {t('paymentRequest.none')}
                         </div>
                     )}
+
+                    {/* Gesamt-Übersicht: offene & bezahlte Beträge über alle Konten */}
+                    {balances.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="kce-card p-4 flex flex-col gap-1">
+                                <span className="text-xs text-kce-muted">{t('treasury.accounts.totalOpen')}</span>
+                                <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
+                                <span className="text-[10px] text-kce-muted">{debtors.length} {t('treasury.membersCount')}</span>
+                            </div>
+                            <div className="kce-card p-4 flex flex-col gap-1">
+                                <span className="text-xs text-kce-muted">{t('treasury.accounts.totalPaid')}</span>
+                                <span className="font-display font-bold text-green-400 text-xl">{fe(totalPaidMembers)}</span>
+                                {totalSurplus > 0
+                                    ? <span className="text-[10px] text-kce-muted">{t('treasury.accounts.creditOwed')}: {fe(totalSurplus)}</span>
+                                    : <span className="text-[10px] text-kce-muted">{credits.length} {t('treasury.membersCount')}</span>
+                                }
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Anteil pro Spieler — bezahlter (grün) vs. offener (rot) Anteil der Strafen, skaliert auf das größte Konto */}
+                    {balances.length > 0 && (
+                        <div className="kce-card mb-3 overflow-hidden">
+                            <button type="button" className="w-full p-3 flex items-center justify-between text-left"
+                                    aria-expanded={showAccountsChart}
+                                    onClick={() => setShowAccountsChart(v => !v)}>
+                                <span className="text-xs font-bold text-kce-muted">📊 {t('treasury.accounts.shareChart')}</span>
+                                <span className="text-kce-muted text-xs">{showAccountsChart ? '▲' : '▼'}</span>
+                            </button>
+                            {showAccountsChart && (
+                                <div className="px-3 pb-3">
+                                    <div className="flex items-center justify-end gap-3 text-[10px] text-kce-muted mb-2">
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: '#22c55e'}}/>
+                                            {t('treasury.paidLabel')}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: '#ef4444'}}/>
+                                            {t('treasury.accounts.shareChartOpen')}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col gap-2.5">
+                                        {[...balances].sort((a, b) => b.penalty_total - a.penalty_total).map(b => {
+                                            const isMe = b.regular_member_id === myRegularMemberId
+                                            const paidPortion = Math.max(0, Math.min(b.payments_total, b.penalty_total))
+                                            const openPortion = Math.max(0, b.penalty_total - b.payments_total)
+                                            const paidPct = maxAccountPenalty > 0 ? (paidPortion / maxAccountPenalty) * 100 : 0
+                                            const openPct = maxAccountPenalty > 0 ? (openPortion / maxAccountPenalty) * 100 : 0
+                                            return (
+                                                <div key={b.regular_member_id}>
+                                                    <div className="flex items-center justify-between text-xs mb-1">
+                                                        <span className="font-bold truncate flex items-center gap-1">
+                                                            {b.nickname || b.name}
+                                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                        </span>
+                                                        <span className="text-kce-muted flex-shrink-0">{fe(paidPortion)} / {fe(b.penalty_total)}</span>
+                                                    </div>
+                                                    <div className="h-1.5 rounded-full overflow-hidden flex"
+                                                         style={{background: 'var(--kce-surface2)', gap: '2px'}}>
+                                                        {paidPct > 0 && <div className="h-full rounded-full" style={{width: `${paidPct}%`, background: '#22c55e'}}/>}
+                                                        {openPct > 0 && <div className="h-full rounded-full" style={{width: `${openPct}%`, background: '#ef4444'}}/>}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <input
                         className="kce-input mb-3"
                         value={accountSearch}
