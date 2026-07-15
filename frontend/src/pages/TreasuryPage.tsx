@@ -510,7 +510,7 @@ export function TreasuryPage() {
     const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
-        enabled: tab === 'bookings' || tab === 'overview',
+        enabled: tab === 'bookings' || tab === 'overview' || showExportSheet,
         staleTime: 1000 * 30,
     })
 
@@ -592,10 +592,17 @@ export function TreasuryPage() {
     const [saving, setSaving] = useState(false)
     const [remindingDebtors, setRemindingDebtors] = useState(false)
 
-    const currentYear = new Date().getFullYear()
     const [exportYear, setExportYear] = useState<number | null>(null)
     const [exportFormat, setExportFormat] = useState<'xlsx' | 'pdf'>('xlsx')
     const [exporting, setExporting] = useState(false)
+    const exportYears = Array.from(new Set(
+        [
+            ...(allPayments as Payment[]).map(p => p.date ?? p.created_at),
+            ...(expenses as Expense[]).map(e => e.date ?? e.created_at),
+        ]
+            .filter((d): d is string => !!d)
+            .map(d => new Date(d).getFullYear())
+    )).sort((a, b) => b - a)
 
     async function downloadReport() {
         setExporting(true)
@@ -2214,7 +2221,7 @@ export function TreasuryPage() {
                             onChange={e => setExportYear(e.target.value ? parseInt(e.target.value, 10) : null)}
                             className="kce-input">
                             <option value="">{t('report.yearAll')}</option>
-                            {Array.from({length: 5}, (_, i) => currentYear - i).map(y => (
+                            {exportYears.map(y => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </select>

@@ -1765,6 +1765,17 @@ describe('TreasuryPage — error handlers', () => {
         expect(yearSelect.value).toBe(String(currentYear))
     })
 
+    it('year select only lists years with bookings, not a hardcoded range', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('report.export'))
+        fireEvent.click(screen.getByText('report.export'))
+        await waitFor(() => screen.getAllByRole('combobox').length > 0)
+        const yearSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement
+        const optionValues = Array.from(yearSelect.options).map(o => o.value)
+        // EXPENSES + PAYMENTS fixtures are all dated 2026 — only that year (plus the "all" option) should appear.
+        expect(optionValues).toEqual(['', '2026'])
+    })
+
     it('changes exportFormat select value', async () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('report.export'))
