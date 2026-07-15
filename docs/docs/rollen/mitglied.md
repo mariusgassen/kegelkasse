@@ -24,13 +24,18 @@ Die App hat fünf Navigationsbereiche, die für Mitglieder alle zugänglich sind
 
 ## Profil verwalten
 
-1. Tippe oben rechts auf dein **Profilsymbol**
-2. Hier kannst du:
-   - **Namen** ändern
-   - **Avatar** (Emoji) auswählen
-   - **Sprache** wechseln (Deutsch / Englisch)
-   - **Passwort** ändern
-   - Dich **abmelden**
+Tippe oben rechts auf dein **Profilsymbol**. Das Profil ist in zwei Tabs aufgeteilt:
+
+- **🎳 Meine Saison** (Standard): dein schreibgeschütztes persönliches Dashboard — Kontostand & Zahlung, Jahresstatistiken, Wurf-Performance, Auszeichnungen und der 🎁 Kegel-Wrapped-Jahresrückblick.
+- **⚙️ Einstellungen**: hier kannst du
+  - **Namen** ändern
+  - **Avatar** (Bild) hochladen
+  - **Sprache** wechseln (Deutsch / Englisch)
+  - **Passwort** ändern
+  - Push-Benachrichtigungen & Erinnerungen konfigurieren
+  - Dich **abmelden** oder dein Konto löschen
+
+  Der **Speichern**-Knopf gilt nur für diesen Tab.
 
 ---
 
@@ -143,7 +148,7 @@ Der Text kann per **Teilen** oder **Kopieren** exportiert werden.
 
 ## Eigene Statistiken (Profil)
 
-Im Profil findest du deine **persönlichen Jahresstatistiken**:
+Im Profil-Tab **🎳 Meine Saison** findest du deine **persönlichen Jahresstatistiken**:
 
 - Anzahl besuchter Abende
 - Gesamte Strafensumme
@@ -167,7 +172,7 @@ Geschlossene Abende können in der Historie wieder geöffnet werden.
 
 ## Kontostand & Bezahlen
 
-Falls dein Verein Mitgliedskonten führt, siehst du im Profil unter **💳 Mein Konto** deinen aktuellen Saldo:
+Falls dein Verein Mitgliedskonten führt, siehst du im Profil-Tab **🎳 Meine Saison** unter **💳 Mein Konto** deinen aktuellen Saldo:
 
 - **Grün**: Du hast Guthaben
 - **Rot**: Du hast noch ausstehende Beträge

@@ -91,6 +91,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
+    const [tab, setTab] = useState<'season' | 'settings'>('season')
     const [name, setName] = useState(user?.name || '')
     const [username, setUsername] = useState(user?.username || '')
     const [email, setEmail] = useState(() => {
@@ -371,41 +372,232 @@ export function ProfileSheet({open, onClose}: Props) {
                     className="sheet-handle"
                 />
 
-                {/* Avatar */}
-                <div className="flex flex-col items-center gap-2 mb-5">
-                    <div className="relative">
-                        <button
-                            className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-2xl text-kce-bg flex-shrink-0 active:opacity-80 transition-opacity"
-                            style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}
-                            onClick={() => fileRef.current?.click()}
-                            disabled={avatarLoading}>
-                            {user?.avatar
-                                ? <img src={user.avatar} alt="" className="w-full h-full object-cover"/>
-                                : avatarLoading ? <span className="text-base animate-spin">⟳</span> : initials
-                            }
+                {/* Tab bar */}
+                <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
+                    {(['season', 'settings'] as const).map(tb => (
+                        <button key={tb} type="button"
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                onClick={() => setTab(tb)}>
+                            {t(`profile.tab.${tb}`)}
                         </button>
-                        <button
-                            className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                            style={{background: 'var(--kce-primary)', color: 'var(--kce-bg)'}}
-                            onClick={() => fileRef.current?.click()}>
-                            ✏️
-                        </button>
-                    </div>
-                    <div className="text-center">
-                        <div className="font-display font-bold text-kce-cream">{displayName}</div>
-                        {linkedMember?.nickname && <div className="text-xs text-kce-muted">{user?.name}</div>}
-                        {user?.username && <div className="text-xs text-kce-muted">@{user.username}</div>}
-                    </div>
-                    {user?.avatar && (
-                        <button className="text-[10px] text-kce-muted" onClick={handleRemoveAvatar}>
-                            {t('profile.removeAvatar')}
-                        </button>
-                    )}
-                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange}/>
+                    ))}
                 </div>
 
-                {/* Profile form */}
+                {tab === 'season' && (
                 <div className="flex flex-col gap-3">
+                    {/* Balance & payment link */}
+                    {myBalance?.balance != null && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('profile.myBalance')}
+                            </div>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs text-kce-muted">{t('profile.balance')}</span>
+                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-red-400' : myBalance.balance > 0.01 ? 'text-green-400' : 'text-kce-muted'}`}>
+                                    {myBalance.balance.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
+                                </span>
+                            </div>
+                            {hasDebt && paypalHandle && !hasPendingRequest && (
+                                <div className="flex flex-col gap-2">
+                                    {!reportingPayment ? (
+                                        <div className="flex gap-2">
+                                            <a
+                                                href={`https://paypal.me/${paypalHandle}/${debtAmount.toFixed(2)}EUR`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn-primary flex-1 text-center text-sm py-2"
+                                            >
+                                                {t('profile.payNow')}
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                                <input
+                                                    className="kce-input flex-1"
+                                                    type="text" inputMode="decimal"
+                                                    value={paymentAmount}
+                                                    placeholder={debtAmount.toFixed(2)}
+                                                    onChange={e => setPaymentAmount(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button className="btn-secondary flex-1 btn-sm"
+                                                        onClick={() => { setReportingPayment(false); setPaymentAmount('') }}>
+                                                    {t('action.cancel')}
+                                                </button>
+                                                <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                    const amt = paymentAmount.trim()
+                                                        ? parseFloat(paymentAmount.replace(',', '.'))
+                                                        : debtAmount
+                                                    if (!amt || amt <= 0) return
+                                                    try {
+                                                        await api.createPaymentRequest({amount: amt})
+                                                        await refetchRequests()
+                                                        qc.invalidateQueries({queryKey: ['payment-requests']})
+                                                        qc.invalidateQueries({queryKey: ['my-balance']})
+                                                        setReportingPayment(false)
+                                                        setPaymentAmount('')
+                                                        showToast(t('profile.reportPayment'))
+                                                    } catch (e) { toastError(e) }
+                                                }}>
+                                                    {t('profile.reportPayment')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!reportingPayment && (
+                                        <button className="btn-secondary w-full text-sm" onClick={() => setReportingPayment(true)}>
+                                            {t('profile.reportPayment')}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {hasPendingRequest && (
+                                <div className="text-xs text-kce-amber text-center py-1">
+                                    ⏳ {t('paymentRequest.pending')}
+                                </div>
+                            )}
+                            {myRequests.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-kce-surface2">
+                                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-2">
+                                        {t('profile.paymentRequests')}
+                                    </div>
+                                    {myRequests.map(r => (
+                                        <div key={r.id} className="flex items-center justify-between py-1 text-xs">
+                                            <span className="text-kce-muted">
+                                                {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) : ''}
+                                            </span>
+                                            <span className="font-bold">{r.amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
+                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-green-400' : r.status === 'rejected' ? 'text-red-400' : 'text-kce-amber'}`}>
+                                                {t(`paymentRequest.${r.status}` as any)}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Personal year stats */}
+                    {myStats && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('profile.myStats')} {year}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="text-center">
+                                    <div
+                                        className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.penalties')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div
+                                        className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.evenings')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div
+                                        className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.wins')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div
+                                        className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Throw performance card */}
+                    {myThrowStats && myThrowStats.throw_count > 0 && (
+                        <div className="kce-card p-4">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                                {t('profile.throwStats')} {year}
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-kce-cream text-lg">{myThrowStats.avg_pins ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('stats.avgPins')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-green-400 text-lg">{myThrowStats.best_avg ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.bestAvg')}</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-display font-bold text-red-400 text-lg">{myThrowStats.worst_avg ?? '—'}</div>
+                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.worstAvg')}</div>
+                                </div>
+                            </div>
+                            {myThrowStats.evenings.length > 1 && (
+                                <ThrowTrendMini evenings={myThrowStats.evenings}/>
+                            )}
+                            <div className="text-[10px] text-kce-muted text-center mt-1">
+                                {myThrowStats.throw_count} {t('stats.throwCount')} · {myThrowStats.total_pins} {t('stats.totalPins')}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Kegel-Wrapped launcher */}
+                    {myWrapped && myWrapped.has_data && (
+                        <button
+                            onClick={() => setWrappedOpen(true)}
+                            className="kce-card p-4 w-full flex items-center gap-3 text-left active:opacity-70 transition-opacity"
+                            style={{background: 'linear-gradient(135deg, var(--kce-surface2), var(--kce-surface))'}}
+                        >
+                            <span className="text-3xl">🎁</span>
+                            <span className="flex-1">
+                                <span className="block text-sm font-bold text-kce-cream">{t('wrapped.title')} {year}</span>
+                                <span className="block text-[11px] text-kce-muted">{t('wrapped.launchHint')}</span>
+                            </span>
+                            <span className="text-kce-primary text-lg">›</span>
+                        </button>
+                    )}
+
+                    {/* Achievements shelf */}
+                    {myAchievements && myAchievements.achievements.length > 0 && (
+                        <AchievementShelf achievements={myAchievements.achievements}/>
+                    )}
+                </div>
+                )}
+
+                {tab === 'settings' && (
+                <div className="flex flex-col gap-3">
+                    {/* Avatar */}
+                    <div className="flex flex-col items-center gap-2 mb-2">
+                        <div className="relative">
+                            <button
+                                className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-2xl text-kce-bg flex-shrink-0 active:opacity-80 transition-opacity"
+                                style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}
+                                onClick={() => fileRef.current?.click()}
+                                disabled={avatarLoading}>
+                                {user?.avatar
+                                    ? <img src={user.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : avatarLoading ? <span className="text-base animate-spin">⟳</span> : initials
+                                }
+                            </button>
+                            <button
+                                className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                                style={{background: 'var(--kce-primary)', color: 'var(--kce-bg)'}}
+                                onClick={() => fileRef.current?.click()}>
+                                ✏️
+                            </button>
+                        </div>
+                        <div className="text-center">
+                            <div className="font-display font-bold text-kce-cream">{displayName}</div>
+                            {linkedMember?.nickname && <div className="text-xs text-kce-muted">{user?.name}</div>}
+                            {user?.username && <div className="text-xs text-kce-muted">@{user.username}</div>}
+                        </div>
+                        {user?.avatar && (
+                            <button className="text-[10px] text-kce-muted" onClick={handleRemoveAvatar}>
+                                {t('profile.removeAvatar')}
+                            </button>
+                        )}
+                        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange}/>
+                    </div>
+
                     <div className="kce-card p-4 flex flex-col gap-3">
                         <div>
                             <label className="field-label">{t('profile.displayName')}</label>
@@ -604,182 +796,6 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     )}
 
-                    {/* Balance & payment link */}
-                    {myBalance?.balance != null && (
-                        <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
-                                {t('profile.myBalance')}
-                            </div>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs text-kce-muted">{t('profile.balance')}</span>
-                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-red-400' : myBalance.balance > 0.01 ? 'text-green-400' : 'text-kce-muted'}`}>
-                                    {myBalance.balance.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
-                                </span>
-                            </div>
-                            {hasDebt && paypalHandle && !hasPendingRequest && (
-                                <div className="flex flex-col gap-2">
-                                    {!reportingPayment ? (
-                                        <div className="flex gap-2">
-                                            <a
-                                                href={`https://paypal.me/${paypalHandle}/${debtAmount.toFixed(2)}EUR`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="btn-primary flex-1 text-center text-sm py-2"
-                                            >
-                                                {t('profile.payNow')}
-                                            </a>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
-                                                <input
-                                                    className="kce-input flex-1"
-                                                    type="text" inputMode="decimal"
-                                                    value={paymentAmount}
-                                                    placeholder={debtAmount.toFixed(2)}
-                                                    onChange={e => setPaymentAmount(e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button className="btn-secondary flex-1 btn-sm"
-                                                        onClick={() => { setReportingPayment(false); setPaymentAmount('') }}>
-                                                    {t('action.cancel')}
-                                                </button>
-                                                <button className="btn-primary flex-1 btn-sm" onClick={async () => {
-                                                    const amt = paymentAmount.trim()
-                                                        ? parseFloat(paymentAmount.replace(',', '.'))
-                                                        : debtAmount
-                                                    if (!amt || amt <= 0) return
-                                                    try {
-                                                        await api.createPaymentRequest({amount: amt})
-                                                        await refetchRequests()
-                                                        qc.invalidateQueries({queryKey: ['payment-requests']})
-                                                        qc.invalidateQueries({queryKey: ['my-balance']})
-                                                        setReportingPayment(false)
-                                                        setPaymentAmount('')
-                                                        showToast(t('profile.reportPayment'))
-                                                    } catch (e) { toastError(e) }
-                                                }}>
-                                                    {t('profile.reportPayment')}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!reportingPayment && (
-                                        <button className="btn-secondary w-full text-sm" onClick={() => setReportingPayment(true)}>
-                                            {t('profile.reportPayment')}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                            {hasPendingRequest && (
-                                <div className="text-xs text-kce-amber text-center py-1">
-                                    ⏳ {t('paymentRequest.pending')}
-                                </div>
-                            )}
-                            {myRequests.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-kce-surface2">
-                                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-2">
-                                        {t('profile.paymentRequests')}
-                                    </div>
-                                    {myRequests.map(r => (
-                                        <div key={r.id} className="flex items-center justify-between py-1 text-xs">
-                                            <span className="text-kce-muted">
-                                                {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) : ''}
-                                            </span>
-                                            <span className="font-bold">{r.amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
-                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-green-400' : r.status === 'rejected' ? 'text-red-400' : 'text-kce-amber'}`}>
-                                                {t(`paymentRequest.${r.status}` as any)}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Personal year stats */}
-                    {myStats && (
-                        <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
-                                {t('profile.myStats')} {year}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.penalties')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.evenings')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.wins')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Throw performance card */}
-                    {myThrowStats && myThrowStats.throw_count > 0 && (
-                        <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
-                                {t('profile.throwStats')} {year}
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 mb-3">
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-kce-cream text-lg">{myThrowStats.avg_pins ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('stats.avgPins')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-green-400 text-lg">{myThrowStats.best_avg ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.bestAvg')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-red-400 text-lg">{myThrowStats.worst_avg ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.worstAvg')}</div>
-                                </div>
-                            </div>
-                            {myThrowStats.evenings.length > 1 && (
-                                <ThrowTrendMini evenings={myThrowStats.evenings}/>
-                            )}
-                            <div className="text-[10px] text-kce-muted text-center mt-1">
-                                {myThrowStats.throw_count} {t('stats.throwCount')} · {myThrowStats.total_pins} {t('stats.totalPins')}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Kegel-Wrapped launcher */}
-                    {myWrapped && myWrapped.has_data && (
-                        <button
-                            onClick={() => setWrappedOpen(true)}
-                            className="kce-card p-4 w-full flex items-center gap-3 text-left active:opacity-70 transition-opacity"
-                            style={{background: 'linear-gradient(135deg, var(--kce-surface2), var(--kce-surface))'}}
-                        >
-                            <span className="text-3xl">🎁</span>
-                            <span className="flex-1">
-                                <span className="block text-sm font-bold text-kce-cream">{t('wrapped.title')} {year}</span>
-                                <span className="block text-[11px] text-kce-muted">{t('wrapped.launchHint')}</span>
-                            </span>
-                            <span className="text-kce-primary text-lg">›</span>
-                        </button>
-                    )}
-
-                    {/* Achievements shelf */}
-                    {myAchievements && myAchievements.achievements.length > 0 && (
-                        <AchievementShelf achievements={myAchievements.achievements}/>
-                    )}
-
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
                         {saving ? t('action.saving') : t('action.save')}
                     </button>
@@ -837,6 +853,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         v{__APP_VERSION__} · © 2026 Marius Gassen
                     </p>
                 </div>
+                )}
             </div>
             <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
             {myWrapped && (

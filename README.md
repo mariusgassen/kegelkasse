@@ -87,6 +87,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Invite-link registration — admin generates a one-time token, user self-registers via link
 - Per-user language preference (DE/EN), persisted server-side
 - Admin can promote/demote members between `member` and `admin` roles
+- **Profile sheet split into two tabs**: **🎳 Meine Saison** (default, read-only personal dashboard — balance & payment, yearly stats, throw performance, achievement badges, Kegel-Wrapped launcher) and **⚙️ Einstellungen** (avatar, display name, login email, password, language, push subscription + preferences, PWA install, docs links, logout, account deletion — the single scoped "Save" button lives only here)
 
 ### Club administration *(admin only)*
 

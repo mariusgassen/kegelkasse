@@ -10,7 +10,7 @@ Kegelkasse kann **Web-Push-Benachrichtigungen** senden — auch wenn die App nic
 
 ## Benachrichtigungen aktivieren
 
-1. Öffne das **Profil** (Avatar oben rechts)
+1. Öffne das **Profil** (Avatar oben rechts) → Tab **⚙️ Einstellungen**
 2. Scrolle zum Abschnitt **Push-Benachrichtigungen**
 3. Tippe auf **Aktivieren**
 4. Bestätige die Browser-Anfrage zur Erlaubnis
@@ -39,7 +39,7 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 
 ## Einstellungen im Profil
 
-Im Profil können Benachrichtigungen feingranular gesteuert werden:
+Im Profil-Tab **⚙️ Einstellungen** können Benachrichtigungen feingranular gesteuert werden:
 
 - **Strafen, Abend-Events, Kegeltermine, Zahlungen, Spielergebnisse, Neue Mitglieder** — einzeln an/aus
 - **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen an/aus

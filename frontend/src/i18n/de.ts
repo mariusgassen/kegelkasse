@@ -664,6 +664,8 @@ export const de = {
     "profile.worstAvg": "Schlechtestes Ø",
     "profile.uploadError": "Fehler beim Hochladen",
     "profile.removeAvatar": "Bild entfernen",
+    "profile.tab.season": "🎳 Meine Saison",
+    "profile.tab.settings": "⚙️ Einstellungen",
     "profile.displayName": "Anzeigename",
     "profile.displayNamePlaceholder": "Vorname Nachname",
     "profile.loginEmail": "Login-E-Mail",
