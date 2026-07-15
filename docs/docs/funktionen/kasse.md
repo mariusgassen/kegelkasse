@@ -99,9 +99,10 @@ Admins können oben in der Kasse einen vollständigen Kassenbericht herunterlade
 ### Bericht herunterladen
 
 1. Öffne die **Kasse** (💰)
-2. Wähle oben den **Zeitraum** (Jahr oder gesamter Zeitraum)
-3. Wähle das **Format** (Excel oder PDF)
-4. Tippe auf **📊 Export**
+2. Tippe oben rechts auf **📊 Export** — öffnet ein Sheet
+3. Wähle den **Zeitraum** (ein Jahr oder gesamter Zeitraum). Die Jahresauswahl zeigt nur Jahre, in denen tatsächlich Buchungen (Zahlungen oder Ausgaben) existieren
+4. Wähle das **Format** (Excel oder PDF)
+5. Tippe auf **Herunterladen**
 
 ### Automatischer Bericht vor dem Abend
 
