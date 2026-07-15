@@ -105,7 +105,7 @@ function makeWrapper() {
     }
 }
 
-async function renderProfileSheet(props: { open?: boolean; onClose?: () => void } = {}) {
+async function renderProfileSheet(props: { open?: boolean; onClose?: () => void; tab?: 'season' | 'settings' } = {}) {
     const { ProfileSheet } = await import('../ProfileSheet')
     let result!: ReturnType<typeof render>
     await act(async () => {
@@ -114,6 +114,9 @@ async function renderProfileSheet(props: { open?: boolean; onClose?: () => void 
             { wrapper: makeWrapper() }
         )
     })
+    if ((props.open ?? true) && props.tab === 'settings') {
+        fireEvent.click(screen.getByText('profile.tab.settings'))
+    }
     return result
 }
 
@@ -162,6 +165,52 @@ describe('ProfileSheet — rendering when closed', () => {
     })
 })
 
+describe('ProfileSheet — tab switching', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+    })
+
+    it('shows Meine Saison tab content by default', async () => {
+        await setupApiMocks()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('profile.myBalance')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('profile.displayName')).not.toBeInTheDocument()
+    })
+
+    it('switches to Einstellungen tab and hides season content', async () => {
+        await setupApiMocks()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('profile.myBalance')).toBeInTheDocument()
+        })
+        fireEvent.click(screen.getByText('profile.tab.settings'))
+        expect(screen.getByText('profile.displayName')).toBeInTheDocument()
+        expect(screen.queryByText('profile.myBalance')).not.toBeInTheDocument()
+    })
+
+    it('does not show a save button on the season tab', async () => {
+        await setupApiMocks()
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByText('profile.myBalance')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('action.save')).not.toBeInTheDocument()
+    })
+
+    it('switching back to season tab preserves data without refetch errors', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('profile.displayName')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('profile.tab.season'))
+        await waitFor(() => {
+            expect(screen.getByText('profile.myBalance')).toBeInTheDocument()
+        })
+    })
+})
+
 describe('ProfileSheet — basic display', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
@@ -174,19 +223,19 @@ describe('ProfileSheet — basic display', () => {
 
     it('shows displayName field label', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('profile.displayName')).toBeInTheDocument()
     })
 
     it('shows logout button', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('auth.logout')).toBeInTheDocument()
     })
 
     it('shows language settings section', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('settings.language')).toBeInTheDocument()
     })
 })
@@ -199,19 +248,19 @@ describe('ProfileSheet — admin user', () => {
 
     it('shows admin user name', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByDisplayValue('Admin User')).toBeInTheDocument()
     })
 
     it('shows profile form with pre-filled email', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByDisplayValue('admin@test.de')).toBeInTheDocument()
     })
 
     it('shows reminder_payments toggle for admin', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('profile.displayName')).toBeInTheDocument()
         })
@@ -226,7 +275,7 @@ describe('ProfileSheet — member user', () => {
 
     it('shows member user name in input', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByDisplayValue('Hans Schmidt')).toBeInTheDocument()
     })
 
@@ -240,7 +289,7 @@ describe('ProfileSheet — member user', () => {
 
     it('shows logout button', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('auth.logout')).toBeInTheDocument()
     })
 })
@@ -253,13 +302,13 @@ describe('ProfileSheet — language selector', () => {
 
     it('shows language settings label', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('settings.language')).toBeInTheDocument()
     })
 
     it('shows version number in footer', async () => {
         await setupApiMocks()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         // Footer shows version
         expect(screen.getByText(/0\.0\.0-test/)).toBeInTheDocument()
     })
@@ -410,7 +459,7 @@ describe('ProfileSheet — push preferences', () => {
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.preferences')).toBeInTheDocument()
         })
@@ -429,7 +478,7 @@ describe('ProfileSheet — push preferences', () => {
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
         })
@@ -449,7 +498,7 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
         vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
         })
@@ -479,7 +528,7 @@ describe('ProfileSheet — push preferences', () => {
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.reminders')).toBeInTheDocument()
         })
@@ -504,7 +553,7 @@ describe('ProfileSheet — push preferences', () => {
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
         })
@@ -527,7 +576,7 @@ describe('ProfileSheet — save profile', () => {
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
         vi.mocked(api.updateProfile).mockResolvedValue({ ...MEMBER_USER, name: 'New Name' } as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const nameInput = screen.getByDisplayValue('Hans Schmidt')
         fireEvent.change(nameInput, { target: { value: 'New Name' } })
         fireEvent.click(screen.getByText('action.save'))
@@ -555,7 +604,7 @@ describe('ProfileSheet — save profile', () => {
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
         const onClose = vi.fn()
-        await renderProfileSheet({ onClose })
+        await renderProfileSheet({ onClose, tab: 'settings' })
         fireEvent.click(screen.getByText('action.save'))
         await waitFor(() => {
             expect(onClose).toHaveBeenCalled()
@@ -573,20 +622,20 @@ describe('ProfileSheet — logout and account delete', () => {
 
     it('calls authState.setToken(null) on logout', async () => {
         const { authState } = await import('@/api/client.ts')
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('auth.logout'))
         expect(authState.setToken).toHaveBeenCalledWith(null)
     })
 
     it('shows deleteConfirm UI after clicking deleteAccount', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('profile.deleteAccount'))
         expect(screen.getByText('profile.deleteConfirm')).toBeInTheDocument()
         expect(screen.getByText('action.confirmDelete')).toBeInTheDocument()
     })
 
     it('hides confirm UI when cancel clicked', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('profile.deleteAccount'))
         expect(screen.getByText('profile.deleteConfirm')).toBeInTheDocument()
         // click the cancel button in the confirm box
@@ -598,7 +647,7 @@ describe('ProfileSheet — logout and account delete', () => {
     it('calls api.deleteAccount when confirmDelete clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteAccount).mockResolvedValue(undefined as any)
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('profile.deleteAccount'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
@@ -706,7 +755,7 @@ describe('ProfileSheet — language toggle', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateLocale).mockResolvedValue(undefined as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         // Click the EN language button
         const enBtn = screen.getByText('EN')
         fireEvent.click(enBtn)
@@ -720,7 +769,7 @@ describe('ProfileSheet — language toggle', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateLocale).mockResolvedValue(undefined as any)
 
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const deBtn = screen.getByText('DE')
         fireEvent.click(deBtn)
         await waitFor(() => {
@@ -754,7 +803,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('shows push.pref.reminder_debt toggle', async () => {
         await setupWithReminders()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
         })
@@ -763,7 +812,7 @@ describe('ProfileSheet — reminder toggles', () => {
     it('calls updatePushPreferences when reminder_debt toggle clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await setupWithReminders({ reminder_debt: false })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
         })
@@ -780,7 +829,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('shows push.pref.reminder_schedule toggle', async () => {
         await setupWithReminders()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_schedule')).toBeInTheDocument()
         })
@@ -789,7 +838,7 @@ describe('ProfileSheet — reminder toggles', () => {
     it('calls updatePushPreferences when reminder_schedule toggle clicked', async () => {
         const { api } = await import('@/api/client.ts')
         await setupWithReminders({ reminder_schedule: false })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_schedule')).toBeInTheDocument()
         })
@@ -804,7 +853,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('shows reminder_schedule_days input when reminder_schedule is true', async () => {
         await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.reminder_schedule_days')).toBeInTheDocument()
         })
@@ -815,7 +864,7 @@ describe('ProfileSheet — reminder toggles', () => {
     it('calls updatePushPreferences when reminder_schedule_days input changed', async () => {
         const { api } = await import('@/api/client.ts')
         await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByDisplayValue('5')).toBeInTheDocument()
         })
@@ -829,7 +878,7 @@ describe('ProfileSheet — reminder toggles', () => {
     it('does not call updatePushPreferences for invalid days input (0 or NaN)', async () => {
         const { api } = await import('@/api/client.ts')
         await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByDisplayValue('5')).toBeInTheDocument()
         })
@@ -842,7 +891,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('shows test push button when pushPrefs loaded', async () => {
         await setupWithReminders()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.testLabel')).toBeInTheDocument()
         })
@@ -854,7 +903,7 @@ describe('ProfileSheet — reminder toggles', () => {
         const { showToast } = await import('@/components/ui/Toast.tsx')
         vi.mocked(api.testPush).mockResolvedValue(undefined as any)
         await setupWithReminders()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('Test')).toBeInTheDocument()
         })
@@ -870,7 +919,7 @@ describe('ProfileSheet — reminder toggles', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.testPush).mockRejectedValue(new Error('push failed'))
         await setupWithReminders()
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('Test')).toBeInTheDocument()
         })
@@ -888,7 +937,7 @@ describe('ProfileSheet — reminder toggles', () => {
             user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
         } as any)
         await setupWithReminders({ reminder_payments: false })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
         })
@@ -903,7 +952,7 @@ describe('ProfileSheet — reminder toggles', () => {
             user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
         } as any)
         await setupWithReminders({ reminder_payments: false })
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
         })
@@ -923,7 +972,7 @@ describe('ProfileSheet — reminder toggles', () => {
         await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
         // Re-mock getPushPreferences to ensure prefs after the failed update are reverted
         vi.mocked(api.updatePushPreferences).mockRejectedValue(new Error('server error'))
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByDisplayValue('5')).toBeInTheDocument()
         })
@@ -1006,21 +1055,21 @@ describe('ProfileSheet — input onChange handlers', () => {
     })
 
     it('updates username input when changed', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const usernameInput = screen.getByDisplayValue('hans') as HTMLInputElement
         fireEvent.change(usernameInput, { target: { value: 'newhans' } })
         expect(usernameInput.value).toBe('newhans')
     })
 
     it('updates email input when changed', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const emailInput = screen.getByDisplayValue('member@test.de') as HTMLInputElement
         fireEvent.change(emailInput, { target: { value: 'new@test.de' } })
         expect(emailInput.value).toBe('new@test.de')
     })
 
     it('updates currentPassword input when changed', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const pwInputs = document.querySelectorAll('input[type="password"]')
         const currentPwInput = pwInputs[0] as HTMLInputElement
         fireEvent.change(currentPwInput, { target: { value: 'oldpass123' } })
@@ -1028,7 +1077,7 @@ describe('ProfileSheet — input onChange handlers', () => {
     })
 
     it('updates newPassword input when changed', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const pwInputs = document.querySelectorAll('input[type="password"]')
         const newPwInput = pwInputs[1] as HTMLInputElement
         fireEvent.change(newPwInput, { target: { value: 'newpass456' } })
@@ -1039,7 +1088,7 @@ describe('ProfileSheet — input onChange handlers', () => {
         const { api } = await import('@/api/client.ts')
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updateProfile).mockRejectedValueOnce(new Error('save failed'))
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const nameInput = screen.getByDisplayValue('Hans Schmidt')
         fireEvent.change(nameInput, { target: { value: 'Different Name' } })
         fireEvent.click(screen.getByText('action.save'))
@@ -1051,7 +1100,7 @@ describe('ProfileSheet — input onChange handlers', () => {
     it('includes new_password in save payload when newPw set', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateProfile).mockResolvedValueOnce(MEMBER_USER as any)
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         const pwInputs = document.querySelectorAll('input[type="password"]')
         fireEvent.change(pwInputs[0], { target: { value: 'currentpass' } })
         fireEvent.change(pwInputs[1], { target: { value: 'newpass456' } })
@@ -1081,7 +1130,7 @@ describe('ProfileSheet — togglePushPref error reverts state', () => {
             games: true, members: true, comments: true,
             reminder_debt: false, reminder_schedule: false, reminder_payments: false,
         } as any)
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => screen.getByText('push.pref.penalties'))
         const toggles = screen.getAllByRole('button', { pressed: true })
         const enabledToggle = toggles.find(b => !b.hasAttribute('disabled'))
@@ -1156,14 +1205,14 @@ describe('ProfileSheet — avatar remove button', () => {
     })
 
     it('shows remove avatar button when user has avatar', async () => {
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('profile.removeAvatar')).toBeInTheDocument()
     })
 
     it('calls api.updateAvatar(null) when remove avatar clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateAvatar).mockResolvedValueOnce({ ...MEMBER_USER, avatar: null } as any)
-        await renderProfileSheet()
+        await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('profile.removeAvatar'))
         await waitFor(() => {
             expect(api.updateAvatar).toHaveBeenCalledWith(null)
