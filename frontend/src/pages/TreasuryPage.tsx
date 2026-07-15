@@ -26,7 +26,7 @@ import {
     mergeDualSeries,
     windowBounds,
 } from '@/lib/balanceHistory.ts'
-import {paidShare, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
+import {paidShare, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -454,7 +454,21 @@ export function TreasuryPage() {
     const [showSettled, setShowSettled] = useState(false)
     const [showBalanceFilter, setShowBalanceFilter] = useState(false)
     const [balanceFilterIds, setBalanceFilterIds] = useState<Set<number>>(new Set())
-    const [balanceFilterMode, setBalanceFilterMode] = useState<'exclude' | 'only'>('exclude')
+    // View scope: restrict every filtered figure/list to just the selected members.
+    const [balanceOnlySelected, setBalanceOnlySelected] = useState(false)
+    // "What if the selected members left" adjustments (independent, only apply when
+    // NOT in "only selected" view). Write-off outstanding debt is the historical default.
+    const [balanceWriteOffDebt, setBalanceWriteOffDebt] = useState(true)
+    const [balanceRefundPaid, setBalanceRefundPaid] = useState(false)
+    const [balanceSettleShare, setBalanceSettleShare] = useState(false)
+
+    const clearBalanceFilter = () => {
+        setBalanceFilterIds(new Set())
+        setBalanceOnlySelected(false)
+        setBalanceWriteOffDebt(true)
+        setBalanceRefundPaid(false)
+        setBalanceSettleShare(false)
+    }
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -855,23 +869,42 @@ export function TreasuryPage() {
     // Balance filter — applies globally across the overview tab: the Kassenstand
     // hero (paid-in/outstanding/cash-on-hand/projected), its money-flow breakdown
     // rows, the "Offen & Guthaben" tiles/lists, and the club-scope history graph's
-    // actual (cash) line all derive from effectiveBalances. "Exclude" writes off a
-    // selection's outstanding debt (already-paid stays, open penalties no longer
-    // counted); "only" restricts everything to just the selected members. Guests
-    // are never part of the selectable filter, so guest data always passes through
-    // untouched. Only the Konten tab (whole-club per-account view) stays unfiltered.
-    const effectiveBalances = balanceFilterIds.size === 0
+    // actual (cash) line all derive from effectiveBalances. Two mutually exclusive
+    // shapes:
+    //   • "Nur Auswahl anzeigen" (balanceOnlySelected) — a pure view scope that
+    //     restricts everything to just the selected members.
+    //   • otherwise a "what if the selection left the club" simulation, driven by
+    //     independent adjustments: write off their outstanding debt, refund their
+    //     already-paid money (drops paidIn), and/or settle their 1/n share of
+    //     other-income minus expenses (a cash payout, applied as shareOut below).
+    // Guests are never part of the selectable filter, so guest data always passes
+    // through untouched. Only the Konten tab (whole-club per-account view) stays
+    // unfiltered.
+    const balanceFilterActive = balanceFilterIds.size > 0
+    const effectiveBalances = !balanceFilterActive
         ? balances
-        : balanceFilterMode === 'exclude'
-            ? writeOffOutstandingDebt(balances, balanceFilterIds)
-            : balances.filter(b => balanceFilterIds.has(b.regular_member_id))
+        : balanceOnlySelected
+            ? balances.filter(b => balanceFilterIds.has(b.regular_member_id))
+            : (() => {
+                let b = balances
+                if (balanceWriteOffDebt) b = writeOffOutstandingDebt(b, balanceFilterIds)
+                if (balanceRefundPaid) b = refundPaidIn(b, balanceFilterIds)
+                return b
+            })()
 
     // Derived overview stats — full money flow: paid-in → expenses → cash on
     // hand, plus outstanding debt (members + guests) and the projected cash
     // if everyone settled up. Kept in lib/treasurySummary.ts (pure, tested).
     const summary = treasurySummary(effectiveBalances, guestBalances as Balance[], expenses as Expense[])
+    // Positive = money the leaving selection would draw out of the till (lowers
+    // cash on hand); negative = they'd pay in to settle their share (raises it).
+    // Only in the removal simulation ("only selected" view never pays anyone out).
+    const shareOut = (balanceFilterActive && !balanceOnlySelected && balanceSettleShare)
+        ? shareSettlement(summary.otherIncome, summary.expensesGross, balances.length, balanceFilterIds.size)
+        : 0
     const totalExpenses = summary.expensesNet
-    const kassenstand = summary.cashOnHand
+    const kassenstand = summary.cashOnHand - shareOut
+    const projectedCash = summary.projectedCash - shareOut
 
     // Per-click breakdowns for the Kassenstand hero rows — same source data,
     // just grouped/filtered per row instead of netted into a single figure.
@@ -924,7 +957,7 @@ export function TreasuryPage() {
     // overlay stays whole-club regardless — it's a single club-wide timeline from the backend,
     // not attributable to individual members.
     const guestIds = new Set((guestBalances as Balance[]).map(b => b.regular_member_id))
-    const filteredClubPayments = (balanceFilterIds.size > 0 && balanceFilterMode === 'only')
+    const filteredClubPayments = (balanceFilterActive && balanceOnlySelected)
         ? (allPayments as Payment[]).filter(p => guestIds.has(p.regular_member_id) || balanceFilterIds.has(p.regular_member_id))
         : (allPayments as Payment[])
     const historyActualEvents = historyScope === 'club'
@@ -1109,12 +1142,25 @@ export function TreasuryPage() {
 
                     {/* Nach Spielern filtern — collapsible, scopes the Kassenstand hero, den Verlauf-Graph (Kasse-Modus) und die Offen/Guthaben-Kacheln/Listen unten auf eine Auswahl von Mitgliedern */}
                     <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
-                        <button type="button" className="w-full p-3 flex items-center justify-between text-left"
-                                aria-expanded={showBalanceFilter}
-                                onClick={() => setShowBalanceFilter(v => !v)}>
-                            <span className="text-xs font-bold text-kce-muted">🔍 {t('treasury.balanceFilter.title')}</span>
-                            <span className="text-kce-muted text-xs">{showBalanceFilter ? '▲' : '▼'}</span>
-                        </button>
+                        <div className="w-full p-3 flex items-center justify-between gap-2">
+                            <button type="button" className="flex items-center gap-2 text-left flex-1 min-w-0"
+                                    aria-expanded={showBalanceFilter}
+                                    onClick={() => setShowBalanceFilter(v => !v)}>
+                                <span className="text-xs font-bold text-kce-muted truncate">🔍 {t('treasury.balanceFilter.title')}</span>
+                                {balanceFilterActive && (
+                                    <span className="flex-shrink-0 px-1.5 py-0.5 rounded bg-kce-amber text-kce-bg text-[10px] font-bold"
+                                          data-testid="balance-filter-active">{balanceFilterIds.size}</span>
+                                )}
+                                <span className="text-kce-muted text-xs ml-auto flex-shrink-0">{showBalanceFilter ? '▲' : '▼'}</span>
+                            </button>
+                            {balanceFilterActive && (
+                                <button type="button" className="flex-shrink-0 text-[10px] text-kce-muted underline px-1"
+                                        data-testid="balance-filter-clear"
+                                        onClick={clearBalanceFilter}>
+                                    {t('treasury.balanceFilter.clear')}
+                                </button>
+                            )}
+                        </div>
                         {showBalanceFilter && (
                             <div className="px-3 pb-3">
                                 <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
@@ -1141,14 +1187,51 @@ export function TreasuryPage() {
                                         )
                                     })}
                                 </div>
-                                {balanceFilterIds.size > 0 && (
-                                    <ModeToggle
-                                        options={[
-                                            {value: 'exclude', label: t('treasury.balanceFilter.modeExclude')},
-                                            {value: 'only', label: t('treasury.balanceFilter.modeOnly')},
-                                        ]}
-                                        value={balanceFilterMode}
-                                        onChange={v => setBalanceFilterMode(v as 'exclude' | 'only')}/>
+                                {balanceFilterActive && (
+                                    <div className="flex flex-col gap-2 pt-1 border-t border-kce-border" data-testid="balance-filter-options">
+                                        {/* View scope — a pure "show me only these members" filter, distinct from the removal simulation below */}
+                                        <label className="flex items-start gap-2 cursor-pointer pt-2">
+                                            <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceOnlySelected}
+                                                   data-testid="balance-opt-only"
+                                                   onChange={e => setBalanceOnlySelected(e.target.checked)}/>
+                                            <span>
+                                                <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.onlySelected')}</span>
+                                                <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
+                                            </span>
+                                        </label>
+                                        {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
+                                        <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
+                                             aria-disabled={balanceOnlySelected}>
+                                            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
+                                            <label className="flex items-start gap-2 cursor-pointer">
+                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
+                                                       disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
+                                                       onChange={e => setBalanceWriteOffDebt(e.target.checked)}/>
+                                                <span>
+                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optWriteOff')}</span>
+                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
+                                                </span>
+                                            </label>
+                                            <label className="flex items-start gap-2 cursor-pointer">
+                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceRefundPaid}
+                                                       disabled={balanceOnlySelected} data-testid="balance-opt-refund"
+                                                       onChange={e => setBalanceRefundPaid(e.target.checked)}/>
+                                                <span>
+                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optRefund')}</span>
+                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
+                                                </span>
+                                            </label>
+                                            <label className="flex items-start gap-2 cursor-pointer">
+                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceSettleShare}
+                                                       disabled={balanceOnlySelected} data-testid="balance-opt-share"
+                                                       onChange={e => setBalanceSettleShare(e.target.checked)}/>
+                                                <span>
+                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optShare')}</span>
+                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optShareHint')}</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -1191,6 +1274,15 @@ export function TreasuryPage() {
                                     testId="flow-amount-otherIncome"
                                 />
                             )}
+                            {Math.abs(shareOut) >= 0.005 && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-kce-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
+                                    <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-green-400'}`}
+                                          data-testid="flow-amount-share">
+                                        {shareOut > 0 ? `-${fe(shareOut)}` : `+${fe(-shareOut)}`}
+                                    </span>
+                                </div>
+                            )}
                             {summary.outstanding > 0 && (
                                 <>
                                     <FlowRow
@@ -1202,7 +1294,7 @@ export function TreasuryPage() {
                                     />
                                     <div className="flex items-center justify-between pt-1 border-t border-kce-border">
                                         <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
-                                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(summary.projectedCash)}</span>
+                                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(projectedCash)}</span>
                                     </div>
                                 </>
                             )}

@@ -103,6 +103,45 @@ export function writeOffOutstandingDebt<T extends IdentifiedBalanceLike>(
     return balances.map(b => (idSet.has(b.regular_member_id) && b.balance < 0) ? {...b, balance: 0} : b)
 }
 
+/**
+ * Zeroes the already-paid contribution (`payments_total`) of the selected
+ * members, simulating a refund: the money they paid in is treated as no longer
+ * in the till. Fed into `treasurySummary()`, this lowers `paidIn`/`cashOnHand`
+ * (and drops the members from the paid-in breakdown) by exactly that amount.
+ * `balance` is left untouched — who owes/holds credit is a separate axis handled
+ * by `writeOffOutstandingDebt`, so the two options compose without double counting.
+ */
+export function refundPaidIn<T extends IdentifiedBalanceLike>(
+    balances: T[],
+    ids: ReadonlySet<number> | number[],
+): T[] {
+    const idSet = ids instanceof Set ? ids : new Set(ids)
+    if (idSet.size === 0) return balances
+    return balances.map(b => idSet.has(b.regular_member_id) ? {...b, payments_total: 0} : b)
+}
+
+/**
+ * The net share the selected members would settle if they left the club: each
+ * member holds an equal 1/n stake in the club's "other income" (grants,
+ * sponsoring — money not paid in by members themselves) but also bears an equal
+ * 1/n share of what the club has spent (gross expenses). Per member the claim is
+ * `(otherIncome − expensesGross) / n`; summed over the selected members.
+ *
+ * Positive = the till pays them out on exit (cash on hand drops by this amount);
+ * negative = their share of spending exceeds their share of income, so settling
+ * it up raises the till. `n` is the total number of member accounts. Returns 0
+ * when there are no members (guards division by zero).
+ */
+export function shareSettlement(
+    otherIncome: number,
+    expensesGross: number,
+    memberCount: number,
+    selectedCount: number,
+): number {
+    if (memberCount <= 0 || selectedCount <= 0) return 0
+    return round2((selectedCount * (otherIncome - expensesGross)) / memberCount)
+}
+
 function round2(v: number) {
     return Math.round(v * 100) / 100
 }

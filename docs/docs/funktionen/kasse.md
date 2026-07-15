@@ -41,9 +41,14 @@ Direkt unter „Mein Konto" — noch vor der Kassenstand-Karte — lässt sich *
 
 1. Tippe auf **🔍 Nach Spielern filtern**, um die Karte aufzuklappen
 2. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
-3. Sobald mindestens ein Mitglied ausgewählt ist, erscheint ein Umschalter mit zwei Modi:
-   - **Ohne Auswahl**: bereits Bezahltes der ausgewählten Mitglieder bleibt in der Berechnung, ihre offenen Strafen zählen aber nicht mehr mit (werden als nie einziehbar abgeschrieben)
-   - **Nur Auswahl**: die Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
+3. Sobald mindestens ein Mitglied ausgewählt ist, erscheinen die Filter-Optionen:
+   - **Nur Auswahl anzeigen**: reine Ansichts-Einschränkung — Summen und Listen zeigen ausschließlich die ausgewählten Mitglieder
+   - Andernfalls simuliert der Filter, dass die Auswahl den Verein verlässt, über drei unabhängige Optionen:
+     - **Offene Strafen abschreiben** (Standard an): die offenen Schulden der Auswahl werden nicht mehr eingefordert (bereits Bezahltes bleibt)
+     - **Eingezahltes abziehen**: das bereits eingezahlte Geld der Auswahl wird zurückgezahlt und aus dem Kassenstand entfernt (senkt „Eingezahlt")
+     - **Anteil verrechnen**: anteiliger Ausgleich von 1/n der sonstigen Einnahmen minus 1/n der Ausgaben je ausgewähltem Mitglied (n = Anzahl der Mitgliedskonten) — erscheint als eigene Zeile **Anteil Auswahl** im Kassenstand-Geldfluss
+
+Ein Zähl-Badge neben dem Titel zeigt an, wie viele Mitglieder ausgewählt sind (auch im eingeklappten Zustand); ein **Zurücksetzen**-Knopf leert die Auswahl und stellt die Standard-Optionen wieder her.
 
 Der Filter steht bewusst **vor** allem, was er beeinflusst — er wirkt **global auf die gesamte Übersicht darunter**: die Kassenstand-Karte (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion), die „Offen & Guthaben"-Kacheln und -Listen weiter unten, sowie — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im 📈 Verlauf-Graph. „Mein Konto" darüber bleibt davon unberührt (es zeigt immer dein eigenes, ungefiltertes Konto). Gäste sind nie Teil der Auswahl und bleiben davon unberührt. Ausgenommen bleiben die Vereinsausgaben (nicht mitgliedsgebunden), die „Inkl. Schulden"-Verlaufslinie (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt) und der **Konten**-Tab (immer vollständige Vereinsübersicht).
 
