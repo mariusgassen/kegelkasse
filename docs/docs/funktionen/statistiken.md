@@ -75,6 +75,52 @@ Im **Profil** (Profilsymbol oben rechts) sind die eigenen Jahresstatistiken eins
 - Eigene Werte für das aktuelle Jahr
 - Direkter Vergleich mit den eigenen Vorjahreswerten
 
+## 🏅 Auszeichnungen (Badges)
+
+Im **Profil** sammelt jedes Mitglied automatisch Auszeichnungen – rein aus den
+bereits erfassten Abend-, Spiel-, Strafen- und Getränkedaten berechnet, ohne
+zusätzlichen Aufwand. Die Badge-Wand zeigt oben, wie viele der 12 möglichen
+Auszeichnungen bereits freigeschaltet sind; freigeschaltete Badges leuchten in
+ihrer Stufenfarbe, gesperrte sind ausgegraut und zeigen einen Fortschrittsbalken
+bis zur nächsten Stufe.
+
+Mehrstufige Badges haben **Bronze / Silber / Gold**-Stufen:
+
+| Badge | Bedingung |
+|-------|-----------|
+| 🎳 Erstkegler | Bei mindestens einem Abend dabei |
+| 📅 Stammgast | 10 / 25 / 50 Abende besucht |
+| 🔥 Serientäter | 3 / 5 / 10 Abende in Folge dabei |
+| 👑 König | 1 / 5 / 10 Mal König geworden |
+| 🃏 König-Hattrick | 3 Abende in Folge König |
+| 🎯 Präsident | Ein Präsidentenspiel gewonnen |
+| 🏆 Seriensieger | 10 / 25 / 50 Spiele gewonnen |
+| 9️⃣ Alle Neune | Einen Wurf mit allen neun Kegeln |
+| 🍺 Bierkönig | 20 / 50 / 100 Bierrunden mitgemacht |
+| 🥃 Hochprozentig | 10 / 25 / 50 Schnapsrunden mitgemacht |
+| 💸 Pechvogel | 50 / 150 / 300 € an Strafen gesammelt |
+| 😇 Saubermann | Einen ganzen Abend ohne eigene Strafe |
+
+## 🎁 Jahresrückblick (Kegel-Wrapped)
+
+Ebenfalls im **Profil** öffnet der Knopf **🎁 Jahresrückblick** eine
+durchtippbare Karten-Story (im Stil von „Spotify Wrapped") mit den persönlichen
+Highlights des Jahres:
+
+- Anwesenheit (Abende dabei + Quote)
+- Gesamte Strafen und Anzahl
+- Teuerste Einzelstrafe des Jahres
+- Lieblingsstrafe (häufigster Straftyp)
+- Wie oft König, wie viele Spielsiege
+- Getränkerunden (Bier & Schnaps)
+- Wurfschnitt und bester Abend
+- Strafen-Rang im Verein
+- Eine augenzwinkernde **Kegler-Typ**-Auszeichnung zum Abschluss (z. B.
+  „Sünder des Jahres", „Bierbaron", „Der Heilige")
+
+Die Story wird per Tippen (rechte Seite = weiter, linke Seite = zurück) oder
+Wischen bedient; Karten ohne Daten werden automatisch übersprungen.
+
 ## Datengrundlage
 
 Die Statistiken basieren auf:

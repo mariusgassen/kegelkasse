@@ -46,6 +46,9 @@ vi.mock('@/store/app.ts', () => ({
 vi.mock('@/api/client.ts', () => ({
     api: {
         getMyStats: vi.fn(),
+        getMyThrowStats: vi.fn(),
+        getMyAchievements: vi.fn(),
+        getMyWrapped: vi.fn(),
         getMyBalance: vi.fn(),
         getClub: vi.fn(),
         getVapidPublicKey: vi.fn(),

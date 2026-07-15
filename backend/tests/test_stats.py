@@ -1047,3 +1047,186 @@ class TestEveningCorrelation:
     def test_requires_auth(self, client: TestClient, evening_2025: Evening):
         r = client.get(f"/api/v1/stats/correlation/evening/{evening_2025.id}")
         assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/me/achievements  &  /stats/members/{id}/achievements
+# ---------------------------------------------------------------------------
+
+class TestAchievements:
+    def _get_badge(self, achievements: list, key: str) -> dict:
+        return next(a for a in achievements if a["key"] == key)
+
+    def test_structure_and_keys(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "achievements" in data
+        keys = {a["key"] for a in data["achievements"]}
+        assert {"first_evening", "stammgast", "streak", "king", "hattrick",
+                "president", "champion", "allnine", "bierkoenig",
+                "hochprozentig", "pechvogel", "saubermann"} <= keys
+        for a in data["achievements"]:
+            assert set(a) >= {"key", "icon", "earned", "tier", "progress", "target"}
+
+    def test_first_evening_earned_on_attendance(self, client: TestClient, member_headers: dict,
+                                                evening_2025: Evening, player: EveningPlayer):
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "first_evening")
+        assert badge["earned"] is True
+
+    def test_first_evening_locked_without_attendance(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "first_evening")
+        assert badge["earned"] is False
+
+    def test_king_badge_tier(self, client: TestClient, member_headers: dict, db: Session,
+                             evening_2025: Evening, player: EveningPlayer):
+        player.is_king = True
+        db.commit()
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "king")
+        assert badge["earned"] is True
+        assert badge["tier"] == "bronze"
+        assert badge["progress"] == 1
+        assert badge["target"] == 5  # next tier
+
+    def test_allnine_badge_on_max_throw(self, client: TestClient, member_headers: dict, db: Session,
+                                        evening_2025: Evening, player: EveningPlayer):
+        from models.game import Game
+        g = Game(evening_id=evening_2025.id, name="AllNine", status="finished",
+                 client_timestamp=time.time() * 1000)
+        db.add(g)
+        db.flush()
+        db.add(GameThrowLog(game_id=g.id, player_id=player.id, throw_num=1, pins=9))
+        db.commit()
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "allnine")
+        assert badge["earned"] is True
+
+    def test_saubermann_on_clean_evening(self, client: TestClient, member_headers: dict,
+                                         evening_2025: Evening, player: EveningPlayer):
+        # Attended, no personal penalty → clean night badge.
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "saubermann")
+        assert badge["earned"] is True
+
+    def test_pechvogel_progress_reflects_total(self, client: TestClient, member_headers: dict,
+                                               db: Session, evening_2025: Evening,
+                                               player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Big", amount=60.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        r = client.get("/api/v1/stats/me/achievements", headers=member_headers)
+        badge = self._get_badge(r.json()["achievements"], "pechvogel")
+        assert badge["earned"] is True
+        assert badge["tier"] == "bronze"
+        assert badge["progress"] == 60.0
+
+    def test_member_achievements_visible(self, client: TestClient, member_headers: dict,
+                                         member: RegularMember):
+        r = client.get(f"/api/v1/stats/members/{member.id}/achievements", headers=member_headers)
+        assert r.status_code == 200
+        assert r.json()["regular_member_id"] == member.id
+
+    def test_member_achievements_404(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/members/999999/achievements", headers=member_headers)
+        assert r.status_code == 404
+
+    def test_requires_auth(self, client: TestClient):
+        assert client.get("/api/v1/stats/me/achievements").status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/me/wrapped/{year}  &  /stats/members/{id}/wrapped/{year}
+# ---------------------------------------------------------------------------
+
+class TestWrapped:
+    def test_structure(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/me/wrapped/2025", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["year"] == 2025
+        assert set(data) >= {"has_data", "evenings_attended", "penalty_total",
+                             "king_count", "game_wins", "total_beers", "total_shots",
+                             "biggest_penalty", "top_penalty_type", "penalty_rank",
+                             "title_key", "title_icon", "attendance_pct"}
+
+    def test_empty_year_has_no_data(self, client: TestClient, member_headers: dict):
+        data = client.get("/api/v1/stats/me/wrapped/1990", headers=member_headers).json()
+        assert data["has_data"] is False
+        assert data["evenings_attended"] == 0
+
+    def test_biggest_and_favorite_penalty(self, client: TestClient, member_headers: dict, db: Session,
+                                          evening_2025: Evening, player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Klein", icon="🐣", amount=1.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Klein", icon="🐣", amount=1.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Gross", icon="💥", amount=9.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        data = client.get("/api/v1/stats/me/wrapped/2025", headers=member_headers).json()
+        assert data["has_data"] is True
+        assert data["penalty_count"] == 3
+        assert data["biggest_penalty"]["amount"] == 9.0
+        assert data["biggest_penalty"]["icon"] == "💥"
+        assert data["top_penalty_type"]["name"] == "Klein"  # 2 vs 1
+        assert data["top_penalty_type"]["count"] == 2
+
+    def test_penalty_rank(self, client: TestClient, member_headers: dict, db: Session,
+                          evening_2025: Evening, player: EveningPlayer, member: RegularMember):
+        from models.penalty import PenaltyMode
+        # A rival member with a higher total → ranks above.
+        rival = RegularMember(club_id=evening_2025.club_id, name="Rival", is_active=True)
+        db.add(rival)
+        db.flush()
+        rival_player = EveningPlayer(evening_id=evening_2025.id, regular_member_id=rival.id, name="Rival")
+        db.add(rival_player)
+        db.flush()
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="P", amount=5.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=rival_player.id, player_name="Rival",
+                          penalty_type_name="P", amount=50.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        data = client.get("/api/v1/stats/me/wrapped/2025", headers=member_headers).json()
+        assert data["penalty_rank"] == 2
+        assert data["ranked_members"] == 2
+
+    def test_title_sinner_when_top_penalized(self, client: TestClient, member_headers: dict,
+                                             db: Session, evening_2025: Evening,
+                                             player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="P", amount=5.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        data = client.get("/api/v1/stats/me/wrapped/2025", headers=member_headers).json()
+        assert data["penalty_rank"] == 1
+        assert data["title_key"] == "sinner"
+
+    def test_title_saint_when_clean(self, client: TestClient, member_headers: dict,
+                                    evening_2025: Evening, player: EveningPlayer):
+        data = client.get("/api/v1/stats/me/wrapped/2025", headers=member_headers).json()
+        assert data["title_key"] == "saint"
+
+    def test_member_wrapped_visible(self, client: TestClient, member_headers: dict,
+                                    member: RegularMember):
+        r = client.get(f"/api/v1/stats/members/{member.id}/wrapped/2025", headers=member_headers)
+        assert r.status_code == 200
+        assert r.json()["regular_member_id"] == member.id
+
+    def test_member_wrapped_404(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/members/999999/wrapped/2025", headers=member_headers)
+        assert r.status_code == 404
+
+    def test_requires_auth(self, client: TestClient):
+        assert client.get("/api/v1/stats/me/wrapped/2025").status_code == 401
