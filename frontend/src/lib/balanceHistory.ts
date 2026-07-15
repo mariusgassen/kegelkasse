@@ -69,7 +69,12 @@ export function memberPaymentEvents(payments: MemberPayment[]): BalanceEvent[] {
     return events.sort(byTs)
 }
 
-/** "Virtual" overlay stream for the Mitglied scope — penalties reduce the balance on top of actual payments. */
+/**
+ * "Virtual" overlay stream for the Mitglied scope — penalties reduce the balance on top of actual
+ * payments. Each penalty's `amount` is its marginal contribution to the balance (the backend caps it
+ * per evening for guests and drops guest absence penalties), so the cumulative line matches the
+ * canonical member/guest balance rather than the raw penalty sum.
+ */
 export function memberPenaltyEvents(penalties: MemberPenalty[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
     for (const pen of penalties) {

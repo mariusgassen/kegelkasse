@@ -681,9 +681,22 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
 @router.get("/member-penalties/{mid}")
 def list_member_penalties(mid: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_member)):
-    """Chronological penalty history for one member, across all evenings."""
+    """Chronological penalty history for one member, across all evenings.
+
+    Each row's ``amount`` is the penalty's marginal contribution to the member's balance, so the
+    balance-history graph's cumulative line matches the canonical balance endpoints. For guests this
+    mirrors get_guest_balances: player penalties are capped per evening (a guest's fines within one
+    evening never exceed guest_penalty_cap) and absence penalties (player_id null) are excluded
+    entirely. Regular members are uncapped and include absence penalties, matching get_member_balances.
+    """
     member = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not member: raise HTTPException(404)
+
+    guest_cap: float | None = None
+    if member.is_guest:
+        club = db.query(Club).filter(Club.id == user.club_id).first()
+        s = club.settings if club else None
+        guest_cap = (s.extra or {}).get("guest_penalty_cap") if s else None
 
     player_ids = [
         pid for (pid,) in db.query(EveningPlayer.id)
@@ -705,16 +718,35 @@ def list_member_penalties(mid: int, db: Session = Depends(get_db),
         )
         .order_by(PenaltyLog.created_at.asc())
     )
-    return [{
-        "id": log.id,
-        "amount": _penalty_euro(log),
-        "icon": log.icon,
-        "penalty_type_name": log.penalty_type_name,
-        "evening_id": log.evening_id,
-        "evening_date": evening.date.isoformat() if evening.date else None,
-        "is_absence": log.player_id is None,
-        "created_at": log.created_at.isoformat() if log.created_at else None,
-    } for log, evening in q.all()]
+
+    # Running raw penalty total per evening, used to compute each guest penalty's capped marginal
+    # contribution (min(new, cap) - min(old, cap)), same as the treasury-debt-timeline endpoint.
+    evening_raw: dict[int, float] = {}
+    result = []
+    for log, evening in q.all():
+        is_absence = log.player_id is None
+        # Guest absence penalties don't count toward the guest balance (mirrors get_guest_balances).
+        if member.is_guest and is_absence:
+            continue
+        raw = _penalty_euro(log)
+        if guest_cap is not None and not is_absence:
+            old = evening_raw.get(log.evening_id, 0.0)
+            new = old + raw
+            evening_raw[log.evening_id] = new
+            amount = round(min(new, guest_cap) - min(old, guest_cap), 2)
+        else:
+            amount = raw
+        result.append({
+            "id": log.id,
+            "amount": amount,
+            "icon": log.icon,
+            "penalty_type_name": log.penalty_type_name,
+            "evening_id": log.evening_id,
+            "evening_date": evening.date.isoformat() if evening.date else None,
+            "is_absence": is_absence,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+    return result
 
 
 class PaymentCreate(BaseModel):
