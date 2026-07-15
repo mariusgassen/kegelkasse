@@ -375,6 +375,11 @@ class TestTreasuryDebtTimeline:
         data = resp.json()
         assert [row["total_debt"] for row in data] == [10.0, 6.0]
         assert data[0]["ts"] < data[1]["ts"]
+        # Each checkpoint is attributed to the member whose outstanding debt moved, so the
+        # club-scope overlay points can be labeled player-specific on the balance-history graph.
+        assert all(row["member_id"] == regular_member.id for row in data)
+        expected_name = regular_member.nickname or regular_member.name
+        assert all(row["member_name"] == expected_name for row in data)
 
     def test_guest_penalty_capped_per_evening(
         self, client: TestClient, db, club, admin_user, auth_headers,

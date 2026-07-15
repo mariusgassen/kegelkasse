@@ -97,6 +97,12 @@ async function openProfileSheet(page: Page): Promise<void> {
         .catch(() => {
             // Fallback: look for the push notification section heading
         })
+    // The profile sheet is split into "Meine Saison" / "Einstellungen" tabs — the push
+    // subscription controls live under Einstellungen (Settings), not the default season tab.
+    const settingsTab = page.getByRole('button', { name: /einstellungen|settings/i })
+    await settingsTab.first().click({ timeout: 5000 }).catch(() => {
+        // Older single-view profile sheet without tabs — nothing to switch to.
+    })
 }
 
 // ---------------------------------------------------------------------------
