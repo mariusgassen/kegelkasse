@@ -467,6 +467,7 @@ export const en = {
     "treasury.history.kindPayment": "Payment",
     "treasury.history.kindExpense": "Expense",
     "treasury.history.kindPenalty": "Penalty",
+    "treasury.history.kindDebt": "Outstanding debt",
     "treasury.flow.paidIn": "Paid in (members + guests)",
     "treasury.flow.expenses": "Expenses",
     "treasury.flow.otherIncome": "Other income",

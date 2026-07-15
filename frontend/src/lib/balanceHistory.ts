@@ -83,8 +83,9 @@ export function memberPenaltyEvents(penalties: MemberPenalty[]): BalanceEvent[] 
 /**
  * "Virtual" overlay stream for the Kasse scope — total outstanding member+guest debt over time.
  * Checkpoints are absolute levels, not deltas, so each event's delta is the diff from the previous
- * checkpoint. Not attributable to one booking (driven by club-wide activity), so kind is 'debt' —
- * callers must treat 'debt' events as non-clickable.
+ * checkpoint. Not attributable to one booking (driven by club-wide activity), so kind is 'debt';
+ * the delta still reads as the change in outstanding debt, which is why these points are shown and
+ * remain clickable in the chart (they carry no booking label — callers supply a generic one).
  */
 export function debtEventsFromTimeline(checkpoints: DebtCheckpoint[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
@@ -99,6 +100,7 @@ export function debtEventsFromTimeline(checkpoints: DebtCheckpoint[]): BalanceEv
     return events.sort(byTs)
 }
 
+/** Whether an event maps to a single underlying booking (all kinds except the club-wide 'debt' curve). */
 export function isAttributable(event: BalanceEvent): boolean {
     return event.kind !== 'debt'
 }

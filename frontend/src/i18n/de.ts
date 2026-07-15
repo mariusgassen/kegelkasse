@@ -467,6 +467,7 @@ export const de = {
     "treasury.history.kindPayment": "Zahlung",
     "treasury.history.kindExpense": "Ausgabe",
     "treasury.history.kindPenalty": "Strafe",
+    "treasury.history.kindDebt": "Offene Schulden",
     "treasury.flow.paidIn": "Eingezahlt (Mitglieder + Gäste)",
     "treasury.flow.expenses": "Ausgaben",
     "treasury.flow.otherIncome": "Sonstige Einnahmen",
