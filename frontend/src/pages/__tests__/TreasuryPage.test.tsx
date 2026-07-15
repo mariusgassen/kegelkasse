@@ -27,6 +27,7 @@ vi.mock('@/api/client.ts', () => ({
         getExpenses: vi.fn(),
         getAllPayments: vi.fn(),
         getMemberPayments: vi.fn(),
+        getMemberPenalties: vi.fn(),
         getTreasuryDebtTimeline: vi.fn(),
         createMemberPayment: vi.fn(),
         updateMemberPayment: vi.fn(),
@@ -1339,6 +1340,25 @@ describe('TreasuryPage — balance-history chart debt points & scroll', () => {
         })
     })
 
+    it('labels a club-scope debt point with the attributed member name', async () => {
+        const now = new Date()
+        const day = (h: number) => new Date(now.getFullYear(), now.getMonth(), 4, h, 0, 0).toISOString()
+        await setupDebtTimeline([
+            { ts: day(9), total_debt: 20, member_name: 'Anna' } as any,
+            { ts: day(15), total_debt: 50, member_name: 'Ben' } as any,
+        ])
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => expect(container.querySelectorAll('svg [role="button"]').length).toBe(1))
+
+        fireEvent.click(container.querySelector('svg [role="button"]')!)
+
+        await waitFor(() => {
+            const detail = within(screen.getByTestId('history-detail'))
+            expect(detail.getByText('Anna')).toBeInTheDocument()
+            expect(detail.getByText('Ben')).toBeInTheDocument()
+        })
+    })
+
     it('makes the detail list scrollable when a cluster has many entries', async () => {
         const now = new Date()
         const checkpoints = Array.from({ length: 12 }, (_, i) => ({
@@ -1355,6 +1375,49 @@ describe('TreasuryPage — balance-history chart debt points & scroll', () => {
             const detail = screen.getByTestId('history-detail')
             expect(detail.className).toContain('overflow-y-auto')
             expect(detail.className).toContain('max-h-40')
+        })
+    })
+})
+
+describe('TreasuryPage — balance-history chart member three-line view', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    it('draws a third penalties line with its own legend in the member scope', async () => {
+        const now = new Date()
+        const day = (n: number, h: number) => new Date(now.getFullYear(), now.getMonth(), n, h, 0, 0).toISOString()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 40, amount: 12.0, note: null, created_at: day(2, 9), updated_at: null, date: null },
+        ] as any)
+        vi.mocked(api.getMemberPenalties).mockResolvedValue([
+            { id: 50, amount: 5.0, icon: '⏰', penalty_type_name: 'Verspätet', evening_id: 1, evening_date: null, is_absence: false, created_at: day(3, 9) },
+        ] as any)
+
+        const { getByText, getAllByText } = await renderTreasuryPage()
+
+        // Switch the graph scope from Kasse (club) to Mitglied (member).
+        await waitFor(() => expect(getByText('👤 treasury.history.scopeMember')).toBeInTheDocument())
+        fireEvent.click(getByText('👤 treasury.history.scopeMember'))
+
+        // The member view carries three legend entries: paid in, penalties, balance.
+        await waitFor(() => {
+            expect(getAllByText('treasury.history.actualMember').length).toBeGreaterThan(0)
+            expect(getAllByText('treasury.history.penaltiesMember').length).toBeGreaterThan(0)
+            expect(getAllByText('treasury.history.virtualMember').length).toBeGreaterThan(0)
         })
     })
 })

@@ -502,7 +502,7 @@ export const api = {
         created_at: string | null
     }[]>('GET', `/club/member-penalties/${mid}`),
     getTreasuryDebtTimeline: () => request<{
-        ts: string; total_debt: number
+        ts: string; total_debt: number; member_id?: number; member_name?: string
     }[]>('GET', '/club/treasury-debt-timeline'),
     getAllPayments: () => request<{
         id: number; regular_member_id: number; member_name: string;

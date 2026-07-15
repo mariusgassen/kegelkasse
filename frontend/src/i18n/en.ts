@@ -462,6 +462,7 @@ export const en = {
     "treasury.history.balanceAfter": "Balance after:",
     "treasury.history.virtualClub": "Incl. debt",
     "treasury.history.virtualMember": "Balance",
+    "treasury.history.penaltiesMember": "Penalties",
     "treasury.history.noData": "No data yet.",
     "treasury.history.tapHint": "☝️ Tap a point for details",
     "treasury.history.kindPayment": "Payment",

@@ -960,6 +960,7 @@ def get_treasury_debt_timeline(db: Session = Depends(get_db), user: User = Depen
     if not members:
         return []
     member_ids = [m.id for m in members]
+    name_by_id = {m.id: (m.nickname or m.name) for m in members}
     guest_ids = {m.id for m in members if m.is_guest}
     non_guest_ids = [mid for mid in member_ids if mid not in guest_ids]
 
@@ -1021,7 +1022,15 @@ def get_treasury_debt_timeline(db: Session = Depends(get_db), user: User = Depen
         total_debt += (new_debt - old_debt)
         rounded = round(total_debt, 2)
         if rounded != prev_rounded:
-            checkpoints.append({"ts": ts.isoformat(), "total_debt": rounded})
+            # Attribute this checkpoint to the member whose outstanding debt just moved, so the
+            # club-scope overlay points can be labeled player-specific (the change in this member's
+            # debt equals the change in the club total, since only one member moves per event).
+            checkpoints.append({
+                "ts": ts.isoformat(),
+                "total_debt": rounded,
+                "member_id": mid,
+                "member_name": name_by_id.get(mid, ""),
+            })
             prev_rounded = rounded
 
     pi, qi = 0, 0

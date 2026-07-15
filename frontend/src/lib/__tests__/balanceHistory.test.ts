@@ -98,6 +98,19 @@ describe('debtEventsFromTimeline', () => {
     it('returns an empty array for no checkpoints', () => {
         expect(debtEventsFromTimeline([])).toEqual([])
     })
+
+    it('labels each event with the attributed member name when supplied', () => {
+        const events = debtEventsFromTimeline([
+            {ts: '2024-01-01T00:00:00Z', total_debt: 10, member_name: 'Anna'},
+            {ts: '2024-02-01T00:00:00Z', total_debt: 25, member_name: 'Ben'},
+        ])
+        expect(events.map(e => e.label)).toEqual(['Anna', 'Ben'])
+    })
+
+    it('falls back to an empty label when no member name is attributed', () => {
+        const events = debtEventsFromTimeline([{ts: '2024-01-01T00:00:00Z', total_debt: 10}])
+        expect(events[0].label).toBe('')
+    })
 })
 
 describe('isAttributable', () => {
@@ -248,9 +261,15 @@ describe('bucketStart', () => {
         expect(bucketStart(early, 'year')).toBe(bucketStart(late, 'year'))
     })
 
-    it('leaves the timestamp untouched for all granularity', () => {
+    it('buckets to the start of the calendar day for all granularity (same as month)', () => {
         const ts = new Date(2024, 4, 7, 21, 30).getTime()
-        expect(bucketStart(ts, 'all')).toBe(ts)
+        expect(bucketStart(ts, 'all')).toBe(new Date(2024, 4, 7).getTime())
+    })
+
+    it('collapses multiple same-day events onto one bucket for all granularity', () => {
+        const morning = new Date(2024, 4, 7, 9, 0).getTime()
+        const evening = new Date(2024, 4, 7, 22, 0).getTime()
+        expect(bucketStart(morning, 'all')).toBe(bucketStart(evening, 'all'))
     })
 })
 
@@ -298,10 +317,18 @@ describe('clusterPoints', () => {
         expect(clusterPoints(points, 'month')).toEqual([])
     })
 
-    it('does not cluster distinct timestamps under all granularity (no bucketing)', () => {
+    it('clusters same-day points under all granularity (per-day bucketing)', () => {
         const points = [
             point(morning, {id: 'payment-1', kind: 'payment'}),
             point(evening, {id: 'payment-2', kind: 'payment'}),
+        ]
+        expect(clusterPoints(points, 'all')).toHaveLength(1)
+    })
+
+    it('keeps different days apart under all granularity', () => {
+        const points = [
+            point(morning, {id: 'payment-1', kind: 'payment'}),
+            point(otherDay, {id: 'payment-2', kind: 'payment'}),
         ]
         expect(clusterPoints(points, 'all')).toHaveLength(2)
     })

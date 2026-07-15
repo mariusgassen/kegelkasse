@@ -28,7 +28,7 @@ type MemberPenalty = {
     id: number; amount: number; icon: string; penalty_type_name: string
     evening_id: number; evening_date: string | null; is_absence: boolean; created_at: string | null
 }
-type DebtCheckpoint = { ts: string; total_debt: number }
+type DebtCheckpoint = { ts: string; total_debt: number; member_name?: string }
 
 function parseTs(iso: string | null): number | null {
     if (!iso) return null
@@ -83,9 +83,9 @@ export function memberPenaltyEvents(penalties: MemberPenalty[]): BalanceEvent[] 
 /**
  * "Virtual" overlay stream for the Kasse scope — total outstanding member+guest debt over time.
  * Checkpoints are absolute levels, not deltas, so each event's delta is the diff from the previous
- * checkpoint. Not attributable to one booking (driven by club-wide activity), so kind is 'debt';
- * the delta still reads as the change in outstanding debt, which is why these points are shown and
- * remain clickable in the chart (they carry no booking label — callers supply a generic one).
+ * checkpoint. The kind stays 'debt' (it drives the club-wide outstanding-debt overlay curve), but the
+ * backend now attributes each checkpoint to the member whose outstanding debt moved, so the label
+ * carries that member's name — making the club-scope overlay points player-specific on click.
  */
 export function debtEventsFromTimeline(checkpoints: DebtCheckpoint[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
@@ -95,7 +95,7 @@ export function debtEventsFromTimeline(checkpoints: DebtCheckpoint[]): BalanceEv
         if (ts === null) continue
         const delta = checkpoints[i].total_debt - prev
         prev = checkpoints[i].total_debt
-        events.push({id: `debt-${i}`, ts, delta, kind: 'debt', label: ''})
+        events.push({id: `debt-${i}`, ts, delta, kind: 'debt', label: checkpoints[i].member_name ?? ''})
     }
     return events.sort(byTs)
 }
@@ -186,15 +186,16 @@ export function formatTick(ts: number, granularity: Granularity): string {
 // ── X-axis clustering ───────────────────────────────────────────────────────
 
 /**
- * Start-of-bucket timestamp an event's x-position clusters onto: one calendar day (an "evening",
- * the club's natural unit of activity) for month view, one calendar month for year view. 'all' has
- * no bucketing — it keeps a continuous time scale since it already spans years of sparse activity.
+ * Start-of-bucket timestamp an event's x-position clusters onto: one calendar day (an "evening", the
+ * club's natural unit of activity) for month and 'all' views, one calendar month for year view. Every
+ * granularity buckets — a continuous, time-proportional 'all' axis piled every same-timestamp booking
+ * (e.g. a season close) onto one x-position, so 'all' shares the month view's per-day bucketing but
+ * spreads the buckets evenly (and stays horizontally scrollable) instead of by real elapsed time.
  */
 export function bucketStart(ts: number, granularity: Granularity): number {
     const d = new Date(ts)
     if (granularity === 'year') return new Date(d.getFullYear(), d.getMonth(), 1).getTime()
-    if (granularity === 'month') return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-    return ts
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 }
 
 // ── Point clustering ─────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ export type PointCluster = {
 /**
  * Groups chart points that land in the same x-axis bucket (and are drawn on the same curve —
  * actual vs. overlay) into one cluster. Reuses the exact bucket width the chart's x-axis already
- * uses for positioning, so several bookings on the same evening (month view) or month (year view)
+ * uses for positioning, so several bookings on the same evening (month/all view) or month (year view)
  * collapse onto one clickable marker instead of stacked, mutually-hiding circles where only the
  * last-drawn one is reachable.
  */

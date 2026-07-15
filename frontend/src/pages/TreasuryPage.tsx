@@ -13,6 +13,7 @@ import {useHashTab} from '@/hooks/usePage.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {
     type BalanceEvent,
+    type DualPoint,
     type Granularity,
     bucketStart,
     clubEventsFromBookings,
@@ -144,11 +145,15 @@ const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> =
 
 const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
 
-function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, t}: {
+function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, t}: {
     actualEvents: BalanceEvent[]
     overlayEvents: BalanceEvent[]
     actualLabel: string
     virtualLabel: string
+    // Member scope draws a third "penalties" line (cumulative fines) alongside paid + balance; the
+    // club scope keeps the two-line paid + incl.-debt view. overlayLabel names that third line.
+    overlayLabel?: string
+    threeLine?: boolean
     t: (k: any) => string
 }) {
     const [granularity, setGranularity] = useState<Granularity>('month')
@@ -186,35 +191,36 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
         setSelectedClusterKey(null)
     }
 
+    // Cumulative penalties (member scope only): payments − balance, so a positive line rising in step
+    // with fines incurred. Balance = paid − penalties, so the gap between the paid and penalty lines.
+    const penaltyBaseline = -overlayBaseline
+    const penaltyAt = (p: DualPoint) => p.actual - p.virtual
+
     const values = [actualBaseline, actualBaseline + overlayBaseline, ...points.map(p => p.actual), ...points.map(p => p.virtual)]
+    if (threeLine) values.push(penaltyBaseline, ...points.map(penaltyAt))
     const minV = Math.min(0, ...values)
     const maxV = Math.max(0, ...values)
     const span = Math.max(maxV - minV, 1)
 
-    const chartWidth = isAll ? Math.max(BH_VW, points.length * BH_PX_PER_EVENT) : BH_VW
-    const innerWidth = chartWidth - BH_PAD.left - BH_PAD.right
-    const xEnd = isAll ? Math.max(win.end, ...allEvents.map(e => e.ts), win.start + 1) : win.end
-    const xSpan = Math.max(xEnd - win.start, 1)
-
-    // Month/year views cluster points onto discrete, evenly-spaced buckets (evening/month) instead of
-    // a continuous time scale — most days in a month (or months in a year) have no activity, so
-    // proportional-to-time spacing would waste most of the chart width on empty gaps.
-    const buckets = isAll ? [] : Array.from(new Set(points.map(p => bucketStart(p.ts, granularity)))).sort((a, b) => a - b)
+    // Every granularity clusters points onto discrete, evenly-spaced buckets (evening for month/all,
+    // month for year) rather than a time-proportional axis — most days/months have no activity, so
+    // proportional spacing wastes the width on gaps and piled every same-timestamp booking (e.g. a
+    // season close) onto one x-position. 'all' keeps its own scrollable width (one column per bucket).
+    const buckets = Array.from(new Set(points.map(p => bucketStart(p.ts, granularity)))).sort((a, b) => a - b)
     const bucketIndex = new Map(buckets.map((b, i) => [b, i]))
+    const chartWidth = isAll ? Math.max(BH_VW, buckets.length * BH_PX_PER_EVENT) : BH_VW
+    const innerWidth = chartWidth - BH_PAD.left - BH_PAD.right
     const xS = (ts: number) => {
-        if (isAll) return BH_PAD.left + ((ts - win.start) / xSpan) * innerWidth
         if (buckets.length === 0) return BH_PAD.left
         const idx = bucketIndex.get(bucketStart(ts, granularity)) ?? 0
         return buckets.length === 1 ? BH_PAD.left + innerWidth / 2 : BH_PAD.left + (idx / (buckets.length - 1)) * innerWidth
     }
     const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
 
-    function buildPath(key: 'actual' | 'virtual', baseline: number) {
-        const startX = isAll ? xS(win.start) : BH_PAD.left
-        const endX = isAll ? xS(xEnd) : BH_PAD.left + innerWidth
-        let d = `M ${startX},${yS(baseline)}`
-        for (const p of points) d += ` H ${xS(p.ts)} V ${yS(p[key])}`
-        d += ` H ${endX}`
+    function buildPath(valueAt: (p: DualPoint) => number, baseline: number) {
+        let d = `M ${BH_PAD.left},${yS(baseline)}`
+        for (const p of points) d += ` H ${xS(p.ts)} V ${yS(valueAt(p))}`
+        d += ` H ${BH_PAD.left + innerWidth}`
         return d
     }
 
@@ -229,24 +235,11 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
 
     const fAxisDate = (ts: number) => formatTick(ts, granularity)
 
-    // Choose which x-positions carry a date label. In the bucketed month/year views the x-axis is a
-    // discrete list of buckets, so we label per bucket (sampled only when crowded) — the previous
-    // index-based sampling skipped whole buckets whenever several bookings shared one bucket, which
-    // is why some columns showed a marker but no date beneath it. 'all' keeps a continuous time
-    // scale, so there we sample by point index and de-duplicate identical day labels.
+    // Choose which x-positions carry a date label. Every view now shares a discrete bucket x-axis, so
+    // we label per bucket (sampled only when crowded) with one representative point index each,
+    // preferring a selected point so the active bucket's label renders highlighted.
     const labelOwnerIndices = new Set<number>()
-    if (isAll) {
-        const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
-        const labelOwnerByDate = new Map<string, number>()
-        points.forEach((p, i) => {
-            if (!(i % labelEvery === 0 || selectedIndices.has(i))) return
-            const dateKey = fAxisDate(p.ts)
-            if (!labelOwnerByDate.has(dateKey) || selectedIndices.has(i)) labelOwnerByDate.set(dateKey, i)
-        })
-        labelOwnerByDate.forEach(i => labelOwnerIndices.add(i))
-    } else {
-        // One representative point index per bucket; prefer a selected point so the active bucket's
-        // label renders highlighted.
+    {
         const ownerForBucket = new Map<number, number>()
         points.forEach((p, i) => {
             const b = bucketStart(p.ts, granularity)
@@ -284,12 +277,29 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 <text key={`t-${i}`} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
                       fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
             ))}
-            <path d={buildPath('virtual', actualBaseline + overlayBaseline)}
-                  fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
-                  strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
-            <path d={buildPath('actual', actualBaseline)}
-                  fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round"/>
+            {threeLine ? (
+                <>
+                    {/* Penalties (cumulative fines, red) → paid (cream) → balance on top (primary, emphasized). */}
+                    <path d={buildPath(penaltyAt, penaltyBaseline)}
+                          fill="none" stroke={KIND_META.penalty.color} strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round" opacity={0.9}/>
+                    <path d={buildPath(p => p.actual, actualBaseline)}
+                          fill="none" stroke="var(--kce-cream)" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
+                          fill="none" stroke="var(--kce-primary)" strokeWidth="2.4"
+                          strokeLinecap="round" strokeLinejoin="round"/>
+                </>
+            ) : (
+                <>
+                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
+                          fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
+                          strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
+                    <path d={buildPath(p => p.actual, actualBaseline)}
+                          fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
+                          strokeLinecap="round" strokeLinejoin="round"/>
+                </>
+            )}
             {points.map((p, i) => (
                 labelOwnerIndices.has(i) ? (
                     <text key={`label-${i}`} x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
@@ -303,7 +313,10 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 const last = cluster.points[cluster.points.length - 1]
                 const lastEvent = last.event!
                 const meta = KIND_META[lastEvent.kind]
-                const cx = xS(last.ts), cy = yS(cluster.onOverlay ? last.virtual : last.actual)
+                // Overlay markers sit on the balance (virtual) line in club scope, but on the
+                // dedicated penalties line in the member three-line view; actual markers on the paid line.
+                const cy = yS(cluster.onOverlay ? (threeLine ? penaltyAt(last) : last.virtual) : last.actual)
+                const cx = xS(last.ts)
                 const count = cluster.points.length
                 const isSelected = selectedClusterKey === cluster.key
                 const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
@@ -409,11 +422,16 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                             )
                         })}
                     </div>
-                    <div className="flex items-center gap-3 mt-1 px-1.5 text-[10px]">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 px-1.5 text-[10px]">
                         <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
                         <span className="font-bold" style={{color: 'var(--kce-cream)'}}>
                             {actualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].actual)}
                         </span>
+                        {threeLine && overlayLabel && (
+                            <span className="font-bold" style={{color: KIND_META.penalty.color}}>
+                                {overlayLabel}: {fe(penaltyAt(selectedCluster.points[selectedCluster.points.length - 1]))}
+                            </span>
+                        )}
                         <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>
                             {virtualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].virtual)}
                         </span>
@@ -429,6 +447,12 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                         <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-cream)'}}/>
                         <span className="text-[10px] text-kce-muted font-bold">{actualLabel}</span>
                     </div>
+                    {threeLine && overlayLabel && (
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-1.5 rounded-full" style={{background: KIND_META.penalty.color, opacity: 0.9}}/>
+                            <span className="text-[10px] text-kce-muted font-bold">{overlayLabel}</span>
+                        </div>
+                    )}
                     <div className="flex items-center gap-1.5">
                         <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-primary)', opacity: 0.85}}/>
                         <span className="text-[10px] text-kce-muted font-bold">{virtualLabel}</span>
@@ -1364,6 +1388,8 @@ export function TreasuryPage() {
                         overlayEvents={historyOverlayEvents}
                         actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
                         virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
+                        overlayLabel={t('treasury.history.penaltiesMember')}
+                        threeLine={historyScope === 'member'}
                         t={t}/>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
