@@ -110,7 +110,7 @@ export function buildWrappedCards(s: WrappedStats, fe: (v: number) => string): W
     if (s.total_beers + s.total_shots > 0) {
         cards.push({
             id: 'drinks',
-            emoji: '🍺',
+            emoji: '🍻',
             headlineKey: 'wrapped.card.drinks',
             value: `🍺 ${s.total_beers}  🥃 ${s.total_shots}`,
             subtextKey: 'wrapped.card.drinks.sub',
