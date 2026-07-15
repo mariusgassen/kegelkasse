@@ -298,6 +298,57 @@ class TestMemberPenalties:
         assert data[0]["evening_date"] == evening.date.isoformat()
         assert data[2]["penalty_type_name"] == "Abwesenheit"
 
+    def test_guest_penalties_capped_per_evening_and_exclude_absence(
+        self, client: TestClient, db, club, admin_user, auth_headers,
+    ):
+        db.add(ClubSettings(club_id=club.id, extra={"guest_penalty_cap": 5.0}))
+        db.commit()
+
+        guest = RegularMember(club_id=club.id, name="Guest One", nickname="Guesty", is_guest=True)
+        db.add(guest)
+        db.commit()
+        db.refresh(guest)
+
+        evening = Evening(club_id=club.id, date=datetime(2024, 4, 1, tzinfo=timezone.utc))
+        db.add(evening)
+        db.commit()
+        db.refresh(evening)
+        ep = EveningPlayer(evening_id=evening.id, regular_member_id=guest.id, name=guest.name)
+        db.add(ep)
+        db.commit()
+        db.refresh(ep)
+
+        t0 = datetime(2024, 4, 1, 10, 0, tzinfo=timezone.utc)
+        t1 = datetime(2024, 4, 1, 11, 0, tzinfo=timezone.utc)
+        t2 = datetime(2024, 4, 1, 12, 0, tzinfo=timezone.utc)
+        p1 = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=guest.name,
+            penalty_type_name="Erste", icon="🎳", amount=3.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(), created_at=t0,
+        )
+        p2 = PenaltyLog(
+            evening_id=evening.id, player_id=ep.id, player_name=guest.name,
+            penalty_type_name="Zweite", icon="🎳", amount=4.0, mode=PenaltyMode.euro,
+            created_by=admin_user.id, client_timestamp=time.time(), created_at=t1,
+        )
+        absence = PenaltyLog(
+            evening_id=evening.id, player_id=None, regular_member_id=guest.id,
+            player_name=guest.name, penalty_type_name="Abwesenheit", icon="🚫",
+            amount=9.0, mode=PenaltyMode.euro, created_by=admin_user.id,
+            client_timestamp=time.time(), created_at=t2,
+        )
+        db.add_all([p1, p2, absence])
+        db.commit()
+
+        resp = client.get(f"/api/v1/club/member-penalties/{guest.id}", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        # Raw sum 3 + 4 = 7 → capped at 5 per evening: marginal contributions 3.0 then 2.0.
+        # The absence penalty is excluded for guests (mirrors get_guest_balances).
+        assert [row["amount"] for row in data] == [3.0, 2.0]
+        assert all(row["is_absence"] is False for row in data)
+        assert sum(row["amount"] for row in data) == 5.0
+
     def test_nonexistent_member_returns_404(self, client: TestClient, auth_headers):
         resp = client.get("/api/v1/club/member-penalties/999999", headers=auth_headers)
         assert resp.status_code == 404
