@@ -10,6 +10,8 @@ import {toastError} from '@/utils/error'
 import {PushPreferences} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
+import {AchievementShelf} from '@/components/AchievementShelf'
+import {WrappedDeck} from '@/components/WrappedDeck'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -211,6 +213,19 @@ export function ProfileSheet({open, onClose}: Props) {
         enabled: open && !!user?.regular_member_id,
         staleTime: 1000 * 60 * 5,
     })
+    const {data: myAchievements} = useQuery({
+        queryKey: ['my-achievements'],
+        queryFn: () => api.getMyAchievements(),
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 60 * 5,
+    })
+    const {data: myWrapped} = useQuery({
+        queryKey: ['my-wrapped', year],
+        queryFn: () => api.getMyWrapped(year),
+        enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 60 * 5,
+    })
+    const [wrappedOpen, setWrappedOpen] = useState(false)
 
     const {data: myBalance} = useQuery({
         queryKey: ['my-balance'],
@@ -744,6 +759,27 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     )}
 
+                    {/* Kegel-Wrapped launcher */}
+                    {myWrapped && myWrapped.has_data && (
+                        <button
+                            onClick={() => setWrappedOpen(true)}
+                            className="kce-card p-4 w-full flex items-center gap-3 text-left active:opacity-70 transition-opacity"
+                            style={{background: 'linear-gradient(135deg, var(--kce-surface2), var(--kce-surface))'}}
+                        >
+                            <span className="text-3xl">🎁</span>
+                            <span className="flex-1">
+                                <span className="block text-sm font-bold text-kce-cream">{t('wrapped.title')} {year}</span>
+                                <span className="block text-[11px] text-kce-muted">{t('wrapped.launchHint')}</span>
+                            </span>
+                            <span className="text-kce-primary text-lg">›</span>
+                        </button>
+                    )}
+
+                    {/* Achievements shelf */}
+                    {myAchievements && myAchievements.achievements.length > 0 && (
+                        <AchievementShelf achievements={myAchievements.achievements}/>
+                    )}
+
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
                         {saving ? t('action.saving') : t('action.save')}
                     </button>
@@ -803,6 +839,9 @@ export function ProfileSheet({open, onClose}: Props) {
                 </div>
             </div>
             <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
+            {myWrapped && (
+                <WrappedDeck open={wrappedOpen} onClose={() => setWrappedOpen(false)} stats={myWrapped}/>
+            )}
         </div>
     )
 }

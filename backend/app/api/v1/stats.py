@@ -208,6 +208,348 @@ def get_member_throw_stats(
     return _build_throw_stats(q.all(), member_id, year)
 
 
+# ---------------------------------------------------------------------------
+# Achievements & Badges  (Feature: gamification / regular check-in)
+# ---------------------------------------------------------------------------
+
+# Tier thresholds per tiered badge: (bronze, silver, gold)
+_TIERS = ("bronze", "silver", "gold")
+
+
+def _tiered(value: float, thresholds: tuple) -> dict:
+    """Resolve a numeric value into a tiered badge state.
+
+    Returns earned flag, the current tier name (or None), the raw progress
+    value, and the next threshold to reach (None once gold is maxed out).
+    """
+    bronze, silver, gold = thresholds
+    if value >= gold:
+        return {"earned": True, "tier": "gold", "progress": value, "target": None}
+    if value >= silver:
+        return {"earned": True, "tier": "silver", "progress": value, "target": gold}
+    if value >= bronze:
+        return {"earned": True, "tier": "bronze", "progress": value, "target": silver}
+    return {"earned": False, "tier": None, "progress": value, "target": bronze}
+
+
+def _binary(earned: bool) -> dict:
+    return {"earned": bool(earned), "tier": None, "progress": 1 if earned else 0, "target": None}
+
+
+def _longest_run(flags: list[bool]) -> int:
+    """Longest run of consecutive True values."""
+    best = cur = 0
+    for f in flags:
+        cur = cur + 1 if f else 0
+        best = max(best, cur)
+    return best
+
+
+def _compute_achievements(evenings: list, member_id: int) -> list[dict]:
+    """Career-wide badge set for a member, derived purely from evening data.
+
+    Evenings may be passed in any order; sorted chronologically here so that
+    streak / hattrick badges are computed against the real timeline.
+    """
+    ordered = sorted(evenings, key=lambda e: e.date)
+
+    attended = 0
+    king_count = 0
+    game_wins = 0
+    beer_rounds = 0
+    shot_rounds = 0
+    penalty_total = 0.0
+    won_president = False
+    threw_all_nine = False
+    had_clean_evening = False
+    attendance_flags: list[bool] = []   # per chronological evening: did member play?
+    king_flags: list[bool] = []         # per attended evening (chronological): was king?
+
+    for e in ordered:
+        player = next((p for p in e.players if p.regular_member_id == member_id), None)
+        attendance_flags.append(player is not None)
+        if not player:
+            continue
+        attended += 1
+
+        if player.is_king:
+            king_count += 1
+            king_flags.append(True)
+        else:
+            king_flags.append(False)
+
+        evening_penalties = 0
+        for log in e.penalty_log:
+            if log.player_id == player.id and not log.is_deleted:
+                penalty_total += _penalty_euro(log)
+                evening_penalties += 1
+        # Absence penalties still count toward the "unlucky" total.
+        if evening_penalties == 0:
+            had_clean_evening = True
+
+        for g in e.games:
+            if g.is_deleted:
+                continue
+            if g.winner_ref == f"p:{player.id}" or (player.team_id and g.winner_ref == f"t:{player.team_id}"):
+                game_wins += 1
+                if g.is_president_game:
+                    won_president = True
+            for th in g.throws:
+                if th.player_id == player.id and th.pins >= 9:
+                    threw_all_nine = True
+
+        for r in e.drink_rounds:
+            if not r.is_deleted and player.id in (r.participant_ids or []):
+                if r.drink_type == "beer":
+                    beer_rounds += 1
+                else:
+                    shot_rounds += 1
+
+    # Absence penalties (player_id None, regular_member_id set) also raise the total.
+    for e in ordered:
+        for log in e.penalty_log:
+            if log.player_id is None and log.regular_member_id == member_id and not log.is_deleted:
+                penalty_total += _penalty_euro(log)
+
+    longest_attendance_streak = _longest_run(attendance_flags)
+    longest_king_streak = _longest_run(king_flags)
+
+    def badge(key: str, icon: str, state: dict) -> dict:
+        return {"key": key, "icon": icon, **state}
+
+    return [
+        badge("first_evening", "🎳", _binary(attended >= 1)),
+        badge("stammgast", "📅", _tiered(attended, (10, 25, 50))),
+        badge("streak", "🔥", _tiered(longest_attendance_streak, (3, 5, 10))),
+        badge("king", "👑", _tiered(king_count, (1, 5, 10))),
+        badge("hattrick", "🃏", _binary(longest_king_streak >= 3)),
+        badge("president", "🎯", _binary(won_president)),
+        badge("champion", "🏆", _tiered(game_wins, (10, 25, 50))),
+        badge("allnine", "9️⃣", _binary(threw_all_nine)),
+        badge("bierkoenig", "🍺", _tiered(beer_rounds, (20, 50, 100))),
+        badge("hochprozentig", "🥃", _tiered(shot_rounds, (10, 25, 50))),
+        badge("pechvogel", "💸", _tiered(round(penalty_total, 2), (50, 150, 300))),
+        badge("saubermann", "😇", _binary(had_clean_evening)),
+    ]
+
+
+def _compute_wrapped(evenings: list, member_id: int, year: int,
+                     year_penalty_by_member: dict) -> dict:
+    """Personal 'Kegel-Wrapped' year recap for a member — funny derived stats.
+
+    ``year_penalty_by_member`` maps regular_member_id → penalty € total for the
+    year and is used to compute the member's penalty rank among the club.
+    """
+    ordered = sorted(evenings, key=lambda e: e.date)
+    total_evenings = len(ordered)
+
+    attended = 0
+    penalty_total = 0.0
+    penalty_count = 0
+    king_count = 0
+    game_wins = 0
+    total_beers = 0
+    total_shots = 0
+    total_pins = 0
+    throw_count = 0
+    best_avg_pins: float | None = None
+    biggest_penalty: dict | None = None
+    penalty_type_counts: dict = defaultdict(lambda: {"count": 0, "icon": "⚠️"})
+
+    for e in ordered:
+        player = next((p for p in e.players if p.regular_member_id == member_id), None)
+        # Absence penalties count toward the yearly total even without attendance.
+        for log in e.penalty_log:
+            if log.player_id is None and log.regular_member_id == member_id and not log.is_deleted:
+                penalty_total += _penalty_euro(log)
+                penalty_count += 1
+        if not player:
+            continue
+        attended += 1
+        if player.is_king:
+            king_count += 1
+
+        ep_pins = 0
+        ep_throws = 0
+        for log in e.penalty_log:
+            if log.player_id == player.id and not log.is_deleted:
+                amt = _penalty_euro(log)
+                penalty_total += amt
+                penalty_count += 1
+                pt = penalty_type_counts[log.penalty_type_name]
+                pt["count"] += 1
+                pt["icon"] = log.icon or "⚠️"
+                if biggest_penalty is None or amt > biggest_penalty["amount"]:
+                    biggest_penalty = {
+                        "amount": round(amt, 2),
+                        "name": log.penalty_type_name,
+                        "icon": log.icon or "⚠️",
+                        "date": e.date.isoformat(),
+                    }
+        for g in e.games:
+            if g.is_deleted:
+                continue
+            if g.winner_ref == f"p:{player.id}" or (player.team_id and g.winner_ref == f"t:{player.team_id}"):
+                game_wins += 1
+            for th in g.throws:
+                if th.player_id == player.id:
+                    ep_pins += th.pins
+                    ep_throws += 1
+        total_pins += ep_pins
+        throw_count += ep_throws
+        if ep_throws > 0:
+            ev_avg = ep_pins / ep_throws
+            if best_avg_pins is None or ev_avg > best_avg_pins:
+                best_avg_pins = round(ev_avg, 1)
+
+        for r in e.drink_rounds:
+            if not r.is_deleted and player.id in (r.participant_ids or []):
+                if r.drink_type == "beer":
+                    total_beers += 1
+                else:
+                    total_shots += 1
+
+    top_penalty_type = None
+    if penalty_type_counts:
+        name, info = max(penalty_type_counts.items(), key=lambda kv: kv[1]["count"])
+        top_penalty_type = {"name": name, "icon": info["icon"], "count": info["count"]}
+
+    # Rank among members by penalty € (1 = most). Only members with a positive
+    # total are ranked; ties share the standard-competition higher position.
+    ranked = sorted(
+        [(mid, tot) for mid, tot in year_penalty_by_member.items() if tot > 0],
+        key=lambda kv: kv[1], reverse=True,
+    )
+    penalty_rank = None
+    for idx, (mid, _tot) in enumerate(ranked):
+        if mid == member_id:
+            penalty_rank = idx + 1
+            break
+
+    attendance_pct = round(100 * attended / total_evenings) if total_evenings else 0
+    avg_pins = round(total_pins / throw_count, 1) if throw_count > 0 else None
+
+    # Derived "personality" title — returned as a stable key the frontend localizes.
+    if penalty_rank == 1 and penalty_total > 0:
+        title_key, title_icon = "sinner", "😈"
+    elif king_count >= 3:
+        title_key, title_icon = "monarch", "👑"
+    elif total_beers >= 20 and total_beers >= total_shots * 2:
+        title_key, title_icon = "beerbaron", "🍺"
+    elif game_wins >= 10:
+        title_key, title_icon = "champion", "🏆"
+    elif attendance_pct >= 90 and attended >= 5:
+        title_key, title_icon = "loyal", "🎖️"
+    elif attended > 0 and penalty_total == 0:
+        title_key, title_icon = "saint", "😇"
+    else:
+        title_key, title_icon = "allrounder", "🎳"
+
+    return {
+        "year": year,
+        "regular_member_id": member_id,
+        "has_data": attended > 0 or penalty_count > 0,
+        "evenings_attended": attended,
+        "total_evenings": total_evenings,
+        "attendance_pct": attendance_pct,
+        "penalty_total": round(penalty_total, 2),
+        "penalty_count": penalty_count,
+        "biggest_penalty": biggest_penalty,
+        "top_penalty_type": top_penalty_type,
+        "king_count": king_count,
+        "game_wins": game_wins,
+        "total_beers": total_beers,
+        "total_shots": total_shots,
+        "avg_pins": avg_pins,
+        "best_avg_pins": best_avg_pins,
+        "penalty_rank": penalty_rank,
+        "ranked_members": len(ranked),
+        "title_key": title_key,
+        "title_icon": title_icon,
+    }
+
+
+def _year_penalty_by_member(evenings: list) -> dict:
+    """penalty € total per regular_member_id across the given evenings."""
+    totals: dict = defaultdict(float)
+    for e in evenings:
+        for p in e.players:
+            if p.regular_member_id is None:
+                continue
+            for log in e.penalty_log:
+                if log.player_id == p.id and not log.is_deleted:
+                    totals[p.regular_member_id] += _penalty_euro(log)
+        for log in e.penalty_log:
+            if log.player_id is None and log.regular_member_id is not None and not log.is_deleted:
+                totals[log.regular_member_id] += _penalty_euro(log)
+    return totals
+
+
+# NOTE: /me/achievements must be registered BEFORE /me/{year} so FastAPI does
+# not try to parse "achievements" as an integer year.
+@router.get("/me/achievements")
+def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Career badge shelf for the current user."""
+    mid = user.regular_member_id
+    if not mid:
+        return {"regular_member_id": None, "achievements": _compute_achievements([], 0)}
+    evenings = db.query(Evening).filter(Evening.club_id == user.club_id).all()
+    return {"regular_member_id": mid, "achievements": _compute_achievements(evenings, mid)}
+
+
+@router.get("/members/{member_id}/achievements")
+def get_member_achievements(
+    member_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    """Career badge shelf for any club member (visible to all club members)."""
+    member = db.query(RegularMember).filter(
+        RegularMember.id == member_id,
+        RegularMember.club_id == user.club_id,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    evenings = db.query(Evening).filter(Evening.club_id == user.club_id).all()
+    return {"regular_member_id": member_id, "achievements": _compute_achievements(evenings, member_id)}
+
+
+@router.get("/me/wrapped/{year}")
+def get_my_wrapped(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Personal 'Kegel-Wrapped' year recap for the current user."""
+    mid = user.regular_member_id
+    evenings = db.query(Evening).filter(
+        Evening.club_id == user.club_id,
+        Evening.date >= datetime(year, 1, 1),
+        Evening.date < datetime(year + 1, 1, 1),
+    ).all()
+    if not mid:
+        return _compute_wrapped([], 0, year, {})
+    return _compute_wrapped(evenings, mid, year, _year_penalty_by_member(evenings))
+
+
+@router.get("/members/{member_id}/wrapped/{year}")
+def get_member_wrapped(
+    member_id: int,
+    year: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_member),
+):
+    """Personal 'Kegel-Wrapped' year recap for any club member."""
+    member = db.query(RegularMember).filter(
+        RegularMember.id == member_id,
+        RegularMember.club_id == user.club_id,
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    evenings = db.query(Evening).filter(
+        Evening.club_id == user.club_id,
+        Evening.date >= datetime(year, 1, 1),
+        Evening.date < datetime(year + 1, 1, 1),
+    ).all()
+    return _compute_wrapped(evenings, member_id, year, _year_penalty_by_member(evenings))
+
+
 @router.get("/me/{year}")
 def get_my_stats(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Personal stats for the current user in the given year."""

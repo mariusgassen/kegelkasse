@@ -723,6 +723,44 @@ describe('api.getEveningCorrelation', () => {
     })
 })
 
+describe('api.getMyAchievements', () => {
+    it('GETs /stats/me/achievements', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ regular_member_id: 1, achievements: [] }))
+        const { api } = await import('../client')
+        await api.getMyAchievements()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/me/achievements')
+        expect(mockFetch.mock.calls[0][1]?.method).toBe('GET')
+    })
+})
+
+describe('api.getMemberAchievements', () => {
+    it('GETs /stats/members/{id}/achievements', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ regular_member_id: 5, achievements: [] }))
+        const { api } = await import('../client')
+        await api.getMemberAchievements(5)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/members/5/achievements')
+    })
+})
+
+describe('api.getMyWrapped', () => {
+    it('GETs /stats/me/wrapped/{year}', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ year: 2025, has_data: false }))
+        const { api } = await import('../client')
+        await api.getMyWrapped(2025)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/me/wrapped/2025')
+        expect(mockFetch.mock.calls[0][1]?.method).toBe('GET')
+    })
+})
+
+describe('api.getMemberWrapped', () => {
+    it('GETs /stats/members/{id}/wrapped/{year}', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ year: 2025, has_data: false }))
+        const { api } = await import('../client')
+        await api.getMemberWrapped(5, 2025)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/stats/members/5/wrapped/2025')
+    })
+})
+
 // ── Push ───────────────────────────────────────────────────────────────────────
 
 describe('api.getPushStatus', () => {

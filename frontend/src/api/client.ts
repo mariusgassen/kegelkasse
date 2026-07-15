@@ -645,6 +645,12 @@ export const api = {
         request<import('../types').CorrelationStats>('GET', `/stats/correlation/${year}`),
     getEveningCorrelation: (eveningId: number, binMinutes: number = 15) =>
         request<import('../types').EveningCorrelation>('GET', `/stats/correlation/evening/${eveningId}?bin_minutes=${binMinutes}`),
+    getMyAchievements: () => request<import('../types').AchievementsResponse>('GET', '/stats/me/achievements'),
+    getMemberAchievements: (memberId: number) =>
+        request<import('../types').AchievementsResponse>('GET', `/stats/members/${memberId}/achievements`),
+    getMyWrapped: (year: number) => request<import('../types').WrappedStats>('GET', `/stats/me/wrapped/${year}`),
+    getMemberWrapped: (memberId: number, year: number) =>
+        request<import('../types').WrappedStats>('GET', `/stats/members/${memberId}/wrapped/${year}`),
 
     // Sync
     sync: (payload: { client_id: string; last_sync?: number; changes: any[] }) =>

@@ -312,6 +312,45 @@ export interface EveningCorrelation {
     members: EveningCorrelationMember[]
 }
 
+export type AchievementTier = 'bronze' | 'silver' | 'gold'
+
+export interface Achievement {
+    key: string
+    icon: string
+    earned: boolean
+    tier: AchievementTier | null
+    progress: number
+    target: number | null
+}
+
+export interface AchievementsResponse {
+    regular_member_id: number | null
+    achievements: Achievement[]
+}
+
+export interface WrappedStats {
+    year: number
+    regular_member_id: number | null
+    has_data: boolean
+    evenings_attended: number
+    total_evenings: number
+    attendance_pct: number
+    penalty_total: number
+    penalty_count: number
+    biggest_penalty: { amount: number; name: string; icon: string; date: string } | null
+    top_penalty_type: { name: string; icon: string; count: number } | null
+    king_count: number
+    game_wins: number
+    total_beers: number
+    total_shots: number
+    avg_pins: number | null
+    best_avg_pins: number | null
+    penalty_rank: number | null
+    ranked_members: number
+    title_key: string
+    title_icon: string
+}
+
 export interface Game {
     id: number
     name: string
