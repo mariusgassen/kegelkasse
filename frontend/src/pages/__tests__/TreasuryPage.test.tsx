@@ -1059,15 +1059,51 @@ describe('TreasuryPage — balance filter by players', () => {
         })
     })
 
-    it('does not show the mode toggle until a member is selected', async () => {
+    it('shows an active-count badge and a clear button once a member is selected — visible even when collapsed', async () => {
+        await renderTreasuryPage()
+        const scope = within(screen.getByTestId('balance-filter'))
+        // Nothing selected → no badge, no clear button
+        expect(scope.queryByTestId('balance-filter-active')).not.toBeInTheDocument()
+        expect(scope.queryByTestId('balance-filter-clear')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('Hansi'))
+
+        await waitFor(() => expect(scope.getByTestId('balance-filter-active')).toHaveTextContent('1'))
+        expect(scope.getByTestId('balance-filter-clear')).toBeInTheDocument()
+
+        // Collapse again — the active indicator stays visible in the header
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        expect(scope.getByTestId('balance-filter-active')).toHaveTextContent('1')
+        expect(scope.queryByTestId('balance-filter-options')).not.toBeInTheDocument()
+    })
+
+    it('clear button resets the filter back to the full totals', async () => {
         await renderTreasuryPage()
         fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
-        expect(scope.queryByText(/treasury\.balanceFilter\.modeExclude/)).not.toBeInTheDocument()
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+
+        fireEvent.click(scope.getByTestId('balance-filter-clear'))
+        await waitFor(() => {
+            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
+            expect(scope.queryByTestId('balance-filter-active')).not.toBeInTheDocument()
+        })
     })
 
-    it('exclude mode (default) writes off a selected debtor\'s outstanding balance', async () => {
+    it('does not show the option checkboxes until a member is selected', async () => {
+        await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        expect(scope.queryByTestId('balance-filter-options')).not.toBeInTheDocument()
+    })
+
+    it('write-off (default on) drops a selected debtor\'s outstanding balance', async () => {
         const { container } = await renderTreasuryPage()
         fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
@@ -1082,11 +1118,24 @@ describe('TreasuryPage — balance filter by players', () => {
             // Hansi's debtor row disappears — their debt is written off, outstanding tile drops to 0
             expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument()
         })
-        // Admin's credit is untouched by the exclude mode (only debt is written off)
+        // Admin's credit is untouched by the write-off (only debt is written off)
         expect(container.querySelectorAll(creditRowSelector).length).toBe(1)
     })
 
-    it('only mode restricts the tiles/lists to just the selected member', async () => {
+    it('unchecking write-off keeps the selected debtor\'s outstanding balance', async () => {
+        await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+
+        fireEvent.click(scope.getByTestId('balance-opt-writeoff'))
+        await waitFor(() => expect(screen.getByText('-5,50 €')).toBeInTheDocument())
+    })
+
+    it('only-selected restricts the tiles/lists to just the selected member', async () => {
         const { container } = await renderTreasuryPage()
         // Baseline: Admin's credit-list row is present
         await waitFor(() => expect(container.querySelectorAll(creditRowSelector).length).toBe(1))
@@ -1096,11 +1145,11 @@ describe('TreasuryPage — balance filter by players', () => {
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
 
         fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(scope.getByText(/treasury\.balanceFilter\.modeOnly/)).toBeInTheDocument())
-        fireEvent.click(scope.getByText(/treasury\.balanceFilter\.modeOnly/))
+        await waitFor(() => expect(scope.getByTestId('balance-opt-only')).toBeInTheDocument())
+        fireEvent.click(scope.getByTestId('balance-opt-only'))
 
         await waitFor(() => {
-            // Hansi (the only selected member) still shows as a debtor
+            // Hansi (the only selected member) still shows as a debtor (only-mode doesn't write off)
             expect(screen.getByText('-5,50 €')).toBeInTheDocument()
         })
         // Admin's credit list row is excluded from the filtered view (only Hansi is selected)
@@ -1123,7 +1172,7 @@ describe('TreasuryPage — balance filter by players', () => {
     })
 
     // BALANCES paidIn (Admin 10 + Hansi 0 + Franz 0) = 10,00 € unfiltered.
-    it('only mode also scopes the Kassenstand hero paid-in figure', async () => {
+    it('only-selected also scopes the Kassenstand hero paid-in figure', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
 
@@ -1131,14 +1180,14 @@ describe('TreasuryPage — balance filter by players', () => {
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(scope.getByText(/treasury\.balanceFilter\.modeOnly/)).toBeInTheDocument())
-        fireEvent.click(scope.getByText(/treasury\.balanceFilter\.modeOnly/))
+        await waitFor(() => expect(scope.getByTestId('balance-opt-only')).toBeInTheDocument())
+        fireEvent.click(scope.getByTestId('balance-opt-only'))
 
         // Only Hansi (payments_total 0) is in scope now — the till-wide Admin deposit drops out
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+0,00 €'))
     })
 
-    it('exclude mode leaves the Kassenstand hero paid-in figure unaffected (money already received stays real)', async () => {
+    it('write-off leaves the Kassenstand hero paid-in figure unaffected (money already received stays real)', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
 
@@ -1149,6 +1198,43 @@ describe('TreasuryPage — balance filter by players', () => {
 
         await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
         expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €')
+    })
+
+    it('refund option removes the selected member\'s already-paid money from paid-in', async () => {
+        const { api } = await import('@/api/client.ts')
+        // Hansi paid 8 (in credit), so refunding removes it from the till's paid-in figure.
+        vi.mocked(api.getMemberBalances).mockResolvedValue([
+            { regular_member_id: 5, name: 'Hans', nickname: 'Hansi', balance: 3.00, payments_total: 8.00, penalty_total: 5.00 },
+            { regular_member_id: 6, name: 'Franz', nickname: null, balance: 0.00, payments_total: 0, penalty_total: 0 },
+        ] as any)
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+8,00 €'))
+
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('Hansi'))
+        fireEvent.click(scope.getByTestId('balance-opt-refund'))
+
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+0,00 €'))
+    })
+
+    it('settle-share option shows the selected member\'s 1/n share (other income − expenses)', async () => {
+        const { api } = await import('@/api/client.ts')
+        // expensesGross 12, otherIncome 30 → per-member share over 3 members = (30 − 12)/3 = 6.
+        vi.mocked(api.getExpenses).mockResolvedValue([
+            { id: 1, amount: 12.00, description: 'Ausgabe', note: null, date: null, created_at: '2026-01-10T10:00:00', updated_at: null, created_by: 1 },
+            { id: 2, amount: -30.00, description: 'Zuschuss', note: null, date: null, created_at: '2026-01-11T10:00:00', updated_at: null, created_by: 1 },
+        ] as any)
+        await renderTreasuryPage()
+        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('Hansi'))
+        fireEvent.click(scope.getByTestId('balance-opt-share'))
+
+        // A positive share is a payout — the row shows it leaving the till.
+        await waitFor(() => expect(screen.getByTestId('flow-amount-share')).toHaveTextContent('-6,00 €'))
     })
 })
 

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {paidShare, treasurySummary, writeOffOutstandingDebt} from '../treasurySummary'
+import {paidShare, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '../treasurySummary'
 
 const bal = (balance: number, payments_total: number, penalty_total: number) =>
     ({balance, payments_total, penalty_total})
@@ -157,5 +157,60 @@ describe('writeOffOutstandingDebt', () => {
         expect(after.outstanding).toBe(5)
         expect(before.projectedCash - after.projectedCash).toBe(20)
         expect(before.cashOnHand).toBe(after.cashOnHand)
+    })
+})
+
+describe('refundPaidIn', () => {
+    it('returns the same array when no members are selected', () => {
+        const balances = [mbal(1, 5, 10, 5)]
+        expect(refundPaidIn(balances, [])).toBe(balances)
+        expect(refundPaidIn(balances, new Set())).toBe(balances)
+    })
+
+    it('zeroes the selected members payments_total, leaving balance untouched', () => {
+        const result = refundPaidIn([mbal(1, 5, 10, 5), mbal(2, -3, 2, 5)], [1])
+        expect(result.find(b => b.regular_member_id === 1)?.payments_total).toBe(0)
+        expect(result.find(b => b.regular_member_id === 1)?.balance).toBe(5)
+        expect(result.find(b => b.regular_member_id === 2)?.payments_total).toBe(2)
+    })
+
+    it('lowers paidIn/cashOnHand by the refunded amount when fed into treasurySummary', () => {
+        const balances = [mbal(1, 5, 10, 5), mbal(2, 0, 4, 4)]
+        const before = treasurySummary(balances, [], [])
+        const after = treasurySummary(refundPaidIn(balances, [1]), [], [])
+        expect(before.paidIn).toBe(14)
+        expect(after.paidIn).toBe(4)
+        expect(before.cashOnHand - after.cashOnHand).toBe(10)
+    })
+
+    it('composes with writeOffOutstandingDebt without double counting', () => {
+        // Debt written off (balance→0) AND payments refunded (paidIn→0) are independent axes.
+        const balances = [mbal(1, -6, 4, 10)]
+        const adjusted = refundPaidIn(writeOffOutstandingDebt(balances, [1]), [1])
+        expect(adjusted[0].balance).toBe(0)
+        expect(adjusted[0].payments_total).toBe(0)
+    })
+})
+
+describe('shareSettlement', () => {
+    it('is zero without members or without a selection', () => {
+        expect(shareSettlement(30, 12, 0, 1)).toBe(0)
+        expect(shareSettlement(30, 12, 3, 0)).toBe(0)
+    })
+
+    it('splits (otherIncome − expensesGross) equally across all members', () => {
+        // (30 − 12) / 3 = 6 per member
+        expect(shareSettlement(30, 12, 3, 1)).toBe(6)
+        expect(shareSettlement(30, 12, 3, 2)).toBe(12)
+    })
+
+    it('is negative when a members share of spending exceeds their share of income', () => {
+        // (0 − 20) / 4 = -5 → the member owes their share of spending
+        expect(shareSettlement(0, 20, 4, 1)).toBe(-5)
+    })
+
+    it('rounds to two decimals', () => {
+        // (10 − 0) / 3 = 3.333… → 3.33
+        expect(shareSettlement(10, 0, 3, 1)).toBe(3.33)
     })
 })
