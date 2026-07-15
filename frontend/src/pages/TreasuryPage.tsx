@@ -21,7 +21,6 @@ import {
     debtEventsFromTimeline,
     eventsInWindow,
     formatTick,
-    isAttributable,
     memberPaymentEvents,
     memberPenaltyEvents,
     mergeDualSeries,
@@ -221,8 +220,6 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
 
     const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i).map(v => ({v, y: yS(v)}))
 
-    const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
-
     // Cluster points sharing the same x-axis bucket + curve into one marker, so a bucket with
     // several bookings gets a single clickable dot instead of stacked circles where only the
     // last-drawn one is reachable; clicking it lists every underlying entry below.
@@ -232,19 +229,42 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
 
     const fAxisDate = (ts: number) => formatTick(ts, granularity)
 
-    const labelOwnerByDate = new Map<string, number>()
-    points.forEach((p, i) => {
-        if (!(i % labelEvery === 0 || selectedIndices.has(i))) return
-        const dateKey = fAxisDate(p.ts)
-        if (!labelOwnerByDate.has(dateKey) || selectedIndices.has(i)) labelOwnerByDate.set(dateKey, i)
-    })
-    const labelOwnerIndices = new Set(labelOwnerByDate.values())
+    // Choose which x-positions carry a date label. In the bucketed month/year views the x-axis is a
+    // discrete list of buckets, so we label per bucket (sampled only when crowded) — the previous
+    // index-based sampling skipped whole buckets whenever several bookings shared one bucket, which
+    // is why some columns showed a marker but no date beneath it. 'all' keeps a continuous time
+    // scale, so there we sample by point index and de-duplicate identical day labels.
+    const labelOwnerIndices = new Set<number>()
+    if (isAll) {
+        const labelEvery = points.length <= 6 ? 1 : points.length <= 14 ? 2 : Math.ceil(points.length / 8)
+        const labelOwnerByDate = new Map<string, number>()
+        points.forEach((p, i) => {
+            if (!(i % labelEvery === 0 || selectedIndices.has(i))) return
+            const dateKey = fAxisDate(p.ts)
+            if (!labelOwnerByDate.has(dateKey) || selectedIndices.has(i)) labelOwnerByDate.set(dateKey, i)
+        })
+        labelOwnerByDate.forEach(i => labelOwnerIndices.add(i))
+    } else {
+        // One representative point index per bucket; prefer a selected point so the active bucket's
+        // label renders highlighted.
+        const ownerForBucket = new Map<number, number>()
+        points.forEach((p, i) => {
+            const b = bucketStart(p.ts, granularity)
+            if (!ownerForBucket.has(b) || selectedIndices.has(i)) ownerForBucket.set(b, i)
+        })
+        const bucketEvery = buckets.length <= 8 ? 1 : Math.ceil(buckets.length / 8)
+        buckets.forEach((b, bi) => {
+            const owner = ownerForBucket.get(b)
+            if (owner === undefined) return
+            if (bi % bucketEvery === 0 || selectedIndices.has(owner)) labelOwnerIndices.add(owner)
+        })
+    }
 
     const KIND_LABEL: Record<BalanceEvent['kind'], string> = {
         payment: t('treasury.history.kindPayment'),
         expense: t('treasury.history.kindExpense'),
         penalty: t('treasury.history.kindPenalty'),
-        debt: '',
+        debt: t('treasury.history.kindDebt'),
     }
 
     function fDateTime(ts: number) {
@@ -285,27 +305,29 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 const meta = KIND_META[lastEvent.kind]
                 const cx = xS(last.ts), cy = yS(cluster.onOverlay ? last.virtual : last.actual)
                 const count = cluster.points.length
-                const attributable = cluster.points.some(p => isAttributable(p.event!))
                 const isSelected = selectedClusterKey === cluster.key
                 const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
+                // Every marker is clickable — including the club-wide debt overlay points, whose
+                // detail shows the change in outstanding debt and the resulting balance.
                 const ariaLabel = count > 1
                     ? `${count}× – ${fDateTime(last.ts)}`
-                    : `${lastEvent.label} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
+                    : `${lastEvent.label || KIND_LABEL[lastEvent.kind]} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
                 return (
                     <g key={cluster.key}
-                       tabIndex={attributable ? 0 : undefined}
-                       role={attributable ? 'button' : undefined}
-                       aria-label={attributable ? ariaLabel : undefined}
-                       style={attributable ? {cursor: 'pointer'} : undefined}
-                       onClick={attributable ? (evt) => { evt.stopPropagation(); toggle() } : undefined}
-                       onKeyDown={attributable ? (evt) => {
+                       tabIndex={0}
+                       role="button"
+                       aria-label={ariaLabel}
+                       style={{cursor: 'pointer'}}
+                       onClick={(evt) => { evt.stopPropagation(); toggle() }}
+                       onKeyDown={(evt) => {
                            if (evt.key === 'Enter' || evt.key === ' ') {
                                evt.preventDefault()
                                evt.stopPropagation()
                                toggle()
                            }
-                       } : undefined}>
-                        {attributable && <circle cx={cx} cy={cy} r="10" fill="transparent"/>}
+                       }}>
+                        {/* Generous transparent hit target so the small dots are easy to tap. */}
+                        <circle cx={cx} cy={cy} r="13" fill="transparent"/>
                         <circle cx={cx} cy={cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
                                 fill={meta.color} stroke="var(--kce-bg)"
                                 strokeWidth={isSelected ? 1.5 : 1}/>
@@ -371,7 +393,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
 
             {hasData && (selectedCluster ? (
                 <>
-                    <div className="flex flex-col gap-1 mt-2" data-testid="history-detail">
+                    <div className="flex flex-col gap-1 mt-2 max-h-40 overflow-y-auto" data-testid="history-detail">
                         {selectedCluster.points.map(p => {
                             const ev = p.event!
                             const meta = KIND_META[ev.kind]

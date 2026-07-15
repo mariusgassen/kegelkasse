@@ -27,6 +27,7 @@ vi.mock('@/api/client.ts', () => ({
         getExpenses: vi.fn(),
         getAllPayments: vi.fn(),
         getMemberPayments: vi.fn(),
+        getTreasuryDebtTimeline: vi.fn(),
         createMemberPayment: vi.fn(),
         updateMemberPayment: vi.fn(),
         deleteMemberPayment: vi.fn(),
@@ -1199,6 +1200,75 @@ describe('TreasuryPage — balance-history chart point clustering', () => {
             const detail = within(screen.getByTestId('history-detail'))
             expect(detail.getByText('Admin')).toBeInTheDocument()
             expect(detail.getByText('Hans')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('TreasuryPage — balance-history chart debt points & scroll', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    async function setupDebtTimeline(checkpoints: { ts: string; total_debt: number }[]) {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValue(BALANCES as any)
+        vi.mocked(api.getGuestBalances).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([] as any)
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getTreasuryDebtTimeline).mockResolvedValue(checkpoints as any)
+    }
+
+    // The club-wide "incl. debt" overlay points used to be non-clickable; they now open a detail
+    // that names the debt kind and shows the change in outstanding debt.
+    it('renders clickable debt-overlay markers and shows the debt kind in the detail', async () => {
+        const now = new Date()
+        const day = (h: number) => new Date(now.getFullYear(), now.getMonth(), 2, h, 0, 0).toISOString()
+        // Two checkpoints on the same calendar day → one overlay cluster (2 entries).
+        await setupDebtTimeline([
+            { ts: day(9), total_debt: 20 },
+            { ts: day(15), total_debt: 50 },
+        ])
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => {
+            expect(container.querySelectorAll('svg [role="button"]').length).toBe(1)
+        })
+
+        fireEvent.click(container.querySelector('svg [role="button"]')!)
+
+        await waitFor(() => {
+            const detail = within(screen.getByTestId('history-detail'))
+            // Two debt rows, each labelled with the debt kind (i18n key in tests) and its delta.
+            expect(detail.getAllByText('treasury.history.kindDebt').length).toBe(2)
+            expect(detail.getByText('20,00 €')).toBeInTheDocument()
+            expect(detail.getByText('30,00 €')).toBeInTheDocument()
+        })
+    })
+
+    it('makes the detail list scrollable when a cluster has many entries', async () => {
+        const now = new Date()
+        const checkpoints = Array.from({ length: 12 }, (_, i) => ({
+            ts: new Date(now.getFullYear(), now.getMonth(), 3, 8 + i, 0, 0).toISOString(),
+            total_debt: (i + 1) * 5,
+        }))
+        await setupDebtTimeline(checkpoints)
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => expect(container.querySelectorAll('svg [role="button"]').length).toBe(1))
+
+        fireEvent.click(container.querySelector('svg [role="button"]')!)
+
+        await waitFor(() => {
+            const detail = screen.getByTestId('history-detail')
+            expect(detail.className).toContain('overflow-y-auto')
+            expect(detail.className).toContain('max-h-40')
         })
     })
 })
