@@ -6,6 +6,7 @@
 import React, {ReactNode, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useAppStore} from './store/app'
+import {useThemeStore, type Theme} from './store/theme'
 import {Locale, useI18n, useT, t as tI18n} from './i18n'
 import {api, authState, NetworkError, UnauthorizedError} from './api/client'
 import {LoginPage} from './pages/LoginPage'
@@ -16,8 +17,10 @@ import {InstallPrompt} from './components/InstallPrompt'
 import {UpdatePrompt} from './components/UpdatePrompt'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
+import {usePullToRefresh} from './hooks/usePullToRefresh'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
+import {GlobalSearch} from './components/GlobalSearch'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {
     Trophy,
@@ -30,6 +33,7 @@ import {
     RotateCw,
     Bell,
     WifiOff,
+    Search,
     type LucideIcon,
 } from 'lucide-react'
 
@@ -122,6 +126,29 @@ export function applyClubTheme(club: {
     }
 }
 
+const DEFAULT_DARK_BG = '#1a1410'
+
+/** Resolves 'system' against the OS preference; 'dark'/'light' pass through unchanged. */
+export function resolveEffectiveMode(theme: Theme): 'dark' | 'light' {
+    if (theme !== 'system') return theme
+    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+/** Mirrors a bg color's lightness for light mode while keeping its hue/saturation (brand identity) intact. */
+export function resolveThemedBg(baseBg: string, mode: 'dark' | 'light'): string {
+    if (mode === 'dark') return baseBg
+    const [h, s, l] = hexToHsl(baseBg)
+    return hslToHex(h, s, Math.max(100 - l, 85))
+}
+
+/** Theme-aware wrapper around applyClubTheme — applyClubTheme itself stays a raw, unmodified pass-through
+ *  (used by ClubAdminPage's brand-color live preview, which must always preview the true configured color). */
+export function applyTheme(club: Parameters<typeof applyClubTheme>[0], theme: Theme) {
+    const baseBg = club?.settings?.bg_color ?? DEFAULT_DARK_BG
+    const bg = resolveThemedBg(baseBg, resolveEffectiveMode(theme))
+    applyClubTheme({settings: {...club?.settings, bg_color: bg}})
+}
+
 const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
     {id: 'evening', Icon: Trophy, labelKey: 'nav.evening'},
     {id: 'treasury', Icon: Wallet, labelKey: 'nav.treasury'},
@@ -144,12 +171,13 @@ export default function App() {
         setActiveEveningId
     } = useAppStore()
     const {locale, setLocale} = useI18n()
+    const theme = useThemeStore(s => s.theme)
     const t = useT()
     const NAV_PAGES: PageId[] = ['evening', 'treasury', 'schedule', 'committee', 'stats', 'club', 'members']
     const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
-    const [refreshing, setRefreshing] = useState(false)
+    const [searchOpen, setSearchOpen] = useState(false)
     const {addNotification, notifications} = useNotificationStore()
     const badgeCount = unreadCount(notifications)
     // Always show bell for logged-in users — server-side hybrid loading means notifications appear even without push
@@ -226,10 +254,22 @@ export default function App() {
     }, [user?.id, addNotification])
 
     async function handleRefresh() {
-        setRefreshing(true)
         await queryClient.invalidateQueries()
-        setRefreshing(false)
     }
+
+    const {containerRef: mainRef, pullDistance, refreshing: ptrRefreshing} = usePullToRefresh(handleRefresh)
+
+    // Cmd/Ctrl+K opens global search from anywhere
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault()
+                setSearchOpen(true)
+            }
+        }
+        document.addEventListener('keydown', handler)
+        return () => document.removeEventListener('keydown', handler)
+    }, [])
 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
 
@@ -254,7 +294,7 @@ export default function App() {
                 setRegularMembers(rm)
                 setGameTemplates(gt)
                 setGuestPenaltyCap(club.settings?.guest_penalty_cap ?? null)
-                applyClubTheme(club)
+                applyTheme(club, useThemeStore.getState().theme)
                 // Validate persisted activeEveningId and auto-select if needed
                 const evenings = await api.listEvenings()
                 const open = evenings.filter((e: any) => !e.is_closed)
@@ -296,10 +336,17 @@ export default function App() {
         }
     }, [user?.preferred_locale])
 
-    // Apply club theme whenever club data changes (e.g. after login)
+    // Apply club theme whenever club data or the user's light/dark/system preference changes;
+    // in 'system' mode also react to the OS-level prefers-color-scheme flipping without a reload.
     useEffect(() => {
-        if (club) applyClubTheme(club)
-    }, [club])
+        if (!club) return
+        applyTheme(club, theme)
+        if (theme !== 'system') return
+        const mq = window.matchMedia('(prefers-color-scheme: light)')
+        const handler = () => applyTheme(club, theme)
+        mq.addEventListener('change', handler)
+        return () => mq.removeEventListener('change', handler)
+    }, [club, theme])
 
     // ── Loading splash ──
     if (!bootDone) {
@@ -375,17 +422,13 @@ export default function App() {
                             <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
                         </button>
                     )}
-                    {/* Refresh button */}
+                    {/* Search button */}
                     <button
-                        aria-label="Refresh"
+                        aria-label={t('search.title')}
                         className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity"
                         style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
-                        onClick={handleRefresh}
-                        disabled={refreshing}>
-                        <RotateCw size={14} strokeWidth={2} style={{
-                            transition: 'transform 0.6s ease',
-                            transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)',
-                        }}/>
+                        onClick={() => setSearchOpen(true)}>
+                        <Search size={14} strokeWidth={2}/>
                     </button>
                     {/* Notification bell */}
                     {showNotificationBell && (
@@ -438,7 +481,7 @@ export default function App() {
             </header>
 
             {/* ── Pages (all mounted, toggled via display) ── */}
-            <main style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
+            <main ref={mainRef} style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
                 {([
                     ['evening', <EveningHubPage onHistory={() => setPage('schedule')}/>],
                     ['treasury', <TreasuryPage/>],
@@ -452,11 +495,26 @@ export default function App() {
                         {el}
                     </div>
                 ))}
+                {/* Pull-to-refresh indicator */}
+                {(pullDistance > 0 || ptrRefreshing) && (
+                    <div style={{
+                        position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
+                        width: 26, height: 26, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'var(--kce-surface2)', color: 'var(--kce-muted)',
+                        opacity: ptrRefreshing ? 1 : Math.min(pullDistance / 70, 1),
+                        zIndex: 40, pointerEvents: 'none',
+                    }}>
+                        <RotateCw size={13} strokeWidth={2} className={ptrRefreshing ? 'animate-spin' : ''}
+                                  style={!ptrRefreshing ? {transform: `rotate(${pullDistance * 3}deg)`} : undefined}/>
+                    </div>
+                )}
             </main>
 
             <ToastContainer/>
             <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
+            <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
         </div>
     )
 }

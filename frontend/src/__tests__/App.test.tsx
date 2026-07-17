@@ -39,6 +39,26 @@ vi.mock('@/components/NotificationPanel.tsx', () => ({
         open ? <div data-testid="notification-panel"><button onClick={onClose}>close-notif</button></div> : null,
 }))
 
+vi.mock('@/components/GlobalSearch.tsx', () => ({
+    GlobalSearch: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+        open ? <div data-testid="global-search"><button onClick={onClose}>close-search</button></div> : null,
+}))
+
+vi.mock('@/hooks/usePullToRefresh.ts', () => ({
+    usePullToRefresh: vi.fn(() => ({
+        containerRef: { current: null },
+        pullDistance: 0,
+        refreshing: false,
+    })),
+}))
+
+vi.mock('@/store/theme.ts', () => ({
+    useThemeStore: Object.assign(
+        vi.fn((sel?: any) => (sel ? sel({ theme: 'dark', setTheme: vi.fn() }) : { theme: 'dark', setTheme: vi.fn() })),
+        { getState: () => ({ theme: 'dark', setTheme: vi.fn() }) },
+    ),
+}))
+
 vi.mock('@/pages/LoginPage.tsx', () => ({
     LoginPage: ({ onLogin }: { onLogin: () => void }) => (
         <div data-testid="login-page">
@@ -394,6 +414,74 @@ describe('applyClubTheme', () => {
     })
 })
 
+describe('theme resolution', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    function stubMatchMedia(prefersLight: boolean) {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+            matches: prefersLight,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }))
+    }
+
+    it('resolveEffectiveMode passes dark/light through unchanged', async () => {
+        const { resolveEffectiveMode } = await import('../App')
+        expect(resolveEffectiveMode('dark')).toBe('dark')
+        expect(resolveEffectiveMode('light')).toBe('light')
+    })
+
+    it('resolveEffectiveMode("system") follows prefers-color-scheme: light', async () => {
+        stubMatchMedia(true)
+        const { resolveEffectiveMode } = await import('../App')
+        expect(resolveEffectiveMode('system')).toBe('light')
+    })
+
+    it('resolveEffectiveMode("system") defaults to dark when OS prefers dark', async () => {
+        stubMatchMedia(false)
+        const { resolveEffectiveMode } = await import('../App')
+        expect(resolveEffectiveMode('system')).toBe('dark')
+    })
+
+    it('resolveThemedBg leaves a dark bg unchanged in dark mode', async () => {
+        const { resolveThemedBg } = await import('../App')
+        expect(resolveThemedBg('#1a1410', 'dark')).toBe('#1a1410')
+    })
+
+    it('resolveThemedBg mirrors lightness for light mode while keeping hue/saturation', async () => {
+        const { resolveThemedBg, hexToHsl } = await import('../App')
+        const lightBg = resolveThemedBg('#1a1410', 'light')
+        const [dh, ds] = hexToHsl('#1a1410')
+        const [lh, ls, ll] = hexToHsl(lightBg)
+        expect(Math.round(lh)).toBe(Math.round(dh))
+        expect(Math.round(ls)).toBe(Math.round(ds))
+        expect(ll).toBeGreaterThanOrEqual(85)
+    })
+
+    it('applyTheme uses the default dark bg when the club has none set', async () => {
+        const { applyTheme } = await import('../App')
+        applyTheme(null, 'dark')
+        expect(document.documentElement.style.getPropertyValue('--kce-bg')).toBe('#1a1410')
+    })
+
+    it('applyTheme flips the club bg to a light variant in light mode', async () => {
+        const { applyTheme, hexToHsl } = await import('../App')
+        applyTheme({ settings: { bg_color: '#1a1410' } }, 'light')
+        const bg = document.documentElement.style.getPropertyValue('--kce-bg')
+        const [, , l] = hexToHsl(bg)
+        expect(l).toBeGreaterThanOrEqual(85)
+    })
+
+    it('applyTheme keeps primary/secondary colors unchanged across modes', async () => {
+        const { applyTheme } = await import('../App')
+        applyTheme({ settings: { primary_color: '#e8a020', secondary_color: '#6b7c5a', bg_color: '#1a1410' } }, 'light')
+        expect(document.documentElement.style.getPropertyValue('--kce-primary')).toBe('#e8a020')
+        expect(document.documentElement.style.getPropertyValue('--kce-secondary')).toBe('#6b7c5a')
+    })
+})
+
 // ── interaction / branch coverage ────────────────────────────────────────────
 
 describe('App — authenticated interactions', () => {
@@ -549,12 +637,21 @@ describe('App — authenticated interactions', () => {
         expect(setPageMock).toHaveBeenCalledWith('evening')
     })
 
-    it('clicking refresh button calls invalidateQueries without throwing', async () => {
+    it('clicking the search button opens GlobalSearch', async () => {
         await renderApp()
-        const refreshBtn = await screen.findByRole('button', { name: /refresh/i })
-        fireEvent.click(refreshBtn)
-        // Just verify no error is thrown; handleRefresh runs async
-        expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument()
+        expect(screen.queryByTestId('global-search')).not.toBeInTheDocument()
+        const searchBtn = await screen.findByRole('button', { name: 'search.title' })
+        fireEvent.click(searchBtn)
+        expect(screen.getByTestId('global-search')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('close-search'))
+        expect(screen.queryByTestId('global-search')).not.toBeInTheDocument()
+    })
+
+    it('Cmd/Ctrl+K opens GlobalSearch from anywhere', async () => {
+        await renderApp()
+        expect(screen.queryByTestId('global-search')).not.toBeInTheDocument()
+        fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+        expect(screen.getByTestId('global-search')).toBeInTheDocument()
     })
 })
 
