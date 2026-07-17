@@ -118,7 +118,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
         <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8"
              style={{background: 'linear-gradient(160deg,#1a1410 0%,#241c18 60%,#2a1e18 100%)'}}>
             {/* Language toggle */}
-            <div className="absolute top-4 right-4 flex gap-1">
+            <div className="absolute right-4 flex gap-1" style={{top: 'max(env(safe-area-inset-top, 0px), 1rem)'}}>
                 {(['de', 'en'] as const).map(l => (
                     <button key={l} onClick={() => setLocale(l)}
                             className={`text-xs font-bold px-2 py-1 rounded ${locale === l ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted'}`}>
