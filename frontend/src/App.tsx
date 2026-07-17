@@ -487,7 +487,7 @@ export default function App() {
 
                 {/* Content — slides down 1:1 with the finger while dragging, animates to/from rest otherwise */}
                 <div style={{
-                    position: 'absolute', inset: 0,
+                    position: 'absolute', inset: 0, zIndex: 1,
                     transform: `translateY(${pullDistance}px)`,
                     transition: ptrDragging ? 'none' : 'transform 0.25s ease-out',
                 }}>

@@ -22,7 +22,7 @@ export function PullToRefreshIndicator({pullDistance, dragging, refreshing}: Pro
 
     return (
         <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 56,
+            position: 'absolute', top: 0, left: 0, right: 0, height: 56, zIndex: 0,
             display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8,
             opacity: refreshing ? 1 : progress,
             transition: dragging ? 'none' : 'opacity 0.25s ease-out',

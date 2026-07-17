@@ -12,10 +12,12 @@ interface Props {
     title?: string
     onClick: () => void
     users: string[]
+    /** The emoji this pill represents — shown beside each name in the reactor popover. */
+    emoji: string
     children: React.ReactNode
 }
 
-export function ReactionPill({className, title, onClick, users, children}: Props) {
+export function ReactionPill({className, title, onClick, users, emoji, children}: Props) {
     const t = useT()
     const btnRef = useRef<HTMLButtonElement>(null)
     const [pos, setPos] = useState<{top: number; left: number} | null>(null)
@@ -55,7 +57,9 @@ export function ReactionPill({className, title, onClick, users, children}: Props
                     <p className="text-[10px] font-bold text-kce-muted mb-1">{t('comment.reaction.reactedBy')}</p>
                     <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                         {safeUsers.map((name, i) => (
-                            <li key={i} className="text-xs text-kce-cream truncate">{name}</li>
+                            <li key={i} className="text-xs text-kce-cream truncate">
+                                <span className="mr-1">{emoji}</span>{name}
+                            </li>
                         ))}
                     </ul>
                 </div>,

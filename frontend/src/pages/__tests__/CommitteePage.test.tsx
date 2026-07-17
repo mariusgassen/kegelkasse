@@ -1341,4 +1341,26 @@ describe('CommitteePage — deep link parsing', () => {
         await waitFor(() => screen.getByText('München'))
         // onDeepLinkHandled for trips tab was called
     })
+
+    it('fills the announcement search field with the matched title on deep link', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue(ANNOUNCEMENTS as any)
+        mockGetHashParams.mockReturnValue(new URLSearchParams('item=1'))
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.search')).toHaveValue('Wichtige Ankündigung')
+        })
+    })
+
+    it('fills the trip search field with the matched destination on deep link', async () => {
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['trips', vi.fn()] as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
+        mockGetHashParams.mockReturnValue(new URLSearchParams('item=1'))
+        await renderCommitteePage()
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('committee.search')).toHaveValue('München')
+        })
+    })
 })

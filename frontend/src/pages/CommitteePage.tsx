@@ -43,12 +43,14 @@ interface DeepLink {
     commentId: number | null
 }
 
-function useDeepLinkScroll(
-    items: { id: number }[],
+function useDeepLinkScroll<T extends { id: number }>(
+    items: T[],
     deepLink: DeepLink | null,
     onHandled: () => void,
     setOpenCommentId: (id: number | null) => void,
     setHighlightCommentId: (id: number | null) => void,
+    setSearch: (v: string) => void,
+    getSearchText: (item: T) => string,
 ) {
     const highlightRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -57,6 +59,9 @@ function useDeepLinkScroll(
         const target = items.find(it => it.id === deepLink.itemId)
         if (!target) return
 
+        // Fill the search field with the matched item — same convention as the Buchungen
+        // `?q=` deep link, and guarantees the target isn't hidden by a stale leftover filter.
+        setSearch(getSearchText(target))
         // Always open the comment thread for the target item
         setOpenCommentId(target.id)
         // Pass comment ID to highlight inside the thread (null if none)
@@ -108,7 +113,10 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
             a.title.toLowerCase().includes(sq) || (a.text ?? '').toLowerCase().includes(sq))
         : announcements as ClubAnnouncement[]
 
-    useDeepLinkScroll(announcements, deepLink, onDeepLinkHandled, setOpenCommentId, setHighlightCommentId)
+    useDeepLinkScroll(
+        announcements as ClubAnnouncement[], deepLink, onDeepLinkHandled, setOpenCommentId, setHighlightCommentId,
+        setSearch, (a: ClubAnnouncement) => a.title,
+    )
 
     async function handleCreate() {
         if (!title.trim()) return
@@ -289,7 +297,10 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         queryFn: api.listTrips,
     })
 
-    useDeepLinkScroll(trips, deepLink, onDeepLinkHandled, setOpenCommentTripId, setHighlightCommentId)
+    useDeepLinkScroll(
+        trips as ClubTrip[], deepLink, onDeepLinkHandled, setOpenCommentTripId, setHighlightCommentId,
+        setSearch, (tr: ClubTrip) => tr.destination,
+    )
 
     function openEdit(trip: ClubTrip) {
         setEditTrip(trip)
