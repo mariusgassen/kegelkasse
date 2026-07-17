@@ -34,6 +34,13 @@ vi.mock('@/i18n', () => ({
     useI18n: () => ({ locale: 'de', setLocale: vi.fn() }),
 }))
 
+const mockSetTheme = vi.fn()
+let mockTheme: 'dark' | 'light' | 'system' = 'dark'
+
+vi.mock('@/store/theme.ts', () => ({
+    useThemeStore: () => ({ theme: mockTheme, setTheme: mockSetTheme }),
+}))
+
 vi.mock('@/store/app.ts', () => ({
     useAppStore: vi.fn(() => ({
         user: null,
@@ -237,6 +244,46 @@ describe('ProfileSheet — basic display', () => {
         await setupApiMocks()
         await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('settings.language')).toBeInTheDocument()
+    })
+})
+
+describe('ProfileSheet — theme toggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        mockSetTheme.mockClear()
+        mockTheme = 'dark'
+        await setupAsMember()
+    })
+
+    it('shows the theme settings section with dark/light/system options', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('settings.theme.title')).toBeInTheDocument()
+        expect(screen.getByText('settings.theme.dark')).toBeInTheDocument()
+        expect(screen.getByText('settings.theme.light')).toBeInTheDocument()
+        expect(screen.getByText('settings.theme.system')).toBeInTheDocument()
+    })
+
+    it('clicking "light" calls setTheme("light")', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        fireEvent.click(screen.getByText('settings.theme.light'))
+        expect(mockSetTheme).toHaveBeenCalledWith('light')
+    })
+
+    it('clicking "system" calls setTheme("system")', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        fireEvent.click(screen.getByText('settings.theme.system'))
+        expect(mockSetTheme).toHaveBeenCalledWith('system')
+    })
+
+    it('highlights the currently active theme option', async () => {
+        mockTheme = 'light'
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('settings.theme.light').className).toContain('bg-kce-amber')
+        expect(screen.getByText('settings.theme.dark').className).not.toContain('bg-kce-amber')
     })
 })
 

@@ -59,6 +59,26 @@ Die Sprache kann im Profil geändert werden:
 2. Wähle unter **Sprache** entweder Deutsch oder Englisch
 3. Die Einstellung wird gespeichert und sofort angewendet
 
+## Darstellung: Hell, Dunkel oder System
+
+Kegelkasse startet standardmäßig im dunklen Design. Wer lieber ein helles Design nutzt (oder es dem Gerät
+überlassen möchte), kann das im Profil umstellen:
+
+1. Tippe auf dein Profilsymbol oben rechts
+2. Wechsle zum Tab **⚙️ Einstellungen**
+3. Wähle unter **Darstellung**: **Dunkel**, **Hell** oder **System**
+
+**System** folgt automatisch der Geräteeinstellung (z. B. dem hellen/dunklen Modus deines Handys) und
+wechselt live mit, ohne dass die App neu geladen werden muss. Ist für den Verein eine eigene Vereinsfarbe
+hinterlegt (Verein → Erscheinungsbild), bleibt diese Markenfarbe in beiden Modi erkennbar.
+
+## Suche
+
+Über das 🔍-Symbol oben im Header (oder per Tastenkürzel **Cmd/Ctrl + K** am Desktop) lässt sich direkt zu
+einem Mitglied, dessen Konto, einem vergangenen Kegelabend, einer Ankündigung oder einer Kegelfahrt springen,
+ohne vorher den passenden Tab suchen zu müssen. Tippe einfach ein paar Buchstaben ein — die Treffer werden
+nach Kategorie gruppiert live angezeigt; ein Tippen auf einen Treffer führt direkt zur entsprechenden Stelle.
+
 ## Passwort zurücksetzen
 
 Falls du dein Passwort vergessen hast:

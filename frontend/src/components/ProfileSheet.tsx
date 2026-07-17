@@ -4,6 +4,7 @@ import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore, isAdmin} from '@/store/app'
+import {useThemeStore, type Theme} from '@/store/theme'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
@@ -88,6 +89,7 @@ interface Props {
 export function ProfileSheet({open, onClose}: Props) {
     const t = useT()
     const {locale, setLocale} = useI18n()
+    const {theme, setTheme} = useThemeStore()
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -650,6 +652,19 @@ export function ProfileSheet({open, onClose}: Props) {
                                 }}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${locale === l ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
                                     {l.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Theme */}
+                    <div className="kce-card p-4 flex items-center justify-between">
+                        <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.theme.title')}</span>
+                        <div className="flex gap-1">
+                            {(['dark', 'light', 'system'] as Theme[]).map(th => (
+                                <button key={th} onClick={() => setTheme(th)}
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                    {t(`settings.theme.${th}` as any)}
                                 </button>
                             ))}
                         </div>

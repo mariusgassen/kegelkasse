@@ -212,7 +212,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Read-only member roster tab for regular (non-admin) members — admins manage the roster via the Verein tab instead
 - "⚙️ Verwalten" is a fourth sub-tab in the evening hub (alongside Protokoll/Spiele/Highlights) surfacing team/player management and closing the evening without leaving the hub's tab strip
-- Dark/light mode toggle
+- Dark/Light/System appearance toggle (Profile → Settings) — light mode is derived from the same per-club brand color (hue/saturation preserved, only lightness flips), so it also works for clubs with a custom background color; "System" follows the OS `prefers-color-scheme` live, without a reload
+- Global search (🔍 header icon or Cmd/Ctrl+K) — jumps straight to a member, their treasury account, a past evening, an announcement, or a Kegelfahrt via the same deep-link hashes push notifications already use
 - Toast notifications for every create/update/delete action
 - AdminGuard component — wraps any section to show a lock icon to non-admins
 - Mobile-optimised layout with tab navigation and bottom sheet drawers
