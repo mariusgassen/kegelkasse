@@ -306,6 +306,15 @@ class TestUpdatePreferences:
         r = client.patch("/api/v1/push/preferences", json={"penalties": False})
         assert r.status_code == 401
 
+    def test_comments_preference_persists(self, client, auth_headers, db, user):
+        r = client.patch("/api/v1/push/preferences", json={"comments": False}, headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["comments"] is False
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        assert r.json()["comments"] is False
+        # restore
+        client.patch("/api/v1/push/preferences", json={"comments": True}, headers=auth_headers)
+
 
 # ---------------------------------------------------------------------------
 # GET /push/debug

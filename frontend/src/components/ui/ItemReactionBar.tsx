@@ -10,6 +10,7 @@ import {createPortal} from 'react-dom'
 import {api} from '@/api/client'
 import {useT} from '@/i18n'
 import {toastError} from '@/utils/error'
+import {ReactionPill} from '@/components/ui/ReactionPill'
 import type {Comment, ItemReaction} from '@/types'
 
 const PICKER_W = 300
@@ -144,9 +145,9 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
             )}
 
             {/* Primary heart reaction */}
-            <button
-                type="button"
+            <ReactionPill
                 onClick={() => handleToggle('❤️')}
+                users={heartReaction?.users ?? []}
                 className={[PILL, heartReaction?.reacted_by_me
                     ? 'border-red-400/60 bg-red-400/10 text-red-400'
                     : 'border-kce-border text-kce-muted hover:border-red-400/40 hover:text-red-400/70',
@@ -157,14 +158,14 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                 {heartReaction && heartReaction.count > 0 && (
                     <span className="text-xs font-medium">{heartReaction.count}</span>
                 )}
-            </button>
+            </ReactionPill>
 
             {/* Other reactions — same pill size */}
             {otherReactions.map(r => (
-                <button
+                <ReactionPill
                     key={r.emoji}
-                    type="button"
                     onClick={() => handleToggle(r.emoji)}
+                    users={r.users}
                     className={[PILL, r.reacted_by_me
                         ? 'border-kce-primary bg-kce-primary/20 text-kce-cream'
                         : 'border-kce-border text-kce-muted hover:border-kce-primary/50',
@@ -173,7 +174,7 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                 >
                     <span>{r.emoji}</span>
                     <span className="text-xs font-medium">{r.count}</span>
-                </button>
+                </ReactionPill>
             ))}
 
             <ReactionPicker onPick={handleToggle}/>

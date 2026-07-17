@@ -335,6 +335,15 @@ class TestToggleReaction:
         assert "👍" in emojis
         assert "❤️" in emojis
 
+    def test_reaction_lists_reactor_names(self, client: TestClient, db, auth_headers, second_headers, user, second_user, highlight):
+        c = self._make_comment(db, user, highlight)
+        client.post(f"/api/v1/comments/{c.id}/reactions", json={"emoji": "🎳"}, headers=auth_headers)
+        client.post(f"/api/v1/comments/{c.id}/reactions", json={"emoji": "🎳"}, headers=second_headers)
+        resp = client.get(f"/api/v1/comments/highlight/{highlight.id}", headers=auth_headers)
+        reaction = next(r for r in resp.json()[0]["reactions"] if r["emoji"] == "🎳")
+        assert reaction["count"] == 2
+        assert set(reaction["users"]) == {user.name, second_user.name}
+
 
 # ---------------------------------------------------------------------------
 # PATCH /api/v1/comments/{comment_id}  — edit comment
@@ -476,6 +485,20 @@ class TestGetItemReactions:
     def test_requires_auth(self, client: TestClient, highlight):
         resp = client.get(f"/api/v1/comments/item-reactions/highlight/{highlight.id}")
         assert resp.status_code == 401
+
+    def test_reaction_lists_reactor_names(self, client: TestClient, auth_headers, second_headers, user, second_user, highlight):
+        client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"}, headers=auth_headers,
+        )
+        client.post(
+            f"/api/v1/comments/item-reaction/highlight/{highlight.id}",
+            json={"emoji": "❤️"}, headers=second_headers,
+        )
+        resp = client.get(f"/api/v1/comments/item-reactions/highlight/{highlight.id}", headers=auth_headers)
+        reaction = next(r for r in resp.json() if r["emoji"] == "❤️")
+        assert reaction["count"] == 2
+        assert set(reaction["users"]) == {user.name, second_user.name}
 
 
 # ---------------------------------------------------------------------------
