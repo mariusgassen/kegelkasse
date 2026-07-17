@@ -80,6 +80,11 @@ describe('GlobalSearch', () => {
         expect(screen.queryByText('search.members')).not.toBeInTheDocument()
     })
 
+    it('autofocuses the input synchronously on open (no timer needed) so mobile keyboards actually pop up', async () => {
+        await renderSearch(true)
+        expect(document.activeElement).toBe(screen.getByPlaceholderText('search.placeholder'))
+    })
+
     it('filters members as the user types and groups them under search.members', async () => {
         await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'hasi'}})

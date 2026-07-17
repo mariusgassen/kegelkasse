@@ -43,12 +43,15 @@ export function GlobalSearch({open, onClose}: Props) {
     const {data: payments = []} = useQuery({queryKey: ['member-payments'], queryFn: api.getAllPayments, enabled: open, staleTime: 60000})
     const {data: expenses = []} = useQuery({queryKey: ['club-expenses'], queryFn: api.getExpenses, enabled: open, staleTime: 60000})
 
-    // Reset the query on every open, and grab focus after Sheet's own open-focus effect has run.
+    // Reset the query on every open and grab focus. No setTimeout here on purpose — mobile
+    // browsers only auto-open the virtual keyboard for a focus() call still inside the same
+    // task as the user's tap; a deferred focus (even a few ms later) often gets ignored. Sheet's
+    // own open-focus effect (on the panel div) runs first because it's the child component —
+    // effects flush child-before-parent within one commit — so this call reliably wins last.
     useEffect(() => {
         if (!open) return
         setQuery('')
-        const id = setTimeout(() => inputRef.current?.focus(), 50)
-        return () => clearTimeout(id)
+        inputRef.current?.focus()
     }, [open])
 
     const groups: { key: GroupKey; label: string; results: SearchResult[] }[] = useMemo(() => ([
