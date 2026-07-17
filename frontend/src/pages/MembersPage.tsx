@@ -7,6 +7,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
@@ -355,10 +356,10 @@ export function MembersPage() {
         <div className="page-scroll px-3 py-3 pb-24">
 
             {/* ── Suche ── */}
-            <input
-                className="kce-input mb-4"
+            <SearchInput
+                className="mb-4"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={setSearch}
                 placeholder={t('member.search')}
             />
 

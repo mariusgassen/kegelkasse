@@ -739,6 +739,20 @@ describe('MembersPage — member search edge cases', () => {
             expect(screen.getByText('Hansi')).toBeInTheDocument()
         })
     })
+
+    it('clear (✕) button resets a search left over from a deep link (e.g. Global Search)', async () => {
+        await setupAdmin(REGULAR_MEMBERS)
+        await renderMembersPage()
+        await waitFor(() => screen.getByPlaceholderText('member.search'))
+        const searchInput = screen.getByPlaceholderText('member.search') as HTMLInputElement
+        fireEvent.change(searchInput, { target: { value: 'Hansi' } })
+        await waitFor(() => expect(screen.getByText('Hansi')).toBeInTheDocument())
+
+        fireEvent.click(screen.getByLabelText('action.clear'))
+
+        expect(searchInput.value).toBe('')
+        await waitFor(() => expect(screen.getByText('Admin User')).toBeInTheDocument())
+    })
 })
 
 // ── new coverage tests ────────────────────────────────────────────────────────

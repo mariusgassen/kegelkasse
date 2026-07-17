@@ -56,7 +56,7 @@ vi.mock('@/components/ui/ModeToggle.tsx', () => ({
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
 vi.mock('@/utils/hashParams.ts', () => ({
-    getHashParams: () => new URLSearchParams(''),
+    getHashParams: vi.fn(() => new URLSearchParams('')),
     clearHashParams: vi.fn(),
 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
@@ -336,6 +336,20 @@ describe('TreasuryPage — accounts tab', () => {
             expect(screen.queryByText('Hansi')).not.toBeInTheDocument()
         })
     })
+
+    it('clear (✕) button resets a search left over from a deep link (e.g. Global Search)', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByText('Hansi')).toBeInTheDocument())
+        const searchInput = screen.getByPlaceholderText('treasury.accounts.search') as HTMLInputElement
+        fireEvent.change(searchInput, { target: { value: 'Admin' } })
+        await waitFor(() => expect(screen.queryByText('Hansi')).not.toBeInTheDocument())
+
+        fireEvent.click(screen.getByLabelText('action.clear'))
+
+        expect(searchInput.value).toBe('')
+        await waitFor(() => expect(screen.getByText('Hansi')).toBeInTheDocument())
+    })
 })
 
 describe('TreasuryPage — bookings tab', () => {
@@ -372,6 +386,20 @@ describe('TreasuryPage — bookings tab', () => {
         })
     })
 
+    it('clear (✕) button resets a search left over from a deep link (e.g. Global Search)', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByText('Einzahlung')).toBeInTheDocument())
+        const searchInput = screen.getByPlaceholderText('treasury.bookings.search') as HTMLInputElement
+        fireEvent.change(searchInput, { target: { value: 'Getränke' } })
+        await waitFor(() => expect(screen.queryByText('Einzahlung')).not.toBeInTheDocument())
+
+        fireEvent.click(screen.getByLabelText('action.clear'))
+
+        expect(searchInput.value).toBe('')
+        await waitFor(() => expect(screen.getByText('Einzahlung')).toBeInTheDocument())
+    })
+
     it('admin sees add booking button', async () => {
         await setupDefaultMocks()
         await setupAsAdmin()
@@ -387,6 +415,45 @@ describe('TreasuryPage — bookings tab', () => {
         await waitFor(() => {
             expect(screen.queryByText(/treasury\.booking\.add/)).not.toBeInTheDocument()
         })
+    })
+})
+
+describe('TreasuryPage — bookings deep-link (?q=)', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    it('switches to the bookings tab and pre-fills the search from ?q= (used by GlobalSearch)', async () => {
+        const setTabMock = vi.fn()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['bookings', setTabMock] as any)
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        const params = new URLSearchParams()
+        params.set('q', 'Getränke')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValueOnce(params)
+
+        await setupWithData()
+        await renderTreasuryPage()
+
+        await waitFor(() => expect(setTabMock).toHaveBeenCalledWith('bookings'))
+        await waitFor(() => {
+            expect((screen.getByPlaceholderText('treasury.bookings.search') as HTMLInputElement).value).toBe('Getränke')
+        })
+        expect(hashParamsMod.clearHashParams).toHaveBeenCalled()
+    })
+
+    it('does nothing when there is no q param', async () => {
+        const setTabMock = vi.fn()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', setTabMock] as any)
+
+        await setupDefaultMocks()
+        await renderTreasuryPage()
+
+        expect(setTabMock).not.toHaveBeenCalled()
     })
 })
 

@@ -18,6 +18,7 @@ import {UpdatePrompt} from './components/UpdatePrompt'
 import {useActiveEvening} from './hooks/useEvening'
 import {usePage} from './hooks/usePage'
 import {usePullToRefresh} from './hooks/usePullToRefresh'
+import {PullToRefreshIndicator} from './components/PullToRefreshIndicator'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
@@ -30,7 +31,6 @@ import {
     UserRound,
     BarChart2,
     Settings,
-    RotateCw,
     Bell,
     WifiOff,
     Search,
@@ -257,7 +257,7 @@ export default function App() {
         await queryClient.invalidateQueries()
     }
 
-    const {containerRef: mainRef, pullDistance, refreshing: ptrRefreshing} = usePullToRefresh(handleRefresh)
+    const {containerRef: mainRef, pullDistance, dragging: ptrDragging, refreshing: ptrRefreshing} = usePullToRefresh(handleRefresh)
 
     // Cmd/Ctrl+K opens global search from anywhere
     useEffect(() => {
@@ -482,33 +482,29 @@ export default function App() {
 
             {/* ── Pages (all mounted, toggled via display) ── */}
             <main ref={mainRef} style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
-                {([
-                    ['evening', <EveningHubPage onHistory={() => setPage('schedule')}/>],
-                    ['treasury', <TreasuryPage/>],
-                    ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
-                    ['committee', <CommitteePage/>],
-                    ['stats', <StatsPage/>],
-                    ['club', <ClubAdminPage/>],
-                    ['members', <MembersPage/>],
-                ] as [PageId, ReactNode][]).map(([id, el]) => (
-                    <div key={id} style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
-                        {el}
-                    </div>
-                ))}
-                {/* Pull-to-refresh indicator */}
-                {(pullDistance > 0 || ptrRefreshing) && (
-                    <div style={{
-                        position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
-                        width: 26, height: 26, borderRadius: '50%',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'var(--kce-surface2)', color: 'var(--kce-muted)',
-                        opacity: ptrRefreshing ? 1 : Math.min(pullDistance / 70, 1),
-                        zIndex: 40, pointerEvents: 'none',
-                    }}>
-                        <RotateCw size={13} strokeWidth={2} className={ptrRefreshing ? 'animate-spin' : ''}
-                                  style={!ptrRefreshing ? {transform: `rotate(${pullDistance * 3}deg)`} : undefined}/>
-                    </div>
-                )}
+                {/* Fixed at the top — not translated, so it's revealed as the content below slides down */}
+                <PullToRefreshIndicator pullDistance={pullDistance} dragging={ptrDragging} refreshing={ptrRefreshing}/>
+
+                {/* Content — slides down 1:1 with the finger while dragging, animates to/from rest otherwise */}
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    transform: `translateY(${pullDistance}px)`,
+                    transition: ptrDragging ? 'none' : 'transform 0.25s ease-out',
+                }}>
+                    {([
+                        ['evening', <EveningHubPage onHistory={() => setPage('schedule')}/>],
+                        ['treasury', <TreasuryPage/>],
+                        ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
+                        ['committee', <CommitteePage/>],
+                        ['stats', <StatsPage/>],
+                        ['club', <ClubAdminPage/>],
+                        ['members', <MembersPage/>],
+                    ] as [PageId, ReactNode][]).map(([id, el]) => (
+                        <div key={id} style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
+                            {el}
+                        </div>
+                    ))}
+                </div>
             </main>
 
             <ToastContainer/>

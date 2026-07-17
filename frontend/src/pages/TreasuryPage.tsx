@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
@@ -544,13 +545,15 @@ export function TreasuryPage() {
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
     const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
 
-    // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet
+    // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet;
+    // ?q=X pre-fills the bookings search (used by GlobalSearch for a specific payment/expense)
     function handleDeepLink() {
         const params = getHashParams()
         const memberName = params.get('memberName')
         const memberId = params.get('member')
         const rid = params.get('rid')
-        if (memberName || memberId || rid) {
+        const bookingQuery = params.get('q')
+        if (memberName || memberId || rid || bookingQuery) {
             if (memberName) {
                 setBookingSearch(memberName)
                 setAccountSearch(memberName)
@@ -559,6 +562,10 @@ export function TreasuryPage() {
             if (rid) {
                 setTab('accounts' as Parameters<typeof setTab>[0])
                 setDeepLinkRid(parseInt(rid, 10))
+            }
+            if (bookingQuery) {
+                setTab('bookings' as Parameters<typeof setTab>[0])
+                setBookingSearch(bookingQuery)
             }
             clearHashParams()
         }
@@ -1671,10 +1678,10 @@ export function TreasuryPage() {
                         </div>
                     )}
 
-                    <input
-                        className="kce-input mb-3"
+                    <SearchInput
+                        className="mb-3"
                         value={accountSearch}
-                        onChange={e => setAccountSearch(e.target.value)}
+                        onChange={setAccountSearch}
                         placeholder={t('treasury.accounts.search')}
                     />
                     {filteredBalances.length === 0
@@ -1885,10 +1892,10 @@ export function TreasuryPage() {
             {/* ── Buchungen ── */}
             {tab === 'bookings' && (
                 <div>
-                    <input
-                        className="kce-input mb-3"
+                    <SearchInput
+                        className="mb-3"
                         value={bookingSearch}
-                        onChange={e => setBookingSearch(e.target.value)}
+                        onChange={setBookingSearch}
                         placeholder={t('treasury.bookings.search')}
                     />
                     <div className="flex items-center justify-between mb-3">

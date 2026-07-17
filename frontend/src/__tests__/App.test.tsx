@@ -48,8 +48,14 @@ vi.mock('@/hooks/usePullToRefresh.ts', () => ({
     usePullToRefresh: vi.fn(() => ({
         containerRef: { current: null },
         pullDistance: 0,
+        dragging: false,
         refreshing: false,
     })),
+    PULL_THRESHOLD: 70,
+}))
+
+vi.mock('@/components/PullToRefreshIndicator.tsx', () => ({
+    PullToRefreshIndicator: () => <div data-testid="ptr-indicator"/>,
 }))
 
 vi.mock('@/store/theme.ts', () => ({
