@@ -16,12 +16,20 @@ describe('useLongPress', () => {
         return e
     }
 
+    function down(x = 0, y = 0) {
+        return { clientX: x, clientY: y, pointerId: 1, currentTarget: {} } as any
+    }
+
+    function move(x: number, y: number) {
+        return { clientX: x, clientY: y, pointerId: 1 } as any
+    }
+
     it('fires onClick on a quick tap (no long press)', () => {
         const onClick = vi.fn()
         const onLongPress = vi.fn()
         const { result } = renderHook(() => useLongPress({ onClick, onLongPress }))
 
-        act(() => { result.current.onPointerDown({} as any) })
+        act(() => { result.current.onPointerDown(down()) })
         act(() => { result.current.onPointerUp({} as any) })
         fireClick(result.current)
 
@@ -34,7 +42,7 @@ describe('useLongPress', () => {
         const onLongPress = vi.fn()
         const { result } = renderHook(() => useLongPress({ onClick, onLongPress, ms: 500 }))
 
-        act(() => { result.current.onPointerDown({} as any) })
+        act(() => { result.current.onPointerDown(down()) })
         act(() => { vi.advanceTimersByTime(500) })
 
         expect(onLongPress).toHaveBeenCalledTimes(1)
@@ -46,7 +54,7 @@ describe('useLongPress', () => {
         const onLongPress = vi.fn()
         const { result } = renderHook(() => useLongPress({ onClick, onLongPress, ms: 500 }))
 
-        act(() => { result.current.onPointerDown({} as any) })
+        act(() => { result.current.onPointerDown(down()) })
         act(() => { vi.advanceTimersByTime(500) })
         const e = fireClick(result.current)
 
@@ -59,7 +67,7 @@ describe('useLongPress', () => {
         const onLongPress = vi.fn()
         const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress, ms: 500 }))
 
-        act(() => { result.current.onPointerDown({} as any) })
+        act(() => { result.current.onPointerDown(down()) })
         act(() => { vi.advanceTimersByTime(200) })
         act(() => { result.current.onPointerUp({} as any) })
         act(() => { vi.advanceTimersByTime(500) })
@@ -67,15 +75,29 @@ describe('useLongPress', () => {
         expect(onLongPress).not.toHaveBeenCalled()
     })
 
-    it('cancels the pending long press on pointer leave', () => {
+    it('cancels the pending long press once the pointer moves past the drag threshold', () => {
         const onLongPress = vi.fn()
         const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress, ms: 500 }))
 
-        act(() => { result.current.onPointerDown({} as any) })
-        act(() => { result.current.onPointerLeave({} as any) })
+        act(() => { result.current.onPointerDown(down(0, 0)) })
+        act(() => { result.current.onPointerMove(move(0, 20)) })
         act(() => { vi.advanceTimersByTime(500) })
 
         expect(onLongPress).not.toHaveBeenCalled()
+    })
+
+    it('tolerates small pointer jitter on tiny touch targets without cancelling', () => {
+        // Regression: small reaction pills used to lose the long-press to a stray
+        // pointerleave/pointerout fired by sub-pixel touch jitter even when the finger
+        // never intentionally moved off the element.
+        const onLongPress = vi.fn()
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress, ms: 500 }))
+
+        act(() => { result.current.onPointerDown(down(0, 0)) })
+        act(() => { result.current.onPointerMove(move(3, 2)) })
+        act(() => { vi.advanceTimersByTime(500) })
+
+        expect(onLongPress).toHaveBeenCalledTimes(1)
     })
 
     it('prevents the native context menu', () => {

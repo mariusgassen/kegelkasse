@@ -19,7 +19,7 @@ describe('ReactionPill', () => {
 
     function renderPill(users: string[], onClick = vi.fn()) {
         render(
-            <ReactionPill className="pill" onClick={onClick} users={users}>
+            <ReactionPill className="pill" onClick={onClick} users={users} emoji="❤️">
                 <span>❤️ 2</span>
             </ReactionPill>,
         )
@@ -43,6 +43,16 @@ describe('ReactionPill', () => {
         expect(onClick).not.toHaveBeenCalled()
         expect(screen.getByText('Alice')).toBeInTheDocument()
         expect(screen.getByText('Bob')).toBeInTheDocument()
+    })
+
+    it('shows the reaction emoji beside each name in the popover', () => {
+        renderPill(['Alice', 'Bob'])
+        const btn = screen.getByRole('button')
+
+        fireEvent.pointerDown(btn)
+        act(() => { vi.advanceTimersByTime(500) })
+
+        expect(screen.getAllByText('❤️')).toHaveLength(2)
     })
 
     it('does not show a popover when there are no reactors', () => {

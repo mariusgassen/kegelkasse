@@ -272,6 +272,7 @@ function CommentItem({
                                 className="flex flex-col items-center justify-center gap-0.5 self-center px-0.5 flex-shrink-0 min-w-[28px]"
                                 onClick={() => handleReaction('❤️')}
                                 users={heartReaction?.users ?? []}
+                                emoji="❤️"
                                 title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                             >
                                 <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-red-400' : 'text-kce-border hover:text-red-400/60'}`}>
@@ -337,6 +338,7 @@ function CommentItem({
                                     key={r.emoji}
                                     onClick={() => handleReaction(r.emoji)}
                                     users={r.users}
+                                    emoji={r.emoji}
                                     className={[
                                         'text-[11px] px-1.5 py-0.5 rounded-full border leading-none transition-colors',
                                         r.reacted_by_me

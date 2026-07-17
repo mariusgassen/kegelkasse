@@ -148,6 +148,7 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
             <ReactionPill
                 onClick={() => handleToggle('❤️')}
                 users={heartReaction?.users ?? []}
+                emoji="❤️"
                 className={[PILL, heartReaction?.reacted_by_me
                     ? 'border-red-400/60 bg-red-400/10 text-red-400'
                     : 'border-kce-border text-kce-muted hover:border-red-400/40 hover:text-red-400/70',
@@ -166,6 +167,7 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                     key={r.emoji}
                     onClick={() => handleToggle(r.emoji)}
                     users={r.users}
+                    emoji={r.emoji}
                     className={[PILL, r.reacted_by_me
                         ? 'border-kce-primary bg-kce-primary/20 text-kce-cream'
                         : 'border-kce-border text-kce-muted hover:border-kce-primary/50',
