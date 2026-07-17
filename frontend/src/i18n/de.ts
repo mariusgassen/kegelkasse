@@ -14,6 +14,7 @@ export const de = {
     "action.done": "Fertig",
     "action.loading": "Lade…",
     "action.print": "Drucken / PDF",
+    "action.clear": "Leeren",
     "auth.login": "Einloggen",
     "auth.logout": "Ausloggen",
     "auth.email": "E-Mail",

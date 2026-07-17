@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
@@ -1677,10 +1678,10 @@ export function TreasuryPage() {
                         </div>
                     )}
 
-                    <input
-                        className="kce-input mb-3"
+                    <SearchInput
+                        className="mb-3"
                         value={accountSearch}
-                        onChange={e => setAccountSearch(e.target.value)}
+                        onChange={setAccountSearch}
                         placeholder={t('treasury.accounts.search')}
                     />
                     {filteredBalances.length === 0
@@ -1891,10 +1892,10 @@ export function TreasuryPage() {
             {/* ── Buchungen ── */}
             {tab === 'bookings' && (
                 <div>
-                    <input
-                        className="kce-input mb-3"
+                    <SearchInput
+                        className="mb-3"
                         value={bookingSearch}
-                        onChange={e => setBookingSearch(e.target.value)}
+                        onChange={setBookingSearch}
                         placeholder={t('treasury.bookings.search')}
                     />
                     <div className="flex items-center justify-between mb-3">

@@ -336,6 +336,20 @@ describe('TreasuryPage — accounts tab', () => {
             expect(screen.queryByText('Hansi')).not.toBeInTheDocument()
         })
     })
+
+    it('clear (✕) button resets a search left over from a deep link (e.g. Global Search)', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByText('Hansi')).toBeInTheDocument())
+        const searchInput = screen.getByPlaceholderText('treasury.accounts.search') as HTMLInputElement
+        fireEvent.change(searchInput, { target: { value: 'Admin' } })
+        await waitFor(() => expect(screen.queryByText('Hansi')).not.toBeInTheDocument())
+
+        fireEvent.click(screen.getByLabelText('action.clear'))
+
+        expect(searchInput.value).toBe('')
+        await waitFor(() => expect(screen.getByText('Hansi')).toBeInTheDocument())
+    })
 })
 
 describe('TreasuryPage — bookings tab', () => {
@@ -370,6 +384,20 @@ describe('TreasuryPage — bookings tab', () => {
         await waitFor(() => {
             expect(screen.getByText('Einzahlung')).toBeInTheDocument()
         })
+    })
+
+    it('clear (✕) button resets a search left over from a deep link (e.g. Global Search)', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByText('Einzahlung')).toBeInTheDocument())
+        const searchInput = screen.getByPlaceholderText('treasury.bookings.search') as HTMLInputElement
+        fireEvent.change(searchInput, { target: { value: 'Getränke' } })
+        await waitFor(() => expect(screen.queryByText('Einzahlung')).not.toBeInTheDocument())
+
+        fireEvent.click(screen.getByLabelText('action.clear'))
+
+        expect(searchInput.value).toBe('')
+        await waitFor(() => expect(screen.getByText('Einzahlung')).toBeInTheDocument())
     })
 
     it('admin sees add booking button', async () => {
