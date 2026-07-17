@@ -98,7 +98,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - **Teams**: reusable team presets that can be loaded when starting an evening
 - **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry; pin icons shown inline next to player names
 - **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge; 🎯 badge shown inline next to player name
-- **Vergnügungsausschuss (Entertainment Committee)**: designate regular members as VA-members (is_committee flag); committee members can post announcements (with push notification to all) and manage Kegelfahrten (bowling trips); dedicated 🚌 tab for all members; VA management in the admin Verein tab
+- **Vergnügungsausschuss (VGA, Entertainment Committee)**: designate regular members as VGA-members (is_committee flag); committee members can post announcements (with push notification to all) and manage Kegelfahrten (bowling trips); dedicated 🚌 tab for all members; VGA management in the admin Verein tab
 
 ### Evening management
 

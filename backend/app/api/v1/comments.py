@@ -39,6 +39,22 @@ def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
     return u.name
 
 
+def _names_for_users(user_ids: set[int], db: Session) -> dict[int, str]:
+    """Batch-resolve display names (nickname if linked to a RegularMember) for a set of user IDs."""
+    if not user_ids:
+        return {}
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    rm_ids = {u.regular_member_id for u in users if u.regular_member_id}
+    members_by_id = {
+        m.id: m for m in db.query(RegularMember).filter(RegularMember.id.in_(rm_ids)).all()
+    } if rm_ids else {}
+    result: dict[int, str] = {}
+    for u in users:
+        rm = members_by_id.get(u.regular_member_id) if u.regular_member_id else None
+        result[u.id] = (rm.nickname or rm.name) if rm else u.name
+    return result
+
+
 def _parent_title(parent_type: str, parent_id: int, db: Session) -> str:
     """Return a short display title for the parent item."""
     if parent_type == 'announcement':
@@ -58,6 +74,7 @@ def _serialize_comment(c: Comment, db: Session, current_user_id: int) -> dict:
     reaction_map: dict[str, list[int]] = {}
     for r in reactions_raw:
         reaction_map.setdefault(r.emoji, []).append(r.user_id)
+    names = _names_for_users({uid for uids in reaction_map.values() for uid in uids}, db)
 
     reply_comments = db.query(Comment).filter(
         Comment.parent_comment_id == c.id,
@@ -83,7 +100,12 @@ def _serialize_comment(c: Comment, db: Session, current_user_id: int) -> dict:
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "edited_at": c.edited_at.isoformat() if c.edited_at else None,
         "reactions": [
-            {"emoji": e, "count": len(uids), "reacted_by_me": current_user_id in uids}
+            {
+                "emoji": e,
+                "count": len(uids),
+                "reacted_by_me": current_user_id in uids,
+                "users": [names[uid] for uid in uids if uid in names],
+            }
             for e, uids in reaction_map.items()
         ],
         "replies": replies,
@@ -100,8 +122,14 @@ def _serialize_item_reactions(
     reaction_map: dict[str, list[int]] = {}
     for r in rows:
         reaction_map.setdefault(r.emoji, []).append(r.user_id)
+    names = _names_for_users({uid for uids in reaction_map.values() for uid in uids}, db)
     return [
-        {"emoji": e, "count": len(uids), "reacted_by_me": current_user_id in uids}
+        {
+            "emoji": e,
+            "count": len(uids),
+            "reacted_by_me": current_user_id in uids,
+            "users": [names[uid] for uid in uids if uid in names],
+        }
         for e, uids in reaction_map.items()
     ]
 

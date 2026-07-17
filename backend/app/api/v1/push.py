@@ -127,6 +127,7 @@ class PushPreferencesUpdate(BaseModel):
     payments: Optional[bool] = None
     games: Optional[bool] = None
     members: Optional[bool] = None
+    comments: Optional[bool] = None
     reminder_debt: Optional[bool] = None
     reminder_schedule: Optional[bool] = None
     reminder_payments: Optional[bool] = None

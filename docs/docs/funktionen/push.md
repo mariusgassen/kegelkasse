@@ -30,6 +30,8 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 | Spieltermin-Erinnerung | Mitglieder ohne RSVP |
 | Zahlung bestätigt | Betroffenes Mitglied |
 | Zahlung abgelehnt | Betroffenes Mitglied |
+| Kommentar/Antwort auf Ankündigung, Kegelfahrt, Highlight | Autor des Beitrags bzw. des übergeordneten Kommentars |
+| Reaktion auf Kommentar, Ankündigung, Kegelfahrt, Highlight | Autor des Beitrags/Kommentars |
 | **Schulden-Erinnerung** (automatisch) | Mitglieder mit offenem Betrag |
 | **Kegeln in X Tagen** (automatisch) | Alle aktiven Mitglieder |
 | **RSVP-Erinnerung** (automatisch) | Mitglieder ohne Rückmeldung |
@@ -45,6 +47,9 @@ Im Profil-Tab **⚙️ Einstellungen** können Benachrichtigungen feingranular g
 - **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen an/aus
 - **Termin-Erinnerungen** — automatische Terminbenachrichtigungen an/aus; dazu individuell einstellbar: wie viele Tage vorher erinnert werden soll
 - **Zahlungsanfragen (Admin)** — Nudges für ausstehende Anfragen an/aus (nur für Admins sichtbar)
+- **Kommentare & Reaktionen** — Benachrichtigungen zu Antworten und Reaktionen auf Ankündigungen, Kegelfahrten und Highlights an/aus
+
+Ein Tap auf eine Kommentar- oder Reaktions-Benachrichtigung öffnet die App direkt beim betroffenen Beitrag und Kommentar (Deep-Link).
 
 ## Automatische Erinnerungen *(Admin)*
 

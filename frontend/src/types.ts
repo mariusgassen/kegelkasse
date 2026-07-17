@@ -394,6 +394,7 @@ export interface CommentReaction {
     emoji: string
     count: number
     reacted_by_me: boolean
+    users: string[]
 }
 
 export interface Comment {
@@ -414,6 +415,7 @@ export interface ItemReaction {
     emoji: string
     count: number
     reacted_by_me: boolean
+    users: string[]
 }
 
 export interface Evening {

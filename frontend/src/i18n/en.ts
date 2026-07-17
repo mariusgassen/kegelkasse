@@ -1084,6 +1084,7 @@ export const en = {
     "comment.unknown": "Unknown",
     "comment.reaction.add": "Add reaction",
     "comment.reaction.remove": "Remove reaction",
+    "comment.reaction.reactedBy": "Reacted by",
     "comment.edited": "edited",
     "comment.reply": "Reply",
     "comment.replyingTo": "Replying to",
