@@ -362,6 +362,7 @@ export const en = {
     "search.members": "Members",
     "search.accounts": "Accounts",
     "search.evenings": "Evenings",
+    "search.bookings": "Bookings",
     "search.announcements": "Announcements",
     "search.trips": "Trips",
     "wheel.title": "🎲 Random penalty",

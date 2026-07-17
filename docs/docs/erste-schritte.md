@@ -75,9 +75,16 @@ hinterlegt (Verein → Erscheinungsbild), bleibt diese Markenfarbe in beiden Mod
 ## Suche
 
 Über das 🔍-Symbol oben im Header (oder per Tastenkürzel **Cmd/Ctrl + K** am Desktop) lässt sich direkt zu
-einem Mitglied, dessen Konto, einem vergangenen Kegelabend, einer Ankündigung oder einer Kegelfahrt springen,
-ohne vorher den passenden Tab suchen zu müssen. Tippe einfach ein paar Buchstaben ein — die Treffer werden
-nach Kategorie gruppiert live angezeigt; ein Tippen auf einen Treffer führt direkt zur entsprechenden Stelle.
+einem Mitglied, dessen Konto, einem vergangenen Kegelabend, einer Buchung im Kassenbuch, einer Ankündigung
+oder einer Kegelfahrt springen, ohne vorher den passenden Tab suchen zu müssen. Tippe einfach ein paar
+Buchstaben ein — die Treffer werden mit Icon nach Kategorie gruppiert live angezeigt; ein Tippen auf einen
+Treffer führt direkt zur entsprechenden Stelle.
+
+:::tip
+Die Suche findet Datumsangaben auch über den ausgeschriebenen Monatsnamen in der aktuell eingestellten
+Sprache — z. B. findet „März" (oder „March" im englischen Modus) alle Abende, Kegelfahrten und Buchungen
+in diesem Monat.
+:::
 
 ## Passwort zurücksetzen
 

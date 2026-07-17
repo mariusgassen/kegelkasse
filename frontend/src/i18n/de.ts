@@ -362,6 +362,7 @@ export const de = {
     "search.members": "Mitglieder",
     "search.accounts": "Konten",
     "search.evenings": "Abende",
+    "search.bookings": "Buchungen",
     "search.announcements": "Ankündigungen",
     "search.trips": "Kegelfahrten",
     "wheel.title": "🎲 Zufalls-Strafe",

@@ -544,13 +544,15 @@ export function TreasuryPage() {
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
     const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
 
-    // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet
+    // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet;
+    // ?q=X pre-fills the bookings search (used by GlobalSearch for a specific payment/expense)
     function handleDeepLink() {
         const params = getHashParams()
         const memberName = params.get('memberName')
         const memberId = params.get('member')
         const rid = params.get('rid')
-        if (memberName || memberId || rid) {
+        const bookingQuery = params.get('q')
+        if (memberName || memberId || rid || bookingQuery) {
             if (memberName) {
                 setBookingSearch(memberName)
                 setAccountSearch(memberName)
@@ -559,6 +561,10 @@ export function TreasuryPage() {
             if (rid) {
                 setTab('accounts' as Parameters<typeof setTab>[0])
                 setDeepLinkRid(parseInt(rid, 10))
+            }
+            if (bookingQuery) {
+                setTab('bookings' as Parameters<typeof setTab>[0])
+                setBookingSearch(bookingQuery)
             }
             clearHashParams()
         }
