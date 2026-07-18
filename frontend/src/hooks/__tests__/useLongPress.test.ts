@@ -16,8 +16,8 @@ describe('useLongPress', () => {
         return e
     }
 
-    function down(x = 0, y = 0) {
-        return { clientX: x, clientY: y, pointerId: 1, currentTarget: {} } as any
+    function down(x = 0, y = 0, extra: Record<string, unknown> = {}) {
+        return { clientX: x, clientY: y, pointerId: 1, currentTarget: {}, preventDefault: vi.fn(), ...extra } as any
     }
 
     function move(x: number, y: number) {
@@ -98,6 +98,24 @@ describe('useLongPress', () => {
         act(() => { vi.advanceTimersByTime(500) })
 
         expect(onLongPress).toHaveBeenCalledTimes(1)
+    })
+
+    it('blocks the touch default action on press-start, so iOS cannot start its own text-selection/callout gesture', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn() }))
+        const e = down(0, 0, { pointerType: 'touch' })
+
+        act(() => { result.current.onPointerDown(e) })
+
+        expect(e.preventDefault).toHaveBeenCalled()
+    })
+
+    it('leaves mouse/pen presses alone (no need to block their default action)', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn() }))
+        const e = down(0, 0, { pointerType: 'mouse' })
+
+        act(() => { result.current.onPointerDown(e) })
+
+        expect(e.preventDefault).not.toHaveBeenCalled()
     })
 
     it('prevents the native context menu', () => {

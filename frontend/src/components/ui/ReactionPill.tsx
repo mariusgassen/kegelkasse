@@ -1,30 +1,35 @@
 /**
  * A reaction pill button (heart or emoji) that toggles the reaction on tap and,
- * on long-press, shows a popover listing which users reacted.
+ * on long-press, shows a popover listing every reaction on the item (grouped by
+ * emoji) and who gave each one — not just the emoji of the pill that was held.
  */
 import {useEffect, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {useLongPress} from '@/hooks/useLongPress'
 import {useT} from '@/i18n'
 
+interface ReactionGroup {
+    emoji: string
+    users: string[]
+}
+
 interface Props {
     className: string
     title?: string
     onClick: () => void
-    users: string[]
-    /** The emoji this pill represents — shown beside each name in the reactor popover. */
-    emoji: string
+    /** Every reaction group on this item — holding any pill shows the full breakdown, not just this pill's own. */
+    allReactions: ReactionGroup[]
     children: React.ReactNode
 }
 
-export function ReactionPill({className, title, onClick, users, emoji, children}: Props) {
+export function ReactionPill({className, title, onClick, allReactions, children}: Props) {
     const t = useT()
     const btnRef = useRef<HTMLButtonElement>(null)
     const [pos, setPos] = useState<{top: number; left: number} | null>(null)
-    const safeUsers = users ?? []
+    const groups = allReactions ?? []
 
     function openList() {
-        if (!btnRef.current || safeUsers.length === 0) return
+        if (!btnRef.current || groups.length === 0) return
         const rect = btnRef.current.getBoundingClientRect()
         setPos({
             top: rect.bottom + 6,
@@ -54,7 +59,7 @@ export function ReactionPill({className, title, onClick, users, emoji, children}
             >
                 {children}
             </button>
-            {pos && safeUsers.length > 0 && createPortal(
+            {pos && groups.length > 0 && createPortal(
                 <div
                     role="tooltip"
                     style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 200}}
@@ -62,9 +67,9 @@ export function ReactionPill({className, title, onClick, users, emoji, children}
                 >
                     <p className="text-[10px] font-bold text-kce-muted mb-1">{t('comment.reaction.reactedBy')}</p>
                     <ul className="space-y-0.5 max-h-40 overflow-y-auto">
-                        {safeUsers.map((name, i) => (
-                            <li key={i} className="text-xs text-kce-cream truncate">
-                                <span className="mr-1">{emoji}</span>{name}
+                        {groups.map(group => (
+                            <li key={group.emoji} className="text-xs text-kce-cream truncate">
+                                <span className="mr-1">{group.emoji}</span>{group.users.join(', ')}
                             </li>
                         ))}
                     </ul>
