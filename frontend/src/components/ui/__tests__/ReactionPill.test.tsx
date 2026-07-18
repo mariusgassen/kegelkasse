@@ -65,6 +65,14 @@ describe('ReactionPill', () => {
         expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     })
 
+    it('disables native text selection and the iOS touch callout, so the long-press timer wins the gesture', () => {
+        renderPill(['Alice'])
+        const btn = screen.getByRole('button')
+
+        expect(btn.className).toContain('select-none')
+        expect(btn.className).toContain('[-webkit-touch-callout:none]')
+    })
+
     it('closes the popover when clicking outside', () => {
         renderPill(['Alice'])
         const btn = screen.getByRole('button')

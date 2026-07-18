@@ -45,7 +45,13 @@ export function ReactionPill({className, title, onClick, users, emoji, children}
 
     return (
         <>
-            <button ref={btnRef} type="button" className={className} title={title} {...longPress}>
+            <button
+                ref={btnRef}
+                type="button"
+                className={`${className} select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]`}
+                title={title}
+                {...longPress}
+            >
                 {children}
             </button>
             {pos && safeUsers.length > 0 && createPortal(
