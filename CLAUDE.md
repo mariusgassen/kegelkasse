@@ -185,6 +185,7 @@ service worker + IndexedDB for offline support.
   handle them promptly — merge safe patch/minor bumps directly, and perform major-version migrations immediately rather
   than deferring them. Do not let major-version upgrades accumulate. Known blocking constraints (document them inline):
   - `eslint-plugin-react-hooks@7.x` caps ESLint at `^9` → unblocks when a new release adds `^10` support.
+  - `typescript` capped at `^6.x` → `@typescript-eslint` (`typescript-estree`) declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"` and crashes (`Cannot read properties of undefined (reading 'Cjs')`) against TypeScript 7 (the Corsa/native rewrite); unblocks when `@typescript-eslint` ships TS7 support.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
   page elements, dialogs, and any new components. Never leave new UI without consistent styling.
 - **Display names:** Always show the Kegelname (nickname) as the primary display name for members. Use
