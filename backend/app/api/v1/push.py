@@ -13,18 +13,31 @@ from core.database import get_db
 from models.push import NotificationLog, PushSubscription
 from models.user import User
 
-_DEFAULT_PREFS = {
-    "penalties": True,
-    "evenings": True,
-    "schedule": True,
-    "payments": True,
-    "games": True,
-    "members": True,
-    "comments": True,
-    "reminder_debt": True,
-    "reminder_schedule": True,
-    "reminder_payments": True,
-}
+_CATEGORY_KEYS = (
+    "penalties", "evenings", "schedule", "payments", "games", "members", "comments",
+    "reminder_debt", "reminder_schedule", "reminder_payments",
+)
+_VALID_CHANNELS = ("off", "push", "email")
+# Default channel for every category: 'push' (preserves prior always-on behaviour).
+_DEFAULT_PREFS = {key: "push" for key in _CATEGORY_KEYS}
+
+
+def _normalize_prefs(raw: dict) -> dict:
+    """Coerce stored preferences into channel strings ('off'|'push'|'email').
+
+    Legacy boolean values (True/False) map to 'push'/'off'. Non-category keys
+    (e.g. reminder_schedule_days) pass through unchanged.
+    """
+    out: dict = {}
+    for key, value in (raw or {}).items():
+        if key in _CATEGORY_KEYS:
+            if isinstance(value, bool):
+                out[key] = "push" if value else "off"
+            elif value in _VALID_CHANNELS:
+                out[key] = value
+        else:
+            out[key] = value
+    return out
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +93,14 @@ def unsubscribe(endpoint: Optional[str] = None, db: Session = Depends(get_db),
 
 @router.get("/status")
 def status(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    from core.email import get_club_email_config
     count = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count()
-    return {"subscribed": count > 0, "configured": bool(settings.VAPID_PUBLIC_KEY)}
+    email_configured = bool(get_club_email_config(user.club)) if user.club else False
+    return {
+        "subscribed": count > 0,
+        "configured": bool(settings.VAPID_PUBLIC_KEY),
+        "email_configured": email_configured,
+    }
 
 
 @router.post("/test")
@@ -114,37 +133,45 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
 
 @router.get("/preferences")
 def get_push_preferences(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Return notification category preferences for the current user."""
+    """Return notification channel preferences ('off'|'push'|'email') for the current user."""
     prefs = dict(_DEFAULT_PREFS)
-    prefs.update(user.push_preferences or {})
+    prefs.update(_normalize_prefs(user.push_preferences or {}))
     return prefs
 
 
 class PushPreferencesUpdate(BaseModel):
-    penalties: Optional[bool] = None
-    evenings: Optional[bool] = None
-    schedule: Optional[bool] = None
-    payments: Optional[bool] = None
-    games: Optional[bool] = None
-    members: Optional[bool] = None
-    comments: Optional[bool] = None
-    reminder_debt: Optional[bool] = None
-    reminder_schedule: Optional[bool] = None
-    reminder_payments: Optional[bool] = None
+    penalties: Optional[str] = None
+    evenings: Optional[str] = None
+    schedule: Optional[str] = None
+    payments: Optional[str] = None
+    games: Optional[str] = None
+    members: Optional[str] = None
+    comments: Optional[str] = None
+    reminder_debt: Optional[str] = None
+    reminder_schedule: Optional[str] = None
+    reminder_payments: Optional[str] = None
     reminder_schedule_days: Optional[int] = None  # per-user days_before for upcoming evening
 
 
 @router.patch("/preferences")
 def update_push_preferences(data: PushPreferencesUpdate, db: Session = Depends(get_db),
                              user: User = Depends(require_club_member)):
-    """Update notification category preferences (partial — only provided keys are updated)."""
+    """Update notification channel preferences (partial — only provided keys are updated).
+
+    Category values must be one of 'off'|'push'|'email'; invalid values are ignored.
+    """
     prefs = dict(user.push_preferences or {})
     payload = data.model_dump(exclude_none=True)
-    prefs.update(payload)
+    for key, value in payload.items():
+        if key in _CATEGORY_KEYS:
+            if value in _VALID_CHANNELS:
+                prefs[key] = value
+        else:
+            prefs[key] = value
     user.push_preferences = prefs
     db.commit()
     result = dict(_DEFAULT_PREFS)
-    result.update(prefs)
+    result.update(_normalize_prefs(prefs))
     return result
 
 

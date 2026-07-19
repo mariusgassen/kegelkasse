@@ -6,7 +6,7 @@ import {useEffect, useState} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {ReminderSettings, ReminderTypeSettings} from '@/types.ts'
+import type {ReminderSettings, ReminderTypeSettings, EmailSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -447,7 +447,144 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             </button>
 
             <ReminderSettingsCard />
+            <EmailSettingsCard />
             <BroadcastPushCard />
+        </div>
+    )
+}
+
+
+function EmailSettingsCard() {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const {data: saved} = useQuery<EmailSettings>({
+        queryKey: ['email-settings'],
+        queryFn: api.getEmailSettings,
+        staleTime: 60000,
+    })
+
+    const [enabled, setEnabled] = useState(false)
+    const [host, setHost] = useState('')
+    const [port, setPort] = useState(587)
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [fromAddress, setFromAddress] = useState('')
+    const [fromName, setFromName] = useState('')
+    const [useTls, setUseTls] = useState(true)
+    const [useSsl, setUseSsl] = useState(false)
+    const [passwordSet, setPasswordSet] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [testing, setTesting] = useState(false)
+
+    useEffect(() => {
+        if (!saved) return
+        setEnabled(saved.enabled)
+        setHost(saved.host || '')
+        setPort(saved.port || 587)
+        setUsername(saved.username || '')
+        setFromAddress(saved.from_address || '')
+        setFromName(saved.from_name || '')
+        setUseTls(saved.use_tls)
+        setUseSsl(saved.use_ssl)
+        setPasswordSet(saved.password_set)
+    }, [saved])
+
+    async function handleSave() {
+        setSaving(true)
+        try {
+            const payload: Partial<EmailSettings> & { password?: string } = {
+                enabled, host: host.trim(), port, username: username.trim(),
+                from_address: fromAddress.trim(), from_name: fromName.trim(),
+                use_tls: useTls, use_ssl: useSsl,
+            }
+            if (password) payload.password = password
+            const res = await api.updateEmailSettings(payload)
+            setPassword('')
+            setPasswordSet(res.password_set)
+            qc.invalidateQueries({queryKey: ['email-settings']})
+            showToast(t('email.saved'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleTest() {
+        setTesting(true)
+        try {
+            const res = await api.testEmailSettings()
+            showToast(t('email.testSent').replace('{email}', res.sent_to))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setTesting(false)
+        }
+    }
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-2">{t('email.title')}</div>
+            <p className="text-xs text-kce-muted mb-3">{t('email.hint')}</p>
+
+            <div className="flex items-center justify-between py-1 mb-2">
+                <span className="text-sm font-bold text-kce-cream">{t('email.enabled')}</span>
+                <ReminderToggle value={enabled} onChange={setEnabled}/>
+            </div>
+
+            <div className="space-y-3">
+                <div>
+                    <label className="field-label">{t('email.host')}</label>
+                    <input className="kce-input" value={host} onChange={e => setHost(e.target.value)}
+                           placeholder="smtp.example.com" autoCapitalize="none" autoCorrect="off"/>
+                </div>
+                <div className="flex gap-3">
+                    <div className="flex-1">
+                        <label className="field-label">{t('email.port')}</label>
+                        <input className="kce-input" type="number" value={port}
+                               onChange={e => setPort(parseInt(e.target.value) || 587)}/>
+                    </div>
+                    <div className="flex-[2]">
+                        <label className="field-label">{t('email.fromName')}</label>
+                        <input className="kce-input" value={fromName} onChange={e => setFromName(e.target.value)}
+                               placeholder={t('email.fromNamePlaceholder')}/>
+                    </div>
+                </div>
+                <div>
+                    <label className="field-label">{t('email.fromAddress')}</label>
+                    <input className="kce-input" value={fromAddress} onChange={e => setFromAddress(e.target.value)}
+                           placeholder="noreply@example.com" autoCapitalize="none" autoCorrect="off"/>
+                </div>
+                <div>
+                    <label className="field-label">{t('email.username')}</label>
+                    <input className="kce-input" value={username} onChange={e => setUsername(e.target.value)}
+                           placeholder={t('email.usernamePlaceholder')} autoCapitalize="none" autoCorrect="off"/>
+                </div>
+                <div>
+                    <label className="field-label">{t('email.password')}</label>
+                    <input className="kce-input" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                           placeholder={passwordSet ? t('email.passwordSet') : t('email.passwordPlaceholder')} autoComplete="new-password"/>
+                </div>
+                <div className="flex items-center justify-between py-0.5">
+                    <span className="text-xs text-kce-cream">{t('email.useTls')}</span>
+                    <ReminderToggle value={useTls} onChange={v => { setUseTls(v); if (v) setUseSsl(false) }}/>
+                </div>
+                <div className="flex items-center justify-between py-0.5">
+                    <span className="text-xs text-kce-cream">{t('email.useSsl')}</span>
+                    <ReminderToggle value={useSsl} onChange={v => { setUseSsl(v); if (v) setUseTls(false) }}/>
+                </div>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline || saving}>
+                    {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
+                </button>
+                <button className="btn-secondary flex-shrink-0" onClick={handleTest}
+                        disabled={!isOnline || testing || !enabled}>
+                    {testing ? '…' : t('email.sendTest')}
+                </button>
+            </div>
         </div>
     )
 }

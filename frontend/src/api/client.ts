@@ -18,6 +18,7 @@ import {
     PenaltyLogEntry,
     PenaltyType,
     PushPreferences,
+    EmailSettings,
     RegularMember,
     ReminderSettings,
     RsvpEntry,
@@ -658,7 +659,7 @@ export const api = {
 
     // Push notifications
     getVapidPublicKey: () => request<{ public_key: string }>('GET', '/push/vapid-key'),
-    getPushStatus: () => request<{ subscribed: boolean; configured: boolean }>('GET', '/push/status'),
+    getPushStatus: () => request<{ subscribed: boolean; configured: boolean; email_configured: boolean }>('GET', '/push/status'),
     subscribeToPush: (d: { endpoint: string; p256dh: string; auth: string }) =>
         request<{ ok: boolean }>('POST', '/push/subscribe', d),
     unsubscribeFromPush: (endpoint?: string) =>
@@ -675,6 +676,9 @@ export const api = {
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
     getReminderSettings: () => request<ReminderSettings>('GET', '/club/reminder-settings'),
     updateReminderSettings: (d: Partial<ReminderSettings>) => request<{ ok: boolean }>('PATCH', '/club/reminder-settings', d),
+    getEmailSettings: () => request<EmailSettings>('GET', '/club/email-settings'),
+    updateEmailSettings: (d: Partial<EmailSettings> & { password?: string }) => request<EmailSettings>('PATCH', '/club/email-settings', d),
+    testEmailSettings: (to?: string) => request<{ ok: boolean; sent_to: string }>('POST', '/club/email-settings/test', to ? { to } : {}),
     broadcastPush: (d: { title: string; body: string; url?: string }) => request<{ ok: boolean }>('POST', '/club/broadcast-push', d),
     triggerReminders: () => request<{ ok: boolean }>('POST', '/push/trigger-reminders'),
 

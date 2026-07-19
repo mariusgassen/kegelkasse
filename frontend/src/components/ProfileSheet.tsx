@@ -8,7 +8,7 @@ import {useThemeStore, type Theme} from '@/store/theme'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
-import {PushPreferences} from '@/types'
+import {PushPreferences, NotificationChannel} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
@@ -18,16 +18,40 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-function PushToggle({value, onChange, disabled}: { value: boolean; onChange: () => void; disabled?: boolean }) {
+/**
+ * Tri-state notification channel selector: off / push / email.
+ * The email segment is only offered when the club has configured an SMTP server.
+ */
+function ChannelToggle({value, onChange, emailEnabled, disabled}: {
+    value: NotificationChannel
+    onChange: (v: NotificationChannel) => void
+    emailEnabled?: boolean
+    disabled?: boolean
+}) {
+    const t = useT()
+    const options: { v: NotificationChannel; icon: string; label: string }[] = [
+        {v: 'off', icon: '🔕', label: t('push.channel.off')},
+        {v: 'push', icon: '🔔', label: t('push.channel.push')},
+    ]
+    if (emailEnabled) options.push({v: 'email', icon: '✉️', label: t('push.channel.email')})
     return (
-        <button
-            onClick={disabled ? undefined : onChange}
-            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2', disabled ? 'opacity-40 cursor-not-allowed' : ''].join(' ')}
-            aria-pressed={value}
-            disabled={disabled}
-        >
-            <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
-        </button>
+        <div className={['flex items-center gap-0.5 bg-kce-surface2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
+            {options.map(o => (
+                <button
+                    key={o.v}
+                    onClick={disabled ? undefined : () => onChange(o.v)}
+                    disabled={disabled}
+                    aria-pressed={value === o.v}
+                    aria-label={o.label}
+                    title={o.label}
+                    className={['text-xs font-bold px-2 py-1 rounded-md transition-colors leading-none',
+                        value === o.v ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted',
+                        disabled ? 'cursor-not-allowed' : ''].join(' ')}
+                >
+                    <span aria-hidden>{o.icon}</span>
+                </button>
+            ))}
+        </div>
     )
 }
 
@@ -109,6 +133,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const [pushTesting, setPushTesting] = useState(false)
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const [pushConfigured, setPushConfigured] = useState(false)
+    const [emailConfigured, setEmailConfigured] = useState(false)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const {canInstall, isIos, isStandalone, promptInstall} = usePwaInstall()
     const [installHowToOpen, setInstallHowToOpen] = useState(false)
@@ -175,13 +200,18 @@ export function ProfileSheet({open, onClose}: Props) {
 
     const [pushPrefs, setPushPrefs] = useState<PushPreferences | null>(null)
 
-    // Check push status when sheet opens
+    // Check push status when sheet opens (subscription state needs push support; config/email don't)
     useEffect(() => {
-        if (!open || !pushSupported) return
-        navigator.serviceWorker.ready.then(reg =>
-            reg.pushManager.getSubscription()
-        ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
-        api.getPushStatus().then(s => setPushConfigured(s.configured)).catch(() => {})
+        if (!open) return
+        if (pushSupported) {
+            navigator.serviceWorker.ready.then(reg =>
+                reg.pushManager.getSubscription()
+            ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
+        }
+        api.getPushStatus().then(s => {
+            setPushConfigured(s.configured)
+            setEmailConfigured(s.email_configured)
+        }).catch(() => {})
     }, [open, pushSupported])
 
     // Load push preferences whenever the sheet opens (independent of subscription status)
@@ -190,12 +220,12 @@ export function ProfileSheet({open, onClose}: Props) {
         api.getPushPreferences().then(setPushPrefs).catch(() => {})
     }, [open])
 
-    async function togglePushPref(key: keyof PushPreferences) {
+    async function setPushChannel(key: keyof PushPreferences, channel: NotificationChannel) {
         if (!pushPrefs) return
-        const updated = {...pushPrefs, [key]: !pushPrefs[key]}
+        const updated = {...pushPrefs, [key]: channel}
         setPushPrefs(updated)
         try {
-            await api.updatePushPreferences({[key]: updated[key]})
+            await api.updatePushPreferences({[key]: channel})
         } catch (e) {
             setPushPrefs(pushPrefs) // revert
             toastError(e)
@@ -729,15 +759,16 @@ export function ProfileSheet({open, onClose}: Props) {
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
                             </div>
+                            <p className="text-[11px] text-kce-muted mb-2 -mt-1">{t('push.channelHint')}</p>
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
-                                <PushToggle value={true} onChange={() => {}} disabled />
+                                <ChannelToggle value="push" onChange={() => {}} emailEnabled={emailConfigured} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
-                                    <PushToggle value={!!pushPrefs[key]} onChange={() => togglePushPref(key)} />
+                                    <ChannelToggle value={pushPrefs[key] as NotificationChannel} onChange={c => setPushChannel(key, c)} emailEnabled={emailConfigured} />
                                 </div>
                             ))}
 
@@ -748,15 +779,15 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* reminder_debt */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.reminder_debt')}</span>
-                                <PushToggle value={!!pushPrefs.reminder_debt} onChange={() => togglePushPref('reminder_debt')} />
+                                <ChannelToggle value={pushPrefs.reminder_debt as NotificationChannel} onChange={c => setPushChannel('reminder_debt', c)} emailEnabled={emailConfigured} />
                             </div>
 
                             {/* reminder_schedule + per-user days_before */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.reminder_schedule')}</span>
-                                <PushToggle value={!!pushPrefs.reminder_schedule} onChange={() => togglePushPref('reminder_schedule')} />
+                                <ChannelToggle value={pushPrefs.reminder_schedule as NotificationChannel} onChange={c => setPushChannel('reminder_schedule', c)} emailEnabled={emailConfigured} />
                             </div>
-                            {pushPrefs.reminder_schedule && (
+                            {pushPrefs.reminder_schedule !== 'off' && (
                                 <div className="flex items-center justify-between py-0.5 pl-2">
                                     <span className="text-xs text-kce-muted">{t('push.reminder_schedule_days')}</span>
                                     <input
@@ -784,7 +815,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {isAdmin(user) && (
                                 <div className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t('push.pref.reminder_payments')}</span>
-                                    <PushToggle value={!!pushPrefs.reminder_payments} onChange={() => togglePushPref('reminder_payments')} />
+                                    <ChannelToggle value={pushPrefs.reminder_payments as NotificationChannel} onChange={c => setPushChannel('reminder_payments', c)} emailEnabled={emailConfigured} />
                                 </div>
                             )}
 

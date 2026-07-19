@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
+    # Public base URL of the app — used to build absolute links in emails (e.g. https://kegelkasse.example.com)
+    APP_BASE_URL: str = ""
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

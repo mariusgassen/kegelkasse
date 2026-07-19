@@ -41,6 +41,9 @@ vi.mock('@/api/client.ts', () => ({
         listRegularMembers: vi.fn(),
         getReminderSettings: vi.fn(),
         updateReminderSettings: vi.fn(),
+        getEmailSettings: vi.fn(),
+        updateEmailSettings: vi.fn(),
+        testEmailSettings: vi.fn(),
         triggerReminders: vi.fn(),
         broadcastPush: vi.fn(),
         uploadClubLogo: vi.fn(),
@@ -160,6 +163,10 @@ async function setupDefaultApiMocks() {
     vi.mocked(api.listGameTemplates).mockResolvedValue([])
     vi.mocked(api.listRegularMembers).mockResolvedValue([])
     vi.mocked(api.getReminderSettings).mockResolvedValue({} as any)
+    vi.mocked(api.getEmailSettings).mockResolvedValue({
+        enabled: false, host: '', port: 587, username: '', from_address: '',
+        from_name: '', use_tls: true, use_ssl: false, password_set: false,
+    } as any)
     vi.mocked(api.listClubTeams).mockResolvedValue([])
     vi.mocked(api.listPins).mockResolvedValue([])
     vi.mocked(api.listAllClubs).mockResolvedValue([])
@@ -841,9 +848,11 @@ describe('ClubAdminPage — reminder settings interactions', () => {
         await waitFor(() => {
             expect(screen.getByText('reminders.title')).toBeInTheDocument()
         }, { timeout: 3000 })
-        const saveBtns = screen.getAllByText('action.save')
-        // Last save button is in reminders card (after settings save)
-        fireEvent.click(saveBtns[saveBtns.length - 1])
+        // The reminders-card save button sits in the same row as the triggerNow button.
+        const remindersRow = screen.getByText('reminders.triggerNow').closest('div')!
+        const saveBtn = Array.from(remindersRow.querySelectorAll('button'))
+            .find(b => b.textContent === 'action.save')!
+        fireEvent.click(saveBtn)
         await waitFor(() => {
             expect(api.updateReminderSettings).toHaveBeenCalled()
         })
@@ -858,6 +867,69 @@ describe('ClubAdminPage — reminder settings interactions', () => {
         await waitFor(() => {
             expect(api.triggerReminders).toHaveBeenCalled()
         })
+    })
+})
+
+describe('ClubAdminPage — email settings', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('renders the email settings card', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
+        expect(screen.getByText('email.host')).toBeInTheDocument()
+        expect(screen.getByText('email.enabled')).toBeInTheDocument()
+    })
+
+    it('prefills saved config and masks the password', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEmailSettings).mockResolvedValue({
+            enabled: true, host: 'smtp.example.com', port: 465, username: 'u@x.de',
+            from_address: 'noreply@x.de', from_name: 'My Club', use_tls: false, use_ssl: true,
+            password_set: true,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByDisplayValue('smtp.example.com')).toBeInTheDocument())
+        expect(screen.getByDisplayValue('465')).toBeInTheDocument()
+        expect(screen.getByDisplayValue('My Club')).toBeInTheDocument()
+        // masked password placeholder shown, value stays empty
+        expect(screen.getByPlaceholderText('email.passwordSet')).toBeInTheDocument()
+    })
+
+    it('saves the config, only sending the password when typed', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateEmailSettings).mockResolvedValue({ password_set: false } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
+        const hostInput = screen.getByPlaceholderText('smtp.example.com')
+        fireEvent.change(hostInput, { target: { value: 'smtp.new.de' } })
+        const card = screen.getByText('email.title').closest('.kce-card')!
+        const saveBtn = Array.from(card.querySelectorAll('button')).find(b => b.textContent === 'action.save')!
+        fireEvent.click(saveBtn)
+        await waitFor(() => expect(api.updateEmailSettings).toHaveBeenCalled())
+        const payload = vi.mocked(api.updateEmailSettings).mock.calls[0][0]
+        expect(payload.host).toBe('smtp.new.de')
+        expect('password' in payload).toBe(false)  // no password typed → not sent
+    })
+
+    it('sends a test email', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.getEmailSettings).mockResolvedValue({
+            enabled: true, host: 'smtp.example.com', port: 587, username: '', from_address: 'x@y.de',
+            from_name: '', use_tls: true, use_ssl: false, password_set: true,
+        } as any)
+        vi.mocked(api.testEmailSettings).mockResolvedValue({ ok: true, sent_to: 'me@x.de' } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('email.sendTest')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('email.sendTest'))
+        await waitFor(() => expect(api.testEmailSettings).toHaveBeenCalled())
+        expect(showToast).toHaveBeenCalled()
     })
 })
 

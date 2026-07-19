@@ -181,13 +181,15 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - **🎁 Kegel-Wrapped (year in review)**: a tappable "Spotify-Wrapped"-style card story in the profile with the member's personal season highlights — attendance, total & priciest penalty, favourite penalty, times king, game wins, drink rounds, throw average, penalty rank, and a tongue-in-cheek "bowler type" finale (Sinner of the Year, Beer Baron, The Saint, …); data-less cards are skipped automatically
 - **Penalties × Drinks correlation**: three-tab analysis in the year view — per-evening scatter (€ vs drink rounds with trend line, Pearson *r*, plain-language slope, top-vs-bottom quartile means, season cumulative dual-axis line and a top-5-vs-quietest-5 streak callout once N ≥ 10), per-(member × evening) scatter (one dot per member & evening, colour = member, focusable via pill legend with personal trend line + *r*), and correlation-strength ranking per member. The evening-detail section adds a within-evening **timeline panel** with a member pill picker (including an "All" pill that overlays every member's cumulative € and drink curves for direct comparison) and a bin-size picker (5/15/30 min); tapping a member focuses on them with a dual-axis cumulative chart, a per-bin Δ-bar chart, the Pearson *r* of the per-bin changes, and a **penalty-per-drink badge** (€ penalty divided by drinks, e.g. "3.20 € per drink") comparing this player to the evening average in plain ±% language — under-average = green (cheaper rounds), above-average = amber (each drink costs more)
 
-### Push notifications & reminders
+### Push & email notifications & reminders
 
+- **Per-category delivery channel: off / push / email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, or turned off; the choice is per member, per category, in the profile settings tab
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
+- **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club), with a "send test email" button; the email channel is only offered to members once their club has email enabled
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
-- Members subscribe/unsubscribe per device from their profile
-- Per-category notification preferences (penalties, evenings, schedule, payments, games, members, reminders)
-- Falls back silently when VAPID keys are not configured
+- Members subscribe/unsubscribe push per device from their profile
+- Announcements are always delivered (push) and cannot be disabled
+- Falls back silently to the in-app bell when neither VAPID nor a club email server is configured
 - **Automated reminders** (scheduled daily at 09:00 via APScheduler):
   - Weekly debt reminder — push to members with outstanding balance above a configurable threshold (configurable weekday)
   - Upcoming evening — push N days before each scheduled event; each user sets their own preferred lead time (default from club settings)
@@ -195,7 +197,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
   - Bowling-day debt reminder — push to debtors on the day of a scheduled evening
   - Pending payment request nudge — push to admins when requests stay unresolved past N days
 - Admins enable/disable and configure each reminder type in the club settings (Einstellungen-Tab)
-- Users opt out per reminder category in their profile
+- Users choose off/push/email per reminder category in their profile
 - **Broadcast push**: admins can send a custom push to all club members from the settings page
 
 ### PWA & offline

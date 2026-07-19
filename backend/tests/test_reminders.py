@@ -355,15 +355,17 @@ class TestSendUpcomingEveningReminders:
 
         settings = {"upcoming_evening": {"enabled": True, "days_before": days_before}}
         today = date.today()
-        with patch("core.reminders._send_one") as mock_send:
+        with patch("core.reminders.notify_user", return_value=True) as mock_notify:
             result = send_upcoming_evening_reminders(db, club, settings, today)
         assert result >= 1
-        mock_send.assert_called()
+        mock_notify.assert_called()
+        # category is passed through so the user's channel preference is honoured
+        assert mock_notify.call_args.kwargs.get("category") == "reminder_schedule"
 
     def test_skips_users_who_opted_out(self, db: Session, club: Club, user: User):
         member = _make_member(db, club, "Opted Out")
         user.regular_member_id = member.id
-        user.push_preferences = {"reminder_schedule": False}
+        user.push_preferences = {"reminder_schedule": "off"}
         db.commit()
 
         days_before = 5
@@ -371,10 +373,8 @@ class TestSendUpcomingEveningReminders:
 
         settings = {"upcoming_evening": {"enabled": True, "days_before": days_before}}
         today = date.today()
-        with patch("core.reminders._send_one") as mock_send:
-            result = send_upcoming_evening_reminders(db, club, settings, today)
-        # user opted out so no sends expected
-        mock_send.assert_not_called()
+        # notify_user returns False for opted-out ('off') users, so nothing is counted.
+        result = send_upcoming_evening_reminders(db, club, settings, today)
         assert result == 0
 
 

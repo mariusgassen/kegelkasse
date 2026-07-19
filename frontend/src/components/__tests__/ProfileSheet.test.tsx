@@ -519,15 +519,62 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
+            games: 'push', members: 'push', comments: 'push',
+            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
+        })
+    })
+
+    it('hides the email channel option when club email is not configured', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: 0, penalty_total: 0, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: false } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({
+            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
+            games: 'push', members: 'push', comments: 'push',
+            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
+        } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
+        })
+        expect(screen.queryByLabelText('push.channel.email')).not.toBeInTheDocument()
+    })
+
+    it('offers and selects the email channel when club email is configured', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: 0, penalty_total: 0, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: true } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({
+            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
+            games: 'push', members: 'push', comments: 'push',
+            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
+        } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
+
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
+        })
+        const row = screen.getByText('push.pref.penalties').closest('div')!
+        const emailBtn = row.querySelector('button[aria-label="push.channel.email"]') as HTMLButtonElement
+        expect(emailBtn).toBeInTheDocument()
+        fireEvent.click(emailBtn)
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ penalties: 'email' }))
         })
     })
 
@@ -863,14 +910,13 @@ describe('ProfileSheet — reminder toggles', () => {
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
         })
-        // Find the toggle button next to reminder_debt label — it's aria-pressed=false (reminder_debt is false)
+        // Pick the 'push' channel segment in the reminder_debt row
         const debtLabel = screen.getByText('push.pref.reminder_debt')
-        // The toggle button is in the same row
         const row = debtLabel.closest('div')!
-        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_debt: true }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_debt: 'push' }))
         })
     })
 
@@ -891,10 +937,10 @@ describe('ProfileSheet — reminder toggles', () => {
         })
         const schedLabel = screen.getByText('push.pref.reminder_schedule')
         const row = schedLabel.closest('div')!
-        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule: true }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule: 'push' }))
         })
     })
 
@@ -1005,10 +1051,10 @@ describe('ProfileSheet — reminder toggles', () => {
         })
         const paymentsLabel = screen.getByText('push.pref.reminder_payments')
         const row = paymentsLabel.closest('div')!
-        const toggle = row.querySelector('button[aria-pressed]') as HTMLButtonElement
+        const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_payments: true }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_payments: 'push' }))
         })
     })
 
