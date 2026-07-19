@@ -252,7 +252,7 @@ def test_send_all_digests_sends_when_due(db: Session, club: Club, user: User, me
     db.commit()
 
     with patch.object(digest_mod, "send_club_email") as mock_send:
-        sent = asyncio.get_event_loop().run_until_complete(send_all_digests(db, now))
+        sent = asyncio.run(send_all_digests(db, now))
     assert sent == 1
     mock_send.assert_called_once()
     db.refresh(user)
@@ -260,7 +260,7 @@ def test_send_all_digests_sends_when_due(db: Session, club: Club, user: User, me
 
     # Second run same day → not due → no send
     with patch.object(digest_mod, "send_club_email") as mock_send2:
-        sent2 = asyncio.get_event_loop().run_until_complete(send_all_digests(db, now))
+        sent2 = asyncio.run(send_all_digests(db, now))
     assert sent2 == 0
     mock_send2.assert_not_called()
 
