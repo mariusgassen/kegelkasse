@@ -33,6 +33,10 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
         // small reaction pills otherwise lose the press to a stray pointerleave/pointerout.
         const target = e.currentTarget as (EventTarget & {setPointerCapture?: (id: number) => void}) | null
         target?.setPointerCapture?.(e.pointerId)
+        // CSS alone (user-select/-webkit-touch-callout: none) doesn't reliably stop iOS Safari from
+        // starting its native text-selection/callout gesture on a touch hold — it races our own timer
+        // below. Blocking the touch's default action here is what actually suppresses it.
+        if (e.pointerType === 'touch') e.preventDefault()
         timerRef.current = setTimeout(() => {
             firedRef.current = true
             onLongPress()
