@@ -256,9 +256,9 @@ async def trigger_reminders(db: Session = Depends(get_db), user: User = Depends(
     return {"ok": True}
 
 
-@router.post("/digest/test")
-def send_test_digest(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Send the current user's personalized digest to their own inbox right now.
+@router.post("/digest/send")
+def send_digest_now(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Send the current user's personalized digest to their own inbox right now (manual trigger).
 
     Requires the user to be linked to a member and the club to have email
     configured; the send is forced (bypasses the due check and empty-skip) but
@@ -292,5 +292,5 @@ def send_test_digest(db: Session = Depends(get_db), user: User = Depends(require
         send_club_email(cfg, user.email, subject, text, html)
     except Exception as exc:
         raise HTTPException(500, f"E-Mail konnte nicht gesendet werden: {exc}")
-    logger.info("Test digest sent to user=%d", user.id)
+    logger.info("Manual digest sent to user=%d", user.id)
     return {"ok": True}

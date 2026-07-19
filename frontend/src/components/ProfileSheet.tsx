@@ -862,15 +862,15 @@ export function ProfileSheet({open, onClose}: Props) {
                                 {t('digest.title')}
                             </div>
                             <p className="text-[11px] text-kce-muted mb-2">{t('digest.hint')}</p>
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-1">
                                 {(['off', 'daily', 'weekly', 'monthly'] as DigestFrequency[]).map(freq => {
                                     const active = (pushPrefs.digest_frequency ?? 'off') === freq
                                     return (
                                         <button
                                             key={freq}
                                             onClick={() => setDigestFrequency(freq)}
-                                            className={`flex-1 text-xs font-bold px-2 py-1.5 rounded-lg transition ${
-                                                active ? 'bg-kce-primary text-kce-bg' : 'bg-kce-surface2 text-kce-muted active:opacity-60'
+                                            className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${
+                                                active ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'
                                             }`}>
                                             {t(`digest.freq.${freq}` as any)}
                                         </button>
@@ -882,13 +882,13 @@ export function ProfileSheet({open, onClose}: Props) {
                             )}
                             {emailConfigured && (pushPrefs.digest_frequency ?? 'off') !== 'off' && (
                                 <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
-                                    <span className="text-xs text-kce-muted">{t('digest.testLabel')}</span>
+                                    <span className="text-xs text-kce-muted">{t('digest.sendNowLabel')}</span>
                                     <button
                                         onClick={async () => {
                                             setDigestTesting(true)
                                             try {
-                                                await api.sendTestDigest()
-                                                showToast(t('digest.testSent'))
+                                                await api.sendDigestNow()
+                                                showToast(t('digest.sent'))
                                             } catch (e: unknown) {
                                                 toastError(e)
                                             } finally {
@@ -896,9 +896,9 @@ export function ProfileSheet({open, onClose}: Props) {
                                             }
                                         }}
                                         disabled={digestTesting}
-                                        data-testid="digest-test-btn"
-                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-surface2 text-kce-muted active:opacity-60">
-                                        {digestTesting ? '…' : 'Test'}
+                                        data-testid="digest-send-btn"
+                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-amber text-kce-bg active:opacity-60">
+                                        {digestTesting ? '…' : t('digest.sendNow')}
                                     </button>
                                 </div>
                             )}

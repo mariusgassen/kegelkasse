@@ -73,7 +73,7 @@ vi.mock('@/api/client.ts', () => ({
         getMyPaymentRequests: vi.fn(),
         updateLocale: vi.fn(),
         testPush: vi.fn(),
-        sendTestDigest: vi.fn(),
+        sendDigestNow: vi.fn(),
     },
     authState: {
         setToken: vi.fn(),
@@ -1353,12 +1353,12 @@ describe('ProfileSheet — email digest', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: true } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({ digest_frequency: 'weekly' } as any)
-        vi.mocked(api.sendTestDigest).mockResolvedValueOnce({ ok: true } as any)
+        vi.mocked(api.sendDigestNow).mockResolvedValueOnce({ ok: true } as any)
         await renderProfileSheet({ tab: 'settings' })
-        await waitFor(() => expect(screen.getByTestId('digest-test-btn')).toBeInTheDocument())
-        fireEvent.click(screen.getByTestId('digest-test-btn'))
+        await waitFor(() => expect(screen.getByTestId('digest-send-btn')).toBeInTheDocument())
+        fireEvent.click(screen.getByTestId('digest-send-btn'))
         await waitFor(() => {
-            expect(api.sendTestDigest).toHaveBeenCalled()
+            expect(api.sendDigestNow).toHaveBeenCalled()
         })
     })
 })

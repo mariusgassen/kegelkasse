@@ -4,7 +4,7 @@ Tests for the personalized email digest (Feature #8 extension):
   - core/digest.py (due logic, digest builder, empty-skip)
   - core/email.py digest rendering (theme + locale + deep links)
   - GET/PATCH /push/preferences digest_frequency round-trip
-  - POST /push/digest/test (member) — auth, config guard, send (SMTP mocked)
+  - POST /push/digest/send (member) — auth, config guard, send (SMTP mocked)
 
 All SMTP traffic is mocked — these tests never open a socket.
 """
@@ -287,13 +287,13 @@ def test_patch_digest_frequency_persists(client, auth_headers, db, user):
 
 
 def test_digest_test_requires_email_config(client, auth_headers, db, member):
-    r = client.post("/api/v1/push/digest/test", headers=auth_headers)
+    r = client.post("/api/v1/push/digest/send", headers=auth_headers)
     assert r.status_code == 400
 
 
 def test_digest_test_sends(client, auth_headers, db, club, member):
     _configure_email(db, club)
     with patch("core.email.send_club_email") as mock_send:
-        r = client.post("/api/v1/push/digest/test", headers=auth_headers)
+        r = client.post("/api/v1/push/digest/send", headers=auth_headers)
     assert r.status_code == 200
     mock_send.assert_called_once()
