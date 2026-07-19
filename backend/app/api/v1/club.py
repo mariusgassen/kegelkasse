@@ -1663,7 +1663,7 @@ class TestEmailRequest(BaseModel):
 def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session = Depends(get_db),
                         user: User = Depends(require_club_admin)):
     """Admin: send a test email using the saved SMTP config (to the given address or self)."""
-    from core.email import get_club_email_config, send_club_email, build_email_bodies
+    from core.email import build_email_bodies, email_theme, get_club_email_config, send_club_email
     club = db.query(Club).filter(Club.id == user.club_id).first()
     cfg = get_club_email_config(club)
     if not cfg:
@@ -1673,7 +1673,8 @@ def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session
         raise HTTPException(400, "Keine Empfängeradresse angegeben.")
     subject = "Kegelkasse 🎳 — Test-E-Mail"
     body = "Diese Test-E-Mail bestätigt, dass der E-Mail-Versand für deinen Verein funktioniert."
-    text, html = build_email_bodies(subject, body, "/")
+    text, html = build_email_bodies(subject, body, "/", theme=email_theme(club),
+                                    locale=user.preferred_locale)
     try:
         send_club_email(cfg, to_address, subject, text, html)
     except Exception as exc:  # noqa: BLE001

@@ -20,6 +20,7 @@ _CATEGORY_KEYS = (
 _VALID_CHANNELS = ("off", "push", "email")
 # Default channel for every category: 'push' (preserves prior always-on behaviour).
 _DEFAULT_PREFS = {key: "push" for key in _CATEGORY_KEYS}
+_VALID_DIGEST_FREQ = ("off", "daily", "weekly", "monthly")
 
 
 def _normalize_prefs(raw: dict) -> dict:
@@ -136,6 +137,7 @@ def get_push_preferences(db: Session = Depends(get_db), user: User = Depends(req
     """Return notification channel preferences ('off'|'push'|'email') for the current user."""
     prefs = dict(_DEFAULT_PREFS)
     prefs.update(_normalize_prefs(user.push_preferences or {}))
+    prefs.setdefault("digest_frequency", "off")
     return prefs
 
 
@@ -151,6 +153,7 @@ class PushPreferencesUpdate(BaseModel):
     reminder_schedule: Optional[str] = None
     reminder_payments: Optional[str] = None
     reminder_schedule_days: Optional[int] = None  # per-user days_before for upcoming evening
+    digest_frequency: Optional[str] = None  # 'off'|'daily'|'weekly'|'monthly' email digest cadence
 
 
 @router.patch("/preferences")
@@ -166,12 +169,16 @@ def update_push_preferences(data: PushPreferencesUpdate, db: Session = Depends(g
         if key in _CATEGORY_KEYS:
             if value in _VALID_CHANNELS:
                 prefs[key] = value
+        elif key == "digest_frequency":
+            if value in _VALID_DIGEST_FREQ:
+                prefs[key] = value
         else:
             prefs[key] = value
     user.push_preferences = prefs
     db.commit()
     result = dict(_DEFAULT_PREFS)
     result.update(_normalize_prefs(prefs))
+    result.setdefault("digest_frequency", "off")
     return result
 
 
@@ -246,4 +253,44 @@ async def trigger_reminders(db: Session = Depends(get_db), user: User = Depends(
     """Admin: manually trigger all reminder checks now (for testing / catchup)."""
     from core.reminders import send_all_reminders
     await send_all_reminders(db)
+    return {"ok": True}
+
+
+@router.post("/digest/test")
+def send_test_digest(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Send the current user's personalized digest to their own inbox right now.
+
+    Requires the user to be linked to a member and the club to have email
+    configured; the send is forced (bypasses the due check and empty-skip) but
+    does not reset the scheduled cadence (last_digest_at is only updated by an
+    actual delivery). 400 if email is not configured or the user has no member.
+    """
+    from datetime import datetime, timezone
+
+    from core.digest import build_digest, _empty_preview
+    from core.email import build_digest_email, email_theme, get_club_email_config, send_club_email
+
+    cfg = get_club_email_config(user.club) if user.club else None
+    if cfg is None:
+        raise HTTPException(400, "E-Mail-Versand ist für diesen Verein nicht konfiguriert.")
+    if user.regular_member_id is None:
+        raise HTTPException(400, "Kein Mitgliedskonto verknüpft.")
+    if not user.email:
+        raise HTTPException(400, "Keine E-Mail-Adresse hinterlegt.")
+
+    now = datetime.now(timezone.utc)
+    since = user.last_digest_at
+    if since is not None and since.tzinfo is None:
+        since = since.replace(tzinfo=timezone.utc)
+    data = build_digest(db, user, since, now, user.preferred_locale) or _empty_preview(db, user, now)
+    if data is None:
+        raise HTTPException(400, "Kein Mitgliedskonto verknüpft.")
+
+    theme = email_theme(user.club)
+    subject, text, html = build_digest_email(theme, data, user.preferred_locale)
+    try:
+        send_club_email(cfg, user.email, subject, text, html)
+    except Exception as exc:
+        raise HTTPException(500, f"E-Mail konnte nicht gesendet werden: {exc}")
+    logger.info("Test digest sent to user=%d", user.id)
     return {"ok": True}

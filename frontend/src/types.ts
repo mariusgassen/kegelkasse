@@ -74,7 +74,10 @@ export interface PushPreferences {
     reminder_schedule: NotificationChannel
     reminder_payments: NotificationChannel
     reminder_schedule_days?: number
+    digest_frequency?: DigestFrequency
 }
+
+export type DigestFrequency = 'off' | 'daily' | 'weekly' | 'monthly'
 
 export interface EmailSettings {
     enabled: boolean

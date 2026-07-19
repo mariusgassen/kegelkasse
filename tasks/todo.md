@@ -1,39 +1,57 @@
-# Email Notifications (off / push / email) + per-club SMTP
+# Feature: Personalized Email Digest
 
 ## Goal
-- Per-club email server config (SMTP), stored in `ClubSettings.extra["email"]` (no migration — matches reminders pattern).
-- Every notification (incl. reminders) can be delivered via email.
-- Per-user, per-category channel toggle: **off / push / email** (replaces the boolean toggle).
-- Admin can send a test email.
+Per-user email digest (frequency: off/daily/weekly/monthly), personalized, with:
+- Changes since last digest: evenings added/changed, personal penalties, personal bookings,
+  community news (comments & reactions).
+- Personal account & balance overview.
+- Deep links to every entry.
+- Themed email design (club colors) + recipient locale.
 
 ## Backend
-- [ ] `core/config.py`: add `APP_BASE_URL` (for absolute links in emails).
-- [ ] `core/email.py` (new): `get_club_email_config`, `send_club_email` (smtplib, SSL/STARTTLS), `build_email_bodies`.
-- [ ] `core/push.py`: channel resolution `_user_channel`; unified `notify_user`; make push_to_* channel-aware.
-- [ ] `core/reminders.py`: `send_upcoming_evening_reminders` → use `notify_user` (email-aware).
-- [ ] `api/v1/push.py`: prefs accept channel strings (normalize legacy bool); `/push/status` → `email_configured`.
-- [ ] `api/v1/club.py`: `GET/PATCH /club/email-settings` + `POST /club/email-settings/test` (admin).
+- [ ] Migration 051: `user.last_digest_at` (DateTime, nullable)
+- [ ] `core/i18n.py`: minimal DE/EN string table + localized date formatting for emails
+- [ ] `core/email.py`: club theming helper; theme existing notification email; `build_digest_email()`
+- [ ] `core/digest.py`: `build_digest()`, due logic, `send_user_digest()`, `send_all_digests()`
+- [ ] `core/scheduler.py`: daily digest job (08:00)
+- [ ] `api/v1/push.py`: preferences include `digest_frequency`; `POST /push/digest/test`
+- [ ] pytest: digest builder, due logic, preference persistence, test endpoint
 
 ## Frontend
-- [ ] `types.ts`: `NotificationChannel`; `PushPreferences` values → channel.
-- [ ] `api/client.ts`: email settings methods; push status +email_configured.
-- [ ] `ProfileSheet.tsx`: `ChannelToggle` (off/push/email), email segment only when configured.
-- [ ] `ClubAdminPage.tsx`: `EmailSettingsCard` (SMTP form + test).
-- [ ] `i18n/de.ts` + `en.ts`: new keys.
-
-## Tests
-- [ ] pytest: email config/send (mock smtplib), endpoints, channel resolution, prefs normalization, dispatch email path.
-- [ ] Vitest: ChannelToggle, api client email methods, i18n parity.
+- [ ] types.ts: `digest_frequency` on PushPreferences
+- [ ] ProfileSheet: digest frequency selector + "send now" test
+- [ ] i18n de.ts/en.ts: `digest.*` keys
+- [ ] Vitest: ProfileSheet digest selector + api client
 
 ## Docs
-- [x] `docs/docs/funktionen/push.md`, `README.md`, CLAUDE.md roadmap.
+- [ ] docs/docs, README, CLAUDE.md roadmap (#8)
 
-## Review (done)
-- Per-user, per-category channel (off/push/email) — stored in `push_preferences`, backwards compatible with old booleans (`_normalize_prefs`, `_user_channel`).
-- Unified dispatch `core/push.py::notify_user`; all `push_to_*` + `send_upcoming_evening_reminders` route through it. Log-to-bell preserved (except 'off').
-- Per-club SMTP in `ClubSettings.extra["email"]` (no migration). `core/email.py` = config/send/body helpers (smtplib, STARTTLS/SSL). `APP_BASE_URL` for absolute email links.
-- Admin endpoints: GET/PATCH `/club/email-settings` (password never returned), POST `/club/email-settings/test`. `/push/status` → `email_configured`.
-- Frontend: `ChannelToggle` (🔕/🔔/✉️) in ProfileSheet (email segment gated on config); `EmailSettingsCard` in ClubAdminPage; i18n de/en.
-- Tests: backend 859 pass (incl. new `test_email.py`, 22); frontend 2039 pass (incl. ChannelToggle + EmailSettingsCard + api methods). Build + ruff + eslint clean.
-- Version bumped 1.26.7 → 1.27.0.
-- Note: "Announcements" (committee category) intentionally stays always-on push (not channel-toggleable), preserving prior product decision.
+## Review
+
+Implemented end-to-end.
+
+Backend:
+- Migration 051 adds `user.last_digest_at`.
+- `core/i18n.py` — tiny DE/EN table + `format_date`/`format_money`/`t` (system-locale independent).
+- `core/email.py` — `email_theme(club)` (brand color + contrast text + logo), branded header on all
+  emails, `build_email_bodies` now themed + localized, new `build_digest_email`.
+- `core/digest.py` — due logic, `build_digest` (evenings / personal penalties / bookings / community,
+  each deep-linked, capped at 15/section), account overview, empty-skip, `send_all_digests`.
+- `core/scheduler.py` — daily digest job at 08:00.
+- `core/push.py` + `club.py` — notification/broadcast/test emails now pass club theme + recipient locale.
+- `api/v1/push.py` — `digest_frequency` in preferences (validated), `POST /push/digest/test`.
+- pytest: `test_digest.py` (16) green; existing email/push/reminder/club suites still green.
+
+Frontend:
+- `DigestFrequency` type, `api.sendTestDigest`, ProfileSheet digest card (freq pills + send-now test),
+  i18n `digest.*` (de+en parity).
+- Vitest: 4 ProfileSheet digest tests + 1 api-client test; full ProfileSheet+apiMethods suites green;
+  lint 0 errors, build clean.
+
+Design decisions:
+- Digest is opt-in (default `off`) — no surprise emails.
+- Empty digests are skipped; the manual "send now" still shows the account overview (force).
+- Deep links render as absolute URLs only when `APP_BASE_URL` is set (a bare `/#...` href is useless
+  in mail); text body stays complete regardless.
+- Emails keep a light, readable body with the brand color used for the header band / buttons / accents
+  (safer across mail clients than a full dark theme).

@@ -27,12 +27,15 @@ from email.utils import formataddr
 from html import escape
 
 from core.config import settings
+from core.i18n import t
 
 logger = logging.getLogger(__name__)
 
 # Fields the API round-trips (password handled separately so it is never leaked).
 EMAIL_CONFIG_FIELDS = ("enabled", "host", "port", "username", "from_address",
                        "from_name", "use_tls", "use_ssl")
+
+DEFAULT_PRIMARY = "#e8a020"
 
 
 def get_club_email_config(club) -> dict | None:
@@ -47,14 +50,55 @@ def get_club_email_config(club) -> dict | None:
     return cfg
 
 
-def build_email_bodies(title: str, body: str, url: str = "/") -> tuple[str, str]:
+def _luminance(hex_color: str) -> float:
+    """Relative luminance (0..1) of a #rrggbb color; used to pick contrasting text."""
+    try:
+        h = hex_color.lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    except (ValueError, IndexError):
+        return 0.5
+
+
+def email_theme(club) -> dict:
+    """Resolve the club's brand colors / name / logo for use in HTML emails.
+
+    Emails keep a light, readable body; the club's primary color is used for the
+    header band, section accents and buttons so the mail conforms to the club
+    branding without risking dark-background rendering issues across mail clients.
+    """
+    primary = DEFAULT_PRIMARY
+    name = "Kegelkasse"
+    logo_abs: str | None = None
+    if club is not None:
+        name = club.name or name
+        s = getattr(club, "settings", None)
+        if s is not None:
+            primary = s.primary_color or primary
+            if s.logo_url and settings.APP_BASE_URL:
+                logo_abs = settings.APP_BASE_URL.rstrip("/") + "/" + s.logo_url.lstrip("/")
+    on_primary = "#1a1410" if _luminance(primary) > 0.55 else "#ffffff"
+    return {"primary": primary, "on_primary": on_primary, "club_name": name, "logo_url": logo_abs}
+
+
+def _abs_link(url: str) -> str | None:
+    """Turn an app-relative deep link into an absolute URL when APP_BASE_URL is set."""
+    if not url:
+        return None
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    if settings.APP_BASE_URL:
+        return settings.APP_BASE_URL.rstrip("/") + "/" + url.lstrip("/")
+    return None
+
+
+def build_email_bodies(title: str, body: str, url: str = "/", theme: dict | None = None,
+                       locale: str | None = None) -> tuple[str, str]:
     """Build (text, html) bodies for a notification email, with an optional action link."""
-    link: str | None = None
-    if url:
-        if url.startswith("http://") or url.startswith("https://"):
-            link = url
-        elif settings.APP_BASE_URL:
-            link = settings.APP_BASE_URL.rstrip("/") + "/" + url.lstrip("/")
+    th = theme or email_theme(None)
+    link = _abs_link(url)
 
     text = f"{title}\n\n{body}"
     if link:
@@ -62,21 +106,39 @@ def build_email_bodies(title: str, body: str, url: str = "/") -> tuple[str, str]
 
     button = (
         f'<p style="margin:24px 0 8px"><a href="{escape(link)}" '
-        'style="background:#e8a020;color:#1a1410;text-decoration:none;padding:10px 18px;'
-        'border-radius:8px;font-weight:700;display:inline-block">Öffnen</a></p>'
+        f'style="background:{escape(th["primary"])};color:{escape(th["on_primary"])};'
+        'text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700;'
+        f'display:inline-block">{escape(t(locale, "email.button.open"))}</a></p>'
         if link else ""
     )
     html = (
         '<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;'
         'max-width:520px;margin:0 auto;padding:24px;color:#2a2019">'
+        f'{_header_html(th)}'
         f'<h2 style="margin:0 0 12px;font-size:18px">{escape(title)}</h2>'
         f'<p style="margin:0;font-size:15px;line-height:1.5;white-space:pre-line">{escape(body)}</p>'
         f'{button}'
         '<hr style="border:none;border-top:1px solid #e5ddd5;margin:24px 0 12px">'
-        '<p style="margin:0;font-size:12px;color:#8a7a6e">Kegelkasse 🎳</p>'
+        f'<p style="margin:0;font-size:12px;color:#8a7a6e">{escape(t(locale, "email.footer"))}</p>'
         '</div>'
     )
     return text, html
+
+
+def _header_html(theme: dict) -> str:
+    """Branded header band with the club logo (or name) on the primary color."""
+    inner = (
+        f'<img src="{escape(theme["logo_url"])}" alt="{escape(theme["club_name"])}" '
+        'style="max-height:40px;vertical-align:middle">'
+        if theme.get("logo_url")
+        else f'<span style="font-size:18px;font-weight:800;color:{escape(theme["on_primary"])}">'
+             f'{escape(theme["club_name"])} 🎳</span>'
+    )
+    return (
+        f'<div style="background:{escape(theme["primary"])};padding:16px 20px;'
+        'border-radius:12px;text-align:center;margin:0 0 20px">'
+        f'{inner}</div>'
+    )
 
 
 def send_club_email(cfg: dict, to_address: str, subject: str,
@@ -115,14 +177,123 @@ def send_club_email(cfg: dict, to_address: str, subject: str,
             server.send_message(msg)
 
 
-def send_notification_email(cfg: dict, to_address: str, title: str, body: str, url: str = "/") -> bool:
+def send_notification_email(cfg: dict, to_address: str, title: str, body: str, url: str = "/",
+                            theme: dict | None = None, locale: str | None = None) -> bool:
     """Send a notification email; absorb and log any failure. Returns True on success."""
     if not to_address:
         return False
     try:
-        text, html = build_email_bodies(title, body, url)
+        text, html = build_email_bodies(title, body, url, theme=theme, locale=locale)
         send_club_email(cfg, to_address, title, text, html)
         return True
     except Exception as exc:  # noqa: BLE001 — never let email break a notification
         logger.warning("Email send failed to %s: %s", to_address, exc, exc_info=True)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Digest email
+# ---------------------------------------------------------------------------
+
+def _digest_row(label: str, value: str, url: str | None, theme: dict) -> str:
+    """One list row inside a digest section — label/value with an optional deep link."""
+    link = _abs_link(url) if url else None
+    title = (
+        f'<a href="{escape(link)}" style="color:{escape(theme["primary"])};'
+        f'text-decoration:none;font-weight:600">{escape(label)}</a>'
+        if link else f'<span style="font-weight:600">{escape(label)}</span>'
+    )
+    return (
+        '<tr>'
+        f'<td style="padding:6px 0;font-size:14px;color:#2a2019">{title}</td>'
+        f'<td style="padding:6px 0;font-size:14px;color:#5a4a3e;text-align:right;'
+        f'white-space:nowrap">{escape(value)}</td>'
+        '</tr>'
+    )
+
+
+def _digest_section(heading: str, rows: list[str], theme: dict) -> str:
+    if not rows:
+        return ""
+    return (
+        f'<h3 style="margin:24px 0 4px;font-size:13px;text-transform:uppercase;'
+        f'letter-spacing:.5px;color:{escape(theme["primary"])}">{escape(heading)}</h3>'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="border-collapse:collapse">'
+        f'{"".join(rows)}</table>'
+    )
+
+
+def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str, str, str]:
+    """Build (subject, text, html) for a personalized digest.
+
+    ``data`` is the structure returned by :func:`core.digest.build_digest`.
+    """
+    from core.i18n import format_date, format_money
+
+    subject = t(locale, "digest.subject")
+    name = data.get("member_name") or ""
+    since = data.get("since")
+
+    # ---- Plain-text body ----
+    lines = [t(locale, "digest.greeting", name=name)]
+    if since:
+        lines.append(t(locale, "digest.intro", since=format_date(since, locale)))
+    else:
+        lines.append(t(locale, "digest.intro_first"))
+    lines.append("")
+
+    html_parts: list[str] = []
+
+    bal = data.get("balance")
+    if bal:
+        html_rows = [
+            _digest_row(t(locale, "digest.balance.balance"),
+                        format_money(bal["balance"], locale), bal.get("url"), theme),
+            _digest_row(t(locale, "digest.balance.penalties"),
+                        format_money(bal["penalty_total"], locale), bal.get("url"), theme),
+            _digest_row(t(locale, "digest.balance.paid"),
+                        format_money(bal["paid_total"], locale), bal.get("url"), theme),
+        ]
+        html_parts.append(_digest_section(t(locale, "digest.section.balance"), html_rows, theme))
+        lines.append(f"— {t(locale, 'digest.section.balance')} —")
+        if bal["balance"] < -0.005:
+            lines.append(t(locale, "digest.balance.owed", amount=format_money(-bal["balance"], locale)))
+        elif bal["balance"] > 0.005:
+            lines.append(t(locale, "digest.balance.credit", amount=format_money(bal["balance"], locale)))
+        else:
+            lines.append(t(locale, "digest.balance.settled"))
+        lines.append("")
+
+    for key, items in (("evenings", data.get("evenings") or []),
+                       ("penalties", data.get("penalties") or []),
+                       ("bookings", data.get("bookings") or []),
+                       ("community", data.get("community") or [])):
+        if not items:
+            continue
+        heading = t(locale, f"digest.section.{key}")
+        rows = [_digest_row(it["label"], it.get("value", ""), it.get("url"), theme) for it in items]
+        html_parts.append(_digest_section(heading, rows, theme))
+        lines.append(f"— {heading} —")
+        for it in items:
+            val = f" · {it['value']}" if it.get("value") else ""
+            lines.append(f"• {it['label']}{val}")
+        lines.append("")
+
+    lines.append(t(locale, "digest.footer"))
+    text = "\n".join(lines)
+
+    html = (
+        '<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;'
+        'max-width:560px;margin:0 auto;padding:24px;color:#2a2019">'
+        f'{_header_html(theme)}'
+        f'<p style="margin:0 0 4px;font-size:15px">{escape(t(locale, "digest.greeting", name=name))}</p>'
+        f'<p style="margin:0 0 8px;font-size:15px;color:#5a4a3e">'
+        f'{escape(t(locale, "digest.intro", since=format_date(since, locale)) if since else t(locale, "digest.intro_first"))}</p>'
+        f'{"".join(html_parts)}'
+        '<hr style="border:none;border-top:1px solid #e5ddd5;margin:28px 0 12px">'
+        f'<p style="margin:0;font-size:12px;color:#8a7a6e;line-height:1.5">'
+        f'{escape(t(locale, "digest.footer"))}</p>'
+        '</div>'
+    )
+    return subject, text, html

@@ -27,6 +27,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     preferred_locale = Column(String, default="de")
     push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}
+    last_digest_at = Column(DateTime(timezone=True), nullable=True)  # last personalized email digest sent
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="members")
