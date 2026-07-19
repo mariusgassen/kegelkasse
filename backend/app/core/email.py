@@ -82,10 +82,11 @@ def build_email_bodies(title: str, body: str, url: str = "/") -> tuple[str, str]
 def send_club_email(cfg: dict, to_address: str, subject: str,
                     text_body: str, html_body: str | None = None) -> None:
     """Send a single email via the club's SMTP server. Raises on failure."""
+    from core.crypto import decrypt_secret
     host = cfg["host"]
     port = int(cfg.get("port") or 587)
     username = cfg.get("username") or ""
-    password = cfg.get("password") or ""
+    password = decrypt_secret(cfg.get("password") or "")
     use_ssl = bool(cfg.get("use_ssl"))
     use_tls = bool(cfg.get("use_tls", True))
     from_addr = cfg["from_address"]

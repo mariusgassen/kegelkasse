@@ -131,6 +131,30 @@ class TestBuildBodies:
         assert "https://x.example.com/y" in text
 
 
+class TestSecretCrypto:
+    def test_round_trip(self):
+        from core.crypto import decrypt_secret, encrypt_secret, is_encrypted
+        enc = encrypt_secret("hunter2")
+        assert is_encrypted(enc)
+        assert enc != "hunter2"
+        assert decrypt_secret(enc) == "hunter2"
+
+    def test_empty_is_noop(self):
+        from core.crypto import decrypt_secret, encrypt_secret
+        assert encrypt_secret("") == ""
+        assert decrypt_secret("") == ""
+
+    def test_plaintext_passthrough(self):
+        # Legacy plaintext (no prefix) is returned unchanged.
+        from core.crypto import decrypt_secret, is_encrypted
+        assert not is_encrypted("plain")
+        assert decrypt_secret("plain") == "plain"
+
+    def test_bad_token_returns_empty(self):
+        from core.crypto import decrypt_secret
+        assert decrypt_secret("enc:v1:not-a-valid-token") == ""
+
+
 class TestSendClubEmail:
     def test_uses_starttls(self, db, club):
         from core.email import send_club_email
@@ -143,6 +167,19 @@ class TestSendClubEmail:
         smtp_instance.starttls.assert_called_once()
         smtp_instance.login.assert_called_once_with("u", "p")
         smtp_instance.send_message.assert_called_once()
+
+    def test_decrypts_encrypted_password_before_login(self, db, club):
+        from core.crypto import encrypt_secret
+        from core.email import send_club_email
+        cfg = {"host": "smtp.example.com", "port": 587, "username": "u",
+               "password": encrypt_secret("s3cr3t"), "from_address": "from@x.de",
+               "use_tls": True, "use_ssl": False}
+        smtp_instance = MagicMock()
+        with patch("smtplib.SMTP") as mock_smtp:
+            mock_smtp.return_value.__enter__.return_value = smtp_instance
+            send_club_email(cfg, "to@x.de", "Subj", "text")
+        # login receives the decrypted password, not the stored ciphertext
+        smtp_instance.login.assert_called_once_with("u", "s3cr3t")
 
     def test_uses_ssl(self, db, club):
         from core.email import send_club_email
@@ -188,6 +225,19 @@ class TestEmailSettingsEndpoints:
         assert data["host"] == "smtp.example.com"
         assert data["password_set"] is True
         assert "password" not in data  # never leaked
+
+    def test_patch_encrypts_password_at_rest(self, client: TestClient, admin_headers: dict, db, club):
+        from core.crypto import decrypt_secret, is_encrypted
+        r = client.patch("/api/v1/club/email-settings", headers=admin_headers, json={
+            "enabled": True, "host": "smtp.example.com", "from_address": "x@y.de",
+            "password": "topsecret",
+        })
+        assert r.status_code == 200
+        db.refresh(club)
+        stored = club.settings.extra["email"]["password"]
+        assert stored != "topsecret"          # not stored in plaintext
+        assert is_encrypted(stored)           # carries the enc: prefix
+        assert decrypt_secret(stored) == "topsecret"  # round-trips back
 
     def test_patch_keeps_password_when_not_provided(self, client: TestClient, admin_headers: dict, db, club):
         _configure_email(db, club, password="original")

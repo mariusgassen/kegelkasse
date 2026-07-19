@@ -1634,13 +1634,14 @@ def update_email_settings(data: EmailSettingsUpdate, db: Session = Depends(get_d
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
+    from core.crypto import encrypt_secret
     extra = dict(s.extra or {})
     cfg = dict(extra.get("email", {}))
     payload = data.model_dump(exclude_unset=True)
     for key, value in payload.items():
         if key == "password":
-            if value:  # only overwrite when a non-empty password is supplied
-                cfg["password"] = value
+            if value:  # only overwrite when a non-empty password is supplied — encrypted at rest
+                cfg["password"] = encrypt_secret(value)
             continue
         cfg[key] = value
     extra["email"] = cfg

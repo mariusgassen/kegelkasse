@@ -97,7 +97,7 @@ Damit Mitglieder Benachrichtigungen per E-Mail erhalten können, hinterlegt ein 
 |------|--------------|
 | E-Mail-Versand aktiv | Schalter — erst wenn aktiv, wird die E-Mail-Option im Profil aller Mitglieder angeboten |
 | SMTP-Server / Port | Hostname und Port (587 für STARTTLS, 465 für SSL/TLS) |
-| Benutzername / Passwort | Anmeldedaten (das Passwort wird nie zurückgegeben, nur „gespeichert" angezeigt) |
+| Benutzername / Passwort | Anmeldedaten (das Passwort wird verschlüsselt gespeichert, nie zurückgegeben — nur „gespeichert" angezeigt) |
 | Absender-Adresse / -Name | erscheinen als Absender der E-Mails |
 | STARTTLS / SSL/TLS | Verschlüsselungsart (schließen sich gegenseitig aus) |
 

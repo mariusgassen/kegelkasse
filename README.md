@@ -185,7 +185,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - **Per-category delivery channel: off / push / email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, or turned off; the choice is per member, per category, in the profile settings tab
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
-- **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club), with a "send test email" button; the email channel is only offered to members once their club has email enabled
+- **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club, password encrypted at rest via Fernet), with a "send test email" button; the email channel is only offered to members once their club has email enabled
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
 - Members subscribe/unsubscribe push per device from their profile
 - Announcements are always delivered (push) and cannot be disabled
