@@ -665,7 +665,7 @@ export const api = {
     unsubscribeFromPush: (endpoint?: string) =>
         request<void>('DELETE', `/push/unsubscribe${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ''}`),
     testPush: () => request<{ sent: number }>('POST', '/push/test'),
-    sendTestDigest: () => request<{ ok: boolean }>('POST', '/push/digest/test'),
+    sendDigestNow: () => request<{ ok: boolean }>('POST', '/push/digest/send'),
     getPushPreferences: () => request<PushPreferences>('GET', '/push/preferences'),
     updatePushPreferences: (d: Partial<PushPreferences>) =>
         request<PushPreferences>('PATCH', '/push/preferences', d),
