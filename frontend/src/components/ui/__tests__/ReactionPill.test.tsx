@@ -65,6 +65,18 @@ describe('ReactionPill', () => {
         expect(screen.getAllByText('😌', {exact: false})).toBeTruthy()
     })
 
+    it('anchors the popover above the button (from the viewport bottom), so a holding finger cannot cover it', () => {
+        renderPill(heartOnly)
+        const btn = screen.getByRole('button')
+
+        fireEvent.pointerDown(btn)
+        act(() => { vi.advanceTimersByTime(500) })
+
+        const popover = screen.getByRole('tooltip')
+        expect(popover.style.bottom).not.toBe('')
+        expect(popover.style.top).toBe('')
+    })
+
     it('does not show a popover when there are no reactions at all', () => {
         renderPill([])
         const btn = screen.getByRole('button')

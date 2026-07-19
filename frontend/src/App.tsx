@@ -485,9 +485,12 @@ export default function App() {
                 {/* Fixed at the top — not translated, so it's revealed as the content below slides down */}
                 <PullToRefreshIndicator pullDistance={pullDistance} dragging={ptrDragging} refreshing={ptrRefreshing}/>
 
-                {/* Content — slides down 1:1 with the finger while dragging, animates to/from rest otherwise */}
+                {/* Content — slides down 1:1 with the finger while dragging, animates to/from rest otherwise.
+                    Needs its own opaque background: without one it's visually transparent (pages don't
+                    paint a full-bleed background of their own), so the indicator underneath would stay
+                    visible through it regardless of z-index or scroll position. */}
                 <div style={{
-                    position: 'absolute', inset: 0, zIndex: 1,
+                    position: 'absolute', inset: 0, zIndex: 1, background: 'var(--kce-bg)',
                     transform: `translateY(${pullDistance}px)`,
                     transition: ptrDragging ? 'none' : 'transform 0.25s ease-out',
                 }}>
