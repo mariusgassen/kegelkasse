@@ -186,6 +186,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - **Per-category delivery channel: off / push / email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, or turned off; the choice is per member, per category, in the profile settings tab
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
 - **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club, password encrypted at rest via Fernet), with a "send test email" button; the email channel is only offered to members once their club has email enabled
+- **Club-themed, localized emails**: every notification email is rendered with the club's brand color (header band, buttons, accents) and logo, in the recipient's own language (de/en)
+- **Personalized email digest**: each member opts into a digest cadence (off / daily / weekly / monthly) in their profile; a scheduled job (daily at 08:00) sends a themed, deep-linked summary of everything since their last digest — new/updated bowling evenings, their own penalties and bookings, community news (comments & reactions) — plus a personal account & balance overview. Empty digests are skipped; a "send digest now" button previews it on demand
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
 - Members subscribe/unsubscribe push per device from their profile
 - Announcements are always delivered (push) and cannot be disabled

@@ -11,6 +11,7 @@ scheduler = AsyncIOScheduler()
 
 def start_scheduler() -> None:
     scheduler.add_job(run_daily_reminders, CronTrigger(hour=9, minute=0), id="daily_reminders", replace_existing=True)
+    scheduler.add_job(run_daily_digests, CronTrigger(hour=8, minute=0), id="daily_digests", replace_existing=True)
 
     from core.config import settings
     if settings.BACKUP_SCHEDULE:
@@ -22,7 +23,7 @@ def start_scheduler() -> None:
             logger.warning(f"Invalid BACKUP_SCHEDULE '{settings.BACKUP_SCHEDULE}': {e} — backup job not scheduled")
 
     scheduler.start()
-    logger.info("Scheduler started — daily reminders at 09:00")
+    logger.info("Scheduler started — daily reminders at 09:00, digests at 08:00")
 
 
 def stop_scheduler() -> None:
@@ -49,3 +50,13 @@ async def run_daily_reminders() -> None:
     with SessionLocal() as db:
         await send_all_reminders(db)
     logger.info("Daily reminders complete")
+
+
+async def run_daily_digests() -> None:
+    """Entry point for the daily digest job — sends due personalized digests."""
+    from core.database import SessionLocal
+    from core.digest import send_all_digests
+    logger.info("Running daily digests")
+    with SessionLocal() as db:
+        await send_all_digests(db)
+    logger.info("Daily digests complete")

@@ -146,10 +146,11 @@ def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
     # Always log so the in-app bell shows it, regardless of channel.
     _log_notification(db, user.id, title, body, url)
     if channel == "email":
-        from core.email import send_notification_email
+        from core.email import email_theme, send_notification_email
         cfg = _club_email_config(db, user.club_id, email_cache if email_cache is not None else {})
         if cfg:
-            send_notification_email(cfg, user.email, title, body, url)
+            send_notification_email(cfg, user.email, title, body, url,
+                                    theme=email_theme(user.club), locale=user.preferred_locale)
         return True
     # channel == 'push'
     if not settings.VAPID_PRIVATE_KEY:
@@ -205,10 +206,11 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
         # Always log for hybrid loading / in-app bell
         _log_notification(db, user.id, title, body, url)
         if channel == "email":
-            from core.email import send_notification_email
+            from core.email import email_theme, send_notification_email
             cfg = _club_email_config(db, user.club_id, email_cache)
             if cfg:
-                send_notification_email(cfg, user.email, title, body, url)
+                send_notification_email(cfg, user.email, title, body, url,
+                                        theme=email_theme(user.club), locale=user.preferred_locale)
             continue
         if settings.VAPID_PRIVATE_KEY:
             subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())

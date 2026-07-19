@@ -8,7 +8,7 @@ import {useThemeStore, type Theme} from '@/store/theme'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
-import {PushPreferences, NotificationChannel} from '@/types'
+import {PushPreferences, NotificationChannel, DigestFrequency} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
@@ -131,6 +131,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [pushLoading, setPushLoading] = useState(false)
     const [pushTesting, setPushTesting] = useState(false)
+    const [digestTesting, setDigestTesting] = useState(false)
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const [pushConfigured, setPushConfigured] = useState(false)
     const [emailConfigured, setEmailConfigured] = useState(false)
@@ -226,6 +227,18 @@ export function ProfileSheet({open, onClose}: Props) {
         setPushPrefs(updated)
         try {
             await api.updatePushPreferences({[key]: channel})
+        } catch (e) {
+            setPushPrefs(pushPrefs) // revert
+            toastError(e)
+        }
+    }
+
+    async function setDigestFrequency(freq: DigestFrequency) {
+        if (!pushPrefs) return
+        const updated = {...pushPrefs, digest_frequency: freq}
+        setPushPrefs(updated)
+        try {
+            await api.updatePushPreferences({digest_frequency: freq})
         } catch (e) {
             setPushPrefs(pushPrefs) // revert
             toastError(e)
@@ -839,6 +852,56 @@ export function ProfileSheet({open, onClose}: Props) {
                                     {pushTesting ? '…' : 'Test'}
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Email digest — personalized periodic summary */}
+                    {pushPrefs && (
+                        <div className="kce-card p-4 space-y-2" data-testid="digest-card">
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-1">
+                                {t('digest.title')}
+                            </div>
+                            <p className="text-[11px] text-kce-muted mb-2">{t('digest.hint')}</p>
+                            <div className="flex gap-1">
+                                {(['off', 'daily', 'weekly', 'monthly'] as DigestFrequency[]).map(freq => {
+                                    const active = (pushPrefs.digest_frequency ?? 'off') === freq
+                                    return (
+                                        <button
+                                            key={freq}
+                                            onClick={() => setDigestFrequency(freq)}
+                                            className={`flex-1 text-xs font-bold px-2 py-1.5 rounded-lg transition ${
+                                                active ? 'bg-kce-primary text-kce-bg' : 'bg-kce-surface2 text-kce-muted active:opacity-60'
+                                            }`}>
+                                            {t(`digest.freq.${freq}` as any)}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            {!emailConfigured && (
+                                <p className="text-[11px] text-kce-muted pt-1">{t('digest.noEmail')}</p>
+                            )}
+                            {emailConfigured && (pushPrefs.digest_frequency ?? 'off') !== 'off' && (
+                                <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
+                                    <span className="text-xs text-kce-muted">{t('digest.testLabel')}</span>
+                                    <button
+                                        onClick={async () => {
+                                            setDigestTesting(true)
+                                            try {
+                                                await api.sendTestDigest()
+                                                showToast(t('digest.testSent'))
+                                            } catch (e: unknown) {
+                                                toastError(e)
+                                            } finally {
+                                                setDigestTesting(false)
+                                            }
+                                        }}
+                                        disabled={digestTesting}
+                                        data-testid="digest-test-btn"
+                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-surface2 text-kce-muted active:opacity-60">
+                                        {digestTesting ? '…' : 'Test'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 

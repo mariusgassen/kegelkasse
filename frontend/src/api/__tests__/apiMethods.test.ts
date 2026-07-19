@@ -1459,6 +1459,16 @@ describe('api.testPush', () => {
     })
 })
 
+describe('api.sendTestDigest', () => {
+    it('POSTs to /push/digest/test', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true }))
+        const { api } = await import('../client')
+        await api.sendTestDigest()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/push/digest/test')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    })
+})
+
 describe('api.updatePushPreferences', () => {
     it('PATCHes /push/preferences', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({}))

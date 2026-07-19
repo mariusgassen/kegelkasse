@@ -105,6 +105,27 @@ Mit **Test-E-Mail** verschickt der Admin eine Probe-Nachricht an die eigene Adre
 
 Die Einstellungen werden **pro Verein** gespeichert (in den Vereinseinstellungen). Ist kein Server konfiguriert oder der Versand deaktiviert, fällt die Zustellung stillschweigend auf „nur Glocke" zurück.
 
+Alle E-Mails (Einzel-Benachrichtigungen wie Zusammenfassungen) werden im **Vereins-Design** gerendert: Kopfzeile in der Vereins-Grundfarbe, Vereinslogo (falls hinterlegt) und Buttons in der Markenfarbe. Der Text erscheint in der **Sprache des Empfängers** (Deutsch/Englisch), passend zur Profil-Einstellung.
+
+## E-Mail-Zusammenfassung *(pro Mitglied)*
+
+Jedes Mitglied kann im **Einstellungen-Tab** des Profils unter **E-Mail-Zusammenfassung** eine persönliche Zusammenfassung abonnieren. Die Häufigkeit ist frei wählbar:
+
+| Option | Bedeutung |
+|--------|-----------|
+| Aus | keine Zusammenfassung (Standard) |
+| Täglich / Wöchentlich / Monatlich | Versand im gewählten Rhythmus |
+
+Ein täglicher Hintergrund-Job (08:00) versendet fällige Zusammenfassungen. Jede Zusammenfassung ist **persönlich** und enthält alles, was sich seit der letzten Zusammenfassung getan hat — mit **Direktlink** zu jedem Eintrag:
+
+- **Kegelabende** — neu angelegte, aktualisierte oder abgeschlossene Abende
+- **Deine Strafen** — die eigenen Strafen des Zeitraums
+- **Deine Buchungen** — die eigenen Ein-/Auszahlungen
+- **Neues aus dem Verein** — neue Kommentare und Reaktionen
+- **Dein Konto** — Kontostand, Strafen- und Einzahlungssumme im Überblick
+
+Gibt es seit der letzten Zusammenfassung nichts Neues, wird **keine** E-Mail verschickt (kein Rauschen). Über **Zusammenfassung jetzt senden** lässt sich jederzeit eine Vorschau an die eigene Adresse schicken (setzt den Rhythmus nicht zurück). Die Option erscheint nur, wenn der Verein einen E-Mail-Server konfiguriert hat.
+
 ## Konfiguration *(Serveradmin)*
 
 Push-Benachrichtigungen erfordern VAPID-Schlüssel als Umgebungsvariablen:

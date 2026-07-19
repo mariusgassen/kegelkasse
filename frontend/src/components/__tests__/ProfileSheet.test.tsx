@@ -73,6 +73,7 @@ vi.mock('@/api/client.ts', () => ({
         getMyPaymentRequests: vi.fn(),
         updateLocale: vi.fn(),
         testPush: vi.fn(),
+        sendTestDigest: vi.fn(),
     },
     authState: {
         setToken: vi.fn(),
@@ -1309,6 +1310,55 @@ describe('ProfileSheet — avatar remove button', () => {
         fireEvent.click(screen.getByText('profile.removeAvatar'))
         await waitFor(() => {
             expect(api.updateAvatar).toHaveBeenCalledWith(null)
+        })
+    })
+})
+
+describe('ProfileSheet — email digest', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+    })
+
+    it('renders the digest frequency selector on the settings tab', async () => {
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => {
+            expect(screen.getByTestId('digest-card')).toBeInTheDocument()
+        })
+        expect(screen.getByText('digest.freq.off')).toBeInTheDocument()
+        expect(screen.getByText('digest.freq.weekly')).toBeInTheDocument()
+    })
+
+    it('persists the chosen frequency via updatePushPreferences', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePushPreferences).mockResolvedValueOnce({} as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByTestId('digest-card')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('digest.freq.weekly'))
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith({ digest_frequency: 'weekly' })
+        })
+    })
+
+    it('shows the no-email hint when email is not configured', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: false } as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByTestId('digest-card')).toBeInTheDocument())
+        expect(screen.getByText('digest.noEmail')).toBeInTheDocument()
+    })
+
+    it('sends a test digest when email is configured and a frequency is active', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: true } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({ digest_frequency: 'weekly' } as any)
+        vi.mocked(api.sendTestDigest).mockResolvedValueOnce({ ok: true } as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByTestId('digest-test-btn')).toBeInTheDocument())
+        fireEvent.click(screen.getByTestId('digest-test-btn'))
+        await waitFor(() => {
+            expect(api.sendTestDigest).toHaveBeenCalled()
         })
     })
 })
