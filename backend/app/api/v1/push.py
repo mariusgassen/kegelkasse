@@ -1,7 +1,7 @@
 """Web Push subscription endpoints."""
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -13,29 +13,29 @@ from core.database import get_db
 from models.push import NotificationLog, PushSubscription
 from models.user import User
 
+from core.push import resolve_channels
+
 _CATEGORY_KEYS = (
     "penalties", "evenings", "schedule", "payments", "games", "members", "comments",
     "reminder_debt", "reminder_schedule", "reminder_payments",
 )
-_VALID_CHANNELS = ("off", "push", "email")
-# Default channel for every category: 'push' (preserves prior always-on behaviour).
-_DEFAULT_PREFS = {key: "push" for key in _CATEGORY_KEYS}
+# Default channels for every category: ['push'] (preserves prior always-on behaviour).
+_DEFAULT_PREFS = {key: ["push"] for key in _CATEGORY_KEYS}
 _VALID_DIGEST_FREQ = ("off", "daily", "weekly", "monthly")
 
 
 def _normalize_prefs(raw: dict) -> dict:
-    """Coerce stored preferences into channel strings ('off'|'push'|'email').
+    """Coerce stored preferences into channel lists (subset of ['push', 'email']).
 
-    Legacy boolean values (True/False) map to 'push'/'off'. Non-category keys
-    (e.g. reminder_schedule_days) pass through unchanged.
+    A category value is a list of channels (empty = off). Every earlier
+    representation (legacy booleans, single-channel strings) is upgraded via
+    ``resolve_channels``. Non-category keys (e.g. reminder_schedule_days) pass
+    through unchanged.
     """
     out: dict = {}
     for key, value in (raw or {}).items():
         if key in _CATEGORY_KEYS:
-            if isinstance(value, bool):
-                out[key] = "push" if value else "off"
-            elif value in _VALID_CHANNELS:
-                out[key] = value
+            out[key] = resolve_channels(value)
         else:
             out[key] = value
     return out
@@ -134,24 +134,30 @@ async def test_push(db: Session = Depends(get_db), user: User = Depends(require_
 
 @router.get("/preferences")
 def get_push_preferences(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
-    """Return notification channel preferences ('off'|'push'|'email') for the current user."""
+    """Return notification channel preferences (per category: a list of channels) for the user."""
     prefs = dict(_DEFAULT_PREFS)
     prefs.update(_normalize_prefs(user.push_preferences or {}))
     prefs.setdefault("digest_frequency", "off")
     return prefs
 
 
+# Category values are a list of channels (e.g. [], ['push'], ['push', 'email']).
+# Older clients may still send a single-channel string / bool; both are tolerated
+# and upgraded via resolve_channels, so a rolling deploy never rejects a request.
+_ChannelPref = Union[list[str], str, bool]
+
+
 class PushPreferencesUpdate(BaseModel):
-    penalties: Optional[str] = None
-    evenings: Optional[str] = None
-    schedule: Optional[str] = None
-    payments: Optional[str] = None
-    games: Optional[str] = None
-    members: Optional[str] = None
-    comments: Optional[str] = None
-    reminder_debt: Optional[str] = None
-    reminder_schedule: Optional[str] = None
-    reminder_payments: Optional[str] = None
+    penalties: Optional[_ChannelPref] = None
+    evenings: Optional[_ChannelPref] = None
+    schedule: Optional[_ChannelPref] = None
+    payments: Optional[_ChannelPref] = None
+    games: Optional[_ChannelPref] = None
+    members: Optional[_ChannelPref] = None
+    comments: Optional[_ChannelPref] = None
+    reminder_debt: Optional[_ChannelPref] = None
+    reminder_schedule: Optional[_ChannelPref] = None
+    reminder_payments: Optional[_ChannelPref] = None
     reminder_schedule_days: Optional[int] = None  # per-user days_before for upcoming evening
     digest_frequency: Optional[str] = None  # 'off'|'daily'|'weekly'|'monthly' email digest cadence
 
@@ -161,14 +167,14 @@ def update_push_preferences(data: PushPreferencesUpdate, db: Session = Depends(g
                              user: User = Depends(require_club_member)):
     """Update notification channel preferences (partial — only provided keys are updated).
 
-    Category values must be one of 'off'|'push'|'email'; invalid values are ignored.
+    Category values are sanitized to a list of valid channels (subset of push/email);
+    unknown channels are dropped, an empty list means the category is off.
     """
     prefs = dict(user.push_preferences or {})
     payload = data.model_dump(exclude_none=True)
     for key, value in payload.items():
         if key in _CATEGORY_KEYS:
-            if value in _VALID_CHANNELS:
-                prefs[key] = value
+            prefs[key] = resolve_channels(value)
         elif key == "digest_frequency":
             if value in _VALID_DIGEST_FREQ:
                 prefs[key] = value

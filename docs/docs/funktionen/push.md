@@ -8,15 +8,14 @@ sidebar_label: Push-Benachrichtigungen
 
 Kegelkasse kann Benachrichtigungen **als Web-Push** (auch bei geschlossener App) **oder per E-Mail** senden. So verpasst kein Mitglied eine Strafe oder eine wichtige Vereinsnachricht.
 
-## Zustellweg pro Benachrichtigung: Aus / Push / E-Mail
+## Zustellwege pro Benachrichtigung: Push und/oder E-Mail
 
-Jede Benachrichtigungsart lässt sich im Profil (**⚙️ Einstellungen → Benachrichtigungseinstellungen**) einzeln auf einen von drei Zustellwegen stellen:
+Jede Benachrichtigungsart lässt sich im Profil (**⚙️ Einstellungen → Benachrichtigungseinstellungen**) einzeln steuern. **Push und E-Mail sind unabhängige Schalter** — beide können gleichzeitig aktiv sein:
 
-- **🔕 Aus** — keine Zustellung (erscheint auch nicht in der Glocke)
 - **🔔 Push** — Web-Push auf die abonnierten Geräte
 - **✉️ E-Mail** — Versand an die hinterlegte E-Mail-Adresse (nur wählbar, wenn der Verein einen E-Mail-Server konfiguriert hat)
 
-Unabhängig vom gewählten Weg wird jede Benachrichtigung zusätzlich in der **In-App-Glocke** protokolliert (außer bei „Aus"). Dieselbe Wahl gilt auch für die automatischen Erinnerungen (Schulden, Termine, RSVP …).
+Sind **beide** aktiv, wird dieselbe Benachrichtigung sowohl als Push als auch als E-Mail zugestellt. Sind **beide aus**, gibt es keine Zustellung (die Benachrichtigung erscheint dann auch nicht in der Glocke). Ist mindestens ein Weg aktiv, wird die Benachrichtigung zusätzlich in der **In-App-Glocke** protokolliert. Dieselbe Wahl gilt auch für die automatischen Erinnerungen (Schulden, Termine, RSVP …).
 
 ## Benachrichtigungen aktivieren
 
@@ -51,10 +50,10 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 
 ## Einstellungen im Profil
 
-Im Profil-Tab **⚙️ Einstellungen** kann jede Benachrichtigung auf **Aus / Push / E-Mail** gestellt werden:
+Im Profil-Tab **⚙️ Einstellungen** kann jede Benachrichtigung per **🔔 Push und/oder ✉️ E-Mail** zugestellt werden (beide Schalter unabhängig, beides gleichzeitig möglich):
 
-- **Strafen, Abend-Events, Kegeltermine, Zahlungen, Spielergebnisse, Neue Mitglieder** — je Zustellweg wählbar
-- **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen (Aus/Push/E-Mail)
+- **Strafen, Abend-Events, Kegeltermine, Zahlungen, Spielergebnisse, Neue Mitglieder** — Push/E-Mail je einzeln
+- **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen (Push und/oder E-Mail)
 - **Termin-Erinnerungen** — automatische Terminbenachrichtigungen; dazu individuell einstellbar: wie viele Tage vorher erinnert werden soll
 - **Zahlungsanfragen (Admin)** — Nudges für ausstehende Anfragen (nur für Admins sichtbar)
 - **Kommentare & Reaktionen** — Benachrichtigungen zu Antworten und Reaktionen auf Ankündigungen, Kegelfahrten und Highlights

@@ -501,9 +501,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
@@ -520,9 +520,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
-            games: 'push', members: 'push', comments: 'push',
-            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
@@ -539,9 +539,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
-            games: 'push', members: 'push', comments: 'push',
-            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
@@ -552,16 +552,16 @@ describe('ProfileSheet — push preferences', () => {
         expect(screen.queryByLabelText('push.channel.email')).not.toBeInTheDocument()
     })
 
-    it('offers and selects the email channel when club email is configured', async () => {
+    it('adds the email channel alongside push when club email is configured', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
         vi.mocked(api.getMyBalance).mockResolvedValue({ balance: 0, penalty_total: 0, payments_total: 0 } as any)
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: true } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: 'push', evenings: 'push', schedule: 'push', payments: 'push',
-            games: 'push', members: 'push', comments: 'push',
-            reminder_debt: 'off', reminder_schedule: 'off', reminder_payments: 'off',
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
         vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
@@ -575,7 +575,34 @@ describe('ProfileSheet — push preferences', () => {
         expect(emailBtn).toBeInTheDocument()
         fireEvent.click(emailBtn)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ penalties: 'email' }))
+            // push was already on → email is added, not replaced
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ penalties: ['push', 'email'] }))
+        })
+    })
+
+    it('turning a category off leaves an empty channel list', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMyStats).mockResolvedValue(MY_STATS as any)
+        vi.mocked(api.getMyBalance).mockResolvedValue({ balance: 0, penalty_total: 0, payments_total: 0 } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false, email_configured: true } as any)
+        vi.mocked(api.getPushPreferences).mockResolvedValue({
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
+        } as any)
+        vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+        vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
+
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => {
+            expect(screen.getByText('push.pref.penalties')).toBeInTheDocument()
+        })
+        const row = screen.getByText('push.pref.penalties').closest('div')!
+        const pushBtn = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
+        fireEvent.click(pushBtn) // push was the only channel on → turning it off empties the list
+        await waitFor(() => {
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ penalties: [] }))
         })
     })
 
@@ -586,9 +613,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
         vi.mocked(api.updatePushPreferences).mockResolvedValue({} as any)
@@ -617,9 +644,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
@@ -642,9 +669,9 @@ describe('ProfileSheet — push preferences', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
 
@@ -881,9 +908,9 @@ describe('ProfileSheet — reminder toggles', () => {
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
         vi.mocked(api.getPushStatus).mockResolvedValue({ configured: false } as any)
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
             reminder_schedule_days: 5,
             ...extraPrefs,
         } as any)
@@ -906,7 +933,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('calls updatePushPreferences when reminder_debt toggle clicked', async () => {
         const { api } = await import('@/api/client.ts')
-        await setupWithReminders({ reminder_debt: false })
+        await setupWithReminders({ reminder_debt: [] })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_debt')).toBeInTheDocument()
@@ -917,7 +944,7 @@ describe('ProfileSheet — reminder toggles', () => {
         const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_debt: 'push' }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_debt: ['push'] }))
         })
     })
 
@@ -931,7 +958,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('calls updatePushPreferences when reminder_schedule toggle clicked', async () => {
         const { api } = await import('@/api/client.ts')
-        await setupWithReminders({ reminder_schedule: false })
+        await setupWithReminders({ reminder_schedule: [] })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_schedule')).toBeInTheDocument()
@@ -941,12 +968,12 @@ describe('ProfileSheet — reminder toggles', () => {
         const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule: 'push' }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_schedule: ['push'] }))
         })
     })
 
     it('shows reminder_schedule_days input when reminder_schedule is true', async () => {
-        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await setupWithReminders({ reminder_schedule: ['push'], reminder_schedule_days: 5 })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.reminder_schedule_days')).toBeInTheDocument()
@@ -957,7 +984,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('calls updatePushPreferences when reminder_schedule_days input changed', async () => {
         const { api } = await import('@/api/client.ts')
-        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await setupWithReminders({ reminder_schedule: ['push'], reminder_schedule_days: 5 })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByDisplayValue('5')).toBeInTheDocument()
@@ -971,7 +998,7 @@ describe('ProfileSheet — reminder toggles', () => {
 
     it('does not call updatePushPreferences for invalid days input (0 or NaN)', async () => {
         const { api } = await import('@/api/client.ts')
-        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await setupWithReminders({ reminder_schedule: ['push'], reminder_schedule_days: 5 })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByDisplayValue('5')).toBeInTheDocument()
@@ -1030,7 +1057,7 @@ describe('ProfileSheet — reminder toggles', () => {
         vi.mocked(useAppStore).mockReturnValue({
             user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
         } as any)
-        await setupWithReminders({ reminder_payments: false })
+        await setupWithReminders({ reminder_payments: [] })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
@@ -1045,7 +1072,7 @@ describe('ProfileSheet — reminder toggles', () => {
         vi.mocked(useAppStore).mockReturnValue({
             user: ADMIN_USER, setUser: vi.fn(), regularMembers: [],
         } as any)
-        await setupWithReminders({ reminder_payments: false })
+        await setupWithReminders({ reminder_payments: [] })
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
@@ -1055,7 +1082,7 @@ describe('ProfileSheet — reminder toggles', () => {
         const toggle = row.querySelector('button[aria-label="push.channel.push"]') as HTMLButtonElement
         fireEvent.click(toggle)
         await waitFor(() => {
-            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_payments: 'push' }))
+            expect(api.updatePushPreferences).toHaveBeenCalledWith(expect.objectContaining({ reminder_payments: ['push'] }))
         })
     })
 
@@ -1063,7 +1090,7 @@ describe('ProfileSheet — reminder toggles', () => {
         const { api } = await import('@/api/client.ts')
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updatePushPreferences).mockRejectedValue(new Error('server error'))
-        await setupWithReminders({ reminder_schedule: true, reminder_schedule_days: 5 })
+        await setupWithReminders({ reminder_schedule: ['push'], reminder_schedule_days: 5 })
         // Re-mock getPushPreferences to ensure prefs after the failed update are reverted
         vi.mocked(api.updatePushPreferences).mockRejectedValue(new Error('server error'))
         await renderProfileSheet({ tab: 'settings' })
@@ -1220,9 +1247,9 @@ describe('ProfileSheet — togglePushPref error reverts state', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updatePushPreferences).mockRejectedValueOnce(new Error('pref fail'))
         vi.mocked(api.getPushPreferences).mockResolvedValue({
-            penalties: true, evenings: true, schedule: true, payments: true,
-            games: true, members: true, comments: true,
-            reminder_debt: false, reminder_schedule: false, reminder_payments: false,
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
         } as any)
         await renderProfileSheet({ tab: 'settings' })
         await waitFor(() => screen.getByText('push.pref.penalties'))

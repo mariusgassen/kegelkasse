@@ -1473,10 +1473,10 @@ describe('api.updatePushPreferences', () => {
     it('PATCHes /push/preferences', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({}))
         const { api } = await import('../client')
-        await api.updatePushPreferences({ penalties: 'email' })
+        await api.updatePushPreferences({ penalties: ['push', 'email'] })
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/push/preferences')
         expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
-        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ penalties: 'email' })
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ penalties: ['push', 'email'] })
     })
 })
 

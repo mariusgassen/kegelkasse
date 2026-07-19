@@ -913,7 +913,7 @@ export const en = {
     "push.pref.reminder_schedule": "Event reminders",
     "push.pref.reminder_payments": "Payment requests (Admin)",
     "push.reminder_schedule_days": "Days before event to remind",
-    "push.channelHint": "Choose per notification: Off, Push or Email.",
+    "push.channelHint": "Enable push and/or email per notification. Both off = no notification.",
     "push.channel.off": "Off",
     "push.channel.push": "Push",
     "push.channel.email": "Email",
