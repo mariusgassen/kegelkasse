@@ -80,29 +80,51 @@ def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str,
         raise
 
 
-VALID_CHANNELS = ("off", "push", "email")
+# The concrete delivery channels a category can fan out to. A category's
+# preference is a *subset* of these (possibly empty = off).
+CHANNELS = ("push", "email")
 
 
-def _user_channel(user: User, category: str, default: str = "push") -> str:
-    """Return the delivery channel ('off' | 'push' | 'email') for a category.
+def resolve_channels(value, default: tuple[str, ...] = ("push",)) -> list[str]:
+    """Normalize any stored preference value to a list of channels (subset of push/email).
 
-    Backwards compatible with the previous boolean preferences:
-    True → 'push', False → 'off'. Missing / unknown → default ('push').
+    A user can enable several channels for one category at once (e.g. both push
+    and email). The stored/wire representation is therefore a list of channels;
+    an empty list means the category is off.
+
+    Backwards compatible with every earlier representation:
+    - None / missing       → ``default``
+    - bool True / False     → ``['push']`` / ``[]``  (pre-channel booleans)
+    - str 'off'             → ``[]``
+    - str 'push' / 'email'  → ``['push']`` / ``['email']``  (single-channel era)
+    - list of channels      → filtered & de-duped to valid channels
     """
+    if value is None:
+        return list(default)
+    if isinstance(value, bool):
+        return ["push"] if value else []
+    if isinstance(value, str):
+        if value == "off":
+            return []
+        if value in CHANNELS:
+            return [value]
+        return list(default)
+    if isinstance(value, (list, tuple, set)):
+        return [c for c in CHANNELS if c in value]
+    return list(default)
+
+
+def _user_channels(user: User, category: str, default: tuple[str, ...] = ("push",)) -> list[str]:
+    """Return the enabled delivery channels (subset of push/email) for a category."""
     if not category:
-        return default
+        return list(default)
     prefs = user.push_preferences or {}
-    val = prefs.get(category, default)
-    if isinstance(val, bool):
-        return "push" if val else "off"
-    if val in VALID_CHANNELS:
-        return val
-    return default
+    return resolve_channels(prefs.get(category), default)
 
 
 def _user_wants(user: User, category: str) -> bool:
-    """Return True if the user has this notification category enabled (not 'off')."""
-    return _user_channel(user, category) != "off"
+    """Return True if the user has this notification category enabled (any channel on)."""
+    return bool(_user_channels(user, category))
 
 
 def _club_email_config(db: Session, club_id: int | None, cache: dict) -> dict | None:
@@ -132,31 +154,30 @@ def _log_notification(db: Session, user_id: int, title: str, body: str, url: str
 def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
                 category: str = '', extra: dict | None = None,
                 email_cache: dict | None = None) -> bool:
-    """Deliver one notification to one user, honouring their per-category channel.
+    """Deliver one notification to one user, honouring their per-category channels.
 
-    - 'off'   → nothing (no log, no delivery)
-    - 'push'  → in-app log + Web Push (if configured)
-    - 'email' → in-app log + email via the user's club SMTP (if configured)
+    A category may have several channels enabled at once:
+    - no channels → nothing (no log, no delivery)
+    - 'push'      → Web Push (if configured)
+    - 'email'     → email via the user's club SMTP (if configured)
 
-    Returns True if the notification was logged/delivered (channel != 'off').
+    The in-app bell is always fed (a log row) whenever at least one channel is on.
+    Returns True if the notification was logged/delivered (any channel on).
     """
-    channel = _user_channel(user, category)
-    if channel == "off":
+    channels = _user_channels(user, category)
+    if not channels:
         return False
-    # Always log so the in-app bell shows it, regardless of channel.
+    # Always log so the in-app bell shows it, regardless of channel(s).
     _log_notification(db, user.id, title, body, url)
-    if channel == "email":
+    if "email" in channels:
         from core.email import email_theme, send_notification_email
         cfg = _club_email_config(db, user.club_id, email_cache if email_cache is not None else {})
         if cfg:
             send_notification_email(cfg, user.email, title, body, url,
                                     theme=email_theme(user.club), locale=user.preferred_locale)
-        return True
-    # channel == 'push'
-    if not settings.VAPID_PRIVATE_KEY:
-        return True
-    for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
-        _send_one(db, sub, title, body, url, extra=extra)
+    if "push" in channels and settings.VAPID_PRIVATE_KEY:
+        for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
+            _send_one(db, sub, title, body, url, extra=extra)
     return True
 
 
@@ -200,19 +221,18 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
     email_cache: dict = {}
     subs = []
     for user in users:
-        channel = _user_channel(user, category)
-        if channel == "off":
+        channels = _user_channels(user, category)
+        if not channels:
             continue
         # Always log for hybrid loading / in-app bell
         _log_notification(db, user.id, title, body, url)
-        if channel == "email":
+        if "email" in channels:
             from core.email import email_theme, send_notification_email
             cfg = _club_email_config(db, user.club_id, email_cache)
             if cfg:
                 send_notification_email(cfg, user.email, title, body, url,
                                         theme=email_theme(user.club), locale=user.preferred_locale)
-            continue
-        if settings.VAPID_PRIVATE_KEY:
+        if "push" in channels and settings.VAPID_PRIVATE_KEY:
             subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
     if not subs:
         return

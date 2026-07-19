@@ -60,19 +60,22 @@ export interface ScheduledEvening {
     evening_id: number | null  // linked Evening id if already started
 }
 
-export type NotificationChannel = 'off' | 'push' | 'email'
+// A concrete delivery channel. A category can enable several at once
+// (e.g. both push and email); an empty list means the category is off.
+export type NotificationChannel = 'push' | 'email'
+export type ChannelPref = NotificationChannel[]
 
 export interface PushPreferences {
-    penalties: NotificationChannel
-    evenings: NotificationChannel
-    schedule: NotificationChannel
-    payments: NotificationChannel
-    games: NotificationChannel
-    members: NotificationChannel
-    comments: NotificationChannel
-    reminder_debt: NotificationChannel
-    reminder_schedule: NotificationChannel
-    reminder_payments: NotificationChannel
+    penalties: ChannelPref
+    evenings: ChannelPref
+    schedule: ChannelPref
+    payments: ChannelPref
+    games: ChannelPref
+    members: ChannelPref
+    comments: ChannelPref
+    reminder_debt: ChannelPref
+    reminder_schedule: ChannelPref
+    reminder_payments: ChannelPref
     reminder_schedule_days?: number
     digest_frequency?: DigestFrequency
 }

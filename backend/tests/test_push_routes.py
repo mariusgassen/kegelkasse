@@ -267,11 +267,11 @@ class TestGetPreferences:
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
-        # New default channel for every category is 'push'
-        assert data["penalties"] == "push"
-        assert data["evenings"] == "push"
-        assert data["games"] == "push"
-        assert data["reminder_debt"] == "push"
+        # New default channel list for every category is ['push']
+        assert data["penalties"] == ["push"]
+        assert data["evenings"] == ["push"]
+        assert data["games"] == ["push"]
+        assert data["reminder_debt"] == ["push"]
 
     def test_normalizes_legacy_boolean_prefs(self, client, auth_headers, db, user):
         # Simulate a user whose prefs were saved as booleans before the channel migration.
@@ -279,8 +279,20 @@ class TestGetPreferences:
         db.commit()
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
         data = r.json()
-        assert data["penalties"] == "push"  # True → push
-        assert data["games"] == "off"       # False → off
+        assert data["penalties"] == ["push"]  # True → push
+        assert data["games"] == []            # False → off
+        user.push_preferences = None
+        db.commit()
+
+    def test_normalizes_legacy_string_prefs(self, client, auth_headers, db, user):
+        # Simulate a user whose prefs were saved as single-channel strings.
+        user.push_preferences = {"penalties": "email", "games": "off", "evenings": "push"}
+        db.commit()
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        data = r.json()
+        assert data["penalties"] == ["email"]
+        assert data["games"] == []
+        assert data["evenings"] == ["push"]
         user.push_preferences = None
         db.commit()
 
@@ -297,45 +309,69 @@ class TestUpdatePreferences:
     def test_partial_update(self, client, auth_headers, db, user):
         r = client.patch(
             "/api/v1/push/preferences",
-            json={"penalties": "off", "games": "email"},
+            json={"penalties": [], "games": ["email"]},
             headers=auth_headers,
         )
         assert r.status_code == 200
         data = r.json()
-        assert data["penalties"] == "off"
-        assert data["games"] == "email"
+        assert data["penalties"] == []
+        assert data["games"] == ["email"]
         # unmodified keys keep defaults
-        assert data["evenings"] == "push"
+        assert data["evenings"] == ["push"]
 
-    def test_invalid_channel_is_ignored(self, client, auth_headers, db, user):
+    def test_both_channels_persist(self, client, auth_headers, db, user):
         r = client.patch(
             "/api/v1/push/preferences",
-            json={"penalties": "carrier-pigeon"},
+            json={"penalties": ["push", "email"]},
             headers=auth_headers,
         )
         assert r.status_code == 200
-        # Invalid value ignored → stays at default
-        assert r.json()["penalties"] == "push"
+        assert r.json()["penalties"] == ["push", "email"]
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        assert r.json()["penalties"] == ["push", "email"]
+        # restore
+        client.patch("/api/v1/push/preferences", json={"penalties": ["push"]}, headers=auth_headers)
+
+    def test_invalid_channel_is_dropped(self, client, auth_headers, db, user):
+        r = client.patch(
+            "/api/v1/push/preferences",
+            json={"penalties": ["push", "carrier-pigeon"]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        # Unknown channel dropped, valid one kept
+        assert r.json()["penalties"] == ["push"]
+
+    def test_legacy_string_input_still_accepted(self, client, auth_headers, db, user):
+        # An older client sending a single-channel string is upgraded to a list.
+        r = client.patch(
+            "/api/v1/push/preferences",
+            json={"games": "email"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert r.json()["games"] == ["email"]
+        client.patch("/api/v1/push/preferences", json={"games": ["push"]}, headers=auth_headers)
 
     def test_full_round_trip(self, client, auth_headers, db, user):
-        client.patch("/api/v1/push/preferences", json={"reminder_debt": "off"}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": []}, headers=auth_headers)
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
-        assert r.json()["reminder_debt"] == "off"
+        assert r.json()["reminder_debt"] == []
         # restore
-        client.patch("/api/v1/push/preferences", json={"reminder_debt": "push"}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": ["push"]}, headers=auth_headers)
 
     def test_401_without_auth(self, client):
-        r = client.patch("/api/v1/push/preferences", json={"penalties": "off"})
+        r = client.patch("/api/v1/push/preferences", json={"penalties": []})
         assert r.status_code == 401
 
     def test_comments_preference_persists(self, client, auth_headers, db, user):
-        r = client.patch("/api/v1/push/preferences", json={"comments": "email"}, headers=auth_headers)
+        r = client.patch("/api/v1/push/preferences", json={"comments": ["email"]}, headers=auth_headers)
         assert r.status_code == 200
-        assert r.json()["comments"] == "email"
+        assert r.json()["comments"] == ["email"]
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
-        assert r.json()["comments"] == "email"
+        assert r.json()["comments"] == ["email"]
         # restore
-        client.patch("/api/v1/push/preferences", json={"comments": "push"}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"comments": ["push"]}, headers=auth_headers)
 
 
 # ---------------------------------------------------------------------------

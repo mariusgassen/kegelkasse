@@ -8,7 +8,7 @@ import {useThemeStore, type Theme} from '@/store/theme'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
-import {PushPreferences, NotificationChannel, DigestFrequency} from '@/types'
+import {PushPreferences, NotificationChannel, ChannelPref, DigestFrequency} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
@@ -19,38 +19,47 @@ function fe(v: number) {
 }
 
 /**
- * Tri-state notification channel selector: off / push / email.
- * The email segment is only offered when the club has configured an SMTP server.
+ * Independent per-channel toggles: push and/or email can each be on at once.
+ * An empty selection means the category is off. The email toggle is only offered
+ * when the club has configured an SMTP server.
  */
-function ChannelToggle({value, onChange, emailEnabled, disabled}: {
-    value: NotificationChannel
-    onChange: (v: NotificationChannel) => void
+function ChannelToggles({value, onChange, emailEnabled, disabled}: {
+    value: ChannelPref
+    onChange: (v: ChannelPref) => void
     emailEnabled?: boolean
     disabled?: boolean
 }) {
     const t = useT()
-    const options: { v: NotificationChannel; icon: string; label: string }[] = [
-        {v: 'off', icon: '🔕', label: t('push.channel.off')},
-        {v: 'push', icon: '🔔', label: t('push.channel.push')},
+    const options: { c: NotificationChannel; icon: string; label: string }[] = [
+        {c: 'push', icon: '🔔', label: t('push.channel.push')},
     ]
-    if (emailEnabled) options.push({v: 'email', icon: '✉️', label: t('push.channel.email')})
+    if (emailEnabled) options.push({c: 'email', icon: '✉️', label: t('push.channel.email')})
+    // Coerce defensively: a missing/legacy value should render as "nothing selected"
+    // rather than crash on .includes (arrays only).
+    const selected: NotificationChannel[] = Array.isArray(value) ? value : []
+    function toggle(c: NotificationChannel) {
+        onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c])
+    }
     return (
         <div className={['flex items-center gap-0.5 bg-kce-surface2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
-            {options.map(o => (
-                <button
-                    key={o.v}
-                    onClick={disabled ? undefined : () => onChange(o.v)}
-                    disabled={disabled}
-                    aria-pressed={value === o.v}
-                    aria-label={o.label}
-                    title={o.label}
-                    className={['text-xs font-bold px-2 py-1 rounded-md transition-colors leading-none',
-                        value === o.v ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted',
-                        disabled ? 'cursor-not-allowed' : ''].join(' ')}
-                >
-                    <span aria-hidden>{o.icon}</span>
-                </button>
-            ))}
+            {options.map(o => {
+                const on = selected.includes(o.c)
+                return (
+                    <button
+                        key={o.c}
+                        onClick={disabled ? undefined : () => toggle(o.c)}
+                        disabled={disabled}
+                        aria-pressed={on}
+                        aria-label={o.label}
+                        title={o.label}
+                        className={['text-xs font-bold px-2 py-1 rounded-md transition-colors leading-none',
+                            on ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted',
+                            disabled ? 'cursor-not-allowed' : ''].join(' ')}
+                    >
+                        <span aria-hidden>{o.icon}</span>
+                    </button>
+                )
+            })}
         </div>
     )
 }
@@ -221,12 +230,12 @@ export function ProfileSheet({open, onClose}: Props) {
         api.getPushPreferences().then(setPushPrefs).catch(() => {})
     }, [open])
 
-    async function setPushChannel(key: keyof PushPreferences, channel: NotificationChannel) {
+    async function setPushChannels(key: keyof PushPreferences, channels: ChannelPref) {
         if (!pushPrefs) return
-        const updated = {...pushPrefs, [key]: channel}
+        const updated = {...pushPrefs, [key]: channels}
         setPushPrefs(updated)
         try {
-            await api.updatePushPreferences({[key]: channel})
+            await api.updatePushPreferences({[key]: channels})
         } catch (e) {
             setPushPrefs(pushPrefs) // revert
             toastError(e)
@@ -776,12 +785,12 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
-                                <ChannelToggle value="push" onChange={() => {}} emailEnabled={emailConfigured} disabled />
+                                <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
-                                    <ChannelToggle value={pushPrefs[key] as NotificationChannel} onChange={c => setPushChannel(key, c)} emailEnabled={emailConfigured} />
+                                    <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} />
                                 </div>
                             ))}
 
@@ -792,15 +801,15 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* reminder_debt */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.reminder_debt')}</span>
-                                <ChannelToggle value={pushPrefs.reminder_debt as NotificationChannel} onChange={c => setPushChannel('reminder_debt', c)} emailEnabled={emailConfigured} />
+                                <ChannelToggles value={pushPrefs.reminder_debt as ChannelPref} onChange={c => setPushChannels('reminder_debt', c)} emailEnabled={emailConfigured} />
                             </div>
 
                             {/* reminder_schedule + per-user days_before */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-kce-cream">{t('push.pref.reminder_schedule')}</span>
-                                <ChannelToggle value={pushPrefs.reminder_schedule as NotificationChannel} onChange={c => setPushChannel('reminder_schedule', c)} emailEnabled={emailConfigured} />
+                                <ChannelToggles value={pushPrefs.reminder_schedule as ChannelPref} onChange={c => setPushChannels('reminder_schedule', c)} emailEnabled={emailConfigured} />
                             </div>
-                            {pushPrefs.reminder_schedule !== 'off' && (
+                            {(pushPrefs.reminder_schedule?.length ?? 0) > 0 && (
                                 <div className="flex items-center justify-between py-0.5 pl-2">
                                     <span className="text-xs text-kce-muted">{t('push.reminder_schedule_days')}</span>
                                     <input
@@ -828,7 +837,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {isAdmin(user) && (
                                 <div className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-kce-cream">{t('push.pref.reminder_payments')}</span>
-                                    <ChannelToggle value={pushPrefs.reminder_payments as NotificationChannel} onChange={c => setPushChannel('reminder_payments', c)} emailEnabled={emailConfigured} />
+                                    <ChannelToggles value={pushPrefs.reminder_payments as ChannelPref} onChange={c => setPushChannels('reminder_payments', c)} emailEnabled={emailConfigured} />
                                 </div>
                             )}
 

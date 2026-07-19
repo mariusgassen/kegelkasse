@@ -183,7 +183,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### Push & email notifications & reminders
 
-- **Per-category delivery channel: off / push / email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, or turned off; the choice is per member, per category, in the profile settings tab
+- **Per-category delivery channels: push and/or email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, as **both at once**, or turned off; push and email are independent toggles per member, per category, in the profile settings tab
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
 - **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club, password encrypted at rest via Fernet), with a "send test email" button; the email channel is only offered to members once their club has email enabled
 - **Club-themed, localized emails**: every notification email is rendered with the club's brand color (header band, buttons, accents) and logo, in the recipient's own language (de/en)
@@ -199,7 +199,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
   - Bowling-day debt reminder — push to debtors on the day of a scheduled evening
   - Pending payment request nudge — push to admins when requests stay unresolved past N days
 - Admins enable/disable and configure each reminder type in the club settings (Einstellungen-Tab)
-- Users choose off/push/email per reminder category in their profile
+- Users choose push and/or email (independent toggles) per reminder category in their profile
 - **Broadcast push**: admins can send a custom push to all club members from the settings page
 
 ### PWA & offline

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from core.security import create_access_token, get_password_hash
 from models.club import Club, ClubSettings
-from models.push import NotificationLog
+from models.push import NotificationLog, PushSubscription
 from models.user import User, UserRole
 
 
@@ -346,6 +346,33 @@ class TestEmailChannelDispatch:
         mock_push.assert_not_called()
         # still logged to the in-app bell
         assert db.query(NotificationLog).filter(NotificationLog.user_id == u.id).count() == 1
+        db.query(NotificationLog).filter(NotificationLog.user_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+
+    def test_notify_user_sends_both_when_push_and_email(self, db, club):
+        """A category with both channels on delivers push *and* email (and logs once)."""
+        _configure_email(db, club)
+        u = User(email="both@test.de", name="Both", hashed_password=get_password_hash("x"),
+                 role=UserRole.member, club_id=club.id, is_active=True,
+                 push_preferences={"penalties": ["push", "email"]})
+        db.add(u)
+        db.commit()
+        db.refresh(u)
+        db.add(PushSubscription(user_id=u.id, endpoint="https://push.test/both",
+                                p256dh="p", auth="a"))
+        db.commit()
+        with patch("core.email.send_notification_email", return_value=True) as mock_email, \
+             patch("core.push._send_one") as mock_push, \
+             patch("core.push.settings.VAPID_PRIVATE_KEY", "vapid-key"):
+            from core.push import notify_user
+            delivered = notify_user(db, u, "Title", "Body", "/x", category="penalties")
+        assert delivered is True
+        mock_email.assert_called_once()
+        mock_push.assert_called_once()
+        # logged exactly once for the in-app bell, not once per channel
+        assert db.query(NotificationLog).filter(NotificationLog.user_id == u.id).count() == 1
+        db.query(PushSubscription).filter(PushSubscription.user_id == u.id).delete()
         db.query(NotificationLog).filter(NotificationLog.user_id == u.id).delete()
         db.delete(u)
         db.commit()
