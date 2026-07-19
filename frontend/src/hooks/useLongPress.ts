@@ -24,6 +24,15 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
         startRef.current = null
     }
 
+    /** Pointer released or cancelled — lifting the finger off the screen, not just drifting. */
+    function release() {
+        // A release right after a successful hold gets its own short buzz, distinct from the
+        // hold-triggered one, confirming the gesture actually ended. Unsupported (e.g. iOS
+        // Safari) or desktop mouse/pen presses just no-op.
+        if (firedRef.current) navigator.vibrate?.(10)
+        clear()
+    }
+
     function start(e: PointerEvent) {
         firedRef.current = false
         clear()
@@ -39,6 +48,7 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
         if (e.pointerType === 'touch') e.preventDefault()
         timerRef.current = setTimeout(() => {
             firedRef.current = true
+            navigator.vibrate?.(15)
             onLongPress()
         }, ms)
     }
@@ -53,8 +63,8 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
     return {
         onPointerDown: (e: PointerEvent) => start(e),
         onPointerMove: (e: PointerEvent) => move(e),
-        onPointerUp: (_e: PointerEvent) => clear(),
-        onPointerCancel: (_e: PointerEvent) => clear(),
+        onPointerUp: (_e: PointerEvent) => release(),
+        onPointerCancel: (_e: PointerEvent) => release(),
         onClick: (e: MouseEvent) => {
             if (firedRef.current) {
                 e.preventDefault()

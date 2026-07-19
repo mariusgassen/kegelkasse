@@ -5,9 +5,11 @@ import { useLongPress } from '../useLongPress'
 describe('useLongPress', () => {
     beforeEach(() => {
         vi.useFakeTimers()
+        vi.stubGlobal('navigator', { ...navigator, vibrate: vi.fn() })
     })
     afterEach(() => {
         vi.useRealTimers()
+        vi.unstubAllGlobals()
     })
 
     function fireClick(handlers: ReturnType<typeof useLongPress>) {
@@ -123,5 +125,46 @@ describe('useLongPress', () => {
         const e = { preventDefault: vi.fn() } as any
         result.current.onContextMenu(e)
         expect(e.preventDefault).toHaveBeenCalled()
+    })
+
+    it('vibrates once the hold triggers', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn(), ms: 500 }))
+
+        act(() => { result.current.onPointerDown(down()) })
+        expect(navigator.vibrate).not.toHaveBeenCalled()
+        act(() => { vi.advanceTimersByTime(500) })
+
+        expect(navigator.vibrate).toHaveBeenCalledWith(15)
+    })
+
+    it('vibrates again when the finger lifts off after a successful hold', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn(), ms: 500 }))
+
+        act(() => { result.current.onPointerDown(down()) })
+        act(() => { vi.advanceTimersByTime(500) })
+        act(() => { result.current.onPointerUp({} as any) })
+
+        expect(navigator.vibrate).toHaveBeenNthCalledWith(1, 15)
+        expect(navigator.vibrate).toHaveBeenNthCalledWith(2, 10)
+    })
+
+    it('does not vibrate on release for an ordinary tap that never triggered a hold', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn(), ms: 500 }))
+
+        act(() => { result.current.onPointerDown(down()) })
+        act(() => { vi.advanceTimersByTime(100) })
+        act(() => { result.current.onPointerUp({} as any) })
+
+        expect(navigator.vibrate).not.toHaveBeenCalled()
+    })
+
+    it('vibrates on pointer cancel too, if the hold had already triggered', () => {
+        const { result } = renderHook(() => useLongPress({ onClick: vi.fn(), onLongPress: vi.fn(), ms: 500 }))
+
+        act(() => { result.current.onPointerDown(down()) })
+        act(() => { vi.advanceTimersByTime(500) })
+        act(() => { result.current.onPointerCancel({} as any) })
+
+        expect(navigator.vibrate).toHaveBeenNthCalledWith(2, 10)
     })
 })

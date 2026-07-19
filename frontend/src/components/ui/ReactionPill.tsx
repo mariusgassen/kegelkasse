@@ -25,14 +25,17 @@ interface Props {
 export function ReactionPill({className, title, onClick, allReactions, children}: Props) {
     const t = useT()
     const btnRef = useRef<HTMLButtonElement>(null)
-    const [pos, setPos] = useState<{top: number; left: number} | null>(null)
+    const [pos, setPos] = useState<{bottom: number; left: number} | null>(null)
     const groups = allReactions ?? []
 
     function openList() {
         if (!btnRef.current || groups.length === 0) return
         const rect = btnRef.current.getBoundingClientRect()
+        // Anchored from the viewport bottom so the box grows upward from above the button,
+        // regardless of its (variable) height — a finger holding the button would otherwise
+        // cover a popover placed below it.
         setPos({
-            top: rect.bottom + 6,
+            bottom: window.innerHeight - rect.top + 6,
             left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)),
         })
     }
@@ -62,7 +65,7 @@ export function ReactionPill({className, title, onClick, allReactions, children}
             {pos && groups.length > 0 && createPortal(
                 <div
                     role="tooltip"
-                    style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 200}}
+                    style={{position: 'fixed', bottom: pos.bottom, left: pos.left, zIndex: 9999, width: 200}}
                     className="kce-card p-2 shadow-lg"
                 >
                     <p className="text-[10px] font-bold text-kce-muted mb-1">{t('comment.reaction.reactedBy')}</p>
