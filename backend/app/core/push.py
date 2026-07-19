@@ -80,10 +80,43 @@ def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str,
         raise
 
 
-def _user_wants(user: User, category: str) -> bool:
-    """Return True if the user has this notification category enabled (default: True)."""
+VALID_CHANNELS = ("off", "push", "email")
+
+
+def _user_channel(user: User, category: str, default: str = "push") -> str:
+    """Return the delivery channel ('off' | 'push' | 'email') for a category.
+
+    Backwards compatible with the previous boolean preferences:
+    True → 'push', False → 'off'. Missing / unknown → default ('push').
+    """
+    if not category:
+        return default
     prefs = user.push_preferences or {}
-    return bool(prefs.get(category, True))
+    val = prefs.get(category, default)
+    if isinstance(val, bool):
+        return "push" if val else "off"
+    if val in VALID_CHANNELS:
+        return val
+    return default
+
+
+def _user_wants(user: User, category: str) -> bool:
+    """Return True if the user has this notification category enabled (not 'off')."""
+    return _user_channel(user, category) != "off"
+
+
+def _club_email_config(db: Session, club_id: int | None, cache: dict) -> dict | None:
+    """Resolve (and cache) the SMTP config for a club id within one dispatch call."""
+    if club_id is None:
+        return None
+    if club_id in cache:
+        return cache[club_id]
+    from core.email import get_club_email_config
+    from models.club import Club
+    club = db.query(Club).filter(Club.id == club_id).first()
+    cfg = get_club_email_config(club) if club else None
+    cache[club_id] = cfg
+    return cfg
 
 
 def _log_notification(db: Session, user_id: int, title: str, body: str, url: str) -> None:
@@ -96,19 +129,43 @@ def _log_notification(db: Session, user_id: int, title: str, body: str, url: str
         db.rollback()
 
 
+def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
+                category: str = '', extra: dict | None = None,
+                email_cache: dict | None = None) -> bool:
+    """Deliver one notification to one user, honouring their per-category channel.
+
+    - 'off'   → nothing (no log, no delivery)
+    - 'push'  → in-app log + Web Push (if configured)
+    - 'email' → in-app log + email via the user's club SMTP (if configured)
+
+    Returns True if the notification was logged/delivered (channel != 'off').
+    """
+    channel = _user_channel(user, category)
+    if channel == "off":
+        return False
+    # Always log so the in-app bell shows it, regardless of channel.
+    _log_notification(db, user.id, title, body, url)
+    if channel == "email":
+        from core.email import send_notification_email
+        cfg = _club_email_config(db, user.club_id, email_cache if email_cache is not None else {})
+        if cfg:
+            send_notification_email(cfg, user.email, title, body, url)
+        return True
+    # channel == 'push'
+    if not settings.VAPID_PRIVATE_KEY:
+        return True
+    for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
+        _send_one(db, sub, title, body, url, extra=extra)
+    return True
+
+
 def push_to_regular_member(db: Session, regular_member_id: int, title: str, body: str,
                             url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Send push to every subscriber linked to a regular member."""
+    """Notify every user linked to a regular member (push or email per their preference)."""
     users = db.query(User).filter(User.regular_member_id == regular_member_id, User.is_active == True).all()
+    email_cache: dict = {}
     for user in users:
-        if category and not _user_wants(user, category):
-            continue
-        # Always log so the app can fetch it even without a push subscription
-        _log_notification(db, user.id, title, body, url)
-        if not settings.VAPID_PRIVATE_KEY:
-            continue
-        for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
-            _send_one(db, sub, title, body, url, extra=extra)
+        notify_user(db, user, title, body, url, category=category, extra=extra, email_cache=email_cache)
 
 
 def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
@@ -137,14 +194,22 @@ def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
 
 def push_to_club(db: Session, club_id: int, title: str, body: str,
                  url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Send push to every subscriber in a club (parallelised per subscription)."""
+    """Notify every member of a club — Web Push (parallelised) or email, per preference."""
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
+    email_cache: dict = {}
     subs = []
     for user in users:
-        if category and not _user_wants(user, category):
+        channel = _user_channel(user, category)
+        if channel == "off":
             continue
-        # Always log for hybrid loading
+        # Always log for hybrid loading / in-app bell
         _log_notification(db, user.id, title, body, url)
+        if channel == "email":
+            from core.email import send_notification_email
+            cfg = _club_email_config(db, user.club_id, email_cache)
+            if cfg:
+                send_notification_email(cfg, user.email, title, body, url)
+            continue
         if settings.VAPID_PRIVATE_KEY:
             subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
     if not subs:
@@ -164,34 +229,22 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
 
 def push_to_user(db: Session, user_id: int, title: str, body: str,
                  url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Send push to a single user by user ID."""
+    """Notify a single user by user ID (push or email per their preference)."""
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
         return
-    if category and not _user_wants(user, category):
-        return
-    _log_notification(db, user.id, title, body, url)
-    if not settings.VAPID_PRIVATE_KEY:
-        return
-    for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
-        _send_one(db, sub, title, body, url, extra=extra)
+    notify_user(db, user, title, body, url, category=category, extra=extra)
 
 
 def push_to_club_admins(db: Session, club_id: int, title: str, body: str,
                         url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Send push to all admin/superadmin subscribers in a club."""
+    """Notify all admin/superadmin members of a club (push or email per preference)."""
     from models.user import UserRole
     users = db.query(User).filter(
         User.club_id == club_id,
         User.is_active == True,
         User.role.in_([UserRole.admin, UserRole.superadmin]),
     ).all()
+    email_cache: dict = {}
     for user in users:
-        if category and not _user_wants(user, category):
-            continue
-        # Always log for hybrid loading
-        _log_notification(db, user.id, title, body, url)
-        if not settings.VAPID_PRIVATE_KEY:
-            continue
-        for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
-            _send_one(db, sub, title, body, url, extra=extra)
+        notify_user(db, user, title, body, url, category=category, extra=extra, email_cache=email_cache)

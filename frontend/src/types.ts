@@ -60,18 +60,32 @@ export interface ScheduledEvening {
     evening_id: number | null  // linked Evening id if already started
 }
 
+export type NotificationChannel = 'off' | 'push' | 'email'
+
 export interface PushPreferences {
-    penalties: boolean
-    evenings: boolean
-    schedule: boolean
-    payments: boolean
-    games: boolean
-    members: boolean
-    comments: boolean
-    reminder_debt: boolean
-    reminder_schedule: boolean
-    reminder_payments: boolean
+    penalties: NotificationChannel
+    evenings: NotificationChannel
+    schedule: NotificationChannel
+    payments: NotificationChannel
+    games: NotificationChannel
+    members: NotificationChannel
+    comments: NotificationChannel
+    reminder_debt: NotificationChannel
+    reminder_schedule: NotificationChannel
+    reminder_payments: NotificationChannel
     reminder_schedule_days?: number
+}
+
+export interface EmailSettings {
+    enabled: boolean
+    host: string
+    port: number
+    username: string
+    from_address: string
+    from_name: string
+    use_tls: boolean
+    use_ssl: boolean
+    password_set: boolean
 }
 
 export interface ReminderTypeSettings {

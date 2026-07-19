@@ -1587,6 +1587,102 @@ def update_reminder_settings(data: ReminderSettingsUpdate, db: Session = Depends
     return {"ok": True}
 
 
+# ── Email (SMTP) server settings — per club ──
+
+_EMAIL_DEFAULTS = {
+    "enabled": False,
+    "host": "",
+    "port": 587,
+    "username": "",
+    "from_address": "",
+    "from_name": "",
+    "use_tls": True,
+    "use_ssl": False,
+}
+
+
+@router.get("/email-settings")
+def get_email_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: return the club's SMTP config. The password is never returned (only whether it is set)."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    saved = ((s.extra or {}).get("email") or {}) if s else {}
+    result = dict(_EMAIL_DEFAULTS)
+    for key in _EMAIL_DEFAULTS:
+        if key in saved:
+            result[key] = saved[key]
+    result["password_set"] = bool(saved.get("password"))
+    return result
+
+
+class EmailSettingsUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None  # None = keep existing; string = replace
+    from_address: Optional[str] = None
+    from_name: Optional[str] = None
+    use_tls: Optional[bool] = None
+    use_ssl: Optional[bool] = None
+
+
+@router.patch("/email-settings")
+def update_email_settings(data: EmailSettingsUpdate, db: Session = Depends(get_db),
+                          user: User = Depends(require_club_admin)):
+    """Admin: update the club's SMTP config. Password is only changed when provided."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    from core.crypto import encrypt_secret
+    extra = dict(s.extra or {})
+    cfg = dict(extra.get("email", {}))
+    payload = data.model_dump(exclude_unset=True)
+    for key, value in payload.items():
+        if key == "password":
+            if value:  # only overwrite when a non-empty password is supplied — encrypted at rest
+                cfg["password"] = encrypt_secret(value)
+            continue
+        cfg[key] = value
+    extra["email"] = cfg
+    s.extra = extra
+    db.commit()
+    result = dict(_EMAIL_DEFAULTS)
+    for key in _EMAIL_DEFAULTS:
+        if key in cfg:
+            result[key] = cfg[key]
+    result["password_set"] = bool(cfg.get("password"))
+    return result
+
+
+class TestEmailRequest(BaseModel):
+    to: Optional[str] = None
+
+
+@router.post("/email-settings/test")
+def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session = Depends(get_db),
+                        user: User = Depends(require_club_admin)):
+    """Admin: send a test email using the saved SMTP config (to the given address or self)."""
+    from core.email import get_club_email_config, send_club_email, build_email_bodies
+    club = db.query(Club).filter(Club.id == user.club_id).first()
+    cfg = get_club_email_config(club)
+    if not cfg:
+        raise HTTPException(400, "E-Mail-Versand ist nicht konfiguriert oder deaktiviert.")
+    to_address = (data.to or user.email or "").strip()
+    if not to_address:
+        raise HTTPException(400, "Keine Empfängeradresse angegeben.")
+    subject = "Kegelkasse 🎳 — Test-E-Mail"
+    body = "Diese Test-E-Mail bestätigt, dass der E-Mail-Versand für deinen Verein funktioniert."
+    text, html = build_email_bodies(subject, body, "/")
+    try:
+        send_club_email(cfg, to_address, subject, text, html)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Test email failed for club %s: %s", user.club_id, exc)
+        raise HTTPException(400, f"E-Mail konnte nicht gesendet werden: {exc}")
+    logger.info("Test email sent for club %s to %s", user.club_id, to_address)
+    return {"ok": True, "sent_to": to_address}
+
+
 class BroadcastPushRequest(BaseModel):
     title: str
     body: str

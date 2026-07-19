@@ -1463,9 +1463,43 @@ describe('api.updatePushPreferences', () => {
     it('PATCHes /push/preferences', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({}))
         const { api } = await import('../client')
-        await api.updatePushPreferences({ penalties: false })
+        await api.updatePushPreferences({ penalties: 'email' })
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/push/preferences')
         expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ penalties: 'email' })
+    })
+})
+
+describe('email settings', () => {
+    it('GETs /club/email-settings', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({}))
+        const { api } = await import('../client')
+        await api.getEmailSettings()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/email-settings')
+        expect(mockFetch.mock.calls[0][1].method).toBe('GET')
+    })
+    it('PATCHes /club/email-settings', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({}))
+        const { api } = await import('../client')
+        await api.updateEmailSettings({ enabled: true, host: 'smtp.x.de', password: 'secret' })
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/email-settings')
+        expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ enabled: true, host: 'smtp.x.de', password: 'secret' })
+    })
+    it('POSTs /club/email-settings/test with recipient', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true, sent_to: 'a@b.de' }))
+        const { api } = await import('../client')
+        await api.testEmailSettings('a@b.de')
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/email-settings/test')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ to: 'a@b.de' })
+    })
+    it('POSTs /club/email-settings/test without recipient', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true, sent_to: 'self@b.de' }))
+        const { api } = await import('../client')
+        await api.testEmailSettings()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/email-settings/test')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({})
     })
 })
 

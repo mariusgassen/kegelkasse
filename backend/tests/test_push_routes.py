@@ -267,10 +267,22 @@ class TestGetPreferences:
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
-        assert data["penalties"] is True
-        assert data["evenings"] is True
-        assert data["games"] is True
-        assert data["reminder_debt"] is True
+        # New default channel for every category is 'push'
+        assert data["penalties"] == "push"
+        assert data["evenings"] == "push"
+        assert data["games"] == "push"
+        assert data["reminder_debt"] == "push"
+
+    def test_normalizes_legacy_boolean_prefs(self, client, auth_headers, db, user):
+        # Simulate a user whose prefs were saved as booleans before the channel migration.
+        user.push_preferences = {"penalties": True, "games": False}
+        db.commit()
+        r = client.get("/api/v1/push/preferences", headers=auth_headers)
+        data = r.json()
+        assert data["penalties"] == "push"  # True → push
+        assert data["games"] == "off"       # False → off
+        user.push_preferences = None
+        db.commit()
 
     def test_401_without_auth(self, client):
         r = client.get("/api/v1/push/preferences")
@@ -285,35 +297,45 @@ class TestUpdatePreferences:
     def test_partial_update(self, client, auth_headers, db, user):
         r = client.patch(
             "/api/v1/push/preferences",
-            json={"penalties": False, "games": False},
+            json={"penalties": "off", "games": "email"},
             headers=auth_headers,
         )
         assert r.status_code == 200
         data = r.json()
-        assert data["penalties"] is False
-        assert data["games"] is False
+        assert data["penalties"] == "off"
+        assert data["games"] == "email"
         # unmodified keys keep defaults
-        assert data["evenings"] is True
+        assert data["evenings"] == "push"
+
+    def test_invalid_channel_is_ignored(self, client, auth_headers, db, user):
+        r = client.patch(
+            "/api/v1/push/preferences",
+            json={"penalties": "carrier-pigeon"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        # Invalid value ignored → stays at default
+        assert r.json()["penalties"] == "push"
 
     def test_full_round_trip(self, client, auth_headers, db, user):
-        client.patch("/api/v1/push/preferences", json={"reminder_debt": False}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": "off"}, headers=auth_headers)
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
-        assert r.json()["reminder_debt"] is False
+        assert r.json()["reminder_debt"] == "off"
         # restore
-        client.patch("/api/v1/push/preferences", json={"reminder_debt": True}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"reminder_debt": "push"}, headers=auth_headers)
 
     def test_401_without_auth(self, client):
-        r = client.patch("/api/v1/push/preferences", json={"penalties": False})
+        r = client.patch("/api/v1/push/preferences", json={"penalties": "off"})
         assert r.status_code == 401
 
     def test_comments_preference_persists(self, client, auth_headers, db, user):
-        r = client.patch("/api/v1/push/preferences", json={"comments": False}, headers=auth_headers)
+        r = client.patch("/api/v1/push/preferences", json={"comments": "email"}, headers=auth_headers)
         assert r.status_code == 200
-        assert r.json()["comments"] is False
+        assert r.json()["comments"] == "email"
         r = client.get("/api/v1/push/preferences", headers=auth_headers)
-        assert r.json()["comments"] is False
+        assert r.json()["comments"] == "email"
         # restore
-        client.patch("/api/v1/push/preferences", json={"comments": True}, headers=auth_headers)
+        client.patch("/api/v1/push/preferences", json={"comments": "push"}, headers=auth_headers)
 
 
 # ---------------------------------------------------------------------------

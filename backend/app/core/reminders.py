@@ -4,12 +4,11 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from core.push import _send_one, _user_wants, push_to_club_admins, push_to_regular_member
+from core.push import notify_user, push_to_club_admins, push_to_regular_member
 from models.club import Club
 from models.evening import Evening, EveningPlayer, RegularMember
 from models.payment import MemberPayment, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyLog
-from models.push import PushSubscription
 from models.schedule import MemberRsvp, ScheduledEvening
 from models.user import User
 
@@ -168,9 +167,8 @@ def send_upcoming_evening_reminders(db: Session, club: Club, settings: dict, tod
     ).all()
 
     sent = 0
+    email_cache: dict = {}
     for user in users:
-        if not _user_wants(user, "reminder_schedule"):
-            continue
         prefs = user.push_preferences or {}
         days_before = int(prefs.get("reminder_schedule_days", club_default_days))
         target_date = today + timedelta(days=days_before)
@@ -178,15 +176,15 @@ def send_upcoming_evening_reminders(db: Session, club: Club, settings: dict, tod
             continue
         venue = upcoming_by_date[target_date]
         date_str = target_date.strftime("%-d. %B")
-        subs = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all()
-        for sub in subs:
-            _send_one(
-                db, sub,
-                "🎳 Kegeln in Kürze",
-                f"Kegeln in {days_before} {'Tag' if days_before == 1 else 'Tagen'} ({date_str}){f' – {venue}' if venue else ''}",
-                "/schedule",
-            )
-        if subs:
+        delivered = notify_user(
+            db, user,
+            "🎳 Kegeln in Kürze",
+            f"Kegeln in {days_before} {'Tag' if days_before == 1 else 'Tagen'} ({date_str}){f' – {venue}' if venue else ''}",
+            "/schedule",
+            category="reminder_schedule",
+            email_cache=email_cache,
+        )
+        if delivered:
             sent += 1
     return sent
 
