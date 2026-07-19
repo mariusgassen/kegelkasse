@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
     # Public base URL of the app — used to build absolute links in emails (e.g. https://kegelkasse.example.com)
     APP_BASE_URL: str = ""
+    # Encryption key(s) for secrets at rest (e.g. per-club SMTP passwords).
+    # Comma-separated list of Fernet keys — the first encrypts, all decrypt (for
+    # rotation). Generate one with: python app/scripts/generate_secret_key.py
+    # When empty, a key is derived from SECRET_KEY (so encryption still works
+    # out of the box, but rotating SECRET_KEY would then invalidate secrets).
+    SECRETS_ENCRYPTION_KEY: str = ""
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

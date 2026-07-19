@@ -154,6 +154,48 @@ class TestSecretCrypto:
         from core.crypto import decrypt_secret
         assert decrypt_secret("enc:v1:not-a-valid-token") == ""
 
+    def test_uses_configured_key_over_secret_key_fallback(self):
+        from cryptography.fernet import Fernet
+        from core.config import settings
+        from core.crypto import decrypt_secret, encrypt_secret
+        key = Fernet.generate_key().decode()
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", key):
+            enc = encrypt_secret("hunter2")
+            assert decrypt_secret(enc) == "hunter2"
+        # Without the configured key (SECRET_KEY-derived fallback), it no longer decrypts.
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", ""):
+            assert decrypt_secret(enc) == ""
+
+    def test_key_rotation_decrypts_old_and_encrypts_with_new(self):
+        from cryptography.fernet import Fernet
+        from core.config import settings
+        from core.crypto import decrypt_secret, encrypt_secret
+        old_key = Fernet.generate_key().decode()
+        new_key = Fernet.generate_key().decode()
+
+        # Encrypt under the old key.
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", old_key):
+            old_ct = encrypt_secret("s3cr3t")
+
+        # Rotate: new key first, old key kept for decryption.
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", f"{new_key},{old_key}"):
+            assert decrypt_secret(old_ct) == "s3cr3t"      # old ciphertext still readable
+            new_ct = encrypt_secret("s3cr3t")               # new writes use the new key
+            assert new_ct != old_ct
+
+        # After dropping the old key, the old ciphertext is unreadable but the new one works.
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", new_key):
+            assert decrypt_secret(new_ct) == "s3cr3t"
+            assert decrypt_secret(old_ct) == ""
+
+    def test_invalid_key_entries_ignored_falls_back(self):
+        from core.config import settings
+        from core.crypto import decrypt_secret, encrypt_secret
+        # All-invalid list → falls back to the SECRET_KEY-derived key, still works.
+        with patch.object(settings, "SECRETS_ENCRYPTION_KEY", "not-a-key, also-bad "):
+            enc = encrypt_secret("x")
+            assert decrypt_secret(enc) == "x"
+
 
 class TestSendClubEmail:
     def test_uses_starttls(self, db, club):
