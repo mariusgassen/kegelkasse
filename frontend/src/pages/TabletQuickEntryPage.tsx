@@ -15,6 +15,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
+import {celebrate} from '@/lib/celebrate'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 
@@ -307,7 +308,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
         if (len > prev) {
             // One or more new throws — advance by delta
-            setCurrentTurnIdx(t => t + (len - prev))
+            setCurrentTurnIdx(prevIdx => prevIdx + (len - prev))
+            if (liveThrows.slice(prev, len).some(th => th.pins >= 9)) {
+                celebrate('allnine', t('celebration.allnine'))
+            }
         }
     }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
 
@@ -523,6 +527,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 scores,
                 loser_penalty: runningGame.loser_penalty,
             })
+            if (runningGame.is_opener && finishWinnerRef.startsWith('p:')) {
+                celebrate('king', t('celebration.king'))
+            }
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})

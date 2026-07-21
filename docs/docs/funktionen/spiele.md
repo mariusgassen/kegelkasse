@@ -43,6 +43,13 @@ Das **Eröffnungsspiel** (erkennbar am Kronensymbol 👑) bestimmt den **König*
 - Der Gewinner des Eröffnungsspiels erhält die Königsauszeichnung
 - Die Königsmarkierung ist in der Spielerliste sichtbar
 
+## 🎉 Feier-Effekte
+
+Zwei Momente lösen einen kurzen Konfetti-Effekt inklusive Sound aus: die **Königskrönung** (Eröffnungsspiel mit Spieler-Sieger) und ein Wurf mit **Alle Neune** (alle neun Kegel auf einen Wurf) — egal ob in der normalen Spiele-Ansicht, der Tablet-Schnellerfassung oder am Kamera-Kiosk erfasst.
+
+- Kann in **Profil → Einstellungen → 🎉 Feier-Effekte** komplett deaktiviert werden
+- Respektiert die Systemeinstellung „Bewegung reduzieren" (`prefers-reduced-motion`) — dann bleibt nur der Ton, ohne Konfetti-Animation
+
 ## Verliererstrafen
 
 Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des Spiels automatisch Strafeneinträge für alle Nicht-Gewinner erstellt.

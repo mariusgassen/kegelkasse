@@ -35,6 +35,7 @@ vi.mock('@/api/client.ts', () => ({
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
+vi.mock('@/lib/celebrate', () => ({ celebrate: vi.fn() }))
 
 vi.mock('@/lib/cameraEngine.ts', () => ({
     readFrame: vi.fn(() => ({
@@ -412,6 +413,19 @@ describe('CameraCapturePage — test throw mode', () => {
             }))
         })
     })
+
+    it('celebrates alle neune when the (default 9-pin) test throw is submitted', async () => {
+        const { celebrate } = await import('@/lib/celebrate')
+        await renderCameraCapturePage()
+        fireEvent.click(screen.getByText('Hauptspiel'))
+        await waitFor(() => screen.getByText(/camera\.testMode/))
+        fireEvent.click(screen.getByText(/camera\.testMode/))
+        await waitFor(() => screen.getByText('camera.testModeHint'))
+        fireEvent.click(screen.getByText(/camera\.testSend/))
+        await waitFor(() => {
+            expect(celebrate).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+        })
+    })
 })
 
 describe('CameraCapturePage — game finish', () => {
@@ -462,12 +476,56 @@ describe('CameraCapturePage — game finish', () => {
         })
     })
 
+    it('does not celebrate when a non-opener game (RUNNING_GAME) is finished', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { celebrate } = await import('@/lib/celebrate')
+        await renderCameraCapturePage()
+        fireEvent.click(screen.getByText('Hauptspiel'))
+        await waitFor(() => screen.getByText('game.winner'))
+        const adminBtns = screen.getAllByText('Admin')
+        fireEvent.click(adminBtns[adminBtns.length - 1])
+        fireEvent.click(screen.getByText(/game\.finish/))
+        await waitFor(() => expect(api.finishGame).toHaveBeenCalled())
+        expect(celebrate).not.toHaveBeenCalled()
+    })
+
     it('finish button is disabled when no winner selected', async () => {
         await renderCameraCapturePage()
         fireEvent.click(screen.getByText('Hauptspiel'))
         await waitFor(() => screen.getByText(/game\.finish/))
         const finishBtn = screen.getByText(/game\.finish/)
         expect(finishBtn).toBeDisabled()
+    })
+})
+
+describe('CameraCapturePage — king celebration (opener game)', () => {
+    const OPENER_GAME = { ...RUNNING_GAME, is_opener: true }
+    const EVENING_WITH_OPENER = { ...ACTIVE_EVENING, games: [OPENER_GAME] }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: EVENING_WITH_OPENER as any,
+            invalidate: vi.fn(),
+        } as any)
+        await setupAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.setActivePlayer).mockResolvedValue(undefined as any)
+        vi.mocked(api.finishGame).mockResolvedValue(undefined as any)
+    })
+
+    it('celebrates when the opener game is finished with a player winner', async () => {
+        const { celebrate } = await import('@/lib/celebrate')
+        await renderCameraCapturePage()
+        fireEvent.click(screen.getByText('Hauptspiel'))
+        await waitFor(() => screen.getByText('game.winner'))
+        const adminBtns = screen.getAllByText('Admin')
+        fireEvent.click(adminBtns[adminBtns.length - 1])
+        fireEvent.click(screen.getByText(/game\.finish/))
+        await waitFor(() => {
+            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+        })
     })
 })
 

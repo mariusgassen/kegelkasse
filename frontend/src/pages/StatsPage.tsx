@@ -13,7 +13,7 @@ import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
-import {interpretR, linearRegression, pearson} from '@/lib/stats'
+import {computeHallOfShame, interpretR, linearRegression, pearson, type ShameEntry} from '@/lib/stats'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -934,6 +934,48 @@ function YearPodium({players, myMemberId, t, onSelect}: {
                     )
                 })}
             </div>
+        </div>
+    )
+}
+
+// ── Hall of Shame ────────────────────────────────────────────────────────────
+
+function HallOfShame({players, t, onSelect}: {
+    players: YearPlayer[]
+    t: (k: any) => string
+    onSelect: (player: YearPlayer, rank: number) => void
+}) {
+    const entries = computeHallOfShame(players)
+    if (entries.length === 0) return null
+
+    const formatValue = (e: ShameEntry<YearPlayer>) => {
+        switch (e.key) {
+            case 'rate':
+                return `${fe(e.rawValue)}/Abend`
+            case 'thirst':
+                return `${e.rawValue} ${t('stats.rounds')}`
+            case 'worstThrow':
+                return `Ø ${e.rawValue}`
+            case 'bridesmaid':
+                return `${e.rawValue} ${t('stats.evenings')} ${t('stats.noWins')}`
+        }
+    }
+
+    return (
+        <div className="mb-4">
+            <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hos')}</div>
+            {entries.map(e => (
+                <button key={e.key} type="button"
+                        className="kce-card p-3 mb-2 flex items-center gap-3 w-full text-left active:opacity-70 transition-opacity"
+                        onClick={() => onSelect(e.player, players.indexOf(e.player))}>
+                    <span className="text-2xl">{e.icon}</span>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-kce-muted">{t(`stats.shame.${e.key}` as any)}</div>
+                        <div className="text-sm font-bold truncate">{e.player.nickname || e.player.name}</div>
+                    </div>
+                    <div className="text-kce-amber font-bold text-sm flex-shrink-0">{formatValue(e)}</div>
+                </button>
+            ))}
         </div>
     )
 }
@@ -2904,6 +2946,10 @@ export function StatsPage() {
 
                     {!mq && players.length >= 3 && (
                         <YearPodium players={players} myMemberId={user?.regular_member_id} t={t} onSelect={(p, rank) => setSelectedPlayer({player: p, rank})}/>
+                    )}
+
+                    {!mq && (
+                        <HallOfShame players={players} t={t} onSelect={(p, rank) => setSelectedPlayer({player: p, rank})}/>
                     )}
 
                     <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>

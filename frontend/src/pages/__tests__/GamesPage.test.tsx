@@ -34,6 +34,7 @@ vi.mock('@/api/client.ts', () => ({
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
 vi.mock('@/components/ui/Toast', () => ({ showToast: vi.fn() }))
+vi.mock('@/lib/celebrate', () => ({ celebrate: vi.fn() }))
 vi.mock('@/components/ui/Empty.tsx', () => ({
     Empty: ({ text }: any) => <div>{text}</div>,
 }))
@@ -371,6 +372,51 @@ describe('GamesPage — finish game sheet', () => {
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
+    })
+
+    it('celebrates when the opener game is finished with a player winner', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { celebrate } = await import('@/lib/celebrate')
+        vi.mocked(api.finishGame).mockResolvedValueOnce({} as any)
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
+        await waitFor(() => expect(screen.getAllByText('Hans').length).toBeGreaterThan(0))
+        const hansButtons = screen.getAllByRole('button', { name: 'Hans' })
+        fireEvent.click(hansButtons[0])
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+        })
+    })
+})
+
+describe('GamesPage — finish game sheet (non-opener game)', () => {
+    const NON_OPENER_RUNNING_GAME = { ...RUNNING_GAME, is_opener: false }
+    const EVENING_NON_OPENER = { ...ACTIVE_EVENING, games: [OPEN_GAME, NON_OPENER_RUNNING_GAME, FINISHED_GAME] }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: EVENING_NON_OPENER as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('does not celebrate when a non-opener game is finished', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { celebrate } = await import('@/lib/celebrate')
+        vi.mocked(api.finishGame).mockResolvedValueOnce({} as any)
+        await renderGamesPage()
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
+        await waitFor(() => expect(screen.getAllByText('Hans').length).toBeGreaterThan(0))
+        const hansButtons = screen.getAllByRole('button', { name: 'Hans' })
+        fireEvent.click(hansButtons[0])
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.finishGame).toHaveBeenCalled()
+        })
+        expect(celebrate).not.toHaveBeenCalled()
     })
 })
 
