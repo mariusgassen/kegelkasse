@@ -223,15 +223,36 @@ def build_digest(db: Session, user: User, since: datetime | None, now: datetime,
     }
 
 
+_THREAD_ICON = {"announcement": "📣", "trip": "🚌", "highlight": "✨"}
+
+
 def _community_news(db: Session, club_id: int, since: datetime, locale: str | None) -> list[dict]:
-    """New comments and item reactions from club members since ``since`` (deep-linked)."""
-    from api.v1.comments import _parent_url
+    """News threads (highlights/announcements/trips) with new activity since ``since``.
+
+    Comments and reactions are grouped per parent item into one row per thread —
+    rather than one row per event — showing how much happened and deep-linking
+    straight to the newest activity in that thread.
+    """
+    from api.v1.comments import _parent_title, _parent_url
 
     member_user_ids = {row.id for row in db.query(User.id).filter(User.club_id == club_id).all()}
     if not member_user_ids:
         return []
 
-    items: list[tuple[datetime, dict]] = []
+    # (parent_type, parent_id) -> aggregate of new activity in that thread.
+    threads: dict[tuple[str, int], dict] = {}
+
+    def _touch(parent_type: str, parent_id: int, when: datetime, comment_id: int | None, is_comment: bool) -> None:
+        key = (parent_type, parent_id)
+        th = threads.setdefault(key, {"comments": 0, "reactions": 0, "latest": when, "latest_comment_id": None})
+        if is_comment:
+            th["comments"] += 1
+        else:
+            th["reactions"] += 1
+        if when >= th["latest"]:
+            th["latest"] = when
+            th["latest_comment_id"] = comment_id if is_comment else None
+
     for c in (
         db.query(Comment)
         .filter(
@@ -239,34 +260,34 @@ def _community_news(db: Session, club_id: int, since: datetime, locale: str | No
             Comment.is_deleted == False,  # noqa: E712
             Comment.created_at >= since,
         )
-        .order_by(Comment.created_at.desc())
-        .limit(MAX_ROWS)
         .all()
     ):
-        snippet = (c.text or "").strip().replace("\n", " ")
-        if len(snippet) > 60:
-            snippet = snippet[:57] + "…"
-        items.append((_aware(c.created_at), {
-            "label": f"💬 {t(locale, 'digest.community.comment')}",
-            "value": snippet,
-            "url": _parent_url(c.parent_type, c.parent_id, c.id),
-        }))
+        _touch(c.parent_type, c.parent_id, _aware(c.created_at), c.id, True)
 
     for r in (
         db.query(ItemReaction)
         .filter(ItemReaction.user_id.in_(member_user_ids), ItemReaction.created_at >= since)
-        .order_by(ItemReaction.created_at.desc())
-        .limit(MAX_ROWS)
         .all()
     ):
-        items.append((_aware(r.created_at), {
-            "label": f"{r.emoji} {t(locale, 'digest.community.reaction')}",
-            "value": "",
-            "url": _parent_url(r.parent_type, r.parent_id),
+        _touch(r.parent_type, r.parent_id, _aware(r.created_at), None, False)
+
+    rows: list[tuple[datetime, dict]] = []
+    for (parent_type, parent_id), th in threads.items():
+        icon = _THREAD_ICON.get(parent_type, "💬")
+        title = _parent_title(parent_type, parent_id, db) or t(locale, "digest.community.untitled")
+        parts = []
+        if th["comments"]:
+            parts.append(f"💬 {th['comments']}")
+        if th["reactions"]:
+            parts.append(f"❤️ {th['reactions']}")
+        rows.append((th["latest"], {
+            "label": f"{icon} {title}",
+            "value": " · ".join(parts),
+            "url": _parent_url(parent_type, parent_id, th["latest_comment_id"]),
         }))
 
-    items.sort(key=lambda x: x[0] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    return [it for _, it in items[:MAX_ROWS]]
+    rows.sort(key=lambda x: x[0] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return [it for _, it in rows[:MAX_ROWS]]
 
 
 def send_user_digest(db: Session, user: User, cfg: dict, now: datetime,

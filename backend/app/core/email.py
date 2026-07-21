@@ -126,18 +126,37 @@ def build_email_bodies(title: str, body: str, url: str = "/", theme: dict | None
 
 
 def _header_html(theme: dict) -> str:
-    """Branded header band with the club logo (or name) on the primary color."""
-    inner = (
-        f'<img src="{escape(theme["logo_url"])}" alt="{escape(theme["club_name"])}" '
-        'style="max-height:40px;vertical-align:middle">'
-        if theme.get("logo_url")
-        else f'<span style="font-size:18px;font-weight:800;color:{escape(theme["on_primary"])}">'
-             f'{escape(theme["club_name"])} 🎳</span>'
-    )
+    """Branded header band: club logo as a circular avatar next to the club name.
+
+    Mimics the app's own avatar treatment so the club is instantly recognizable
+    even though mail clients don't let transactional senders control the actual
+    inbox sender avatar (that requires Gravatar/BIMI, both outside this app's
+    control) — this is the closest equivalent achievable in the message body.
+    """
+    name = theme["club_name"]
+    logo_url = theme.get("logo_url")
+    if logo_url:
+        avatar = (
+            f'<img src="{escape(logo_url)}" alt="{escape(name)}" width="36" height="36" '
+            'style="width:36px;height:36px;border-radius:50%;object-fit:cover;'
+            'vertical-align:middle;border:2px solid #ffffff;background:#ffffff">'
+        )
+    else:
+        initial = escape(name[:1].upper()) if name else "🎳"
+        avatar = (
+            '<span style="display:inline-block;width:36px;height:36px;border-radius:50%;'
+            f'background:#ffffff;color:{escape(theme["primary"])};font-weight:800;'
+            f'font-size:16px;line-height:36px;text-align:center;vertical-align:middle">'
+            f'{initial}</span>'
+        )
     return (
-        f'<div style="background:{escape(theme["primary"])};padding:16px 20px;'
+        f'<div style="background:{escape(theme["primary"])};padding:14px 20px;'
         'border-radius:12px;text-align:center;margin:0 0 20px">'
-        f'{inner}</div>'
+        f'{avatar}'
+        '<span style="display:inline-block;vertical-align:middle;margin-left:10px;'
+        f'font-size:17px;font-weight:800;color:{escape(theme["on_primary"])}">'
+        f'{escape(name)} 🎳</span>'
+        '</div>'
     )
 
 
@@ -234,6 +253,7 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
     subject = t(locale, "digest.subject")
     name = data.get("member_name") or ""
     since = data.get("since")
+    app_link = _abs_link("/")
 
     # ---- Plain-text body ----
     lines = [t(locale, "digest.greeting", name=name)]
@@ -241,9 +261,18 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
         lines.append(t(locale, "digest.intro", since=format_date(since, locale)))
     else:
         lines.append(t(locale, "digest.intro_first"))
+    if app_link:
+        lines.append(app_link)
     lines.append("")
 
     html_parts: list[str] = []
+    cta_html = (
+        f'<p style="margin:2px 0 20px"><a href="{escape(app_link)}" '
+        f'style="background:{escape(theme["primary"])};color:{escape(theme["on_primary"])};'
+        'text-decoration:none;padding:9px 16px;border-radius:8px;font-weight:700;'
+        f'font-size:14px;display:inline-block">{escape(t(locale, "digest.button.open"))}</a></p>'
+        if app_link else ""
+    )
 
     bal = data.get("balance")
     if bal:
@@ -290,6 +319,7 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
         f'<p style="margin:0 0 4px;font-size:15px">{escape(t(locale, "digest.greeting", name=name))}</p>'
         f'<p style="margin:0 0 8px;font-size:15px;color:#5a4a3e">'
         f'{escape(t(locale, "digest.intro", since=format_date(since, locale)) if since else t(locale, "digest.intro_first"))}</p>'
+        f'{cta_html}'
         f'{"".join(html_parts)}'
         '<hr style="border:none;border-top:1px solid #e5ddd5;margin:28px 0 12px">'
         f'<p style="margin:0;font-size:12px;color:#8a7a6e;line-height:1.5">'
