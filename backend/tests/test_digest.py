@@ -19,7 +19,9 @@ from core.digest import (build_digest, is_digest_due, send_all_digests)
 from core.email import build_digest_email, email_theme
 from core.i18n import format_date, format_money, normalize_locale, t
 from models.club import Club, ClubSettings
-from models.evening import Evening, EveningPlayer, RegularMember
+from models.comment import Comment, ItemReaction
+from models.committee import ClubAnnouncement
+from models.evening import Evening, EveningHighlight, EveningPlayer, RegularMember
 from models.payment import MemberPayment
 from models.penalty import PenaltyLog
 from models.push import NotificationLog
@@ -36,10 +38,14 @@ def cleanup_digest(db: Session, club: Club):
     db.query(PenaltyLog).delete(synchronize_session=False)
     db.query(MemberPayment).delete(synchronize_session=False)
     db.query(EveningPlayer).delete(synchronize_session=False)
+    db.query(EveningHighlight).delete(synchronize_session=False)
     db.query(Evening).filter(Evening.club_id == club.id).delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.query(NotificationLog).delete(synchronize_session=False)
+    db.query(Comment).delete(synchronize_session=False)
+    db.query(ItemReaction).delete(synchronize_session=False)
+    db.query(ClubAnnouncement).filter(ClubAnnouncement.club_id == club.id).delete(synchronize_session=False)
     db.commit()
 
 
@@ -199,6 +205,115 @@ def test_build_digest_excludes_old_activity(db: Session, club: Club, user: User,
 
 
 # ---------------------------------------------------------------------------
+# Community news — threaded grouping
+# ---------------------------------------------------------------------------
+
+def test_community_news_groups_by_thread_with_deep_link(db: Session, club: Club, user: User):
+    from core.digest import _community_news
+
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+
+    a = ClubAnnouncement(club_id=club.id, title="Sommerfest", text="Details folgen",
+                         created_by=user.id, created_at=inside)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+
+    c1 = Comment(parent_type="announcement", parent_id=a.id, text="Bin dabei!",
+                created_by=user.id, created_at=inside)
+    db.add(c1)
+    db.commit()
+    db.refresh(c1)
+    c2 = Comment(parent_type="announcement", parent_id=a.id, text="Ich auch",
+                created_by=user.id, created_at=inside + timedelta(minutes=5))
+    db.add(c2)
+    db.commit()
+    db.refresh(c2)
+    db.add(ItemReaction(parent_type="announcement", parent_id=a.id, user_id=user.id, emoji="❤️",
+                        created_at=inside + timedelta(minutes=1)))
+    db.commit()
+
+    news = _community_news(db, club.id, since, "de")
+
+    # One row per thread, not one per comment/reaction.
+    assert len(news) == 1
+    row = news[0]
+    assert row["label"] == "📣 Sommerfest"
+    assert row["value"] == "💬 2 · ❤️ 1"
+    # Deep-links to the newest activity in the thread (the later of the two comments).
+    assert row["url"] == f"/#committee:announcements?item={a.id}&comment={c2.id}"
+
+
+def test_community_news_links_to_item_when_newest_activity_is_a_reaction(db: Session, club: Club, user: User):
+    from core.digest import _community_news
+
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+
+    a = ClubAnnouncement(club_id=club.id, title="Update", created_by=user.id, created_at=inside)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    c = Comment(parent_type="announcement", parent_id=a.id, text="Nice", created_by=user.id, created_at=inside)
+    db.add(c)
+    db.commit()
+    db.add(ItemReaction(parent_type="announcement", parent_id=a.id, user_id=user.id, emoji="👍",
+                        created_at=inside + timedelta(minutes=10)))
+    db.commit()
+
+    news = _community_news(db, club.id, since, "de")
+    assert len(news) == 1
+    # Newest activity is the reaction (no single comment to point at) → link to the item itself.
+    assert news[0]["url"] == f"/#committee:announcements?item={a.id}"
+    assert news[0]["value"] == "💬 1 · ❤️ 1"
+
+
+def test_community_news_untitled_fallback_for_textless_highlight(db: Session, club: Club, user: User):
+    from core.digest import _community_news
+
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+
+    e = Evening(club_id=club.id, date=inside, is_closed=False, created_at=inside)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
+    h = EveningHighlight(evening_id=e.id, media_url="https://x/y.jpg", created_by=user.id, created_at=inside)
+    db.add(h)
+    db.commit()
+    db.refresh(h)
+    db.add(Comment(parent_type="highlight", parent_id=h.id, text="😍", created_by=user.id, created_at=inside))
+    db.commit()
+
+    news = _community_news(db, club.id, since, "de")
+    assert len(news) == 1
+    assert news[0]["label"] == "✨ Neuigkeit"
+
+
+def test_build_digest_includes_threaded_community_news(db: Session, club: Club, user: User, member: RegularMember):
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+
+    a = ClubAnnouncement(club_id=club.id, title="Sommerfest", created_by=user.id, created_at=inside)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    db.add(Comment(parent_type="announcement", parent_id=a.id, text="Bin dabei!",
+                   created_by=user.id, created_at=inside))
+    db.commit()
+
+    data = build_digest(db, user, since, now)
+    assert data is not None
+    assert len(data["community"]) == 1
+    assert data["community"][0]["label"] == "📣 Sommerfest"
+
+
+# ---------------------------------------------------------------------------
 # Email rendering
 # ---------------------------------------------------------------------------
 
@@ -232,6 +347,45 @@ def test_build_digest_email_renders_sections_and_links():
     # English variant
     _, text_en, _ = build_digest_email(theme, data, "en")
     assert "Hi Maxi," in text_en
+
+
+def test_build_digest_email_has_open_app_cta():
+    theme = email_theme(None)
+    data = {
+        "member_name": "Maxi", "since": None,
+        "balance": None, "evenings": [], "penalties": [], "bookings": [], "community": [],
+        "has_content": True,
+    }
+    with patch("core.email.settings.APP_BASE_URL", "https://app.example.com"):
+        _, text, html = build_digest_email(theme, data, "de")
+    assert "https://app.example.com/" in text
+    assert 'href="https://app.example.com/"' in html
+    assert "Öffnen" in html                        # digest.button.open (de)
+
+    # Without a configured base URL there is nothing to link to.
+    with patch("core.email.settings.APP_BASE_URL", ""):
+        _, text_no_url, html_no_url = build_digest_email(theme, data, "de")
+    assert "https://" not in text_no_url
+    assert 'href="' not in html_no_url
+
+
+def test_header_html_renders_logo_as_circular_avatar():
+    from core.email import _header_html
+    theme = {"primary": "#8b0000", "on_primary": "#ffffff", "club_name": "Test Club",
+             "logo_url": "https://app.example.com/uploads/logo.png"}
+    html = _header_html(theme)
+    assert 'src="https://app.example.com/uploads/logo.png"' in html
+    assert "border-radius:50%" in html
+    assert "Test Club" in html
+
+
+def test_header_html_falls_back_to_initial_avatar_without_logo():
+    from core.email import _header_html
+    theme = {"primary": "#8b0000", "on_primary": "#ffffff", "club_name": "Test Club", "logo_url": None}
+    html = _header_html(theme)
+    assert "<img" not in html
+    assert "border-radius:50%" in html
+    assert ">T</span>" in html                     # initial letter avatar
 
 
 # ---------------------------------------------------------------------------

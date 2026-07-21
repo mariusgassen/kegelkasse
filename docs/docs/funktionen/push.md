@@ -104,7 +104,7 @@ Mit **Test-E-Mail** verschickt der Admin eine Probe-Nachricht an die eigene Adre
 
 Die Einstellungen werden **pro Verein** gespeichert (in den Vereinseinstellungen). Ist kein Server konfiguriert oder der Versand deaktiviert, fällt die Zustellung stillschweigend auf „nur Glocke" zurück.
 
-Alle E-Mails (Einzel-Benachrichtigungen wie Zusammenfassungen) werden im **Vereins-Design** gerendert: Kopfzeile in der Vereins-Grundfarbe, Vereinslogo (falls hinterlegt) und Buttons in der Markenfarbe. Der Text erscheint in der **Sprache des Empfängers** (Deutsch/Englisch), passend zur Profil-Einstellung.
+Alle E-Mails (Einzel-Benachrichtigungen wie Zusammenfassungen) werden im **Vereins-Design** gerendert: Kopfzeile in der Vereins-Grundfarbe mit Vereinslogo (falls hinterlegt, sonst der Anfangsbuchstabe) als **runder Avatar** neben dem Vereinsnamen, und Buttons in der Markenfarbe. Der Text erscheint in der **Sprache des Empfängers** (Deutsch/Englisch), passend zur Profil-Einstellung. Ein echter Absender-Avatar im Postfach selbst (wie bei Kontakten mit Foto) lässt sich aus einer transaktionalen App-Mail heraus nicht setzen — das erfordert eine Gravatar-Registrierung oder BIMI-DNS-Einträge auf Domain-Ebene, außerhalb der Vereinskonfiguration; der runde Avatar im Mail-Header ist die nächstmögliche Annäherung.
 
 ## E-Mail-Zusammenfassung *(pro Mitglied)*
 
@@ -115,12 +115,12 @@ Jedes Mitglied kann im **Einstellungen-Tab** des Profils unter **E-Mail-Zusammen
 | Aus | keine Zusammenfassung (Standard) |
 | Täglich / Wöchentlich / Monatlich | Versand im gewählten Rhythmus |
 
-Ein täglicher Hintergrund-Job (08:00) versendet fällige Zusammenfassungen. Jede Zusammenfassung ist **persönlich** und enthält alles, was sich seit der letzten Zusammenfassung getan hat — mit **Direktlink** zu jedem Eintrag:
+Ein täglicher Hintergrund-Job (08:00) versendet fällige Zusammenfassungen. Direkt unter der Begrüßung steht ein **„Öffnen"-Button**, der in die App springt. Jede Zusammenfassung ist **persönlich** und enthält alles, was sich seit der letzten Zusammenfassung getan hat — mit **Direktlink** zu jedem Eintrag:
 
 - **Kegelabende** — neu angelegte, aktualisierte oder abgeschlossene Abende
 - **Deine Strafen** — die eigenen Strafen des Zeitraums
 - **Deine Buchungen** — die eigenen Ein-/Auszahlungen
-- **Neues aus dem Verein** — neue Kommentare und Reaktionen
+- **Neues aus dem Verein** — neue Aktivität auf Ankündigungen, Kegelfahrten und Highlights, gebündelt als **ein Eintrag pro Beitrag** (nicht pro einzelnem Kommentar/Reaktion): Titel des Beitrags, Typ-Icon (📣 Ankündigung, 🚌 Kegelfahrt, ✨ Highlight) und wie viel sich getan hat (`💬 Anzahl Kommentare · ❤️ Anzahl Reaktionen`); der Link führt direkt zur neuesten Aktivität in diesem Thread
 - **Dein Konto** — Kontostand, Strafen- und Einzahlungssumme im Überblick
 
 Gibt es seit der letzten Zusammenfassung nichts Neues, wird **keine** E-Mail verschickt (kein Rauschen). Über **Zusammenfassung jetzt senden** lässt sich jederzeit eine Vorschau an die eigene Adresse schicken (setzt den Rhythmus nicht zurück). Die Option erscheint nur, wenn der Verein einen E-Mail-Server konfiguriert hat.

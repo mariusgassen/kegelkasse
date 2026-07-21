@@ -53,8 +53,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     "digest.evening.new": {"de": "Neuer Abend", "en": "New evening"},
     "digest.evening.closed": {"de": "Abgeschlossen", "en": "Closed"},
     "digest.evening.updated": {"de": "Aktualisiert", "en": "Updated"},
-    "digest.community.comment": {"de": "Neuer Kommentar", "en": "New comment"},
-    "digest.community.reaction": {"de": "Neue Reaktion", "en": "New reaction"},
+    "digest.community.untitled": {"de": "Neuigkeit", "en": "Update"},
     "digest.button.open": {"de": "Öffnen", "en": "Open"},
     "digest.footer": {
         "de": "Du erhältst diese E-Mail, weil du eine Zusammenfassung abonniert hast. "
