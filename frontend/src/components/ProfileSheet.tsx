@@ -5,6 +5,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client'
 import {useAppStore, isAdmin} from '@/store/app'
 import {useThemeStore, type Theme} from '@/store/theme'
+import {useEffectsStore} from '@/store/effects'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
@@ -123,6 +124,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const t = useT()
     const {locale, setLocale} = useI18n()
     const {theme, setTheme} = useThemeStore()
+    const {effectsEnabled, setEffectsEnabled} = useEffectsStore()
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -717,6 +719,22 @@ export function ProfileSheet({open, onClose}: Props) {
                                 <button key={th} onClick={() => setTheme(th)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
                                     {t(`settings.theme.${th}` as any)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Celebration effects */}
+                    <div className="kce-card p-4 flex items-center justify-between">
+                        <div>
+                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.effects.title')}</div>
+                            <div className="text-[10px] text-kce-muted mt-0.5">{t('settings.effects.hint')}</div>
+                        </div>
+                        <div className="flex gap-1">
+                            {([true, false] as const).map(v => (
+                                <button key={String(v)} onClick={() => setEffectsEnabled(v)}
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${effectsEnabled === v ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                    {t(v ? 'settings.effects.on' : 'settings.effects.off')}
                                 </button>
                             ))}
                         </div>

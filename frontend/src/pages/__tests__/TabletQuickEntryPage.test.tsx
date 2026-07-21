@@ -47,6 +47,7 @@ vi.mock('@/components/ui/Toast', () => ({ showToast: vi.fn() }))
 vi.mock('@/lib/turnOrder.ts', () => ({
     buildTurnOrder: vi.fn(() => []),
 }))
+vi.mock('@/lib/celebrate', () => ({ celebrate: vi.fn() }))
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -736,6 +737,20 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         })
     })
 
+    it('celebrates when the opener game is finished with a player winner', async () => {
+        const { celebrate } = await import('@/lib/celebrate')
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
+        await waitFor(() => screen.getByText(/quickEntry\.selectWinner/))
+        const winnerButtons = screen.getAllByText('Admin')
+        fireEvent.click(winnerButtons[0])
+        await waitFor(() => expect(screen.getByText(/game\.finish/)).not.toBeDisabled())
+        fireEvent.click(screen.getByText(/game\.finish/))
+        await waitFor(() => {
+            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+        })
+    })
+
     it('shows a loser penalty preview once a winner is selected, even with per_point_penalty 0', async () => {
         await renderTabletQuickEntry()
         fireEvent.click(screen.getByText(/quickEntry\.finishGame/))
@@ -814,6 +829,88 @@ describe('TabletQuickEntryPage — finish game flow', () => {
             expect(spy).toHaveBeenCalledWith({queryKey: ['member-balances']})
             expect(spy).toHaveBeenCalledWith({queryKey: ['guest-balances']})
         })
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alle Neune celebration on new-throw arrival
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('TabletQuickEntryPage — alle neune celebration', () => {
+    const gameWithThrows = (throws: any[]) => ({
+        id: 1, name: 'Hauptspiel', status: 'running', is_opener: true,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 2.00,
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: 'alternating',
+        started_at: '2026-01-10T20:30:00', finished_at: null,
+        note: '', is_deleted: false, game_players: [], active_player_id: null,
+        throws,
+    })
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.setActivePlayer).mockResolvedValue(undefined as any)
+    })
+
+    it('celebrates when a newly-arrived throw has 9 pins', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { celebrate } = await import('@/lib/celebrate')
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
+                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
+            ])] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { rerender } = await renderTabletQuickEntry()
+
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
+                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
+                { id: 2, throw_num: 2, pins: 9, cumulative: 16, pin_states: Array(9).fill(true), player_id: 10 },
+            ])] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        rerender(<TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />)
+
+        await waitFor(() => {
+            expect(celebrate).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+        })
+    })
+
+    it('does not celebrate for a normal (non-9) throw', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { celebrate } = await import('@/lib/celebrate')
+        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
+
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
+                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
+            ])] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { rerender } = await renderTabletQuickEntry()
+
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
+                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
+                { id: 2, throw_num: 2, pins: 5, cumulative: 12, pin_states: Array(9).fill(false), player_id: 10 },
+            ])] } as any,
+            invalidate: vi.fn(),
+        } as any)
+        rerender(<TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />)
+
+        await waitFor(() => {
+            expect(screen.getByText(/🎳 12/)).toBeInTheDocument()
+        })
+        expect(celebrate).not.toHaveBeenCalled()
     })
 })
 

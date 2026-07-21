@@ -33,6 +33,19 @@ Navigiere zu **Statistiken** (📊) in der Navigation. Die Seite ist in zwei Tab
 
 Einzelne Spieler können ein- und ausgeklappt werden, um die Detailwerte zu sehen oder die Übersicht zu komprimieren.
 
+## 🙈 Halle der Schande
+
+Direkt unter dem Jahres-Podium zeigt die **Halle der Schande** vier augenzwinkernde „Worst of"-Auszeichnungen der Saison, abgeleitet aus denselben Jahreswerten wie das Jahresranking:
+
+| Auszeichnung | Kriterium |
+|--------------|-----------|
+| 💸 **Strafen-Quote** | Höchste Strafen-€ pro besuchtem Abend (mind. 3 Abende) |
+| 🍻 **Durstigster Kegler** | Meiste Bier- + Schnapsrunden zusammen |
+| 🎯 **Schwächster Wurf-Schnitt** | Niedrigster Ø-Holz-Wert (mind. 10 Würfe) |
+| 🃏 **Ewiger Zweite** | Meiste Abende ohne einen einzigen Spielsieg (mind. 3 Abende) |
+
+Eine Auszeichnung erscheint nur, wenn mindestens ein Mitglied die Mindestanzahl erreicht — sonst bleibt die Kategorie ausgeblendet, statt einen irreführenden „Sieger" zu zeigen. Ein Tipp auf eine Zeile öffnet das Spieler-Detail, wie beim Podium und dem Jahresranking auch. Während einer aktiven Mitgliedersuche ist die Halle der Schande ausgeblendet.
+
 ## Abend-Detail
 
 Über die Abend-Auswahl oben auf der Statistik-Seite lässt sich ein einzelner Abend analysieren:

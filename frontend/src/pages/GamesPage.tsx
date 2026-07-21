@@ -7,6 +7,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
+import {celebrate} from '@/lib/celebrate'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
@@ -234,6 +235,9 @@ export function GamesPage() {
                 scores,
                 loser_penalty: parseAmount(finishPenalty) || finishTarget.loser_penalty,
             })
+            if (finishTarget.is_opener && winnerRef.startsWith('p:')) {
+                celebrate('king', t('celebration.king'))
+            }
             invalidate()
             setFinishTarget(null)
         } catch (e: unknown) {

@@ -464,6 +464,63 @@ describe('StatsPage — member ranking', () => {
     })
 })
 
+// ── tests: hall of shame ──────────────────────────────────────────────────────
+
+describe('StatsPage — hall of shame', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = null
+        storeState.activeEveningId = null
+        storeState.regularMembers = []
+    })
+
+    it('shows the hall of shame heading and qualifying categories', async () => {
+        await setupWithEvenings()
+        await renderStatsPage('year')
+        await waitFor(() => {
+            expect(screen.getByText('stats.hos')).toBeInTheDocument()
+            expect(screen.getByText('stats.shame.rate')).toBeInTheDocument()
+            expect(screen.getByText('stats.shame.thirst')).toBeInTheDocument()
+            expect(screen.getByText('stats.shame.worstThrow')).toBeInTheDocument()
+        })
+    })
+
+    it('omits a category when nobody has enough evenings to qualify', async () => {
+        // In YEAR_STATS, everyone with 0 game wins also has <3 evenings, so
+        // "bridesmaid" has no eligible winner and must not render.
+        await setupWithEvenings()
+        await renderStatsPage('year')
+        await waitFor(() => {
+            expect(screen.getByText('stats.hos')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('stats.shame.bridesmaid')).not.toBeInTheDocument()
+    })
+
+    it('hides the hall of shame while a member search is active', async () => {
+        await setupWithEvenings()
+        await renderStatsPage('year')
+        await waitFor(() => {
+            expect(screen.getByText('stats.hos')).toBeInTheDocument()
+        })
+        fireEvent.change(screen.getByPlaceholderText('stats.memberSearch'), {target: {value: 'hans'}})
+        await waitFor(() => {
+            expect(screen.queryByText('stats.hos')).not.toBeInTheDocument()
+        })
+    })
+
+    it('opens the player detail sheet when a hall of shame row is tapped', async () => {
+        await setupWithEvenings()
+        await renderStatsPage('year')
+        await waitFor(() => {
+            expect(screen.getByText('stats.shame.thirst')).toBeInTheDocument()
+        })
+        fireEvent.click(screen.getByText('stats.shame.thirst'))
+        await waitFor(() => {
+            expect(screen.getByText('stats.playerDetail')).toBeInTheDocument()
+        })
+    })
+})
+
 // ── tests: "Ich" badge and current user ──────────────────────────────────────
 
 describe('StatsPage — current user highlighting', () => {

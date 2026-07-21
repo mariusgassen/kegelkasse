@@ -41,6 +41,13 @@ vi.mock('@/store/theme.ts', () => ({
     useThemeStore: () => ({ theme: mockTheme, setTheme: mockSetTheme }),
 }))
 
+const mockSetEffectsEnabled = vi.fn()
+let mockEffectsEnabled = true
+
+vi.mock('@/store/effects.ts', () => ({
+    useEffectsStore: () => ({ effectsEnabled: mockEffectsEnabled, setEffectsEnabled: mockSetEffectsEnabled }),
+}))
+
 vi.mock('@/store/app.ts', () => ({
     useAppStore: vi.fn(() => ({
         user: null,
@@ -285,6 +292,46 @@ describe('ProfileSheet — theme toggle', () => {
         await renderProfileSheet({ tab: 'settings' })
         expect(screen.getByText('settings.theme.light').className).toContain('bg-kce-amber')
         expect(screen.getByText('settings.theme.dark').className).not.toContain('bg-kce-amber')
+    })
+})
+
+describe('ProfileSheet — celebration effects toggle', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        mockSetEffectsEnabled.mockClear()
+        mockEffectsEnabled = true
+        await setupAsMember()
+    })
+
+    it('shows the effects settings section with on/off options', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('settings.effects.title')).toBeInTheDocument()
+        expect(screen.getByText('settings.effects.on')).toBeInTheDocument()
+        expect(screen.getByText('settings.effects.off')).toBeInTheDocument()
+    })
+
+    it('clicking "off" calls setEffectsEnabled(false)', async () => {
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        fireEvent.click(screen.getByText('settings.effects.off'))
+        expect(mockSetEffectsEnabled).toHaveBeenCalledWith(false)
+    })
+
+    it('clicking "on" calls setEffectsEnabled(true)', async () => {
+        mockEffectsEnabled = false
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        fireEvent.click(screen.getByText('settings.effects.on'))
+        expect(mockSetEffectsEnabled).toHaveBeenCalledWith(true)
+    })
+
+    it('highlights the currently active option', async () => {
+        mockEffectsEnabled = false
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+        expect(screen.getByText('settings.effects.off').className).toContain('bg-kce-amber')
+        expect(screen.getByText('settings.effects.on').className).not.toContain('bg-kce-amber')
     })
 })
 

@@ -45,3 +45,43 @@ export function interpretR(r: number | null): 'strong' | 'moderate' | 'weak' | '
     if (a >= 0.2) return 'moderate'
     return 'weak'
 }
+
+export interface ShamePlayer {
+    name: string; nickname: string | null; regular_member_id: number | null
+    evenings: number; penalty_total: number; game_wins: number
+    beer_rounds: number; shot_rounds: number; avg_pins: number | null; throw_count: number
+}
+
+export interface ShameEntry<P = ShamePlayer> {
+    key: 'rate' | 'thirst' | 'worstThrow' | 'bridesmaid'
+    icon: string
+    player: P
+    rawValue: number
+}
+
+const MIN_EVENINGS_FOR_RATE = 3
+const MIN_THROWS_FOR_AVG = 10
+
+/** Season-long "worst of" awards, one winner per category. Categories with no qualifying
+ * player (not enough sample size) are omitted rather than picking a misleading winner. */
+export function computeHallOfShame<P extends ShamePlayer>(players: P[]): ShameEntry<P>[] {
+    const entries: (ShameEntry<P> | null)[] = []
+
+    const rateEligible = players.filter(p => p.evenings >= MIN_EVENINGS_FOR_RATE)
+    const rateTop = [...rateEligible].sort((a, b) => (b.penalty_total / b.evenings) - (a.penalty_total / a.evenings))[0]
+    entries.push(rateTop ? {key: 'rate', icon: '💸', player: rateTop, rawValue: rateTop.penalty_total / rateTop.evenings} : null)
+
+    const thirstEligible = players.filter(p => p.beer_rounds + p.shot_rounds > 0)
+    const thirstTop = [...thirstEligible].sort((a, b) => (b.beer_rounds + b.shot_rounds) - (a.beer_rounds + a.shot_rounds))[0]
+    entries.push(thirstTop ? {key: 'thirst', icon: '🍻', player: thirstTop, rawValue: thirstTop.beer_rounds + thirstTop.shot_rounds} : null)
+
+    const throwEligible = players.filter(p => p.throw_count >= MIN_THROWS_FOR_AVG && p.avg_pins !== null)
+    const worstThrowTop = [...throwEligible].sort((a, b) => (a.avg_pins ?? 0) - (b.avg_pins ?? 0))[0]
+    entries.push(worstThrowTop ? {key: 'worstThrow', icon: '🎯', player: worstThrowTop, rawValue: worstThrowTop.avg_pins ?? 0} : null)
+
+    const bridesmaidEligible = players.filter(p => p.game_wins === 0 && p.evenings >= MIN_EVENINGS_FOR_RATE)
+    const bridesmaidTop = [...bridesmaidEligible].sort((a, b) => b.evenings - a.evenings)[0]
+    entries.push(bridesmaidTop ? {key: 'bridesmaid', icon: '🃏', player: bridesmaidTop, rawValue: bridesmaidTop.evenings} : null)
+
+    return entries.filter((e): e is ShameEntry<P> => e !== null)
+}
