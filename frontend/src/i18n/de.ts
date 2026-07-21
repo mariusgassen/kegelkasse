@@ -955,6 +955,8 @@ export const de = {
     "email.fromNamePlaceholder": "z. B. Kegelclub Musterstadt",
     "email.useTls": "STARTTLS (Port 587)",
     "email.useSsl": "SSL/TLS (Port 465)",
+    "email.baseUrl": "Eigene Domain (optional)",
+    "email.baseUrlHint": "Überschreibt die Standard-App-URL für Links in E-Mails dieses Vereins — z. B. bei einer eigenen Domain (CNAME). Leer lassen, um die Standardadresse zu verwenden.",
     "email.sendTest": "Test-E-Mail",
     "email.saved": "E-Mail-Einstellungen gespeichert",
     "email.testSent": "Test-E-Mail an {email} gesendet",

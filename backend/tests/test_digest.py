@@ -244,6 +244,8 @@ def test_community_news_groups_by_thread_with_deep_link(db: Session, club: Club,
     assert row["value"] == "💬 2 · ❤️ 1"
     # Deep-links to the newest activity in the thread (the later of the two comments).
     assert row["url"] == f"/#committee:announcements?item={a.id}&comment={c2.id}"
+    # Content preview of the newest comment, so the reader doesn't have to open the app.
+    assert row["snippet"] == "Ich auch"
 
 
 def test_community_news_links_to_item_when_newest_activity_is_a_reaction(db: Session, club: Club, user: User):
@@ -269,6 +271,31 @@ def test_community_news_links_to_item_when_newest_activity_is_a_reaction(db: Ses
     # Newest activity is the reaction (no single comment to point at) → link to the item itself.
     assert news[0]["url"] == f"/#committee:announcements?item={a.id}"
     assert news[0]["value"] == "💬 1 · ❤️ 1"
+    # No text to preview when the newest activity is a reaction, not a comment.
+    assert news[0]["snippet"] is None
+
+
+def test_community_news_snippet_is_truncated(db: Session, club: Club, user: User):
+    from core.digest import _community_news
+
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+
+    a = ClubAnnouncement(club_id=club.id, title="Update", created_by=user.id, created_at=inside)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    long_text = "x" * 120
+    db.add(Comment(parent_type="announcement", parent_id=a.id, text=long_text,
+                   created_by=user.id, created_at=inside))
+    db.commit()
+
+    news = _community_news(db, club.id, since, "de")
+    assert len(news) == 1
+    snippet = news[0]["snippet"]
+    assert len(snippet) == 80
+    assert snippet.endswith("…")
 
 
 def test_community_news_untitled_fallback_for_textless_highlight(db: Session, club: Club, user: User):
@@ -347,6 +374,22 @@ def test_build_digest_email_renders_sections_and_links():
     # English variant
     _, text_en, _ = build_digest_email(theme, data, "en")
     assert "Hi Maxi," in text_en
+
+
+def test_build_digest_email_renders_community_snippet():
+    theme = email_theme(None)
+    data = {
+        "member_name": "Maxi", "since": None,
+        "balance": None, "evenings": [], "penalties": [], "bookings": [],
+        "community": [{"label": "📣 Sommerfest", "value": "💬 2 · ❤️ 1",
+                      "url": "/#committee:announcements?item=5&comment=9",
+                      "snippet": "Ich auch"}],
+        "has_content": True,
+    }
+    with patch("core.email.settings.APP_BASE_URL", "https://app.example.com"):
+        _, text, html = build_digest_email(theme, data, "de")
+    assert "Ich auch" in text
+    assert '„Ich auch"' in html
 
 
 def test_build_digest_email_has_open_app_cta():

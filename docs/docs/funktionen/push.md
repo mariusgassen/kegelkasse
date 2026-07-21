@@ -99,6 +99,7 @@ Damit Mitglieder Benachrichtigungen per E-Mail erhalten können, hinterlegt ein 
 | Benutzername / Passwort | Anmeldedaten (das Passwort wird verschlüsselt gespeichert, nie zurückgegeben — nur „gespeichert" angezeigt) |
 | Absender-Adresse / -Name | erscheinen als Absender der E-Mails |
 | STARTTLS / SSL/TLS | Verschlüsselungsart (schließen sich gegenseitig aus) |
+| Eigene Domain (optional) | überschreibt die Standard-App-URL für alle Links in den E-Mails dieses Vereins — z. B. wenn der Verein per CNAME eine eigene Domain auf die Kegelkasse-Instanz zeigen lässt. Leer lassen, um die serverweite Standardadresse zu verwenden |
 
 Mit **Test-E-Mail** verschickt der Admin eine Probe-Nachricht an die eigene Adresse, um die Konfiguration zu prüfen.
 
@@ -120,10 +121,22 @@ Ein täglicher Hintergrund-Job (08:00) versendet fällige Zusammenfassungen. Dir
 - **Kegelabende** — neu angelegte, aktualisierte oder abgeschlossene Abende
 - **Deine Strafen** — die eigenen Strafen des Zeitraums
 - **Deine Buchungen** — die eigenen Ein-/Auszahlungen
-- **Neues aus dem Verein** — neue Aktivität auf Ankündigungen, Kegelfahrten und Highlights, gebündelt als **ein Eintrag pro Beitrag** (nicht pro einzelnem Kommentar/Reaktion): Titel des Beitrags, Typ-Icon (📣 Ankündigung, 🚌 Kegelfahrt, ✨ Highlight) und wie viel sich getan hat (`💬 Anzahl Kommentare · ❤️ Anzahl Reaktionen`); der Link führt direkt zur neuesten Aktivität in diesem Thread
+- **Neues aus dem Verein** — neue Aktivität auf Ankündigungen, Kegelfahrten und Highlights, gebündelt als **ein Eintrag pro Beitrag** (nicht pro einzelnem Kommentar/Reaktion): Titel des Beitrags, Typ-Icon (📣 Ankündigung, 🚌 Kegelfahrt, ✨ Highlight), wie viel sich getan hat (`💬 Anzahl Kommentare · ❤️ Anzahl Reaktionen`) sowie eine kurze **Textvorschau** des neuesten Kommentars, damit man den Inhalt sieht, ohne die App öffnen zu müssen; der Link führt direkt zur neuesten Aktivität in diesem Thread
 - **Dein Konto** — Kontostand, Strafen- und Einzahlungssumme im Überblick
 
 Gibt es seit der letzten Zusammenfassung nichts Neues, wird **keine** E-Mail verschickt (kein Rauschen). Über **Zusammenfassung jetzt senden** lässt sich jederzeit eine Vorschau an die eigene Adresse schicken (setzt den Rhythmus nicht zurück). Die Option erscheint nur, wenn der Verein einen E-Mail-Server konfiguriert hat.
+
+:::info Testvorschau zeigt oft nur den Kontostand
+Beim manuellen **Zusammenfassung jetzt senden** wird die Zusammenfassung erzwungen, auch wenn seit der letzten Zusammenfassung nichts passiert ist — dann enthält die Vorschau **nur** den Kontostand, da Abende/Strafen/Buchungen/Neuigkeiten leer sind und ausgeblendet werden. Um die vollständige Ansicht mit Direktlinks zu testen, vorher z. B. einen Kommentar auf eine Ankündigung schreiben oder eine Strafe eintragen.
+:::
+
+### Warum ein Link manchmal nicht klickbar ist
+
+Jeder Link in einer E-Mail benötigt eine absolute Adresse (die serverweite `APP_BASE_URL` oder die Eigene-Domain-Einstellung des Vereins, siehe oben). Ist **keine** der beiden gesetzt, werden Links als reiner, nicht klickbarer Text angezeigt — inklusive des „Öffnen"-Buttons, der dann komplett entfällt. Betrifft alle E-Mails, nicht nur Zusammenfassungen.
+
+### Direktlink öffnet installierte App statt Browser *(wo unterstützt)*
+
+Ist Kegelkasse als PWA installiert, versuchen unterstützende Browser (Chrome/Edge auf Desktop und Android), einen angeklickten Link innerhalb der App zu öffnen statt in einem neuen Browser-Tab („Declarative Link Capturing"). Das ist eine Browser-/Betriebssystem-Funktion, keine Einstellung in Kegelkasse — auf iOS/Safari wird ein Link aus der Mail-App aktuell immer in Safari geöffnet, auch wenn die PWA installiert ist (WebKit unterstützt diese Funktion nicht).
 
 ## Konfiguration *(Serveradmin)*
 

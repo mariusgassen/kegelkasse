@@ -54,6 +54,14 @@ def _aware(dt: datetime | None) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _snippet(text: str | None, limit: int = 80) -> str | None:
+    """Short, single-line preview of a comment's text, or ``None`` for media-only comments."""
+    s = (text or "").strip().replace("\n", " ")
+    if not s:
+        return None
+    return s if len(s) <= limit else s[:limit - 1] + "…"
+
+
 def get_digest_frequency(user: User) -> str:
     prefs = user.push_preferences or {}
     val = prefs.get("digest_frequency", "off")
@@ -242,9 +250,13 @@ def _community_news(db: Session, club_id: int, since: datetime, locale: str | No
     # (parent_type, parent_id) -> aggregate of new activity in that thread.
     threads: dict[tuple[str, int], dict] = {}
 
-    def _touch(parent_type: str, parent_id: int, when: datetime, comment_id: int | None, is_comment: bool) -> None:
+    def _touch(parent_type: str, parent_id: int, when: datetime, comment_id: int | None,
+              is_comment: bool, text: str | None = None) -> None:
         key = (parent_type, parent_id)
-        th = threads.setdefault(key, {"comments": 0, "reactions": 0, "latest": when, "latest_comment_id": None})
+        th = threads.setdefault(key, {
+            "comments": 0, "reactions": 0, "latest": when,
+            "latest_comment_id": None, "latest_snippet": None,
+        })
         if is_comment:
             th["comments"] += 1
         else:
@@ -252,6 +264,7 @@ def _community_news(db: Session, club_id: int, since: datetime, locale: str | No
         if when >= th["latest"]:
             th["latest"] = when
             th["latest_comment_id"] = comment_id if is_comment else None
+            th["latest_snippet"] = _snippet(text) if is_comment else None
 
     for c in (
         db.query(Comment)
@@ -262,7 +275,7 @@ def _community_news(db: Session, club_id: int, since: datetime, locale: str | No
         )
         .all()
     ):
-        _touch(c.parent_type, c.parent_id, _aware(c.created_at), c.id, True)
+        _touch(c.parent_type, c.parent_id, _aware(c.created_at), c.id, True, c.text)
 
     for r in (
         db.query(ItemReaction)
@@ -284,6 +297,7 @@ def _community_news(db: Session, club_id: int, since: datetime, locale: str | No
             "label": f"{icon} {title}",
             "value": " · ".join(parts),
             "url": _parent_url(parent_type, parent_id, th["latest_comment_id"]),
+            "snippet": th["latest_snippet"],
         }))
 
     rows.sort(key=lambda x: x[0] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)

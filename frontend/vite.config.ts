@@ -55,6 +55,14 @@ export default defineConfig({
                 // landscape kiosk UIs; a manifest-level portrait lock fights device rotation there.
                 orientation: 'any',
                 start_url: '/',
+                scope: '/',
+                // Declarative Link Capturing: same-origin links (e.g. deep links tapped in an
+                // email/Mail app) open in the already-installed app window instead of a new
+                // browser tab, when the OS/browser supports it (Chrome/Edge desktop & Android).
+                // No effect on iOS/Safari — WebKit doesn't implement this, so links there always
+                // open in Safari even when the PWA is installed; no client-side workaround exists.
+                // @ts-expect-error — not yet in vite-plugin-pwa's ManifestOptions type
+                capture_links: 'existing-client-navigate',
                 icons: [
                     {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},
                 ],

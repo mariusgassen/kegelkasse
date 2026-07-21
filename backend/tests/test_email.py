@@ -108,6 +108,65 @@ class TestEmailConfig:
         assert cfg["host"] == "smtp.example.com"
 
 
+class TestPerClubBaseUrl:
+    """A club's own email.base_url overrides the server-wide APP_BASE_URL for its links."""
+
+    def test_email_theme_prefers_club_base_url(self, db, club):
+        from core.config import settings
+        from core.email import email_theme
+        _configure_email(db, club, base_url="https://kegeln.meinverein.de")
+        db.refresh(club)
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            theme = email_theme(club)
+        assert theme["base_url"] == "https://kegeln.meinverein.de"
+
+    def test_email_theme_falls_back_to_server_base_url(self, db, club):
+        from core.config import settings
+        from core.email import email_theme
+        _configure_email(db, club, base_url="")
+        db.refresh(club)
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            theme = email_theme(club)
+        assert theme["base_url"] == "https://app.example.com"
+
+    def test_logo_url_uses_club_base_url(self, db, club):
+        from core.config import settings
+        from core.email import email_theme
+        _configure_email(db, club, base_url="https://kegeln.meinverein.de")
+        s = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+        s.logo_url = "/uploads/club_1/logo.png"
+        db.commit()
+        db.refresh(club)
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            theme = email_theme(club)
+        assert theme["logo_url"] == "https://kegeln.meinverein.de/uploads/club_1/logo.png"
+
+    def test_abs_link_prefers_explicit_base_url(self):
+        from core.config import settings
+        from core.email import _abs_link
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            assert _abs_link("/x", "https://kegeln.meinverein.de") == "https://kegeln.meinverein.de/x"
+            assert _abs_link("/x", None) == "https://app.example.com/x"
+            assert _abs_link("/x", "") == "https://app.example.com/x"
+
+    def test_digest_email_links_use_club_base_url(self):
+        from core.config import settings
+        from core.email import build_digest_email
+        theme = {"primary": "#8b0000", "on_primary": "#ffffff", "club_name": "Test Club",
+                 "logo_url": None, "base_url": "https://kegeln.meinverein.de"}
+        data = {
+            "member_name": "Maxi", "since": None,
+            "balance": {"balance": 7.0, "penalty_total": 3.0, "paid_total": 10.0,
+                        "url": "/#treasury:accounts?member=1"},
+            "evenings": [], "penalties": [], "bookings": [], "community": [], "has_content": True,
+        }
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            _, text, html = build_digest_email(theme, data, "de")
+        assert "https://kegeln.meinverein.de/#treasury:accounts?member=1" in html
+        assert "https://kegeln.meinverein.de/" in text          # the "open app" CTA link
+        assert "app.example.com" not in html and "app.example.com" not in text
+
+
 class TestBuildBodies:
     def test_no_link_without_base_url(self):
         from core.config import settings
@@ -293,6 +352,20 @@ class TestEmailSettingsEndpoints:
     def test_patch_requires_admin(self, client: TestClient, auth_headers: dict):
         r = client.patch("/api/v1/club/email-settings", headers=auth_headers, json={"host": "x"})
         assert r.status_code == 403
+
+    def test_base_url_round_trips(self, client: TestClient, admin_headers: dict, db, club):
+        r = client.patch("/api/v1/club/email-settings", headers=admin_headers, json={
+            "enabled": True, "host": "smtp.example.com", "from_address": "x@y.de",
+            "base_url": "https://kegeln.meinverein.de",
+        })
+        assert r.status_code == 200
+        assert r.json()["base_url"] == "https://kegeln.meinverein.de"
+        r2 = client.get("/api/v1/club/email-settings", headers=admin_headers)
+        assert r2.json()["base_url"] == "https://kegeln.meinverein.de"
+
+    def test_base_url_defaults_empty(self, client: TestClient, admin_headers: dict):
+        r = client.get("/api/v1/club/email-settings", headers=admin_headers)
+        assert r.json()["base_url"] == ""
 
     def test_status_reports_email_configured(self, client: TestClient, auth_headers: dict, db, club):
         _configure_email(db, club)

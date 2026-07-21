@@ -955,6 +955,8 @@ export const en = {
     "email.fromNamePlaceholder": "e.g. Bowling Club Anytown",
     "email.useTls": "STARTTLS (port 587)",
     "email.useSsl": "SSL/TLS (port 465)",
+    "email.baseUrl": "Custom domain (optional)",
+    "email.baseUrlHint": "Overrides the default app URL used for links in this club's emails — e.g. for a custom (CNAME'd) domain. Leave blank to use the default address.",
     "email.sendTest": "Test email",
     "email.saved": "Email settings saved",
     "email.testSent": "Test email sent to {email}",
