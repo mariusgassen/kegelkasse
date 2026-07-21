@@ -1598,6 +1598,7 @@ _EMAIL_DEFAULTS = {
     "from_name": "",
     "use_tls": True,
     "use_ssl": False,
+    "base_url": "",  # overrides the server-wide APP_BASE_URL for this club's email links (custom domain)
 }
 
 
@@ -1624,6 +1625,7 @@ class EmailSettingsUpdate(BaseModel):
     from_name: Optional[str] = None
     use_tls: Optional[bool] = None
     use_ssl: Optional[bool] = None
+    base_url: Optional[str] = None  # e.g. "https://kegeln.meinverein.de" — empty string clears it
 
 
 @router.patch("/email-settings")

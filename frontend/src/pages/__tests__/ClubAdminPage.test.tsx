@@ -917,6 +917,32 @@ describe('ClubAdminPage — email settings', () => {
         expect('password' in payload).toBe(false)  // no password typed → not sent
     })
 
+    it('prefills the custom domain field', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEmailSettings).mockResolvedValue({
+            enabled: true, host: 'smtp.example.com', port: 587, username: '',
+            from_address: 'x@y.de', from_name: '', use_tls: true, use_ssl: false,
+            base_url: 'https://kegeln.meinverein.de', password_set: false,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByDisplayValue('https://kegeln.meinverein.de')).toBeInTheDocument())
+    })
+
+    it('includes the custom domain in the save payload', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateEmailSettings).mockResolvedValue({ password_set: false } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
+        const baseUrlInput = screen.getByPlaceholderText('https://kegeln.meinverein.de')
+        fireEvent.change(baseUrlInput, { target: { value: 'https://kegeln.example.org' } })
+        const card = screen.getByText('email.title').closest('.kce-card')!
+        const saveBtn = Array.from(card.querySelectorAll('button')).find(b => b.textContent === 'action.save')!
+        fireEvent.click(saveBtn)
+        await waitFor(() => expect(api.updateEmailSettings).toHaveBeenCalled())
+        const payload = vi.mocked(api.updateEmailSettings).mock.calls[0][0]
+        expect(payload.base_url).toBe('https://kegeln.example.org')
+    })
+
     it('sends a test email', async () => {
         const { api } = await import('@/api/client.ts')
         const { showToast } = await import('@/components/ui/Toast.tsx')

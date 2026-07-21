@@ -91,6 +91,7 @@ export interface EmailSettings {
     from_name: string
     use_tls: boolean
     use_ssl: boolean
+    base_url: string
     password_set: boolean
 }
 

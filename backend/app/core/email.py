@@ -17,6 +17,7 @@ Config shape (all optional except host / from_address when enabled)::
         "from_name": str,     # default "Kegelkasse"
         "use_tls": bool,      # STARTTLS (default True)
         "use_ssl": bool,      # implicit TLS (SMTP_SSL); overrides use_tls
+        "base_url": str,      # overrides server-wide APP_BASE_URL for this club's email links
     }
 """
 import logging
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Fields the API round-trips (password handled separately so it is never leaked).
 EMAIL_CONFIG_FIELDS = ("enabled", "host", "port", "username", "from_address",
-                       "from_name", "use_tls", "use_ssl")
+                       "from_name", "use_tls", "use_ssl", "base_url")
 
 DEFAULT_PRIMARY = "#e8a020"
 
@@ -68,29 +69,43 @@ def email_theme(club) -> dict:
     Emails keep a light, readable body; the club's primary color is used for the
     header band, section accents and buttons so the mail conforms to the club
     branding without risking dark-background rendering issues across mail clients.
+    ``base_url`` resolves the club's own custom domain (``email.base_url``, e.g. a
+    CNAME'd domain) over the server-wide ``APP_BASE_URL`` default, so absolute
+    links in a club's emails point at the domain its members actually know.
     """
     primary = DEFAULT_PRIMARY
     name = "Kegelkasse"
     logo_abs: str | None = None
+    base_url = settings.APP_BASE_URL
     if club is not None:
         name = club.name or name
         s = getattr(club, "settings", None)
         if s is not None:
             primary = s.primary_color or primary
-            if s.logo_url and settings.APP_BASE_URL:
-                logo_abs = settings.APP_BASE_URL.rstrip("/") + "/" + s.logo_url.lstrip("/")
+            club_base_url = ((s.extra or {}).get("email") or {}).get("base_url")
+            if club_base_url:
+                base_url = club_base_url
+            if s.logo_url and base_url:
+                logo_abs = base_url.rstrip("/") + "/" + s.logo_url.lstrip("/")
     on_primary = "#1a1410" if _luminance(primary) > 0.55 else "#ffffff"
-    return {"primary": primary, "on_primary": on_primary, "club_name": name, "logo_url": logo_abs}
+    return {"primary": primary, "on_primary": on_primary, "club_name": name,
+            "logo_url": logo_abs, "base_url": base_url}
 
 
-def _abs_link(url: str) -> str | None:
-    """Turn an app-relative deep link into an absolute URL when APP_BASE_URL is set."""
+def _abs_link(url: str, base_url: str | None = None) -> str | None:
+    """Turn an app-relative deep link into an absolute URL.
+
+    Prefers ``base_url`` (a club's own custom domain, from ``email_theme``) over
+    the server-wide ``APP_BASE_URL`` default; returns ``None`` — rendered as
+    plain, non-clickable text — when neither is configured.
+    """
     if not url:
         return None
     if url.startswith("http://") or url.startswith("https://"):
         return url
-    if settings.APP_BASE_URL:
-        return settings.APP_BASE_URL.rstrip("/") + "/" + url.lstrip("/")
+    base = base_url or settings.APP_BASE_URL
+    if base:
+        return base.rstrip("/") + "/" + url.lstrip("/")
     return None
 
 
@@ -98,7 +113,7 @@ def build_email_bodies(title: str, body: str, url: str = "/", theme: dict | None
                        locale: str | None = None) -> tuple[str, str]:
     """Build (text, html) bodies for a notification email, with an optional action link."""
     th = theme or email_theme(None)
-    link = _abs_link(url)
+    link = _abs_link(url, th.get("base_url"))
 
     text = f"{title}\n\n{body}"
     if link:
@@ -214,21 +229,32 @@ def send_notification_email(cfg: dict, to_address: str, title: str, body: str, u
 # Digest email
 # ---------------------------------------------------------------------------
 
-def _digest_row(label: str, value: str, url: str | None, theme: dict) -> str:
-    """One list row inside a digest section — label/value with an optional deep link."""
-    link = _abs_link(url) if url else None
+def _digest_row(label: str, value: str, url: str | None, theme: dict, snippet: str | None = None) -> str:
+    """One list row inside a digest section — label/value with an optional deep link.
+
+    ``snippet`` renders an italic content preview (e.g. the latest comment's
+    text) on its own line below the row, so the reader doesn't have to open
+    the app just to see what was said.
+    """
+    link = _abs_link(url, theme.get("base_url")) if url else None
     title = (
         f'<a href="{escape(link)}" style="color:{escape(theme["primary"])};'
         f'text-decoration:none;font-weight:600">{escape(label)}</a>'
         if link else f'<span style="font-weight:600">{escape(label)}</span>'
     )
-    return (
+    row = (
         '<tr>'
         f'<td style="padding:6px 0;font-size:14px;color:#2a2019">{title}</td>'
         f'<td style="padding:6px 0;font-size:14px;color:#5a4a3e;text-align:right;'
         f'white-space:nowrap">{escape(value)}</td>'
         '</tr>'
     )
+    if snippet:
+        row += (
+            '<tr><td colspan="2" style="padding:0 0 8px;font-size:13px;color:#8a7a6e;'
+            f'font-style:italic">„{escape(snippet)}"</td></tr>'
+        )
+    return row
 
 
 def _digest_section(heading: str, rows: list[str], theme: dict) -> str:
@@ -253,7 +279,7 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
     subject = t(locale, "digest.subject")
     name = data.get("member_name") or ""
     since = data.get("since")
-    app_link = _abs_link("/")
+    app_link = _abs_link("/", theme.get("base_url"))
 
     # ---- Plain-text body ----
     lines = [t(locale, "digest.greeting", name=name)]
@@ -301,12 +327,15 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
         if not items:
             continue
         heading = t(locale, f"digest.section.{key}")
-        rows = [_digest_row(it["label"], it.get("value", ""), it.get("url"), theme) for it in items]
+        rows = [_digest_row(it["label"], it.get("value", ""), it.get("url"), theme, it.get("snippet"))
+               for it in items]
         html_parts.append(_digest_section(heading, rows, theme))
         lines.append(f"— {heading} —")
         for it in items:
             val = f" · {it['value']}" if it.get("value") else ""
             lines.append(f"• {it['label']}{val}")
+            if it.get("snippet"):
+                lines.append(f'  „{it["snippet"]}"')
         lines.append("")
 
     lines.append(t(locale, "digest.footer"))

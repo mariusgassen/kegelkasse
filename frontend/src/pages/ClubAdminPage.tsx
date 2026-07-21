@@ -473,6 +473,7 @@ function EmailSettingsCard() {
     const [fromName, setFromName] = useState('')
     const [useTls, setUseTls] = useState(true)
     const [useSsl, setUseSsl] = useState(false)
+    const [baseUrl, setBaseUrl] = useState('')
     const [passwordSet, setPasswordSet] = useState(false)
     const [saving, setSaving] = useState(false)
     const [testing, setTesting] = useState(false)
@@ -487,6 +488,7 @@ function EmailSettingsCard() {
         setFromName(saved.from_name || '')
         setUseTls(saved.use_tls)
         setUseSsl(saved.use_ssl)
+        setBaseUrl(saved.base_url || '')
         setPasswordSet(saved.password_set)
     }, [saved])
 
@@ -496,7 +498,7 @@ function EmailSettingsCard() {
             const payload: Partial<EmailSettings> & { password?: string } = {
                 enabled, host: host.trim(), port, username: username.trim(),
                 from_address: fromAddress.trim(), from_name: fromName.trim(),
-                use_tls: useTls, use_ssl: useSsl,
+                use_tls: useTls, use_ssl: useSsl, base_url: baseUrl.trim(),
             }
             if (password) payload.password = password
             const res = await api.updateEmailSettings(payload)
@@ -573,6 +575,12 @@ function EmailSettingsCard() {
                 <div className="flex items-center justify-between py-0.5">
                     <span className="text-xs text-kce-cream">{t('email.useSsl')}</span>
                     <ReminderToggle value={useSsl} onChange={v => { setUseSsl(v); if (v) setUseTls(false) }}/>
+                </div>
+                <div>
+                    <label className="field-label">{t('email.baseUrl')}</label>
+                    <input className="kce-input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
+                           placeholder="https://kegeln.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
+                    <p className="text-[11px] text-kce-muted mt-1">{t('email.baseUrlHint')}</p>
                 </div>
             </div>
 
