@@ -561,6 +561,34 @@ describe('App — authenticated interactions', () => {
         expect(setPageMock).toHaveBeenCalledWith('treasury')
     })
 
+    it('renders nav outside the header, after main (bottom-bar / side-rail shell)', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('navigation'))
+        const nav = screen.getByRole('navigation')
+        // No longer nested inside the header bar
+        expect(document.querySelector('header nav')).toBeNull()
+        expect(nav.classList.contains('app-nav')).toBe(true)
+        // In DOM order the nav follows <main>, so on mobile it renders as a bottom bar
+        const main = document.querySelector('main')!
+        expect(main.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('wraps every page in a page-pane for the page-switch enter transition', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('navigation'))
+        // All 7 pages stay mounted; each wrapper carries the transition class
+        expect(document.querySelectorAll('main .page-pane')).toHaveLength(7)
+    })
+
+    it('uses the grid app-shell as the root layout', async () => {
+        await renderApp()
+        await waitFor(() => screen.getByRole('navigation'))
+        const shell = document.querySelector('.app-shell')
+        expect(shell).not.toBeNull()
+        expect(shell!.querySelector('.app-header')).not.toBeNull()
+        expect(shell!.querySelector('main.app-main')).not.toBeNull()
+    })
+
     it('shows club logo img when club has logo_url', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue({

@@ -72,6 +72,16 @@ Kegelkasse startet standardmäßig im dunklen Design. Wer lieber ein helles Desi
 wechselt live mit, ohne dass die App neu geladen werden muss. Ist für den Verein eine eigene Vereinsfarbe
 hinterlegt (Verein → Erscheinungsbild), bleibt diese Markenfarbe in beiden Modi erkennbar.
 
+## Navigation
+
+Die Hauptnavigation liegt als **Tab-Leiste am unteren Bildschirmrand** — dort, wo der Daumen sie auf dem
+Handy am leichtesten erreicht. Auf breiten Bildschirmen (Desktop oder Tablet im Querformat, ab 1024px)
+wandert dieselbe Navigation automatisch als **Seitenleiste an den linken Rand**, damit die zusätzliche
+Breite genutzt wird.
+
+Oben im Header bleiben Suche (🔍), Benachrichtigungen (🔔) und dein Profil erreichbar; läuft gerade ein
+Kegelabend, erscheint dort zusätzlich die **AKTIV**-Schaltfläche als Schnellzugriff.
+
 ## Suche
 
 Über das 🔍-Symbol oben im Header (oder per Tastenkürzel **Cmd/Ctrl + K** am Desktop) lässt sich direkt zu

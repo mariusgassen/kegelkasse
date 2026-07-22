@@ -223,7 +223,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Global search (🔍 header icon or Cmd/Ctrl+K) — jumps straight to a member, their treasury account, a past evening, a payment/expense booking, an announcement, or a Kegelfahrt via the same deep-link hashes push notifications already use; each result group has an icon, dates are shown in localized long form, and the query also matches written-out month names in the active language (e.g. "March"/"März")
 - Toast notifications for every create/update/delete action
 - AdminGuard component — wraps any section to show a lock icon to non-admins
-- Mobile-optimised layout with tab navigation and bottom sheet drawers
+- Mobile-optimised layout with a thumb-friendly bottom tab bar (frosted-glass, safe-area aware) and bottom sheet drawers; on wide screens (≥1024px) the same navigation becomes a left side rail so desktop/tablet uses the extra width
+- Page-switch enter transition, pressed-state feedback on nav buttons, and a global keyboard `:focus-visible` ring; all shell animations respect `prefers-reduced-motion`
 - German and English translations, user-selectable
 - Accessibility: WCAG-AA muted-text contrast, keyboard-operable chart points/segments (StatsPage, TreasuryPage), focus-managed bottom sheets (focus moves in on open, restores to the trigger on close), larger touch targets and `aria-label`s on icon-only buttons (sheet close, throw edit/void, camera close)
 - Responsiveness: Tablet Schnellerfassung's three-column layout stacks (penalty/drink actions first) on narrower or portrait tablets instead of breaking down
