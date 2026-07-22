@@ -37,7 +37,7 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 
-// Lazy-loaded page components to keep initial bundle small
+// Page components — statically imported and always mounted (see render below)
 import {EveningHubPage} from './pages/EveningHubPage'
 import {TreasuryPage} from './pages/TreasuryPage'
 import {StatsPage} from './pages/StatsPage'
@@ -387,21 +387,22 @@ export default function App() {
     if (!user) return <LoginPage onLogin={() => retryBoot()} />
 
     return (
-        <div style={{display: 'flex', flexDirection: 'column', height: '100%', maxWidth: 640, margin: '0 auto'}}>
-            {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
-            <div className="safe-top" style={{flexShrink: 0, background: 'var(--kce-bg)'}}/>
-            <OfflineBanner/>
-            <InstallPrompt/>
-            <UpdatePrompt/>
+        <div className="app-shell">
+            {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
+            <div className="app-header">
+                {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
+                <div className="safe-top" style={{background: 'var(--kce-bg)'}}/>
+                <OfflineBanner/>
+                <InstallPrompt/>
+                <UpdatePrompt/>
 
-            {/* ── Header ── */}
-            <header style={{
-                flexShrink: 0,
-                background: 'linear-gradient(180deg, var(--kce-bg), var(--kce-bg))',
-                borderBottom: '1px solid var(--kce-border)',
-                zIndex: 50,
-            }}>
-                <div className="flex items-center gap-2.5 px-3 pb-2 pt-1">
+                {/* ── Header ── */}
+                <header style={{
+                    background: 'var(--kce-bg)',
+                    borderBottom: '1px solid var(--kce-border)',
+                    zIndex: 50,
+                }}>
+                <div className="flex items-center gap-2.5 px-3 py-2">
                     {club?.settings?.logo_url ? (
                         <img src={club.settings.logo_url} alt={club.name}
                              style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0}}/>
@@ -412,7 +413,7 @@ export default function App() {
                         <h1 className="font-display font-bold text-kce-amber text-sm leading-tight truncate">
                             {club?.name || t('app.name')}
                         </h1>
-                        <p className="text-[9px] text-kce-muted font-bold tracking-widest">{t('app.subtitle')}</p>
+                        <p className="text-[10px] text-kce-muted font-bold tracking-widest">{t('app.subtitle')}</p>
                     </div>
                     {activeEveningId && (
                         <button
@@ -462,26 +463,11 @@ export default function App() {
                         }
                     </button>
                 </div>
-
-                {/* Nav */}
-                <nav className="flex items-stretch gap-1 px-2 mx-1 rounded-xl" style={{background: 'var(--kce-surface2)'}}>
-                    {NAV.filter(n => {
-                        const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
-                        if (n.id === 'club') return isAdminRole
-                        if (n.id === 'members') return !isAdminRole
-                        return true
-                    }).map(n => (
-                        <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
-                                onClick={() => setPage(n.id)}>
-                            <n.Icon size={16} strokeWidth={page === n.id ? 2.5 : 2}/>
-                            <span className="truncate max-w-full">{t(n.labelKey as any)}</span>
-                        </button>
-                    ))}
-                </nav>
-            </header>
+                </header>
+            </div>
 
             {/* ── Pages (all mounted, toggled via display) ── */}
-            <main ref={mainRef} style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
+            <main ref={mainRef} className="app-main" style={{overflow: 'hidden', position: 'relative'}}>
                 {/* Fixed at the top — not translated, so it's revealed as the content below slides down */}
                 <PullToRefreshIndicator pullDistance={pullDistance} dragging={ptrDragging} refreshing={ptrRefreshing}/>
 
@@ -503,12 +489,29 @@ export default function App() {
                         ['club', <ClubAdminPage/>],
                         ['members', <MembersPage/>],
                     ] as [PageId, ReactNode][]).map(([id, el]) => (
-                        <div key={id} style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
+                        <div key={id} className="page-pane"
+                             style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
                             {el}
                         </div>
                     ))}
                 </div>
             </main>
+
+            {/* ── Nav — bottom tab bar on mobile, side rail on ≥lg (via .app-nav grid area) ── */}
+            <nav className="app-nav">
+                {NAV.filter(n => {
+                    const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
+                    if (n.id === 'club') return isAdminRole
+                    if (n.id === 'members') return !isAdminRole
+                    return true
+                }).map(n => (
+                    <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
+                            onClick={() => setPage(n.id)}>
+                        <n.Icon size={20} strokeWidth={page === n.id ? 2.5 : 2}/>
+                        <span className="truncate max-w-full">{t(n.labelKey as any)}</span>
+                    </button>
+                ))}
+            </nav>
 
             <ToastContainer/>
             <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>

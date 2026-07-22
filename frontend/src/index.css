@@ -88,7 +88,91 @@
     }
 }
 
+@layer base {
+    /* Keyboard-only focus ring — modern interaction affordance without touch noise */
+    :focus-visible {
+        outline: 2px solid var(--kce-primary);
+        outline-offset: 2px;
+    }
+}
+
 @layer components {
+    /* ── App shell grid ─────────────────────────────────────────────
+       One nav element, repositioned purely via grid areas:
+       mobile  = header / main / bottom tab bar
+       ≥lg     = side rail spanning full height next to header + main */
+    .app-shell {
+        display: grid;
+        height: 100%;
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-areas: "header" "main" "nav";
+    }
+
+    .app-header {
+        grid-area: header;
+        min-width: 0;
+    }
+
+    .app-main {
+        grid-area: main;
+        min-width: 0;
+    }
+
+    .app-nav {
+        grid-area: nav;
+        display: flex;
+        align-items: stretch;
+        gap: 2px;
+        padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid var(--kce-border);
+        background: color-mix(in srgb, var(--kce-bg) 86%, transparent);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    @media (min-width: 1024px) {
+        .app-shell {
+            max-width: 960px;
+            grid-template-columns: 224px minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr);
+            grid-template-areas: "nav header" "nav main";
+        }
+
+        .app-nav {
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 4px;
+            padding: 16px 12px;
+            border-top: none;
+            border-right: 1px solid var(--kce-border);
+            background: var(--kce-surface);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+    }
+
+    /* Page-switch enter transition — display:none → block restarts the animation,
+       so the always-mounted page panes animate on every tab change for free */
+    .page-pane {
+        animation: pageIn .22s ease;
+    }
+
+    @keyframes pageIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .page-pane,
+        .animate-slide-up,
+        .animate-fade-in {
+            animation: none;
+        }
+    }
+
     .safe-top {
         padding-top: env(safe-area-inset-top, 0px);
     }
@@ -115,7 +199,8 @@
     .kce-card {
         background: var(--kce-surface);
         border: 1px solid var(--kce-border);
-        border-radius: 14px;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
     }
 
     .kce-deeplink-flash {
@@ -183,7 +268,7 @@
     }
 
     .field-label {
-        @apply block text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1.5;
+        @apply block text-[11px] font-bold text-kce-muted uppercase tracking-wider mb-1.5;
     }
 
     .bottom-sheet {
@@ -195,8 +280,9 @@
     }
 
     .sheet-panel {
-        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-2xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
+        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-3xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
         max-height: 100%;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, .35);
     }
 
     /* Large invisible touch target; visual bar rendered via ::before */
@@ -217,7 +303,12 @@
     }
 
     .nav-btn {
-        @apply flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-kce-muted text-[10px] font-bold border-none bg-transparent cursor-pointer transition-all min-h-[44px];
+        @apply flex-1 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-kce-muted text-[11px] font-bold border-none bg-transparent cursor-pointer min-h-[48px];
+        transition: color .18s ease, background-color .18s ease, transform .12s ease;
+    }
+
+    .nav-btn:active {
+        transform: scale(.94);
     }
 
     .nav-btn.active {
@@ -225,8 +316,20 @@
         background: color-mix(in srgb, var(--kce-primary) 12%, transparent);
     }
 
+    @media (min-width: 1024px) {
+        .nav-btn {
+            flex: 0 0 auto;
+            flex-direction: row;
+            justify-content: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            min-height: 44px;
+        }
+    }
+
     .penalty-strip {
-        background: linear-gradient(135deg, var(--kce-primary), var(--kce-primary));
+        background: var(--kce-primary);
     }
 
     .opener-card {
