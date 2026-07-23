@@ -66,6 +66,12 @@
 
     html, body, #root {
         height: 100%;
+        /* 100dvh = the *actual* visible viewport. On an iOS standalone PWA a %-based height can
+           resolve to the safe viewport (excluding the home-indicator zone) while viewport-fit=cover
+           + the bottom nav's env(safe-area-inset-bottom) padding also reserve that zone — counting
+           it twice and leaving a dead strip below the nav. dvh spans edge-to-edge so the inset is
+           applied once. Falls back to 100% where dvh is unsupported. */
+        height: 100dvh;
         overflow: hidden;
     }
 
@@ -161,7 +167,14 @@
             flex-direction: column;
             justify-content: flex-start;
             gap: 4px;
-            padding: 16px 12px;
+            /* Rail is now flush to the screen edges, so respect the safe areas (iPad landscape
+               standalone): clear the status bar on top, the home indicator on the bottom, and any
+               left inset. Right side is internal (borders the content), so no inset there. */
+            padding:
+                calc(16px + env(safe-area-inset-top, 0px))
+                12px
+                calc(16px + env(safe-area-inset-bottom, 0px))
+                calc(12px + env(safe-area-inset-left, 0px));
             border-top: none;
             border-right: 1px solid var(--kce-border);
             background: var(--kce-surface);
