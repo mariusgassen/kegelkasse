@@ -69,32 +69,23 @@
         overflow: hidden;
     }
 
-    /* Browser-tab default: anchor to the layout viewport. inset:0 tracks the visible area as
-       Safari's toolbars show/hide, so the app never hides behind the URL bar in a normal tab. */
+    /* Fill the screen using a JS-measured height, not a CSS viewport unit. On an installed iOS PWA
+       (viewport-fit=cover) every CSS primitive misses: height:100%, 100dvh, 100svh and
+       position:fixed;inset:0 resolve to the *safe* viewport (dead strip below the bottom nav),
+       while 100vh over-reports (the home indicator cuts off the nav labels). --app-height is set
+       from window.innerHeight (lib/appHeight.ts) — the exact pixels the web view occupies, i.e. the
+       whole screen in standalone — updated on rotate/resize. The shell then reaches the true bottom
+       edge and the nav's env(safe-area-inset-bottom) padding lifts the labels above the home
+       indicator. 100% is the pre-JS fallback for first paint. #root has no transform/filter, so
+       descendant position:fixed overlays still anchor to the viewport as before. */
     #root {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        height: var(--app-height, 100%);
         overflow: hidden;
-    }
-
-    /* Installed PWA (iOS/Android standalone): the bottom dead strip below the nav.
-       On iOS standalone with viewport-fit=cover, EVERY "fit-to-visible" primitive resolves to the
-       *safe* viewport (excluding the home-indicator zone) — height:100%, 100dvh, 100svh, and even
-       position:fixed;inset:0 all stop above the home indicator, leaving a strip of body background
-       below the bottom nav (intermittently, as the value also goes stale after rotation / resume).
-       100vh is the one unit that spans the *physical* screen edge-to-edge here: its usual drawback
-       — sitting behind Safari's URL bar — cannot happen in standalone because there is no URL bar.
-       Scoping it to display-mode: standalone keeps the browser-tab case on the safe inset:0 above.
-       The nav's env(safe-area-inset-bottom) padding then lifts the icons above the home indicator
-       inside a shell that reaches the true bottom edge. */
-    @media (display-mode: standalone) {
-        #root {
-            inset: auto;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-        }
     }
 
     body {
