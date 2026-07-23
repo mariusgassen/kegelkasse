@@ -5,7 +5,25 @@ from fastapi.testclient import TestClient
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole, InviteToken, PasswordResetToken
 from models.evening import RegularMember
+from models.club import ClubSettings
 from datetime import datetime, timedelta, UTC
+
+
+def _configure_club_email(db, club) -> None:
+    """Give the club a minimally-complete SMTP config so reset emails can send."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+    if not s:
+        s = ClubSettings(club_id=club.id, extra={})
+        db.add(s)
+    extra = dict(s.extra or {})
+    extra["email"] = {
+        "enabled": True,
+        "host": "smtp.example.com",
+        "port": 587,
+        "from_address": "noreply@example.com",
+    }
+    s.extra = extra
+    db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -37,11 +55,15 @@ def admin_headers(admin_user):
 
 @pytest.fixture(autouse=True)
 def cleanup_auth_state(db, club):
-    """Runs before club fixture teardown — clears RegularMembers and tokens."""
+    """Runs before club fixture teardown — clears RegularMembers, tokens, rate-limit state."""
+    from api.v1.auth import _reset_hits
+    _reset_hits.clear()  # isolate the in-memory reset rate limiter between tests
     yield
+    _reset_hits.clear()
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.query(InviteToken).delete(synchronize_session=False)
     db.query(PasswordResetToken).delete(synchronize_session=False)
+    db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.commit()
 
 
@@ -453,3 +475,88 @@ class TestResetPassword:
         # Restore password
         user.hashed_password = get_password_hash("testpass")
         db.commit()
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/auth/request-password-reset  (self-service, Feature #77)
+# ---------------------------------------------------------------------------
+
+class TestRequestPasswordReset:
+    def _count_tokens(self, db, user):
+        return db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user.id).count()
+
+    def test_unknown_email_returns_generic_ok(self, client: TestClient, db):
+        resp = client.post("/api/v1/auth/request-password-reset",
+                            json={"email": "nobody@nowhere.de"})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+
+    def test_known_email_without_smtp_creates_no_token(self, client: TestClient, db, user):
+        # No club email config → nothing can be delivered, still generic response.
+        resp = client.post("/api/v1/auth/request-password-reset",
+                            json={"email": user.email})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert self._count_tokens(db, user) == 0
+
+    def test_known_email_with_smtp_creates_token_and_sends(self, client: TestClient, db, user, monkeypatch):
+        _configure_club_email(db, club=user.club)
+        sent = {}
+
+        def _fake_send(cfg, to, reset_url, theme=None, locale=None):
+            sent["to"] = to
+            sent["reset_url"] = reset_url
+            return True
+
+        import core.email
+        monkeypatch.setattr(core.email, "send_password_reset_email", _fake_send)
+
+        resp = client.post("/api/v1/auth/request-password-reset",
+                            json={"email": user.email.upper()})  # case-insensitive
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert self._count_tokens(db, user) == 1
+        token = db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user.id).first()
+        assert token.created_by is None  # self-service — no admin creator
+        assert sent["to"] == user.email
+        assert token.token in sent["reset_url"]
+        assert sent["reset_url"].startswith("/?reset=")
+
+    def test_internal_email_creates_no_token(self, client: TestClient, db, club):
+        _configure_club_email(db, club=club)
+        internal = User(email="member_abc@kegelkasse.internal", name="Internal",
+                        hashed_password=get_password_hash("x"), role=UserRole.member,
+                        club_id=club.id, is_active=True)
+        db.add(internal)
+        db.commit()
+        resp = client.post("/api/v1/auth/request-password-reset",
+                            json={"email": internal.email})
+        assert resp.status_code == 200
+        assert self._count_tokens(db, internal) == 0
+
+    def test_deactivated_account_creates_no_token(self, client: TestClient, db, user):
+        _configure_club_email(db, club=user.club)
+        user.is_active = False
+        db.commit()
+        resp = client.post("/api/v1/auth/request-password-reset",
+                            json={"email": user.email})
+        assert resp.status_code == 200
+        assert self._count_tokens(db, user) == 0
+
+    def test_empty_email_returns_generic_ok(self, client: TestClient):
+        resp = client.post("/api/v1/auth/request-password-reset", json={"email": "  "})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+
+    def test_rate_limited_per_email(self, client: TestClient, db, user, monkeypatch):
+        _configure_club_email(db, club=user.club)
+        import core.email
+        monkeypatch.setattr(core.email, "send_password_reset_email",
+                            lambda *a, **k: True)
+        # 3 allowed per email/hour; the 4th is silently dropped (no new token).
+        for _ in range(5):
+            resp = client.post("/api/v1/auth/request-password-reset",
+                                json={"email": user.email})
+            assert resp.status_code == 200
+            assert resp.json() == {"ok": True}
+        assert self._count_tokens(db, user) == 3

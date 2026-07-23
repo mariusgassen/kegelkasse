@@ -92,6 +92,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Email/password login with JWT tokens (7-day expiry by default)
 - Invite-link registration — admin generates a one-time token, user self-registers via link
+- **Self-service password reset**: a "Passwort vergessen?" link on the login page emails a one-time, one-hour reset link via the club's own SMTP server (no admin needed). The response is always generic (no account/email enumeration), rate-limited per email/IP, and only sends when the address matches an active account whose club has email configured — admins can still create a reset link manually otherwise
 - Per-user language preference (DE/EN), persisted server-side
 - Admin can promote/demote members between `member` and `admin` roles
 - **Profile sheet split into two tabs**: **🎳 Meine Saison** (default, read-only personal dashboard — balance & payment, yearly stats, throw performance, achievement badges, Kegel-Wrapped launcher) and **⚙️ Einstellungen** (avatar, display name, login email, password, language, push subscription + preferences, PWA install, docs links, logout, account deletion — the single scoped "Save" button lives only here)

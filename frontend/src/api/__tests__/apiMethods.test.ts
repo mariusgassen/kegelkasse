@@ -136,6 +136,18 @@ describe('api.resetPassword', () => {
     })
 })
 
+describe('api.requestPasswordReset', () => {
+    it('POSTs to /auth/request-password-reset', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true }))
+        const { api } = await import('../client')
+        await api.requestPasswordReset('me@example.de')
+        const [url, opts] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/auth/request-password-reset')
+        expect(opts.method).toBe('POST')
+        expect(JSON.parse(opts.body)).toMatchObject({ email: 'me@example.de' })
+    })
+})
+
 describe('api.createResetToken', () => {
     it('POSTs to /auth/create-reset-token', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ token: 't', reset_url: '' }))

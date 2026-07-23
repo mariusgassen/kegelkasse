@@ -50,6 +50,6 @@ class PasswordResetToken(Base):
     id = Column(Integer, primary_key=True, index=True)
     token = Column(String, unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    created_by = Column(Integer, ForeignKey("user.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("user.id"), nullable=True)  # null for self-service resets
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True), nullable=True)

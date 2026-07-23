@@ -63,6 +63,21 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "email.button.open": {"de": "Öffnen", "en": "Open"},
     "email.footer": {"de": "Kegelkasse 🎳", "en": "Kegelkasse 🎳"},
+    "auth.reset.email.subject": {
+        "de": "Passwort zurücksetzen",
+        "en": "Reset your password",
+    },
+    "auth.reset.email.body": {
+        "de": "Du hast angefragt, dein Passwort zurückzusetzen. Klicke auf den Button unten, "
+              "um ein neues Passwort zu vergeben. Der Link ist eine Stunde gültig. "
+              "Falls du das nicht warst, kannst du diese E-Mail ignorieren.",
+        "en": "You requested to reset your password. Click the button below to set a new one. "
+              "The link is valid for one hour. If this wasn't you, you can safely ignore this email.",
+    },
+    "auth.reset.email.button": {
+        "de": "Passwort zurücksetzen",
+        "en": "Reset password",
+    },
 }
 
 

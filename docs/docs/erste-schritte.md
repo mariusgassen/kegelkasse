@@ -108,10 +108,16 @@ in diesem Monat.
 
 Falls du dein Passwort vergessen hast:
 
-1. Klicke auf der Login-Seite auf **Passwort vergessen**
-2. Gib deine E-Mail-Adresse ein
-3. Ein Admin kann dir einen Reset-Token erstellen
+1. Klicke auf der Login-Seite auf **Passwort vergessen?**
+2. Gib deine E-Mail-Adresse ein und sende die Anfrage ab
+3. Falls ein Konto mit dieser Adresse existiert, bekommst du eine E-Mail mit einem
+   Link zum Zurücksetzen (eine Stunde gültig, einmal verwendbar)
 4. Öffne den Link und setze ein neues Passwort
+
+Aus Sicherheitsgründen zeigt die App immer dieselbe Bestätigung an – unabhängig
+davon, ob die Adresse hinterlegt ist. Der Self-Service-Versand funktioniert nur,
+wenn dein Verein einen E-Mail-Server hinterlegt hat; andernfalls kann dir ein
+Admin weiterhin manuell einen Reset-Link erstellen.
 
 ## Nächste Schritte
 
