@@ -9,6 +9,7 @@ import {useEffect, useRef, useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -25,11 +26,7 @@ import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 
 type SubTab = 'penalties' | 'games' | 'highlights' | 'manage'
 
-interface Props {
-    onHistory?: () => void
-}
-
-export function EveningHubPage({onHistory}: Props) {
+export function EveningHubPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights', 'manage'])
@@ -44,17 +41,10 @@ export function EveningHubPage({onHistory}: Props) {
     // Deep link state for highlight items
     const [deepLinkItemId, setDeepLinkItemId] = useState<number | null>(null)
     const [deepLinkCommentId, setDeepLinkCommentId] = useState<number | null>(null)
-    const [hashVersion, setHashVersion] = useState(0)
+    const hashVersion = useDeepLinkVersion()
     const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // Listen for hash changes triggered by notification-panel clicks
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
-
-    // Parse deep-link params (on mount and on hash changes)
+    // Parse deep-link params (on mount and on router-search changes)
     useEffect(() => {
         const params = getHashParams()
         const itemId = params.get('item')

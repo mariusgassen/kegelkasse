@@ -6,6 +6,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -931,20 +932,13 @@ export function CommitteePage() {
     const regularMembers = useAppStore(s => s.regularMembers)
     const [tab, setTab] = useHashTab<'announcements' | 'trips' | 'polls'>('announcements', ['announcements', 'trips', 'polls'])
     const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
-    const [hashVersion, setHashVersion] = useState(0)
+    const hashVersion = useDeepLinkVersion()
 
     // User can write if they are admin OR their regular member has is_committee=true
     const myMember = regularMembers.find(m => m.id === user?.regular_member_id)
     const canWrite = isAdmin(user) || !!myMember?.is_committee
 
-    // Listen for hash changes triggered by notification-panel clicks
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
-
-    // Parse deep-link params from hash (on mount and whenever hash changes)
+    // Parse deep-link params (on mount and whenever the router search changes)
     useEffect(() => {
         const params = getHashParams()
         const itemId = params.get('item')

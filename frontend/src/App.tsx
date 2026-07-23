@@ -1,52 +1,22 @@
 /**
- * Kegelkasse App root — handles auth boot, nav, and page routing.
- * All page components are always mounted (display:none when inactive)
- * to preserve scroll position and avoid re-fetching.
+ * Kegelkasse App root — owns the auth boot/login/splash flow and the club theme.
+ * Once authenticated it mounts the TanStack Router (#64); the shell (header, nav, overlays)
+ * lives in RootLayout, and each page is a code-split route.
  */
-import React, {ReactNode, useEffect, useState} from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useEffect, useState} from 'react'
+import {useQuery} from '@tanstack/react-query'
+import {RouterProvider} from '@tanstack/react-router'
 import {useAppStore} from './store/app'
 import {useThemeStore, type Theme} from './store/theme'
 import {Locale, useI18n, useT, t as tI18n} from './i18n'
 import {api, authState, NetworkError, UnauthorizedError} from './api/client'
 import {LoginPage} from './pages/LoginPage'
 import {AppLogoAnimated} from './components/Logo'
-import {ToastContainer, showToast} from './components/ui/Toast'
-import {OfflineBanner} from './components/ui/OfflineBanner'
-import {InstallPrompt} from './components/InstallPrompt'
-import {UpdatePrompt} from './components/UpdatePrompt'
+import {showToast} from './components/ui/Toast'
 import {useActiveEvening} from './hooks/useEvening'
-import {usePage} from './hooks/usePage'
-import {usePullToRefresh} from './hooks/usePullToRefresh'
-import {PullToRefreshIndicator} from './components/PullToRefreshIndicator'
-import {ProfileSheet} from './components/ProfileSheet'
-import {NotificationPanel} from './components/NotificationPanel'
-import {GlobalSearch} from './components/GlobalSearch'
-import {useNotificationStore, unreadCount} from './store/notifications'
-import {
-    Trophy,
-    Wallet,
-    CalendarDays,
-    Users,
-    UserRound,
-    BarChart2,
-    Settings,
-    Bell,
-    WifiOff,
-    Search,
-    type LucideIcon,
-} from 'lucide-react'
-
-// Page components — statically imported and always mounted (see render below)
-import {EveningHubPage} from './pages/EveningHubPage'
-import {TreasuryPage} from './pages/TreasuryPage'
-import {StatsPage} from './pages/StatsPage'
-import {ClubAdminPage} from './pages/ClubAdminPage'
-import {SchedulePage} from './pages/SchedulePage'
-import {CommitteePage} from './pages/CommitteePage'
-import {MembersPage} from './pages/MembersPage'
-
-type PageId = 'evening' | 'treasury' | 'stats' | 'club' | 'schedule' | 'committee' | 'members'
+import {useNotificationStore} from './store/notifications'
+import {router} from './router'
+import {WifiOff} from 'lucide-react'
 
 export function hexToHsl(hex: string): [number, number, number] {
     const r = parseInt(hex.slice(1, 3), 16) / 255
@@ -149,16 +119,6 @@ export function applyTheme(club: Parameters<typeof applyClubTheme>[0], theme: Th
     applyClubTheme({settings: {...club?.settings, bg_color: bg}})
 }
 
-const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
-    {id: 'evening', Icon: Trophy, labelKey: 'nav.evening'},
-    {id: 'treasury', Icon: Wallet, labelKey: 'nav.treasury'},
-    {id: 'schedule', Icon: CalendarDays, labelKey: 'nav.schedule'},
-    {id: 'committee', Icon: Users, labelKey: 'nav.committee'},
-    {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
-    {id: 'club', Icon: Settings, labelKey: 'nav.club'},
-    {id: 'members', Icon: UserRound, labelKey: 'nav.members'},
-]
-
 export default function App() {
     const {
         user,
@@ -167,25 +127,15 @@ export default function App() {
         setRegularMembers,
         setGameTemplates,
         setGuestPenaltyCap,
-        activeEveningId,
         setActiveEveningId
     } = useAppStore()
     const {locale, setLocale} = useI18n()
     const theme = useThemeStore(s => s.theme)
     const t = useT()
-    const NAV_PAGES: PageId[] = ['evening', 'treasury', 'schedule', 'committee', 'stats', 'club', 'members']
-    const [page, setPage] = usePage<PageId>('evening', NAV_PAGES)
-    const [profileOpen, setProfileOpen] = useState(false)
-    const [notifOpen, setNotifOpen] = useState(false)
-    const [searchOpen, setSearchOpen] = useState(false)
-    const {addNotification, notifications} = useNotificationStore()
-    const badgeCount = unreadCount(notifications)
-    // Always show bell for logged-in users — server-side hybrid loading means notifications appear even without push
-    const showNotificationBell = true
+    const {addNotification} = useNotificationStore()
     // Boot states: 'loading' while token is being verified, 'network-error' if server unreachable
     const [bootDone, setBootDone] = useState(!authState.isLoggedIn())
     const [bootNetworkError, setBootNetworkError] = useState(false)
-    const queryClient = useQueryClient()
     useActiveEvening()
 
     // Register global 401 handler — auto-logout when any request returns Unauthorized.
@@ -252,24 +202,6 @@ export default function App() {
         const timer = setInterval(fetchNotifications, 30_000)
         return () => clearInterval(timer)
     }, [user?.id, addNotification])
-
-    async function handleRefresh() {
-        await queryClient.invalidateQueries()
-    }
-
-    const {containerRef: mainRef, pullDistance, dragging: ptrDragging, refreshing: ptrRefreshing} = usePullToRefresh(handleRefresh)
-
-    // Cmd/Ctrl+K opens global search from anywhere
-    useEffect(() => {
-        const handler = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault()
-                setSearchOpen(true)
-            }
-        }
-        document.addEventListener('keydown', handler)
-        return () => document.removeEventListener('keydown', handler)
-    }, [])
 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
 
@@ -386,137 +318,6 @@ export default function App() {
 
     if (!user) return <LoginPage onLogin={() => retryBoot()} />
 
-    return (
-        <div className="app-shell">
-            {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
-            <div className="app-header">
-                {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
-                <div className="safe-top" style={{background: 'var(--kce-bg)'}}/>
-                <OfflineBanner/>
-                <InstallPrompt/>
-                <UpdatePrompt/>
-
-                {/* ── Header ── */}
-                <header style={{
-                    background: 'var(--kce-bg)',
-                    borderBottom: '1px solid var(--kce-border)',
-                    zIndex: 50,
-                }}>
-                <div className="flex items-center gap-2.5 px-3 py-2">
-                    {club?.settings?.logo_url ? (
-                        <img src={club.settings.logo_url} alt={club.name}
-                             style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0}}/>
-                    ) : (
-                        <AppLogoAnimated size={28}/>
-                    )}
-                    <div className="flex-1 min-w-0">
-                        <h1 className="font-display font-bold text-kce-amber text-sm leading-tight truncate">
-                            {club?.name || t('app.name')}
-                        </h1>
-                        <p className="text-[10px] text-kce-muted font-bold tracking-widest">{t('app.subtitle')}</p>
-                    </div>
-                    {activeEveningId && (
-                        <button
-                            className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
-                            style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)', border: '1px solid color-mix(in srgb, var(--kce-primary) 60%, transparent)'}}
-                            onClick={() => { window.location.hash = 'evening:manage' }}>
-                            <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
-                        </button>
-                    )}
-                    {/* Search button */}
-                    <button
-                        aria-label={t('search.title')}
-                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity"
-                        style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
-                        onClick={() => setSearchOpen(true)}>
-                        <Search size={14} strokeWidth={2}/>
-                    </button>
-                    {/* Notification bell */}
-                    {showNotificationBell && (
-                        <button
-                            aria-label={t('notifications.title')}
-                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
-                            style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)'}}
-                            onClick={() => setNotifOpen(true)}>
-                            <Bell size={14} strokeWidth={2}/>
-                            {badgeCount > 0 && (
-                                <span
-                                    className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
-                                    style={{background: 'var(--kce-primary)', color: 'var(--kce-bg)'}}>
-                                    {badgeCount > 9 ? '9+' : badgeCount}
-                                </span>
-                            )}
-                        </button>
-                    )}
-                    {/* Avatar button */}
-                    <button
-                        aria-label="Profil"
-                        className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
-                        style={{
-                            background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,#c4701a,var(--kce-primary))',
-                            color: 'var(--kce-bg)'
-                        }}
-                        onClick={() => setProfileOpen(true)}>
-                        {user?.avatar
-                            ? <img src={user.avatar} alt="" className="w-full h-full object-cover"/>
-                            : (user?.name || '?')[0].toUpperCase()
-                        }
-                    </button>
-                </div>
-                </header>
-            </div>
-
-            {/* ── Pages (all mounted, toggled via display) ── */}
-            <main ref={mainRef} className="app-main" style={{overflow: 'hidden', position: 'relative'}}>
-                {/* Fixed at the top — not translated, so it's revealed as the content below slides down */}
-                <PullToRefreshIndicator pullDistance={pullDistance} dragging={ptrDragging} refreshing={ptrRefreshing}/>
-
-                {/* Content — slides down 1:1 with the finger while dragging, animates to/from rest otherwise.
-                    Needs its own opaque background: without one it's visually transparent (pages don't
-                    paint a full-bleed background of their own), so the indicator underneath would stay
-                    visible through it regardless of z-index or scroll position. */}
-                <div style={{
-                    position: 'absolute', inset: 0, zIndex: 1, background: 'var(--kce-bg)',
-                    transform: `translateY(${pullDistance}px)`,
-                    transition: ptrDragging ? 'none' : 'transform 0.25s ease-out',
-                }}>
-                    {([
-                        ['evening', <EveningHubPage onHistory={() => setPage('schedule')}/>],
-                        ['treasury', <TreasuryPage/>],
-                        ['schedule', <SchedulePage onNavigate={() => setPage('evening')}/>],
-                        ['committee', <CommitteePage/>],
-                        ['stats', <StatsPage/>],
-                        ['club', <ClubAdminPage/>],
-                        ['members', <MembersPage/>],
-                    ] as [PageId, ReactNode][]).map(([id, el]) => (
-                        <div key={id} className="page-pane"
-                             style={{position: 'absolute', inset: 0, display: page === id ? 'block' : 'none'}}>
-                            {el}
-                        </div>
-                    ))}
-                </div>
-            </main>
-
-            {/* ── Nav — bottom tab bar on mobile, side rail on ≥lg (via .app-nav grid area) ── */}
-            <nav className="app-nav">
-                {NAV.filter(n => {
-                    const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
-                    if (n.id === 'club') return isAdminRole
-                    if (n.id === 'members') return !isAdminRole
-                    return true
-                }).map(n => (
-                    <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
-                            onClick={() => setPage(n.id)}>
-                        <n.Icon size={20} strokeWidth={page === n.id ? 2.5 : 2}/>
-                        <span className="truncate max-w-full">{t(n.labelKey as any)}</span>
-                    </button>
-                ))}
-            </nav>
-
-            <ToastContainer/>
-            <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>
-            <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
-            <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
-        </div>
-    )
+    // Authenticated — mount the router; RootLayout renders the shell around the active page.
+    return <RouterProvider router={router}/>
 }
