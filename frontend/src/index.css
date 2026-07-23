@@ -69,20 +69,32 @@
         overflow: hidden;
     }
 
-    /* Anchor the app to the layout viewport instead of trusting a viewport *height* unit.
-       On an iOS standalone PWA (viewport-fit=cover) the height units are unreliable: 100vh
-       over-reports, and 100dvh/100svh can resolve to the *safe* viewport (excluding the
-       home-indicator zone) or go stale after a rotation / return-from-background — leaving a
-       dead strip of body background below the bottom nav (intermittently, hence "sometimes").
-       `position: fixed; inset: 0` fills the initial containing block, which with viewport-fit=cover
-       is the full screen edge-to-edge, every time — no height computation involved. The bottom
-       nav's env(safe-area-inset-bottom) padding then reserves the home-indicator zone exactly once,
-       inside a shell that already spans the whole screen. #root has no transform/filter, so
-       descendant position:fixed overlays still anchor to the viewport as before. */
+    /* Browser-tab default: anchor to the layout viewport. inset:0 tracks the visible area as
+       Safari's toolbars show/hide, so the app never hides behind the URL bar in a normal tab. */
     #root {
         position: fixed;
         inset: 0;
         overflow: hidden;
+    }
+
+    /* Installed PWA (iOS/Android standalone): the bottom dead strip below the nav.
+       On iOS standalone with viewport-fit=cover, EVERY "fit-to-visible" primitive resolves to the
+       *safe* viewport (excluding the home-indicator zone) — height:100%, 100dvh, 100svh, and even
+       position:fixed;inset:0 all stop above the home indicator, leaving a strip of body background
+       below the bottom nav (intermittently, as the value also goes stale after rotation / resume).
+       100vh is the one unit that spans the *physical* screen edge-to-edge here: its usual drawback
+       — sitting behind Safari's URL bar — cannot happen in standalone because there is no URL bar.
+       Scoping it to display-mode: standalone keeps the browser-tab case on the safe inset:0 above.
+       The nav's env(safe-area-inset-bottom) padding then lifts the icons above the home indicator
+       inside a shell that reaches the true bottom edge. */
+    @media (display-mode: standalone) {
+        #root {
+            inset: auto;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
     }
 
     body {
