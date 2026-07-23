@@ -69,22 +69,21 @@
         overflow: hidden;
     }
 
-    /* Fill the screen using a JS-measured height, not a CSS viewport unit. On an installed iOS PWA
-       (viewport-fit=cover) every CSS primitive misses: height:100%, 100dvh, 100svh and
-       position:fixed;inset:0 resolve to the *safe* viewport (dead strip below the bottom nav),
-       while 100vh over-reports (the home indicator cuts off the nav labels). --app-height is set
-       from window.innerHeight (lib/appHeight.ts) — the exact pixels the web view occupies, i.e. the
-       whole screen in standalone — updated on rotate/resize. The shell then reaches the true bottom
-       edge and the nav's env(safe-area-inset-bottom) padding lifts the labels above the home
-       indicator. 100% is the pre-JS fallback for first paint. #root has no transform/filter, so
+    /* Anchor the shell to the initial containing block — no height unit, no JS measurement.
+       The whole iOS-standalone dead-strip saga came from tuning the shell *height*
+       (100vh → 100dvh → window.innerHeight): every height source can go stale or under-report
+       on iOS (viewport-fit=cover, black-translucent status bar), leaving #root shorter than the
+       screen so body background shows below the bottom nav.
+       Key fact: env(safe-area-inset-*) are non-zero ONLY when viewport-fit=cover is honored, and
+       that same condition makes the initial containing block the full *physical* screen. So if the
+       nav shows any safe-area band at all (it does), position:fixed;inset:0 fills the true screen
+       edge-to-edge — by construction, nothing to measure or go stale. The nav's
+       env(safe-area-inset-bottom) padding then reserves the home-indicator zone exactly once,
+       inside a shell that already reaches the bottom edge. #root has no transform/filter, so
        descendant position:fixed overlays still anchor to the viewport as before. */
     #root {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        height: var(--app-height, 100%);
+        inset: 0;
         overflow: hidden;
     }
 
