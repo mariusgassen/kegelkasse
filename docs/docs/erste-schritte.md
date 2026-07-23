@@ -79,6 +79,14 @@ Handy am leichtesten erreicht. Auf breiten Bildschirmen (Desktop oder Tablet im 
 wandert dieselbe Navigation automatisch als **Seitenleiste an den linken Rand**, damit die zusätzliche
 Breite genutzt wird.
 
+Die Leiste ist bewusst kurz gehalten: **🏠 Start · 💰 Kasse · 📅 Termine · 🤝 Verein** — für alle
+Mitglieder gleich. Läuft gerade ein Kegelabend, erscheint zusätzlich der **🏆 Abend**-Tab; ist keiner
+aktiv, fällt er weg.
+
+**🤝 Verein** ist ein Sammel-Bereich für die selteneren Vereinsseiten. Tippst du darauf, landest du bei
+den **Neuigkeiten**; darüber erscheint eine kleine Sektions-Leiste, mit der du zwischen **Neuigkeiten**,
+**Mitgliedern**, **Stats** und — als Vereinsverwalter:in — der **Verwaltung** wechselst.
+
 Oben im Header bleiben Suche (🔍), Benachrichtigungen (🔔) und dein Profil erreichbar; läuft gerade ein
 Kegelabend, erscheint dort zusätzlich die **AKTIV**-Schaltfläche als Schnellzugriff.
 

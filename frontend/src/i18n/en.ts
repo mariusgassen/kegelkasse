@@ -43,6 +43,8 @@ export const en = {
     "nav.history": "History",
     "nav.stats": "Stats",
     "nav.club": "Club",
+    "nav.verein": "Club",
+    "nav.manage": "Management",
     "home.greeting": "Hi, {name} 👋",
     "home.greetingNoName": "Welcome 👋",
     "home.subtitle": "Your overview for today",
