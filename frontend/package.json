@@ -1,7 +1,7 @@
 {
   "name": "kegelkasse-frontend",
   "private": true,
-  "version": "1.32.0",
+  "version": "1.33.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.18",
     "@testing-library/dom": "^10.4.1",
     "emoji-picker-react": "^4.19.1",
     "lucide-react": "^1.24.0",

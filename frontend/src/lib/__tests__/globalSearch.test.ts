@@ -65,7 +65,7 @@ describe('searchMembers', () => {
 
     it('builds a members-page deep-link hash', () => {
         const r = searchMembers('hasi', members)
-        expect(r[0].hash).toBe('members?memberName=Hasi')
+        expect(r[0].nav).toEqual({to: '/members', search: {memberName: 'Hasi'}})
     })
 
     it('caps results at 5', () => {
@@ -78,7 +78,7 @@ describe('searchAccounts', () => {
     it('targets the treasury accounts deep-link', () => {
         const r = searchAccounts('hasi', members)
         expect(r[0]).toMatchObject({kind: 'account', id: 1, title: 'Hasi'})
-        expect(r[0].hash).toBe('treasury:accounts?member=1')
+        expect(r[0].nav).toEqual({to: '/treasury', search: {tab: 'accounts', member: 1}})
     })
 })
 
@@ -107,7 +107,7 @@ describe('searchEvenings', () => {
         const r = searchEvenings('nord', evenings, 'de')
         expect(r).toHaveLength(1)
         expect(r[0]).toMatchObject({kind: 'evening', id: 10, title: 'Kegelbahn Nord'})
-        expect(r[0].hash).toBe('schedule?evening=10')
+        expect(r[0].nav).toEqual({to: '/schedule', search: {evening: 10}})
         expect(r[0].subtitle).toBe('15. März 2026')
     })
 
@@ -134,7 +134,7 @@ describe('searchAnnouncements', () => {
     it('matches by title', () => {
         const r = searchAnnouncements('sommerfest', announcements)
         expect(r).toHaveLength(1)
-        expect(r[0].hash).toBe('committee:announcements?item=20')
+        expect(r[0].nav).toEqual({to: '/committee', search: {tab: 'announcements', item: 20}})
     })
 
     it('matches by text body', () => {
@@ -153,7 +153,7 @@ describe('searchTrips', () => {
     it('matches by destination and shows a formatted date subtitle', () => {
         const r = searchTrips('rhein', trips, 'de')
         expect(r).toHaveLength(1)
-        expect(r[0].hash).toBe('committee:trips?item=30')
+        expect(r[0].nav).toEqual({to: '/committee', search: {tab: 'trips', item: 30}})
         expect(r[0].subtitle).toBe('01. Juni 2026')
     })
 
@@ -177,7 +177,7 @@ describe('searchBookings', () => {
         const r = searchBookings('hans', payments, [], 'de')
         expect(r).toHaveLength(1)
         expect(r[0]).toMatchObject({kind: 'payment', id: 100, title: 'Eintrittsbeitrag'})
-        expect(r[0].hash).toBe(`treasury:bookings?q=${encodeURIComponent('Eintrittsbeitrag')}`)
+        expect(r[0].nav).toEqual({to: '/treasury', search: {tab: 'bookings', q: 'Eintrittsbeitrag'}})
         expect(r[0].subtitle).toContain('Hans Müller')
     })
 
@@ -196,7 +196,7 @@ describe('searchBookings', () => {
         const r = searchBookings('miete', [], expenses, 'de')
         expect(r).toHaveLength(1)
         expect(r[0]).toMatchObject({kind: 'expense', id: 200, title: 'Kegelbahn Miete'})
-        expect(r[0].hash).toBe(`treasury:bookings?q=${encodeURIComponent('Kegelbahn Miete')}`)
+        expect(r[0].nav).toEqual({to: '/treasury', search: {tab: 'bookings', q: 'Kegelbahn Miete'}})
     })
 
     it('matches by written-out month across both payments and expenses', () => {

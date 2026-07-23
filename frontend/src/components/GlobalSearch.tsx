@@ -4,6 +4,7 @@ import {Sheet} from '@/components/ui/Sheet'
 import {useT, useI18n} from '@/i18n'
 import {useAppStore} from '@/store/app'
 import {api} from '@/api/client'
+import {router} from '@/router'
 import {
     searchMembers,
     searchAccounts,
@@ -67,7 +68,8 @@ export function GlobalSearch({open, onClose}: Props) {
     const totalResults = groups.reduce((sum, g) => sum + g.results.length, 0)
 
     function select(r: SearchResult) {
-        window.location.hash = r.hash
+        // Typed router navigation — the destination page consumes the search params as its deep link.
+        router.navigate({to: r.nav.to, search: r.nav.search} as never).catch(() => {})
         onClose()
     }
 

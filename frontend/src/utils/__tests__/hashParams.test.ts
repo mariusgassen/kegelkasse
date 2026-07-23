@@ -1,67 +1,68 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+// Controllable fake router singleton (see usePage.test for the same pattern).
+const { state, nav, setLocation } = vi.hoisted(() => {
+    const state: { location: { pathname: string; search: Record<string, unknown>; searchStr: string } } = {
+        location: { pathname: '/schedule', search: {}, searchStr: '' },
+    }
+    const nav: { last: { to?: string; search?: unknown; replace?: boolean } | null } = { last: null }
+    const setLocation = (pathname: string, search: Record<string, unknown> = {}) => {
+        const qs = new URLSearchParams(Object.entries(search).map(([k, v]) => [k, String(v)])).toString()
+        state.location = { pathname, search, searchStr: qs ? `?${qs}` : '' }
+    }
+    return { state, nav, setLocation }
+})
+
+vi.mock('@/router', () => ({
+    router: {
+        state,
+        navigate: (opts: { to?: string; search?: unknown; replace?: boolean }) => {
+            nav.last = opts
+            return Promise.resolve()
+        },
+    },
+}))
+
 import { getHashParams, clearHashParams } from '../hashParams'
 
+beforeEach(() => {
+    nav.last = null
+    setLocation('/schedule', {})
+})
+
 describe('getHashParams', () => {
-    afterEach(() => {
-        vi.unstubAllGlobals()
+    it('returns empty params when the router search is empty', () => {
+        setLocation('/schedule', {})
+        expect(getHashParams().toString()).toBe('')
     })
 
-    it('returns empty URLSearchParams when hash has no query string', () => {
-        vi.stubGlobal('window', {
-            location: { hash: '#schedule', pathname: '/app' },
-        })
-        const params = getHashParams()
-        expect(params.toString()).toBe('')
+    it('returns params from the router search', () => {
+        setLocation('/schedule', { event: '5' })
+        expect(getHashParams().get('event')).toBe('5')
     })
 
-    it('returns params from hash query string', () => {
-        vi.stubGlobal('window', {
-            location: { hash: '#schedule?event=5', pathname: '/app' },
-        })
-        const params = getHashParams()
-        expect(params.get('event')).toBe('5')
-    })
-
-    it('handles multiple params', () => {
-        vi.stubGlobal('window', {
-            location: { hash: '#schedule?event=5&item=3', pathname: '/app' },
-        })
+    it('handles multiple params (numbers coerced to strings)', () => {
+        setLocation('/schedule', { event: 5, item: 3 })
         const params = getHashParams()
         expect(params.get('event')).toBe('5')
         expect(params.get('item')).toBe('3')
     })
-
-    it('returns empty params when hash is empty', () => {
-        vi.stubGlobal('window', {
-            location: { hash: '', pathname: '/app' },
-        })
-        const params = getHashParams()
-        expect(params.toString()).toBe('')
-    })
 })
 
 describe('clearHashParams', () => {
-    afterEach(() => {
-        vi.unstubAllGlobals()
+    it('navigates to strip deep-link params while keeping the active tab', () => {
+        setLocation('/treasury', { tab: 'accounts', member: '5' })
+        clearHashParams()
+        expect(nav.last).toMatchObject({ to: '/treasury', replace: true })
+        // The search resolver keeps only `tab`.
+        const resolver = nav.last!.search as (p: Record<string, unknown>) => Record<string, unknown>
+        expect(resolver({ tab: 'accounts', member: '5' })).toEqual({ tab: 'accounts' })
     })
 
-    it('strips query params and keeps the base hash', () => {
-        const replaceState = vi.fn()
-        vi.stubGlobal('window', {
-            location: { hash: '#schedule?event=5', pathname: '/app' },
-        })
-        vi.stubGlobal('history', { replaceState })
+    it('navigates to an empty search when there is no tab', () => {
+        setLocation('/schedule', { event: '5' })
         clearHashParams()
-        expect(replaceState).toHaveBeenCalledWith({}, '', '/app#schedule')
-    })
-
-    it('works when hash has no query params', () => {
-        const replaceState = vi.fn()
-        vi.stubGlobal('window', {
-            location: { hash: '#schedule', pathname: '/app' },
-        })
-        vi.stubGlobal('history', { replaceState })
-        clearHashParams()
-        expect(replaceState).toHaveBeenCalledWith({}, '', '/app#schedule')
+        const resolver = nav.last!.search as (p: Record<string, unknown>) => Record<string, unknown>
+        expect(resolver({ event: '5' })).toEqual({})
     })
 })

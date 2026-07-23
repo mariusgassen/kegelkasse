@@ -544,11 +544,14 @@ describe('App — authenticated interactions', () => {
 
     it('deep-links to the evening manage sub-tab when active evening button is clicked', async () => {
         storeState.activeEveningId = 42
-        window.location.hash = ''
+        const { router } = await import('@/router')
         await renderApp()
         await waitFor(() => screen.getByText(/evening\.active/))
         fireEvent.click(screen.getByText(/evening\.active/))
-        expect(window.location.hash).toBe('#evening:manage')
+        await waitFor(() => {
+            expect(router.state.location.pathname).toBe('/evening')
+            expect((router.state.location.search as Record<string, unknown>).tab).toBe('manage')
+        })
     })
 
     it('navigates to another page when nav button is clicked', async () => {
@@ -573,11 +576,12 @@ describe('App — authenticated interactions', () => {
         expect(main.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
-    it('wraps every page in a page-pane for the page-switch enter transition', async () => {
+    it('wraps the active page in a page-pane for the page-switch enter transition', async () => {
         await renderApp()
         await waitFor(() => screen.getByRole('navigation'))
-        // All 7 pages stay mounted; each wrapper carries the transition class
-        expect(document.querySelectorAll('main .page-pane')).toHaveLength(7)
+        // The router mounts only the active page; its Outlet is wrapped in a single
+        // page-pane (keyed by page) so the enter animation restarts on each navigation.
+        expect(document.querySelectorAll('main .page-pane')).toHaveLength(1)
     })
 
     it('uses the grid app-shell as the root layout', async () => {
@@ -651,25 +655,8 @@ describe('App — authenticated interactions', () => {
         })
     })
 
-    it('calls setPage(schedule) when EveningHubPage onHistory fires', async () => {
-        const setPageMock = vi.fn()
-        const { usePage } = await import('@/hooks/usePage.ts')
-        vi.mocked(usePage).mockReturnValue(['evening', setPageMock] as any)
-        await renderApp()
-        await waitFor(() => screen.getByText('hub-history'))
-        fireEvent.click(screen.getByText('hub-history'))
-        expect(setPageMock).toHaveBeenCalledWith('schedule')
-    })
-
-    it('calls setPage(evening) when SchedulePage onNavigate fires', async () => {
-        const setPageMock = vi.fn()
-        const { usePage } = await import('@/hooks/usePage.ts')
-        vi.mocked(usePage).mockReturnValue(['schedule', setPageMock] as any)
-        await renderApp()
-        await waitFor(() => screen.getByText('schedule-navigate'))
-        fireEvent.click(screen.getByText('schedule-navigate'))
-        expect(setPageMock).toHaveBeenCalledWith('evening')
-    })
+    // Cross-page navigation (evening → schedule and back) is no longer prop-drilled from the
+    // shell; each page routes itself via the router, covered in the page-level suites.
 
     it('clicking the search button opens GlobalSearch', async () => {
         await renderApp()

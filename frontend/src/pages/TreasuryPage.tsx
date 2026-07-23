@@ -11,6 +11,7 @@ import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {
     type BalanceEvent,
@@ -570,12 +571,10 @@ export function TreasuryPage() {
             clearHashParams()
         }
     }
+    const deepLinkVersion = useDeepLinkVersion()
     useEffect(() => {
         handleDeepLink()
-        const onHash = () => handleDeepLink()
-        window.addEventListener('hashchange', onHash)
-        return () => window.removeEventListener('hashchange', onHash)
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [deepLinkVersion]) // eslint-disable-line react-hooks/exhaustive-deps
     const {data: memberPayments = []} = useQuery({
         queryKey: ['member-payments', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPayments(expandedMember) : null,

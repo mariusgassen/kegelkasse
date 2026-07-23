@@ -7,6 +7,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({ useT: () => (key: string) => key }))
 
+// StatsPage drives its Abend/Jahr tabs via useHashTab (router-backed). Rendered bare here
+// (no RouterProvider), so back it with a stateful in-memory mock that flips reactively on click.
+let __statsTab = 'evening'
+vi.mock('@/hooks/usePage.ts', () => ({
+    useHashTab: (initial: string) => {
+        const [, force] = React.useReducer((x) => x + 1, 0)
+        if (__statsTab === undefined) __statsTab = initial
+        return [__statsTab, (t: string) => { __statsTab = t; force() }]
+    },
+}))
+
 vi.mock('@/hooks/useEvening.ts', () => ({
     useEveningList: vi.fn(),
 }))
@@ -178,6 +189,7 @@ function makeWrapper() {
 }
 
 async function renderStatsPage(tab?: 'evening' | 'year') {
+    __statsTab = 'evening'
     const { StatsPage } = await import('../StatsPage')
     const result = render(<StatsPage />, { wrapper: makeWrapper() })
     if (tab === 'year') {

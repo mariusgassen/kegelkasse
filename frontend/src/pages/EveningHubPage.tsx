@@ -5,10 +5,11 @@
  * shortcuts deep-link here via the #evening:manage hash instead of routing
  * to a separate top-level page.
  */
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -25,11 +26,7 @@ import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 
 type SubTab = 'penalties' | 'games' | 'highlights' | 'manage'
 
-interface Props {
-    onHistory?: () => void
-}
-
-export function EveningHubPage({onHistory}: Props) {
+export function EveningHubPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
     const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights', 'manage'])
@@ -44,17 +41,9 @@ export function EveningHubPage({onHistory}: Props) {
     // Deep link state for highlight items
     const [deepLinkItemId, setDeepLinkItemId] = useState<number | null>(null)
     const [deepLinkCommentId, setDeepLinkCommentId] = useState<number | null>(null)
-    const [hashVersion, setHashVersion] = useState(0)
-    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const hashVersion = useDeepLinkVersion()
 
-    // Listen for hash changes triggered by notification-panel clicks
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
-
-    // Parse deep-link params (on mount and on hash changes)
+    // Parse deep-link params (on mount and on router-search changes)
     useEffect(() => {
         const params = getHashParams()
         const itemId = params.get('item')
@@ -76,20 +65,10 @@ export function EveningHubPage({onHistory}: Props) {
         // Always open the comment thread; deepLinkCommentId is passed to CommentThread and cleared there
         setOpenCommentHighlightId(target.id)
 
-        // Clear any pending flash timer
-        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
-
         setDeepLinkItemId(null)
         // Note: deepLinkCommentId is NOT cleared here — CommentThread calls onHighlightHandled() once it flashes
 
-        flashTimerRef.current = setTimeout(() => {
-            const el = document.getElementById(`item-${target.id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            flashTimerRef.current = setTimeout(() => {
-                el?.classList.remove('kce-deeplink-flash')
-            }, 2500)
-        }, 120)
+        return flashDeepLinkTarget(`item-${target.id}`)
     }, [deepLinkItemId, subTab, evening]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // No active evening — EveningPage owns the full start-evening flow

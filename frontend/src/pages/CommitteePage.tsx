@@ -3,9 +3,10 @@
  * Committee members (is_committee) and admins can create/delete entries.
  * All club members can view.
  */
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -52,8 +53,6 @@ function useDeepLinkScroll<T extends { id: number }>(
     setSearch: (v: string) => void,
     getSearchText: (item: T) => string,
 ) {
-    const highlightRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
     useEffect(() => {
         if (!deepLink || items.length === 0) return
         const target = items.find(it => it.id === deepLink.itemId)
@@ -68,18 +67,7 @@ function useDeepLinkScroll<T extends { id: number }>(
         setHighlightCommentId(deepLink.commentId)
         onHandled()
 
-        if (highlightRef.current !== null) clearTimeout(highlightRef.current)
-
-        highlightRef.current = setTimeout(() => {
-            const el = document.getElementById(`item-${target.id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            setTimeout(() => el?.classList.remove('kce-deeplink-flash'), 2500)
-        }, 120)
-
-        return () => {
-            if (highlightRef.current !== null) clearTimeout(highlightRef.current)
-        }
+        return flashDeepLinkTarget(`item-${target.id}`)
     }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
@@ -931,20 +919,13 @@ export function CommitteePage() {
     const regularMembers = useAppStore(s => s.regularMembers)
     const [tab, setTab] = useHashTab<'announcements' | 'trips' | 'polls'>('announcements', ['announcements', 'trips', 'polls'])
     const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
-    const [hashVersion, setHashVersion] = useState(0)
+    const hashVersion = useDeepLinkVersion()
 
     // User can write if they are admin OR their regular member has is_committee=true
     const myMember = regularMembers.find(m => m.id === user?.regular_member_id)
     const canWrite = isAdmin(user) || !!myMember?.is_committee
 
-    // Listen for hash changes triggered by notification-panel clicks
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
-
-    // Parse deep-link params from hash (on mount and whenever hash changes)
+    // Parse deep-link params (on mount and whenever the router search changes)
     useEffect(() => {
         const params = getHashParams()
         const itemId = params.get('item')

@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -9,6 +9,8 @@ import {Loading} from '@/components/ui/Loading.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
+import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
@@ -833,15 +835,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
-    const [hashVersion, setHashVersion] = useState(0)
-    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-    // Listen for hash changes triggered by notification-panel clicks
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
+    const hashVersion = useDeepLinkVersion()
 
     // Parse deep-link ?evening= param and expand + scroll + flash the matching card
     useEffect(() => {
@@ -851,15 +845,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
         const id = parseInt(eveningId, 10)
         clearHashParams()
         setExpandedId(id)
-        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
-        flashTimerRef.current = setTimeout(() => {
-            const el = document.getElementById(`history-evening-${id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            flashTimerRef.current = setTimeout(() => {
-                el?.classList.remove('kce-deeplink-flash')
-            }, 2500)
-        }, 120)
+        return flashDeepLinkTarget(`history-evening-${id}`)
     }, [hashVersion, evenings]) // eslint-disable-line react-hooks/exhaustive-deps
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
@@ -1171,7 +1157,9 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
+export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => void } = {}) {
+    // As a route component no prop is passed — fall back to routing to the evening page.
+    const onNavigate = onNavigateProp ?? (() => { router.navigate({to: '/evening'}).catch(() => {}) })
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
@@ -1197,14 +1185,9 @@ export function SchedulePage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [icalSheet, setIcalSheet] = useState(false)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
-    // Deep link: ?event=ID → auto-open RSVP quick sheet (member) or RSVP sheet (admin)
-    // Use a state counter so the effect re-runs on hash changes (e.g. from push notification click)
-    const [hashVersion, setHashVersion] = useState(0)
-    useEffect(() => {
-        const handler = () => setHashVersion(v => v + 1)
-        window.addEventListener('hashchange', handler)
-        return () => window.removeEventListener('hashchange', handler)
-    }, [])
+    // Deep link: ?event=ID → auto-open RSVP quick sheet (member) or RSVP sheet (admin).
+    // Re-runs on router-search changes (e.g. from a push-notification click while already here).
+    const hashVersion = useDeepLinkVersion()
     useEffect(() => {
         if (!schedules) return
         const params = getHashParams()

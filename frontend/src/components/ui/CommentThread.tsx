@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
 import {createPortal} from 'react-dom'
 import {useEffect} from 'react'
+import {flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client'
 import {useAppStore} from '@/store/app'
 import {useT} from '@/i18n'
@@ -400,13 +401,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
         if (flashedCommentRef.current === highlightCommentId) return
         flashedCommentRef.current = highlightCommentId
         onHighlightHandled?.()
-        setTimeout(() => {
-            const el = document.getElementById(`comment-${highlightCommentId}`)
-            if (!el) return
-            el.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el.classList.add('kce-deeplink-flash')
-            setTimeout(() => el.classList.remove('kce-deeplink-flash'), 2000)
-        }, 100)
+        return flashDeepLinkTarget(`comment-${highlightCommentId}`, {delay: 100, duration: 2000})
     }, [highlightCommentId, open, comments.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleReply(comment: Comment) {
