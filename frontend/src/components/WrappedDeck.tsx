@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import {useT} from '@/i18n'
 import type {WrappedStats} from '@/types'
 import {buildWrappedCards, type WrappedAccent} from '@/lib/wrapped'
-import {useThrowTracking} from '@/hooks/useClub'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -50,7 +50,11 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
 
     if (!open) return null
 
-    const next = () => setIdx(i => Math.min(cards.length - 1, i + 1))
+    // Advancing past the final card closes the deck (the last slide reads "tap to finish").
+    const next = () => {
+        if (idx >= cards.length - 1) onClose()
+        else setIdx(idx + 1)
+    }
     const prev = () => setIdx(i => Math.max(0, i - 1))
     const card = cards[idx]
     const isFinale = card.id === 'finale'
@@ -87,15 +91,23 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
             aria-modal="true"
             aria-label={t('wrapped.title')}
         >
-            {/* Progress segments */}
-            <div className="flex gap-1 p-3">
+            {/* Progress segments — tappable to jump to any card (incl. back). */}
+            <div className="flex gap-1 px-3 pt-3 pb-1">
                 {cards.map((c, i) => (
-                    <div key={c.id} className="flex-1 h-1 rounded-full overflow-hidden bg-kce-border">
-                        <div
-                            className="h-full bg-kce-cream transition-all"
-                            style={{width: i < idx ? '100%' : i === idx ? '100%' : '0%', opacity: i <= idx ? 1 : 0.3}}
-                        />
-                    </div>
+                    <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setIdx(i)}
+                        aria-label={t(c.headlineKey as never)}
+                        className="flex-1 py-2 -my-1 cursor-pointer"
+                    >
+                        <div className="h-1 rounded-full overflow-hidden bg-kce-border">
+                            <div
+                                className="h-full bg-kce-cream transition-all"
+                                style={{width: i <= idx ? '100%' : '0%', opacity: i <= idx ? 1 : 0.3}}
+                            />
+                        </div>
+                    </button>
                 ))}
             </div>
 
