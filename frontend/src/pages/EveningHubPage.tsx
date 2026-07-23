@@ -21,15 +21,16 @@ import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 import {EveningPage} from './EveningPage'
 import {TabletQuickEntryPage} from './TabletQuickEntryPage'
+import {LiveEveningView} from '@/components/evening/LiveEveningView.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 
-type SubTab = 'penalties' | 'games' | 'highlights' | 'manage'
+type SubTab = 'live' | 'penalties' | 'games' | 'highlights' | 'manage'
 
 export function EveningHubPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId} = useActiveEvening()
-    const [subTab, setSubTab] = useHashTab<SubTab>('penalties', ['penalties', 'games', 'highlights', 'manage'])
+    const [subTab, setSubTab] = useHashTab<SubTab>('live', ['live', 'penalties', 'games', 'highlights', 'manage'])
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
         useCloseReopenEvening(evening?.id, invalidate)
     const [quickEntryOpen, setQuickEntryOpen] = useState(false)
@@ -76,14 +77,20 @@ export function EveningHubPage() {
         return <EveningPage/>
     }
 
+    const isClosed = evening?.is_closed ?? false
+
+    // The Live cockpit is only meaningful for a running evening; a closed evening falls back to
+    // the protocol as before.
     const TABS: { id: SubTab; label: string }[] = [
+        ...(!isClosed ? [{id: 'live' as const, label: `🔴 ${t('live.tab')}`}] : []),
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
         {id: 'highlights', label: `✨ ${t('evening.tab.highlights')}`},
         {id: 'manage', label: t('evening.manage')},
     ]
 
-    const isClosed = evening?.is_closed ?? false
+    // When the evening is closed the Live tab is gone; render the protocol instead of a blank pane.
+    const effectiveTab: SubTab = subTab === 'live' && isClosed ? 'penalties' : subTab
 
     async function addHighlight() {
         if (!evening || (!highlightText.trim() && !highlightMediaUrl)) return
@@ -110,7 +117,7 @@ export function EveningHubPage() {
                  style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
-                            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${subTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${effectiveTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
                         {tb.label}
                     </button>
@@ -162,22 +169,34 @@ export function EveningHubPage() {
 
             {/* Sub-pages — always mounted, toggled via display */}
             <div style={{flex: 1, overflow: 'hidden', position: 'relative'}}>
-                <div style={{position: 'absolute', inset: 0, display: subTab === 'penalties' ? 'block' : 'none'}}>
+                {/* Live cockpit is stateless (pure derivation over the evening), so it is mounted
+                    only while its tab is active rather than kept hidden like the stateful panes. */}
+                {!isClosed && effectiveTab === 'live' && evening && (
+                    <div style={{position: 'absolute', inset: 0, overflowY: 'auto'}}>
+                        <LiveEveningView
+                            evening={evening}
+                            onQuickEntry={(evening.players.length ?? 0) > 0 ? () => setQuickEntryOpen(true) : undefined}
+                            onGoHighlights={() => setSubTab('highlights')}
+                            onGoGames={() => setSubTab('games')}
+                        />
+                    </div>
+                )}
+                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'penalties' ? 'block' : 'none'}}>
                     <ProtocolPage
                         onQuickEntry={!isClosed && (evening?.players.length ?? 0) > 0
                             ? () => setQuickEntryOpen(true)
                             : undefined}
                     />
                 </div>
-                <div style={{position: 'absolute', inset: 0, display: subTab === 'games' ? 'block' : 'none'}}>
+                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'games' ? 'block' : 'none'}}>
                     <GamesPage/>
                 </div>
-                <div style={{position: 'absolute', inset: 0, display: subTab === 'manage' ? 'block' : 'none'}}>
+                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'manage' ? 'block' : 'none'}}>
                     <EveningPage/>
                 </div>
 
                 {/* Highlights tab */}
-                <div style={{position: 'absolute', inset: 0, display: subTab === 'highlights' ? 'block' : 'none', overflowY: 'auto'}}
+                <div style={{position: 'absolute', inset: 0, display: effectiveTab === 'highlights' ? 'block' : 'none', overflowY: 'auto'}}
                      className="px-3 py-3 pb-24">
                     {evening && (
                         <>

@@ -19,6 +19,23 @@ Abende werden immer über die **Termine-Seite** gestartet – kein Ad-hoc-Start 
 Nur **Admins** können Abende starten.
 :::
 
+## Live-Modus 🔴
+
+Läuft ein Abend, öffnet die App direkt in den **Live-Modus** — den ersten Reiter (🔴 **Live**)
+im Abend-Bereich. Er fasst das Geschehen des Abends auf einen Blick zusammen und wird über die
+bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
+
+- **Anzeigetafel**: das gerade laufende Spiel, wer am Zug ist und wer als Nächstes wirft, sowie
+  der letzte Wurf.
+- **Kennzahlen-Zeile**: Straf-Summe des Abends, Anzahl Bier- und Schnapsrunden, beendete Spiele.
+- **Schnellaktionen** (daumengroß): **Strafe** / **Runde** öffnen die Schnellerfassung,
+  **Highlight** springt zum Highlights-Reiter, **Spiele** zum Spiele-Reiter.
+- **Verlauf-Ticker**: Strafen, Getränkerunden und Highlights chronologisch (neueste zuerst) mit
+  Icon, Betrag und relativer Zeit.
+
+Beim Beenden des Abends verschwindet der Live-Reiter wieder, und der Abend-Bereich zeigt wie
+gewohnt zuerst das Protokoll.
+
 ## Highlights erfassen
 
 Unter dem Spieler-/Team-Bereich gibt es einen **✨ Highlights**-Abschnitt:

@@ -108,6 +108,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### Evening management
 
+- **Live mode (🔴)**: while an evening is running the app opens straight into an immersive live cockpit — the first sub-tab of the evening hub. A **scoreboard** (running game, whose turn it is, next player, last throw), a **stat row** (evening penalty total, beer/shot rounds, games finished), thumb-sized **quick actions** (Fine/Round → quick entry, Highlight → highlights tab, Games → games tab), and a chronological **event ticker** (penalties, drink rounds and highlights, newest first). Read-only over the active evening, kept fresh by the existing SSE + polling; the live tab disappears once the evening is closed. Pure derivation in `lib/liveEvening.ts` (`currentGameState`, `buildEventFeed`, `eveningTotals`), unit-tested.
 - Evenings are started from a scheduled entry (SchedulePage); no more ad-hoc creation
 - Create evenings with date, optional venue override, and a free-text note
 - Open/close toggle — closing an evening archives it to history; closing lets you set the evening's end timestamp (prefilled with the previously saved value, or now), so you can backdate it if you forgot to close on time — the value is kept across reopen/re-close unless explicitly changed
