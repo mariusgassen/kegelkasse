@@ -20,7 +20,7 @@ import {
     redirect,
 } from '@tanstack/react-router'
 import {RootLayout} from './RootLayout'
-import {ROUTE_PAGES, type RoutePage, legacyHashToLocation, locationToPath} from './lib/legacyHash'
+import {type RoutePage, legacyHashToLocation, locationToPath} from './lib/legacyHash'
 
 // Boot redirect: if the app is opened at a legacy hash deep link (e.g. a stored push URL
 // `/#treasury:accounts?member=5`), rewrite it to the new path before the history is read, so
@@ -41,36 +41,49 @@ const indexRoute = createRoute({
     },
 })
 
-/** One lazily-loaded route per page. `lazyRouteComponent`'s 2nd arg selects the named export. */
-const pageLoaders: Record<RoutePage, () => Promise<Record<string, unknown>>> = {
-    evening: () => import('./pages/EveningHubPage'),
-    treasury: () => import('./pages/TreasuryPage'),
-    schedule: () => import('./pages/SchedulePage'),
-    committee: () => import('./pages/CommitteePage'),
-    stats: () => import('./pages/StatsPage'),
-    club: () => import('./pages/ClubAdminPage'),
-    members: () => import('./pages/MembersPage'),
-}
+/**
+ * Typed search schema per page — the sub-tab (`tab`) plus that page's deep-link params. These
+ * make navigation objects at call sites type-checked (`navigate({to:'/treasury', search:{tab:
+ * 'accounts', member: 5}})`). Validation is a typed pass-through: TanStack's default search
+ * parser already coerces numbers, so runtime behaviour is unchanged — the schema only adds
+ * compile-time types (the generic `useHashTab`/`getHashParams` adapters keep reading the raw
+ * search, so no deep-link key is ever dropped).
+ */
+export interface EveningSearch { tab?: 'penalties' | 'games' | 'highlights' | 'manage'; item?: number; comment?: number }
+export interface TreasurySearch { tab?: 'overview' | 'accounts' | 'bookings'; member?: number; memberName?: string; rid?: number; q?: string }
+export interface ScheduleSearch { evening?: number; event?: number }
+export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
+export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
+export interface MembersSearch { memberName?: string }
+export interface StatsSearch { tab?: 'evening' | 'year' }
 
-const pageExport: Record<RoutePage, string> = {
-    evening: 'EveningHubPage',
-    treasury: 'TreasuryPage',
-    schedule: 'SchedulePage',
-    committee: 'CommitteePage',
-    stats: 'StatsPage',
-    club: 'ClubAdminPage',
-    members: 'MembersPage',
-}
+const passThrough = <T,>(s: Record<string, unknown>): T => s as T
 
-const pageRoutes = ROUTE_PAGES.map((page) =>
-    createRoute({
+// Static import strings per loader keep Vite's per-page code-splitting analyzable.
+function pageRoute<S>(
+    page: RoutePage,
+    loader: () => Promise<unknown>,
+    exportName: string,
+    validateSearch: (s: Record<string, unknown>) => S,
+) {
+    return createRoute({
         getParentRoute: () => rootRoute,
         path: `/${page}`,
-        component: lazyRouteComponent(pageLoaders[page] as never, pageExport[page]),
-    }),
-)
+        validateSearch,
+        component: lazyRouteComponent(loader as never, exportName),
+    })
+}
 
-const routeTree = rootRoute.addChildren([indexRoute, ...pageRoutes])
+const routeTree = rootRoute.addChildren([
+    indexRoute,
+    pageRoute('evening', () => import('./pages/EveningHubPage'), 'EveningHubPage', passThrough<EveningSearch>),
+    pageRoute('treasury', () => import('./pages/TreasuryPage'), 'TreasuryPage', passThrough<TreasurySearch>),
+    pageRoute('schedule', () => import('./pages/SchedulePage'), 'SchedulePage', passThrough<ScheduleSearch>),
+    pageRoute('committee', () => import('./pages/CommitteePage'), 'CommitteePage', passThrough<CommitteeSearch>),
+    pageRoute('stats', () => import('./pages/StatsPage'), 'StatsPage', passThrough<StatsSearch>),
+    pageRoute('club', () => import('./pages/ClubAdminPage'), 'ClubAdminPage', passThrough<ClubSearch>),
+    pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
+])
 
 export const router = createRouter({
     routeTree,

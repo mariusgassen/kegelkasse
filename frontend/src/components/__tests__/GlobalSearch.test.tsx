@@ -48,6 +48,11 @@ vi.mock('@/api/client.ts', () => ({
     api: mockApi,
 }))
 
+const mockNavigate = vi.fn((..._args: unknown[]) => Promise.resolve())
+vi.mock('@/router', () => ({
+    router: {navigate: (...args: unknown[]) => mockNavigate(...args)},
+}))
+
 async function renderSearch(open = true) {
     const {GlobalSearch} = await import('../GlobalSearch')
     const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
@@ -134,12 +139,12 @@ describe('GlobalSearch', () => {
         expect(screen.getByText('Kegelbahn Nord')).toBeInTheDocument()
     })
 
-    it('selecting a booking result sets the treasury bookings deep-link hash', async () => {
+    it('selecting a booking result navigates to the treasury bookings deep link', async () => {
         await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'miete'}})
         await waitFor(() => screen.getByText('Kegelbahn Miete'))
         fireEvent.click(screen.getByText('Kegelbahn Miete'))
-        expect(window.location.hash).toBe(`#treasury:bookings?q=${encodeURIComponent('Kegelbahn Miete')}`)
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/treasury', search: {tab: 'bookings', q: 'Kegelbahn Miete'}})
     })
 
     it('shows search.noResults for a query with no matches anywhere', async () => {
@@ -148,28 +153,28 @@ describe('GlobalSearch', () => {
         await waitFor(() => expect(screen.getByText('search.noResults')).toBeInTheDocument())
     })
 
-    it('selecting a member result sets the members deep-link hash and closes', async () => {
+    it('selecting a member result navigates to the members deep link and closes', async () => {
         const {onClose} = await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'hasi'}})
         // Same name appears once under "Mitglieder" and once under "Konten" — pick the first (member).
         fireEvent.click(screen.getAllByText('Hasi')[0])
-        expect(window.location.hash).toBe('#members?memberName=Hasi')
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/members', search: {memberName: 'Hasi'}})
         expect(onClose).toHaveBeenCalled()
     })
 
-    it('selecting an account result sets the treasury accounts deep-link hash', async () => {
+    it('selecting an account result navigates to the treasury accounts deep link', async () => {
         await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'hasi'}})
         fireEvent.click(screen.getAllByText('Hasi')[1])
-        expect(window.location.hash).toBe('#treasury:accounts?member=1')
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/treasury', search: {tab: 'accounts', member: 1}})
     })
 
-    it('selecting an evening result sets the schedule deep-link hash', async () => {
+    it('selecting an evening result navigates to the schedule deep link', async () => {
         await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'nord'}})
         await waitFor(() => screen.getByText('Kegelbahn Nord'))
         fireEvent.click(screen.getByText('Kegelbahn Nord'))
-        expect(window.location.hash).toBe('#schedule?evening=10')
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/schedule', search: {evening: 10}})
     })
 
     it('resets the query when reopened', async () => {

@@ -3,10 +3,10 @@
  * Committee members (is_committee) and admins can create/delete entries.
  * All club members can view.
  */
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
-import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -53,8 +53,6 @@ function useDeepLinkScroll<T extends { id: number }>(
     setSearch: (v: string) => void,
     getSearchText: (item: T) => string,
 ) {
-    const highlightRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
     useEffect(() => {
         if (!deepLink || items.length === 0) return
         const target = items.find(it => it.id === deepLink.itemId)
@@ -69,18 +67,7 @@ function useDeepLinkScroll<T extends { id: number }>(
         setHighlightCommentId(deepLink.commentId)
         onHandled()
 
-        if (highlightRef.current !== null) clearTimeout(highlightRef.current)
-
-        highlightRef.current = setTimeout(() => {
-            const el = document.getElementById(`item-${target.id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            setTimeout(() => el?.classList.remove('kce-deeplink-flash'), 2500)
-        }, 120)
-
-        return () => {
-            if (highlightRef.current !== null) clearTimeout(highlightRef.current)
-        }
+        return flashDeepLinkTarget(`item-${target.id}`)
     }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 

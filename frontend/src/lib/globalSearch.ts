@@ -1,19 +1,27 @@
-// Pure matching logic for the global search overlay. Each result carries the exact hash
-// fragment the destination page already knows how to consume as a deep link (memberName on
-// MembersPage, member/q on TreasuryPage's accounts/bookings tabs, evening on SchedulePage, item
-// on CommitteePage) — this module never navigates itself, it only decides what to show.
+// Pure matching logic for the global search overlay. Each result carries a typed router
+// navigation target (`nav: {to, search}`) the destination page already knows how to consume as
+// a deep link (memberName on MembersPage, member/q on TreasuryPage's accounts/bookings tabs,
+// evening on SchedulePage, item on CommitteePage) — this module never navigates itself, it only
+// decides what to show.
 
 import type {Locale} from '@/i18n'
+import type {RoutePage} from '@/lib/legacyHash'
 
 export type SearchResultKind = 'member' | 'account' | 'evening' | 'announcement' | 'trip' | 'payment' | 'expense'
+
+/** A typed router navigation target — `to` is constrained to a real route path. */
+export interface SearchNav {
+    to: `/${RoutePage}`
+    search: Record<string, string | number>
+}
 
 export interface SearchResult {
     kind: SearchResultKind
     id: number
     title: string
     subtitle?: string
-    /** Hash fragment (without leading '#') to assign to window.location.hash on selection. */
-    hash: string
+    /** Typed router navigation target assigned to the result on selection. */
+    nav: SearchNav
 }
 
 export interface MemberLike {
@@ -98,7 +106,7 @@ export function searchMembers(query: string, members: MemberLike[]): SearchResul
             kind: 'member' as const,
             id: m.id,
             title: displayName(m),
-            hash: `members?memberName=${encodeURIComponent(displayName(m))}`,
+            nav: {to: '/members', search: {memberName: displayName(m)}},
         }))
 }
 
@@ -112,7 +120,7 @@ export function searchAccounts(query: string, members: MemberLike[]): SearchResu
             kind: 'account' as const,
             id: m.id,
             title: displayName(m),
-            hash: `treasury:accounts?member=${m.id}`,
+            nav: {to: '/treasury', search: {tab: 'accounts', member: m.id}},
         }))
 }
 
@@ -129,7 +137,7 @@ export function searchEvenings(query: string, evenings: EveningLike[], locale: L
                 id: e.id,
                 title: e.venue || formatted,
                 subtitle: e.venue ? formatted : undefined,
-                hash: `schedule?evening=${e.id}`,
+                nav: {to: '/schedule', search: {evening: e.id}},
             }
         })
 }
@@ -144,7 +152,7 @@ export function searchAnnouncements(query: string, items: AnnouncementLike[]): S
             kind: 'announcement' as const,
             id: a.id,
             title: a.title,
-            hash: `committee:announcements?item=${a.id}`,
+            nav: {to: '/committee', search: {tab: 'announcements', item: a.id}},
         }))
 }
 
@@ -159,7 +167,7 @@ export function searchTrips(query: string, items: TripLike[], locale: Locale): S
             id: t.id,
             title: t.destination,
             subtitle: formatSearchDate(t.date, locale) ?? t.date,
-            hash: `committee:trips?item=${t.id}`,
+            nav: {to: '/committee', search: {tab: 'trips', item: t.id}},
         }))
 }
 
@@ -175,7 +183,7 @@ export function searchBookings(query: string, payments: PaymentLike[], expenses:
             id: p.id,
             title: p.note || p.member_name,
             subtitle: [p.member_name, formatSearchDate(p.date ?? p.created_at, locale)].filter(Boolean).join(' · '),
-            hash: `treasury:bookings?q=${encodeURIComponent(p.note || p.member_name)}`,
+            nav: {to: '/treasury', search: {tab: 'bookings', q: p.note || p.member_name}},
         }))
 
     const expenseResults: SearchResult[] = expenses
@@ -185,7 +193,7 @@ export function searchBookings(query: string, payments: PaymentLike[], expenses:
             id: e.id,
             title: e.description,
             subtitle: formatSearchDate(e.date ?? e.created_at, locale),
-            hash: `treasury:bookings?q=${encodeURIComponent(e.description)}`,
+            nav: {to: '/treasury', search: {tab: 'bookings', q: e.description}},
         }))
 
     return [...paymentResults, ...expenseResults].slice(0, RESULT_LIMIT)

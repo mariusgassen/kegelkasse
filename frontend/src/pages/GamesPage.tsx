@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {router} from '@/router'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -322,7 +323,7 @@ export function GamesPage() {
                         ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
                     </span>
                     <button className="btn-secondary btn-xs flex-shrink-0"
-                            onClick={() => { window.location.hash = 'evening:manage' }}>
+                            onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
                         → {t('nav.evening')}
                     </button>
                 </div>

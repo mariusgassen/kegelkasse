@@ -25,12 +25,13 @@ export function getHashParams(): URLSearchParams {
 export function clearHashParams() {
     router
         .navigate({
+            // Generic adapter — cast past the per-route typed search (dynamic pathname).
             to: router.state.location.pathname,
             search: (prev: Record<string, unknown>) => {
                 const tab = prev?.tab
                 return tab != null ? {tab} : {}
             },
             replace: true,
-        })
+        } as never)
         .catch(() => {})
 }

@@ -5,11 +5,11 @@
  * shortcuts deep-link here via the #evening:manage hash instead of routing
  * to a separate top-level page.
  */
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
-import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -42,7 +42,6 @@ export function EveningHubPage() {
     const [deepLinkItemId, setDeepLinkItemId] = useState<number | null>(null)
     const [deepLinkCommentId, setDeepLinkCommentId] = useState<number | null>(null)
     const hashVersion = useDeepLinkVersion()
-    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Parse deep-link params (on mount and on router-search changes)
     useEffect(() => {
@@ -66,20 +65,10 @@ export function EveningHubPage() {
         // Always open the comment thread; deepLinkCommentId is passed to CommentThread and cleared there
         setOpenCommentHighlightId(target.id)
 
-        // Clear any pending flash timer
-        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
-
         setDeepLinkItemId(null)
         // Note: deepLinkCommentId is NOT cleared here — CommentThread calls onHighlightHandled() once it flashes
 
-        flashTimerRef.current = setTimeout(() => {
-            const el = document.getElementById(`item-${target.id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            flashTimerRef.current = setTimeout(() => {
-                el?.classList.remove('kce-deeplink-flash')
-            }, 2500)
-        }, 120)
+        return flashDeepLinkTarget(`item-${target.id}`)
     }, [deepLinkItemId, subTab, evening]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // No active evening — EveningPage owns the full start-evening flow

@@ -53,10 +53,12 @@ export function useHashTab<T extends string>(initial: T, valid: T[]): [T, (t: T)
     const tab: T = typeof current === 'string' && valid.includes(current as T) ? (current as T) : initial
 
     const setTab = (t: T) => {
+        // Generic adapter navigates to a runtime pathname, so the per-route typed search can't
+        // apply — cast past it (typed navigation lives at the literal call sites instead).
         router.navigate({
             to: location.pathname,
             search: (prev: Record<string, unknown>) => ({...prev, tab: t}),
-        }).catch(() => {})
+        } as never).catch(() => {})
     }
 
     return [tab, setTab]

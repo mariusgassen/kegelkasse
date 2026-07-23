@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -9,7 +9,7 @@ import {Loading} from '@/components/ui/Loading.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
-import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
@@ -836,7 +836,6 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const hashVersion = useDeepLinkVersion()
-    const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Parse deep-link ?evening= param and expand + scroll + flash the matching card
     useEffect(() => {
@@ -846,15 +845,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
         const id = parseInt(eveningId, 10)
         clearHashParams()
         setExpandedId(id)
-        if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current)
-        flashTimerRef.current = setTimeout(() => {
-            const el = document.getElementById(`history-evening-${id}`)
-            el?.scrollIntoView({behavior: 'smooth', block: 'center'})
-            el?.classList.add('kce-deeplink-flash')
-            flashTimerRef.current = setTimeout(() => {
-                el?.classList.remove('kce-deeplink-flash')
-            }, 2500)
-        }, 120)
+        return flashDeepLinkTarget(`history-evening-${id}`)
     }, [hashVersion, evenings]) // eslint-disable-line react-hooks/exhaustive-deps
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
