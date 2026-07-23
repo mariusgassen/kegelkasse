@@ -66,6 +66,12 @@
 
     html, body, #root {
         height: 100%;
+        /* 100dvh = the *actual* visible viewport. On an iOS standalone PWA a %-based height can
+           resolve to the safe viewport (excluding the home-indicator zone) while viewport-fit=cover
+           + the bottom nav's env(safe-area-inset-bottom) padding also reserve that zone — counting
+           it twice and leaving a dead strip below the nav. dvh spans edge-to-edge so the inset is
+           applied once. Falls back to 100% where dvh is unsupported. */
+        height: 100dvh;
         overflow: hidden;
     }
 
@@ -135,22 +141,51 @@
 
     @media (min-width: 1024px) {
         .app-shell {
-            max-width: 960px;
+            /* Span the whole viewport so the rail sits flush to the left edge (app chrome),
+               instead of a 960px card floating centre-screen with the rail marooned inside it. */
+            max-width: none;
             grid-template-columns: 224px minmax(0, 1fr);
             grid-template-rows: auto minmax(0, 1fr);
             grid-template-areas: "nav header" "nav main";
+        }
+
+        /* Cap the readable content beside the rail and centre it in the remaining space, so the
+           pane no longer floats narrow with a big empty gutter on wide screens. The header bar
+           still spans full width; only its inner row is centred, staying aligned with the page. */
+        .app-header > header > div {
+            max-width: 1040px;
+            margin-inline: auto;
+        }
+
+        .app-main {
+            max-width: 1040px;
+            margin-inline: auto;
+            width: 100%;
         }
 
         .app-nav {
             flex-direction: column;
             justify-content: flex-start;
             gap: 4px;
-            padding: 16px 12px;
+            /* Rail is now flush to the screen edges, so respect the safe areas (iPad landscape
+               standalone): clear the status bar on top, the home indicator on the bottom, and any
+               left inset. Right side is internal (borders the content), so no inset there. */
+            padding:
+                calc(16px + env(safe-area-inset-top, 0px))
+                12px
+                calc(16px + env(safe-area-inset-bottom, 0px))
+                calc(12px + env(safe-area-inset-left, 0px));
             border-top: none;
             border-right: 1px solid var(--kce-border);
             background: var(--kce-surface);
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
+        }
+
+        /* Pin the meta footer to the bottom of the rail, so the column reads as full chrome
+           (nav at the top, meta at the bottom) rather than items stacked over dead space. */
+        .app-nav-footer {
+            margin-top: auto;
         }
     }
 

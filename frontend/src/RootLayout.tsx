@@ -40,6 +40,10 @@ import {GlobalSearch} from './components/GlobalSearch'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHash'
 
+declare const __APP_VERSION__: string
+// Guarded so it can't throw in environments where the build-time define isn't applied (tests).
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''
+
 type PageId = RoutePage
 
 const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
@@ -209,6 +213,13 @@ export function RootLayout() {
                         <span className="truncate max-w-full">{t(n.labelKey as never)}</span>
                     </button>
                 ))}
+                {/* Meta footer — desktop rail only (mobile bottom bar has no room). Gives the
+                    full-height rail a defined bottom so it doesn't read as empty below the items. */}
+                {APP_VERSION && (
+                    <div className="app-nav-footer hidden lg:block px-2 pt-3 text-[10px] font-bold text-kce-muted tracking-wide">
+                        v{APP_VERSION}
+                    </div>
+                )}
             </nav>
 
             <ToastContainer/>
