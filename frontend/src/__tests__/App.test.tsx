@@ -309,24 +309,47 @@ describe('App — authenticated', () => {
         })
     })
 
-    it('shows nav tabs for non-admin user (no club tab)', async () => {
+    it('shows the same short primary nav for members and admins', async () => {
+        // The primary bar is 4 tabs (Start/Kasse/Termine/Verein) for both roles — the
+        // per-role members-vs-club split moved into the Verein hub. Committee/Stats/Members/Club
+        // are no longer primary tabs (they live behind the Verein secondary strip).
         await renderApp()
-        await waitFor(() => {
-            // The ⚙️ club tab should not appear for plain members
-            expect(screen.queryByText('nav.club')).not.toBeInTheDocument()
-            // Plain members get a read-only "members" tab instead
-            expect(screen.getByText('nav.members')).toBeInTheDocument()
-        })
+        await waitFor(() => screen.getByText('nav.verein'))
+        expect(screen.getByText('nav.home')).toBeInTheDocument()
+        expect(screen.getByText('nav.treasury')).toBeInTheDocument()
+        expect(screen.getByText('nav.schedule')).toBeInTheDocument()
+        // Grouped pages are not primary tabs; on a non-group page the strip is hidden.
+        expect(screen.queryByText('nav.club')).not.toBeInTheDocument()
+        expect(screen.queryByText('nav.members')).not.toBeInTheDocument()
+        expect(screen.queryByText('nav.stats')).not.toBeInTheDocument()
     })
 
-    it('shows club tab for admin users', async () => {
-        storeState.user = { ...mockUser, role: 'admin' }
+    it('shows the Verein section strip (no Verwaltung) for members on a group page', async () => {
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['committee', vi.fn()] as any)
         await renderApp()
-        await waitFor(() => {
-            expect(screen.getByText('nav.club')).toBeInTheDocument()
-            // Admins manage members via the club tab, not a separate one
-            expect(screen.queryByText('nav.members')).not.toBeInTheDocument()
-        })
+        await waitFor(() => screen.getByText('nav.committee'))
+        // Member strip: Neuigkeiten / Mitglieder / Stats — but no admin Verwaltung
+        expect(screen.getByText('nav.members')).toBeInTheDocument()
+        expect(screen.getByText('nav.stats')).toBeInTheDocument()
+        expect(screen.queryByText('nav.manage')).not.toBeInTheDocument()
+    })
+
+    it('shows the Verwaltung section for admins on a group page', async () => {
+        storeState.user = { ...mockUser, role: 'admin' }
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['stats', vi.fn()] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('nav.manage'))
+        expect(screen.getByText('nav.committee')).toBeInTheDocument()
+    })
+
+    it('hides the Verein section strip on a non-group page', async () => {
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['treasury', vi.fn()] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('nav.verein'))
+        expect(screen.queryByText('nav.committee')).not.toBeInTheDocument()
     })
 
     it('hides the evening nav tab when no evening is active', async () => {
@@ -583,6 +606,26 @@ describe('App — authenticated interactions', () => {
         await waitFor(() => screen.getByText('nav.treasury'))
         fireEvent.click(screen.getByText('nav.treasury'))
         expect(setPageMock).toHaveBeenCalledWith('treasury')
+    })
+
+    it('clicking the Verein hub tab lands on the first section route', async () => {
+        const { router } = await import('@/router')
+        await renderApp()
+        await waitFor(() => screen.getByText('nav.verein'))
+        fireEvent.click(screen.getByText('nav.verein'))
+        await waitFor(() => {
+            expect(router.state.location.pathname).toBe('/committee')
+        })
+    })
+
+    it('clicking a Verein section switches pages via setPage', async () => {
+        const setPageMock = vi.fn()
+        const { usePage } = await import('@/hooks/usePage.ts')
+        vi.mocked(usePage).mockReturnValue(['committee', setPageMock] as any)
+        await renderApp()
+        await waitFor(() => screen.getByText('nav.stats'))
+        fireEvent.click(screen.getByText('nav.stats'))
+        expect(setPageMock).toHaveBeenCalledWith('stats')
     })
 
     it('renders nav outside the header, after main (bottom-bar / side-rail shell)', async () => {

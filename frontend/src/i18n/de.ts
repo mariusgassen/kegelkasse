@@ -43,6 +43,8 @@ export const de = {
     "nav.history": "Historie",
     "nav.stats": "Stats",
     "nav.club": "Verein",
+    "nav.verein": "Verein",
+    "nav.manage": "Verwaltung",
     "home.greeting": "Hallo, {name} 👋",
     "home.greetingNoName": "Willkommen 👋",
     "home.subtitle": "Dein Überblick für heute",

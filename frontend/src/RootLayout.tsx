@@ -45,16 +45,30 @@ declare const __APP_VERSION__: string
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''
 
 type PageId = RoutePage
+type PrimaryNavId = RoutePage | 'verein'
 
-const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
+// Primary bottom-bar / side-rail destinations. Kept deliberately short (4 + the contextual
+// evening tab): the low-frequency club/people/analytics pages live behind the "Verein" hub
+// below instead of each eating a permanent slot.
+const PRIMARY_NAV: { id: PrimaryNavId; Icon: LucideIcon; labelKey: string }[] = [
     {id: 'home', Icon: Home, labelKey: 'nav.home'},
     {id: 'evening', Icon: Trophy, labelKey: 'nav.evening'},
     {id: 'treasury', Icon: Wallet, labelKey: 'nav.treasury'},
     {id: 'schedule', Icon: CalendarDays, labelKey: 'nav.schedule'},
+    {id: 'verein', Icon: Users, labelKey: 'nav.verein'},
+]
+
+// The "Verein" hub groups these real routes. The primary Verein tab is active for the whole
+// group and lands on the first section; a secondary strip (rendered under the header while on
+// any group page) switches between them. Keeping them as real routes means every deep link,
+// push URL and per-page test is untouched — only the top-level navigation is reorganised.
+const VEREIN_PAGES: RoutePage[] = ['committee', 'members', 'stats', 'club']
+
+const VEREIN_SECTIONS: { id: RoutePage; Icon: LucideIcon; labelKey: string; adminOnly?: boolean }[] = [
     {id: 'committee', Icon: Users, labelKey: 'nav.committee'},
-    {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
-    {id: 'club', Icon: Settings, labelKey: 'nav.club'},
     {id: 'members', Icon: UserRound, labelKey: 'nav.members'},
+    {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
+    {id: 'club', Icon: Settings, labelKey: 'nav.manage', adminOnly: true},
 ]
 
 export function RootLayout() {
@@ -62,6 +76,8 @@ export function RootLayout() {
     const t = useT()
     const queryClient = useQueryClient()
     const [page, setPage] = usePage<PageId>('evening', [...ROUTE_PAGES])
+    const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
+    const inVerein = VEREIN_PAGES.includes(page)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
@@ -178,6 +194,25 @@ export function RootLayout() {
                         </button>
                     </div>
                 </header>
+
+                {/* ── Verein hub secondary section strip ──
+                    Shown only while on a Verein-group page. Switches between Neuigkeiten /
+                    Mitglieder / Stats / (admin) Verwaltung without those each needing a primary
+                    tab. Lives in the header region so it stays put as the page scrolls. */}
+                {inVerein && (
+                    <nav aria-label={t('nav.verein')}
+                         className="verein-subnav flex gap-1 overflow-x-auto px-3 py-2"
+                         style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
+                        {VEREIN_SECTIONS.filter(s => !s.adminOnly || isAdminRole).map(s => (
+                            <button key={s.id} type="button"
+                                    onClick={() => setPage(s.id)}
+                                    className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${page === s.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                <s.Icon size={14} strokeWidth={page === s.id ? 2.5 : 2}/>
+                                {t(s.labelKey as never)}
+                            </button>
+                        ))}
+                    </nav>
+                )}
             </div>
 
             {/* ── Active page (router Outlet) ── */}
@@ -201,21 +236,24 @@ export function RootLayout() {
 
             {/* ── Nav — bottom tab bar on mobile, side rail on ≥lg (via .app-nav grid area) ── */}
             <nav className="app-nav">
-                {NAV.filter(n => {
-                    const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
-                    if (n.id === 'club') return isAdminRole
-                    if (n.id === 'members') return !isAdminRole
+                {PRIMARY_NAV.filter(n =>
                     // The evening tab only appears while an evening is running — no dead tab when
                     // nothing is active. Admins start one from the home dashboard / schedule.
-                    if (n.id === 'evening') return !!activeEveningId
-                    return true
-                }).map(n => (
-                    <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}
-                            onClick={() => setPage(n.id)}>
-                        <n.Icon size={20} strokeWidth={page === n.id ? 2.5 : 2}/>
-                        <span className="truncate max-w-full">{t(n.labelKey as never)}</span>
-                    </button>
-                ))}
+                    n.id !== 'evening' || !!activeEveningId,
+                ).map(n => {
+                    // "Verein" is a virtual group: active for any of its member pages, and lands
+                    // on the first section (Neuigkeiten). Everything else is a plain page tab.
+                    const active = n.id === 'verein' ? inVerein : page === n.id
+                    const onClick = n.id === 'verein'
+                        ? () => { router.navigate({to: `/${VEREIN_SECTIONS[0].id}`}).catch(() => {}) }
+                        : () => setPage(n.id as PageId)
+                    return (
+                        <button key={n.id} className={`nav-btn ${active ? 'active' : ''}`} onClick={onClick}>
+                            <n.Icon size={20} strokeWidth={active ? 2.5 : 2}/>
+                            <span className="truncate max-w-full">{t(n.labelKey as never)}</span>
+                        </button>
+                    )
+                })}
                 {/* Meta footer — desktop rail only (mobile bottom bar has no room). Gives the
                     full-height rail a defined bottom so it doesn't read as empty below the items. */}
                 {APP_VERSION && (
