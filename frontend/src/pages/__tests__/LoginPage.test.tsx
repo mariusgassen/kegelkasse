@@ -118,6 +118,16 @@ describe('LoginPage — login mode', () => {
             expect(screen.getByText('auth.register.title')).toBeInTheDocument()
         })
     })
+
+    it('exposes autofill attributes so Android/browser password managers detect the fields', async () => {
+        await renderLoginPage()
+        const username = screen.getByPlaceholderText('auth.emailPlaceholder')
+        expect(username).toHaveAttribute('autocomplete', 'username')
+        expect(username).toHaveAttribute('name', 'username')
+        const password = screen.getByPlaceholderText('••••••••')
+        expect(password).toHaveAttribute('autocomplete', 'current-password')
+        expect(password).toHaveAttribute('name', 'password')
+    })
 })
 
 describe('LoginPage — register mode', () => {
