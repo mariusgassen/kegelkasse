@@ -16,6 +16,7 @@ import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
 import {celebrate} from '@/lib/celebrate'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 
@@ -41,6 +42,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
+    const throwTracking = useThrowTracking()
 
     // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
@@ -309,7 +311,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         if (len > prev) {
             // One or more new throws — advance by delta
             setCurrentTurnIdx(prevIdx => prevIdx + (len - prev))
-            if (liveThrows.slice(prev, len).some(th => th.pins >= 9)) {
+            if (throwTracking && liveThrows.slice(prev, len).some(th => th.pins >= 9)) {
                 celebrate('allnine', t('celebration.allnine'))
             }
         }
@@ -709,7 +711,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Row 3: throw history strip + heatmap toggle */}
-                {activeGame && liveThrows.length > 0 && (
+                {throwTracking && activeGame && liveThrows.length > 0 && (
                     <div style={{marginTop: 6}}>
                         <div style={{display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
                             {[...liveThrows].reverse().map(th => {

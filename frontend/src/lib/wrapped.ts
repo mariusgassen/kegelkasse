@@ -27,7 +27,11 @@ export interface WrappedCard {
  * pure and unit-testable; the component resolves `headlineKey` / `subtextKey`
  * via `t()` and renders `value` / `subtextValue` verbatim.
  */
-export function buildWrappedCards(s: WrappedStats, fe: (v: number) => string): WrappedCard[] {
+export function buildWrappedCards(
+    s: WrappedStats,
+    fe: (v: number) => string,
+    throwTracking = true,
+): WrappedCard[] {
     const cards: WrappedCard[] = []
 
     cards.push({
@@ -118,7 +122,7 @@ export function buildWrappedCards(s: WrappedStats, fe: (v: number) => string): W
         })
     }
 
-    if (s.avg_pins !== null) {
+    if (throwTracking && s.avg_pins !== null) {
         cards.push({
             id: 'throws',
             emoji: '🎳',

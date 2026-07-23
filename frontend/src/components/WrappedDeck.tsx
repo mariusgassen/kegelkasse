@@ -2,6 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react'
 import {useT} from '@/i18n'
 import type {WrappedStats} from '@/types'
 import {buildWrappedCards, type WrappedAccent} from '@/lib/wrapped'
+import {useThrowTracking} from '@/hooks/useClub'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -23,7 +24,8 @@ interface WrappedDeckProps {
 
 export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
     const t = useT()
-    const cards = useMemo(() => buildWrappedCards(stats, fe), [stats])
+    const throwTracking = useThrowTracking()
+    const cards = useMemo(() => buildWrappedCards(stats, fe, throwTracking), [stats, throwTracking])
     const [idx, setIdx] = useState(0)
     const touchStartX = useRef<number | null>(null)
 

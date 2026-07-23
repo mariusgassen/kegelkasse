@@ -1,35 +1,45 @@
-# Roadmap #65 — Abend-Modus (Live-Takeover) — core iteration
+# Overhaul: findings & improvements
 
-When an evening is live, the app pivots into an immersive live cockpit instead of "one tab of
-several". This PR delivers the core: a Live sub-tab (default when active) with a live scoreboard
-header, an event ticker, and thumb-sized quick actions. Reuses existing SSE/polling + mutation
-flows; no new backend.
+Branch: `claude/findings-improvements-overhaul-uxbnc9`
 
-## Plan
-- [ ] lib/liveEvening.ts — pure: currentGameState (running game, active/next player, last throw),
-      buildEventFeed (penalties+drinks+highlights, newest-first), eveningTotals
-- [ ] lib/__tests__/liveEvening.test.ts
-- [ ] components/evening/LiveEveningView.tsx — scoreboard + ticker + quick actions + stat row
-- [ ] EveningHubPage: add 'live' first sub-tab, default when active & not closed; wire quick actions
-      (Strafe/Runde → quick entry overlay, Highlight → highlights tab, Spiele → games tab)
-- [ ] Vitest for LiveEveningView
-- [ ] i18n live.* keys (de + en)
-- [ ] docs (abende.md or new) + README + CLAUDE.md roadmap #65 status/notes
-- [ ] version bump (MINOR)
+## Finding 1 — Too many tabs; evening tab shown even when no active evening
+- [ ] Hide `evening` nav tab when there is no active evening (RootLayout NAV filter)
+- [ ] Preserve admin ad-hoc start: HomePage admin "Neuen Abend starten" quick action -> /evening
+- [ ] Tests (App shell nav)
 
-## Notes / deliberate scope
-- Throw-level ticker items (incl. Alle Neune) need per-throw timestamps the API doesn't expose;
-  the scoreboard surfaces the live throw state instead of faking chronological order in the ticker.
-- Full bottom-nav "Abend / Rest" reduction deferred (RootLayout nav has high test blast radius,
-  carefully tuned in #63) — the Live sub-tab + router landing already deliver the takeover feel.
+## Finding 2 — Loading not shown; graphs render "no data" while loading
+- [ ] Distinguish loading from empty in the main charts (HomePage sparkline, StatsPage, TreasuryPage)
+- [ ] Show a skeleton/spinner while queries are pending instead of empty state
+
+## Finding 3 — Accounts load slow
+- [ ] Optimize /club/member-balances (SQL aggregation instead of loading all ORM rows)
+- [ ] Add loading state to the accounts tab
+
+## Finding 4 — Make real pin/throw tracking optional per club
+- [ ] Backend: throw_tracking_enabled in club settings (default true)
+- [ ] Frontend: type + lib/clubSettings.ts pure helper + useThrowTracking() hook
+- [ ] ClubAdminPage toggle
+- [ ] Gate: GamesPage camera, Tablet throw strip, LiveEveningView last-throw, StatsPage throw
+      detail + Hall-of-Shame worstThrow, ProfileSheet throw card, HomePage sparkline, Wrapped throw card
+- [ ] Tests
 
 ## Review
-(to be filled in)
+(to fill in)
 
 ## Review (done)
-- lib/liveEvening.ts pure helpers + 18 Vitest tests.
-- components/evening/LiveEveningView.tsx (scoreboard + stat row + quick actions + ticker) + 8 tests.
-- EveningHubPage: 'live' first sub-tab, default when active & not closed; effectiveTab fallback to
-  penalties when closed; LiveEveningView mounted only when active (stateless).
-- i18n live.* keys (de + en), parity green. docs abende.md; README; CLAUDE.md #65 → in progress with notes.
-- version 1.34.0 → 1.35.0. tsc clean; full suite 2152/2152 green.
+
+All four findings implemented, committed on `claude/findings-improvements-overhaul-uxbnc9`.
+
+1. **Tabs / evening hidden when inactive** — `RootLayout` NAV filter hides `evening` unless
+   `activeEveningId` is set; admins get a "Neuen Abend starten" callout on the HomePage. Members
+   drop from 7→6 tabs when nothing is running.
+2. **Loading vs no-data** — `<Loading/>` now shows while queries load in StatsPage (evening/year),
+   TreasuryPage accounts list, and the balance-history chart (new `loading` prop).
+3. **Accounts slow** — `member-balances` + `guest-balances` now aggregate penalties/payments in
+   SQL (`func.sum` + shared `_PENALTY_EURO_SQL` CASE) instead of loading every PenaltyLog row.
+4. **Optional throw tracking** — `throw_tracking_enabled` club setting (default on) + admin toggle;
+   `useThrowTracking()` gates every throw surface (camera, throw strip, live last-throw, stats,
+   profile, dashboard, wrapped, hall-of-shame weakest-throw).
+
+Tests: backend club (2 new) + treasury (86) green; frontend full suite 2165 green; lint/tsc clean.
+Docs: README feature catalog, docs/funktionen/spiele.md, CLAUDE.md roadmap #78, version → 1.36.0.

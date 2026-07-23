@@ -9,6 +9,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
 import {celebrate} from '@/lib/celebrate'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
@@ -83,6 +84,7 @@ export function GamesPage() {
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [confirmFinishGame, setConfirmFinishGame] = useState<Game | null>(null)
     const [cameraOpen, setCameraOpen] = useState(false)
+    const throwTracking = useThrowTracking()
 
     if (!evening) {
         return (
@@ -333,7 +335,7 @@ export function GamesPage() {
                 <button className="btn-primary flex-1" onClick={openAddSheet}>
                     + {t('game.add')}
                 </button>
-                {isAdmin(user) && (
+                {isAdmin(user) && throwTracking && (
                     <button className="btn-secondary" title={t('camera.title')} onClick={() => setCameraOpen(true)}>
                         📷
                     </button>
@@ -367,7 +369,7 @@ export function GamesPage() {
                         </div>
 
                         {/* Live camera throw indicator */}
-                        {game.status === 'running' && game.throws && game.throws.length > 0 && (() => {
+                        {throwTracking && game.status === 'running' && game.throws && game.throws.length > 0 && (() => {
                             const last = game.throws[game.throws.length - 1]
                             return (
                                 <div className="flex items-center gap-1.5 mb-2">

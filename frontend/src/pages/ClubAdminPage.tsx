@@ -176,6 +176,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [noRsvpExtra, setNoRsvpExtra] = useState(club?.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
     const [pinPenalty, setPinPenalty] = useState(club?.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
     const [defaultEveningTime, setDefaultEveningTime] = useState(club?.settings?.default_evening_time || '20:00')
+    const [throwTracking, setThrowTracking] = useState(club?.settings?.throw_tracking_enabled !== false)
 
     useEffect(() => {
         if (!club) return
@@ -189,6 +190,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
         setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
         setDefaultEveningTime(club.settings?.default_evening_time || '20:00')
+        setThrowTracking(club.settings?.throw_tracking_enabled !== false)
     }, [club])
 
     function applyPalette(p: Palette) {
@@ -249,6 +251,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 no_cancel_fee: noRsvp,
                 pin_penalty: pinP,
                 default_evening_time: defaultEveningTime || undefined,
+                throw_tracking_enabled: throwTracking,
             })
             applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
             setGuestPenaltyCap(cap)
@@ -425,6 +428,25 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-kce-muted mt-1">{t('club.pinPenaltyHint')}</p>
                 </div>
+            </div>
+
+            {/* ── Wurf-Erfassung ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.throwTracking')}</div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <button type="button" role="switch" aria-checked={throwTracking}
+                            aria-label={t('club.throwTracking.label')}
+                            onClick={() => setThrowTracking(v => !v)}
+                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                            style={{background: throwTracking ? 'var(--kce-primary)' : 'var(--kce-surface2)'}}>
+                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                              style={{transform: throwTracking ? 'translateX(20px)' : 'none'}}/>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-kce-cream">{t('club.throwTracking.label')}</div>
+                        <p className="text-xs text-kce-muted mt-0.5">{t('club.throwTracking.hint')}</p>
+                    </div>
+                </label>
             </div>
 
             {/* ── Zahlungen ── */}

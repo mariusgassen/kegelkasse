@@ -10,6 +10,7 @@
 import {useT} from '@/i18n'
 import type {Evening} from '@/types.ts'
 import {currentGameState, buildEventFeed, eveningTotals} from '@/lib/liveEvening.ts'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -35,6 +36,7 @@ interface Props {
 
 export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGames}: Props) {
     const t = useT()
+    const throwTracking = useThrowTracking()
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
     const feed = buildEventFeed(evening)
     const totals = eveningTotals(evening)
@@ -67,7 +69,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                                 </div>
                             )}
                         </div>
-                        {lastThrow && (
+                        {throwTracking && lastThrow && (
                             <div className="text-right flex-shrink-0">
                                 <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
                                 <div className="font-display font-bold text-3xl text-kce-primary leading-none">{lastThrow.pins}</div>

@@ -95,6 +95,13 @@ describe('buildWrappedCards', () => {
         expect(ids(stats({avg_pins: null}))).not.toContain('throws')
     })
 
+    it('omits the throws card when throw tracking is disabled', () => {
+        const withThrows = stats({avg_pins: 6.4, best_avg_pins: 8.1})
+        expect(buildWrappedCards(withThrows, fe, false).map(c => c.id)).not.toContain('throws')
+        // Other cards are unaffected.
+        expect(buildWrappedCards(withThrows, fe, false).map(c => c.id)).toContain('intro')
+    })
+
     it('includes rank card with #-prefixed value', () => {
         const cards = buildWrappedCards(stats({penalty_rank: 2, ranked_members: 9}), fe)
         const r = cards.find(c => c.id === 'rank')!

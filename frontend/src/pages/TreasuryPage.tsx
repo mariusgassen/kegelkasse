@@ -6,6 +6,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Loading} from '@/components/ui/Loading.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -147,7 +148,7 @@ const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> =
 
 const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
 
-function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, t}: {
+function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, loading, t}: {
     actualEvents: BalanceEvent[]
     overlayEvents: BalanceEvent[]
     actualLabel: string
@@ -156,6 +157,7 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
     // club scope keeps the two-line paid + incl.-debt view. overlayLabel names that third line.
     overlayLabel?: string
     threeLine?: boolean
+    loading?: boolean
     t: (k: any) => string
 }) {
     const [granularity, setGranularity] = useState<Granularity>('month')
@@ -391,7 +393,9 @@ function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualL
                 )}
             </div>
 
-            {!hasData ? (
+            {loading && !hasData ? (
+                <Loading className="py-8"/>
+            ) : !hasData ? (
                 <Empty icon="📈" text={t('treasury.history.noData')}/>
             ) : isAll ? (
                 <div className="flex">
@@ -512,7 +516,7 @@ export function TreasuryPage() {
     })
 
     // Balances — always loaded (used in overview + accounts tabs)
-    const {data: balances = [], refetch: refetchBalances} = useQuery({
+    const {data: balances = [], refetch: refetchBalances, isLoading: balancesLoading} = useQuery({
         queryKey: ['member-balances'],
         queryFn: api.getMemberBalances,
         staleTime: 1000 * 30,
@@ -533,7 +537,7 @@ export function TreasuryPage() {
     })
 
     // All payments — loaded for bookings tab + overview (Kasse balance-history graph)
-    const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
+    const {data: allPayments = [], refetch: refetchAllPayments, isLoading: allPaymentsLoading} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
         enabled: tab === 'bookings' || tab === 'overview' || showExportSheet,
@@ -592,24 +596,27 @@ export function TreasuryPage() {
         ?? allHistoryMembers[0]?.regular_member_id
         ?? null
 
-    const {data: debtTimeline = []} = useQuery({
+    const {data: debtTimeline = [], isLoading: debtTimelineLoading} = useQuery({
         queryKey: ['treasury-debt-timeline'],
         queryFn: api.getTreasuryDebtTimeline,
         enabled: tab === 'overview' && historyScope === 'club',
         staleTime: 1000 * 30,
     })
-    const {data: historyMemberPayments = []} = useQuery({
+    const {data: historyMemberPayments = [], isLoading: historyPaymentsLoading} = useQuery({
         queryKey: ['member-payments', effectiveHistoryMemberId],
         queryFn: () => effectiveHistoryMemberId ? api.getMemberPayments(effectiveHistoryMemberId) : null,
         enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
         staleTime: 1000 * 30,
     })
-    const {data: historyMemberPenalties = []} = useQuery({
+    const {data: historyMemberPenalties = [], isLoading: historyPenaltiesLoading} = useQuery({
         queryKey: ['member-penalties', effectiveHistoryMemberId],
         queryFn: () => effectiveHistoryMemberId ? api.getMemberPenalties(effectiveHistoryMemberId) : null,
         enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
         staleTime: 1000 * 30,
     })
+    const historyLoading = historyScope === 'club'
+        ? (allPaymentsLoading || debtTimelineLoading)
+        : (historyPaymentsLoading || historyPenaltiesLoading)
 
     // Payment sheet (for members and guests)
     const [reportingMyPayment, setReportingMyPayment] = useState(false)
@@ -1396,6 +1403,7 @@ export function TreasuryPage() {
                         virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
                         overlayLabel={t('treasury.history.penaltiesMember')}
                         threeLine={historyScope === 'member'}
+                        loading={historyLoading}
                         t={t}/>
 
                     <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1683,7 +1691,9 @@ export function TreasuryPage() {
                         onChange={setAccountSearch}
                         placeholder={t('treasury.accounts.search')}
                     />
-                    {filteredBalances.length === 0
+                    {balancesLoading && balances.length === 0
+                        ? <Loading className="py-8"/>
+                        : filteredBalances.length === 0
                         ? <Empty icon="👤" text={t('treasury.noData')}/>
                         : [...filteredBalances].sort((a, b) => {
                             if (myRegularMemberId) {

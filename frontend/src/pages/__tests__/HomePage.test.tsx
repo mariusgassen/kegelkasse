@@ -21,7 +21,11 @@ const storeState = {
 }
 vi.mock('@/store/app.ts', () => ({
     useAppStore: vi.fn((sel: any) => sel(storeState)),
+    isAdmin: (u: any) => u?.role === 'admin' || u?.role === 'superadmin',
 }))
+
+const throwTrackingMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => throwTrackingMock()}))
 
 const api = {
     listScheduledEvenings: vi.fn(),
@@ -57,6 +61,7 @@ async function renderHome() {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    throwTrackingMock.mockReturnValue(true)
     storeState.activeEveningId = null
     storeState.user = {regular_member_id: 7, name: 'Rudi', preferred_locale: 'de'} as any
     api.listScheduledEvenings.mockResolvedValue([])
@@ -105,6 +110,20 @@ describe('HomePage', () => {
         expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({to: '/evening', search: {tab: 'manage'}}))
     })
 
+    it('shows the admin start-evening callout when nothing is active', async () => {
+        storeState.user = {regular_member_id: 7, name: 'Rudi', preferred_locale: 'de', role: 'admin'} as any
+        await renderHome()
+        await waitFor(() => screen.getByText('home.startEvening.title'))
+        fireEvent.click(screen.getByText('home.startEvening.title'))
+        expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({to: '/evening'}))
+    })
+
+    it('does not show the start-evening callout for non-admins', async () => {
+        await renderHome()
+        await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
+        expect(screen.queryByText('home.startEvening.title')).not.toBeInTheDocument()
+    })
+
     it('shows the balance and its state label', async () => {
         api.getMyBalance.mockResolvedValue({regular_member_id: 7, penalty_total: 10, payments_total: 0, balance: -10})
         await renderHome()
@@ -133,6 +152,17 @@ describe('HomePage', () => {
         await renderHome()
         await waitFor(() => expect(screen.getByText('5.5')).toBeInTheDocument())
         expect(screen.getByText('home.avgPins')).toBeInTheDocument()
+    })
+
+    it('hides the season throw metric when throw tracking is disabled', async () => {
+        throwTrackingMock.mockReturnValue(false)
+        api.getMyThrowStats.mockResolvedValue({
+            regular_member_id: 7, year: 2026, total_pins: 100, throw_count: 20,
+            avg_pins: 5.5, best_avg: 7, worst_avg: 4, evenings: [],
+        })
+        await renderHome()
+        await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
+        expect(screen.queryByText('home.avgPins')).not.toBeInTheDocument()
     })
 
     it('hides the account section for a member without a linked regular member', async () => {

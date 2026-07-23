@@ -328,6 +328,23 @@ describe('App — authenticated', () => {
             expect(screen.queryByText('nav.members')).not.toBeInTheDocument()
         })
     })
+
+    it('hides the evening nav tab when no evening is active', async () => {
+        storeState.activeEveningId = null
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByRole('navigation')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('nav.evening')).not.toBeInTheDocument()
+    })
+
+    it('shows the evening nav tab while an evening is active', async () => {
+        storeState.activeEveningId = 42
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByText('nav.evening')).toBeInTheDocument()
+        })
+    })
 })
 
 describe('App — network error on boot', () => {

@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from pydantic import BaseModel
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
@@ -43,6 +43,10 @@ def _serialize_settings(s: ClubSettings) -> dict:
         "pin_penalty": extra.get("pin_penalty"),
         "default_evening_time": extra.get("default_evening_time"),
         "ical_token": extra.get("ical_token"),
+        # Camera-based pin/throw tracking (feature #33). Opt-out per club: clubs whose bowling
+        # machine can't feed throw data hide it in the UI and stats. Defaults to enabled so
+        # existing clubs keep their current behaviour.
+        "throw_tracking_enabled": extra.get("throw_tracking_enabled", True),
     }
 
 
@@ -81,11 +85,13 @@ class ClubSettingsUpdate(BaseModel):
     no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
     pin_penalty: Optional[float] = None   # penalty for not bringing pins to an evening
     default_evening_time: Optional[str] = None  # default start time for scheduled evenings (HH:MM)
+    throw_tracking_enabled: Optional[bool] = None  # camera-based pin/throw tracking on/off (#33)
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty", "default_evening_time"}
+_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
+                   "default_evening_time", "throw_tracking_enabled"}
 
 
 @router.patch("/settings")
@@ -591,6 +597,15 @@ def _penalty_euro(l: PenaltyLog) -> float:
     return 0.0
 
 
+# SQL equivalent of _penalty_euro — lets the balance endpoints sum penalties in the database
+# (GROUP BY) instead of loading every PenaltyLog row into Python. Keep the two in lock-step.
+_PENALTY_EURO_SQL = case(
+    (PenaltyLog.mode == "euro", PenaltyLog.amount),
+    (PenaltyLog.unit_amount.isnot(None), PenaltyLog.amount * PenaltyLog.unit_amount),
+    else_=0.0,
+)
+
+
 @router.get("/member-balances")
 def get_member_balances(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Per-member: total penalties (all evenings), total payments, balance."""
@@ -600,57 +615,54 @@ def get_member_balances(db: Session = Depends(get_db), user: User = Depends(requ
         RegularMember.is_guest == False,
     ).order_by(RegularMember.name).all()
 
-    # Build mapping: regular_member_id → list of evening_player_ids
-    player_rows = (
-        db.query(EveningPlayer.id, EveningPlayer.regular_member_id)
-        .join(Evening, Evening.id == EveningPlayer.evening_id)
-        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
-        .all()
-    )
-    member_player_ids: dict[int, list[int]] = {}
-    for pid, mid in player_rows:
-        member_player_ids.setdefault(mid, []).append(pid)
-
-    # Penalty totals from penalty_log via player_id (non-absence)
-    all_player_ids = [pid for ids in member_player_ids.values() for pid in ids]
-    penalty_rows = (
-        db.query(PenaltyLog)
-        .filter(PenaltyLog.player_id.in_(all_player_ids), PenaltyLog.is_deleted == False)
-        .all()
-    ) if all_player_ids else []
-    penalty_by_player: dict[int, float] = {}
-    for l in penalty_rows:
-        penalty_by_player[l.player_id] = penalty_by_player.get(l.player_id, 0.0) + _penalty_euro(l)
-
-    # Absence penalties (player_id=null, regular_member_id set directly)
-    absence_rows = (
-        db.query(PenaltyLog)
-        .join(Evening, Evening.id == PenaltyLog.evening_id)
-        .filter(
-            Evening.club_id == user.club_id,
-            PenaltyLog.player_id.is_(None),
-            PenaltyLog.regular_member_id.isnot(None),
-            PenaltyLog.is_deleted == False,
+    # Player penalties (non-absence), summed per member in the DB via the EveningPlayer join.
+    penalty_by_member: dict[int, float] = {
+        mid: float(total or 0.0)
+        for mid, total in (
+            db.query(EveningPlayer.regular_member_id, func.sum(_PENALTY_EURO_SQL))
+            .join(PenaltyLog, PenaltyLog.player_id == EveningPlayer.id)
+            .join(Evening, Evening.id == EveningPlayer.evening_id)
+            .filter(
+                Evening.club_id == user.club_id,
+                EveningPlayer.regular_member_id.isnot(None),
+                PenaltyLog.is_deleted == False,
+            )
+            .group_by(EveningPlayer.regular_member_id)
+            .all()
         )
-        .all()
-    )
-    absence_by_member: dict[int, float] = {}
-    for l in absence_rows:
-        absence_by_member[l.regular_member_id] = absence_by_member.get(l.regular_member_id, 0.0) + _penalty_euro(l)
+    }
 
-    # Payments
-    payments = db.query(MemberPayment).filter(
-        MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False
-    ).all()
-    payments_by_member: dict[int, float] = {}
-    for p in payments:
-        payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
+    # Absence penalties (player_id=null, regular_member_id set directly), summed per member.
+    absence_by_member: dict[int, float] = {
+        mid: float(total or 0.0)
+        for mid, total in (
+            db.query(PenaltyLog.regular_member_id, func.sum(_PENALTY_EURO_SQL))
+            .join(Evening, Evening.id == PenaltyLog.evening_id)
+            .filter(
+                Evening.club_id == user.club_id,
+                PenaltyLog.player_id.is_(None),
+                PenaltyLog.regular_member_id.isnot(None),
+                PenaltyLog.is_deleted == False,
+            )
+            .group_by(PenaltyLog.regular_member_id)
+            .all()
+        )
+    }
+
+    # Payments, summed per member.
+    payments_by_member: dict[int, float] = {
+        mid: float(total or 0.0)
+        for mid, total in (
+            db.query(MemberPayment.regular_member_id, func.sum(MemberPayment.amount))
+            .filter(MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False)
+            .group_by(MemberPayment.regular_member_id)
+            .all()
+        )
+    }
 
     result = []
     for m in members:
-        player_ids = member_player_ids.get(m.id, [])
-        penalty_total = sum(penalty_by_player.get(pid, 0.0) for pid in player_ids)
-        penalty_total += absence_by_member.get(m.id, 0.0)
+        penalty_total = penalty_by_member.get(m.id, 0.0) + absence_by_member.get(m.id, 0.0)
         payments_total = payments_by_member.get(m.id, 0.0)
         result.append({
             "regular_member_id": m.id,
@@ -912,50 +924,48 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
     if not guests:
         return []
 
-    # evening_player_id → (regular_member_id, evening_id)
-    player_rows = (
-        db.query(EveningPlayer.id, EveningPlayer.regular_member_id, EveningPlayer.evening_id)
+    guest_ids = [g.id for g in guests]
+
+    # Penalties summed per (member_id, evening_id) in the DB — the guest cap is a per-evening rule,
+    # so we group by evening then apply the cap in Python over the (small) grouped rows.
+    penalty_per_evening = (
+        db.query(
+            EveningPlayer.regular_member_id,
+            EveningPlayer.evening_id,
+            func.sum(_PENALTY_EURO_SQL),
+        )
+        .join(PenaltyLog, PenaltyLog.player_id == EveningPlayer.id)
         .join(Evening, Evening.id == EveningPlayer.evening_id)
         .filter(
             Evening.club_id == user.club_id,
-            EveningPlayer.regular_member_id.in_([g.id for g in guests]),
+            EveningPlayer.regular_member_id.in_(guest_ids),
+            PenaltyLog.is_deleted == False,
         )
+        .group_by(EveningPlayer.regular_member_id, EveningPlayer.evening_id)
         .all()
     )
 
-    # Maps: player_id → (member_id, evening_id)
-    player_info: dict[int, tuple[int, int]] = {pid: (mid, eid) for pid, mid, eid in player_rows}
-    all_player_ids = list(player_info.keys())
-
-    # Penalty per player
-    penalty_rows = (
-        db.query(PenaltyLog)
-        .filter(PenaltyLog.player_id.in_(all_player_ids), PenaltyLog.is_deleted == False)
-        .all()
-    ) if all_player_ids else []
-
-    # Accumulate penalties per (member_id, evening_id)
-    penalty_per_evening: dict[tuple[int, int], float] = {}
-    for l in penalty_rows:
-        mid, eid = player_info[l.player_id]
-        key = (mid, eid)
-        penalty_per_evening[key] = penalty_per_evening.get(key, 0.0) + _penalty_euro(l)
-
     # Apply per-evening cap and sum per member
     penalty_by_member: dict[int, float] = {}
-    for (mid, _eid), total in penalty_per_evening.items():
+    for mid, _eid, total in penalty_per_evening:
+        total = float(total or 0.0)
         capped = min(total, guest_penalty_cap) if guest_penalty_cap is not None else total
         penalty_by_member[mid] = penalty_by_member.get(mid, 0.0) + capped
 
     # Payments (guests can also have payments recorded)
-    payments = db.query(MemberPayment).filter(
-        MemberPayment.club_id == user.club_id,
-        MemberPayment.regular_member_id.in_([g.id for g in guests]),
-        MemberPayment.is_deleted == False,
-    ).all()
-    payments_by_member: dict[int, float] = {}
-    for p in payments:
-        payments_by_member[p.regular_member_id] = payments_by_member.get(p.regular_member_id, 0.0) + p.amount
+    payments_by_member: dict[int, float] = {
+        mid: float(total or 0.0)
+        for mid, total in (
+            db.query(MemberPayment.regular_member_id, func.sum(MemberPayment.amount))
+            .filter(
+                MemberPayment.club_id == user.club_id,
+                MemberPayment.regular_member_id.in_(guest_ids),
+                MemberPayment.is_deleted == False,
+            )
+            .group_by(MemberPayment.regular_member_id)
+            .all()
+        )
+    }
 
     result = []
     for g in guests:

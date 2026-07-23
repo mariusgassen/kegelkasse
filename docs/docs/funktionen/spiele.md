@@ -93,3 +93,16 @@ Gelöschte Spiele sind **weich gelöscht** (Soft-Delete) — die zugehörigen Ve
 | `individual` | Ein einzelner Spieler gewinnt |
 | `team` | Ein Team gewinnt |
 | `either` | Entweder ein Spieler oder ein Team kann gewinnen |
+
+## Kamera-Wurf-Erkennung (optional pro Verein)
+
+Die kamerabasierte Live-Wurf-Erfassung (Kegel, Punkte, „Alle Neune") ist eine **optionale**
+Funktion. Vereine, deren Kegelbahn keine Wurfdaten liefert, können sie unter
+**Verein → Einstellungen → Wurf-Erfassung** ausschalten (Standard: aktiviert).
+
+Ist die Erfassung deaktiviert, werden alle wurfbezogenen Ansichten und Statistiken ausgeblendet:
+der Kamera-Knopf (📷) im Spiele-Tab, die Live-Wurf-Leiste in der Tablet-Schnellerfassung, die
+Wurf-Anzeige in der Live-Ansicht, die Wurf-Performance-Karten (Profil, Jahresranking), die
+Wurf-Kennzahl auf dem Start-Dashboard, die Wurf-Statistiken in Abend-/Jahres-Auswertungen sowie
+die „Schwächster Wurf-Schnitt"-Auszeichnung der Halle der Schande. Strafen, Getränke, Spiele und
+Sieger-Auswahl bleiben unverändert nutzbar.
