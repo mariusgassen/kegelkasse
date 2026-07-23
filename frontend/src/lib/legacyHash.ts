@@ -16,6 +16,7 @@
 
 /** Top-level pages that own a route. Keep in sync with the router route tree. */
 export const ROUTE_PAGES = [
+    'home',
     'evening',
     'treasury',
     'schedule',

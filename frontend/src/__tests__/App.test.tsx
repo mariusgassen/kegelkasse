@@ -73,6 +73,10 @@ vi.mock('@/pages/LoginPage.tsx', () => ({
     ),
 }))
 
+vi.mock('@/pages/HomePage.tsx', () => ({
+    HomePage: () => <div data-testid="home-page" />,
+}))
+
 vi.mock('@/pages/EveningHubPage.tsx', () => ({
     EveningHubPage: ({ onHistory }: { onHistory?: () => void }) => (
         <div data-testid="evening-hub-page">
