@@ -21,6 +21,7 @@ import {
 } from '@tanstack/react-router'
 import {RootLayout} from './RootLayout'
 import {type RoutePage, legacyHashToLocation, locationToPath} from './lib/legacyHash'
+import {useAppStore} from './store/app'
 
 // Boot redirect: if the app is opened at a legacy hash deep link (e.g. a stored push URL
 // `/#treasury:accounts?member=5`), rewrite it to the new path before the history is read, so
@@ -32,12 +33,14 @@ if (typeof window !== 'undefined') {
 
 const rootRoute = createRootRoute({component: RootLayout})
 
-// `/` → the default landing page.
+// `/` → the default landing page. With an active evening in progress the app opens straight
+// into the evening (the AKTIV pill already reflects that); otherwise it lands on the
+// personalized "Für dich" dashboard (#66).
 const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
     beforeLoad: () => {
-        throw redirect({to: '/evening'})
+        throw redirect({to: useAppStore.getState().activeEveningId ? '/evening' : '/home'})
     },
 })
 
@@ -49,6 +52,10 @@ const indexRoute = createRoute({
  * compile-time types (the generic `useHashTab`/`getHashParams` adapters keep reading the raw
  * search, so no deep-link key is ever dropped).
  */
+// The dashboard has no deep-link params of its own today, but its search schema must stay
+// permissive (not an empty/closed shape) — a closed schema would poison the search type of the
+// generic `router.navigate({to: string})` used by the legacy-hash compatibility path.
+export type HomeSearch = Record<string, string | number | undefined>
 export interface EveningSearch { tab?: 'penalties' | 'games' | 'highlights' | 'manage'; item?: number; comment?: number }
 export interface TreasurySearch { tab?: 'overview' | 'accounts' | 'bookings'; member?: number; memberName?: string; rid?: number; q?: string }
 export interface ScheduleSearch { evening?: number; event?: number }
@@ -76,6 +83,7 @@ function pageRoute<S>(
 
 const routeTree = rootRoute.addChildren([
     indexRoute,
+    pageRoute('home', () => import('./pages/HomePage'), 'HomePage', passThrough<HomeSearch>),
     pageRoute('evening', () => import('./pages/EveningHubPage'), 'EveningHubPage', passThrough<EveningSearch>),
     pageRoute('treasury', () => import('./pages/TreasuryPage'), 'TreasuryPage', passThrough<TreasurySearch>),
     pageRoute('schedule', () => import('./pages/SchedulePage'), 'SchedulePage', passThrough<ScheduleSearch>),

@@ -81,6 +81,12 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ## Feature catalog
 
+### Start dashboard ("Für dich")
+
+- **Personalized landing page** (🏠) shown by default when no evening is running (the router's index redirect picks it over the evening page; an active evening opens straight into the evening instead). Reachable any time via the **Start** nav tab.
+- Composes existing endpoints (schedule, my-balance, committee, stats/me) — no new backend/migration. Sections: personal greeting, an active-evening callout (when one is running), the **next appointment with inline RSVP** (attend/absent without leaving the page), a **my-account glance** (balance state + jump to the treasury account), **latest community news** (announcements + trips, deep-linked to the item), a **personal season metric** (throw average + trend sparkline), and quick-action tiles.
+- Sections without data (no linked member → no account card; no news / no throws → those cards hidden) are omitted. Pure derivation in `lib/dashboard.ts` (`nextAppointment`, `recentCommunity`, `balanceState`, `recentThrowAvgs`), unit-tested.
+
 ### Authentication & users
 
 - Email/password login with JWT tokens (7-day expiry by default)

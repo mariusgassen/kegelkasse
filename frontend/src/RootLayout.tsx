@@ -10,6 +10,7 @@ import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Outlet} from '@tanstack/react-router'
 import {
+    Home,
     Trophy,
     Wallet,
     CalendarDays,
@@ -42,6 +43,7 @@ import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHas
 type PageId = RoutePage
 
 const NAV: { id: PageId; Icon: LucideIcon; labelKey: string }[] = [
+    {id: 'home', Icon: Home, labelKey: 'nav.home'},
     {id: 'evening', Icon: Trophy, labelKey: 'nav.evening'},
     {id: 'treasury', Icon: Wallet, labelKey: 'nav.treasury'},
     {id: 'schedule', Icon: CalendarDays, labelKey: 'nav.schedule'},

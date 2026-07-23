@@ -28,6 +28,7 @@ const sidebars: SidebarsConfig = {
       label: 'Funktionen',
       collapsed: false,
       items: [
+        'funktionen/start-dashboard',
         'funktionen/abende',
         'funktionen/termine',
         'funktionen/spiele',
