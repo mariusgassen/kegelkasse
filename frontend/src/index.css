@@ -64,14 +64,24 @@
         -webkit-tap-highlight-color: transparent;
     }
 
-    html, body, #root {
+    html, body {
         height: 100%;
-        /* 100dvh = the *actual* visible viewport. On an iOS standalone PWA a %-based height can
-           resolve to the safe viewport (excluding the home-indicator zone) while viewport-fit=cover
-           + the bottom nav's env(safe-area-inset-bottom) padding also reserve that zone — counting
-           it twice and leaving a dead strip below the nav. dvh spans edge-to-edge so the inset is
-           applied once. Falls back to 100% where dvh is unsupported. */
-        height: 100dvh;
+        overflow: hidden;
+    }
+
+    /* Anchor the app to the layout viewport instead of trusting a viewport *height* unit.
+       On an iOS standalone PWA (viewport-fit=cover) the height units are unreliable: 100vh
+       over-reports, and 100dvh/100svh can resolve to the *safe* viewport (excluding the
+       home-indicator zone) or go stale after a rotation / return-from-background — leaving a
+       dead strip of body background below the bottom nav (intermittently, hence "sometimes").
+       `position: fixed; inset: 0` fills the initial containing block, which with viewport-fit=cover
+       is the full screen edge-to-edge, every time — no height computation involved. The bottom
+       nav's env(safe-area-inset-bottom) padding then reserves the home-indicator zone exactly once,
+       inside a shell that already spans the whole screen. #root has no transform/filter, so
+       descendant position:fixed overlays still anchor to the viewport as before. */
+    #root {
+        position: fixed;
+        inset: 0;
         overflow: hidden;
     }
 
