@@ -10,6 +10,7 @@ vi.mock('@/api/client.ts', () => ({
         getInviteInfo: vi.fn(),
         register: vi.fn(),
         resetPassword: vi.fn(),
+        requestPasswordReset: vi.fn(),
     },
     authState: {
         setToken: vi.fn(),
@@ -526,6 +527,72 @@ describe('LoginPage — reset form password input', () => {
         const pwInput = screen.getByPlaceholderText('••••••••') as HTMLInputElement
         fireEvent.change(pwInput, { target: { value: 'newpass123' } })
         expect(pwInput.value).toBe('newpass123')
+    })
+})
+
+describe('LoginPage — forgot password mode', () => {
+    beforeEach(() => {
+        vi.resetAllMocks()
+        Object.defineProperty(window, 'location', {
+            value: { search: '', hash: '', pathname: '/' },
+            configurable: true,
+        })
+    })
+
+    it('switches to forgot mode from the login form', async () => {
+        await renderLoginPage()
+        fireEvent.click(screen.getByText('auth.forgot.link'))
+        await waitFor(() => {
+            expect(screen.getByText('auth.forgot.title')).toBeInTheDocument()
+            expect(screen.getByText('auth.forgot.button')).toBeInTheDocument()
+        })
+    })
+
+    it('calls api.requestPasswordReset and shows generic success', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.requestPasswordReset).mockResolvedValueOnce({ ok: true } as any)
+        await renderLoginPage()
+
+        fireEvent.click(screen.getByText('auth.forgot.link'))
+        await waitFor(() => screen.getByText('auth.forgot.button'))
+
+        fireEvent.change(screen.getByLabelText('auth.forgot.emailLabel'), {
+            target: { value: 'me@example.de' },
+        })
+        fireEvent.submit(screen.getByText('auth.forgot.button').closest('form')!)
+
+        await waitFor(() => {
+            expect(api.requestPasswordReset).toHaveBeenCalledWith('me@example.de')
+            expect(screen.getByText('auth.forgot.done')).toBeInTheDocument()
+        })
+    })
+
+    it('shows error when the request throws', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.requestPasswordReset).mockRejectedValueOnce(new Error('Network down'))
+        await renderLoginPage()
+
+        fireEvent.click(screen.getByText('auth.forgot.link'))
+        await waitFor(() => screen.getByText('auth.forgot.button'))
+
+        fireEvent.change(screen.getByLabelText('auth.forgot.emailLabel'), {
+            target: { value: 'me@example.de' },
+        })
+        fireEvent.submit(screen.getByText('auth.forgot.button').closest('form')!)
+
+        await waitFor(() => {
+            expect(screen.getByText('Network down')).toBeInTheDocument()
+        })
+    })
+
+    it('can navigate back to login from forgot mode', async () => {
+        await renderLoginPage()
+        fireEvent.click(screen.getByText('auth.forgot.link'))
+        await waitFor(() => screen.getByText('auth.forgot.title'))
+        fireEvent.click(screen.getByText(/← auth\.login/))
+        await waitFor(() => {
+            expect(screen.getByText('auth.loginButton')).toBeInTheDocument()
+        })
     })
 })
 

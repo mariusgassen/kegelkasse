@@ -1,10 +1,11 @@
 """Authentication endpoints — login, invite, register."""
 import logging
 import secrets
+import time
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, status, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -177,6 +178,90 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     db.commit()
     logger.info("Password reset completed for user_id=%s", user.id)
     return {"ok": True}
+
+
+# --- Self-service password reset request -----------------------------------
+
+# In-memory sliding-window rate limiter. Coolify runs a single app container,
+# so per-process state is sufficient; it caps abuse (enumeration probes, mail
+# floods) without needing shared storage.
+_RESET_WINDOW_SECONDS = 3600
+_RESET_MAX_PER_EMAIL = 3
+_RESET_MAX_PER_IP = 10
+_reset_hits: dict[str, list[float]] = {}
+
+
+def _rate_limited(key: str, max_hits: int) -> bool:
+    """Record a hit for ``key``; return True if it exceeds ``max_hits`` per window."""
+    now = time.monotonic()
+    cutoff = now - _RESET_WINDOW_SECONDS
+    hits = [ts for ts in _reset_hits.get(key, []) if ts > cutoff]
+    if len(hits) >= max_hits:
+        _reset_hits[key] = hits
+        return True
+    hits.append(now)
+    _reset_hits[key] = hits
+    return False
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+class RequestPasswordResetRequest(BaseModel):
+    email: str
+
+
+@router.post("/request-password-reset")
+def request_password_reset(req: RequestPasswordResetRequest, request: Request,
+                           background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Public self-service password reset request.
+
+    Always returns a generic response so it never reveals whether an account or
+    email exists (no enumeration). When the address matches an active account
+    with a real email and a club that has SMTP configured, a one-time,
+    time-limited reset link is emailed via the club's own mail server.
+    """
+    generic = {"ok": True}
+    email = (req.email or "").strip().lower()
+    if not email:
+        return generic
+    ip = _client_ip(request)
+    # Rate-limit both dimensions; check IP first so a flood can't sidestep it by
+    # varying the email. Silently drop when over the limit — same generic reply.
+    if _rate_limited(f"ip:{ip}", _RESET_MAX_PER_IP):
+        logger.warning("Password reset rate-limited for ip=%s", ip)
+        return generic
+    if _rate_limited(f"email:{email}", _RESET_MAX_PER_EMAIL):
+        logger.warning("Password reset rate-limited for email")
+        return generic
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active or user.email.endswith("@kegelkasse.internal"):
+        return generic
+
+    from core.email import get_club_email_config, email_theme, send_password_reset_email
+    cfg = get_club_email_config(user.club) if user.club else None
+    if not cfg:
+        # No mail server configured for the club — nothing we can deliver.
+        return generic
+
+    token_val = secrets.token_urlsafe(32)
+    expires = datetime.now(UTC) + timedelta(hours=1)
+    reset = PasswordResetToken(token=token_val, user_id=user.id, expires_at=expires)
+    db.add(reset)
+    db.commit()
+
+    reset_url = f"/?reset={token_val}"
+    background_tasks.add_task(
+        send_password_reset_email, cfg, user.email, reset_url,
+        email_theme(user.club), user.preferred_locale,
+    )
+    logger.info("Self-service password reset requested for user_id=%s", user.id)
+    return generic
 
 
 @router.post("/invite")

@@ -295,6 +295,48 @@ class TestSendClubEmail:
         smtp_instance.send_message.assert_called_once()
 
 
+class TestPasswordResetEmail:
+    def test_builds_localized_reset_bodies_with_link(self):
+        from core.config import settings
+        from core.email import build_email_bodies
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"):
+            text, html = build_email_bodies(
+                "Reset your password", "Click below.", "/?reset=abc",
+                locale="en", button_key="auth.reset.email.button",
+            )
+        assert "https://app.example.com/?reset=abc" in text
+        assert "Reset password" in html  # button label from auth.reset.email.button
+        assert "https://app.example.com/?reset=abc" in html
+
+    def test_send_password_reset_email_sends_and_returns_true(self):
+        from core.config import settings
+        from core.email import send_password_reset_email
+        with patch.object(settings, "APP_BASE_URL", "https://app.example.com"), \
+                patch("core.email.send_club_email") as mock_send:
+            ok = send_password_reset_email(
+                {"host": "x", "from_address": "f@x.de"}, "user@x.de",
+                "/?reset=tok", locale="de",
+            )
+        assert ok is True
+        mock_send.assert_called_once()
+        # subject is the localized reset subject; text body carries the reset link
+        args = mock_send.call_args.args
+        assert args[2] == "Passwort zurücksetzen"  # subject (de)
+        assert "https://app.example.com/?reset=tok" in args[3]
+
+    def test_send_password_reset_email_absorbs_failure(self):
+        from core.email import send_password_reset_email
+        with patch("core.email.send_club_email", side_effect=RuntimeError("smtp down")):
+            ok = send_password_reset_email(
+                {"host": "x", "from_address": "f@x.de"}, "user@x.de", "/?reset=tok",
+            )
+        assert ok is False
+
+    def test_send_password_reset_email_no_address_returns_false(self):
+        from core.email import send_password_reset_email
+        assert send_password_reset_email({"host": "x"}, "", "/?reset=tok") is False
+
+
 # ---------------------------------------------------------------------------
 # API: /club/email-settings
 # ---------------------------------------------------------------------------

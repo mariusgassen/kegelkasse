@@ -15,13 +15,14 @@ export function LoginPage({onLogin}: LoginPageProps) {
     const [pw, setPw] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login')
+    const [mode, setMode] = useState<'login' | 'register' | 'reset' | 'forgot'>('login')
     const [inviteToken, setInviteToken] = useState('')
     const [name, setName] = useState('')
     const [username, setUsername] = useState('')
     const [prefilledName, setPrefilledName] = useState<string | null>(null)
     const [resetToken, setResetToken] = useState('')
     const [resetDone, setResetDone] = useState(false)
+    const [forgotDone, setForgotDone] = useState(false)
     const setUser = useAppStore(s => s.setUser)
     const t = useT()
     const {setLocale, locale} = useI18n()
@@ -92,6 +93,20 @@ export function LoginPage({onLogin}: LoginPageProps) {
             clearAuthParams()
             setUser(res.user)
             onLogin?.()
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : t('error.generic'))
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleForgot(e: React.FormEvent) {
+        e.preventDefault();
+        setError('');
+        setLoading(true)
+        try {
+            await api.requestPasswordReset(email)
+            setForgotDone(true)
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t('error.generic'))
         } finally {
@@ -175,12 +190,54 @@ export function LoginPage({onLogin}: LoginPageProps) {
                             <button onClick={() => setMode('register')}
                                     className="text-kce-amber font-bold">{t('auth.clickHere')}</button>
                         </p>
+                        <p className="text-center text-kce-muted text-xs mt-2">
+                            <button onClick={() => {
+                                setError('');
+                                setMode('forgot')
+                            }} className="text-kce-amber font-bold">{t('auth.forgot.link')}</button>
+                        </p>
                         {import.meta.env.DEV && (
                             <button type="button" onClick={handleDevLogin} disabled={loading}
                                     className="mt-3 w-full text-xs py-1.5 rounded border border-dashed border-kce-muted text-kce-muted hover:border-kce-amber hover:text-kce-amber transition-colors">
                                 ⚡ Dev Login
                             </button>
                         )}
+                    </>
+                ) : mode === 'forgot' ? (
+                    <>
+                        <h2 className="font-display font-bold text-kce-cream text-lg mb-4">{t('auth.forgot.title')}</h2>
+                        {forgotDone ? (
+                            <p className="text-green-400 text-sm mb-4">{t('auth.forgot.done')}</p>
+                        ) : (
+                            <form onSubmit={handleForgot} className="flex flex-col gap-3">
+                                <p className="text-kce-muted text-xs">{t('auth.forgot.intro')}</p>
+                                <div>
+                                    <label className="field-label" htmlFor="forgot-email">{t('auth.forgot.emailLabel')}</label>
+                                    <input className="kce-input" type="email" value={email}
+                                           id="forgot-email"
+                                           name="email"
+                                           autoComplete="email"
+                                           autoCapitalize="none"
+                                           autoCorrect="off"
+                                           spellCheck={false}
+                                           onChange={e => setEmail(e.target.value)}
+                                           placeholder="name@example.de" required autoFocus/>
+                                </div>
+                                <InlineError text={error}/>
+                                <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                                    {loading ? t('action.loading') : t('auth.forgot.button')}
+                                </button>
+                            </form>
+                        )}
+                        <p className="text-center text-kce-muted text-xs mt-4">
+                            <button onClick={() => {
+                                setMode('login');
+                                setForgotDone(false);
+                                setError('')
+                            }} className="text-kce-amber font-bold">
+                                ← {t('auth.login')}
+                            </button>
+                        </p>
                     </>
                 ) : mode === 'reset' ? (
                     <>

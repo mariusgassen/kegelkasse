@@ -236,6 +236,8 @@ export const api = {
         request<{ token: string; reset_url: string; username: string | null }>('POST', '/auth/create-reset-token', {user_id: userId}),
     resetPassword: (token: string, newPassword: string) =>
         request<void>('POST', '/auth/reset-password', {token, new_password: newPassword}),
+    requestPasswordReset: (email: string) =>
+        request<{ ok: boolean }>('POST', '/auth/request-password-reset', {email}),
     getInviteInfo: (token: string) =>
         request<{ valid: boolean; member_name: string | null }>('GET', `/auth/invite-info?token=${token}`),
     register: (token: string, pw: string, username: string, name?: string) =>

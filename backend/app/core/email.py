@@ -110,8 +110,13 @@ def _abs_link(url: str, base_url: str | None = None) -> str | None:
 
 
 def build_email_bodies(title: str, body: str, url: str = "/", theme: dict | None = None,
-                       locale: str | None = None) -> tuple[str, str]:
-    """Build (text, html) bodies for a notification email, with an optional action link."""
+                       locale: str | None = None, button_key: str = "email.button.open") -> tuple[str, str]:
+    """Build (text, html) bodies for a notification email, with an optional action link.
+
+    ``button_key`` selects the i18n label for the action button (defaults to the
+    generic "Open"); pass a task-specific key such as ``auth.reset.email.button``
+    to give the button clearer intent.
+    """
     th = theme or email_theme(None)
     link = _abs_link(url, th.get("base_url"))
 
@@ -123,7 +128,7 @@ def build_email_bodies(title: str, body: str, url: str = "/", theme: dict | None
         f'<p style="margin:24px 0 8px"><a href="{escape(link)}" '
         f'style="background:{escape(th["primary"])};color:{escape(th["on_primary"])};'
         'text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700;'
-        f'display:inline-block">{escape(t(locale, "email.button.open"))}</a></p>'
+        f'display:inline-block">{escape(t(locale, button_key))}</a></p>'
         if link else ""
     )
     html = (
@@ -222,6 +227,27 @@ def send_notification_email(cfg: dict, to_address: str, title: str, body: str, u
         return True
     except Exception as exc:  # noqa: BLE001 — never let email break a notification
         logger.warning("Email send failed to %s: %s", to_address, exc, exc_info=True)
+        return False
+
+
+def send_password_reset_email(cfg: dict, to_address: str, reset_url: str,
+                              theme: dict | None = None, locale: str | None = None) -> bool:
+    """Send a self-service password-reset email; absorb and log any failure.
+
+    Themed + localized like every other outbound mail; the action button links
+    to the app's public ``?reset=<token>`` completion flow. Returns True on send.
+    """
+    if not to_address:
+        return False
+    try:
+        subject = t(locale, "auth.reset.email.subject")
+        body = t(locale, "auth.reset.email.body")
+        text, html = build_email_bodies(subject, body, reset_url, theme=theme, locale=locale,
+                                        button_key="auth.reset.email.button")
+        send_club_email(cfg, to_address, subject, text, html)
+        return True
+    except Exception as exc:  # noqa: BLE001 — never let email break the request flow
+        logger.warning("Password reset email failed to %s: %s", to_address, exc, exc_info=True)
         return False
 
 
