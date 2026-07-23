@@ -8,7 +8,7 @@
  */
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {CalendarDays, Wallet, Users, BarChart2, Trophy, ChevronRight} from 'lucide-react'
+import {Trophy, ChevronRight} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
@@ -22,7 +22,9 @@ import {
     recentCommunity,
     balanceState,
     recentThrowAvgs,
+    recentPenalties,
     type CommunityItem,
+    type RecentPenalty,
 } from '@/lib/dashboard.ts'
 
 function fe(v: number) {
@@ -111,6 +113,7 @@ function NextAppointment({se, locale, onChanged}: {
 
     const attending = se.my_rsvp === 'attending'
     const absent = se.my_rsvp === 'absent'
+    const responded = attending || absent
     return (
         <div>
             <div className="text-base font-bold text-kce-cream">{fDateTime(se.scheduled_at, locale)}</div>
@@ -118,22 +121,37 @@ function NextAppointment({se, locale, onChanged}: {
             {se.attending_count > 0 && (
                 <div className="text-[11px] text-kce-muted mt-0.5">✅ {se.attending_count}</div>
             )}
-            <div className="flex gap-2 mt-2.5">
-                <button disabled={busy} onClick={() => setStatus('attending')}
-                        className={['flex-1 text-xs py-2 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
-                            attending
-                                ? 'bg-green-500/20 text-green-400 border-green-500/40'
-                                : 'bg-kce-surface2 text-kce-muted border-kce-border'].join(' ')}>
-                    {t('rsvp.attending.short')}
-                </button>
-                <button disabled={busy} onClick={() => setStatus('absent')}
-                        className={['flex-1 text-xs py-2 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
-                            absent
-                                ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                : 'bg-kce-surface2 text-kce-muted border-kce-border'].join(' ')}>
-                    {t('rsvp.absent.short')}
-                </button>
-            </div>
+
+            {responded ? (
+                // Already answered → show the current state and offer the single opposite action.
+                <div className="flex items-center justify-between gap-2 mt-2.5">
+                    <span className={['text-xs font-bold px-2.5 py-1.5 rounded-full',
+                        attending
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-red-500/20 text-red-400'].join(' ')}>
+                        {attending ? t('home.rsvp.attendingState') : t('home.rsvp.absentState')}
+                    </span>
+                    <button disabled={busy} onClick={() => setStatus(attending ? 'absent' : 'attending')}
+                            className="text-xs font-bold py-1.5 px-3 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted transition-all active:scale-95 select-none">
+                        {attending ? t('home.rsvp.decline') : t('home.rsvp.accept')}
+                    </button>
+                </div>
+            ) : (
+                // No answer yet → prompt for the initial choice.
+                <div className="mt-2.5">
+                    <div className="text-[11px] text-kce-muted mb-1.5">{t('home.rsvp.prompt')}</div>
+                    <div className="flex gap-2">
+                        <button disabled={busy} onClick={() => setStatus('attending')}
+                                className="flex-1 text-xs py-2 px-3 rounded-full border border-green-500/40 bg-green-500/15 text-green-400 font-bold transition-all active:scale-95 select-none">
+                            {t('home.rsvp.accept')}
+                        </button>
+                        <button disabled={busy} onClick={() => setStatus('absent')}
+                                className="flex-1 text-xs py-2 px-3 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted font-bold transition-all active:scale-95 select-none">
+                            {t('home.rsvp.decline')}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -160,18 +178,24 @@ function CommunityRow({item}: {item: CommunityItem}) {
     )
 }
 
-// ── Quick-action tile ─────────────────────────────────────────────────────────
-function QuickAction({icon: Icon, label, onClick}: {
-    icon: typeof CalendarDays
-    label: string
-    onClick: () => void
-}) {
+// ── Recent penalty row ────────────────────────────────────────────────────────
+function fShortDate(iso: string | null, locale: string): string {
+    if (!iso) return ''
+    const d = new Date(iso.slice(0, 10) + 'T00:00:00')
+    if (Number.isNaN(d.getTime())) return ''
+    return d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'de-DE', {day: '2-digit', month: 'short'})
+}
+
+function PenaltyRow({p, locale}: {p: RecentPenalty; locale: string}) {
     return (
-        <button onClick={onClick}
-                className="kce-card p-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <Icon size={22} strokeWidth={2} className="text-kce-primary"/>
-            <span className="text-[11px] font-bold text-kce-cream text-center leading-tight">{label}</span>
-        </button>
+        <div className="flex items-center gap-2 py-1.5">
+            <span className="text-base flex-shrink-0">{p.icon}</span>
+            <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-kce-cream truncate">{p.name}</div>
+                {p.date && <div className="text-[11px] text-kce-muted">{fShortDate(p.date, locale)}</div>}
+            </div>
+            <div className="text-xs font-bold text-kce-primary flex-shrink-0">{fe(p.amount)}</div>
+        </div>
     )
 }
 
@@ -214,11 +238,19 @@ export function HomePage() {
         enabled: !!rmid,
         staleTime: 60000,
     })
+    const {data: myPenalties = []} = useQuery({
+        queryKey: ['member-penalties', rmid],
+        queryFn: () => api.getMemberPenalties(rmid as number),
+        enabled: !!rmid,
+        staleTime: 30000,
+    })
 
+    const locale = user?.preferred_locale ?? 'de'
     const upcoming = nextAppointment(schedules ?? [], todayKey())
     const news = recentCommunity(announcements, trips, 3)
     const bState = balanceState(myBalance?.balance)
     const spark = recentThrowAvgs(throwStats, 8)
+    const penalties = recentPenalties(myPenalties, 4)
 
     function refreshSchedule() {
         qc.invalidateQueries({queryKey: ['schedule']})
@@ -273,7 +305,7 @@ export function HomePage() {
                 {schedLoading ? (
                     <Loading/>
                 ) : upcoming ? (
-                    <NextAppointment se={upcoming} locale={user?.preferred_locale ?? 'de'} onChanged={refreshSchedule}/>
+                    <NextAppointment se={upcoming} locale={locale} onChanged={refreshSchedule}/>
                 ) : (
                     <p className="text-xs text-kce-muted py-1">{t('home.noAppointment')}</p>
                 )}
@@ -329,17 +361,15 @@ export function HomePage() {
                 </Section>
             )}
 
-            {/* Quick actions */}
-            <div className="grid grid-cols-4 gap-2">
-                <QuickAction icon={CalendarDays} label={t('nav.schedule')}
-                             onClick={() => router.navigate({to: '/schedule'}).catch(() => {})}/>
-                <QuickAction icon={Wallet} label={t('nav.treasury')}
-                             onClick={() => router.navigate({to: '/treasury'}).catch(() => {})}/>
-                <QuickAction icon={Users} label={t('nav.committee')}
-                             onClick={() => router.navigate({to: '/committee'}).catch(() => {})}/>
-                <QuickAction icon={BarChart2} label={t('nav.stats')}
-                             onClick={() => router.navigate({to: '/stats'}).catch(() => {})}/>
-            </div>
+            {/* Recent penalties */}
+            {rmid && penalties.length > 0 && (
+                <Section title={t('home.recentPenalties')} action={t('home.toTreasury')}
+                         onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
+                    <div className="divide-y divide-kce-surface2">
+                        {penalties.map(p => <PenaltyRow key={p.id} p={p} locale={locale}/>)}
+                    </div>
+                </Section>
+            )}
         </div>
     )
 }

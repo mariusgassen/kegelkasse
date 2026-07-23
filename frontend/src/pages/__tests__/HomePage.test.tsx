@@ -33,6 +33,7 @@ const api = {
     listAnnouncements: vi.fn(),
     listTrips: vi.fn(),
     getMyThrowStats: vi.fn(),
+    getMemberPenalties: vi.fn(),
     setRsvp: vi.fn(),
     removeRsvp: vi.fn(),
 }
@@ -42,6 +43,7 @@ vi.mock('@/api/client.ts', () => ({api: {
     listAnnouncements: (...a: unknown[]) => api.listAnnouncements(...a),
     listTrips: (...a: unknown[]) => api.listTrips(...a),
     getMyThrowStats: (...a: unknown[]) => api.getMyThrowStats(...a),
+    getMemberPenalties: (...a: unknown[]) => api.getMemberPenalties(...a),
     setRsvp: (...a: unknown[]) => api.setRsvp(...a),
     removeRsvp: (...a: unknown[]) => api.removeRsvp(...a),
 }}))
@@ -72,6 +74,7 @@ beforeEach(() => {
         regular_member_id: 7, year: 2026, total_pins: 0, throw_count: 0,
         avg_pins: null, best_avg: null, worst_avg: null, evenings: [],
     })
+    api.getMemberPenalties.mockResolvedValue([])
 })
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -93,12 +96,32 @@ describe('HomePage', () => {
         await waitFor(() => expect(screen.getByText('🏠 Kegelbahn')).toBeInTheDocument())
     })
 
-    it('marks the evening as attending via RSVP', async () => {
+    it('prompts for RSVP and marks the evening as attending', async () => {
         api.listScheduledEvenings.mockResolvedValue([se()])
         api.setRsvp.mockResolvedValue({status: 'attending'})
         await renderHome()
-        await waitFor(() => screen.getByText('rsvp.attending.short'))
-        fireEvent.click(screen.getByText('rsvp.attending.short'))
+        await waitFor(() => screen.getByText('home.rsvp.prompt'))
+        fireEvent.click(screen.getByText('home.rsvp.accept'))
+        await waitFor(() => expect(api.setRsvp).toHaveBeenCalledWith(1, 'attending'))
+    })
+
+    it('shows the attending state and offers a single decline action', async () => {
+        api.listScheduledEvenings.mockResolvedValue([se({my_rsvp: 'attending'})])
+        api.setRsvp.mockResolvedValue({status: 'absent'})
+        await renderHome()
+        await waitFor(() => screen.getByText('home.rsvp.attendingState'))
+        // The prompt and the "accept" choice are gone; only the opposite action remains.
+        expect(screen.queryByText('home.rsvp.prompt')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText('home.rsvp.decline'))
+        await waitFor(() => expect(api.setRsvp).toHaveBeenCalledWith(1, 'absent'))
+    })
+
+    it('shows the absent state and offers a single accept action', async () => {
+        api.listScheduledEvenings.mockResolvedValue([se({my_rsvp: 'absent'})])
+        api.setRsvp.mockResolvedValue({status: 'attending'})
+        await renderHome()
+        await waitFor(() => screen.getByText('home.rsvp.absentState'))
+        fireEvent.click(screen.getByText('home.rsvp.accept'))
         await waitFor(() => expect(api.setRsvp).toHaveBeenCalledWith(1, 'attending'))
     })
 
@@ -172,11 +195,27 @@ describe('HomePage', () => {
         expect(screen.queryByText('profile.myBalance')).not.toBeInTheDocument()
     })
 
-    it('renders quick-action tiles', async () => {
+    it('does not render duplicate quick-action navigation tiles', async () => {
         await renderHome()
-        await waitFor(() => expect(screen.getByText('nav.treasury')).toBeInTheDocument())
-        expect(screen.getByText('nav.stats')).toBeInTheDocument()
-        fireEvent.click(screen.getByText('nav.stats'))
-        expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({to: '/stats'}))
+        await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
+        // The bottom nav already covers these; the dashboard must not duplicate them.
+        expect(screen.queryByText('nav.treasury')).not.toBeInTheDocument()
+        expect(screen.queryByText('nav.stats')).not.toBeInTheDocument()
+    })
+
+    it('lists the member’s recent penalties and deep-links to the account', async () => {
+        api.getMemberPenalties.mockResolvedValue([
+            {id: 11, amount: 2.5, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 3,
+                evening_date: '2026-07-20', is_absence: false, created_at: '2026-07-20T21:00'},
+        ])
+        await renderHome()
+        await waitFor(() => expect(screen.getByText('Pudel')).toBeInTheDocument())
+        expect(screen.getByText('home.recentPenalties')).toBeInTheDocument()
+    })
+
+    it('hides the recent-penalties section when there are none', async () => {
+        await renderHome()
+        await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
+        expect(screen.queryByText('home.recentPenalties')).not.toBeInTheDocument()
     })
 })

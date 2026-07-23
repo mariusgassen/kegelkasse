@@ -84,8 +84,9 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 ### Start dashboard ("Für dich")
 
 - **Personalized landing page** (🏠) shown by default when no evening is running (the router's index redirect picks it over the evening page; an active evening opens straight into the evening instead). Reachable any time via the **Start** nav tab.
-- Composes existing endpoints (schedule, my-balance, committee, stats/me) — no new backend/migration. Sections: personal greeting, an active-evening callout (when one is running), the **next appointment with inline RSVP** (attend/absent without leaving the page), a **my-account glance** (balance state + jump to the treasury account), **latest community news** (announcements + trips, deep-linked to the item), a **personal season metric** (throw average + trend sparkline), and quick-action tiles.
-- Sections without data (no linked member → no account card; no news / no throws → those cards hidden) are omitted. Pure derivation in `lib/dashboard.ts` (`nextAppointment`, `recentCommunity`, `balanceState`, `recentThrowAvgs`), unit-tested.
+- Composes existing endpoints (schedule, my-balance, committee, stats/me, member-penalties) — no new backend/migration. Sections: personal greeting, an active-evening callout (when one is running), the **next appointment with a state-aware RSVP** (prompts once, then shows your current status and offers only the single opposite action — no confusing two-button layout), a **my-account glance** (balance state + jump to the treasury account), **latest community news** (announcements + trips, deep-linked to the item), a **personal season metric** (throw average + trend sparkline), and **my latest penalties** (recent penalties with icon, name, date and amount, deep-linked to the account).
+- The dashboard deliberately drops the duplicate quick-action navigation tiles — the persistent bottom nav (side rail on desktop) already covers those destinations.
+- Sections without data (no linked member → no account/penalties card; no news / no throws / no penalties → those cards hidden) are omitted. Pure derivation in `lib/dashboard.ts` (`nextAppointment`, `recentCommunity`, `balanceState`, `recentThrowAvgs`, `recentPenalties`), unit-tested.
 
 ### Authentication & users
 

@@ -4,6 +4,8 @@ import {
     recentCommunity,
     balanceState,
     recentThrowAvgs,
+    recentPenalties,
+    type MemberPenaltyRow,
 } from '../dashboard'
 import type {ClubAnnouncement, ClubTrip, ScheduledEvening, ThrowStats} from '../../types'
 
@@ -146,5 +148,43 @@ describe('recentThrowAvgs', () => {
         expect(recentThrowAvgs(undefined, 5)).toEqual([])
         expect(recentThrowAvgs(null, 5)).toEqual([])
         expect(recentThrowAvgs(stats([]), 5)).toEqual([])
+    })
+})
+
+describe('recentPenalties', () => {
+    const p = (id: number, created_at: string | null, evening_date: string | null = null): MemberPenaltyRow => ({
+        id, amount: id, icon: '🍺', penalty_type_name: `P${id}`, evening_date, created_at,
+    })
+
+    it('orders by log time, newest first, and maps the display fields', () => {
+        const out = recentPenalties([
+            p(1, '2026-07-01T20:00'),
+            p(3, '2026-07-20T20:00'),
+            p(2, '2026-07-10T20:00'),
+        ], 5)
+        expect(out.map(r => r.id)).toEqual([3, 2, 1])
+        expect(out[0]).toMatchObject({id: 3, icon: '🍺', name: 'P3', amount: 3, date: '2026-07-20T20:00'})
+    })
+
+    it('caps the result at the given limit', () => {
+        const out = recentPenalties([
+            p(1, '2026-07-01T20:00'),
+            p(2, '2026-07-02T20:00'),
+            p(3, '2026-07-03T20:00'),
+        ], 2)
+        expect(out.map(r => r.id)).toEqual([3, 2])
+    })
+
+    it('falls back to the evening date for ordering and display when created_at is null', () => {
+        const out = recentPenalties([
+            p(1, null, '2026-07-20'),
+            p(2, null, '2026-07-05'),
+        ], 5)
+        expect(out.map(r => r.id)).toEqual([1, 2])
+        expect(out[0].date).toBe('2026-07-20')
+    })
+
+    it('returns [] for an empty list', () => {
+        expect(recentPenalties([], 5)).toEqual([])
     })
 })
