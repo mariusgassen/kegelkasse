@@ -97,3 +97,40 @@ export function recentThrowAvgs(stats: ThrowStats | undefined | null, limit: num
         .slice(-limit)
         .map(e => e.avg_pins)
 }
+
+/** A row as returned by `GET /club/member-penalties/{mid}` (the fields the dashboard uses). */
+export interface MemberPenaltyRow {
+    id: number
+    icon: string
+    penalty_type_name: string
+    amount: number
+    evening_date: string | null
+    created_at: string | null
+}
+
+export interface RecentPenalty {
+    id: number
+    icon: string
+    name: string
+    amount: number
+    /** Best available date for the entry: the log time, falling back to the evening's date. */
+    date: string | null
+}
+
+/**
+ * The member's most recent penalties, newest first, capped at `limit` — a personal "what did I do
+ * last" feed for the start dashboard. Ordered by log time (`created_at`), falling back to the
+ * evening date so entries without a precise timestamp still sort sensibly.
+ */
+export function recentPenalties(list: MemberPenaltyRow[], limit: number): RecentPenalty[] {
+    return [...list]
+        .sort((a, b) => (tsOf(b.created_at) || tsOf(b.evening_date)) - (tsOf(a.created_at) || tsOf(a.evening_date)))
+        .slice(0, limit)
+        .map(p => ({
+            id: p.id,
+            icon: p.icon,
+            name: p.penalty_type_name,
+            amount: p.amount,
+            date: p.created_at ?? p.evening_date,
+        }))
+}
