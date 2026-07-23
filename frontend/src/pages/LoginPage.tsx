@@ -142,15 +142,25 @@ export function LoginPage({onLogin}: LoginPageProps) {
                         <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.login')}</h2>
                         <form onSubmit={handleLogin} className="flex flex-col gap-3">
                             <div>
-                                <label className="field-label">{t('auth.email')} / {t('auth.username')}</label>
+                                <label className="field-label" htmlFor="login-username">{t('auth.email')} / {t('auth.username')}</label>
                                 <input className="kce-input"
+                                       id="login-username"
+                                       name="username"
+                                       type="text"
+                                       autoComplete="username"
+                                       autoCapitalize="none"
+                                       autoCorrect="off"
+                                       spellCheck={false}
                                        value={email}
                                        onChange={e => setEmail(e.target.value)}
                                        placeholder={t('auth.emailPlaceholder')} required/>
                             </div>
                             <div>
-                                <label className="field-label">{t('auth.password')}</label>
+                                <label className="field-label" htmlFor="login-password">{t('auth.password')}</label>
                                 <input className="kce-input" type="password"
+                                       id="login-password"
+                                       name="password"
+                                       autoComplete="current-password"
                                        value={pw}
                                        onChange={e => setPw(e.target.value)}
                                        placeholder="••••••••" required/>
@@ -187,9 +197,14 @@ export function LoginPage({onLogin}: LoginPageProps) {
                             </>
                         ) : (
                             <form onSubmit={handleReset} className="flex flex-col gap-3">
+                                <input type="text" name="username" autoComplete="username" hidden
+                                       readOnly value={email} aria-hidden="true" tabIndex={-1}/>
                                 <div>
-                                    <label className="field-label">{t('auth.password')}</label>
+                                    <label className="field-label" htmlFor="reset-password">{t('auth.password')}</label>
                                     <input className="kce-input" type="password" value={pw}
+                                           id="reset-password"
+                                           name="new-password"
+                                           autoComplete="new-password"
                                            onChange={e => setPw(e.target.value)} placeholder="••••••••" required
                                            autoFocus/>
                                 </div>
@@ -231,18 +246,28 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 </>
                             )}
                             <div>
-                                <label className="field-label">{t('auth.username')}</label>
+                                <label className="field-label" htmlFor="register-username">{t('auth.username')}</label>
                                 <div className="relative">
                                     <span
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
                                     <input className="kce-input pl-6" value={username}
+                                           id="register-username"
+                                           name="username"
+                                           type="text"
+                                           autoComplete="username"
+                                           autoCapitalize="none"
+                                           autoCorrect="off"
+                                           spellCheck={false}
                                            onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                            placeholder={t('auth.usernamePlaceholder')} autoFocus={!!prefilledName} required/>
                                 </div>
                             </div>
                             <div>
-                                <label className="field-label">{t('auth.password')}</label>
+                                <label className="field-label" htmlFor="register-password">{t('auth.password')}</label>
                                 <input className="kce-input" type="password" value={pw}
+                                       id="register-password"
+                                       name="new-password"
+                                       autoComplete="new-password"
                                        onChange={e => setPw(e.target.value)} placeholder="••••••••" required/>
                             </div>
                             <InlineError text={error}/>
