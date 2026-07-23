@@ -137,6 +137,26 @@ class TestUpdateClubSettings:
         assert settings["guest_penalty_cap"] == 15.0
         assert settings["paypal_me"] == "meinverein"
 
+    def test_throw_tracking_defaults_enabled(self, client: TestClient, auth_headers: dict, club_with_settings: Club):
+        # Clubs that predate the setting default to enabled (existing behaviour preserved).
+        verify = client.get("/api/v1/club/", headers=auth_headers)
+        assert verify.json()["settings"]["throw_tracking_enabled"] is True
+
+    def test_admin_can_disable_throw_tracking(self, client: TestClient, admin_headers: dict, club_with_settings: Club):
+        resp = client.patch("/api/v1/club/settings", headers=admin_headers,
+                            json={"throw_tracking_enabled": False})
+        assert resp.status_code == 200
+
+        verify = client.get("/api/v1/club/", headers=admin_headers)
+        assert verify.json()["settings"]["throw_tracking_enabled"] is False
+
+        # Re-enabling round-trips back to true.
+        resp = client.patch("/api/v1/club/settings", headers=admin_headers,
+                            json={"throw_tracking_enabled": True})
+        assert resp.status_code == 200
+        verify = client.get("/api/v1/club/", headers=admin_headers)
+        assert verify.json()["settings"]["throw_tracking_enabled"] is True
+
     def test_member_cannot_update_settings(self, client: TestClient, auth_headers: dict, club_with_settings: Club):
         resp = client.patch("/api/v1/club/settings", headers=auth_headers,
                             json={"primary_color": "#000000"})

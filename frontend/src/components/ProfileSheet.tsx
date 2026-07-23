@@ -11,6 +11,7 @@ import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
 import {PushPreferences, NotificationChannel, ChannelPref, DigestFrequency} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
+import {throwTrackingEnabled} from '@/lib/clubSettings'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
 import {WrappedDeck} from '@/components/WrappedDeck'
@@ -568,7 +569,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     )}
 
                     {/* Throw performance card */}
-                    {myThrowStats && myThrowStats.throw_count > 0 && (
+                    {throwTrackingEnabled(club?.settings) && myThrowStats && myThrowStats.throw_count > 0 && (
                         <div className="kce-card p-4">
                             <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
                                 {t('profile.throwStats')} {year}

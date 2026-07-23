@@ -320,6 +320,22 @@ describe('ClubAdminPage — settings tab', () => {
         })
     })
 
+    it('defaults the throw-tracking switch on and saves it off when toggled', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderClubAdminPage()
+        const toggle = await screen.findByRole('switch', {name: 'club.throwTracking.label'})
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        fireEvent.click(toggle)
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+        // The general settings save is the first of several save buttons on this tab.
+        fireEvent.click(screen.getAllByText('action.save')[0])
+        await waitFor(() => {
+            expect(vi.mocked(api.updateClubSettings)).toHaveBeenCalledWith(
+                expect.objectContaining({throw_tracking_enabled: false}),
+            )
+        })
+    })
+
     it('shows reminder settings section', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getReminderSettings).mockResolvedValue({

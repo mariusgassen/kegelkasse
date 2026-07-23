@@ -205,6 +205,9 @@ export function RootLayout() {
                     const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
                     if (n.id === 'club') return isAdminRole
                     if (n.id === 'members') return !isAdminRole
+                    // The evening tab only appears while an evening is running — no dead tab when
+                    // nothing is active. Admins start one from the home dashboard / schedule.
+                    if (n.id === 'evening') return !!activeEveningId
                     return true
                 }).map(n => (
                     <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`}

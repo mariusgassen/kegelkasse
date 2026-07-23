@@ -50,6 +50,9 @@ vi.mock('@/utils/error.ts', () => ({
     toastError: vi.fn(),
 }))
 
+const throwTrackingMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => throwTrackingMock()}))
+
 vi.mock('@/components/ui/CommentThread.tsx', () => ({
     CommentThread: () => null,
 }))
@@ -314,7 +317,7 @@ describe('StatsPage — loading and empty states', () => {
         })
     })
 
-    it('shows loading placeholder when evening list is loading', async () => {
+    it('shows a loading placeholder (not the empty state) while the evening list loads', async () => {
         const { useEveningList } = await import('@/hooks/useEvening.ts')
         const { api } = await import('@/api/client.ts')
         vi.mocked(useEveningList).mockReturnValue({ data: undefined, isLoading: true } as any)
@@ -322,8 +325,10 @@ describe('StatsPage — loading and empty states', () => {
         vi.mocked(api.getEvening).mockResolvedValue(MINIMAL_EVENING as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderStatsPage()
-        // With no evenings in the list the evening empty state renders
         expect(screen.getByText('stats.title')).toBeInTheDocument()
+        // Finding #2: loading must show a spinner, never the "no data" empty state.
+        expect(screen.getByText('action.loading')).toBeInTheDocument()
+        expect(screen.queryByText('stats.noData')).not.toBeInTheDocument()
     })
 })
 
@@ -481,6 +486,7 @@ describe('StatsPage — member ranking', () => {
 describe('StatsPage — hall of shame', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        throwTrackingMock.mockReturnValue(true)
         storeState.user = null
         storeState.activeEveningId = null
         storeState.regularMembers = []
@@ -495,6 +501,18 @@ describe('StatsPage — hall of shame', () => {
             expect(screen.getByText('stats.shame.thirst')).toBeInTheDocument()
             expect(screen.getByText('stats.shame.worstThrow')).toBeInTheDocument()
         })
+    })
+
+    it('hides the weakest-throw award when throw tracking is disabled', async () => {
+        throwTrackingMock.mockReturnValue(false)
+        await setupWithEvenings()
+        await renderStatsPage('year')
+        await waitFor(() => {
+            expect(screen.getByText('stats.hos')).toBeInTheDocument()
+        })
+        expect(screen.queryByText('stats.shame.worstThrow')).not.toBeInTheDocument()
+        // Non-throw categories remain.
+        expect(screen.getByText('stats.shame.rate')).toBeInTheDocument()
     })
 
     it('omits a category when nobody has enough evenings to qualify', async () => {

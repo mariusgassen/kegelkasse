@@ -11,7 +11,8 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {CalendarDays, Wallet, Users, BarChart2, Trophy, ChevronRight} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
-import {useAppStore} from '@/store/app.ts'
+import {useAppStore, isAdmin} from '@/store/app.ts'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 import {router} from '@/router'
 import {toastError} from '@/utils/error.ts'
 import {Loading} from '@/components/ui/Loading.tsx'
@@ -184,6 +185,7 @@ export function HomePage() {
 
     const linkedMember = regularMembers.find(m => m.id === rmid)
     const displayName = linkedMember?.nickname || linkedMember?.name || user?.name || ''
+    const throwTracking = useThrowTracking()
 
     const {data: schedules, isLoading: schedLoading} = useQuery({
         queryKey: ['schedule'],
@@ -250,6 +252,21 @@ export function HomePage() {
                 </button>
             )}
 
+            {/* Start-evening callout (admins only, when nothing is running). The evening nav tab is
+                hidden while no evening is active, so this is the admin's entry to the start form. */}
+            {!activeEveningId && isAdmin(user) && (
+                <button
+                    onClick={() => router.navigate({to: '/evening'}).catch(() => {})}
+                    className="w-full kce-card p-3 flex items-center gap-3 text-left active:scale-[0.99] transition-transform">
+                    <Trophy size={22} strokeWidth={2.2} className="text-kce-muted flex-shrink-0"/>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-kce-cream">{t('home.startEvening.title')}</div>
+                        <div className="text-[11px] text-kce-muted">{t('home.startEvening.sub')}</div>
+                    </div>
+                    <ChevronRight size={16} strokeWidth={2.5} className="text-kce-muted flex-shrink-0"/>
+                </button>
+            )}
+
             {/* Next appointment */}
             <Section title={t('home.nextAppointment')} action={t('home.allDates')}
                      onAction={() => router.navigate({to: '/schedule'}).catch(() => {})}>
@@ -297,7 +314,7 @@ export function HomePage() {
             )}
 
             {/* Personal season metric */}
-            {throwStats && throwStats.throw_count > 0 && throwStats.avg_pins != null && (
+            {throwTracking && throwStats && throwStats.throw_count > 0 && throwStats.avg_pins != null && (
                 <Section title={t('home.mySeason')} action={t('home.toStats')}
                          onAction={() => router.navigate({to: '/stats', search: {tab: 'year'}}).catch(() => {})}>
                     <div className="flex items-center justify-between gap-3">

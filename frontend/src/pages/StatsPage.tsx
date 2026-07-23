@@ -14,6 +14,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {computeHallOfShame, interpretR, linearRegression, pearson, type ShameEntry} from '@/lib/stats'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -601,6 +602,7 @@ function GamesDetailSheet({evening, t, onClose}: {
     t: (k: any) => string
     onClose: () => void
 }) {
+    const throwTracking = useThrowTracking()
     const games = [...evening.games].sort((a, b) => a.client_timestamp - b.client_timestamp)
 
     const playerName = (pid: number) => {
@@ -688,7 +690,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                                     </div>
                                 )}
 
-                                {throwCount > 0 && (
+                                {throwTracking && throwCount > 0 && (
                                     <div className="flex justify-around text-center pt-1.5 border-t border-kce-border">
                                         <div>
                                             <div className="font-bold text-kce-cream text-xs">{totalPins}</div>
@@ -945,7 +947,9 @@ function HallOfShame({players, t, onSelect}: {
     t: (k: any) => string
     onSelect: (player: YearPlayer, rank: number) => void
 }) {
-    const entries = computeHallOfShame(players)
+    const throwTracking = useThrowTracking()
+    // Drop the throw-based "weakest average" award when the club doesn't track throws.
+    const entries = computeHallOfShame(players).filter(e => throwTracking || e.key !== 'worstThrow')
     if (entries.length === 0) return null
 
     const formatValue = (e: ShameEntry<YearPlayer>) => {
@@ -1048,6 +1052,7 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
     t: (k: any) => string
     onClose: () => void
 }) {
+    const throwTracking = useThrowTracking()
     const medals = ['🥇', '🥈', '🥉']
     const rm = useAppStore.getState().regularMembers.find(m => m.id === player.regular_member_id)
     const displayName = player.nickname || player.name
@@ -1104,7 +1109,7 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
             </div>
 
             {/* Throw performance */}
-            {player.regular_member_id != null && (
+            {throwTracking && player.regular_member_id != null && (
                 <div className="kce-card p-3">
                     <PlayerThrowDetail memberId={player.regular_member_id} year={year} t={t}/>
                 </div>
@@ -2632,7 +2637,7 @@ export function StatsPage() {
     const [selectedPlayer, setSelectedPlayer] = useState<{player: YearPlayer; rank: number} | null>(null)
     const [eveningPlayerDetail, setEveningPlayerDetail] = useState<EveningPlayer | null>(null)
 
-    const {data: eveningList = []} = useEveningList()
+    const {data: eveningList = [], isLoading: eveningsLoading} = useEveningList()
     const sortedEvenings = [...eveningList].sort((a, b) => b.date.localeCompare(a.date))
 
     // Only show year chips for years that have at least one evening
@@ -2651,7 +2656,7 @@ export function StatsPage() {
     const evening = selectedEvening ?? null
     const eveningStats = evening ? computeEveningStats(evening, user?.regular_member_id, t) : null
 
-    const {data: yearStats} = useQuery({
+    const {data: yearStats, isLoading: yearStatsLoading} = useQuery({
         queryKey: ['stats', year],
         queryFn: () => api.getYearStats(year),
         staleTime: 1000 * 60 * 5,
@@ -2690,7 +2695,9 @@ export function StatsPage() {
 
             {tab === 'evening' && (
             <>
-            {sortedEvenings.length === 0 ? (
+            {eveningsLoading && sortedEvenings.length === 0 ? (
+                <Loading className="py-8"/>
+            ) : sortedEvenings.length === 0 ? (
                 <Empty icon="🎳" text={t('stats.noData')}/>
             ) : (
                 <>
@@ -2926,7 +2933,9 @@ export function StatsPage() {
                 </div>
             </div>
 
-            {!yearStats || yearStats.evening_count === 0 ? (
+            {yearStatsLoading && !yearStats ? (
+                <Loading className="py-8"/>
+            ) : !yearStats || yearStats.evening_count === 0 ? (
                 <Empty icon="📅" text={`${t('stats.noYearData')} ${year}`}/>
             ) : (
                 <>

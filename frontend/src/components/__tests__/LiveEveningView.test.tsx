@@ -4,6 +4,9 @@ import React from 'react'
 import type {Evening} from '@/types.ts'
 
 vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
+// The view reads throw-tracking from the club query; default it on so the throw UI is exercised.
+const throwTrackingMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => throwTrackingMock()}))
 
 import {LiveEveningView} from '../evening/LiveEveningView'
 
@@ -32,6 +35,7 @@ beforeEach(() => {
     onQuickEntry = vi.fn<() => void>()
     onGoHighlights = vi.fn<() => void>()
     onGoGames = vi.fn<() => void>()
+    throwTrackingMock.mockReturnValue(true)
 })
 
 function renderView(ev: Evening, quick: (() => void) | undefined = onQuickEntry) {
@@ -118,5 +122,17 @@ describe('LiveEveningView', () => {
     it('shows the empty ticker state when nothing has happened', () => {
         renderView(evening())
         expect(screen.getByText('live.tickerEmpty')).toBeInTheDocument()
+    })
+
+    it('hides the last throw when throw tracking is disabled', () => {
+        throwTrackingMock.mockReturnValue(false)
+        const ev = evening({
+            players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false}],
+            games: [runningGame(1, [{id: 1, throw_num: 1, pins: 9, cumulative: 9, pin_states: [], player_id: 1}])],
+        })
+        renderView(ev)
+        // Scoreboard + active player still render, but the throw readout is gone.
+        expect(screen.getByText('live.running')).toBeInTheDocument()
+        expect(screen.queryByText('live.lastThrow')).not.toBeInTheDocument()
     })
 })
