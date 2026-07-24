@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <meta name="theme-color" content="#3d3540"/>
     <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <!-- NOT black-translucent: on an installed iOS standalone PWA that (deprecated) value makes the
+         web view height = screen.height − safe-area-inset-top but anchors it to the top, leaving a
+         dead strip of OS-black at the *bottom* equal to the top inset (measured: 852−59=793, 59px
+         gap) that no CSS/JS inside the page can reach. `black` gives an opaque status bar so iOS
+         lays the web view out below it and fills correctly to the physical bottom; the nav's
+         env(safe-area-inset-bottom) padding still clears the home indicator. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
     <title>Kegelkasse</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml"/>
     <link rel="apple-touch-icon" href="/icon.svg"/>
