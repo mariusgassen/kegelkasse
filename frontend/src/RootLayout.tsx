@@ -6,7 +6,7 @@
  * <Outlet/>. The 7 pages used to be mounted at once (display:none); the router now mounts only
  * the active one, code-split and with scroll restoration.
  */
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Outlet} from '@tanstack/react-router'
 import {
@@ -37,6 +37,7 @@ import {UpdatePrompt} from './components/UpdatePrompt'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
+import {VpDebug} from './components/VpDebug'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHash'
 
@@ -81,6 +82,17 @@ export function RootLayout() {
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
+    // TEMP: viewport diagnostic — 5 quick taps on the logo/title opens it (see VpDebug.tsx).
+    const [vpDebugOpen, setVpDebugOpen] = useState(false)
+    const logoTaps = useRef<number[]>([])
+    const onLogoTap = () => {
+        const now = Date.now()
+        logoTaps.current = [...logoTaps.current, now].filter(t => now - t < 2000)
+        if (logoTaps.current.length >= 5) {
+            logoTaps.current = []
+            setVpDebugOpen(true)
+        }
+    }
     const {notifications} = useNotificationStore()
     const badgeCount = unreadCount(notifications)
 
@@ -135,13 +147,15 @@ export function RootLayout() {
                     zIndex: 50,
                 }}>
                     <div className="flex items-center gap-2.5 px-3 py-2">
-                        {club?.settings?.logo_url ? (
-                            <img src={club.settings.logo_url} alt={club.name}
-                                 style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6, flexShrink: 0}}/>
-                        ) : (
-                            <AppLogoAnimated size={28}/>
-                        )}
-                        <div className="flex-1 min-w-0">
+                        <div onClick={onLogoTap} style={{display: 'flex', flexShrink: 0, cursor: 'default'}}>
+                            {club?.settings?.logo_url ? (
+                                <img src={club.settings.logo_url} alt={club.name}
+                                     style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6}}/>
+                            ) : (
+                                <AppLogoAnimated size={28}/>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0" onClick={onLogoTap}>
                             <h1 className="font-display font-bold text-kce-amber text-sm leading-tight truncate">
                                 {club?.name || t('app.name')}
                             </h1>
@@ -267,6 +281,7 @@ export function RootLayout() {
             <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
+            {vpDebugOpen && <VpDebug onClose={() => setVpDebugOpen(false)}/>}
         </div>
     )
 }
