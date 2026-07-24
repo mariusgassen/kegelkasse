@@ -70,17 +70,14 @@
     }
 
     /* Anchor the shell to the initial containing block — no height unit, no JS measurement.
-       The whole iOS-standalone dead-strip saga came from tuning the shell *height*
-       (100vh → 100dvh → window.innerHeight): every height source can go stale or under-report
-       on iOS (viewport-fit=cover, black-translucent status bar), leaving #root shorter than the
-       screen so body background shows below the bottom nav.
-       Key fact: env(safe-area-inset-*) are non-zero ONLY when viewport-fit=cover is honored, and
-       that same condition makes the initial containing block the full *physical* screen. So if the
-       nav shows any safe-area band at all (it does), position:fixed;inset:0 fills the true screen
-       edge-to-edge — by construction, nothing to measure or go stale. The nav's
-       env(safe-area-inset-bottom) padding then reserves the home-indicator zone exactly once,
-       inside a shell that already reaches the bottom edge. #root has no transform/filter, so
-       descendant position:fixed overlays still anchor to the viewport as before. */
+       The real cause of the iOS-standalone dead strip was NOT the shell height but the
+       apple-mobile-web-app-status-bar-style: black-translucent meta tag (see index.html): it made
+       the web view height = screen.height − safe-area-inset-top yet anchored to the top, so a strip
+       of OS-black equal to the top inset was left at the *bottom*, physically outside the page —
+       unreachable by any CSS. With the opaque `black` status bar the web view now fills below the
+       status bar down to the physical bottom, so position:fixed;inset:0 fills it edge-to-edge and
+       the nav's env(safe-area-inset-bottom) padding clears the home indicator exactly once. #root
+       has no transform/filter, so descendant position:fixed overlays still anchor to the viewport. */
     #root {
         position: fixed;
         inset: 0;
