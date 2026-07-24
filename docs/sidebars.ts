@@ -40,6 +40,7 @@ const sidebars: SidebarsConfig = {
         'funktionen/praesidenten',
         'funktionen/pins',
         'funktionen/push',
+        'funktionen/easter-egg',
       ],
     },
   ],

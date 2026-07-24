@@ -240,3 +240,4 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Responsiveness: Tablet Schnellerfassung's three-column layout stacks (penalty/drink actions first) on narrower or portrait tablets instead of breaking down
 - Evening hub sub-tab strip scrolls horizontally instead of truncating labels — same tab pattern used across the rest of the app
 - Member rows (app users, roster, guests) are tap-to-open instead of stacking multiple icon-only buttons — tapping a row opens an action sheet listing every available action with an icon and text label
+- **Easter egg** — tapping the club logo/title in the header 5× quickly opens a hidden mini 9-pin bowling game: aim with a sweeping guide (tap to lock), set power with a sweeping meter (tap to throw), then watch the ball scatter the diamond rack. Three balls per game, clearing all nine re-racks for a bonus, and your best score is kept on-device

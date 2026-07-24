@@ -1,48 +1,42 @@
-# Navigation rework — Verein hub
+# Easter Egg: Logo-Tap Mini-Kegelspiel (9 Pin)
 
-Branch: `claude/navigation-redesign-tabs-ir8h4q`
+Branch: `claude/logo-tap-bowling-easter-egg-jkokb1`
 
-## Problem
-Bottom bar / side-rail renders a flat 6-permanent-tab NAV (`RootLayout.tsx`), +Abend when
-active = up to 7. Well past the 4–5 a thumb bar wants. Home is already a hub (surfaces news,
-balance, stats, quick-actions), so Stats/Neuigkeiten each eat a permanent slot redundantly.
-There's also an awkward member/admin split (Mitglieder XOR Verein).
+Tap the club logo/title 5× quickly → opens a mini 9-pin bowling game that keeps a high score.
 
-## Chosen model — 4 permanent + 1 contextual
-Primary bar: 🏠 Start · 💰 Kasse · 📅 Termine · 🤝 Verein  (+ 🏆 Abend only while active).
-"Verein" is a hub grouping the low-frequency club/people/analytics pages into a secondary
-section strip: Neuigkeiten (all) · Mitglieder (all) · Stats (all) · Verwaltung (admin only).
+## Context
+`RootLayout.tsx` already has a 5-tap logo gesture, but it opens the TEMP `VpDebug` viewport
+diagnostic (built for the iOS PWA viewport bug that roadmap #63 marks as resolved). There can
+only be one 5-tap gesture → repurpose it to the Easter-egg game and retire `VpDebug`.
 
-## Key design decision
-Implement the hub as a **shell-level secondary section strip**, not a new wrapper route:
-- The 4 grouped pages stay real routes (`/committee`, `/members`, `/stats`, `/club`) — all
-  deep links, push URLs, legacy-hash translation and per-page tests are untouched.
-- `RootLayout` renders a secondary strip (in the header region) whenever the active page is one
-  of the group; the primary "Verein" tab is active for the whole group and lands on `/committee`.
-- Zero changes to CommitteePage/MembersPage/StatsPage/ClubAdminPage. Minimal impact.
+## Plan
+- [ ] `store/bowling.ts` — zustand `persist` store for the high score (`kegelkasse-bowling`)
+- [ ] `lib/bowlingGame.ts` — pure, testable logic: diamond rack of 9 pins, ball launch, physics
+      step (circle collisions + walls + damping), at-rest detection, knocked-pin scoring
+- [ ] `components/BowlingGame.tsx` — full-screen overlay: canvas render + aim-sweep/power-meter
+      single-tap controls, 3 balls per game, clear-the-rack reset bonus, live + high score
+- [ ] `RootLayout.tsx`: point the 5-tap gesture at the game; remove `VpDebug` wiring/import
+- [ ] Remove `components/VpDebug.tsx` (+ its test) — temporary diagnostic, bug resolved
+- [ ] i18n keys (`bowling.*`) in `de.ts` then `en.ts` (keep parity)
+- [ ] Tests: `lib/bowlingGame` (pure logic), `store/bowling`, `BowlingGame` component smoke
+- [ ] Version bump `frontend/package.json` (MINOR — new feature)
+- [ ] Docs: `docs/docs/`, `README.md` feature catalog, CLAUDE.md roadmap
+- [ ] Push + open PR
 
-## Steps
-- [ ] `RootLayout.tsx`: new primary NAV (home, evening, treasury, schedule, verein); verein virtual
-      group id (active when page ∈ group, click → /committee). Remove club/members from primary +
-      drop the role split there.
-- [ ] `RootLayout.tsx`: secondary Verein section strip, role-gated (Verwaltung admin-only), shown
-      only when page ∈ {committee, members, stats, club}.
-- [ ] i18n: add `nav.verein`, `nav.manage` to de.ts + en.ts (parity).
-- [ ] Update `__tests__/App.test.tsx` nav assertions; add group + strip tests.
-- [ ] Docs: README feature catalog + CLAUDE.md Feature Roadmap (+ docs page if present); version bump.
-- [ ] Lint/build + targeted vitest, then push + PR.
+## Review
 
-## Review (done)
+Added a hidden mini 9-pin bowling game behind the existing 5-tap logo gesture.
 
-Primary nav trimmed to **Start · Kasse · Termine · Verein** for every role (+ contextual Abend),
-down from 6–7. The club/people/analytics pages moved behind a **Verein hub**: a virtual group
-tab (active for `committee`/`members`/`stats`/`club`, lands on Neuigkeiten) plus a secondary
-section strip under the header (Neuigkeiten · Mitglieder · Stats · Verwaltung — admin-only).
+- `lib/bowlingGame.ts` — pure, framework-free physics/logic (diamond rack, launch, `stepWorld`
+  pure step with circle collisions + friction + walls, at-rest, knocked-pin scoring). 17 tests.
+- `store/bowling.ts` — zustand `persist` high score (`kegelkasse-bowling`), on-device only. 5 tests.
+- `components/BowlingGame.tsx` — full-screen kiosk overlay: aim-sweep/power-meter single-tap
+  controls, canvas render + rAF loop, 3 balls, Alle-Neune re-rack bonus, live + high score,
+  Esc/✕ close. 5 smoke tests.
+- `RootLayout.tsx` — 5-tap gesture repurposed to open the game; retired the TEMP `VpDebug`
+  diagnostic (iOS viewport bug resolved per roadmap #63) — component file removed.
+- i18n `bowling.*` keys (de + en, parity). Version → 1.39.0.
+- Docs: README UI/UX catalog, new `docs/docs/funktionen/easter-egg.md` (+ sidebar), CLAUDE.md #80.
 
-Implemented purely at the shell level (`RootLayout.tsx` + 2 i18n keys) — the grouped pages stay
-real routes, so all deep links / push URLs / legacy-hash translation / per-page tests are
-untouched. The old members-vs-Verein role split folded into the hub.
-
-Tests: `App.test.tsx` nav assertions reworked + new group/strip/click tests — full App suite 59
-green; `tsc --noEmit` and `npm run lint` clean (0 errors); i18n parity green. Version → 1.37.0.
-Docs: README feature catalog, docs/erste-schritte.md navigation section, CLAUDE.md roadmap #79.
+Verified: `tsc --noEmit` clean, eslint clean on changed files, 26 new tests + App suite (63) green.
+Full suite left to CI per repo convention.
