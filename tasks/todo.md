@@ -1,42 +1,50 @@
-# Easter Egg: Logo-Tap Mini-Kegelspiel (9 Pin)
+# Roadmap #67 — Kasse: Blick vs. Analyse
 
-Branch: `claude/logo-tap-bowling-easter-egg-jkokb1`
+Branch: `claude/roadmap-continuation-l07lyz`
 
-Tap the club logo/title 5× quickly → opens a mini 9-pin bowling game that keeps a high score.
+Untangle the 2.289-line, 33-`useState` Kasse overview into two levels:
+**Blick** (one card per core question) and **Analyse** (drill-in destination).
 
 ## Context
-`RootLayout.tsx` already has a 5-tap logo gesture, but it opens the TEMP `VpDebug` viewport
-diagnostic (built for the iOS PWA viewport bug that roadmap #63 marks as resolved). There can
-only be one 5-tap gesture → repurpose it to the Easter-egg game and retire `VpDebug`.
+The Übersicht tab currently stacks: Mein Konto → Spieler-Filter (collapsed) → Kassenstand-Hero
+with expandable flow rows + help explainer (collapsed) → Verlauf-Graph → Offen/Guthaben tiles →
+debtor/credit/settled/guest lists. Several "collapsed by default" cards hide density rather than
+structure it — exactly what #67 says to replace with real information architecture.
+
+The player filter (with the write-off / refund / share **removal simulation**) is an admin power
+tool, but today it globally rescopes the member-facing hero and lists.
 
 ## Plan
-- [ ] `store/bowling.ts` — zustand `persist` store for the high score (`kegelkasse-bowling`)
-- [ ] `lib/bowlingGame.ts` — pure, testable logic: diamond rack of 9 pins, ball launch, physics
-      step (circle collisions + walls + damping), at-rest detection, knocked-pin scoring
-- [ ] `components/BowlingGame.tsx` — full-screen overlay: canvas render + aim-sweep/power-meter
-      single-tap controls, 3 balls per game, clear-the-rack reset bonus, live + high score
-- [ ] `RootLayout.tsx`: point the 5-tap gesture at the game; remove `VpDebug` wiring/import
-- [ ] Remove `components/VpDebug.tsx` (+ its test) — temporary diagnostic, bug resolved
-- [ ] i18n keys (`bowling.*`) in `de.ts` then `en.ts` (keep parity)
-- [ ] Tests: `lib/bowlingGame` (pure logic), `store/bowling`, `BowlingGame` component smoke
-- [ ] Version bump `frontend/package.json` (MINOR — new feature)
-- [ ] Docs: `docs/docs/`, `README.md` feature catalog, CLAUDE.md roadmap
-- [ ] Push + open PR
+- [x] `components/treasury/BalanceHistoryChart.tsx` — extract the chart (was inline in the page)
+- [x] `components/treasury/TreasuryAnalysis.tsx` — new Analyse view; owns its own queries
+      (same query keys → react-query dedupes), filter state, flow breakdowns and the chart
+- [x] `TreasuryPage.tsx`: new `analysis` tab; Übersicht becomes the glance level
+      (Mein Konto / Was ist in der Kasse? / Wer schuldet noch?), always on **unfiltered** balances
+- [x] Filter + simulation + itemized flow breakdowns live in Analyse only, scoping Analyse only
+- [x] i18n `treasury.tab.analysis`, `treasury.analysis.*`, `treasury.whoOwes` (de first, then en)
+- [x] Tests: move filter/chart suites to the analysis tab, add glance/analysis tests
+- [x] Docs (`docs/docs/funktionen/kasse.md`, README, CLAUDE.md #67) + version bump 1.42.0
+- [ ] Push + PR
 
 ## Review
 
-Added a hidden mini 9-pin bowling game behind the existing 5-tap logo gesture.
+Split the Kasse into a glance level and an analysis destination.
 
-- `lib/bowlingGame.ts` — pure, framework-free physics/logic (diamond rack, launch, `stepWorld`
-  pure step with circle collisions + friction + walls, at-rest, knocked-pin scoring). 17 tests.
-- `store/bowling.ts` — zustand `persist` high score (`kegelkasse-bowling`), on-device only. 5 tests.
-- `components/BowlingGame.tsx` — full-screen kiosk overlay: aim-sweep/power-meter single-tap
-  controls, canvas render + rAF loop, 3 balls, Alle-Neune re-rack bonus, live + high score,
-  Esc/✕ close. 5 smoke tests.
-- `RootLayout.tsx` — 5-tap gesture repurposed to open the game; retired the TEMP `VpDebug`
-  diagnostic (iOS viewport bug resolved per roadmap #63) — component file removed.
-- i18n `bowling.*` keys (de + en, parity). Version → 1.39.0.
-- Docs: README UI/UX catalog, new `docs/docs/funktionen/easter-egg.md` (+ sidebar), CLAUDE.md #80.
+- **New `analysis` tab** (🔬 Analyse) between Übersicht and Konten. Übersicht answers the three
+  core questions and nothing else; Analyse holds the tooling that interprets those numbers.
+- **`components/treasury/TreasuryAnalysis.tsx`** (new) — owns the player filter + leaving-member
+  simulation, the money flow with per-row booking breakdowns, and the balance-history graph. It
+  reads through the same query keys as the page, so react-query serves it from cache.
+- **`components/treasury/BalanceHistoryChart.tsx`** (new) — the chart lifted out of the page
+  verbatim (behaviour unchanged), now testable on its own.
+- **`TreasuryPage.tsx` 2.289 → 1.621 lines**, 55 → 43 `useState`. Gone from the page: the filter's
+  6 state hooks, `flowDetail`, `showBalanceFilter`, the history scope/member state and its three
+  queries, the 4 breakdown derivations, `effectiveBalances`, `shareOut`, all `filtered*` splits.
+- **Behaviour change (intended):** the filter no longer rescopes the Übersicht. Members always see
+  the club's real figures; an admin's what-if stays in the tab they opened for it. The Übersicht
+  keeps the same flow *figures* (static rows, `glance-amount-*`) plus a link into Analyse.
+- Übersicht's "Wer schuldet noch?" heading now fronts the open/credit tiles and the debtor,
+  credit, settled and guest lists, so they read as one answer instead of five stacked sections.
 
-Verified: `tsc --noEmit` clean, eslint clean on changed files, 26 new tests + App suite (63) green.
-Full suite left to CI per repo convention.
+Verified: `tsc --noEmit` clean, `eslint` 0 errors on changed files, full Vitest suite 2261/2261
+green (85 files) — run in full here because the refactor touched the app's largest page.

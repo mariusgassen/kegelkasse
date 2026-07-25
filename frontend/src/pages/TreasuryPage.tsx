@@ -8,29 +8,14 @@ import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {Loading} from '@/components/ui/Loading.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
+import {TreasuryAnalysis} from '@/components/treasury/TreasuryAnalysis.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
-import {
-    type BalanceEvent,
-    type DualPoint,
-    type Granularity,
-    bucketStart,
-    clubEventsFromBookings,
-    clusterPoints,
-    cumulativeBaseline,
-    debtEventsFromTimeline,
-    eventsInWindow,
-    formatTick,
-    memberPaymentEvents,
-    memberPenaltyEvents,
-    mergeDualSeries,
-    windowBounds,
-} from '@/lib/balanceHistory.ts'
-import {paidShare, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
+import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -85,389 +70,6 @@ function PaidShareBar({b}: { b: Pick<Balance, 'payments_total' | 'penalty_total'
     )
 }
 
-// One clickable row in the Kassenstand hero's money-flow breakdown. Tapping
-// it expands the underlying bookings that make up the row's total, so
-// e.g. "965,20 €" isn't just a number to take on faith.
-type FlowItem = { id?: number | null; label: string; amount: number; date?: string | null }
-
-function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, myId, noEntriesLabel, testId}: {
-    icon: string
-    label: string
-    amountLabel: string
-    colorClass: string
-    open: boolean
-    onToggle: () => void
-    items: FlowItem[]
-    myId?: number | null
-    noEntriesLabel: string
-    testId?: string
-}) {
-    return (
-        <div>
-            <button type="button" className="flex items-center justify-between w-full text-left" onClick={onToggle}>
-                <span className="text-kce-muted">{icon} {label}</span>
-                <span className={`font-bold ${colorClass}`} data-testid={testId}>{amountLabel}</span>
-            </button>
-            {open && (
-                items.length === 0
-                    ? <div className="pl-4 py-1 text-[11px] text-kce-muted">{noEntriesLabel}</div>
-                    : (
-                        <div className="pl-4 pb-1 pt-0.5 flex flex-col gap-0.5">
-                            {items.map((it, i) => (
-                                <div key={it.id ?? i} className="flex items-center justify-between text-[11px] text-kce-muted gap-2">
-                                    <span className="truncate flex items-center gap-1 min-w-0">
-                                        <span className="truncate">{it.label}</span>
-                                        {myId != null && it.id === myId &&
-                                            <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                                        {it.date && <span className="opacity-60 flex-shrink-0">· {fDate(it.date)}</span>}
-                                    </span>
-                                    <span className="flex-shrink-0">{fe(it.amount)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )
-            )}
-        </div>
-    )
-}
-
-// ── Balance history chart (Übersicht tab) ───────────────────────────────────
-
-const BH_PAD = {top: 12, right: 10, bottom: 22, left: 46}
-const BH_VH = 160
-const BH_VW = 400
-const BH_IH = BH_VH - BH_PAD.top - BH_PAD.bottom
-const BH_PX_PER_EVENT = 32
-
-const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> = {
-    payment: {icon: '💰', color: '#22c55e'},
-    expense: {icon: '💸', color: '#f97316'},
-    penalty: {icon: '⚠️', color: '#ef4444'},
-    debt: {icon: '📉', color: '#a78bfa'},
-}
-
-const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
-
-function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, loading, t}: {
-    actualEvents: BalanceEvent[]
-    overlayEvents: BalanceEvent[]
-    actualLabel: string
-    virtualLabel: string
-    // Member scope draws a third "penalties" line (cumulative fines) alongside paid + balance; the
-    // club scope keeps the two-line paid + incl.-debt view. overlayLabel names that third line.
-    overlayLabel?: string
-    threeLine?: boolean
-    loading?: boolean
-    t: (k: any) => string
-}) {
-    const [granularity, setGranularity] = useState<Granularity>('month')
-    const [anchor, setAnchor] = useState(() => new Date())
-    const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null)
-
-    const allEvents = [...actualEvents, ...overlayEvents]
-    const hasData = allEvents.length > 0
-    const isAll = granularity === 'all'
-
-    const win = windowBounds(granularity, anchor, allEvents)
-    const actualBaseline = cumulativeBaseline(actualEvents, win.start)
-    const overlayBaseline = cumulativeBaseline(overlayEvents, win.start)
-    const windowedActual = isAll ? actualEvents : eventsInWindow(actualEvents, win.start, win.end)
-    const windowedOverlay = isAll ? overlayEvents : eventsInWindow(overlayEvents, win.start, win.end)
-    const points = mergeDualSeries(windowedActual, windowedOverlay, actualBaseline, overlayBaseline)
-
-    function periodKey(d: Date) {
-        return granularity === 'year' ? d.getFullYear() : d.getFullYear() * 12 + d.getMonth()
-    }
-    const earliestTs = hasData ? Math.min(...allEvents.map(e => e.ts)) : Date.now()
-    const atStart = periodKey(anchor) <= periodKey(new Date(earliestTs))
-    const atEnd = periodKey(anchor) >= periodKey(new Date())
-
-    function page(dir: -1 | 1) {
-        setSelectedClusterKey(null)
-        setAnchor(prev => granularity === 'year'
-            ? new Date(prev.getFullYear() + dir, 0, 1)
-            : new Date(prev.getFullYear(), prev.getMonth() + dir, 1))
-    }
-
-    function changeGranularity(g: Granularity) {
-        setGranularity(g)
-        setAnchor(new Date())
-        setSelectedClusterKey(null)
-    }
-
-    // Cumulative penalties (member scope only): payments − balance, so a positive line rising in step
-    // with fines incurred. Balance = paid − penalties, so the gap between the paid and penalty lines.
-    const penaltyBaseline = -overlayBaseline
-    const penaltyAt = (p: DualPoint) => p.actual - p.virtual
-
-    const values = [actualBaseline, actualBaseline + overlayBaseline, ...points.map(p => p.actual), ...points.map(p => p.virtual)]
-    if (threeLine) values.push(penaltyBaseline, ...points.map(penaltyAt))
-    const minV = Math.min(0, ...values)
-    const maxV = Math.max(0, ...values)
-    const span = Math.max(maxV - minV, 1)
-
-    // Every granularity clusters points onto discrete, evenly-spaced buckets (evening for month/all,
-    // month for year) rather than a time-proportional axis — most days/months have no activity, so
-    // proportional spacing wastes the width on gaps and piled every same-timestamp booking (e.g. a
-    // season close) onto one x-position. 'all' keeps its own scrollable width (one column per bucket).
-    const buckets = Array.from(new Set(points.map(p => bucketStart(p.ts, granularity)))).sort((a, b) => a - b)
-    const bucketIndex = new Map(buckets.map((b, i) => [b, i]))
-    const chartWidth = isAll ? Math.max(BH_VW, buckets.length * BH_PX_PER_EVENT) : BH_VW
-    const innerWidth = chartWidth - BH_PAD.left - BH_PAD.right
-    const xS = (ts: number) => {
-        if (buckets.length === 0) return BH_PAD.left
-        const idx = bucketIndex.get(bucketStart(ts, granularity)) ?? 0
-        return buckets.length === 1 ? BH_PAD.left + innerWidth / 2 : BH_PAD.left + (idx / (buckets.length - 1)) * innerWidth
-    }
-    const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
-
-    function buildPath(valueAt: (p: DualPoint) => number, baseline: number) {
-        let d = `M ${BH_PAD.left},${yS(baseline)}`
-        for (const p of points) d += ` H ${xS(p.ts)} V ${yS(valueAt(p))}`
-        d += ` H ${BH_PAD.left + innerWidth}`
-        return d
-    }
-
-    const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i).map(v => ({v, y: yS(v)}))
-
-    // Cluster points sharing the same x-axis bucket + curve into one marker, so a bucket with
-    // several bookings gets a single clickable dot instead of stacked circles where only the
-    // last-drawn one is reachable; clicking it lists every underlying entry below.
-    const clusters = clusterPoints(points, granularity)
-    const selectedCluster = clusters.find(c => c.key === selectedClusterKey) ?? null
-    const selectedIndices = new Set(selectedCluster ? selectedCluster.points.map(p => points.indexOf(p)) : [])
-
-    const fAxisDate = (ts: number) => formatTick(ts, granularity)
-
-    // Choose which x-positions carry a date label. Every view now shares a discrete bucket x-axis, so
-    // we label per bucket (sampled only when crowded) with one representative point index each,
-    // preferring a selected point so the active bucket's label renders highlighted.
-    const labelOwnerIndices = new Set<number>()
-    {
-        const ownerForBucket = new Map<number, number>()
-        points.forEach((p, i) => {
-            const b = bucketStart(p.ts, granularity)
-            if (!ownerForBucket.has(b) || selectedIndices.has(i)) ownerForBucket.set(b, i)
-        })
-        const bucketEvery = buckets.length <= 8 ? 1 : Math.ceil(buckets.length / 8)
-        buckets.forEach((b, bi) => {
-            const owner = ownerForBucket.get(b)
-            if (owner === undefined) return
-            if (bi % bucketEvery === 0 || selectedIndices.has(owner)) labelOwnerIndices.add(owner)
-        })
-    }
-
-    const KIND_LABEL: Record<BalanceEvent['kind'], string> = {
-        payment: t('treasury.history.kindPayment'),
-        expense: t('treasury.history.kindExpense'),
-        penalty: t('treasury.history.kindPenalty'),
-        debt: t('treasury.history.kindDebt'),
-    }
-
-    function fDateTime(ts: number) {
-        return new Date(ts).toLocaleString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'})
-    }
-
-    const chart = (
-        <svg width={isAll ? chartWidth : '100%'} height={BH_VH} viewBox={`0 0 ${chartWidth} ${BH_VH}`}
-             style={{display: 'block', overflow: 'visible', flexShrink: 0}}
-             onClick={() => setSelectedClusterKey(null)}>
-            {yTicks.map((tick, i) => (
-                <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
-                      stroke="var(--kce-border)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
-                      strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
-            ))}
-            {!isAll && yTicks.map((tick, i) => (
-                <text key={`t-${i}`} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                      fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
-            ))}
-            {threeLine ? (
-                <>
-                    {/* Penalties (cumulative fines, red) → paid (cream) → balance on top (primary, emphasized). */}
-                    <path d={buildPath(penaltyAt, penaltyBaseline)}
-                          fill="none" stroke={KIND_META.penalty.color} strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round" opacity={0.9}/>
-                    <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--kce-cream)" strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--kce-primary)" strokeWidth="2.4"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                </>
-            ) : (
-                <>
-                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
-                          strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
-                    <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                </>
-            )}
-            {points.map((p, i) => (
-                labelOwnerIndices.has(i) ? (
-                    <text key={`label-${i}`} x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
-                          fontWeight={selectedIndices.has(i) ? 'bold' : 'normal'}
-                          fill={selectedIndices.has(i) ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
-                        {fAxisDate(p.ts)}
-                    </text>
-                ) : null
-            ))}
-            {clusters.map(cluster => {
-                const last = cluster.points[cluster.points.length - 1]
-                const lastEvent = last.event!
-                const meta = KIND_META[lastEvent.kind]
-                // Overlay markers sit on the balance (virtual) line in club scope, but on the
-                // dedicated penalties line in the member three-line view; actual markers on the paid line.
-                const cy = yS(cluster.onOverlay ? (threeLine ? penaltyAt(last) : last.virtual) : last.actual)
-                const cx = xS(last.ts)
-                const count = cluster.points.length
-                const isSelected = selectedClusterKey === cluster.key
-                const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
-                // Every marker is clickable — including the club-wide debt overlay points, whose
-                // detail shows the change in outstanding debt and the resulting balance.
-                const ariaLabel = count > 1
-                    ? `${count}× – ${fDateTime(last.ts)}`
-                    : `${lastEvent.label || KIND_LABEL[lastEvent.kind]} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
-                return (
-                    <g key={cluster.key}
-                       tabIndex={0}
-                       role="button"
-                       aria-label={ariaLabel}
-                       style={{cursor: 'pointer'}}
-                       onClick={(evt) => { evt.stopPropagation(); toggle() }}
-                       onKeyDown={(evt) => {
-                           if (evt.key === 'Enter' || evt.key === ' ') {
-                               evt.preventDefault()
-                               evt.stopPropagation()
-                               toggle()
-                           }
-                       }}>
-                        {/* Generous transparent hit target so the small dots are easy to tap. */}
-                        <circle cx={cx} cy={cy} r="13" fill="transparent"/>
-                        <circle cx={cx} cy={cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
-                                fill={meta.color} stroke="var(--kce-bg)"
-                                strokeWidth={isSelected ? 1.5 : 1}/>
-                        {count > 1 && (
-                            <text x={cx} y={cy - (isSelected ? 8.5 : 7)} textAnchor="middle" fontSize="8"
-                                  fontWeight="bold" fill={meta.color}>
-                                ×{count}
-                            </text>
-                        )}
-                    </g>
-                )
-            })}
-            <line x1={BH_PAD.left} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
-                  stroke="var(--kce-border)" strokeWidth="1"/>
-        </svg>
-    )
-
-    return (
-        <div className="kce-card p-3 mb-3">
-            <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex gap-1">
-                    {(['month', 'year', 'all'] as const).map(g => (
-                        <button key={g} type="button"
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${granularity === g ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                                onClick={() => changeGranularity(g)}>
-                            {t(`treasury.history.${g}` as 'treasury.history.month' | 'treasury.history.year' | 'treasury.history.all')}
-                        </button>
-                    ))}
-                </div>
-                {!isAll && (
-                    <div className="flex items-center gap-1.5">
-                        <button type="button" aria-label={t('treasury.history.prevPeriod')}
-                                disabled={atStart}
-                                onClick={() => page(-1)}
-                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
-                            ‹
-                        </button>
-                        <span className="text-[11px] font-bold text-kce-muted min-w-[64px] text-center">{win.label}</span>
-                        <button type="button" aria-label={t('treasury.history.nextPeriod')}
-                                disabled={atEnd}
-                                onClick={() => page(1)}
-                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
-                            ›
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {loading && !hasData ? (
-                <Loading className="py-8"/>
-            ) : !hasData ? (
-                <Empty icon="📈" text={t('treasury.history.noData')}/>
-            ) : isAll ? (
-                <div className="flex">
-                    <svg width={BH_PAD.left + 4} height={BH_VH} viewBox={`0 0 ${BH_PAD.left + 4} ${BH_VH}`}
-                         style={{flexShrink: 0, overflow: 'visible'}}>
-                        {yTicks.map((tick, i) => (
-                            <text key={i} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                                  fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
-                        ))}
-                    </svg>
-                    <div className="overflow-x-auto flex-1">{chart}</div>
-                </div>
-            ) : chart}
-
-            {hasData && (selectedCluster ? (
-                <>
-                    <div className="flex flex-col gap-1 mt-2 max-h-40 overflow-y-auto" data-testid="history-detail">
-                        {selectedCluster.points.map(p => {
-                            const ev = p.event!
-                            const meta = KIND_META[ev.kind]
-                            return (
-                                <div key={ev.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-[11px]"
-                                     style={{background: withAlpha(meta.color), borderLeft: `2px solid ${meta.color}`}}>
-                                    <span className="text-kce-muted flex-shrink-0">{fDateTime(ev.ts)}</span>
-                                    <span className="flex-shrink-0">{ev.icon ?? meta.icon}</span>
-                                    <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[ev.kind]}</span>
-                                    <span className="text-kce-cream truncate flex-1">{ev.label}</span>
-                                    <span className="font-bold flex-shrink-0" style={{color: meta.color}}>{fe(ev.delta)}</span>
-                                </div>
-                            )
-                        })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 px-1.5 text-[10px]">
-                        <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
-                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>
-                            {actualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].actual)}
-                        </span>
-                        {threeLine && overlayLabel && (
-                            <span className="font-bold" style={{color: KIND_META.penalty.color}}>
-                                {overlayLabel}: {fe(penaltyAt(selectedCluster.points[selectedCluster.points.length - 1]))}
-                            </span>
-                        )}
-                        <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>
-                            {virtualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].virtual)}
-                        </span>
-                    </div>
-                </>
-            ) : (
-                <div className="text-[9px] text-kce-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
-            ))}
-
-            {hasData && (
-                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-cream)'}}/>
-                        <span className="text-[10px] text-kce-muted font-bold">{actualLabel}</span>
-                    </div>
-                    {threeLine && overlayLabel && (
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-4 h-1.5 rounded-full" style={{background: KIND_META.penalty.color, opacity: 0.9}}/>
-                            <span className="text-[10px] text-kce-muted font-bold">{overlayLabel}</span>
-                        </div>
-                    )}
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-primary)', opacity: 0.85}}/>
-                        <span className="text-[10px] text-kce-muted font-bold">{virtualLabel}</span>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
 
 export function TreasuryPage() {
     const t = useT()
@@ -476,29 +78,13 @@ export function TreasuryPage() {
     const regularMembers = useAppStore(s => s.regularMembers)
     const admin = isAdmin(user)
 
-    const [tab, setTab] = useHashTab<'overview' | 'accounts' | 'bookings'>('overview', ['overview', 'accounts', 'bookings'])
+    // Übersicht is the glance level (one card per core question); Analyse is the drill-in
+    // destination that owns the player filter, the itemized money flow and the history graph.
+    const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'accounts' | 'bookings'>('overview', ['overview', 'analysis', 'accounts', 'bookings'])
     const [showHelp, setShowHelp] = useState(false)
     const [showExportSheet, setShowExportSheet] = useState(false)
     const [showAccountsChart, setShowAccountsChart] = useState(false)
-    const [flowDetail, setFlowDetail] = useState<'paidIn' | 'expenses' | 'otherIncome' | 'outstanding' | null>(null)
     const [showSettled, setShowSettled] = useState(false)
-    const [showBalanceFilter, setShowBalanceFilter] = useState(false)
-    const [balanceFilterIds, setBalanceFilterIds] = useState<Set<number>>(new Set())
-    // View scope: restrict every filtered figure/list to just the selected members.
-    const [balanceOnlySelected, setBalanceOnlySelected] = useState(false)
-    // "What if the selected members left" adjustments (independent, only apply when
-    // NOT in "only selected" view). Write-off outstanding debt is the historical default.
-    const [balanceWriteOffDebt, setBalanceWriteOffDebt] = useState(true)
-    const [balanceRefundPaid, setBalanceRefundPaid] = useState(false)
-    const [balanceSettleShare, setBalanceSettleShare] = useState(false)
-
-    const clearBalanceFilter = () => {
-        setBalanceFilterIds(new Set())
-        setBalanceOnlySelected(false)
-        setBalanceWriteOffDebt(true)
-        setBalanceRefundPaid(false)
-        setBalanceSettleShare(false)
-    }
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -536,11 +122,12 @@ export function TreasuryPage() {
         staleTime: 1000 * 30,
     })
 
-    // All payments — loaded for bookings tab + overview (Kasse balance-history graph)
-    const {data: allPayments = [], refetch: refetchAllPayments, isLoading: allPaymentsLoading} = useQuery({
+    // All payments — bookings tab list + the export sheet's year picker. The Analyse tab
+    // loads the same query key itself (react-query serves it from cache either way).
+    const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
-        enabled: tab === 'bookings' || tab === 'overview' || showExportSheet,
+        enabled: tab === 'bookings' || showExportSheet,
         staleTime: 1000 * 30,
     })
 
@@ -585,38 +172,6 @@ export function TreasuryPage() {
         enabled: !!expandedMember,
         staleTime: 1000 * 30,
     })
-
-    // Balance-history graph (Übersicht tab) — Kasse (club) vs Mitglied (individual) scope
-    const [historyScope, setHistoryScope] = useState<'club' | 'member'>('club')
-    const [historyMemberId, setHistoryMemberId] = useState<number | null>(null)
-    const allHistoryMembers = [...balances, ...(guestBalances as Balance[])] as Balance[]
-    const myHistoryDefault = allHistoryMembers.find(m => m.regular_member_id === user?.regular_member_id)
-    const effectiveHistoryMemberId = historyMemberId
-        ?? myHistoryDefault?.regular_member_id
-        ?? allHistoryMembers[0]?.regular_member_id
-        ?? null
-
-    const {data: debtTimeline = [], isLoading: debtTimelineLoading} = useQuery({
-        queryKey: ['treasury-debt-timeline'],
-        queryFn: api.getTreasuryDebtTimeline,
-        enabled: tab === 'overview' && historyScope === 'club',
-        staleTime: 1000 * 30,
-    })
-    const {data: historyMemberPayments = [], isLoading: historyPaymentsLoading} = useQuery({
-        queryKey: ['member-payments', effectiveHistoryMemberId],
-        queryFn: () => effectiveHistoryMemberId ? api.getMemberPayments(effectiveHistoryMemberId) : null,
-        enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
-        staleTime: 1000 * 30,
-    })
-    const {data: historyMemberPenalties = [], isLoading: historyPenaltiesLoading} = useQuery({
-        queryKey: ['member-penalties', effectiveHistoryMemberId],
-        queryFn: () => effectiveHistoryMemberId ? api.getMemberPenalties(effectiveHistoryMemberId) : null,
-        enabled: tab === 'overview' && historyScope === 'member' && !!effectiveHistoryMemberId,
-        staleTime: 1000 * 30,
-    })
-    const historyLoading = historyScope === 'club'
-        ? (allPaymentsLoading || debtTimelineLoading)
-        : (historyPaymentsLoading || historyPenaltiesLoading)
 
     // Payment sheet (for members and guests)
     const [reportingMyPayment, setReportingMyPayment] = useState(false)
@@ -910,65 +465,17 @@ export function TreasuryPage() {
         }
     }
 
-    // Balance filter — applies globally across the overview tab: the Kassenstand
-    // hero (paid-in/outstanding/cash-on-hand/projected), its money-flow breakdown
-    // rows, the "Offen & Guthaben" tiles/lists, and the club-scope history graph's
-    // actual (cash) line all derive from effectiveBalances. Two mutually exclusive
-    // shapes:
-    //   • "Nur Auswahl anzeigen" (balanceOnlySelected) — a pure view scope that
-    //     restricts everything to just the selected members.
-    //   • otherwise a "what if the selection left the club" simulation, driven by
-    //     independent adjustments: write off their outstanding debt, refund their
-    //     already-paid money (drops paidIn), and/or settle their 1/n share of
-    //     other-income minus expenses (a cash payout, applied as shareOut below).
-    // Guests are never part of the selectable filter, so guest data always passes
-    // through untouched. Only the Konten tab (whole-club per-account view) stays
-    // unfiltered.
-    const balanceFilterActive = balanceFilterIds.size > 0
-    const effectiveBalances = !balanceFilterActive
-        ? balances
-        : balanceOnlySelected
-            ? balances.filter(b => balanceFilterIds.has(b.regular_member_id))
-            : (() => {
-                let b = balances
-                if (balanceWriteOffDebt) b = writeOffOutstandingDebt(b, balanceFilterIds)
-                if (balanceRefundPaid) b = refundPaidIn(b, balanceFilterIds)
-                return b
-            })()
-
-    // Derived overview stats — full money flow: paid-in → expenses → cash on
-    // hand, plus outstanding debt (members + guests) and the projected cash
-    // if everyone settled up. Kept in lib/treasurySummary.ts (pure, tested).
-    const summary = treasurySummary(effectiveBalances, guestBalances as Balance[], expenses as Expense[])
-    // Positive = money the leaving selection would draw out of the till (lowers
-    // cash on hand); negative = they'd pay in to settle their share (raises it).
-    // Only in the removal simulation ("only selected" view never pays anyone out).
-    const shareOut = (balanceFilterActive && !balanceOnlySelected && balanceSettleShare)
-        ? shareSettlement(summary.otherIncome, summary.expensesGross, balances.length, balanceFilterIds.size)
-        : 0
+    // Derived glance stats — full money flow: paid-in → expenses → cash on hand,
+    // plus outstanding debt (members + guests) and the projected cash if everyone
+    // settled up. Kept in lib/treasurySummary.ts (pure, tested).
+    //
+    // Always on the raw balances: the Übersicht is what every member reads, so it
+    // must show the club's real figures. The player filter and its leaving-member
+    // simulation live in the Analyse tab and scope that tab only.
+    const summary = treasurySummary(balances, guestBalances as Balance[], expenses as Expense[])
     const totalExpenses = summary.expensesNet
-    const kassenstand = summary.cashOnHand - shareOut
-    const projectedCash = summary.projectedCash - shareOut
-
-    // Per-click breakdowns for the Kassenstand hero rows — same source data,
-    // just grouped/filtered per row instead of netted into a single figure.
-    const allBalancesForFlow = [...effectiveBalances, ...(guestBalances as Balance[])] as Balance[]
-    const paidInBreakdown = allBalancesForFlow
-        .filter(b => Math.abs(b.payments_total) > 0.001)
-        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: b.payments_total}))
-        .sort((a, b) => b.amount - a.amount)
-    const expensesBreakdown = (expenses as Expense[])
-        .filter(e => e.amount > 0)
-        .map(e => ({id: e.id, label: e.description, amount: e.amount, date: e.date ?? e.created_at}))
-        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
-    const otherIncomeBreakdown = (expenses as Expense[])
-        .filter(e => e.amount < 0)
-        .map(e => ({id: e.id, label: e.description, amount: Math.abs(e.amount), date: e.date ?? e.created_at}))
-        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
-    const outstandingBreakdown = allBalancesForFlow
-        .filter(b => b.balance < -0.01)
-        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: Math.abs(b.balance)}))
-        .sort((a, b) => b.amount - a.amount)
+    const kassenstand = summary.cashOnHand
+    const projectedCash = summary.projectedCash
 
     const totalOutstanding = balances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
@@ -976,40 +483,14 @@ export function TreasuryPage() {
     // since credit is money the till already owes back to the member, not free cash.
     const totalPaidMembers = balances.reduce((s, b) => s + b.payments_total, 0)
     const maxAccountPenalty = balances.reduce((m, b) => Math.max(m, b.penalty_total), 0)
-    // Unfiltered debtor/credit counts — used by the Konten tab's account totals,
-    // which are not affected by the Übersicht balance filter below.
+    // Debtor / credit / settled splits — the "Wer schuldet noch?" card and the Konten tab
+    // both read the whole club, so one unfiltered derivation serves both.
     const debtors = [...balances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
     const credits = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
-
-    // "Offen & Guthaben" section below — driven by effectiveBalances so the
-    // balance filter (exclude/only selected players) scopes these without
-    // touching the Konten tab totals above, which stay on the raw balances.
-    const filteredTotalOutstanding = effectiveBalances.reduce((s, b) => b.balance < 0 ? s + Math.abs(b.balance) : s, 0)
-    const filteredTotalSurplus = effectiveBalances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
-    const filteredDebtors = [...effectiveBalances].filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
-    const filteredCredits = effectiveBalances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
-    const filteredExactlySettled = effectiveBalances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
+    const exactlySettled = balances.filter(b => b.balance >= -0.01 && b.balance <= 0.01)
 
     const guestDebtors = (guestBalances as Balance[]).filter(b => b.balance < -0.01)
         .sort((a, b) => a.balance - b.balance)
-
-    // Balance-history graph events — Kasse: actual cash bookings + outstanding-debt overlay;
-    // Mitglied: actual payments + penalty overlay (payments minus penalties = true balance).
-    // The Kasse-scope "actual" line honors the balance filter's "only" mode (guests always
-    // pass through, since they're never part of the selectable filter); "exclude" leaves it
-    // untouched since money already received doesn't stop being real. The debt/projection
-    // overlay stays whole-club regardless — it's a single club-wide timeline from the backend,
-    // not attributable to individual members.
-    const guestIds = new Set((guestBalances as Balance[]).map(b => b.regular_member_id))
-    const filteredClubPayments = (balanceFilterActive && balanceOnlySelected)
-        ? (allPayments as Payment[]).filter(p => guestIds.has(p.regular_member_id) || balanceFilterIds.has(p.regular_member_id))
-        : (allPayments as Payment[])
-    const historyActualEvents = historyScope === 'club'
-        ? clubEventsFromBookings(filteredClubPayments, expenses as Expense[])
-        : memberPaymentEvents(historyMemberPayments as MemberPayment[])
-    const historyOverlayEvents = historyScope === 'club'
-        ? debtEventsFromTimeline(debtTimeline)
-        : memberPenaltyEvents(historyMemberPenalties as any[])
 
     // Merged bookings for Buchungen tab — sorted by effective date desc
     // Uses the `date` field if set (admin backdate), otherwise `created_at`
@@ -1045,6 +526,7 @@ export function TreasuryPage() {
     const pendingRequestCount = admin ? paymentRequests.length : 0
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
+        {id: 'analysis', label: t('treasury.tab.analysis')},
         {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : '')},
         {id: 'bookings', label: t('treasury.tab.bookings')},
     ] as const
@@ -1184,104 +666,8 @@ export function TreasuryPage() {
                         </div>
                     )}
 
-                    {/* Nach Spielern filtern — collapsible, scopes the Kassenstand hero, den Verlauf-Graph (Kasse-Modus) und die Offen/Guthaben-Kacheln/Listen unten auf eine Auswahl von Mitgliedern */}
-                    <div className="kce-card mb-3 overflow-hidden" data-testid="balance-filter">
-                        <div className="w-full p-3 flex items-center justify-between gap-2">
-                            <button type="button" className="flex items-center gap-2 text-left flex-1 min-w-0"
-                                    aria-expanded={showBalanceFilter}
-                                    onClick={() => setShowBalanceFilter(v => !v)}>
-                                <span className="text-xs font-bold text-kce-muted truncate">🔍 {t('treasury.balanceFilter.title')}</span>
-                                {balanceFilterActive && (
-                                    <span className="flex-shrink-0 px-1.5 py-0.5 rounded bg-kce-amber text-kce-bg text-[10px] font-bold"
-                                          data-testid="balance-filter-active">{balanceFilterIds.size}</span>
-                                )}
-                                <span className="text-kce-muted text-xs ml-auto flex-shrink-0">{showBalanceFilter ? '▲' : '▼'}</span>
-                            </button>
-                            {balanceFilterActive && (
-                                <button type="button" className="flex-shrink-0 text-[10px] text-kce-muted underline px-1"
-                                        data-testid="balance-filter-clear"
-                                        onClick={clearBalanceFilter}>
-                                    {t('treasury.balanceFilter.clear')}
-                                </button>
-                            )}
-                        </div>
-                        {showBalanceFilter && (
-                            <div className="px-3 pb-3">
-                                <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
-                                <div className="flex gap-2 flex-wrap mb-2">
-                                    {[...balances].sort((a, b) => {
-                                        if (a.regular_member_id === myRegularMemberId) return -1
-                                        if (b.regular_member_id === myRegularMemberId) return 1
-                                        return 0
-                                    }).map(m => {
-                                        const selected = balanceFilterIds.has(m.regular_member_id)
-                                        const isMe = m.regular_member_id === myRegularMemberId
-                                        return (
-                                            <button key={m.regular_member_id} type="button"
-                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                                    onClick={() => setBalanceFilterIds(prev => {
-                                                        const next = new Set(prev)
-                                                        if (next.has(m.regular_member_id)) next.delete(m.regular_member_id)
-                                                        else next.add(m.regular_member_id)
-                                                        return next
-                                                    })}>
-                                                {m.nickname || m.name}
-                                                {isMe && <span className={`ml-1 text-[9px] font-bold ${selected ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                                {balanceFilterActive && (
-                                    <div className="flex flex-col gap-2 pt-1 border-t border-kce-border" data-testid="balance-filter-options">
-                                        {/* View scope — a pure "show me only these members" filter, distinct from the removal simulation below */}
-                                        <label className="flex items-start gap-2 cursor-pointer pt-2">
-                                            <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceOnlySelected}
-                                                   data-testid="balance-opt-only"
-                                                   onChange={e => setBalanceOnlySelected(e.target.checked)}/>
-                                            <span>
-                                                <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.onlySelected')}</span>
-                                                <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
-                                            </span>
-                                        </label>
-                                        {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
-                                        <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
-                                             aria-disabled={balanceOnlySelected}>
-                                            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
-                                            <label className="flex items-start gap-2 cursor-pointer">
-                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
-                                                       disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
-                                                       onChange={e => setBalanceWriteOffDebt(e.target.checked)}/>
-                                                <span>
-                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optWriteOff')}</span>
-                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
-                                                </span>
-                                            </label>
-                                            <label className="flex items-start gap-2 cursor-pointer">
-                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceRefundPaid}
-                                                       disabled={balanceOnlySelected} data-testid="balance-opt-refund"
-                                                       onChange={e => setBalanceRefundPaid(e.target.checked)}/>
-                                                <span>
-                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optRefund')}</span>
-                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
-                                                </span>
-                                            </label>
-                                            <label className="flex items-start gap-2 cursor-pointer">
-                                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceSettleShare}
-                                                       disabled={balanceOnlySelected} data-testid="balance-opt-share"
-                                                       onChange={e => setBalanceSettleShare(e.target.checked)}/>
-                                                <span>
-                                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optShare')}</span>
-                                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optShareHint')}</span>
-                                                </span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Kassenstand hero — with explicit money-flow breakdown */}
+                    {/* Was ist in der Kasse? — the club's money at a glance. The rows state the
+                        flow; the itemized bookings behind each row live in the Analyse tab. */}
                     <div className="kce-card p-4 mb-3"
                          style={{background: 'linear-gradient(135deg, var(--kce-surface), var(--kce-surface2))'}}>
                         <div className="flex items-center justify-between">
@@ -1295,53 +681,37 @@ export function TreasuryPage() {
                             <span className="text-4xl opacity-20">💰</span>
                         </div>
                         <div className="mt-3 pt-2 border-t border-kce-border flex flex-col gap-1 text-xs">
-                            <FlowRow
-                                icon="⬆" label={t('treasury.flow.paidIn')}
-                                amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
-                                open={flowDetail === 'paidIn'} onToggle={() => setFlowDetail(flowDetail === 'paidIn' ? null : 'paidIn')}
-                                items={paidInBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
-                                testId="flow-amount-paidIn"
-                            />
-                            <FlowRow
-                                icon="⬇" label={t('treasury.flow.expenses')}
-                                amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-orange-400"
-                                open={flowDetail === 'expenses'} onToggle={() => setFlowDetail(flowDetail === 'expenses' ? null : 'expenses')}
-                                items={expensesBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
-                                testId="flow-amount-expenses"
-                            />
+                            <div className="flex items-center justify-between">
+                                <span className="text-kce-muted">⬆ {t('treasury.flow.paidIn')}</span>
+                                <span className="font-bold text-green-400" data-testid="glance-amount-paidIn">+{fe(summary.paidIn)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-kce-muted">⬇ {t('treasury.flow.expenses')}</span>
+                                <span className="font-bold text-orange-400" data-testid="glance-amount-expenses">-{fe(summary.expensesGross)}</span>
+                            </div>
                             {summary.otherIncome > 0 && (
-                                <FlowRow
-                                    icon="⬆" label={t('treasury.flow.otherIncome')}
-                                    amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-green-400"
-                                    open={flowDetail === 'otherIncome'} onToggle={() => setFlowDetail(flowDetail === 'otherIncome' ? null : 'otherIncome')}
-                                    items={otherIncomeBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
-                                    testId="flow-amount-otherIncome"
-                                />
-                            )}
-                            {Math.abs(shareOut) >= 0.005 && (
                                 <div className="flex items-center justify-between">
-                                    <span className="text-kce-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
-                                    <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-green-400'}`}
-                                          data-testid="flow-amount-share">
-                                        {shareOut > 0 ? `-${fe(shareOut)}` : `+${fe(-shareOut)}`}
-                                    </span>
+                                    <span className="text-kce-muted">⬆ {t('treasury.flow.otherIncome')}</span>
+                                    <span className="font-bold text-green-400" data-testid="glance-amount-otherIncome">+{fe(summary.otherIncome)}</span>
                                 </div>
                             )}
                             {summary.outstanding > 0 && (
                                 <>
-                                    <FlowRow
-                                        icon="🔴" label={t('treasury.flow.outstanding')}
-                                        amountLabel={fe(summary.outstanding)} colorClass="text-red-400"
-                                        open={flowDetail === 'outstanding'} onToggle={() => setFlowDetail(flowDetail === 'outstanding' ? null : 'outstanding')}
-                                        items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
-                                        testId="flow-amount-outstanding"
-                                    />
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-kce-muted">🔴 {t('treasury.flow.outstanding')}</span>
+                                        <span className="font-bold text-red-400" data-testid="glance-amount-outstanding">{fe(summary.outstanding)}</span>
+                                    </div>
                                     <div className="flex items-center justify-between pt-1 border-t border-kce-border">
                                         <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
                                         <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(projectedCash)}</span>
                                     </div>
                                 </>
                             )}
+                            <button type="button" data-testid="goto-analysis"
+                                    className="mt-1 text-[11px] text-kce-amber font-bold text-left"
+                                    onClick={() => setTab('analysis' as Parameters<typeof setTab>[0])}>
+                                {t('treasury.analysis.link')} ›
+                            </button>
                         </div>
 
                         {/* How does the treasury work? — tucked away inside the hero, less prominent than a standalone card */}
@@ -1363,71 +733,30 @@ export function TreasuryPage() {
                         </div>
                     </div>
 
-                    {/* ── Balance-history graph ── */}
-                    <div className="kce-card p-3 mb-3">
-                        <div className="sec-heading mb-2">{t('treasury.history.heading')}</div>
-                        <ModeToggle
-                            options={[
-                                {value: 'club', label: `🏛️ ${t('treasury.history.scopeClub')}`},
-                                {value: 'member', label: `👤 ${t('treasury.history.scopeMember')}`},
-                            ]}
-                            value={historyScope}
-                            onChange={v => setHistoryScope(v as 'club' | 'member')}/>
-                        {historyScope === 'member' && allHistoryMembers.length > 0 && (
-                            <div className="flex gap-2 flex-wrap mt-2">
-                                {[...allHistoryMembers].sort((a, b) => {
-                                    if (a.regular_member_id === user?.regular_member_id) return -1
-                                    if (b.regular_member_id === user?.regular_member_id) return 1
-                                    return 0
-                                }).map(m => {
-                                    const isActive = effectiveHistoryMemberId === m.regular_member_id
-                                    const isMe = m.regular_member_id === user?.regular_member_id
-                                    return (
-                                        <button key={m.regular_member_id} type="button"
-                                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
-                                                onClick={() => setHistoryMemberId(m.regular_member_id)}>
-                                            {m.nickname || m.name}
-                                            {isMe && <span className={`ml-1 text-[9px] font-bold ${isActive ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
-                                        </button>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <BalanceHistoryChart
-                        key={historyScope === 'club' ? 'club' : `member-${effectiveHistoryMemberId}`}
-                        actualEvents={historyActualEvents}
-                        overlayEvents={historyOverlayEvents}
-                        actualLabel={historyScope === 'club' ? t('treasury.history.actual') : t('treasury.history.actualMember')}
-                        virtualLabel={historyScope === 'club' ? t('treasury.history.virtualClub') : t('treasury.history.virtualMember')}
-                        overlayLabel={t('treasury.history.penaltiesMember')}
-                        threeLine={historyScope === 'member'}
-                        loading={historyLoading}
-                        t={t}/>
-
+                    {/* Wer schuldet noch? — the two tiles head one answer; the lists below spell it out. */}
+                    <div className="sec-heading">{t('treasury.whoOwes')}</div>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.openLabel')}</span>
-                            <span className="font-display font-bold text-red-400 text-xl">{fe(filteredTotalOutstanding)}</span>
+                            <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
                             <span
-                                className="text-[10px] text-kce-muted">{filteredDebtors.length} {t('treasury.membersCount')}</span>
+                                className="text-[10px] text-kce-muted">{debtors.length} {t('treasury.membersCount')}</span>
                         </div>
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-kce-muted">{t('treasury.creditLabel')}</span>
-                            <span className="font-display font-bold text-green-400 text-xl">{fe(filteredTotalSurplus)}</span>
+                            <span className="font-display font-bold text-green-400 text-xl">{fe(totalSurplus)}</span>
                             <span
-                                className="text-[10px] text-kce-muted">{filteredCredits.length} {t('treasury.membersCount')}</span>
+                                className="text-[10px] text-kce-muted">{credits.length} {t('treasury.membersCount')}</span>
                         </div>
                     </div>
 
-                    {filteredDebtors.length === 0 && filteredCredits.length === 0
+                    {debtors.length === 0 && credits.length === 0
                         ? <div
                             className="kce-card p-4 text-center text-sm font-bold text-green-400">{t('treasury.noOutstanding')}</div>
                         : null
                     }
 
-                    {filteredDebtors.length > 0 && (
+                    {debtors.length > 0 && (
                         <>
                             <div className="sec-heading flex items-center justify-between">
                                 <span>{t('treasury.openLabel')}</span>
@@ -1450,7 +779,7 @@ export function TreasuryPage() {
                                     </button>
                                 )}
                             </div>
-                            {filteredDebtors.map((b, i) => {
+                            {debtors.map((b, i) => {
                                 const isMe = b.regular_member_id === myRegularMemberId
                                 return (
                                     <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
@@ -1484,11 +813,11 @@ export function TreasuryPage() {
                         </>
                     )}
 
-                    {filteredCredits.length > 0 && (
+                    {credits.length > 0 && (
                         <>
                             <div className="sec-heading mt-2">{t('treasury.creditLabel')}</div>
                             <p className="text-xs text-kce-muted mb-2">{t('treasury.creditHint')}</p>
-                            {[...filteredCredits].sort((a, b) => {
+                            {[...credits].sort((a, b) => {
                         if (a.regular_member_id === myRegularMemberId) return -1
                         if (b.regular_member_id === myRegularMemberId) return 1
                         return 0
@@ -1510,17 +839,17 @@ export function TreasuryPage() {
                         </>
                     )}
 
-                    {filteredExactlySettled.length > 0 && (filteredDebtors.length > 0 || filteredCredits.length > 0) && (
+                    {exactlySettled.length > 0 && (debtors.length > 0 || credits.length > 0) && (
                         <div className="mt-2">
                             <button type="button" className="w-full flex items-center justify-center gap-1 text-xs text-kce-muted"
                                     aria-expanded={showSettled}
                                     onClick={() => setShowSettled(v => !v)}>
-                                <span>+ {filteredExactlySettled.length} {t('treasury.settledCount')}</span>
+                                <span>+ {exactlySettled.length} {t('treasury.settledCount')}</span>
                                 <span className="text-[9px]">{showSettled ? '▲' : '▼'}</span>
                             </button>
                             {showSettled && (
                                 <div className="flex flex-wrap justify-center gap-1.5 mt-1.5">
-                                    {[...filteredExactlySettled].sort((a, b) => {
+                                    {[...exactlySettled].sort((a, b) => {
                                         if (a.regular_member_id === myRegularMemberId) return -1
                                         if (b.regular_member_id === myRegularMemberId) return 1
                                         return 0
@@ -1577,6 +906,9 @@ export function TreasuryPage() {
 
                 </div>
             )}
+
+            {/* ── Analyse ── */}
+            {tab === 'analysis' && <TreasuryAnalysis/>}
 
             {/* ── Konten ── */}
             {tab === 'accounts' && (
