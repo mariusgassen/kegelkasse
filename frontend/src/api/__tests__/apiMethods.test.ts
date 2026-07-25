@@ -540,6 +540,27 @@ describe('api.getMyBalance', () => {
     })
 })
 
+describe('api.getBowlingLeaderboard', () => {
+    it('GETs /bowling/leaderboard', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const { api } = await import('../client')
+        await api.getBowlingLeaderboard()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/bowling/leaderboard')
+        expect(mockFetch.mock.calls[0][1].method).toBe('GET')
+    })
+})
+
+describe('api.submitBowlingScore', () => {
+    it('POSTs the score to /bowling/scores', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ leaderboard: [], rank: 1, is_record: true }))
+        const { api } = await import('../client')
+        await api.submitBowlingScore(17)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/bowling/scores')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ score: 17 })
+    })
+})
+
 describe('api.getPaymentRequests', () => {
     it('GETs /club/payment-requests', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk([]))
