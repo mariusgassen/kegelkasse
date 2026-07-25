@@ -2,8 +2,12 @@ import {describe, it, expect} from 'vitest'
 import {
     LANE,
     BALLS_PER_GAME,
+    BALL_RADIUS,
     MAX_AIM_ANGLE,
     MAX_LAUNCH_SPEED,
+    PIN_RADIUS,
+    PIN_FALLEN_RADIUS,
+    pinRadius,
     createRack,
     createBall,
     launchBall,
@@ -42,6 +46,20 @@ describe('createRack', () => {
         const xs = createRack().map(p => p.x)
         const mid = (Math.min(...xs) + Math.max(...xs)) / 2
         expect(mid).toBeCloseTo(LANE.width / 2, 5)
+    })
+
+    it('spans the full lane width — outer pins sit against the side rails', () => {
+        const xs = createRack().map(p => p.x)
+        expect(Math.min(...xs)).toBeCloseTo(PIN_RADIUS, 5)
+        expect(Math.max(...xs)).toBeCloseTo(LANE.width - PIN_RADIUS, 5)
+    })
+
+    it('stands at the back of the lane, well clear of the release point', () => {
+        const ys = createRack().map(p => p.y)
+        const ball = createBall()
+        // The whole rack sits in the far half, and the nearest pin is a long roll away.
+        expect(Math.max(...ys)).toBeLessThan(LANE.height / 2)
+        expect(ball.y - Math.max(...ys)).toBeGreaterThan(LANE.height / 4)
     })
 })
 
@@ -117,6 +135,46 @@ describe('stepWorld', () => {
         expect(world.ball.gone).toBe(true)
     })
 
+    it('never tunnels a full-power ball through a pin, even on coarse frames', () => {
+        // One pin dead ahead of the release point. At full power the ball covers more than a
+        // ball+pin diameter per rendered frame, so without substepping it would skip right past it.
+        const target = {id: 0, x: LANE.width / 2, y: 60, vx: 0, vy: 0, ox: LANE.width / 2, oy: 60, fall: 0, fallDir: 0}
+        let world: World = {ball: launchBall(createBall(), 0, 1), pins: [target]}
+        for (let i = 0; i < 60 && !world.ball.gone; i++) world = stepWorld(world, 0.032)
+        expect(isKnocked(world.pins[0])).toBe(true)
+    })
+
+    it('leaves no overlapping pins once the world settles', () => {
+        let world: World = {ball: launchBall(createBall(), 0, 1), pins: createRack()}
+        let steps = 0
+        while (!worldAtRest(world) && steps < 1000) {
+            world = stepWorld(world, 1 / 60)
+            steps++
+        }
+        for (let i = 0; i < world.pins.length; i++) {
+            for (let j = i + 1; j < world.pins.length; j++) {
+                const d = Math.hypot(world.pins[i].x - world.pins[j].x, world.pins[i].y - world.pins[j].y)
+                expect(d).toBeGreaterThan(2 * PIN_RADIUS - 1)
+            }
+        }
+    })
+
+    it('leaves a ball that stops on the lane clear of the pins', () => {
+        // Soft enough that the ball dies among the pins instead of rolling off the back.
+        let world: World = {ball: launchBall(createBall(), 0, 0.4), pins: createRack()}
+        let steps = 0
+        while (!worldAtRest(world) && steps < 1000) {
+            world = stepWorld(world, 1 / 60)
+            steps++
+        }
+        expect(worldAtRest(world)).toBe(true)
+        expect(world.ball.gone).toBe(false)
+        for (const p of world.pins) {
+            const d = Math.hypot(world.ball.x - p.x, world.ball.y - p.y)
+            expect(d).toBeGreaterThan(BALL_RADIUS + PIN_RADIUS - 1)
+        }
+    })
+
     it('a hard straight throw eventually knocks down pins and comes to rest', () => {
         let world: World = {ball: launchBall(createBall(), 0, 1), pins: createRack()}
         let steps = 0
@@ -126,6 +184,48 @@ describe('stepWorld', () => {
         }
         expect(worldAtRest(world)).toBe(true)
         expect(countStanding(world.pins)).toBeLessThan(9) // at least one pin fell
+    })
+})
+
+describe('toppling', () => {
+    it('starts every pin upright with the standing collision radius', () => {
+        for (const p of createRack()) {
+            expect(p.fall).toBe(0)
+            expect(pinRadius(p)).toBe(PIN_RADIUS)
+        }
+    })
+
+    it('tips a struck pin over and grows its sweep to the fallen radius', () => {
+        let world: World = {ball: launchBall(createBall(), 0, 1), pins: createRack()}
+        let steps = 0
+        while (steps < 400 && !world.pins.some(p => p.fall >= 1)) {
+            world = stepWorld(world, 1 / 60)
+            steps++
+        }
+        const flat = world.pins.filter(p => p.fall >= 1)
+        expect(flat.length).toBeGreaterThan(0)
+        for (const p of flat) {
+            expect(isKnocked(p)).toBe(true)
+            expect(Math.abs(p.fallDir)).toBe(1) // tipped to one definite side
+            expect(pinRadius(p)).toBeCloseTo(PIN_FALLEN_RADIUS, 5)
+        }
+        // Untouched pins are still upright.
+        for (const p of world.pins.filter(q => !isKnocked(q))) {
+            expect(p.fall).toBe(0)
+            expect(pinRadius(p)).toBe(PIN_RADIUS)
+        }
+    })
+
+    it('rebounds pins off the machine instead of letting them leave the deck', () => {
+        // Fire a pin hard at the back wall from just in front of it.
+        const pin = {
+            id: 0, x: LANE.width / 2, y: 40, vx: 0, vy: -400,
+            ox: LANE.width / 2, oy: 40, fall: 0, fallDir: 0,
+        }
+        let world: World = {ball: {...createBall(), gone: true}, pins: [pin]}
+        for (let i = 0; i < 200; i++) world = stepWorld(world, 1 / 60)
+        expect(world.pins[0].y).toBeGreaterThanOrEqual(0)
+        expect(isKnocked(world.pins[0])).toBe(true)
     })
 })
 
