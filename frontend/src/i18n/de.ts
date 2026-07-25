@@ -6,6 +6,8 @@ export const de = {
     "bowling.score": "Punkte",
     "bowling.balls": "Kugeln",
     "bowling.best": "Rekord",
+    "bowling.leaderboard": "Vereins-Bestenliste",
+    "bowling.leaderboard.empty": "Noch keine Spiele – sei der Erste!",
     "bowling.allNine": "Alle Neune! 🎉",
     "bowling.gameOver": "Spiel vorbei",
     "bowling.newRecord": "🏆 Neuer Rekord!",

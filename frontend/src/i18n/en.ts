@@ -6,6 +6,8 @@ export const en = {
     "bowling.score": "Score",
     "bowling.balls": "Balls",
     "bowling.best": "Best",
+    "bowling.leaderboard": "Club leaderboard",
+    "bowling.leaderboard.empty": "No games yet — be the first!",
     "bowling.allNine": "All Nine! 🎉",
     "bowling.gameOver": "Game over",
     "bowling.newRecord": "🏆 New record!",

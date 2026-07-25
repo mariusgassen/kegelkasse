@@ -81,6 +81,7 @@ vi.mock('@/api/client.ts', () => ({
         updateLocale: vi.fn(),
         testPush: vi.fn(),
         sendDigestNow: vi.fn(),
+        getBowlingLeaderboard: vi.fn(),
     },
     authState: {
         setToken: vi.fn(),
@@ -165,6 +166,7 @@ async function setupApiMocks() {
         kegeln: true, penalties: true, debt: true, comments: true,
     } as any)
     vi.mocked(api.getMyPaymentRequests).mockResolvedValue([] as any)
+    vi.mocked(api.getBowlingLeaderboard).mockResolvedValue([] as any)
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -1434,5 +1436,36 @@ describe('ProfileSheet — email digest', () => {
         await waitFor(() => {
             expect(api.sendDigestNow).toHaveBeenCalled()
         })
+    })
+})
+
+describe('ProfileSheet — bowling leaderboard (Easter egg)', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+    })
+
+    it('hides the leaderboard until the Easter egg is discovered', async () => {
+        const { useBowlingStore } = await import('@/store/bowling')
+        useBowlingStore.setState({ discovered: false, personalBest: 0 })
+        await renderProfileSheet()
+        expect(screen.queryByTestId('bowling-leaderboard')).not.toBeInTheDocument()
+    })
+
+    it('shows the club leaderboard once discovered', async () => {
+        const { useBowlingStore } = await import('@/store/bowling')
+        const { api } = await import('@/api/client.ts')
+        useBowlingStore.setState({ discovered: true, personalBest: 0 })
+        vi.mocked(api.getBowlingLeaderboard).mockResolvedValue([
+            { rank: 1, player_name: 'Willi', score: 21, date: null, is_me: false },
+            { rank: 2, player_name: 'Hans', score: 14, date: null, is_me: true },
+        ] as any)
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByTestId('bowling-leaderboard')).toBeInTheDocument()
+        })
+        expect(screen.getByText('Willi')).toBeInTheDocument()
+        expect(screen.getByText('21')).toBeInTheDocument()
     })
 })

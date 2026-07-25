@@ -6,6 +6,7 @@ import {api, authState} from '@/api/client'
 import {useAppStore, isAdmin} from '@/store/app'
 import {useThemeStore, type Theme} from '@/store/theme'
 import {useEffectsStore} from '@/store/effects'
+import {useBowlingStore} from '@/store/bowling'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
@@ -126,6 +127,7 @@ export function ProfileSheet({open, onClose}: Props) {
     const {locale, setLocale} = useI18n()
     const {theme, setTheme} = useThemeStore()
     const {effectsEnabled, setEffectsEnabled} = useEffectsStore()
+    const bowlingDiscovered = useBowlingStore(s => s.discovered)
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
@@ -289,6 +291,14 @@ export function ProfileSheet({open, onClose}: Props) {
         queryKey: ['my-balance'],
         queryFn: api.getMyBalance,
         enabled: open && !!user?.regular_member_id,
+        staleTime: 1000 * 30,
+    })
+
+    // Club-wide bowling leaderboard — only shown once the player has found the Easter egg.
+    const {data: bowlingBoard = []} = useQuery({
+        queryKey: ['bowling-leaderboard'],
+        queryFn: api.getBowlingLeaderboard,
+        enabled: open && bowlingDiscovered,
         staleTime: 1000 * 30,
     })
 
@@ -616,6 +626,32 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Achievements shelf */}
                     {myAchievements && myAchievements.achievements.length > 0 && (
                         <AchievementShelf achievements={myAchievements.achievements}/>
+                    )}
+
+                    {/* Hidden bowling game leaderboard — revealed only after the Easter egg is found */}
+                    {bowlingDiscovered && (
+                        <div className="kce-card p-4" data-testid="bowling-leaderboard">
+                            <div className="text-sm font-bold text-kce-cream mb-1 flex items-center gap-2">
+                                🎳 {t('bowling.leaderboard')}
+                            </div>
+                            {bowlingBoard.length === 0 ? (
+                                <div className="text-[11px] text-kce-muted">{t('bowling.leaderboard.empty')}</div>
+                            ) : (
+                                <div className="flex flex-col gap-1 mt-2">
+                                    {bowlingBoard.map(e => (
+                                        <div key={`${e.rank}-${e.player_name}`}
+                                             className="flex items-center gap-2 text-xs">
+                                            <span className="w-5 text-right font-bold text-kce-muted">{e.rank}.</span>
+                                            <span className={`flex-1 truncate ${e.is_me ? 'text-kce-primary font-bold' : 'text-kce-cream'}`}>
+                                                {e.player_name}
+                                                {e.is_me && <span className="ml-1 text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            </span>
+                                            <span className="font-bold tabular-nums text-kce-cream">{e.score}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
                 )}

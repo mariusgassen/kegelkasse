@@ -26,9 +26,17 @@ Vereinslogo (bzw. den Vereinsnamen), und ein verstecktes 9-Pin-Kegelspiel öffne
   restlichen Kugeln weiterspielen.
 - Die Punkte sind die Summe aller gefallenen Kegel.
 
-## Rekord
+## Vereins-Bestenliste
 
-Der **beste Punktestand** wird lokal auf dem Gerät gespeichert (kein Server, keine Vereinsdaten) und
-oben in der Anzeige mitgeführt. Ein neuer Rekord wird am Spielende gefeiert.
+Beendete Spiele werden an eine **vereinsweite Bestenliste** übermittelt: Die zehn besten Ergebnisse
+des Vereins werden serverseitig gespeichert und dem jeweiligen Spieler (per Kegelname) zugeordnet.
+Ein neuer Vereinsrekord wird am Spielende gefeiert.
+
+Sobald ein Mitglied das Osterei **einmal gefunden** hat, erscheint die Bestenliste dauerhaft im
+**Profil** (Reiter „🎳 Meine Saison") — mit Rang, Kegelname und Punkten sowie einem „Ich"-Hinweis am
+eigenen Eintrag. Solange das Spiel noch nicht entdeckt wurde, bleibt der Bereich verborgen.
+
+Ist der Server nicht erreichbar (offline), merkt sich das Gerät zusätzlich den eigenen besten Wert
+als Rückfall-Anzeige.
 
 Schließen lässt sich das Spiel über das ✕ oben rechts oder mit der Esc-Taste.

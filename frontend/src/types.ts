@@ -510,3 +510,17 @@ export interface SeasonSnapshot {
     ranking_data: Record<string, unknown>[] | null
     notes: string | null
 }
+
+export interface BowlingLeaderboardEntry {
+    rank: number
+    player_name: string
+    score: number
+    date: string | null
+    is_me: boolean
+}
+
+export interface BowlingSubmitResult {
+    leaderboard: BowlingLeaderboardEntry[]
+    rank: number | null
+    is_record: boolean
+}

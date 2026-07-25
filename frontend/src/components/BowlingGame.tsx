@@ -2,14 +2,18 @@
  * Hidden mini 9-pin bowling game (Easter egg). Opened by tapping the app logo/title 5× quickly
  * (see RootLayout). A full-screen, kiosk-style overlay: aim with a sweeping guide (tap to lock),
  * set power with a sweeping meter (tap to launch), then watch the ball scatter the diamond rack.
- * Three balls per game; clearing all nine re-racks for a bonus. The best score is kept on-device.
+ * Three balls per game; clearing all nine re-racks for a bonus. Finished games are submitted to
+ * the club-wide leaderboard (with a local best kept as an offline fallback).
  *
  * All physics live in the pure, tested `lib/bowlingGame` module — this component only wires up
  * input, the requestAnimationFrame loop and canvas rendering.
  */
 import {useCallback, useEffect, useRef, useState} from 'react'
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '../i18n'
+import {api} from '../api/client'
 import {useBowlingStore} from '../store/bowling'
+import type {BowlingSubmitResult} from '../types'
 import {
     BALLS_PER_GAME,
     LANE,
@@ -60,14 +64,37 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
     const t = useT()
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const gameRef = useRef<GameRef>(freshGame())
-    const highScore = useBowlingStore(s => s.highScore)
-    const submitScore = useBowlingStore(s => s.submitScore)
+    const queryClient = useQueryClient()
+    const markDiscovered = useBowlingStore(s => s.markDiscovered)
+    const submitLocal = useBowlingStore(s => s.submitLocal)
+    const personalBest = useBowlingStore(s => s.personalBest)
+
+    // Reveal the profile leaderboard section only once the Easter egg has actually been found.
+    useEffect(() => { markDiscovered() }, [markDiscovered])
+
+    // Club-wide leaderboard: top entry is the record to beat (falls back to the local best offline).
+    const {data: leaderboard} = useQuery({queryKey: ['bowling-leaderboard'], queryFn: api.getBowlingLeaderboard})
+    const clubBest = leaderboard?.[0]?.score ?? 0
+    const highScore = Math.max(clubBest, personalBest)
+
+    const {mutate: submitScoreRemote} = useMutation({
+        mutationFn: (s: number) => api.submitBowlingScore(s),
+        onSuccess: (res) => {
+            setResult(res)
+            queryClient.invalidateQueries({queryKey: ['bowling-leaderboard']})
+        },
+    })
+    const submitScore = useCallback((s: number) => {
+        submitLocal(s) // offline fallback
+        submitScoreRemote(s)
+    }, [submitLocal, submitScoreRemote])
 
     // HUD mirrors of the mutable game ref (only these trigger React re-renders).
     const [phase, setPhase] = useState<Phase>('aim')
     const [score, setScore] = useState(0)
     const [ballsLeft, setBallsLeft] = useState(BALLS_PER_GAME)
     const [flash, setFlash] = useState<string | null>(null)
+    const [result, setResult] = useState<BowlingSubmitResult | null>(null)
 
     const draw = useCallback(() => {
         const canvas = canvasRef.current
@@ -228,6 +255,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         setScore(0)
         setBallsLeft(BALLS_PER_GAME)
         setFlash(null)
+        setResult(null)
     }, [])
 
     const hintKey =
@@ -308,7 +336,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
                 {phase === 'gameover' ? (
                     <>
                         <div style={{fontSize: 15}}>
-                            {score >= highScore && score > 0
+                            {result?.is_record
                                 ? t('bowling.newRecord')
                                 : `${t('bowling.gameOver')} — ${score}`}
                         </div>

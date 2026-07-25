@@ -33,6 +33,8 @@ import {
     PgBackrestStanza,
     ClubPoll,
     SeasonSnapshot,
+    BowlingLeaderboardEntry,
+    BowlingSubmitResult,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -713,6 +715,11 @@ export const api = {
     closeSeason: (year: number, notes?: string, settle_member_ids?: number[]) =>
         request<SeasonSnapshot>('POST', '/season/close', {year, notes, settle_member_ids}),
     deleteSeasonSnapshot: (year: number) => request<void>('DELETE', `/season/snapshots/${year}`),
+
+    // Bowling mini-game (Easter egg) — club-wide leaderboard
+    getBowlingLeaderboard: () => request<BowlingLeaderboardEntry[]>('GET', '/bowling/leaderboard'),
+    submitBowlingScore: (score: number) =>
+        request<BowlingSubmitResult>('POST', '/bowling/scores', {score}),
 
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
