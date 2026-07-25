@@ -634,8 +634,6 @@ export function ProfileSheet({open, onClose}: Props) {
                             <div className="text-sm font-bold text-kce-cream flex items-center gap-2">
                                 🎳 {t('bowling.leaderboard')}
                             </div>
-                            {/* This is a real bowling club — spell out that these are game scores. */}
-                            <div className="text-[11px] text-kce-muted mb-2">{t('bowling.leaderboard.hint')}</div>
                             {bowlingBoard.length === 0 ? (
                                 <div className="text-[11px] text-kce-muted">{t('bowling.leaderboard.empty')}</div>
                             ) : (
