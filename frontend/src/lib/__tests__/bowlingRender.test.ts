@@ -8,8 +8,10 @@ import {
     LANE_BOTTOM,
     FAR_SCALE,
     NEAR_SCALE,
+    CAMERA_LIFT,
+    PIN_HEIGHT,
 } from '../bowlingRender'
-import {LANE} from '../bowlingGame'
+import {LANE, PIN_SPACING} from '../bowlingGame'
 
 describe('project', () => {
     it('maps lane centre to the horizontal centre at any depth', () => {
@@ -33,6 +35,39 @@ describe('project', () => {
         const farSpan = project(LANE.width, 0).sx - project(0, 0).sx
         const nearSpan = project(LANE.width, LANE.height).sx - project(0, LANE.height).sx
         expect(nearSpan).toBeGreaterThan(farSpan)
+    })
+
+    it('keeps the sprite scale proportional to the lane width at the same depth', () => {
+        // Isotropy: one lane unit across must be the same px as one lane unit of sprite height.
+        for (const y of [0, LANE.height / 3, LANE.height]) {
+            const span = project(LANE.width, y).sx - project(0, y).sx
+            expect(project(0, y).scale).toBeCloseTo(span / LANE.width, 5)
+        }
+    })
+
+    it('foreshortens depth toward the back, but keeps the far end readable', () => {
+        // Equal steps in lane depth cover less screen height at the far end than at the near end.
+        // The lifted camera bounds how extreme that gets: at eye level the rack rows would collapse
+        // to a few px apart, far less than the height of the pins standing on them.
+        const step = LANE.height / 10
+        const farRun = project(0, step).sy - project(0, 0).sy
+        const nearRun = project(0, LANE.height).sy - project(0, LANE.height - step).sy
+        expect(farRun).toBeGreaterThan(0)
+        expect(nearRun).toBeGreaterThan(farRun * 1.5)
+        expect(nearRun).toBeLessThan(farRun * 5)
+    })
+
+    it('keeps a whole rack row-pitch comparable to the height of a pin standing on it', () => {
+        // Readability guard for the far end: if a row of pins is drawn much taller than the gap to
+        // the next row, the diamond renders as one unreadable clump.
+        const rowPitch = project(0, PIN_SPACING / 2).sy - project(0, 0).sy
+        const pinHeight = PIN_HEIGHT * project(0, 0).scale
+        expect(pinHeight / rowPitch).toBeLessThan(1.5)
+    })
+
+    it('lifts the camera without going fully top-down', () => {
+        expect(CAMERA_LIFT).toBeGreaterThan(0)
+        expect(CAMERA_LIFT).toBeLessThan(1)
     })
 
     it('laneHalfWidthAt clamps and grows with depth', () => {

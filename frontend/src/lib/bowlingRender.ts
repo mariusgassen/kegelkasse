@@ -5,8 +5,12 @@
  * 7-segment digit map for the VOLLMER-style scoreboard.
  *
  * Lane depth runs far→near: y = 0 is the back of the lane (where the pins stand, drawn small and
- * high on screen), y = LANE.height is the release point (drawn large and low). The far end is
- * narrow and the near end wide, so the lane reads as receding into the distance.
+ * high on screen), y = LANE.height is the release point (drawn large and low).
+ *
+ * The mapping is a real perspective divide, not a linear ramp: a virtual camera sits behind the
+ * near end and every quantity scales with 1/distance. That matters because it is what makes the
+ * back of the lane foreshorten in *both* axes — with a linear depth ramp the rack stretched into a
+ * tall narrow sliver instead of reading as a compact diamond sitting at the far end.
  */
 import {LANE} from './bowlingGame'
 
@@ -19,34 +23,71 @@ export const MACHINE_H = 150
 export const LANE_TOP = MACHINE_H
 export const LANE_BOTTOM = VIEW_H - 24
 
-// Lane half-width (px) and sprite scale at the far and near ends.
-export const FAR_HALF = 46
-export const NEAR_HALF = 152
-export const FAR_SCALE = 0.5
-export const NEAR_SCALE = 1.3
+/** Lane half-width (px) at the far and near ends. */
+export const FAR_HALF = 40
+export const NEAR_HALF = 168
+
+/**
+ * Camera distance to the far end, in units of its distance to the near end. Implied by the two
+ * half-widths, since apparent width is proportional to 1/distance.
+ */
+export const DEPTH_RATIO = NEAR_HALF / FAR_HALF
+const U_FAR = 1 / DEPTH_RATIO
+const U_NEAR = 1
+
+/** Sprite scale in screen px per lane unit at each end (isotropic — same for widths and heights). */
+export const NEAR_SCALE = (2 * NEAR_HALF) / LANE.width
+export const FAR_SCALE = (2 * FAR_HALF) / LANE.width
+
+/** Height of a pin sprite in lane units (visual only — physics treats a pin as a disc). */
+export const PIN_HEIGHT = 26
+
+/**
+ * How far the camera is lifted above the lane, 0 = eye level … 1 = straight overhead.
+ *
+ * At eye level, ground depth foreshortens as 1/d² while sprite heights only shrink as 1/d, so at the
+ * far end the rack rows end up a few px apart while the pins are ten times that tall — geometrically
+ * honest (it is what you really see down a lane) but unreadable as a game, since the whole diamond
+ * collapses into one clump of overlapping pins. Raising the camera spreads the rows back out. The
+ * blend is applied to the screen row only; widths and sprite scale keep the true perspective divide.
+ */
+export const CAMERA_LIFT = 0.55
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+/** Inverse camera distance (1/d) at depth fraction t (0 = far end, 1 = near end). */
+function inverseDepth(t: number): number {
+    const dist = DEPTH_RATIO - (DEPTH_RATIO - 1) * clamp01(t)
+    return 1 / dist
+}
+
+/** Screen row fraction (0 = lane top, 1 = lane bottom) for depth fraction t. */
+function screenRow(t: number): number {
+    const perspective = (inverseDepth(t) - U_FAR) / (U_NEAR - U_FAR)
+    return lerp(perspective, clamp01(t), CAMERA_LIFT)
+}
+
 export interface Projected {
     sx: number
     sy: number
+    /** Screen px per lane unit at this depth — use it for every sprite dimension. */
     scale: number
 }
 
 /** Project a lane point (x∈[0,LANE.width], y∈[0,LANE.height]) to screen px + a depth scale. */
 export function project(x: number, y: number): Projected {
-    const t = clamp01(y / LANE.height)
-    const sy = lerp(LANE_TOP, LANE_BOTTOM, t)
-    const half = lerp(FAR_HALF, NEAR_HALF, t)
+    const t = y / LANE.height
+    const u = inverseDepth(t)
+    const sy = lerp(LANE_TOP, LANE_BOTTOM, screenRow(t))
+    const half = NEAR_HALF * u
     const sx = VIEW_W / 2 + (x / LANE.width - 0.5) * 2 * half
-    const scale = lerp(FAR_SCALE, NEAR_SCALE, t)
-    return {sx, sy, scale}
+    return {sx, sy, scale: NEAR_SCALE * u}
 }
 
 /** Half-width of the lane trapezoid at depth fraction t (0 far … 1 near). */
 export function laneHalfWidthAt(t: number): number {
-    return lerp(FAR_HALF, NEAR_HALF, clamp01(t))
+    return NEAR_HALF * inverseDepth(t)
 }
 
 // ── 7-segment display ──────────────────────────────────────────────────────────

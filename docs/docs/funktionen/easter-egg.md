@@ -18,6 +18,14 @@ und einem kleinen **Wimpel mit dem Vereinslogo**.
 1. **Wischen zum Werfen** – Mit dem Finger (oder der Maus) von unten nach oben über die Bahn
    wischen. Die **Richtung** des Wischers bestimmt den Zielwinkel, die **Länge** die Wurfkraft.
 2. **Kegeln fallen** – Die Kugel rollt die Bahn hoch und die getroffenen Kegel **kippen sichtbar um**.
+   Ein umkippender Kegel überstreicht dabei seine **ganze Länge** auf dem Kegelstand und reißt so
+   Nachbarn mit – genau wie auf einer echten Bahn. Kegel, die nach hinten geschlagen werden, prallen
+   von der Maschine zurück ins Feld.
+
+Die neun Kegel stehen als quadratische Raute **ganz hinten** auf der Bahn und nehmen deren **volle
+Breite** ein: die äußeren Kegel stehen direkt an den Banden. Ein gerader Wurf durch die Mitte räumt
+nur die Mittelreihe ab — wer mehr will, muss den vorderen Kegel leicht **versetzt** treffen, damit er
+schräg in die zweite Reihe geschlagen wird.
 
 ## Regeln
 
@@ -27,7 +35,13 @@ und einem kleinen **Wimpel mit dem Vereinslogo**.
 - Wer **alle Neune** abräumt, bekommt einen kleinen Jubel-Hinweis.
 - Die Punkte sind die Summe aller gefallenen Kegel über die drei Würfe.
 
-## Vereins-Bestenliste
+## Bestenliste des Minispiels
+
+:::note
+Diese Bestenliste gehört **ausschließlich zum Minispiel in der App** – sie hat nichts mit echten
+Vereinsergebnissen, Kegelabenden oder Statistiken zu tun. In der Oberfläche ist sie deshalb als
+„Minispiel-Bestenliste" beschriftet.
+:::
 
 Beendete Spiele werden an eine **vereinsweite Bestenliste** übermittelt: Die zehn besten Ergebnisse
 des Vereins werden serverseitig gespeichert und dem jeweiligen Spieler (per Kegelname) zugeordnet.

@@ -19,6 +19,7 @@ import {useBowlingStore} from '../store/bowling'
 import type {BowlingSubmitResult} from '../types'
 import {
     BALLS_PER_GAME,
+    BALL_RADIUS,
     LANE,
     MAX_AIM_ANGLE,
     createBall,
@@ -32,6 +33,7 @@ import {
 import {
     project,
     segmentsFor,
+    PIN_HEIGHT,
     VIEW_W,
     VIEW_H,
     MACHINE_H,
@@ -43,13 +45,23 @@ type Phase = 'ready' | 'rolling' | 'gameover'
 
 const THROWS = BALLS_PER_GAME // 3
 const MAX_ROLL_MS = 6000 // safety cap so a roll always settles
-const TOPPLE_MS = 420 // how long a struck pin takes to fall flat
 const MAX_TILT = Math.PI / 2 * 0.96
 const SWIPE_MIN = 22 // min upward travel (backing px) to count as a throw
 const SWIPE_FULL = 300 // swipe length (backing px) for full power
+const MIN_POWER = 0.3 // a flick still has to be worth something
 
 // Canonical rack (id → resting position) for the machine's standing-pin lamp diamond.
 const RACK_LAYOUT = createRack()
+// Rack extents, so the lamp diamond keeps mirroring the rack if its geometry ever changes.
+const RACK_BOUNDS = {
+    cx: (Math.min(...RACK_LAYOUT.map(p => p.ox)) + Math.max(...RACK_LAYOUT.map(p => p.ox))) / 2,
+    cy: (Math.min(...RACK_LAYOUT.map(p => p.oy)) + Math.max(...RACK_LAYOUT.map(p => p.oy))) / 2,
+    hx: (Math.max(...RACK_LAYOUT.map(p => p.ox)) - Math.min(...RACK_LAYOUT.map(p => p.ox))) / 2,
+    hy: (Math.max(...RACK_LAYOUT.map(p => p.oy)) - Math.min(...RACK_LAYOUT.map(p => p.oy))) / 2,
+}
+// Half-extents (px) of the lamp diamond on the machine panel.
+const LAMP_HX = 46
+const LAMP_HY = 30
 
 interface GameRef {
     phase: Phase
@@ -58,8 +70,6 @@ interface GameRef {
     lastThrow: number
     throwsLeft: number
     rollStart: number
-    // Per-pin fall animation state, keyed by pin id, recorded the frame it is first knocked.
-    topple: Map<number, {start: number; vx: number}>
 }
 
 interface DragRef {
@@ -82,7 +92,6 @@ function freshGame(): GameRef {
         lastThrow: 0,
         throwsLeft: THROWS,
         rollStart: 0,
-        topple: new Map(),
     }
 }
 
@@ -209,8 +218,8 @@ function drawMachine(ctx: CanvasRenderingContext2D, g: GameRef, clubName: string
     const standing = new Set(g.world.pins.filter(p => !isKnocked(p)).map(p => p.id))
     const cx = VIEW_W / 2, cy = 52
     for (const layout of RACK_LAYOUT) {
-        const lx = cx + (layout.ox - LANE.width / 2) * 1.15
-        const ly = cy + (layout.oy - 55) * 0.62
+        const lx = cx + ((layout.ox - RACK_BOUNDS.cx) / RACK_BOUNDS.hx) * LAMP_HX
+        const ly = cy + ((layout.oy - RACK_BOUNDS.cy) / RACK_BOUNDS.hy) * LAMP_HY
         if (standing.has(layout.id)) {
             const gg = ctx.createRadialGradient(lx, ly, 1, lx, ly, 7)
             gg.addColorStop(0, '#fff0c0'); gg.addColorStop(0.6, '#ffcf5a'); gg.addColorStop(1, '#c8901e')
@@ -302,7 +311,6 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         const ctx = canvas.getContext('2d')
         if (!ctx) return // jsdom / no-canvas: DOM HUD still renders
         const g = gameRef.current
-        const now = performance.now()
 
         ctx.clearRect(0, 0, VIEW_W, VIEW_H)
 
@@ -346,13 +354,10 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         const pins = [...g.world.pins].sort((a, b) => a.y - b.y)
         for (const p of pins) {
             const pr = project(p.x, p.y)
-            const h = 30 * pr.scale
-            const tp = g.topple.get(p.id)
-            let tilt = 0
-            if (tp) {
-                const prog = clamp01((now - tp.start) / TOPPLE_MS)
-                tilt = (tp.vx >= 0 ? 1 : -1) * prog * MAX_TILT
-            }
+            const h = PIN_HEIGHT * pr.scale
+            // Topple progress comes straight from the simulation, so the sprite always matches the
+            // (larger) sweep a falling pin actually has on the deck.
+            const tilt = p.fallDir * clamp01(p.fall) * MAX_TILT
             ctx.save()
             ctx.translate(pr.sx, pr.sy)
             ctx.rotate(tilt)
@@ -366,7 +371,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         // Ball.
         if (!g.world.ball.gone) {
             const b = project(g.world.ball.x, g.world.ball.y)
-            const r = 9 * b.scale
+            const r = BALL_RADIUS * b.scale
             ctx.fillStyle = 'rgba(0,0,0,0.2)'
             ctx.beginPath(); ctx.ellipse(b.sx, b.sy + r * 0.4, r, r * 0.35, 0, 0, Math.PI * 2); ctx.fill()
             drawBallShape(ctx, b.sx, b.sy - r * 0.4, r)
@@ -407,7 +412,6 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
             submitScore(g.total)
         } else {
             g.world = freshThrow()
-            g.topple = new Map()
             g.rollStart = 0
             g.phase = 'ready'
             setPhase('ready')
@@ -415,7 +419,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         setTick(n => n + 1)
     }, [submitScore, t])
 
-    // Main loop: steps physics while rolling, records pin falls, redraws every frame.
+    // Main loop: steps physics while rolling, redraws every frame.
     useEffect(() => {
         let raf = 0
         let last = performance.now()
@@ -425,11 +429,6 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
             const g = gameRef.current
             if (g.phase === 'rolling') {
                 g.world = stepWorld(g.world, dt)
-                for (const p of g.world.pins) {
-                    if (isKnocked(p) && !g.topple.has(p.id)) {
-                        g.topple.set(p.id, {start: now, vx: p.vx})
-                    }
-                }
                 if (worldAtRest(g.world) || now - g.rollStart > MAX_ROLL_MS) endThrow()
             }
             draw()
@@ -454,13 +453,19 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         const w = r.width || 1, h = r.height || 1
         return {x: (e.clientX - r.left) / w * VIEW_W, y: (e.clientY - r.top) / h * VIEW_H}
     }
-    const onPointerDown = (e: React.PointerEvent) => {
+    const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+        // Suppress the browser's own press-and-hold gesture (text selection / callout / drag), which
+        // otherwise fires mid-swipe and paints a selection over the whole panel.
+        e.preventDefault()
         if (gameRef.current.phase !== 'ready') return
+        // Capture so the throw still lands if the finger drifts off the canvas mid-swipe.
+        e.currentTarget.setPointerCapture?.(e.pointerId)
         const p = toBacking(e)
         dragRef.current = {active: true, x0: p.x, y0: p.y, x1: p.x, y1: p.y}
     }
     const onPointerMove = (e: React.PointerEvent) => {
         if (!dragRef.current.active) return
+        e.preventDefault()
         const p = toBacking(e)
         dragRef.current.x1 = p.x
         dragRef.current.y1 = p.y
@@ -473,7 +478,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         const dx = d.x1 - d.x0, dy = d.y1 - d.y0
         if (-dy < SWIPE_MIN) return // not a clear upward swipe
         const angle = Math.max(-MAX_AIM_ANGLE, Math.min(MAX_AIM_ANGLE, Math.atan2(dx, -dy)))
-        const power = Math.max(0.2, Math.min(1, Math.hypot(dx, dy) / SWIPE_FULL))
+        const power = Math.max(MIN_POWER, Math.min(1, Math.hypot(dx, dy) / SWIPE_FULL))
         g.world = {...g.world, ball: launchBall(g.world.ball, angle, power)}
         g.rollStart = performance.now()
         g.phase = 'rolling'
@@ -497,11 +502,16 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
             role="dialog"
             aria-modal="true"
             aria-label={t('bowling.title')}
+            onContextMenu={e => e.preventDefault()}
             style={{
                 position: 'fixed', inset: 0, zIndex: 9999, background: '#1a1410', color: '#f5ecd8',
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)',
                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
+                // Press-and-hold on a canvas game must not select the surrounding HUD text or pop
+                // the iOS copy/share callout.
+                userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
+                touchAction: 'none',
             }}>
             {/* Header: title, best, close */}
             <div style={{display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 420, padding: '0 16px'}}>
@@ -526,7 +536,12 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
                     onPointerMove={onPointerMove}
                     onPointerUp={onPointerUp}
                     onPointerCancel={onPointerUp}
-                    style={{maxHeight: '100%', maxWidth: '100%', borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', touchAction: 'none'}}/>
+                    style={{
+                        maxHeight: '100%', maxWidth: '100%', borderRadius: 12,
+                        boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+                        touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none',
+                        WebkitTouchCallout: 'none',
+                    }}/>
 
                 {flash && (
                     <div style={{position: 'absolute', top: '28%', fontSize: 26, fontWeight: 900, color: '#e8a020', textShadow: '0 2px 12px rgba(0,0,0,0.7)', pointerEvents: 'none'}}>
