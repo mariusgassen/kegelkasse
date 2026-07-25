@@ -6,6 +6,7 @@ import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ActionItem, type SheetAction} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -15,24 +16,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {RegularMember} from '@/types.ts'
 
-type MemberAction = {
-    icon: string
-    label: string
-    onClick: () => void
-    danger?: boolean
-    disabled?: boolean
-}
-
-function ActionItem({icon, label, onClick, danger, disabled}: MemberAction) {
-    return (
-        <button type="button" disabled={disabled}
-                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-red-400' : ''}`}
-                onClick={onClick}>
-            <span className="text-lg flex-shrink-0" aria-hidden="true">{icon}</span>
-            <span className="text-sm font-bold flex-1">{label}</span>
-        </button>
-    )
-}
+type MemberAction = SheetAction
 
 export function MembersPage() {
     const t = useT()

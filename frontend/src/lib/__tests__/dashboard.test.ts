@@ -4,7 +4,7 @@ import {
     recentCommunity,
     balanceState,
     recentThrowAvgs,
-    recentPenalties,
+    recentPenaltyEvenings,
     type MemberPenaltyRow,
 } from '../dashboard'
 import type {ClubAnnouncement, ClubTrip, ScheduledEvening, ThrowStats} from '../../types'
@@ -151,40 +151,63 @@ describe('recentThrowAvgs', () => {
     })
 })
 
-describe('recentPenalties', () => {
-    const p = (id: number, created_at: string | null, evening_date: string | null = null): MemberPenaltyRow => ({
-        id, amount: id, icon: '🍺', penalty_type_name: `P${id}`, evening_date, created_at,
+describe('recentPenaltyEvenings', () => {
+    // `amount` defaults to 1 per row so evening totals are just the row count unless overridden.
+    const p = (
+        id: number,
+        evening_date: string | null,
+        created_at: string | null = null,
+        amount = 1,
+    ): MemberPenaltyRow => ({
+        id, amount, icon: '🍺', penalty_type_name: `P${id}`, evening_date, created_at,
     })
 
-    it('orders by log time, newest first, and maps the display fields', () => {
-        const out = recentPenalties([
-            p(1, '2026-07-01T20:00'),
-            p(3, '2026-07-20T20:00'),
-            p(2, '2026-07-10T20:00'),
-        ], 5)
-        expect(out.map(r => r.id)).toEqual([3, 2, 1])
-        expect(out[0]).toMatchObject({id: 3, icon: '🍺', name: 'P3', amount: 3, date: '2026-07-20T20:00'})
+    it('groups penalties by evening, newest evening first, and sums each evening total', () => {
+        const out = recentPenaltyEvenings([
+            p(1, '2026-07-05', '2026-07-05T20:00', 3),
+            p(2, '2026-07-05', '2026-07-05T21:00', 2),
+            p(3, '2026-07-20', '2026-07-20T20:00', 5),
+        ], 5, 3)
+        expect(out.map(g => g.key)).toEqual(['2026-07-20', '2026-07-05'])
+        expect(out[0]).toMatchObject({total: 5, count: 1, more: 0})
+        expect(out[1]).toMatchObject({total: 5, count: 2, more: 0})
     })
 
-    it('caps the result at the given limit', () => {
-        const out = recentPenalties([
-            p(1, '2026-07-01T20:00'),
-            p(2, '2026-07-02T20:00'),
-            p(3, '2026-07-03T20:00'),
-        ], 2)
-        expect(out.map(r => r.id)).toEqual([3, 2])
+    it('folds penalties beyond itemsPerEvening into "more" while still summing all of them', () => {
+        const rows = [1, 2, 3, 4].map(i => p(i, '2026-07-05', `2026-07-05T2${i}:00`, 2))
+        const out = recentPenaltyEvenings(rows, 5, 2)
+        expect(out).toHaveLength(1)
+        expect(out[0]).toMatchObject({count: 4, total: 8, more: 2})
+        expect(out[0].items).toHaveLength(2)
     })
 
-    it('falls back to the evening date for ordering and display when created_at is null', () => {
-        const out = recentPenalties([
-            p(1, null, '2026-07-20'),
-            p(2, null, '2026-07-05'),
-        ], 5)
-        expect(out.map(r => r.id)).toEqual([1, 2])
-        expect(out[0].date).toBe('2026-07-20')
+    it('caps the number of evening groups returned', () => {
+        const out = recentPenaltyEvenings([
+            p(1, '2026-07-01'),
+            p(2, '2026-07-10'),
+            p(3, '2026-07-20'),
+        ], 2, 3)
+        expect(out.map(g => g.key)).toEqual(['2026-07-20', '2026-07-10'])
+    })
+
+    it('groups by created_at date when evening_date is missing', () => {
+        const out = recentPenaltyEvenings([
+            p(1, null, '2026-07-20T20:00'),
+            p(2, null, '2026-07-05T20:00'),
+        ], 5, 3)
+        expect(out.map(g => g.key)).toEqual(['2026-07-20', '2026-07-05'])
+        expect(out[0].date).toBe('2026-07-20T20:00')
+    })
+
+    it('orders the items within an evening newest first', () => {
+        const out = recentPenaltyEvenings([
+            p(1, '2026-07-05', '2026-07-05T20:00'),
+            p(2, '2026-07-05', '2026-07-05T22:00'),
+        ], 5, 3)
+        expect(out[0].items.map(i => i.id)).toEqual([2, 1])
     })
 
     it('returns [] for an empty list', () => {
-        expect(recentPenalties([], 5)).toEqual([])
+        expect(recentPenaltyEvenings([], 5, 3)).toEqual([])
     })
 })

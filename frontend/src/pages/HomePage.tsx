@@ -22,9 +22,9 @@ import {
     recentCommunity,
     balanceState,
     recentThrowAvgs,
-    recentPenalties,
+    recentPenaltyEvenings,
     type CommunityItem,
-    type RecentPenalty,
+    type PenaltyEveningSummary,
 } from '@/lib/dashboard.ts'
 
 function fe(v: number) {
@@ -186,15 +186,32 @@ function fShortDate(iso: string | null, locale: string): string {
     return d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'de-DE', {day: '2-digit', month: 'short'})
 }
 
-function PenaltyRow({p, locale}: {p: RecentPenalty; locale: string}) {
+function PenaltyEveningGroup({g, locale}: {g: PenaltyEveningSummary; locale: string}) {
+    const t = useT()
     return (
-        <div className="flex items-center gap-2 py-1.5">
-            <span className="text-base flex-shrink-0">{p.icon}</span>
-            <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-kce-cream truncate">{p.name}</div>
-                {p.date && <div className="text-[11px] text-kce-muted">{fShortDate(p.date, locale)}</div>}
+        <div className="py-2">
+            {/* Evening header: date on the left, the evening's total on the right. */}
+            <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-bold text-kce-cream">
+                    {fShortDate(g.date, locale) || t('home.penaltyUndated')}
+                </div>
+                <div className="text-sm font-bold text-kce-primary flex-shrink-0">{fe(g.total)}</div>
             </div>
-            <div className="text-xs font-bold text-kce-primary flex-shrink-0">{fe(p.amount)}</div>
+            {/* A few of the evening's penalties, then "and N more". */}
+            <div className="mt-1 space-y-0.5">
+                {g.items.map(p => (
+                    <div key={p.id} className="flex items-center gap-2">
+                        <span className="text-sm flex-shrink-0">{p.icon}</span>
+                        <div className="flex-1 min-w-0 text-[11px] text-kce-muted truncate">{p.name}</div>
+                        <div className="text-[11px] text-kce-muted flex-shrink-0">{fe(p.amount)}</div>
+                    </div>
+                ))}
+                {g.more > 0 && (
+                    <div className="pl-6 text-[11px] italic text-kce-muted">
+                        {t('home.penaltyMore').replace('{n}', String(g.more))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
@@ -250,7 +267,7 @@ export function HomePage() {
     const news = recentCommunity(announcements, trips, 3)
     const bState = balanceState(myBalance?.balance)
     const spark = recentThrowAvgs(throwStats, 8)
-    const penalties = recentPenalties(myPenalties, 4)
+    const penaltyEvenings = recentPenaltyEvenings(myPenalties, 3, 3)
 
     function refreshSchedule() {
         qc.invalidateQueries({queryKey: ['schedule']})
@@ -361,12 +378,12 @@ export function HomePage() {
                 </Section>
             )}
 
-            {/* Recent penalties */}
-            {rmid && penalties.length > 0 && (
+            {/* Recent penalties, grouped by evening with the evening's total */}
+            {rmid && penaltyEvenings.length > 0 && (
                 <Section title={t('home.recentPenalties')} action={t('home.toTreasury')}
                          onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
                     <div className="divide-y divide-kce-surface2">
-                        {penalties.map(p => <PenaltyRow key={p.id} p={p} locale={locale}/>)}
+                        {penaltyEvenings.map(g => <PenaltyEveningGroup key={g.key} g={g} locale={locale}/>)}
                     </div>
                 </Section>
             )}

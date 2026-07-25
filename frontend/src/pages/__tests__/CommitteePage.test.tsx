@@ -103,6 +103,18 @@ async function renderCommitteePage() {
     return render(<CommitteePage />, { wrapper: makeWrapper() })
 }
 
+// Edit/delete/… live behind a ⋮ action menu (CardActionMenu). The kebab trigger carries
+// aria-label 'action.more'; opening it renders the action list, where each action shows its
+// (mocked-i18n) label as text.
+function openCardMenu(index = 0) {
+    fireEvent.click(screen.getAllByLabelText('action.more')[index])
+}
+async function clickCardAction(labelKey: string, index = 0) {
+    openCardMenu(index)
+    await waitFor(() => screen.getByText(labelKey))
+    fireEvent.click(screen.getByText(labelKey))
+}
+
 async function setupDefaultMocks() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
@@ -511,12 +523,12 @@ describe('CommitteePage — delete announcement', () => {
         vi.mocked(useHashTab).mockReturnValue(['announcements', vi.fn()] as any)
     })
 
-    it('shows delete button for admin on announcement', async () => {
+    it('shows the ⋮ action menu for admin on announcement', async () => {
         await setupAsAdmin()
         await setupWithAnnouncements()
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+            expect(screen.getAllByLabelText('action.more').length).toBeGreaterThan(0)
         })
     })
 
@@ -526,8 +538,8 @@ describe('CommitteePage — delete announcement', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteAnnouncement).mockResolvedValueOnce(undefined as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getAllByText('×'))
-        fireEvent.click(screen.getAllByText('×')[0])
+        await waitFor(() => screen.getAllByLabelText('action.more'))
+        await clickCardAction('action.delete')
         // First click may trigger confirmation
         await waitFor(() => {
             // Either the delete was called immediately or a confirm button appeared
@@ -592,14 +604,14 @@ describe('CommitteePage — trips CRUD', () => {
         })
     })
 
-    it('shows delete button for admin on trip', async () => {
+    it('shows the ⋮ action menu for admin on trip', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
         await renderCommitteePage()
         await waitFor(() => {
             expect(screen.getByText('München')).toBeInTheDocument()
-            expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+            expect(screen.getAllByLabelText('action.more').length).toBeGreaterThan(0)
         })
     })
 })
@@ -670,8 +682,7 @@ describe('CommitteePage — announcement CRUD', () => {
         vi.mocked(api.deleteAnnouncement).mockResolvedValueOnce(undefined as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Wichtige Ankündigung'))
-        const deleteBtns = screen.getAllByText('×')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete')
         // Delete opens a confirmation sheet — click the confirm button
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
@@ -736,18 +747,18 @@ describe('CommitteePage — trip details', () => {
         })
     })
 
-    it('shows delete button for trip when admin', async () => {
+    it('shows the ⋮ action menu for trip when admin', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
         vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        // Admin sees × delete button on trip
-        expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+        // Admin sees the ⋮ menu on the trip card
+        expect(screen.getAllByLabelText('action.more').length).toBeGreaterThan(0)
     })
 
-    it('calls api.deleteTrip when × clicked on trip', async () => {
+    it('calls api.deleteTrip when delete confirmed on trip', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
@@ -755,8 +766,7 @@ describe('CommitteePage — trip details', () => {
         vi.mocked(api.deleteTrip).mockResolvedValueOnce(undefined as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        const deleteBtns = screen.getAllByText('×')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete')
         // Delete opens a confirmation sheet — click the confirm button
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
@@ -765,26 +775,27 @@ describe('CommitteePage — trip details', () => {
         })
     })
 
-    it('shows edit button for trip when admin', async () => {
+    it('shows the edit action in the trip menu when admin', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
         vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
+        openCardMenu(0)
+        await waitFor(() => expect(screen.getByText('action.edit')).toBeInTheDocument())
     })
 
-    it('opens edit trip sheet when ✏️ clicked', async () => {
+    it('opens edit trip sheet when the edit action is picked', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
         vi.mocked(api.listTrips).mockResolvedValue(TRIPS as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
-            expect(screen.getByTestId('sheet')).toBeInTheDocument()
+            expect(screen.getByText('committee.trip.edit')).toBeInTheDocument()
         })
     })
 
@@ -796,8 +807,8 @@ describe('CommitteePage — trip details', () => {
         vi.mocked(api.updateTrip).mockResolvedValueOnce({ ...TRIPS[0], note: 'Updated note' } as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
-        await waitFor(() => screen.getByTestId('sheet'))
+        await clickCardAction('action.edit')
+        await waitFor(() => screen.getByText('submit-sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
             expect(api.updateTrip).toHaveBeenCalledWith(1, expect.any(Object))
@@ -1012,41 +1023,43 @@ describe('CommitteePage — polls admin actions', () => {
         })
     })
 
-    it('shows close/open toggle button on poll', async () => {
+    it('shows close/open toggle action in the poll menu', async () => {
         await setupPollsMocks()
         await renderCommitteePage()
+        await waitFor(() => screen.getByText('Wohin fahren wir?'))
+        openCardMenu(0)
         await waitFor(() => {
-            expect(screen.getByTitle('committee.poll.close')).toBeInTheDocument()
+            expect(screen.getByText('committee.poll.close')).toBeInTheDocument()
         })
     })
 
-    it('calls api.closePoll when lock button clicked', async () => {
+    it('calls api.closePoll when the close action is picked', async () => {
         await setupPollsMocks()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.closePoll).mockResolvedValueOnce({ ...POLLS[0], is_closed: true } as any)
         vi.mocked(api.listPolls).mockResolvedValue(POLLS as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByTitle('committee.poll.close'))
-        fireEvent.click(screen.getByTitle('committee.poll.close'))
+        await waitFor(() => screen.getByText('Wohin fahren wir?'))
+        await clickCardAction('committee.poll.close')
         await waitFor(() => {
             expect(api.closePoll).toHaveBeenCalledWith(1, true)
         })
     })
 
-    it('shows delete button on poll', async () => {
+    it('shows the ⋮ action menu on poll', async () => {
         await setupPollsMocks()
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Wohin fahren wir?'))
-        expect(screen.getAllByText('×').length).toBeGreaterThan(0)
+        expect(screen.getAllByLabelText('action.more').length).toBeGreaterThan(0)
     })
 
-    it('calls api.deletePoll when × confirmed', async () => {
+    it('calls api.deletePoll when delete confirmed', async () => {
         await setupPollsMocks()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deletePoll).mockResolvedValueOnce(undefined as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Wohin fahren wir?'))
-        fireEvent.click(screen.getAllByText('×')[0])
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
@@ -1111,7 +1124,8 @@ describe('CommitteePage — past trips section', () => {
         vi.mocked(api.listTrips).mockResolvedValue([PAST_TRIP] as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('OldCity'))
-        expect(screen.getByText('✏️')).toBeInTheDocument()
+        openCardMenu(0)
+        await waitFor(() => expect(screen.getByText('action.edit')).toBeInTheDocument())
     })
 })
 
@@ -1123,14 +1137,14 @@ describe('CommitteePage — trip delete confirmation', () => {
         await setupAsAdmin()
     })
 
-    it('shows delete confirm sheet when × clicked on trip', async () => {
+    it('shows delete confirm sheet when delete picked on trip', async () => {
         const { api } = await import('@/api/client.ts')
         const FUTURE_TRIP = { id: 5, destination: 'Vienna', date: '2030-01-01', note: null, created_by: 1 }
         vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
         vi.mocked(api.listTrips).mockResolvedValue([FUTURE_TRIP] as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Vienna'))
-        fireEvent.click(screen.getByText('×'))
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText(/committee\.trip\.deleteConfirm/))
         expect(screen.getByText(/committee\.trip\.deleteConfirm/)).toBeInTheDocument()
     })
@@ -1143,7 +1157,7 @@ describe('CommitteePage — trip delete confirmation', () => {
         vi.mocked(api.deleteTrip).mockResolvedValueOnce(undefined as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Vienna'))
-        fireEvent.click(screen.getByText('×'))
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText(/action\.confirmDelete/))
         fireEvent.click(screen.getByText(/action\.confirmDelete/))
         await waitFor(() => expect(api.deleteTrip).toHaveBeenCalledWith(5))
@@ -1236,9 +1250,9 @@ describe('CommitteePage — announcement error handlers', () => {
     it('shows delete confirm sheet with announcement delete confirm text', async () => {
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Wichtige Ankündigung'))
-        // Click × on the first announcement to open confirm dialog
-        fireEvent.click(screen.getAllByText('×')[0])
-        await waitFor(() => screen.getByTestId('sheet'))
+        // Pick delete from the first announcement's ⋮ menu to open the confirm dialog
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText(/committee\.announcement\.deleteConfirm/))
         expect(screen.getByText(/committee\.announcement\.deleteConfirm/)).toBeInTheDocument()
     })
 })
@@ -1275,9 +1289,9 @@ describe('CommitteePage — trip error handlers', () => {
         vi.mocked(api.updateTrip).mockRejectedValueOnce(new Error('update fail'))
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        // Click edit button ✏️ on the trip
-        fireEvent.click(screen.getByText('✏️'))
-        await waitFor(() => screen.getByTestId('sheet'))
+        // Pick edit from the trip's ⋮ menu
+        await clickCardAction('action.edit')
+        await waitFor(() => screen.getByText('submit-sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
@@ -1288,9 +1302,9 @@ describe('CommitteePage — trip error handlers', () => {
         vi.mocked(api.deleteTrip).mockRejectedValueOnce(new Error('delete fail'))
         await renderCommitteePage()
         await waitFor(() => screen.getByText('München'))
-        // Click × on the trip
-        fireEvent.click(screen.getAllByText('×')[0])
-        await waitFor(() => screen.getByTestId('sheet'))
+        // Pick delete from the trip's ⋮ menu, then confirm
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText(/action\.confirmDelete/))
         fireEvent.click(screen.getByText(/action\.confirmDelete/))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })

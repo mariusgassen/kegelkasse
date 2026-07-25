@@ -33,6 +33,14 @@ Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspiel
 - Kommende Fahrten erscheinen oben, vergangene darunter
 - Bestehende Fahrten können bearbeitet und gelöscht werden
 
+## Beiträge bearbeiten & löschen
+
+Aktionen wie **Bearbeiten** und **Löschen** liegen bei Ankündigungen, Kegelfahrten und
+Abstimmungen hinter einem **⋮-Menü** (oben rechts am jeweiligen Beitrag) — statt eines direkt
+sichtbaren „×", das leicht mit einem harmlosen Ausblenden verwechselt wird. Ein Tipp auf das Menü
+öffnet die Aktionsliste; **Löschen** ist dort rot markiert und blendet danach zusätzlich eine
+Sicherheitsabfrage ein, damit ein Beitrag nicht versehentlich entfernt wird.
+
 ## Kommentare & Reaktionen
 
 - Jede Ankündigung und Kegelfahrt hat einen Kommentar-Thread (💬) und eine ❤️-Reaktion

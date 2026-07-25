@@ -117,20 +117,73 @@ export interface RecentPenalty {
     date: string | null
 }
 
+export interface PenaltyEveningSummary {
+    /** Stable React key + grouping key: the evening date (or log date) as `YYYY-MM-DD`. */
+    key: string
+    /** Best display date for the group (evening date preferred, else the log date). */
+    date: string | null
+    /** Total € across every penalty in this evening — the real sum, not just the latest entry. */
+    total: number
+    /** How many penalties fall on this evening. */
+    count: number
+    /** The individual penalties to show; anything beyond is folded into `more`. */
+    items: RecentPenalty[]
+    /** `count − items.length`: the penalties summarized as "and N more" (0 when all are shown). */
+    more: number
+}
+
+function bestTs(p: MemberPenaltyRow): number {
+    return tsOf(p.created_at) || tsOf(p.evening_date)
+}
+
+function toRecentPenalty(p: MemberPenaltyRow): RecentPenalty {
+    return {
+        id: p.id,
+        icon: p.icon,
+        name: p.penalty_type_name,
+        amount: p.amount,
+        date: p.created_at ?? p.evening_date,
+    }
+}
+
 /**
- * The member's most recent penalties, newest first, capped at `limit` — a personal "what did I do
- * last" feed for the start dashboard. Ordered by log time (`created_at`), falling back to the
- * evening date so entries without a precise timestamp still sort sensibly.
+ * The member's most recent penalties grouped by evening, newest evening first — a personal
+ * "what did I rack up lately" feed for the start dashboard. Each group carries the evening's
+ * total (so the headline number is the real sum, not just the last entry) and folds anything
+ * beyond `itemsPerEvening` into an "and N more" count.
+ *
+ * @param maxEvenings     how many evening groups to return (newest first)
+ * @param itemsPerEvening how many individual penalties to list per evening before summarizing
  */
-export function recentPenalties(list: MemberPenaltyRow[], limit: number): RecentPenalty[] {
-    return [...list]
-        .sort((a, b) => (tsOf(b.created_at) || tsOf(b.evening_date)) - (tsOf(a.created_at) || tsOf(a.evening_date)))
-        .slice(0, limit)
-        .map(p => ({
-            id: p.id,
-            icon: p.icon,
-            name: p.penalty_type_name,
-            amount: p.amount,
-            date: p.created_at ?? p.evening_date,
-        }))
+export function recentPenaltyEvenings(
+    list: MemberPenaltyRow[],
+    maxEvenings: number,
+    itemsPerEvening: number,
+): PenaltyEveningSummary[] {
+    const groups = new Map<string, {rows: MemberPenaltyRow[]; ts: number; date: string | null}>()
+    for (const p of list) {
+        const key = (p.evening_date ?? p.created_at ?? `id-${p.id}`).slice(0, 10)
+        const g = groups.get(key)
+        if (g) {
+            g.rows.push(p)
+            g.ts = Math.max(g.ts, bestTs(p))
+        } else {
+            groups.set(key, {rows: [p], ts: bestTs(p), date: p.evening_date ?? p.created_at})
+        }
+    }
+    return [...groups.entries()]
+        .sort((a, b) => b[1].ts - a[1].ts)
+        .slice(0, maxEvenings)
+        .map(([key, g]) => {
+            const rows = [...g.rows].sort((a, b) => bestTs(b) - bestTs(a))
+            const items = rows.slice(0, itemsPerEvening).map(toRecentPenalty)
+            return {
+                key,
+                date: g.date,
+                total: rows.reduce((s, r) => s + r.amount, 0),
+                count: rows.length,
+                items,
+                more: rows.length - items.length,
+            }
+        })
 }
