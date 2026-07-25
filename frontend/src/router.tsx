@@ -57,7 +57,7 @@ const indexRoute = createRoute({
 // generic `router.navigate({to: string})` used by the legacy-hash compatibility path.
 export type HomeSearch = Record<string, string | number | undefined>
 export interface EveningSearch { tab?: 'penalties' | 'games' | 'highlights' | 'manage'; item?: number; comment?: number }
-export interface TreasurySearch { tab?: 'overview' | 'accounts' | 'bookings'; member?: number; memberName?: string; rid?: number; q?: string }
+export interface TreasurySearch { tab?: 'overview' | 'analysis' | 'accounts' | 'bookings'; member?: number; memberName?: string; rid?: number; q?: string }
 export interface ScheduleSearch { evening?: number; event?: number }
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }

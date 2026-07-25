@@ -180,11 +180,12 @@ describe('TreasuryPage — overview tab', () => {
         })
     })
 
-    it('shows tab strip with overview, accounts, bookings', async () => {
+    it('shows tab strip with overview, analysis, accounts, bookings', async () => {
         await setupDefaultMocks()
         await renderTreasuryPage()
         await waitFor(() => {
             expect(screen.getByText('treasury.tab.overview')).toBeInTheDocument()
+            expect(screen.getByText('treasury.tab.analysis')).toBeInTheDocument()
             expect(screen.getByText('treasury.tab.accounts')).toBeInTheDocument()
             expect(screen.getByText('treasury.tab.bookings')).toBeInTheDocument()
         })
@@ -239,7 +240,7 @@ describe('TreasuryPage — balance-history chart x-axis labels', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
@@ -1096,7 +1097,7 @@ describe('TreasuryPage — accounts tab totals & share chart', () => {
     })
 })
 
-describe('TreasuryPage — balance filter by players', () => {
+describe('TreasuryPage — glance vs. analysis split', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useHashTab } = await import('@/hooks/usePage.ts')
@@ -1105,166 +1106,195 @@ describe('TreasuryPage — balance filter by players', () => {
         await setupWithData()
     })
 
-    // BALANCES: Admin +10 (credit), Hansi -5.50 (debt), Franz 0 (settled).
-    // Hansi's debtor row renders "-5,50 €" (unique in the fixture). Admin's
-    // credit-list row also renders "+10,00 €", but so does the unrelated
-    // Kassenstand "paid in" total (coincidentally the same amount in this
-    // fixture) — so credit-row presence is checked structurally by its
-    // distinctive class combination instead of by formatted text.
-    const creditRowSelector = 'span.font-bold.text-green-400.text-sm.flex-shrink-0'
+    it('keeps the player filter and the history graph off the glance level', async () => {
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('glance-amount-paidIn')).toBeInTheDocument())
 
-    it('stays collapsed until tapped, hiding member chips', async () => {
+        // Filter + simulation are admin power tools — Analyse only
+        expect(screen.queryByTestId('balance-filter')).not.toBeInTheDocument()
+        // The history chart lives there too, so the glance carries no SVG plot
+        expect(container.querySelector('svg [role="button"]')).toBeNull()
+    })
+
+    it('states the money flow on the glance without the itemised breakdown rows', async () => {
         await renderTreasuryPage()
         await waitFor(() => {
-            expect(screen.getByText(/treasury\.balanceFilter\.title/)).toBeInTheDocument()
+            expect(screen.getByTestId('glance-amount-paidIn')).toHaveTextContent('+10,00 €')
+            expect(screen.getByTestId('glance-amount-outstanding')).toHaveTextContent('5,50 €')
         })
-        expect(within(screen.getByTestId('balance-filter')).queryByText('Hansi')).not.toBeInTheDocument()
+        // The expandable per-booking rows are the Analyse tab's job
+        expect(screen.queryByTestId('flow-amount-paidIn')).not.toBeInTheDocument()
+    })
 
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+    it('links from the cash card into the analysis tab', async () => {
+        const setTab = vi.fn()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['overview', setTab] as any)
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('goto-analysis')).toBeInTheDocument())
 
+        fireEvent.click(screen.getByTestId('goto-analysis'))
+        expect(setTab).toHaveBeenCalledWith('analysis')
+    })
+
+    it('keeps the glance figures unfiltered — the debtor list shows the whole club', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByText(/treasury\.whoOwes/)).toBeInTheDocument()
+            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
+        })
+    })
+})
+
+describe('TreasuryPage — analysis tab', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    it('renders the filter, the itemised money flow and the history graph', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => {
+            expect(screen.getByTestId('balance-filter')).toBeInTheDocument()
+            expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €')
+            expect(screen.getByText(/treasury\.history\.heading/)).toBeInTheDocument()
+        })
+    })
+
+    it('expands a flow row into the bookings behind it', async () => {
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toBeInTheDocument())
+
+        // Collapsed: the contributing member is not listed yet
+        expect(screen.queryByText('Getränke')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByText(/treasury\.flow\.expenses/))
+        await waitFor(() => expect(screen.getByText('Getränke')).toBeInTheDocument())
+    })
+
+    it('shows the club cash figure the flow rows add up to', async () => {
+        await renderTreasuryPage()
+        // paid-in 10,00 − expenses 20,00 = −10,00 €
+        await waitFor(() => expect(screen.getByTestId('analysis-cash')).toHaveTextContent('-10,00 €'))
+    })
+})
+
+describe('TreasuryPage — balance filter by players (analysis tab)', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
+        await setupAsAdmin()
+        await setupWithData()
+    })
+
+    // BALANCES: Admin +10 (paid 10), Hansi -5.50 (paid 0, penalties 5.50), Franz 0.
+    // → paid-in 10,00 €, outstanding 5,50 €. The filter scopes the Analyse tab's own
+    // figures; the Übersicht keeps showing the club's real numbers regardless.
+
+    it('shows the member chips right away — no collapse to tap through', async () => {
+        await renderTreasuryPage()
         await waitFor(() => {
             expect(within(screen.getByTestId('balance-filter')).getByText('Hansi')).toBeInTheDocument()
         })
     })
 
-    it('shows an active-count badge and a clear button once a member is selected — visible even when collapsed', async () => {
+    it('shows an active-count badge and a clear button once a member is selected', async () => {
         await renderTreasuryPage()
         const scope = within(screen.getByTestId('balance-filter'))
-        // Nothing selected → no badge, no clear button
         expect(scope.queryByTestId('balance-filter-active')).not.toBeInTheDocument()
         expect(scope.queryByTestId('balance-filter-clear')).not.toBeInTheDocument()
 
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
 
         await waitFor(() => expect(scope.getByTestId('balance-filter-active')).toHaveTextContent('1'))
         expect(scope.getByTestId('balance-filter-clear')).toBeInTheDocument()
-
-        // Collapse again — the active indicator stays visible in the header
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
-        expect(scope.getByTestId('balance-filter-active')).toHaveTextContent('1')
-        expect(scope.queryByTestId('balance-filter-options')).not.toBeInTheDocument()
     })
 
-    it('clear button resets the filter back to the full totals', async () => {
+    it('clear button resets the filter back to the full figures', async () => {
         await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
 
         fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
 
         fireEvent.click(scope.getByTestId('balance-filter-clear'))
         await waitFor(() => {
-            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
+            expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €')
             expect(scope.queryByTestId('balance-filter-active')).not.toBeInTheDocument()
         })
     })
 
     it('does not show the option checkboxes until a member is selected', async () => {
         await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         expect(scope.queryByTestId('balance-filter-options')).not.toBeInTheDocument()
     })
 
     it('write-off (default on) drops a selected debtor\'s outstanding balance', async () => {
-        const { container } = await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €'))
+
         const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
-
-        // Baseline: Admin's credit-list row is present
-        expect(container.querySelectorAll(creditRowSelector).length).toBe(1)
-
         fireEvent.click(scope.getByText('Hansi'))
 
-        await waitFor(() => {
-            // Hansi's debtor row disappears — their debt is written off, outstanding tile drops to 0
-            expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument()
-        })
-        // Admin's credit is untouched by the write-off (only debt is written off)
-        expect(container.querySelectorAll(creditRowSelector).length).toBe(1)
+        // Nothing outstanding left → the whole row drops out of the flow breakdown
+        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
     })
 
     it('unchecking write-off keeps the selected debtor\'s outstanding balance', async () => {
         await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
 
         fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
 
         fireEvent.click(scope.getByTestId('balance-opt-writeoff'))
-        await waitFor(() => expect(screen.getByText('-5,50 €')).toBeInTheDocument())
+        await waitFor(() => expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €'))
     })
 
-    it('only-selected restricts the tiles/lists to just the selected member', async () => {
-        const { container } = await renderTreasuryPage()
-        // Baseline: Admin's credit-list row is present
-        await waitFor(() => expect(container.querySelectorAll(creditRowSelector).length).toBe(1))
-
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
-        const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
-
-        fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(scope.getByTestId('balance-opt-only')).toBeInTheDocument())
-        fireEvent.click(scope.getByTestId('balance-opt-only'))
-
-        await waitFor(() => {
-            // Hansi (the only selected member) still shows as a debtor (only-mode doesn't write off)
-            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
-        })
-        // Admin's credit list row is excluded from the filtered view (only Hansi is selected)
-        expect(container.querySelectorAll(creditRowSelector).length).toBe(0)
-    })
-
-    it('deselecting a member reverts the tiles/lists to the full totals', async () => {
-        await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
-        const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
-
-        fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
-
-        fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => {
-            expect(screen.getByText('-5,50 €')).toBeInTheDocument()
-        })
-    })
-
-    // BALANCES paidIn (Admin 10 + Hansi 0 + Franz 0) = 10,00 € unfiltered.
-    it('only-selected also scopes the Kassenstand hero paid-in figure', async () => {
+    it('only-selected restricts the figures to just the selected member', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
 
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
         await waitFor(() => expect(scope.getByTestId('balance-opt-only')).toBeInTheDocument())
         fireEvent.click(scope.getByTestId('balance-opt-only'))
 
-        // Only Hansi (payments_total 0) is in scope now — the till-wide Admin deposit drops out
+        // Only Hansi is in scope: their debt stays (only-mode writes nothing off), but
+        // the till-wide Admin deposit drops out of paid-in.
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+0,00 €'))
+        expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €')
     })
 
-    it('write-off leaves the Kassenstand hero paid-in figure unaffected (money already received stays real)', async () => {
+    it('deselecting a member reverts the figures to the full totals', async () => {
+        await renderTreasuryPage()
+        const scope = within(screen.getByTestId('balance-filter'))
+        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
+
+        fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €'))
+    })
+
+    it('write-off leaves the paid-in figure unaffected (money already received stays real)', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
 
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
 
-        await waitFor(() => expect(screen.queryByText('-5,50 €')).not.toBeInTheDocument())
+        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
         expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €')
     })
 
@@ -1278,7 +1308,6 @@ describe('TreasuryPage — balance filter by players', () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+8,00 €'))
 
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
@@ -1295,7 +1324,6 @@ describe('TreasuryPage — balance filter by players', () => {
             { id: 2, amount: -30.00, description: 'Zuschuss', note: null, date: null, created_at: '2026-01-11T10:00:00', updated_at: null, created_by: 1 },
         ] as any)
         await renderTreasuryPage()
-        fireEvent.click(screen.getByText(/treasury\.balanceFilter\.title/))
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
@@ -1310,7 +1338,7 @@ describe('TreasuryPage — balance-history chart point clustering', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
@@ -1362,7 +1390,7 @@ describe('TreasuryPage — balance-history chart debt points & scroll', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
@@ -1450,7 +1478,7 @@ describe('TreasuryPage — balance-history chart member three-line view', () => 
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['overview', vi.fn()] as any)
+        vi.mocked(useHashTab).mockReturnValue(['analysis', vi.fn()] as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
