@@ -10,9 +10,24 @@ from api.deps import require_club_member
 from core.database import get_db
 from models.evening import Evening, RegularMember
 from models.penalty import PenaltyMode
+from models.season import SeasonSnapshot
 from models.user import User
 
 router = APIRouter(prefix="/stats", tags=["stats"])
+
+# Club records (#68). Order here is the order the Statistik-Labor renders them in.
+RECORD_ORDER = (
+    "most_expensive_evening",
+    "worst_evening_member",
+    "biggest_single_penalty",
+    "longest_streak",
+    "most_kings",
+    "most_wins",
+    "thirstiest_evening",
+    "best_throw_evening",
+)
+# A single lucky throw should not become the club's all-time best average.
+MIN_THROWS_FOR_RECORD = 10
 
 
 def _pearson(xs: list[float], ys: list[float]) -> float | None:
@@ -102,9 +117,24 @@ def get_year_stats(year: int, db: Session = Depends(get_db), user: User = Depend
         tc = p_stat["throw_count"]
         p_stat["avg_pins"] = round(p_stat["total_pins"] / tc, 1) if tc > 0 else None
 
+    # Per-evening penalty totals for the "penalties per evening" bar chart. The evening
+    # list endpoint does not carry them, and the evenings are already loaded here.
+    evening_rows = [
+        {
+            "id": e.id,
+            "date": e.date.isoformat() if e.date else None,
+            "venue": e.venue,
+            "penalty_total": round(
+                sum(_penalty_euro(l) for l in e.penalty_log if not l.is_deleted), 2
+            ),
+        }
+        for e in sorted(evenings, key=lambda x: x.date)
+    ]
+
     return {
         "year": year,
         "evening_count": len(evenings),
+        "evenings": evening_rows,
         "total_penalties": sum(
             _penalty_euro(l) for e in evenings for l in e.penalty_log
             if not l.is_deleted
@@ -483,6 +513,151 @@ def _year_penalty_by_member(evenings: list) -> dict:
             if log.player_id is None and log.regular_member_id is not None and not log.is_deleted:
                 totals[log.regular_member_id] += _penalty_euro(log)
     return totals
+
+
+def _player_display_name(player) -> str:
+    """Kegelname first, per the app-wide display-name convention."""
+    if player.regular_member is not None:
+        return player.regular_member.nickname or player.regular_member.name
+    return player.name
+
+
+def _compute_club_records(evenings: list, closed_years: set) -> dict:
+    """All-time club records plus a per-season rollup, derived purely from evening data.
+
+    A record whose underlying data does not exist yet (no throws logged, nobody
+    crowned king, …) is left out of the result entirely rather than returned with an
+    empty holder — the same "never show a misleading winner" rule the Hall of Shame
+    follows on the frontend.
+    """
+    ordered = sorted(evenings, key=lambda e: e.date)
+
+    # (value, holder_name, holder_member_id, date, evening_id) per candidate record
+    best: dict = {}
+
+    def offer(key: str, icon: str, unit: str, value: float,
+              holder_name: str | None = None, holder_member_id: int | None = None,
+              date=None, evening_id: int | None = None) -> None:
+        """Keep the highest value seen for `key`."""
+        if value <= 0:
+            return
+        current = best.get(key)
+        if current is not None and current["value"] >= value:
+            return
+        best[key] = {
+            "key": key,
+            "icon": icon,
+            "unit": unit,
+            "value": round(value, 2),
+            "holder_name": holder_name,
+            "holder_member_id": holder_member_id,
+            "date": date.isoformat() if date is not None else None,
+            "evening_id": evening_id,
+        }
+
+    # Per-member career tallies
+    kings: dict = defaultdict(int)
+    wins: dict = defaultdict(int)
+    member_names: dict = {}
+    attendance: dict = defaultdict(list)   # member_id → per-evening attendance flags
+
+    # Per-season rollups
+    seasons: dict = defaultdict(lambda: {
+        "evening_count": 0, "penalty_total": 0.0, "drink_count": 0, "player_ids": set(),
+    })
+
+    for e in ordered:
+        attending = {p.regular_member_id for p in e.players if p.regular_member_id is not None}
+        for mid in set(attendance) | attending:
+            attendance[mid].append(mid in attending)
+
+        evening_penalty = 0.0
+        per_player_penalty: dict = defaultdict(float)
+        for log in e.penalty_log:
+            if log.is_deleted:
+                continue
+            euro = _penalty_euro(log)
+            evening_penalty += euro
+            if log.player_id is not None:
+                per_player_penalty[log.player_id] += euro
+            holder_mid = log.regular_member_id
+            if holder_mid is None and log.player is not None:
+                holder_mid = log.player.regular_member_id
+            offer("biggest_single_penalty", "🧾", "eur", euro,
+                  log.player_name, holder_mid, e.date, e.id)
+
+        offer("most_expensive_evening", "💸", "eur", evening_penalty, None, None, e.date, e.id)
+
+        evening_drinks = sum(
+            len(r.participant_ids or []) for r in e.drink_rounds if not r.is_deleted
+        )
+        offer("thirstiest_evening", "🍻", "count", evening_drinks, None, None, e.date, e.id)
+
+        for p in e.players:
+            display = _player_display_name(p)
+            if p.regular_member_id is not None:
+                member_names[p.regular_member_id] = display
+                if p.is_king:
+                    kings[p.regular_member_id] += 1
+
+            offer("worst_evening_member", "😱", "eur", per_player_penalty.get(p.id, 0.0),
+                  display, p.regular_member_id, e.date, e.id)
+
+            pins = throws = 0
+            for g in e.games:
+                if g.is_deleted:
+                    continue
+                if g.winner_ref == f"p:{p.id}" or (p.team_id and g.winner_ref == f"t:{p.team_id}"):
+                    if p.regular_member_id is not None:
+                        wins[p.regular_member_id] += 1
+                for th in g.throws:
+                    if th.player_id == p.id:
+                        pins += th.pins
+                        throws += 1
+            if throws >= MIN_THROWS_FOR_RECORD:
+                offer("best_throw_evening", "🎳", "pins", pins / throws,
+                      display, p.regular_member_id, e.date, e.id)
+
+        year = e.date.year
+        season = seasons[year]
+        season["evening_count"] += 1
+        season["penalty_total"] += evening_penalty
+        season["drink_count"] += evening_drinks
+        season["player_ids"].update(p.id for p in e.players)
+
+    for mid, count in kings.items():
+        offer("most_kings", "👑", "count", count, member_names.get(mid), mid)
+    for mid, count in wins.items():
+        offer("most_wins", "🏆", "count", count, member_names.get(mid), mid)
+    for mid, flags in attendance.items():
+        offer("longest_streak", "🔥", "count", _longest_run(flags), member_names.get(mid), mid)
+
+    season_rows = [
+        {
+            "year": year,
+            "evening_count": s["evening_count"],
+            "penalty_total": round(s["penalty_total"], 2),
+            "drink_count": s["drink_count"],
+            "player_count": len(s["player_ids"]),
+            "season_closed": year in closed_years,
+        }
+        for year, s in sorted(seasons.items(), reverse=True)
+    ]
+
+    return {
+        "records": [best[key] for key in RECORD_ORDER if key in best],
+        "seasons": season_rows,
+    }
+
+
+@router.get("/records")
+def get_club_records(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """All-time club records and per-season rollups (Statistik-Labor)."""
+    evenings = db.query(Evening).filter(Evening.club_id == user.club_id).all()
+    closed_years = {
+        s.year for s in db.query(SeasonSnapshot).filter(SeasonSnapshot.club_id == user.club_id).all()
+    }
+    return _compute_club_records(evenings, closed_years)
 
 
 # NOTE: /me/achievements must be registered BEFORE /me/{year} so FastAPI does

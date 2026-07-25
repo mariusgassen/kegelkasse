@@ -628,6 +628,7 @@ export const api = {
     getYearStats: (year: number) => request<{
         year: number;
         evening_count: number;
+        evenings: { id: number; date: string; venue: string | null; penalty_total: number }[];
         total_penalties: number;
         total_beers: number;
         total_shots: number;
@@ -646,6 +647,8 @@ export const api = {
     }>('GET', `/stats/me/${year}`),
     getMyThrowStats: (year?: number) => request<import('../types').ThrowStats>('GET', `/stats/me/throws${year ? `?year=${year}` : ''}`),
     getMemberThrowStats: (memberId: number, year?: number) => request<import('../types').ThrowStats>('GET', `/stats/members/${memberId}/throws${year ? `?year=${year}` : ''}`),
+    getClubRecords: () =>
+        request<import('../types').ClubRecordsResponse>('GET', '/stats/records'),
     getCorrelationStats: (year: number) =>
         request<import('../types').CorrelationStats>('GET', `/stats/correlation/${year}`),
     getEveningCorrelation: (eveningId: number, binMinutes: number = 15) =>

@@ -8,7 +8,13 @@ sidebar_label: Statistiken
 
 Die **Statistiken** bieten ein Jahresranking für alle Stammspieler des Vereins sowie persönliche Jahresauswertungen im eigenen Profil.
 
-Navigiere zu **Statistiken** (📊) in der Navigation. Die Seite ist in zwei Tabs aufgeteilt: **Abend** (Abend-Detail, siehe unten) und **Jahr** (Jahresranking + Korrelations-Sektion).
+Navigiere zu **Statistiken** (📊) in der Navigation. Die Seite ist in drei Tabs aufgeteilt:
+
+- **Abend** — Abend-Detail (siehe unten)
+- **Jahr** — Jahresranking, Podium, Halle der Schande
+- **📊 Labor** — das Statistik-Labor mit allen Tiefenauswertungen (Vereinsrekorde, Kopf-an-Kopf, Saison-Vergleich, Strafen × Getränke)
+
+Die Tabs **Abend** und **Jahr** beantworten auf einen Blick „was ist passiert" und „wer führt". Alles, was man bewusst aufsucht, steckt im **Labor** — so bleiben die beiden anderen Tabs kurz.
 
 ## Jahresranking
 
@@ -46,6 +52,37 @@ Direkt unter dem Jahres-Podium zeigt die **Halle der Schande** vier augenzwinker
 
 Eine Auszeichnung erscheint nur, wenn mindestens ein Mitglied die Mindestanzahl erreicht — sonst bleibt die Kategorie ausgeblendet, statt einen irreführenden „Sieger" zu zeigen. Ein Tipp auf eine Zeile öffnet das Spieler-Detail, wie beim Podium und dem Jahresranking auch. Während einer aktiven Mitgliedersuche ist die Halle der Schande ausgeblendet.
 
+## 📊 Statistik-Labor
+
+Das **Labor** ist die Tiefenauswertung. Der Jahresauswähler oben gilt hier genauso wie im Jahr-Tab.
+
+### 🏅 Vereinsrekorde
+
+Alle Bestwerte des Vereins über die gesamte Vereinsgeschichte (nicht nur die gewählte Saison):
+
+| Rekord | Kriterium |
+|--------|-----------|
+| 💸 **Teuerster Abend** | Höchste Strafensumme an einem einzelnen Abend |
+| 😱 **Teuerster Abend eines Spielers** | Höchste Strafensumme, die ein einzelner Spieler an einem Abend gesammelt hat |
+| 🧾 **Höchste Einzelstrafe** | Größter Einzelbetrag im Strafen-Log |
+| 🔥 **Längste Anwesenheits-Serie** | Meiste Kegelabende in Folge dabei |
+| 👑 **Meiste Königstitel** | Häufigster Gewinner des Eröffnungsspiels |
+| 🏆 **Meiste Spielsiege** | Meiste gewonnene Spiele (Einzel- und Teamsiege) |
+| 🍻 **Durstigster Abend** | Meiste Getränke-Teilnahmen an einem Abend |
+| 🎳 **Bester Wurf-Schnitt an einem Abend** | Höchster Ø-Holz-Wert an einem Abend (mind. 10 Würfe) |
+
+Ein Rekord erscheint nur, wenn es dafür überhaupt Daten gibt — sonst bleibt die Zeile weg, statt einen leeren „Rekordhalter" zu zeigen. Bei ausgeschalteter Wurf-Erfassung (Verein → Einstellungen) entfällt der Wurf-Rekord. Ein Tipp auf einen Rekord mit Rekordhalter öffnet dessen Spieler-Detail.
+
+### ⚔️ Kopf-an-Kopf
+
+Zwei Mitglieder direkt vergleichen: Das eigene Konto steht als erste Pille (Slot ①) voreingestellt, ein Tipp auf ein zweites Mitglied füllt Slot ② und zeigt die Gegenüberstellung. Erneutes Antippen der zweiten Pille löst den Vergleich wieder, ein Tipp auf Slot ① tauscht die beiden Seiten.
+
+Verglichen werden für die gewählte Saison: Abende, Strafen gesamt, Ø Strafe pro Abend, Spielsiege, Ø Siege pro Abend, Bier- und Schnapsrunden sowie der Ø Wurf (nur bei aktivierter Wurf-Erfassung). Der jeweils höhere Wert wird hervorgehoben.
+
+### 📊 Saison-Vergleich
+
+Eine Zeile pro Saison mit Strafensumme, Anzahl Abende, Anzahl Spieler, Getränken und Ø Strafe pro Abend; der Balken vergleicht die Strafensummen der Saisons untereinander. Die Werte werden aus den Kegelabenden berechnet — dadurch erscheinen auch **laufende** Saisons, nicht nur formal abgeschlossene. Formal abgeschlossene Saisons (Saisonabschluss im Verein-Tab) sind mit ✅ markiert. Ein Tipp auf eine Saison stellt den Jahresauswähler auf dieses Jahr um.
+
 ## Abend-Detail
 
 Über die Abend-Auswahl oben auf der Statistik-Seite lässt sich ein einzelner Abend analysieren:
@@ -55,18 +92,17 @@ Eine Auszeichnung erscheint nur, wenn mindestens ein Mitglied die Mindestanzahl 
 - **🍺 / 🥃-Karten**: Öffnen die Getränke-Runden-Übersicht
 - **🏆 Spiele-Karte**: Öffnet die **Spiele & Ergebnisse**-Übersicht mit Status, Sieger, Punkten und Wurf-Statistik je Spiel. Zeigt nur die Gesamtzahl, wenn alle Spiele beendet sind, sonst `fertig/gesamt`
 - **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können antippbar — sie blenden die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) ein
-- **🌡️ Spuren pro Spieler**: Direkt unter den Verlaufs-Kurven; eine horizontale Spur pro aktivem Spieler. Hintergrund-Zellen pro Zeitfenster werden amber eingefärbt (heller → kühl, dunkler → heiß), je nach Strafen-€-Spitze; eine orange Linie zeigt die aufgelaufene Getränkezahl. Steigt die Linie durch heiße Zellen, fielen Strafen und Trinken zusammen. Zeitfenster über Pills 5 / 15 / 30 Min umschaltbar
 - **Hall of Fame**: Auszeichnungen wie StrafenkaiserIn, Bier-Champ, Spiele-KönigIn
 
 ## Strafen × Getränke-Korrelation
 
-Im Jahresrückblick gibt es eine Korrelations-Sektion mit drei Tabs, die untersuchen, wie Strafen und Getränke (Bier + Schnaps zusammen) zusammenhängen. Abende ohne Getränkerunden werden überall im Jahresrückblick herausgefiltert (Datenlücke statt echter Null-Beobachtung); der Pearson *r* wird aus den verbleibenden Abenden frontendseitig neu berechnet.
+Die Korrelations-Auswertungen liegen im **📊 Labor**-Tab (bis Version 1.41 waren sie im Jahr- bzw. Abend-Tab eingebettet). Es gibt eine Korrelations-Sektion mit drei Tabs, die untersuchen, wie Strafen und Getränke (Bier + Schnaps zusammen) zusammenhängen. Abende ohne Getränkerunden werden überall im Jahresrückblick herausgefiltert (Datenlücke statt echter Null-Beobachtung); der Pearson *r* wird aus den verbleibenden Abenden frontendseitig neu berechnet.
 
 - **Korrelations-Stärke** (Standard-Tab): Pro Mitglied wird Pearson *r* über alle besuchten Abende berechnet (Strafen vs Getränke an dem Abend) und als **diverging Balken auf einer signierten −1…+1-Skala** dargestellt — positive *r*-Werte füllen nach rechts (grün), negative nach links (rot), |*r*|&nbsp;&lt;&nbsp;0,2 bleibt muted in der Mitte. Die Zahl rechts wird mit Vorzeichen angezeigt (z. B. `+0.74`, `−0.31`). Sortiert nach signiertem *r* (stärkster positiver Zusammenhang oben). Mitglieder mit weniger als 3 Abenden erscheinen unten als Hinweis.
 - **Pro Abend**: Streudiagramm — ein Punkt pro Abend des gewählten Jahres. X-Achse = Strafen (€), Y-Achse = Getränke-Runden. Eine gestrichelte Trendlinie und ein Pearson-*r*-Badge zeigen, ob strafenreiche Abende auch mehr Runden bedeuten. Direkt darunter eine konkrete, vergleichbare Zahl: das **Strafe-pro-Getränk-Badge „€ Strafe pro Getränk im Jahr"** (Summe Strafen-€ / Summe Getränke über alle berücksichtigten Abende), z. B. „3,20 € pro Getränk". Darunter eine **Saison-Kumulativ-Linie** (kumulierte Strafen & Getränke über alle Abende des Jahres), eine Plain-Language-Zusammenfassung („Pro +1 € Strafe ≈ +X Getränke") sowie ein Quartil-Vergleich der strafenreichsten 25 % vs ruhigsten 25 % Abende und — ab 10 Abenden — ein **Top-5 vs ruhigste 5 Streak-Vergleich** in absoluten Zahlen.
 - **Pro Mitglied**: Streudiagramm — ein Punkt pro Mitglied **und** Abend, farbcodiert pro Mitglied. Über eine Pill-Legend (im app-weit einheitlichen `chip`-Stil) lässt sich auf ein einzelnes Mitglied fokussieren; im Fokus erscheint zusätzlich eine Trendlinie und der persönliche Pearson *r*.
 
-Direkt in der **Abend-Detail-Sektion** (oben auf der Statistik-Seite, abhängig vom gewählten Abend) erscheint zusätzlich das Panel **Strafen × Getränke (Verlauf)**: Pill-Picker für Mitglied (inklusive „**Alle**"-Pill als Standard für den Vergleich) und Zeitfenster (5 / 15 / 30 Min).
+Darunter im selben Labor-Tab liegt das Panel **Verlauf an einem Abend**: eine eigene Abend-Auswahl (neuester Abend als Standard) sowie Pill-Picker für Mitglied (inklusive „**Alle**"-Pill als Standard für den Vergleich) und Zeitfenster (5 / 15 / 30 Min).
 
 - Im **Vergleichs-Modus** („Alle" ausgewählt) stapelt das Panel eine **Heat-Lane** pro Mitglied: Hintergrund-Zellen pro Zeitfenster werden amber je nach Strafen-€-Spitze eingefärbt (heller → kühl, dunkler → heiß), während eine orange Linie die aufgelaufenen Getränke („Rausch-Pegel") über den Abend hinweg darstellt. Wenn die Getränke-Linie durch heiße Zellen steigt, fallen Trinken und Strafen zusammen — sofort am Bild ablesbar.
 - Tap auf eine Lane (oder ein Mitglied-Pill) öffnet den **Fokus-Modus**: kumulierte Strafen-/Getränke-Kurve (Dual-Axis-Line), ein Δ-Bar-Chart pro Zeitfenster und das Pearson *r* der Veränderungen — als Hinweis darauf, ob das Mitglied im Laufe des Abends gleichzeitig zu Strafen und Runden neigt.

@@ -62,7 +62,7 @@ export interface ScheduleSearch { evening?: number; event?: number }
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
 export interface MembersSearch { memberName?: string }
-export interface StatsSearch { tab?: 'evening' | 'year' }
+export interface StatsSearch { tab?: 'evening' | 'year' | 'lab' }
 
 const passThrough = <T,>(s: Record<string, unknown>): T => s as T
 

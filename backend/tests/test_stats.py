@@ -181,6 +181,27 @@ class TestYearStats:
         assert me["penalty_total"] == 1.5
         assert me["penalty_count"] == 1
 
+    def test_returns_per_evening_penalty_totals(self, client: TestClient, member_headers: dict,
+                                                db: Session, evening_2025: Evening,
+                                                player: EveningPlayer):
+        # The evening list endpoint carries no penalty totals, so the "penalties per
+        # evening" bar chart is fed from here.
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(
+            evening_id=evening_2025.id,
+            player_id=player.id,
+            player_name="Statsy",
+            penalty_type_name="Test",
+            amount=3.5,
+            mode=PenaltyMode.euro,
+            client_timestamp=time.time() * 1000,
+        ))
+        db.commit()
+        rows = client.get("/api/v1/stats/year/2025", headers=member_headers).json()["evenings"]
+        assert len(rows) == 1
+        assert rows[0]["id"] == evening_2025.id
+        assert rows[0]["penalty_total"] == 3.5
+
     def test_counts_beer_rounds(self, client: TestClient, member_headers: dict,
                                 db: Session,
                                 evening_2025: Evening, player: EveningPlayer, member: RegularMember):
@@ -1230,3 +1251,207 @@ class TestWrapped:
 
     def test_requires_auth(self, client: TestClient):
         assert client.get("/api/v1/stats/me/wrapped/2025").status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /stats/records — all-time club records + season rollups (#68)
+# ---------------------------------------------------------------------------
+
+class TestClubRecords:
+    @pytest.fixture(autouse=True)
+    def snapshot_cleanup(self, db: Session, club: Club):
+        yield
+        from models.season import SeasonSnapshot
+        db.query(SeasonSnapshot).filter(SeasonSnapshot.club_id == club.id).delete(
+            synchronize_session=False
+        )
+        db.commit()
+
+    def test_requires_auth(self, client: TestClient):
+        assert client.get("/api/v1/stats/records").status_code == 401
+
+    def test_empty_club_has_no_records(self, client: TestClient, member_headers: dict):
+        r = client.get("/api/v1/stats/records", headers=member_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["records"] == []
+        assert data["seasons"] == []
+
+    def test_penalty_records(self, client: TestClient, member_headers: dict, db: Session,
+                             evening_2025: Evening, player: EveningPlayer, member: RegularMember):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Pudel", amount=4.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Fehlwurf", amount=6.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+
+        assert records["most_expensive_evening"]["value"] == 10.0
+        assert records["most_expensive_evening"]["evening_id"] == evening_2025.id
+        assert records["biggest_single_penalty"]["value"] == 6.0
+        assert records["biggest_single_penalty"]["holder_member_id"] == member.id
+        assert records["worst_evening_member"]["value"] == 10.0
+        assert records["worst_evening_member"]["holder_name"] == "Statsy"
+
+    def test_count_mode_penalty_uses_euro_value(self, client: TestClient, member_headers: dict,
+                                                db: Session, evening_2025: Evening,
+                                                player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Pumpe", amount=3.0, unit_amount=0.5,
+                          mode=PenaltyMode.count, client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["most_expensive_evening"]["value"] == 1.5
+
+    def test_deleted_penalties_excluded(self, client: TestClient, member_headers: dict,
+                                        db: Session, evening_2025: Evening, player: EveningPlayer):
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=evening_2025.id, player_id=player.id, player_name="Statsy",
+                          penalty_type_name="Storniert", amount=99.0, mode=PenaltyMode.euro,
+                          is_deleted=True, client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert "most_expensive_evening" not in records
+
+    def test_king_and_win_records(self, client: TestClient, member_headers: dict, db: Session,
+                                  evening_2025: Evening, player: EveningPlayer,
+                                  member: RegularMember):
+        player.is_king = True
+        db.add(Game(evening_id=evening_2025.id, name="Spiel 1", status="finished",
+                    winner_ref=f"p:{player.id}", client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["most_kings"]["value"] == 1
+        assert records["most_kings"]["holder_member_id"] == member.id
+        assert records["most_wins"]["value"] == 1
+
+    def test_team_win_counts_toward_record(self, client: TestClient, member_headers: dict,
+                                           db: Session, evening_2025: Evening,
+                                           player: EveningPlayer):
+        team = Team(evening_id=evening_2025.id, name="Team A")
+        db.add(team)
+        db.commit()
+        db.refresh(team)
+        player.team_id = team.id
+        db.add(Game(evening_id=evening_2025.id, name="Team-Spiel", status="finished",
+                    winner_ref=f"t:{team.id}", client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["most_wins"]["value"] == 1
+
+    def test_thirstiest_evening(self, client: TestClient, member_headers: dict, db: Session,
+                                evening_2025: Evening, player: EveningPlayer):
+        db.add(DrinkRound(evening_id=evening_2025.id, drink_type="beer",
+                          participant_ids=[player.id], is_deleted=False,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["thirstiest_evening"]["value"] == 1
+
+    def test_throw_record_needs_minimum_throws(self, client: TestClient, member_headers: dict,
+                                               db: Session, evening_2025: Evening,
+                                               player: EveningPlayer):
+        game = Game(evening_id=evening_2025.id, name="Spiel", status="finished",
+                    client_timestamp=time.time() * 1000)
+        db.add(game)
+        db.commit()
+        db.refresh(game)
+        for n in range(9):
+            db.add(GameThrowLog(game_id=game.id, player_id=player.id, throw_num=n + 1, pins=9))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert "best_throw_evening" not in records
+
+        db.add(GameThrowLog(game_id=game.id, player_id=player.id, throw_num=10, pins=9))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["best_throw_evening"]["value"] == 9.0
+
+    def test_longest_attendance_streak(self, client: TestClient, member_headers: dict,
+                                       db: Session, club: Club, member: RegularMember):
+        from datetime import datetime
+        # Present, present, absent, present → longest run is 2.
+        for i, present in enumerate([True, True, False, True]):
+            e = Evening(club_id=club.id, date=datetime(2025, 1, i + 1), is_closed=True)
+            db.add(e)
+            db.commit()
+            db.refresh(e)
+            if present:
+                db.add(EveningPlayer(evening_id=e.id, regular_member_id=member.id,
+                                     name=member.nickname or member.name))
+        db.commit()
+        records = {r["key"]: r for r in client.get(
+            "/api/v1/stats/records", headers=member_headers).json()["records"]}
+        assert records["longest_streak"]["value"] == 2
+        assert records["longest_streak"]["holder_member_id"] == member.id
+
+    def test_seasons_rollup_and_closed_flag(self, client: TestClient, member_headers: dict,
+                                            db: Session, club: Club, member: RegularMember,
+                                            member_user: User):
+        from datetime import datetime
+        from models.penalty import PenaltyMode
+        from models.season import SeasonSnapshot
+        for year, amount in ((2024, 3.0), (2025, 7.0)):
+            e = Evening(club_id=club.id, date=datetime(year, 5, 5), is_closed=True)
+            db.add(e)
+            db.commit()
+            db.refresh(e)
+            p = EveningPlayer(evening_id=e.id, regular_member_id=member.id, name="Statsy")
+            db.add(p)
+            db.commit()
+            db.refresh(p)
+            db.add(PenaltyLog(evening_id=e.id, player_id=p.id, player_name="Statsy",
+                              penalty_type_name="P", amount=amount, mode=PenaltyMode.euro,
+                              client_timestamp=time.time() * 1000))
+        db.add(SeasonSnapshot(club_id=club.id, year=2024, closed_by_id=member_user.id,
+                              member_count=1, evening_count=1, carry_over_count=0,
+                              total_penalties=3.0, total_payments=0.0))
+        db.commit()
+
+        seasons = client.get("/api/v1/stats/records", headers=member_headers).json()["seasons"]
+        assert [s["year"] for s in seasons] == [2025, 2024]
+        by_year = {s["year"]: s for s in seasons}
+        assert by_year[2025]["penalty_total"] == 7.0
+        assert by_year[2025]["evening_count"] == 1
+        assert by_year[2025]["player_count"] == 1
+        assert by_year[2024]["season_closed"] is True
+        assert by_year[2025]["season_closed"] is False
+
+    def test_other_clubs_records_not_included(self, client: TestClient, member_headers: dict,
+                                              db: Session, evening_2025: Evening,
+                                              player: EveningPlayer):
+        from datetime import datetime
+        other = Club(name="Other Club", slug="other-records-club")
+        db.add(other)
+        db.commit()
+        db.refresh(other)
+        other_evening = Evening(club_id=other.id, date=datetime(2025, 7, 7), is_closed=True)
+        db.add(other_evening)
+        db.commit()
+        db.refresh(other_evening)
+        from models.penalty import PenaltyMode
+        db.add(PenaltyLog(evening_id=other_evening.id, player_name="Fremd",
+                          penalty_type_name="P", amount=999.0, mode=PenaltyMode.euro,
+                          client_timestamp=time.time() * 1000))
+        db.commit()
+
+        data = client.get("/api/v1/stats/records", headers=member_headers).json()
+        assert all(r["value"] != 999.0 for r in data["records"])
+
+        db.query(PenaltyLog).filter(PenaltyLog.evening_id == other_evening.id).delete(
+            synchronize_session=False)
+        db.query(Evening).filter(Evening.club_id == other.id).delete(synchronize_session=False)
+        db.query(Club).filter(Club.id == other.id).delete(synchronize_session=False)
+        db.commit()
