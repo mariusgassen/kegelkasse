@@ -11,6 +11,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {Loading} from '@/components/ui/Loading.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -181,11 +182,13 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                 </p>
                             </div>
                             {canWrite && (
-                                <button
-                                    className="text-kce-muted hover:text-red-400 text-lg leading-none flex-shrink-0 mt-0.5"
-                                    onClick={() => setDelId(a.id)}>
-                                    ×
-                                </button>
+                                <CardActionMenu
+                                    title={a.title}
+                                    actions={[
+                                        {icon: '🗑️', label: t('action.delete'), danger: true,
+                                            onClick: () => setDelId(a.id)},
+                                    ]}
+                                />
                             )}
                         </div>
                         <ItemReactionBar
@@ -504,6 +507,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
     onEdit: () => void
     onDelete: () => void
 }) {
+    const t = useT()
     return (
         <div id={`item-${trip.id}`} className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-2">
@@ -521,18 +525,13 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
                     )}
                 </div>
                 {canWrite && (
-                    <div className="flex gap-1 flex-shrink-0">
-                        <button
-                            className="text-kce-muted hover:text-kce-amber text-xs px-2 py-1 rounded"
-                            onClick={onEdit}>
-                            ✏️
-                        </button>
-                        <button
-                            className="text-kce-muted hover:text-red-400 text-lg leading-none px-1"
-                            onClick={onDelete}>
-                            ×
-                        </button>
-                    </div>
+                    <CardActionMenu
+                        title={trip.destination}
+                        actions={[
+                            {icon: '✏️', label: t('action.edit'), onClick: onEdit},
+                            {icon: '🗑️', label: t('action.delete'), danger: true, onClick: onDelete},
+                        ]}
+                    />
                 )}
             </div>
             <ItemReactionBar
@@ -722,19 +721,16 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                     )}
                                 </div>
                                 {canWrite && (
-                                    <div className="flex gap-1 flex-shrink-0">
-                                        <button
-                                            className="text-kce-muted hover:text-kce-amber text-xs px-1.5 py-1 rounded"
-                                            title={poll.is_closed ? t('committee.poll.reopen') : t('committee.poll.close')}
-                                            onClick={() => handleToggleClose(poll)}>
-                                            {poll.is_closed ? '🔓' : '🔒'}
-                                        </button>
-                                        <button
-                                            className="text-kce-muted hover:text-red-400 text-lg leading-none px-1"
-                                            onClick={() => setDelId(poll.id)}>
-                                            ×
-                                        </button>
-                                    </div>
+                                    <CardActionMenu
+                                        title={poll.title}
+                                        actions={[
+                                            {icon: poll.is_closed ? '🔓' : '🔒',
+                                                label: poll.is_closed ? t('committee.poll.reopen') : t('committee.poll.close'),
+                                                onClick: () => handleToggleClose(poll)},
+                                            {icon: '🗑️', label: t('action.delete'), danger: true,
+                                                onClick: () => setDelId(poll.id)},
+                                        ]}
+                                    />
                                 )}
                             </div>
 

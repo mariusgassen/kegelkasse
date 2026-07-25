@@ -25,7 +25,7 @@ Dashboard jederzeit wieder.
 | **💳 Mein Konto** | Dein aktueller Kontostand (offener Betrag, Guthaben oder „Alles bezahlt"). **Zur Kasse** öffnet dein Konto in der Kasse. |
 | **📣 Neuigkeiten** | Die neuesten Ankündigungen und Kegelfahrten. Ein Tipp öffnet den jeweiligen Eintrag im Neuigkeiten-Bereich. |
 | **🎳 Meine Saison** | Dein Wurfschnitt der Saison samt kleiner Trendkurve. **Statistik** öffnet die ausführliche Auswertung. |
-| **🎯 Meine letzten Strafen** | Deine zuletzt erfassten Strafen (Symbol, Bezeichnung, Datum und Betrag). **Zur Kasse** öffnet dein Konto mit allen Buchungen. |
+| **🎯 Meine letzten Strafen** | Deine zuletzt erfassten Strafen — **nach Kegelabend gruppiert**: pro Abend das Datum und die **Gesamtsumme** aller Strafen dieses Abends, darunter einige Einzelstrafen. Fallen mehr Strafen an als angezeigt werden, fasst eine Zeile **„und N weitere"** den Rest zusammen. **Zur Kasse** öffnet dein Konto mit allen Buchungen. |
 
 ## Hinweise
 

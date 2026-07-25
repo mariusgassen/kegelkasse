@@ -213,6 +213,24 @@ describe('HomePage', () => {
         expect(screen.getByText('home.recentPenalties')).toBeInTheDocument()
     })
 
+    it('groups an evening’s penalties, shows the total and an "and N more" summary', async () => {
+        api.getMemberPenalties.mockResolvedValue([
+            {id: 11, amount: 2, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 3,
+                evening_date: '2026-07-20', is_absence: false, created_at: '2026-07-20T21:00'},
+            {id: 12, amount: 3, icon: '🎯', penalty_type_name: 'Fehlwurf', evening_id: 3,
+                evening_date: '2026-07-20', is_absence: false, created_at: '2026-07-20T21:05'},
+            {id: 13, amount: 1, icon: '🥃', penalty_type_name: 'Schnaps', evening_id: 3,
+                evening_date: '2026-07-20', is_absence: false, created_at: '2026-07-20T21:10'},
+            {id: 14, amount: 4, icon: '💸', penalty_type_name: 'Extra', evening_id: 3,
+                evening_date: '2026-07-20', is_absence: false, created_at: '2026-07-20T21:15'},
+        ])
+        await renderHome()
+        // Evening total (2+3+1+4 = 10 €) is shown, not just the last penalty.
+        await waitFor(() => expect(screen.getByText('10,00 €')).toBeInTheDocument())
+        // Only 3 of 4 penalties are listed individually; the 4th folds into "and 1 more".
+        expect(screen.getByText('home.penaltyMore')).toBeInTheDocument()
+    })
+
     it('hides the recent-penalties section when there are none', async () => {
         await renderHome()
         await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
