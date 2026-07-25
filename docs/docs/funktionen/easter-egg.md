@@ -9,22 +9,23 @@ sidebar_label: Easter Egg 🎳
 Ein kleines Osterei für zwischendurch: Tippe im Kopfbereich **5× schnell hintereinander** auf das
 Vereinslogo (bzw. den Vereinsnamen), und ein verstecktes 9-Pin-Kegelspiel öffnet sich als Vollbild.
 
+Die Bahn wird in **perspektivischer 3D-Ansicht** dargestellt: Holzbahn mit grünen Seitenbanden, im
+Hintergrund die Kegelmaschine (VOLLMER-Optik) mit Lampen-Raute, einer grünen **7-Segment-Anzeige**
+und einem kleinen **Wimpel mit dem Vereinslogo**.
+
 ## So wird gespielt
 
-1. **Zielen** – Eine gestrichelte Ziellinie schwenkt automatisch hin und her. Tippe irgendwo auf die
-   Bahn, um den Winkel festzulegen.
-2. **Kraft & Wurf** – Ein Kraftbalken füllt sich auf und ab. Tippe erneut, um die Kraft zu setzen und
-   die Kugel zu werfen.
-3. **Kegeln fallen** – Die Kugel rollt die Bahn hoch und räumt die Rauten-Aufstellung der 9 Kegel ab.
+1. **Wischen zum Werfen** – Mit dem Finger (oder der Maus) von unten nach oben über die Bahn
+   wischen. Die **Richtung** des Wischers bestimmt den Zielwinkel, die **Länge** die Wurfkraft.
+2. **Kegeln fallen** – Die Kugel rollt die Bahn hoch und die getroffenen Kegel **kippen sichtbar um**.
 
 ## Regeln
 
-- **Drei Kugeln** pro Spiel.
-- Getroffene Kegel verschwinden von der Bahn; die verbleibenden bleiben stehen und können mit der
-  nächsten Kugel weiter abgeräumt werden.
-- Wer **alle Neune** abräumt, bekommt ein frisch aufgestelltes Bild als Bonus und darf mit den
-  restlichen Kugeln weiterspielen.
-- Die Punkte sind die Summe aller gefallenen Kegel.
+- **Drei Würfe** pro Spiel.
+- Vor **jedem** Wurf werden alle 9 Kegel neu aufgestellt – die Höchstpunktzahl ist also **3 × 9 = 27**.
+- Die 7-Segment-Anzeige zeigt den aktuellen Wurf (gefallene Kegel) und den Gesamtstand.
+- Wer **alle Neune** abräumt, bekommt einen kleinen Jubel-Hinweis.
+- Die Punkte sind die Summe aller gefallenen Kegel über die drei Würfe.
 
 ## Vereins-Bestenliste
 

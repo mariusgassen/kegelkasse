@@ -7,10 +7,12 @@ import {useBowlingStore} from '../../store/bowling'
 
 const getLeaderboard = vi.fn()
 const submitScore = vi.fn()
+const getClub = vi.fn()
 vi.mock('../../api/client', () => ({
     api: {
         getBowlingLeaderboard: () => getLeaderboard(),
         submitBowlingScore: (s: number) => submitScore(s),
+        getClub: () => getClub(),
     },
 }))
 
@@ -23,20 +25,28 @@ function renderGame(onClose = () => {}) {
     )
 }
 
+// jsdom returns a zero-size rect; stub a real lane rect so swipe coords are meaningful.
+function stubCanvasRect() {
+    const canvas = screen.getByTestId('bowling-canvas') as HTMLCanvasElement
+    canvas.getBoundingClientRect = () =>
+        ({left: 0, top: 0, width: 360, height: 620, right: 360, bottom: 620, x: 0, y: 0, toJSON: () => ({})}) as DOMRect
+    return canvas
+}
+
 beforeEach(() => {
     useBowlingStore.setState({discovered: false, personalBest: 42})
     getLeaderboard.mockResolvedValue([
         {rank: 1, player_name: 'Willi', score: 21, date: null, is_me: false},
     ])
     submitScore.mockResolvedValue({leaderboard: [], rank: 1, is_record: true})
+    getClub.mockResolvedValue({id: 1, name: 'Test Club', settings: {}})
 })
 
 describe('BowlingGame', () => {
-    it('renders the lane canvas and a scoreboard', () => {
+    it('renders the lane canvas and the best score', () => {
         renderGame()
         expect(screen.getByTestId('bowling-canvas')).toBeInTheDocument()
-        // Falls back to the local personal best until the club leaderboard resolves.
-        expect(screen.getByText('42')).toBeInTheDocument()
+        expect(screen.getByText('42')).toBeInTheDocument() // local best fallback
     })
 
     it('marks the Easter egg as discovered on open', () => {
@@ -45,19 +55,29 @@ describe('BowlingGame', () => {
         expect(useBowlingStore.getState().discovered).toBe(true)
     })
 
-    it('advances aim → power on the first tap (power meter appears)', () => {
+    it('shows a swipe hint while ready', () => {
         renderGame()
-        expect(screen.queryByTestId('bowling-power')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByTestId('bowling-canvas'))
-        expect(screen.getByTestId('bowling-power')).toBeInTheDocument()
+        expect(screen.getByTestId('bowling-hint').textContent).toBeTruthy()
     })
 
-    it('launches on the second tap (power meter disappears once rolling)', () => {
+    it('throws on an upward swipe (hint changes to the rolling state)', () => {
         renderGame()
-        const canvas = screen.getByTestId('bowling-canvas')
-        fireEvent.click(canvas) // → power
-        fireEvent.click(canvas) // → rolling
-        expect(screen.queryByTestId('bowling-power')).not.toBeInTheDocument()
+        const canvas = stubCanvasRect()
+        const before = screen.getByTestId('bowling-hint').textContent
+        fireEvent.pointerDown(canvas, {clientX: 180, clientY: 560})
+        fireEvent.pointerMove(canvas, {clientX: 185, clientY: 200})
+        fireEvent.pointerUp(canvas, {clientX: 185, clientY: 200})
+        expect(screen.getByTestId('bowling-hint').textContent).not.toBe(before)
+    })
+
+    it('ignores a tiny / non-upward swipe (stays ready)', () => {
+        renderGame()
+        const canvas = stubCanvasRect()
+        const before = screen.getByTestId('bowling-hint').textContent
+        fireEvent.pointerDown(canvas, {clientX: 180, clientY: 300})
+        fireEvent.pointerMove(canvas, {clientX: 182, clientY: 305})
+        fireEvent.pointerUp(canvas, {clientX: 182, clientY: 305})
+        expect(screen.getByTestId('bowling-hint').textContent).toBe(before)
     })
 
     it('closes via the close button', () => {
