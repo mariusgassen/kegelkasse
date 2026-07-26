@@ -43,6 +43,8 @@ vi.mock('@/api/client.ts', () => ({
         listPins: vi.fn(),
         getCorrelationStats: vi.fn(),
         getEveningCorrelation: vi.fn(),
+        getClubRecords: vi.fn(),
+        listSeasonSnapshots: vi.fn(),
     },
 }))
 
@@ -70,6 +72,11 @@ vi.mock('@/components/ui/MediaUploadButton.tsx', () => ({
 const YEAR_STATS = {
     year: 2026,
     evening_count: 4,
+    evenings: [
+        { id: 11, date: '2026-01-20', venue: 'Alt-Lokal', penalty_total: 10.00 },
+        { id: 10, date: '2026-03-15', venue: 'Kegelbahn', penalty_total: 8.00 },
+        { id: 12, date: '2026-04-05', venue: 'Kegelbahn', penalty_total: 3.00 },
+    ],
     total_penalties: 55.50,
     total_beers: 12,
     total_shots: 3,
@@ -158,6 +165,7 @@ const YEAR_STATS = {
 const YEAR_STATS_EMPTY = {
     year: 2026,
     evening_count: 0,
+    evenings: [],
     total_penalties: 0,
     total_beers: 0,
     total_shots: 0,
@@ -165,9 +173,24 @@ const YEAR_STATS_EMPTY = {
 }
 
 const EVENING_LIST = [
-    { id: 10, date: '2026-03-15', venue: 'Kegelbahn', is_closed: true, player_count: 3, game_count: 2, penalty_total: 8.00, drink_total: 1, note: null },
-    { id: 11, date: '2026-01-20', venue: 'Alt-Lokal', is_closed: true, player_count: 4, game_count: 3, penalty_total: 10.00, drink_total: 2, note: null },
+    { id: 10, date: '2026-03-15', venue: 'Kegelbahn', is_closed: true, season_closed: false, player_count: 3 },
+    { id: 11, date: '2026-01-20', venue: 'Alt-Lokal', is_closed: true, season_closed: false, player_count: 4 },
 ]
+
+const CLUB_RECORDS = {
+    records: [
+        { key: 'most_expensive_evening', icon: '💸', unit: 'eur', value: 42.5,
+          holder_name: null, holder_member_id: null, date: '2026-03-15', evening_id: 10 },
+        { key: 'most_kings', icon: '👑', unit: 'count', value: 3,
+          holder_name: 'Franzi', holder_member_id: 2, date: null, evening_id: null },
+        { key: 'best_throw_evening', icon: '🎳', unit: 'pins', value: 7.4,
+          holder_name: 'Hans', holder_member_id: 1, date: '2026-01-20', evening_id: 11 },
+    ],
+    seasons: [
+        { year: 2026, evening_count: 4, penalty_total: 55.5, drink_count: 15, player_count: 6, season_closed: false },
+        { year: 2025, evening_count: 9, penalty_total: 91.0, drink_count: 30, player_count: 7, season_closed: true },
+    ],
+}
 
 const MINIMAL_EVENING = {
     id: 10,
@@ -191,13 +214,17 @@ function makeWrapper() {
     }
 }
 
-async function renderStatsPage(tab?: 'evening' | 'year') {
+async function renderStatsPage(tab?: 'evening' | 'year' | 'lab') {
     __statsTab = 'evening'
     const { StatsPage } = await import('../StatsPage')
     const result = render(<StatsPage />, { wrapper: makeWrapper() })
     if (tab === 'year') {
         await waitFor(() => expect(screen.getByText('stats.year')).toBeInTheDocument())
         fireEvent.click(screen.getByText('stats.year'))
+    }
+    if (tab === 'lab') {
+        await waitFor(() => expect(screen.getByText('stats.tab.lab')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('stats.tab.lab'))
     }
     return result
 }
@@ -215,6 +242,8 @@ async function setupDefaultMocks() {
     vi.mocked(api.getEveningCorrelation).mockResolvedValue({
         evening_id: 10, date: '2026-03-15', bin_minutes: 15, members: [],
     } as any)
+    vi.mocked(api.getClubRecords).mockResolvedValue({ records: [], seasons: [] } as any)
+    vi.mocked(api.listSeasonSnapshots).mockResolvedValue([] as any)
 }
 
 async function setupWithEvenings() {
@@ -260,6 +289,12 @@ async function setupWithEvenings() {
               derivative_pearson_r: 0.95 },
         ],
     } as any)
+    vi.mocked(api.getClubRecords).mockResolvedValue(CLUB_RECORDS as any)
+    vi.mocked(api.listSeasonSnapshots).mockResolvedValue([
+        { id: 1, year: 2025, closed_at: '2026-01-02T10:00:00Z', closed_by_name: 'Admin',
+          member_count: 7, evening_count: 9, carry_over_count: 2, total_penalties: 91.0,
+          total_payments: 91.0, ranking_data: null, notes: null },
+    ] as any)
 }
 
 async function setupWithUser(regular_member_id: number = 2) {
@@ -564,7 +599,7 @@ describe('StatsPage — current user highlighting', () => {
     it('shows "Ich" badge next to current user entry', async () => {
         await setupWithEvenings()
         await setupWithUser(2) // regular_member_id=2 is "Franzi"
-        await renderStatsPage()
+        await renderStatsPage('year')
         await waitFor(() => {
             // Ich badge may appear in both podium and ranking list
             expect(screen.getAllByText('Ich').length).toBeGreaterThanOrEqual(1)
@@ -779,7 +814,7 @@ describe('StatsPage — evening stats with player data', () => {
     })
 })
 
-// ── tests: correlation section ────────────────────────────────────────────────
+// ── tests: correlation section (now inside the Statistik-Labor tab, #68) ──────
 
 describe('StatsPage — correlation section', () => {
     beforeEach(() => {
@@ -791,10 +826,8 @@ describe('StatsPage — correlation section', () => {
 
     it('renders the correlation title and the three year-level tab labels', async () => {
         await setupWithEvenings()
-        await renderStatsPage('year')
+        await renderStatsPage('lab')
         await waitFor(() => {
-            // The title appears in both the year-level section and the
-            // evening-detail EveningCorrelationPanel.
             expect(screen.getAllByText('stats.correlation.title').length).toBeGreaterThanOrEqual(1)
         })
         expect(screen.getByText('stats.correlation.tab.perEvening')).toBeInTheDocument()
@@ -805,7 +838,7 @@ describe('StatsPage — correlation section', () => {
     it('calls api.getCorrelationStats with the active year', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
-        await renderStatsPage('year')
+        await renderStatsPage('lab')
         await waitFor(() => {
             expect(vi.mocked(api.getCorrelationStats)).toHaveBeenCalledWith(2026)
         })
@@ -813,7 +846,7 @@ describe('StatsPage — correlation section', () => {
 
     it('shows the overall pearson r badge on the per-evening tab', async () => {
         await setupWithEvenings()
-        await renderStatsPage('year')
+        await renderStatsPage('lab')
         // Strength tab is the default — click "Pro Abend" to see the year overall r.
         await waitFor(() => screen.getByText('stats.correlation.tab.perEvening'))
         fireEvent.click(screen.getByText('stats.correlation.tab.perEvening'))
@@ -827,7 +860,7 @@ describe('StatsPage — correlation section', () => {
 
     it('shows the strength tab as default with members ranked by signed r', async () => {
         await setupWithEvenings()
-        await renderStatsPage('year')
+        await renderStatsPage('lab')
         // Strength tab is the default tab now — no click required.
         await waitFor(() => {
             // Hans has 3 evenings and a recomputed personal r ∈ [-1, 1]; display is signed (e.g. "+0.95").
@@ -837,10 +870,10 @@ describe('StatsPage — correlation section', () => {
         })
     })
 
-    it('renders the within-evening correlation panel in the evening section', async () => {
+    it('renders the within-evening correlation panel in the lab', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
-        await renderStatsPage()
+        await renderStatsPage('lab')
         // The panel auto-fetches once the evening is loaded — no tab click needed.
         await waitFor(() => {
             expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
@@ -854,7 +887,7 @@ describe('StatsPage — correlation section', () => {
     it('changing the bin size in the evening panel re-fetches with new bin_minutes', async () => {
         await setupWithEvenings()
         const { api } = await import('@/api/client.ts')
-        await renderStatsPage()
+        await renderStatsPage('lab')
         await waitFor(() => {
             expect(vi.mocked(api.getEveningCorrelation)).toHaveBeenCalled()
         })

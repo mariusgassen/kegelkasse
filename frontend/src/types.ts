@@ -468,9 +468,33 @@ export interface EveningListItem {
     is_closed: boolean
     season_closed: boolean
     player_count: number
-    game_count: number
+}
+
+// ── Statistik-Labor (#68) ──
+
+export interface ClubRecord {
+    key: string
+    icon: string
+    unit: 'eur' | 'count' | 'pins'
+    value: number
+    holder_name: string | null
+    holder_member_id: number | null
+    date: string | null
+    evening_id: number | null
+}
+
+export interface SeasonRow {
+    year: number
+    evening_count: number
     penalty_total: number
-    drink_total: number
+    drink_count: number
+    player_count: number
+    season_closed: boolean
+}
+
+export interface ClubRecordsResponse {
+    records: ClubRecord[]
+    seasons: SeasonRow[]
 }
 
 // pgbackrest info output types
