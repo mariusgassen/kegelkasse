@@ -18,6 +18,7 @@ import {Loading} from '@/components/ui/Loading.tsx'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {interpretR, linearRegression, pearson} from '@/lib/stats'
 import {playerColor, withAlpha} from '@/lib/chartColors.ts'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -408,7 +409,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                                 }}>
                             <span className="w-2 h-2 rounded-full flex-shrink-0"
                                   style={{background: color}}/>
-                            {m.nickname || m.name}{isMe ? ' · Ich' : ''}
+                            {m.nickname || m.name}{isMe && <> · <MeBadge/></>}
                         </button>
                     )
                 })}
@@ -430,7 +431,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                         <div className="text-[10px] text-kce-muted text-center mb-2">
                             <span className="font-bold">{points[selectedIdx].label}</span>
                             {points[selectedIdx].memberId === myMemberId && (
-                                <span className="text-kce-amber font-bold"> · Ich</span>
+                                <> · <MeBadge/></>
                             )}
                             {' · '}{fDate(points[selectedIdx].date)} · {fe(points[selectedIdx].x)} · 🍻 {points[selectedIdx].y}
                         </div>
@@ -731,7 +732,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="text-xs font-bold truncate flex items-center gap-1">
                                                 {m.nickname || m.name}
-                                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                {isMe && <MeBadge/>}
                                             </div>
                                             <div className="text-xs font-extrabold flex-shrink-0 text-kce-amber">
                                                 {fe(m.rate)} / 🍻
@@ -771,7 +772,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="text-xs font-bold truncate flex items-center gap-1">
                                             {m.nickname || m.name}
-                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            {isMe && <MeBadge/>}
                                         </div>
                                         <div className="text-xs font-extrabold flex-shrink-0"
                                              style={{color: rColor(r)}}>
@@ -1156,7 +1157,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                                         : (pickedMemberId != null ? {opacity: 0.4, transition: 'none'} : {transition: 'none'})}
                                     onClick={() => setPickedMemberId(m.evening_player_id)}>
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background: color}}/>
-                                {m.nickname || m.name}{isMe ? ' · Ich' : ''}
+                                {m.nickname || m.name}{isMe && <> · <MeBadge/></>}
                             </button>
                         )
                     })}

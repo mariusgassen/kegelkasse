@@ -602,7 +602,7 @@ describe('StatsPage — current user highlighting', () => {
         await renderStatsPage('year')
         await waitFor(() => {
             // Ich badge may appear in both podium and ranking list
-            expect(screen.getAllByText('Ich').length).toBeGreaterThanOrEqual(1)
+            expect(screen.getAllByText('common.me').length).toBeGreaterThanOrEqual(1)
         })
     })
 
@@ -611,7 +611,7 @@ describe('StatsPage — current user highlighting', () => {
         // Default mock returns user: null
         await renderStatsPage()
         await waitFor(() => {
-            expect(screen.queryByText('Ich')).not.toBeInTheDocument()
+            expect(screen.queryByText('common.me')).not.toBeInTheDocument()
         })
     })
 
@@ -620,7 +620,7 @@ describe('StatsPage — current user highlighting', () => {
         await setupWithUser(1) // regular_member_id=1 is "Hans"
         await renderStatsPage('year')
         await waitFor(() => {
-            const ichBadges = screen.getAllByText('Ich')
+            const ichBadges = screen.getAllByText('common.me')
             expect(ichBadges.length).toBeGreaterThanOrEqual(1)
             // The badge is amber — just confirm it renders inside the card
             expect(ichBadges[0].className).toContain('kce-amber')

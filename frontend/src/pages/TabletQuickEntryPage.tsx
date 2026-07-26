@@ -19,6 +19,7 @@ import {celebrate} from '@/lib/celebrate'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1122,7 +1123,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     {p.is_king && <span className="text-sm">👑</span>}
                                     <span className="flex-1 truncate">{p.name}</span>
                                     {isMe && (
-                                        <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
+                                        <MeBadge/>
                                     )}
                                 </button>
                             )
@@ -1231,7 +1232,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             whiteSpace: 'nowrap',
                                         }}>{p.name}</span>
                                         {isMe && (
-                                            <span className="text-[9px] font-bold text-kce-amber flex-shrink-0">Ich</span>
+                                            <MeBadge/>
                                         )}
                                     </div>
                                     <div style={{

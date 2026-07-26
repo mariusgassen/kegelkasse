@@ -196,7 +196,7 @@ describe('MembersPage — display', () => {
         await setupAdmin()
         await renderMembersPage()
         await waitFor(() => {
-            expect(screen.getByText('Ich')).toBeInTheDocument()
+            expect(screen.getByText('common.me')).toBeInTheDocument()
         })
     })
 
@@ -877,7 +877,7 @@ describe('MembersPage — pin icons display', () => {
         } as any)
         await renderMembersPage()
         await waitFor(() => {
-            expect(screen.getAllByTitle('Goldnadel').length).toBeGreaterThan(0)
+            expect(screen.getAllByLabelText('Goldnadel').length).toBeGreaterThan(0)
         })
     })
 })

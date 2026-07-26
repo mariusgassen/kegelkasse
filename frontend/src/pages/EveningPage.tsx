@@ -14,6 +14,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
+import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 
 export function EveningPage() {
     const t = useT()
@@ -422,11 +423,8 @@ export function EveningPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold truncate flex items-center gap-1">
                                         <span className="truncate">{p.nickname || p.name}</span>
-                                        {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                                        {p.is_king && <span title="König" className="flex-shrink-0">👑</span>}
-                                        {pins.filter(pin => pin.holder_regular_member_id === p.regular_member_id).map(pin => (
-                                            <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
-                                        ))}
+                                        <MemberBadges isMe={p.regular_member_id === user?.regular_member_id}
+                                                      isKing={p.is_king} pins={pins} memberId={p.regular_member_id}/>
                                     </div>
                                     <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
@@ -866,7 +864,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                         ].join(' ')}>
                                             {m.nickname || m.name}
                                             {m.id === myId && (
-                                                <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
+                                                <MeBadge/>
                                             )}
                                         </span>
                                     </button>

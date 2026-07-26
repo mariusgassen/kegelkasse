@@ -14,6 +14,7 @@ import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -336,7 +337,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             ].join(' ')}>
                                                 {m.nickname || m.name}
                                                 {m.id === myId && (
-                                                    <span className="text-[9px] text-kce-amber font-bold ml-1.5">Ich</span>
+                                                    <MeBadge/>
                                                 )}
                                             </span>
                                             {wasAbsent && isChecked && (

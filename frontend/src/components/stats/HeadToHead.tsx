@@ -9,6 +9,7 @@ import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {headToHeadRows, type H2HPlayer, type H2HRow} from '@/lib/statsLab.ts'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -89,7 +90,7 @@ export function HeadToHead({players, myMemberId}: {
                                 className={`chip flex-shrink-0 ${isA || isB ? 'active' : ''}`}
                                 onClick={() => toggle(id)}>
                             {isA ? '① ' : isB ? '② ' : ''}{displayName(p)}
-                            {id === myMemberId && <span className="text-[9px] text-kce-amber font-bold ml-1">Ich</span>}
+                            {id === myMemberId && <MeBadge/>}
                         </button>
                     )
                 })}

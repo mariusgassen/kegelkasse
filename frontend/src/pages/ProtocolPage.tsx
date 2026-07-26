@@ -12,6 +12,7 @@ import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
+import {PinBadges} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -431,7 +432,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         <button key={p.id}
                                 className={`chip ${filterPlayer === p.id ? 'active' : ''}`}
                                 onClick={() => setFilterPlayer(filterPlayer === p.id ? null : p.id)}>
-                            {p.is_king ? '👑 ' : ''}{p.name}{pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => <span key={pin.id} title={pin.name}>{pin.icon}</span>)}
+                            {p.is_king && <span role="img" aria-label={t('achievement.king.title')}>👑 </span>}
+                            {p.name}<PinBadges pins={pins} memberId={p.regular_member_id}/>
                         </button>
                     ))}
                 </div>

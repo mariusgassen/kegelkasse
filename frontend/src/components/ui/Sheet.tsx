@@ -4,12 +4,17 @@ import {useT} from '@/i18n'
 interface SheetProps {
     open: boolean
     onClose: () => void
+    /** Shown as the sheet heading, and always used as the dialog's accessible name. */
     title: string
+    /** Replaces the heading text (e.g. with a tab bar). The close button stays. */
+    header?: ReactNode
     children: ReactNode
     onSubmit?: () => void
+    /** Extra content rendered outside the panel, e.g. nested overlays. */
+    overlays?: ReactNode
 }
 
-export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
+export function Sheet({open, onClose, title, header, children, onSubmit, overlays}: SheetProps) {
     const t = useT()
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
@@ -126,8 +131,8 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
                     className="sheet-handle"
                 />
                 {/* Title row with close button */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="sheet-title mb-0">{title}</div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    {header ?? <div className="sheet-title mb-0">{title}</div>}
                     <button
                         type="button"
                         onClick={onClose}
@@ -140,6 +145,7 @@ export function Sheet({open, onClose, title, children, onSubmit}: SheetProps) {
                 </div>
                 {inner}
             </div>
+            {overlays}
         </div>
     )
 }

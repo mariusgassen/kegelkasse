@@ -247,7 +247,7 @@ describe('EveningPage — with active evening', () => {
     it('shows Ich badge for current user', async () => {
         await renderEveningPage()
         // ADMIN_USER has regular_member_id: 1, player Admin has regular_member_id: 1
-        expect(screen.getByText('Ich')).toBeInTheDocument()
+        expect(screen.getByText('common.me')).toBeInTheDocument()
     })
 })
 
@@ -333,7 +333,7 @@ describe('EveningPage — member user view', () => {
     it('shows Ich badge for member user (Hansi, member_id=2)', async () => {
         await renderEveningPage()
         // MEMBER_USER has regular_member_id: 2, player Hansi has regular_member_id: 2
-        expect(screen.getByText('Ich')).toBeInTheDocument()
+        expect(screen.getByText('common.me')).toBeInTheDocument()
     })
 
     it('shows players list', async () => {
@@ -1177,7 +1177,7 @@ describe('EveningPage — highlight add via button', () => {
             isPending: false,
         } as any)
         await renderEveningPage()
-        expect(screen.getByTitle('König')).toBeInTheDocument()
+        expect(screen.getByLabelText('achievement.king.title')).toBeInTheDocument()
     })
 })
 
@@ -1462,7 +1462,7 @@ describe('EveningPage — member user (non-admin) view', () => {
     it('shows Ich badge for current member user', async () => {
         await renderEveningPage()
         // MEMBER_USER has regular_member_id: 2 → player Hansi
-        expect(screen.getByText('Ich')).toBeInTheDocument()
+        expect(screen.getByText('common.me')).toBeInTheDocument()
     })
 
     it('shows evening venue for member user', async () => {

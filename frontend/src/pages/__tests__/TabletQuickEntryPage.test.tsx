@@ -196,7 +196,7 @@ describe('TabletQuickEntryPage — player selection', () => {
         })
         await renderTabletQuickEntry()
         // Ich badge appears in both selection column and overview column
-        expect(screen.getAllByText('Ich').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('common.me').length).toBeGreaterThanOrEqual(1)
     })
 })
 

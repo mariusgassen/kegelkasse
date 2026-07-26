@@ -8,6 +8,8 @@ import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {Loading} from '@/components/ui/Loading.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
+import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {TreasuryAnalysis} from '@/components/treasury/TreasuryAnalysis.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -81,10 +83,7 @@ export function TreasuryPage() {
     // Übersicht is the glance level (one card per core question); Analyse is the drill-in
     // destination that owns the player filter, the itemized money flow and the history graph.
     const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'accounts' | 'bookings'>('overview', ['overview', 'analysis', 'accounts', 'bookings'])
-    const [showHelp, setShowHelp] = useState(false)
     const [showExportSheet, setShowExportSheet] = useState(false)
-    const [showAccountsChart, setShowAccountsChart] = useState(false)
-    const [showSettled, setShowSettled] = useState(false)
 
     // Club data (for PayPal handle)
     const {data: club} = useQuery({
@@ -716,20 +715,15 @@ export function TreasuryPage() {
 
                         {/* How does the treasury work? — tucked away inside the hero, less prominent than a standalone card */}
                         <div className="mt-2 pt-2 border-t border-kce-border">
-                            <button type="button" className="w-full flex items-center justify-between text-left"
-                                    aria-expanded={showHelp}
-                                    onClick={() => setShowHelp(v => !v)}>
-                                <span className="text-[10px] text-kce-muted">❓ {t('treasury.help.title')}</span>
-                                <span className="text-kce-muted text-[10px]">{showHelp ? '▲' : '▼'}</span>
-                            </button>
-                            {showHelp && (
+                            <ExpandableCard bare
+                                            title={<span className="text-[10px] text-kce-muted">❓ {t('treasury.help.title')}</span>}>
                                 <ul className="pt-1.5 flex flex-col gap-1 text-[10px] text-kce-muted list-disc list-inside">
                                     <li>{t('treasury.help.penalties')}</li>
                                     <li>{t('treasury.help.payments')}</li>
                                     <li>{t('treasury.help.cash')}</li>
                                     <li>{t('treasury.help.credit')}</li>
                                 </ul>
-                            )}
+                            </ExpandableCard>
                         </div>
                     </div>
 
@@ -791,7 +785,7 @@ export function TreasuryPage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                     {b.nickname || b.name}
-                                                    {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                    {isMe && <MeBadge/>}
                                                 </div>
                                                 <div className="text-xs text-kce-muted">
                                                     {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
@@ -826,7 +820,7 @@ export function TreasuryPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                             {b.nickname || b.name}
-                                            {b.regular_member_id === myRegularMemberId && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                            {b.regular_member_id === myRegularMemberId && <MeBadge/>}
                                         </div>
                                         <div className="text-xs text-kce-muted">
                                             {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
@@ -841,13 +835,9 @@ export function TreasuryPage() {
 
                     {exactlySettled.length > 0 && (debtors.length > 0 || credits.length > 0) && (
                         <div className="mt-2">
-                            <button type="button" className="w-full flex items-center justify-center gap-1 text-xs text-kce-muted"
-                                    aria-expanded={showSettled}
-                                    onClick={() => setShowSettled(v => !v)}>
-                                <span>+ {exactlySettled.length} {t('treasury.settledCount')}</span>
-                                <span className="text-[9px]">{showSettled ? '▲' : '▼'}</span>
-                            </button>
-                            {showSettled && (
+                            <ExpandableCard bare
+                                            headerClassName="justify-center gap-1 text-xs text-kce-muted"
+                                            title={<>+ {exactlySettled.length} {t('treasury.settledCount')}</>}>
                                 <div className="flex flex-wrap justify-center gap-1.5 mt-1.5">
                                     {[...exactlySettled].sort((a, b) => {
                                         if (a.regular_member_id === myRegularMemberId) return -1
@@ -858,11 +848,11 @@ export function TreasuryPage() {
                                               className="px-2 py-1 rounded-full bg-kce-surface2 border border-kce-border text-[11px] text-kce-muted flex items-center gap-1">
                                             {b.nickname || b.name}
                                             {b.regular_member_id === myRegularMemberId &&
-                                                <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                <MeBadge/>}
                                         </span>
                                     ))}
                                 </div>
-                            )}
+                            </ExpandableCard>
                         </div>
                     )}
 
@@ -968,15 +958,9 @@ export function TreasuryPage() {
 
                     {/* Anteil pro Spieler — bezahlter (grün) vs. offener (rot) Anteil der Strafen, skaliert auf das größte Konto */}
                     {balances.length > 0 && (
-                        <div className="kce-card mb-3 overflow-hidden">
-                            <button type="button" className="w-full p-3 flex items-center justify-between text-left"
-                                    aria-expanded={showAccountsChart}
-                                    onClick={() => setShowAccountsChart(v => !v)}>
-                                <span className="text-xs font-bold text-kce-muted">📊 {t('treasury.accounts.shareChart')}</span>
-                                <span className="text-kce-muted text-xs">{showAccountsChart ? '▲' : '▼'}</span>
-                            </button>
-                            {showAccountsChart && (
-                                <div className="px-3 pb-3">
+                        <ExpandableCard className="mb-3"
+                                        title={<span className="text-xs font-bold text-kce-muted">📊 {t('treasury.accounts.shareChart')}</span>}>
+                                <div>
                                     <div className="flex items-center justify-end gap-3 text-[10px] text-kce-muted mb-2">
                                         <span className="flex items-center gap-1">
                                             <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: '#22c55e'}}/>
@@ -999,7 +983,7 @@ export function TreasuryPage() {
                                                     <div className="flex items-center justify-between text-xs mb-1">
                                                         <span className="font-bold truncate flex items-center gap-1">
                                                             {b.nickname || b.name}
-                                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                            {isMe && <MeBadge/>}
                                                         </span>
                                                         <span className="text-kce-muted flex-shrink-0">{fe(paidPortion)} / {fe(b.penalty_total)}</span>
                                                     </div>
@@ -1013,8 +997,7 @@ export function TreasuryPage() {
                                         })}
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                        </ExpandableCard>
                     )}
 
                     <SearchInput
@@ -1055,7 +1038,7 @@ export function TreasuryPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {b.nickname || b.name}
-                                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                {isMe && <MeBadge/>}
                                             </div>
                                             <div className="text-xs text-kce-muted">
                                                 {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
@@ -1264,7 +1247,7 @@ export function TreasuryPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {p.member_name}
-                                                {p.regular_member_id === myRegularMemberId && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                {p.regular_member_id === myRegularMemberId && <MeBadge/>}
                                             </div>
                                             <div className="text-xs text-kce-muted truncate">
                                                 {p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}

@@ -14,6 +14,7 @@ import {Loading} from '@/components/ui/Loading.tsx'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {visibleRecords} from '@/lib/statsLab.ts'
 import type {ClubRecord} from '@/types'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -66,7 +67,7 @@ export function ClubRecords({myMemberId, onSelectMember}: {
                             </div>
                             <div className="text-sm font-bold truncate flex items-center gap-1">
                                 {r.holder_name ?? fDate(r.date)}
-                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                {isMe && <MeBadge/>}
                             </div>
                             {r.holder_name && r.date && (
                                 <div className="text-[10px] text-kce-muted">{fDate(r.date)}</div>
