@@ -90,7 +90,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### Authentication & users
 
-- Email/password login with JWT tokens (7-day expiry by default)
+- Email/password login with JWT tokens (1-year expiry by default, `ACCESS_TOKEN_EXPIRE_MINUTES`). There is no refresh-token flow — the access token *is* the session, so it is deliberately long-lived: members open the app a few times a month and should not be logged out between Kegelabende. Deactivating an account or deleting the user takes effect immediately regardless of token age, since every request re-checks `is_active` in `get_current_user`
 - Invite-link registration — admin generates a one-time token, user self-registers via link
 - **Self-service password reset**: a "Passwort vergessen?" link on the login page emails a one-time, one-hour reset link via the club's own SMTP server (no admin needed). The response is always generic (no account/email enumeration), rate-limited per email/IP, and only sends when the address matches an active account whose club has email configured — admins can still create a reset link manually otherwise
 - Per-user language preference (DE/EN), persisted server-side

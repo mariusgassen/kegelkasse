@@ -27,7 +27,8 @@ Der Einladungslink ist ein Einmaltoken und verfällt nach der ersten Nutzung.
 2. Gib deine **E-Mail-Adresse** und dein **Passwort** ein
 3. Klicke auf **Anmelden**
 
-Die Sitzung bleibt für **7 Tage** aktiv — du wirst danach automatisch abgemeldet.
+Die Sitzung bleibt für **ein Jahr** aktiv — du wirst danach automatisch abgemeldet und musst dich
+einmal neu anmelden.
 
 ## App installieren (PWA)
 

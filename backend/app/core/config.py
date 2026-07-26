@@ -7,7 +7,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
     ENVIRONMENT: str = "development"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+    # Session length.  There is no refresh-token flow — the access token is the
+    # session, so it is long-lived on purpose: members open the app a handful of
+    # times a month and should not be logged out between Kegelabende.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600  # 365 days
     FIRST_SUPERADMIN_EMAIL: str = "admin@kegelkasse.de"
     FIRST_SUPERADMIN_PASSWORD: str = "changeme123"
     # Web Push (VAPID) — optional; push disabled if not set

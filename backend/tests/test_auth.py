@@ -117,6 +117,35 @@ class TestLogin:
 
 
 # ---------------------------------------------------------------------------
+# Session length — the access token *is* the session (no refresh flow exists),
+# so its lifetime is the thing that keeps members logged in between evenings.
+# ---------------------------------------------------------------------------
+
+class TestTokenLifetime:
+    def test_default_expiry_is_one_year(self):
+        from core.config import settings
+        assert settings.ACCESS_TOKEN_EXPIRE_MINUTES == 525600
+
+    def test_login_token_expires_in_about_a_year(self, client: TestClient, user):
+        from core.security import decode_token
+
+        resp = client.post("/api/v1/auth/login", json={"email": "member@test.de", "password": "testpass"})
+        assert resp.status_code == 200
+        payload = decode_token(resp.json()["access_token"])
+        expires_in = datetime.fromtimestamp(payload["exp"], UTC) - datetime.now(UTC)
+        # A day of slack covers clock skew and the request round-trip.
+        assert timedelta(days=364) < expires_in <= timedelta(days=365)
+
+    def test_explicit_expires_delta_still_wins(self):
+        from core.security import create_access_token, decode_token
+
+        token = create_access_token({"sub": "1"}, expires_delta=timedelta(minutes=5))
+        payload = decode_token(token)
+        expires_in = datetime.fromtimestamp(payload["exp"], UTC) - datetime.now(UTC)
+        assert expires_in <= timedelta(minutes=5)
+
+
+# ---------------------------------------------------------------------------
 # GET /api/v1/auth/me
 # ---------------------------------------------------------------------------
 
