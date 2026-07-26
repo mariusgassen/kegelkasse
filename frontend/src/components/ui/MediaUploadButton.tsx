@@ -38,7 +38,7 @@ export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
                 <img
                     src={value}
                     alt=""
-                    className="h-16 w-16 object-cover rounded border border-kce-border"
+                    className="h-16 w-16 object-cover rounded border border-line"
                 />
                 <button
                     type="button"

@@ -623,7 +623,7 @@ describe('StatsPage — current user highlighting', () => {
             const ichBadges = screen.getAllByText('common.me')
             expect(ichBadges.length).toBeGreaterThanOrEqual(1)
             // The badge is amber — just confirm it renders inside the card
-            expect(ichBadges[0].className).toContain('kce-amber')
+            expect(ichBadges[0].className).toContain('accent')
         })
     })
 })

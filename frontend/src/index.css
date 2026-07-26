@@ -1,20 +1,54 @@
 @import "tailwindcss";
 
 @theme {
-    /* Custom colors — mirror the runtime CSS variables defined in :root */
-    --color-kce-ring: #3d3540;
-    --color-kce-olive: var(--kce-secondary);
-    --color-kce-brown: #4a3c38;
-    --color-kce-cream: var(--kce-cream);
-    --color-kce-squirrel: #b8401a;
-    --color-kce-bg: var(--kce-bg);
-    --color-kce-surface: var(--kce-surface);
-    --color-kce-surface2: var(--kce-surface2);
-    --color-kce-border: var(--kce-border);
-    --color-kce-muted: var(--kce-muted);
-    --color-kce-amber: var(--kce-primary);
-    --color-kce-amber-light: var(--kce-primary);
-    --color-kce-amber-dark: var(--kce-primary);
+    /* ── Semantic color tokens (#70) ────────────────────────────────────────────
+       Every value here mirrors a runtime custom property written by lib/tokens.ts, which derives
+       the whole set from the club's brand colors plus the effective background and contrast-checks
+       each foreground against the surface it lands on.
+
+       Two suffixes carry all the meaning:
+         `-fg`  this color, adjusted until it is readable *as text/stroke* on the page.
+         `on-`  the text color to place *on top of* the matching fill.
+       Use `accent` to paint a fill, `accent-fg` to write with it, `on-accent` for text on it.
+       A raw brand amber used as text is invisible in light mode — that was the #70 bug. */
+    --color-canvas: var(--canvas);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-line: var(--line);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-on-muted: var(--on-muted);
+
+    --color-accent: var(--accent);
+    --color-accent-fg: var(--accent-fg);
+    --color-on-accent: var(--on-accent);
+    --color-accent-tint: var(--accent-tint);
+    --color-accent-tint-fg: var(--accent-tint-fg);
+    --color-accent-deep: var(--accent-deep);
+    --color-on-accent-deep: var(--on-accent-deep);
+
+    --color-accent-2: var(--accent-2);
+    --color-accent-2-fg: var(--accent-2-fg);
+    --color-on-accent-2: var(--on-accent-2);
+
+    --color-danger: var(--danger);
+    --color-danger-fg: var(--danger-fg);
+    --color-on-danger: var(--on-danger);
+    --color-danger-tint: var(--danger-tint);
+    --color-danger-tint-fg: var(--danger-tint-fg);
+
+    --color-positive: var(--positive);
+    --color-positive-fg: var(--positive-fg);
+    --color-on-positive: var(--on-positive);
+    --color-positive-tint: var(--positive-tint);
+    --color-positive-tint-fg: var(--positive-tint-fg);
+
+    /* ── Type scale (#71) ───────────────────────────────────────────────────────
+       No custom sizes on purpose — Tailwind's own steps are the scale, and the rule is a floor:
+       `text-xs` (12px) is the smallest size allowed anywhere, `text-sm` (14px) for content a
+       member actually reads. Hierarchy comes from weight, color and spacing, never from shrinking
+       text further. Arbitrary sizes below the floor (`text-[10px]`) are the thing to grep for; the
+       club audience skews older than the typical PWA user, so this is a feature, not polish. */
 
     /* Font families */
     --font-display: 'Lora', Georgia, serif;
@@ -45,17 +79,72 @@
     }
 }
 
+/* Default dark theme — the pre-JS paint, before lib/tokens.ts recomputes the set for the club's
+   branding and the member's dark/light preference. Values match deriveTokens() with no input, so
+   the first frame never differs from the hydrated one. Do not hand-tune these: they are the output
+   of the contrast derivation, and editing one here (as #49 did for muted) is exactly how the light
+   mode added in #55 silently drifted back below AA. */
 :root {
-    --kce-primary: #e8a020;
-    --kce-secondary: #6b7c5a;
-    --kce-bg: #1a1410;
-    --kce-surface: #241c18;
-    --kce-surface2: #2e2420;
-    --kce-border: #3d2e28;
-    --kce-cream: #f5ede0;
-    /* #a08a7e over --kce-bg (#1a1410) is ~5.6:1 — WCAG AA for normal text (was #7a6258, ~3.2:1) */
-    --kce-muted: #a08a7e;
-    --kce-amber: var(--kce-primary);
+    --canvas: #1a1410;
+    --surface: #271e18;
+    --surface-2: #332720;
+    --line: #4d3b2f;
+    --ink: #e9e5e2;
+    --on-surface: #e9e5e2;
+    --muted: #998f8a;
+    --on-muted: #141414;
+    --accent: #e8a020;
+    --accent-fg: #e8a020;
+    --on-accent: #141414;
+    --accent-tint: #392912;
+    --accent-tint-fg: #e8a020;
+    --accent-2: #6b7c5a;
+    --accent-2-fg: #82966e;
+    --on-accent-2: #ffffff;
+    --accent-2-tint: #26241b;
+    --accent-2-tint-fg: #7d9169;
+    --danger: #d95050;
+    --danger-fg: #e07171;
+    --on-danger: #141414;
+    --danger-tint: #371d1a;
+    --danger-tint-fg: #de6868;
+    --positive: #5cb87a;
+    --positive-fg: #5cb87a;
+    --on-positive: #141414;
+    --positive-tint: #242d20;
+    --positive-tint-fg: #5cb87a;
+    --team-0: #e8a020;
+    --team-0-fg: #e8a020;
+    --on-team-0: #141414;
+    --team-0-tint: #392912;
+    --team-0-tint-fg: #e8a020;
+    --team-1: #5cb87a;
+    --team-1-fg: #5cb87a;
+    --on-team-1: #141414;
+    --team-1-tint: #242d20;
+    --team-1-tint-fg: #5cb87a;
+    --team-2: #5090d8;
+    --team-2-fg: #5493d9;
+    --on-team-2: #141414;
+    --team-2-tint: #22272e;
+    --team-2-tint-fg: #5090d8;
+    --team-3: #d95050;
+    --team-3-fg: #e07171;
+    --on-team-3: #141414;
+    --team-3-tint: #371d1a;
+    --team-3-tint-fg: #de6868;
+    --team-4: #a06bcc;
+    --team-4-fg: #ac7ed3;
+    --on-team-4: #141414;
+    --team-4-tint: #2e212c;
+    --team-4-tint-fg: #aa7ad1;
+    --team-5: #ff9632;
+    --team-5-fg: #ff9632;
+    --on-team-5: #141414;
+    --team-5-tint: #3c2815;
+    --team-5-tint-fg: #ff9632;
+    --accent-deep: #cd8609;
+    --on-accent-deep: #141414;
 }
 
 @layer base {
@@ -86,8 +175,8 @@
 
     body {
         font-family: 'Nunito', sans-serif;
-        background-color: var(--kce-bg);
-        color: var(--kce-cream);
+        background-color: var(--canvas);
+        color: var(--ink);
         overscroll-behavior: none;
     }
 
@@ -106,7 +195,7 @@
 @layer base {
     /* Keyboard-only focus ring — modern interaction affordance without touch noise */
     :focus-visible {
-        outline: 2px solid var(--kce-primary);
+        outline: 2px solid var(--accent-fg);
         outline-offset: 2px;
     }
 }
@@ -142,8 +231,8 @@
         align-items: stretch;
         gap: 2px;
         padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
-        border-top: 1px solid var(--kce-border);
-        background: color-mix(in srgb, var(--kce-bg) 86%, transparent);
+        border-top: 1px solid var(--line);
+        background: color-mix(in srgb, var(--canvas) 86%, transparent);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
     }
@@ -185,8 +274,8 @@
                 calc(16px + env(safe-area-inset-bottom, 0px))
                 calc(12px + env(safe-area-inset-left, 0px));
             border-top: none;
-            border-right: 1px solid var(--kce-border);
-            background: var(--kce-surface);
+            border-right: 1px solid var(--line);
+            background: var(--surface);
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
         }
@@ -236,13 +325,13 @@
     }
 
     .page-scroll::-webkit-scrollbar-thumb {
-        background: var(--kce-border);
+        background: var(--line);
         border-radius: 2px;
     }
 
     .kce-card {
-        background: var(--kce-surface);
-        border: 1px solid var(--kce-border);
+        background: var(--surface);
+        border: 1px solid var(--line);
         border-radius: 16px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
     }
@@ -257,11 +346,11 @@
     }
 
     .kce-input {
-        @apply w-full bg-kce-bg border border-kce-border rounded-lg px-3 py-2.5 text-kce-cream font-body placeholder-kce-muted outline-none transition-colors focus:border-kce-amber;
+        @apply w-full bg-canvas border border-line rounded-lg px-3 py-2.5 text-ink font-body placeholder-muted outline-none transition-colors focus:border-accent;
     }
 
     .btn-primary {
-        @apply bg-kce-amber text-kce-bg font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center;
+        @apply bg-accent text-on-accent font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center;
 
         &:disabled {
             @apply opacity-35 cursor-not-allowed active:scale-100;
@@ -269,7 +358,7 @@
     }
 
     .btn-secondary {
-        @apply bg-kce-surface2 text-kce-muted border border-kce-border font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5;
+        @apply bg-surface-2 text-muted border border-line font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5;
 
         &:disabled {
             @apply opacity-35 cursor-not-allowed active:scale-100;
@@ -277,11 +366,11 @@
     }
 
     .btn-danger {
-        @apply bg-red-900/20 text-red-400 border border-red-800/40 font-bold rounded-lg px-3 py-2 text-xs transition-all active:scale-95 flex items-center gap-1;
+        @apply bg-danger-tint text-danger-tint-fg border border-danger/40 font-bold rounded-lg px-3 py-2 text-xs transition-all active:scale-95 flex items-center gap-1;
     }
 
     .btn-ghost {
-        @apply text-kce-muted font-bold text-xs transition-all active:opacity-60;
+        @apply text-muted font-bold text-xs transition-all active:opacity-60;
     }
 
     .btn-sm {
@@ -289,30 +378,30 @@
     }
 
     .btn-xs {
-        @apply px-2 py-1 text-[11px] rounded;
+        @apply px-2 py-1 text-xs rounded;
     }
 
     .chip {
-        @apply px-3 py-1.5 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted text-xs font-bold cursor-pointer transition-all select-none;
+        @apply px-3 py-1.5 rounded-full border border-line bg-surface-2 text-muted text-xs font-bold cursor-pointer transition-all select-none;
     }
 
     .chip.active {
-        @apply bg-kce-amber text-kce-bg border-kce-amber;
+        @apply bg-accent text-on-accent border-accent;
     }
 
     .sec-heading {
-        @apply font-display font-bold text-kce-amber text-base flex items-center gap-2 mb-3;
+        @apply font-display font-bold text-accent-fg text-base flex items-center gap-2 mb-3;
     }
 
     .sec-heading::after {
         content: '';
         flex: 1;
         height: 1px;
-        background: var(--kce-border);
+        background: var(--line);
     }
 
     .field-label {
-        @apply block text-[11px] font-bold text-kce-muted uppercase tracking-wider mb-1.5;
+        @apply block text-xs font-bold text-muted uppercase tracking-wider mb-1.5;
     }
 
     .bottom-sheet {
@@ -324,7 +413,7 @@
     }
 
     .sheet-panel {
-        @apply w-full max-w-2xl bg-kce-surface border border-kce-border rounded-t-3xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
+        @apply w-full max-w-2xl bg-surface border border-line rounded-t-3xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
         max-height: 100%;
         box-shadow: 0 -8px 32px rgba(0, 0, 0, .35);
     }
@@ -338,16 +427,16 @@
 
     .sheet-handle::before {
         content: '';
-        @apply w-10 h-1.5 bg-kce-border rounded-full;
+        @apply w-10 h-1.5 bg-line rounded-full;
         display: block;
     }
 
     .sheet-title {
-        @apply font-display font-bold text-kce-amber text-lg;
+        @apply font-display font-bold text-accent-fg text-lg;
     }
 
     .nav-btn {
-        @apply flex-1 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-kce-muted text-[11px] font-bold border-none bg-transparent cursor-pointer min-h-[48px];
+        @apply flex-1 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-muted text-xs font-bold border-none bg-transparent cursor-pointer min-h-[48px];
         transition: color .18s ease, background-color .18s ease, transform .12s ease;
     }
 
@@ -356,8 +445,8 @@
     }
 
     .nav-btn.active {
-        color: var(--kce-primary);
-        background: color-mix(in srgb, var(--kce-primary) 12%, transparent);
+        color: var(--accent-fg);
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
     }
 
     @media (min-width: 1024px) {
@@ -373,61 +462,61 @@
     }
 
     .penalty-strip {
-        background: var(--kce-primary);
+        background: var(--accent);
     }
 
     .opener-card {
-        background: linear-gradient(135deg, #3d3540, var(--kce-secondary));
-        border: 2px solid var(--kce-primary);
+        background: linear-gradient(135deg, var(--surface-2), var(--accent-2));
+        border: 2px solid var(--accent);
     }
 
     .role-badge-admin {
-        @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded;
-        background: rgba(232, 160, 32, .15);
-        color: #e8a020;
+        @apply text-xs font-extrabold px-1.5 py-0.5 rounded;
+        background: var(--accent-tint);
+        color: var(--accent-tint-fg);
     }
 
     .role-badge-member {
-        @apply text-[9px] font-extrabold px-1.5 py-0.5 rounded;
-        background: rgba(122, 98, 88, .2);
-        color: #7a6258;
+        @apply text-xs font-extrabold px-1.5 py-0.5 rounded;
+        background: var(--surface-2);
+        color: var(--muted);
     }
 
     .team-0 {
-        background: rgba(232, 160, 32, .15);
-        color: #e8a020;
+        background: var(--team-0-tint);
+        color: var(--team-0-tint-fg);
     }
 
     .team-1 {
-        background: rgba(92, 184, 122, .15);
-        color: #5cb87a;
+        background: var(--team-1-tint);
+        color: var(--team-1-tint-fg);
     }
 
     .team-2 {
-        background: rgba(80, 144, 216, .15);
-        color: #5090d8;
+        background: var(--team-2-tint);
+        color: var(--team-2-tint-fg);
     }
 
     .team-3 {
-        background: rgba(217, 80, 80, .15);
-        color: #d95050;
+        background: var(--team-3-tint);
+        color: var(--team-3-tint-fg);
     }
 
     .team-4 {
-        background: rgba(160, 107, 204, .15);
-        color: #a06bcc;
+        background: var(--team-4-tint);
+        color: var(--team-4-tint-fg);
     }
 
     .team-5 {
-        background: rgba(255, 150, 50, .15);
-        color: #ff9632;
+        background: var(--team-5-tint);
+        color: var(--team-5-tint-fg);
     }
 
     /* Offline banner */
     .offline-banner {
         @apply w-full text-center text-xs font-bold py-1.5 flex-shrink-0;
-        background: #c4701a;
-        color: var(--kce-cream);
+        background: var(--accent-deep);
+        color: var(--on-accent-deep);
     }
 
     /* Spinner wheel */
@@ -450,12 +539,12 @@
     }
 
     .EmojiPickerReact {
-        --epr-bg-color: var(--kce-surface) !important;
-        --epr-search-border-color: var(--kce-border) !important;
-        --epr-text-color: var(--kce-cream) !important;
-        --epr-category-label-bg-color: var(--kce-surface2) !important;
-        --epr-hover-bg-color: var(--kce-surface2) !important;
-        border-color: var(--kce-border) !important;
+        --epr-bg-color: var(--surface) !important;
+        --epr-search-border-color: var(--line) !important;
+        --epr-text-color: var(--ink) !important;
+        --epr-category-label-bg-color: var(--surface-2) !important;
+        --epr-hover-bg-color: var(--surface-2) !important;
+        border-color: var(--line) !important;
         border-radius: 12px !important;
     }
 }

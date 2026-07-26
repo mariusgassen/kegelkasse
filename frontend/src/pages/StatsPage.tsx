@@ -83,24 +83,24 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
 
     return (
         <div className="mb-1">
-            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">{title}</div>
+            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">{title}</div>
             <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
                  style={{overflow: 'visible', display: 'block'}}
                  onClick={onSelect ? () => onSelect(null) : undefined}>
                 {/* Grid */}
                 {yTicks.filter(t => t.v > 0).map((tick, i) => (
                     <line key={i} x1={PAD.left} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
-                          stroke="var(--kce-border)" strokeWidth="0.8" strokeDasharray="3,3"/>
+                          stroke="var(--line)" strokeWidth="0.8" strokeDasharray="3,3"/>
                 ))}
                 {/* Y labels */}
                 {yTicks.map((tick, i) => (
                     <text key={i} x={PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                          fontSize="10" fill="var(--kce-muted)">{yFormat(tick.v)}</text>
+                          fontSize="10" fill="var(--muted)">{yFormat(tick.v)}</text>
                 ))}
                 {/* X labels */}
                 {xTicks.map((tick, i) => (
                     <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                          fontSize="10" fill="var(--kce-muted)">{tick.label}</text>
+                          fontSize="10" fill="var(--muted)">{tick.label}</text>
                 ))}
                 {/* Series */}
                 {series.map(s => (
@@ -139,7 +139,7 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                                     <circle cx={cx} cy={cy} r="9" fill="transparent"/>
                                 )}
                                 <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
-                                        fill={s.color} stroke="var(--kce-bg)"
+                                        fill={s.color} stroke="var(--canvas)"
                                         strokeWidth={isSelected ? 1.5 : 1}
                                         style={{transition: 'r 0.12s'}}/>
                             </g>
@@ -148,9 +148,9 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                 })}
                 {/* Axes */}
                 <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + IH}
-                      stroke="var(--kce-border)" strokeWidth="1"/>
+                      stroke="var(--line)" strokeWidth="1"/>
                 <line x1={PAD.left} y1={PAD.top + IH} x2={VW - PAD.right} y2={PAD.top + IH}
-                      stroke="var(--kce-border)" strokeWidth="1"/>
+                      stroke="var(--line)" strokeWidth="1"/>
             </svg>
         </div>
     )
@@ -249,15 +249,15 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                         {selectedDetail ? (
                             <div className="flex items-center gap-2 mb-2 px-1.5 py-1 rounded text-[11px]"
                                  style={{background: withAlpha(selectedDetail.color), borderLeft: `2px solid ${selectedDetail.color}`}}>
-                                <span className="text-kce-muted flex-shrink-0">{selectedDetail.time}</span>
+                                <span className="text-muted flex-shrink-0">{selectedDetail.time}</span>
                                 <span className="font-bold flex-shrink-0" style={{color: selectedDetail.color}}>{selectedDetail.player}</span>
-                                <span className="text-kce-cream truncate flex-1">
+                                <span className="text-ink truncate flex-1">
                                     {selectedDetail.entry.icon ? `${selectedDetail.entry.icon} ` : ''}{selectedDetail.entry.penalty_type_name}
                                 </span>
                                 <span className="text-red-400 font-bold flex-shrink-0">{feShort(selectedDetail.amount)}</span>
                             </div>
                         ) : (
-                            <div className="text-[9px] text-kce-muted/60 italic mb-2 px-1.5">
+                            <div className="text-[9px] text-muted/60 italic mb-2 px-1.5">
                                 ☝️ {t('stats.tapPenaltyDot')}
                             </div>
                         )}
@@ -268,11 +268,11 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                 )}
 
                 {/* Legend */}
-                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
+                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-line">
                     {activePlayers.map(p => (
                         <div key={p.id} className="flex items-center gap-1.5">
                             <div className="w-4 h-1.5 rounded-full" style={{background: colorOf(p.id)}}/>
-                            <span className="text-[10px] text-kce-muted font-bold">{p.name}</span>
+                            <span className="text-[10px] text-muted font-bold">{p.name}</span>
                         </div>
                     ))}
                 </div>
@@ -300,10 +300,10 @@ function ThrowTrendSmall({evenings}: { evenings: {avg_pins: number; date: string
     const polyline = pts.map(p => `${p.x},${p.y}`).join(' ')
     return (
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display: 'block', overflow: 'visible'}}>
-            <polyline points={polyline} fill="none" stroke="var(--kce-amber)" strokeWidth="2"
+            <polyline points={polyline} fill="none" stroke="var(--accent-fg)" strokeWidth="2"
                       strokeLinejoin="round" strokeLinecap="round"/>
             {pts.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="var(--kce-amber)">
+                <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="var(--accent-fg)">
                     <title>{p.v}</title>
                 </circle>
             ))}
@@ -431,7 +431,7 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                          onClick={() => setSelectedId(null)}
                          style={{cursor: 'default'}}>
                         <circle cx={CX} cy={CY} r={R} fill="none"
-                                stroke="var(--kce-surface2)" strokeWidth={SW}/>
+                                stroke="var(--surface-2)" strokeWidth={SW}/>
                         {segments.map(seg => {
                             const isSelected = selectedId === seg.id
                             const dimmed = selectedId !== null && !isSelected
@@ -468,54 +468,54 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                     {feShort(selected.total)}
                                 </text>
                                 <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
-                                      fill="var(--kce-cream)">
+                                      fill="var(--ink)">
                                     {selected.name.length > 10 ? selected.name.slice(0, 9) + '…' : selected.name}
                                 </text>
                             </>
                         ) : (
                             <>
                                 <text x={CX} y={CY - 8} textAnchor="middle" fontSize="13"
-                                      fill="var(--kce-cream)" fontWeight="bold">
+                                      fill="var(--ink)" fontWeight="bold">
                                     {feShort(visibleTotal)}
                                 </text>
                                 <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
-                                      fill="var(--kce-muted)">
+                                      fill="var(--muted)">
                                     {penaltyCount} {t('stats.penalties')}
                                 </text>
                                 <text x={CX} y={CY + 22} textAnchor="middle" fontSize="10"
-                                      fill="var(--kce-muted)">{t('stats.totalEuro')}</text>
+                                      fill="var(--muted)">{t('stats.totalEuro')}</text>
                             </>
                         )}
                     </svg>
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
                     <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
-                        <div className="font-display font-bold text-kce-amber text-lg leading-tight">🍺 {beerRounds}</div>
-                        <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
+                        <div className="font-display font-bold text-accent-fg text-lg leading-tight">🍺 {beerRounds}</div>
+                        <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
                     </button>
                     <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('shots')}>
-                        <div className="font-display font-bold text-kce-amber text-lg leading-tight">🥃 {shotRounds}</div>
-                        <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
+                        <div className="font-display font-bold text-accent-fg text-lg leading-tight">🥃 {shotRounds}</div>
+                        <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
                     </button>
                     {gameCount > 0 && (
                         <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity"
                                 onClick={() => setGamesOpen(true)}>
-                            <div className="font-display font-bold text-kce-amber text-lg leading-tight">🏆 {gameCountLabel}</div>
-                            <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
+                            <div className="font-display font-bold text-accent-fg text-lg leading-tight">🏆 {gameCountLabel}</div>
+                            <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
                         </button>
                     )}
                 </div>
             </div>
             <div className="kce-card p-2">
                 <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider">
                         {t('stats.penaltyDistribution')}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {hasAbsent && (
                             <button type="button"
                                     className="chip text-[9px]"
-                                    style={showAbsent ? {borderColor: 'var(--kce-amber)', color: 'var(--kce-amber)', background: 'color-mix(in srgb, var(--kce-amber) 15%, transparent)'} : {borderColor: 'var(--kce-border)', color: 'var(--kce-muted)', opacity: 0.6}}
+                                    style={showAbsent ? {borderColor: 'var(--accent-fg)', color: 'var(--accent-fg)', background: 'color-mix(in srgb, var(--accent) 15%, transparent)'} : {borderColor: 'var(--line)', color: 'var(--muted)', opacity: 0.6}}
                                     onClick={() => { setShowAbsent(v => !v); setSelectedId(null) }}>
                                 🏠 {t('stats.toggleAbsent')}
                             </button>
@@ -538,13 +538,13 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                 <div className="flex items-center gap-1.5 min-w-0">
                                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                          style={{background: seg.color}}/>
-                                    <span className="text-[11px] text-kce-cream truncate">{seg.name}</span>
+                                    <span className="text-[11px] text-ink truncate">{seg.name}</span>
                                     {seg.id.startsWith('r:') && (
-                                        <span className="text-[9px] text-kce-muted">🏠</span>
+                                        <span className="text-[9px] text-muted">🏠</span>
                                     )}
                                 </div>
                                 <span className="text-[11px] font-bold flex-shrink-0"
-                                      style={{color: isSelected ? seg.color : 'var(--kce-amber)'}}>
+                                      style={{color: isSelected ? seg.color : 'var(--accent-fg)'}}>
                                     {feShort(seg.total)}
                                 </span>
                             </div>
@@ -602,15 +602,15 @@ function GamesDetailSheet({evening, t, onClose}: {
         iso ? new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'}) : null
 
     const statusLabel = (g: Game) => {
-        if (g.status === 'finished') return {text: t('stats.gameStatusFinished'), color: 'var(--kce-amber)'}
+        if (g.status === 'finished') return {text: t('stats.gameStatusFinished'), color: 'var(--accent-fg)'}
         if (g.status === 'running') return {text: t('stats.gameStatusRunning'), color: '#22c55e'}
-        return {text: t('stats.gameStatusOpen'), color: 'var(--kce-muted)'}
+        return {text: t('stats.gameStatusOpen'), color: 'var(--muted)'}
     }
 
     return (
         <Sheet open onClose={onClose} title={t('stats.gamesDetail')}>
             {games.length === 0 ? (
-                <div className="text-sm text-kce-muted text-center py-4">{t('stats.noGames')}</div>
+                <div className="text-sm text-muted text-center py-4">{t('stats.noGames')}</div>
             ) : (
                 <div className="space-y-2">
                     {games.map(g => {
@@ -627,7 +627,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                         return (
                             <div key={g.id} className="kce-card p-3">
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="font-bold text-kce-cream text-sm flex items-center gap-1 min-w-0">
+                                    <div className="font-bold text-ink text-sm flex items-center gap-1 min-w-0">
                                         {g.is_opener && <span title="Eröffnungsspiel">👑</span>}
                                         <span className="truncate">{g.name}</span>
                                     </div>
@@ -638,13 +638,13 @@ function GamesDetailSheet({evening, t, onClose}: {
                                 </div>
 
                                 {g.winner_name && (
-                                    <div className="text-xs text-kce-amber font-bold mb-1.5">
+                                    <div className="text-xs text-accent-fg font-bold mb-1.5">
                                         🏆 {g.winner_name}
                                     </div>
                                 )}
 
                                 {(startedAt || finishedAt) && (
-                                    <div className="text-[10px] text-kce-muted mb-1.5">
+                                    <div className="text-[10px] text-muted mb-1.5">
                                         {startedAt && <>⏱ {startedAt}</>}
                                         {startedAt && finishedAt && ' · '}
                                         {finishedAt && <>🏁 {finishedAt}</>}
@@ -653,16 +653,16 @@ function GamesDetailSheet({evening, t, onClose}: {
 
                                 {scoreEntries.length > 0 && (
                                     <div className="mb-1.5">
-                                        <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">
+                                        <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
                                             {t('stats.scores')}
                                         </div>
                                         <div className="space-y-0.5">
                                             {scoreEntries.map(s => (
                                                 <div key={s.ref} className="flex items-center justify-between text-xs">
-                                                    <span className={s.isWinner ? 'text-kce-amber font-bold' : 'text-kce-cream'}>
+                                                    <span className={s.isWinner ? 'text-accent-fg font-bold' : 'text-ink'}>
                                                         {s.isWinner ? '🏆 ' : ''}{s.label}
                                                     </span>
-                                                    <span className={s.isWinner ? 'text-kce-amber font-bold' : 'text-kce-muted'}>
+                                                    <span className={s.isWinner ? 'text-accent-fg font-bold' : 'text-muted'}>
                                                         {s.score}
                                                     </span>
                                                 </div>
@@ -672,26 +672,26 @@ function GamesDetailSheet({evening, t, onClose}: {
                                 )}
 
                                 {throwTracking && throwCount > 0 && (
-                                    <div className="flex justify-around text-center pt-1.5 border-t border-kce-border">
+                                    <div className="flex justify-around text-center pt-1.5 border-t border-line">
                                         <div>
-                                            <div className="font-bold text-kce-cream text-xs">{totalPins}</div>
-                                            <div className="text-[9px] text-kce-muted">{t('stats.totalPins')}</div>
+                                            <div className="font-bold text-ink text-xs">{totalPins}</div>
+                                            <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
                                         </div>
                                         <div>
-                                            <div className="font-bold text-kce-cream text-xs">{throwCount}</div>
-                                            <div className="text-[9px] text-kce-muted">{t('stats.throwCount')}</div>
+                                            <div className="font-bold text-ink text-xs">{throwCount}</div>
+                                            <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
                                         </div>
                                         {avgPins !== null && (
                                             <div>
-                                                <div className="font-bold text-kce-amber text-xs">{avgPins}</div>
-                                                <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                                                <div className="font-bold text-accent-fg text-xs">{avgPins}</div>
+                                                <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
                                 {g.note && (
-                                    <div className="text-[11px] text-kce-muted mt-1.5 italic">
+                                    <div className="text-[11px] text-muted mt-1.5 italic">
                                         {g.note}
                                     </div>
                                 )}
@@ -722,7 +722,7 @@ function PenaltyTimelineSheet({evening, t, onSelectPlayer, onClose}: {
     return (
         <Sheet open onClose={onClose} title={t('stats.penaltyTimeline')}>
             {entries.length === 0 ? (
-                <div className="text-sm text-kce-muted text-center py-4">{t('stats.noPenalties')}</div>
+                <div className="text-sm text-muted text-center py-4">{t('stats.noPenalties')}</div>
             ) : (
                 <div className="space-y-1.5">
                     {entries.map(l => {
@@ -731,8 +731,8 @@ function PenaltyTimelineSheet({evening, t, onSelectPlayer, onClose}: {
                         const displayName = player ? (player.nickname || player.name) : l.player_name
                         return (
                             <div key={l.id} className="flex items-center gap-2 text-xs">
-                                <span className="text-kce-muted flex-shrink-0 tabular-nums">{fTime(l.client_timestamp)}</span>
-                                <span className="text-kce-cream truncate flex-1">
+                                <span className="text-muted flex-shrink-0 tabular-nums">{fTime(l.client_timestamp)}</span>
+                                <span className="text-ink truncate flex-1">
                                     {l.icon ? `${l.icon} ` : ''}{l.penalty_type_name}
                                 </span>
                                 {player ? (
@@ -795,20 +795,20 @@ function YearEveningsBarChart({evenings, t}: {
         <div className="kce-card p-3 mb-4">
             {/* Header row: title + selected detail */}
             <div className="flex items-center justify-between gap-2 mb-2" style={{minHeight: 18}}>
-                <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider flex-shrink-0">
+                <div className="text-[10px] font-bold text-muted uppercase tracking-wider flex-shrink-0">
                     {t('stats.eveningBars')}
                 </div>
                 {selected ? (
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-bold text-kce-amber flex-shrink-0">
+                        <span className="text-xs font-bold text-accent-fg flex-shrink-0">
                             {feShort(selected.penalty_total ?? 0)}
                         </span>
-                        <span className="text-[10px] text-kce-muted truncate">
+                        <span className="text-[10px] text-muted truncate">
                             {fLongDate(selected.date)}{selected.venue ? ` · ${selected.venue}` : ''}
                         </span>
                     </div>
                 ) : (
-                    <span className="text-[10px] text-kce-muted/50 italic">
+                    <span className="text-[10px] text-muted/50 italic">
                         ☝️ antippen
                     </span>
                 )}
@@ -834,14 +834,14 @@ function YearEveningsBarChart({evenings, t}: {
                             <rect x={x - 2} y={PAD_T} width={barW + 4} height={IH + PAD_B - 2}
                                   fill="transparent"/>
                             <rect x={x} y={y} width={barW} height={h} rx="2"
-                                  fill="var(--kce-amber)"
+                                  fill="var(--accent-fg)"
                                   opacity={dimmed ? 0.28 : isSelected ? 1 : 0.78}
                                   style={{transition: 'opacity 0.12s'}}/>
                             {showLabel && (
                                 <text x={labelX} y={VH - 6} textAnchor="middle"
                                       fontSize="10"
                                       fontWeight={isSelected ? 'bold' : 'normal'}
-                                      fill={isSelected ? 'var(--kce-amber)' : 'var(--kce-muted)'}>
+                                      fill={isSelected ? 'var(--accent-fg)' : 'var(--muted)'}>
                                     {fShortDate(bar.date)}
                                 </text>
                             )}
@@ -849,7 +849,7 @@ function YearEveningsBarChart({evenings, t}: {
                     )
                 })}
                 <line x1={PAD_H} y1={PAD_T + IH} x2={VW - PAD_H} y2={PAD_T + IH}
-                      stroke="var(--kce-border)" strokeWidth="1"/>
+                      stroke="var(--line)" strokeWidth="1"/>
             </svg>
         </div>
     )
@@ -867,13 +867,13 @@ function YearPodium({players, myMemberId, t, onSelect}: {
 
     const PODIUM_CONFIG = [
         {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,#9ca3af,#d1d5db)', label: '🥈', borderColor: '#9ca3af'},
-        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,#c4701a,var(--kce-primary))', label: '🥇', borderColor: 'var(--kce-primary)'},
+        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,var(--accent-deep),var(--accent))', label: '🥇', borderColor: 'var(--accent-fg)'},
         {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,#cd7f32)', label: '🥉', borderColor: '#cd7f32'},
     ]
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-3">
+            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">
                 {t('stats.podium')}
             </div>
             <div style={{display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, paddingBottom: 4}}>
@@ -889,7 +889,7 @@ function YearPodium({players, myMemberId, t, onSelect}: {
                                 overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 background: cfg.gradient, border: `2px solid ${cfg.borderColor}`,
                                 fontSize: Math.round(cfg.avatarSize * 0.35), fontWeight: 'bold',
-                                color: 'var(--kce-bg)', flexShrink: 0,
+                                color: 'var(--canvas)', flexShrink: 0,
                             }}>
                                 {rm?.avatar
                                     ? <img src={rm.avatar} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
@@ -897,7 +897,7 @@ function YearPodium({players, myMemberId, t, onSelect}: {
                                 }
                             </div>
                             <div style={{textAlign: 'center', maxWidth: 88}}>
-                                <div style={{fontSize: 11, fontWeight: 'bold', color: 'var(--kce-cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                <div style={{fontSize: 11, fontWeight: 'bold', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                                     {displayName}
                                 </div>
                                 {isMe && <MeBadge/>}
@@ -948,17 +948,17 @@ function HallOfShame({players, t, onSelect}: {
 
     return (
         <div className="mb-4">
-            <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hos')}</div>
+            <div className="text-xs font-extrabold text-muted uppercase mb-2">{t('stats.hos')}</div>
             {entries.map(e => (
                 <button key={e.key} type="button"
                         className="kce-card p-3 mb-2 flex items-center gap-3 w-full text-left active:opacity-70 transition-opacity"
                         onClick={() => onSelect(e.player, players.indexOf(e.player))}>
                     <span className="text-2xl">{e.icon}</span>
                     <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-kce-muted">{t(`stats.shame.${e.key}` as any)}</div>
+                        <div className="text-xs font-bold text-muted">{t(`stats.shame.${e.key}` as any)}</div>
                         <div className="text-sm font-bold truncate">{e.player.nickname || e.player.name}</div>
                     </div>
-                    <div className="text-kce-amber font-bold text-sm flex-shrink-0">{formatValue(e)}</div>
+                    <div className="text-accent-fg font-bold text-sm flex-shrink-0">{formatValue(e)}</div>
                 </button>
             ))}
         </div>
@@ -973,43 +973,43 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
         queryFn: () => api.getMemberThrowStats(memberId, year),
         staleTime: 1000 * 60 * 5,
     })
-    if (isLoading) return <div className="text-xs text-kce-muted py-2 text-center">{t('action.loading')}</div>
-    if (!data || data.throw_count === 0) return <div className="text-xs text-kce-muted py-2 text-center">{t('stats.noThrowData')}</div>
+    if (isLoading) return <div className="text-xs text-muted py-2 text-center">{t('action.loading')}</div>
+    if (!data || data.throw_count === 0) return <div className="text-xs text-muted py-2 text-center">{t('stats.noThrowData')}</div>
     return (
-        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--kce-border)'}}>
-            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
+        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
+            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
-                    <div className="font-bold text-kce-cream text-sm">{data.avg_pins ?? '—'}</div>
-                    <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                    <div className="font-bold text-ink text-sm">{data.avg_pins ?? '—'}</div>
+                    <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
                 </div>
                 <div className="text-center">
                     <div className="font-bold text-green-400 text-sm">{data.best_avg ?? '—'}</div>
-                    <div className="text-[9px] text-kce-muted">{t('profile.bestAvg')}</div>
+                    <div className="text-[9px] text-muted">{t('profile.bestAvg')}</div>
                 </div>
                 <div className="text-center">
                     <div className="font-bold text-red-400 text-sm">{data.worst_avg ?? '—'}</div>
-                    <div className="text-[9px] text-kce-muted">{t('profile.worstAvg')}</div>
+                    <div className="text-[9px] text-muted">{t('profile.worstAvg')}</div>
                 </div>
             </div>
             {data.evenings.length > 1 && (
                 <div className="mb-2">
-                    <div className="text-[9px] text-kce-muted mb-1">{t('stats.throwTrend')}</div>
+                    <div className="text-[9px] text-muted mb-1">{t('stats.throwTrend')}</div>
                     <ThrowTrendSmall evenings={data.evenings}/>
                 </div>
             )}
             <div className="space-y-0.5">
                 {data.evenings.map(e => (
                     <div key={e.evening_id} className="flex items-center justify-between text-[10px]">
-                        <span className="text-kce-muted">
+                        <span className="text-muted">
                             {new Date(e.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
                             {e.location ? ` · ${e.location}` : ''}
                         </span>
-                        <span className="font-bold text-kce-cream">Ø {e.avg_pins} ({e.throw_count} {t('stats.throwCount')})</span>
+                        <span className="font-bold text-ink">Ø {e.avg_pins} ({e.throw_count} {t('stats.throwCount')})</span>
                     </div>
                 ))}
             </div>
-            <div className="text-[9px] text-kce-muted text-right mt-1">
+            <div className="text-[9px] text-muted text-right mt-1">
                 {data.throw_count} {t('stats.throwCount')} · {data.total_pins} {t('stats.totalPins')}
             </div>
         </div>
@@ -1044,12 +1044,12 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
             <div className="flex items-center gap-3 mb-5">
                 <Avatar name={displayName} src={rm?.avatar} size="lg"/>
                 <div className="min-w-0">
-                    <div className="font-bold text-kce-cream text-base flex items-center gap-1.5 flex-wrap">
+                    <div className="font-bold text-ink text-base flex items-center gap-1.5 flex-wrap">
                         <span className="text-xl">{medals[rank] ?? `${rank + 1}.`}</span>
                         <span className="truncate">{displayName}</span>
                         {isMe && <MeBadge/>}
                     </div>
-                    <div className="text-xs text-kce-muted">{year}</div>
+                    <div className="text-xs text-muted">{year}</div>
                 </div>
             </div>
 
@@ -1130,12 +1130,12 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             <div className="flex items-center gap-3 mb-4">
                 <Avatar name={displayName} src={rm?.avatar} size="lg"/>
                 <div className="min-w-0">
-                    <div className="font-bold text-kce-cream text-base flex items-center gap-1.5 flex-wrap">
+                    <div className="font-bold text-ink text-base flex items-center gap-1.5 flex-wrap">
                         <span className="truncate">{displayName}</span>
                         <MemberBadges isMe={isMe} isKing={player.is_king} pins={pins}
                                       memberId={player.regular_member_id}/>
                     </div>
-                    <div className="text-xs text-kce-muted">{new Date(evening.date).toLocaleDateString(locale, {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
+                    <div className="text-xs text-muted">{new Date(evening.date).toLocaleDateString(locale, {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
                 </div>
             </div>
 
@@ -1149,17 +1149,17 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
 
             {/* Penalty breakdown */}
             <div className="kce-card p-3 mb-3">
-                <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
+                <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
                 {penalties.length === 0 ? (
-                    <div className="text-xs text-kce-muted text-center py-1">{t('stats.noPenalties')}</div>
+                    <div className="text-xs text-muted text-center py-1">{t('stats.noPenalties')}</div>
                 ) : (
                     <div className="space-y-1.5">
                         {penalties.map(l => {
                             const amount = l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)
                             return (
                                 <div key={l.id} className="flex items-center gap-2 text-xs">
-                                    <span className="text-kce-muted flex-shrink-0">{fTime(l.client_timestamp)}</span>
-                                    <span className="text-kce-cream truncate flex-1">{l.icon ? `${l.icon} ` : ''}{l.penalty_type_name}</span>
+                                    <span className="text-muted flex-shrink-0">{fTime(l.client_timestamp)}</span>
+                                    <span className="text-ink truncate flex-1">{l.icon ? `${l.icon} ` : ''}{l.penalty_type_name}</span>
                                     <span className="text-red-400 font-bold flex-shrink-0">{feShort(amount)}</span>
                                 </div>
                             )
@@ -1171,7 +1171,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Games */}
             {gamesWithPlayer.length > 0 && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
                     <div className="space-y-1.5">
                         {gamesWithPlayer.map(g => {
                             const won = g.winner_ref === `p:${player.id}` || (!!player.team_id && g.winner_ref === `t:${player.team_id}`)
@@ -1179,11 +1179,11 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                             const gamePins = gameThrows.reduce((s, th) => s + th.pins, 0)
                             return (
                                 <div key={g.id} className="flex items-center justify-between gap-2 text-xs">
-                                    <span className={won ? 'text-kce-amber font-bold' : 'text-kce-cream'}>
+                                    <span className={won ? 'text-accent-fg font-bold' : 'text-ink'}>
                                         {won ? '🏆 ' : ''}{g.name}
                                     </span>
                                     {gameThrows.length > 0 && (
-                                        <span className="text-kce-muted flex-shrink-0">
+                                        <span className="text-muted flex-shrink-0">
                                             🎳 {gamePins} ({gameThrows.length} {t('stats.throwCount')})
                                         </span>
                                     )}
@@ -1197,18 +1197,18 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Drink rounds */}
             {(beerRoundsPlayer.length > 0 || shotRoundsPlayer.length > 0) && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">{t('stats.drinkRoundsDetail')}</div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.drinkRoundsDetail')}</div>
                     <div className="space-y-1">
                         {beerRoundsPlayer.map((r, i) => (
                             <div key={r.id} className="flex items-center justify-between text-xs">
-                                <span className="text-kce-cream">🍺 {t('drinks.beer')} {t('stats.drinkRound')} {i + 1}</span>
-                                <span className="text-kce-muted">{fTime(r.client_timestamp)}</span>
+                                <span className="text-ink">🍺 {t('drinks.beer')} {t('stats.drinkRound')} {i + 1}</span>
+                                <span className="text-muted">{fTime(r.client_timestamp)}</span>
                             </div>
                         ))}
                         {shotRoundsPlayer.map((r, i) => (
                             <div key={r.id} className="flex items-center justify-between text-xs">
-                                <span className="text-kce-cream">🥃 {t('drinks.shots')} {t('stats.drinkRound')} {i + 1}</span>
-                                <span className="text-kce-muted">{fTime(r.client_timestamp)}</span>
+                                <span className="text-ink">🥃 {t('drinks.shots')} {t('stats.drinkRound')} {i + 1}</span>
+                                <span className="text-muted">{fTime(r.client_timestamp)}</span>
                             </div>
                         ))}
                     </div>
@@ -1218,26 +1218,26 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Throw stats + heatmap */}
             {throwCount > 0 && (
                 <div className="kce-card p-3">
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">{t('stats.throwStats')}</div>
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.throwStats')}</div>
                     <div className="flex justify-around text-center mb-3">
                         <div>
-                            <div className="font-bold text-kce-cream text-sm">{totalPins}</div>
-                            <div className="text-[9px] text-kce-muted">{t('stats.totalPins')}</div>
+                            <div className="font-bold text-ink text-sm">{totalPins}</div>
+                            <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
                         </div>
                         <div>
-                            <div className="font-bold text-kce-cream text-sm">{throwCount}</div>
-                            <div className="text-[9px] text-kce-muted">{t('stats.throwCount')}</div>
+                            <div className="font-bold text-ink text-sm">{throwCount}</div>
+                            <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
                         </div>
                         {avgPins !== null && (
                             <div>
-                                <div className="font-bold text-kce-amber text-sm">{avgPins}</div>
-                                <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                                <div className="font-bold text-accent-fg text-sm">{avgPins}</div>
+                                <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
                             </div>
                         )}
                     </div>
                     {hasHeatmap && (
                         <>
-                            <div className="text-[9px] text-kce-muted text-center mb-2">{t('stats.heatmap')}</div>
+                            <div className="text-[9px] text-muted text-center mb-2">{t('stats.heatmap')}</div>
                             <svg width="120" height="100" viewBox="0 0 120 100" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
                                 {PIN_POS.map(([px, py], i) => {
                                     const ratio = pinCounts[i] / maxPinCount
@@ -1247,8 +1247,8 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                                         <g key={i}>
                                             <circle
                                                 cx={cx} cy={cy} r="11"
-                                                fill={ratio === 0 ? 'var(--kce-surface2)' : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`}
-                                                stroke={ratio > 0 ? 'var(--kce-amber)' : 'var(--kce-border)'}
+                                                fill={ratio === 0 ? 'var(--surface-2)' : `color-mix(in srgb, var(--accent) ${Math.round(ratio * 100)}%, var(--surface-2))`}
+                                                stroke={ratio > 0 ? 'var(--accent-fg)' : 'var(--line)'}
                                                 strokeWidth="1.5"
                                             />
                                             {pinCounts[i] > 0 && (
@@ -1303,28 +1303,28 @@ function DrinkRoundsDetailSheet({evening, initialTab, t, onClose}: {
         <Sheet open onClose={onClose} title={t('stats.drinkRoundsDetail')}>
             <div className="flex gap-2 mb-4">
                 <button
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${tab === 'beer' ? 'bg-kce-amber/20 text-kce-amber border-kce-amber/40' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${tab === 'beer' ? 'bg-accent/20 text-accent-fg border-accent/40' : 'bg-surface-2 text-muted border-line'}`}
                     onClick={() => setTab('beer')}>
                     🍺 {t('drinks.beer')} ({beerRounds.length})
                 </button>
                 <button
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${tab === 'shots' ? 'bg-kce-amber/20 text-kce-amber border-kce-amber/40' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${tab === 'shots' ? 'bg-accent/20 text-accent-fg border-accent/40' : 'bg-surface-2 text-muted border-line'}`}
                     onClick={() => setTab('shots')}>
                     🥃 {t('drinks.shots')} ({shotRounds.length})
                 </button>
             </div>
             {rounds.length === 0 ? (
-                <div className="text-sm text-kce-muted text-center py-4">{t('drinks.noRounds')}</div>
+                <div className="text-sm text-muted text-center py-4">{t('drinks.noRounds')}</div>
             ) : (
                 <div className="space-y-2">
                     {rounds.map((r, i) => (
                         <div key={r.id} className="kce-card p-3">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs font-bold text-kce-cream">
+                                <span className="text-xs font-bold text-ink">
                                     {tab === 'beer' ? '🍺' : '🥃'} {t('stats.drinkRound')} {i + 1}
                                     {r.variety ? ` · ${r.variety}` : ''}
                                 </span>
-                                <span className="text-[10px] text-kce-muted">{fTime(r.client_timestamp)}</span>
+                                <span className="text-[10px] text-muted">{fTime(r.client_timestamp)}</span>
                             </div>
                             <div className="flex flex-wrap gap-1">
                                 {r.participant_ids.map(pid => (
@@ -1406,7 +1406,7 @@ export function StatsPage() {
             <div className="flex gap-1 mb-3">
                 {(['evening', 'year', 'lab'] as const).map(tb => (
                     <button key={tb} type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                             onClick={() => setTab(tb)}>
                         {tb === 'evening' ? t('stats.evening') : tb === 'year' ? t('stats.year') : t('stats.tab.lab')}
                     </button>
@@ -1428,7 +1428,7 @@ export function StatsPage() {
                             const isSelected = e.id === effectiveId
                             return (
                                 <button key={e.id} type="button"
-                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelected ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSelected ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                         onClick={() => setPickedId(e.id)}>
                                     {isActive ? '🎳 ' : ''}{fDate(e.date)}{e.venue ? ` · ${e.venue}` : ''}
                                 </button>
@@ -1450,15 +1450,15 @@ export function StatsPage() {
 
                             {eveningStats.hallOfFame.length > 0 && (
                                 <>
-                                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.hof')}</div>
+                                    <div className="text-xs font-extrabold text-muted uppercase mb-2">{t('stats.hof')}</div>
                                     {eveningStats.hallOfFame.map((h, i) => (
                                         <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
                                             <span className="text-2xl">{h.icon}</span>
                                             <div className="flex-1">
-                                                <div className="text-xs font-bold text-kce-muted">{h.label}</div>
+                                                <div className="text-xs font-bold text-muted">{h.label}</div>
                                                 <div className="text-sm font-bold">{h.name}</div>
                                             </div>
-                                            <div className="text-kce-amber font-bold text-sm">{h.value}</div>
+                                            <div className="text-accent-fg font-bold text-sm">{h.value}</div>
                                         </div>
                                     ))}
                                 </>
@@ -1477,7 +1477,7 @@ export function StatsPage() {
                                                     <div className="flex-1 min-w-0">
                                                         {h.media_url && (
                                                             <img src={h.media_url} alt=""
-                                                                 className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
+                                                                 className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                         )}
                                                         {h.text && <div className="text-sm mt-1">{h.text}</div>}
                                                     </div>
@@ -1531,8 +1531,8 @@ export function StatsPage() {
                                             ]
                                             return (
                                                 <button key={p.id} type="button" className="kce-card p-3 w-full text-left active:opacity-70 transition-opacity" onClick={() => setEveningPlayerDetail(p)}>
-                                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-sm mb-2"
-                                                         style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))', margin: '0 auto'}}>
+                                                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-on-accent text-sm mb-2"
+                                                         style={{background: 'linear-gradient(135deg,var(--accent-deep),var(--accent))', margin: '0 auto'}}>
                                                         {rm?.avatar
                                                             ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                                             : p.name[0].toUpperCase()
@@ -1546,39 +1546,39 @@ export function StatsPage() {
                                                     </div>
                                                     <div className="flex justify-around text-center">
                                                         <div>
-                                                            <div className="text-kce-amber font-bold text-sm">{wins}</div>
-                                                            <div className="text-[9px] text-kce-muted">{t('stats.wins')}</div>
+                                                            <div className="text-accent-fg font-bold text-sm">{wins}</div>
+                                                            <div className="text-[9px] text-muted">{t('stats.wins')}</div>
                                                         </div>
                                                         <div>
                                                             <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                                            <div className="text-[9px] text-kce-muted">{t('stats.penalties')}</div>
+                                                            <div className="text-[9px] text-muted">{t('stats.penalties')}</div>
                                                         </div>
                                                         <div>
-                                                            <div className="text-kce-amber font-bold text-sm">🍺{beerC}</div>
-                                                            <div className="text-[9px] text-kce-muted">{t('stats.beer')}</div>
+                                                            <div className="text-accent-fg font-bold text-sm">🍺{beerC}</div>
+                                                            <div className="text-[9px] text-muted">{t('stats.beer')}</div>
                                                         </div>
                                                     </div>
                                                     {throwCount > 0 && (
-                                                        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--kce-border)'}}>
+                                                        <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
                                                             <div className="flex justify-around text-center">
                                                                 <div>
-                                                                    <div className="text-kce-cream font-bold text-sm">🎳{totalPins}</div>
-                                                                    <div className="text-[9px] text-kce-muted">{t('stats.totalPins')}</div>
+                                                                    <div className="text-ink font-bold text-sm">🎳{totalPins}</div>
+                                                                    <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
                                                                 </div>
                                                                 <div>
-                                                                    <div className="text-kce-cream font-bold text-sm">{throwCount}</div>
-                                                                    <div className="text-[9px] text-kce-muted">{t('stats.throwCount')}</div>
+                                                                    <div className="text-ink font-bold text-sm">{throwCount}</div>
+                                                                    <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
                                                                 </div>
                                                                 {avgPins !== null && (
                                                                     <div>
-                                                                        <div className="text-kce-cream font-bold text-sm">{avgPins}</div>
-                                                                        <div className="text-[9px] text-kce-muted">{t('stats.avgPins')}</div>
+                                                                        <div className="text-ink font-bold text-sm">{avgPins}</div>
+                                                                        <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             {hasHeatmap && (
                                                                 <div className="mt-2">
-                                                                    <div className="text-[9px] text-kce-muted text-center mb-1">{t('stats.heatmap')}</div>
+                                                                    <div className="text-[9px] text-muted text-center mb-1">{t('stats.heatmap')}</div>
                                                                     <svg width="80" height="68" viewBox="0 0 80 68" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
                                                                         {PIN_POS.map(([px, py], i) => {
                                                                             const ratio = pinCounts[i] / maxPinCount
@@ -1588,8 +1588,8 @@ export function StatsPage() {
                                                                                 <g key={i}>
                                                                                     <circle
                                                                                         cx={cx} cy={cy} r="8"
-                                                                                        fill={ratio === 0 ? 'var(--kce-surface2)' : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`}
-                                                                                        stroke={ratio > 0 ? 'var(--kce-amber)' : 'var(--kce-border)'}
+                                                                                        fill={ratio === 0 ? 'var(--surface-2)' : `color-mix(in srgb, var(--accent) ${Math.round(ratio * 100)}%, var(--surface-2))`}
+                                                                                        stroke={ratio > 0 ? 'var(--accent-fg)' : 'var(--line)'}
                                                                                         strokeWidth="1.5"
                                                                                     />
                                                                                     {pinCounts[i] > 0 && (
@@ -1636,7 +1636,7 @@ export function StatsPage() {
                 <div className="flex gap-1">
                     {yearsWithEvenings.map(y => (
                         <button key={y} type="button"
-                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${year === y ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${year === y ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setYear(y)}>
                             {y}
                         </button>
@@ -1670,7 +1670,7 @@ export function StatsPage() {
                         <HallOfShame players={players} t={t} onSelect={(p, rank) => setSelectedPlayer({player: p, rank})}/>
                     )}
 
-                    <div className="text-xs font-extrabold text-kce-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
+                    <div className="text-xs font-extrabold text-muted uppercase mb-2">{t('stats.yearPenalties')}</div>
                     <input
                         className="kce-input mb-3"
                         value={memberSearch}
@@ -1686,24 +1686,24 @@ export function StatsPage() {
                             <button
                                 key={i}
                                 type="button"
-                                className={`kce-card p-3 mb-2 w-full text-left active:opacity-70 transition-opacity ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
+                                className={`kce-card p-3 mb-2 w-full text-left active:opacity-70 transition-opacity ${isMe ? 'ring-1 ring-accent/40' : ''}`}
                                 onClick={() => setSelectedPlayer({player: p, rank})}
                             >
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <span className="text-base w-6 text-center flex-shrink-0">
                                         {medals[rank] ??
-                                            <span className="text-xs text-kce-muted font-bold">{rank + 1}.</span>}
+                                            <span className="text-xs text-muted font-bold">{rank + 1}.</span>}
                                     </span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
                                             {p.nickname || p.name}
                                             <MemberBadges isMe={isMe} pins={pins} memberId={p.regular_member_id}/>
                                         </div>
-                                        <div className="text-[10px] text-kce-muted">
+                                        <div className="text-[10px] text-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
                                         </div>
                                         {p.throw_count > 0 && (
-                                            <div className="text-[10px] text-kce-muted">
+                                            <div className="text-[10px] text-muted">
                                                 🎳 Ø {p.avg_pins} · {p.throw_count} {t('stats.throwCount')}
                                             </div>
                                         )}
@@ -1711,12 +1711,12 @@ export function StatsPage() {
                                     <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
                                 <div className="h-1 rounded-full overflow-hidden"
-                                     style={{background: 'var(--kce-surface2)'}}>
+                                     style={{background: 'var(--surface-2)'}}>
                                     <div className="h-full rounded-full transition-all"
                                          style={{
                                              width: `${barWidth}%`,
-                                             background: isMe ? 'var(--kce-amber)'
-                                                 : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--kce-muted)'
+                                             background: isMe ? 'var(--accent)'
+                                                 : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--muted)'
                                          }}/>
                                 </div>
                             </button>
@@ -1725,7 +1725,7 @@ export function StatsPage() {
 
                     {!mq && filteredPlayers.length > 5 && (
                         <button type="button"
-                                className="w-full text-xs text-kce-muted py-2 font-bold"
+                                className="w-full text-xs text-muted py-2 font-bold"
                                 onClick={() => setShowAllMembers(v => !v)}>
                             {showAllMembers ? t('stats.showLess') : `${t('stats.showAllMembers')} (${filteredPlayers.length})`}
                         </button>

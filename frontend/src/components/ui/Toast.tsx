@@ -33,7 +33,7 @@ export function ToastContainer() {
             {toasts.map(t => (
                 <div key={t.id}
                      className={`px-4 py-2 rounded-xl text-xs font-bold shadow-lg animate-fade-in
-            ${t.type === 'error' ? 'bg-red-800 text-red-100' : 'bg-kce-olive text-kce-cream'}`}>
+            ${t.type === 'error' ? 'bg-red-800 text-red-100' : 'bg-accent-2 text-ink'}`}>
                     {t.text}
                 </div>
             ))}

@@ -44,7 +44,7 @@ export function ExpandableCard({
                     aria-expanded={isOpen}
                     onClick={toggle}>
                 <span className="min-w-0">{title}</span>
-                <span className="text-kce-muted flex-shrink-0" aria-hidden="true">{isOpen ? '▲' : '▼'}</span>
+                <span className="text-muted flex-shrink-0" aria-hidden="true">{isOpen ? '▲' : '▼'}</span>
             </button>
             {isOpen && <div className={`${bare ? '' : 'px-3 pb-3'} ${bodyClassName}`}>{children}</div>}
         </div>

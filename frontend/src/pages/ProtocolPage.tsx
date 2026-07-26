@@ -47,7 +47,7 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
         <div>
             <label className="field-label">{label}</label>
             <div className="flex items-center gap-2">
-                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">
+                <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">
                     {isEuro ? '€' : '×'}
                 </span>
                 <input className="kce-input flex-1"
@@ -386,8 +386,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             {/* ── Header: total + action buttons ── */}
             <div className="kce-card p-3 mb-3">
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">{t('penalty.total')}</span>
-                    <span className="font-display font-bold text-kce-amber text-xl">{fe(euroTotal)}</span>
+                    <span className="text-xs font-extrabold text-muted uppercase tracking-wider">{t('penalty.total')}</span>
+                    <span className="font-display font-bold text-accent-fg text-xl">{fe(euroTotal)}</span>
                 </div>
                 <div className="flex gap-2">
                     <button className="btn-primary flex-1" onClick={openSheet}>
@@ -407,13 +407,13 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 {isAdmin(user) && (
                     <div className="mt-2">
                         <button
-                            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
                             onClick={doCalculateAbsence}
                             disabled={absenceLoading}>
                             🏠 {hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
                         </button>
                         {absenceResult && (
-                            <p className="text-xs text-kce-muted text-center mt-1">
+                            <p className="text-xs text-muted text-center mt-1">
                                 {absenceResult.absent_count} {t('penalty.absence.result')} · Ø {fe(absenceResult.avg)}
                             </p>
                         )}
@@ -463,7 +463,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             )}
 
             {/* ── STRAFEN section heading ── */}
-            <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                 ⚠️ {t('nav.penalties')} ({evening.penalty_log.length})
             </div>
 
@@ -474,26 +474,26 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     if (event.kind === 'game_started') {
                         return (
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
-                                <div className="h-px flex-1 bg-kce-border"/>
+                                <div className="h-px flex-1 bg-line"/>
                                 <span
-                                    className="text-[10px] font-bold text-kce-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                    className="text-[10px] font-bold text-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     ▶ {event.game.name} · {fTime(event.ts)}
-                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>⏳ {t('sync.pendingBadge')}</span>}
+                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
-                                <div className="h-px flex-1 bg-kce-border"/>
+                                <div className="h-px flex-1 bg-line"/>
                             </div>
                         )
                     }
                     if (event.kind === 'game_finished') {
                         return (
                             <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
-                                <div className="h-px flex-1 bg-kce-amber/40"/>
+                                <div className="h-px flex-1 bg-accent/40"/>
                                 <span
-                                    className="text-[10px] font-bold text-kce-amber uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                    className="text-[10px] font-bold text-accent-fg uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
-                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>⏳ {t('sync.pendingBadge')}</span>}
+                                    {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
-                                <div className="h-px flex-1 bg-kce-amber/40"/>
+                                <div className="h-px flex-1 bg-accent/40"/>
                             </div>
                         )
                     }
@@ -518,15 +518,15 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                     <span className="truncate">{entry.player_name}</span>
                                     {isPendingEntry && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                              style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                             ⏳ {t('sync.pendingBadge')}
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-xs text-kce-muted truncate flex items-center gap-1">
+                                <div className="text-xs text-muted truncate flex items-center gap-1">
                                     {entry.penalty_type_name}
-                                    {entryGame && <span className="text-kce-muted">· {entryGame.name}</span>}
-                                    {isCapped && <span className="text-kce-amber">· ≤ {fe(guestPenaltyCap!)}</span>}
+                                    {entryGame && <span className="text-muted">· {entryGame.name}</span>}
+                                    {isCapped && <span className="text-accent-fg">· ≤ {fe(guestPenaltyCap!)}</span>}
                                 </div>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -538,10 +538,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                         : `×${entry.amount}`}
                                   </span>
                                 }
-                                <div className="text-xs text-kce-muted">{fTime(entry.client_timestamp)}</div>
+                                <div className="text-xs text-muted">{fTime(entry.client_timestamp)}</div>
                             </div>
                             {!isPendingEntry && (
-                                <button className="btn-ghost btn-xs flex-shrink-0 text-kce-muted"
+                                <button className="btn-ghost btn-xs flex-shrink-0 text-muted"
                                         onClick={() => openEditSheet(entry)}>✏️
                                 </button>
                             )}
@@ -565,7 +565,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             }
 
             {/* ── GETRÄNKE section ── */}
-            <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider mb-2 mt-5">
+            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2 mt-5">
                 🍺 {t('drinks.title')} ({drinkRounds.length})
             </div>
             {drinkRounds.length === 0
@@ -582,12 +582,12 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                     <span>{label}{r.variety ? ` · ${r.variety}` : ''}</span>
                                     {isPendingDrink && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                              style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                             ⏳ {t('sync.pendingBadge')}
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-xs text-kce-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
+                                <div className="text-xs text-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
                             </div>
                             {!evening.is_closed && (
                                 <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
@@ -610,7 +610,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 <div className="flex gap-1 mb-3">
                     {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
                         <button key={id} type="button"
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setTab(id)}>{label}
                         </button>
                     ))}
@@ -645,7 +645,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </div>
 
                         {/* 3 — Mode + Amount (less prominent) */}
-                        <div className="border border-kce-border rounded-xl p-3 flex flex-col gap-2">
+                        <div className="border border-line rounded-xl p-3 flex flex-col gap-2">
                             <ModeToggle
                                 options={[{value: 'count', label: t('penalty.mode.count')}, {
                                     value: 'euro',
@@ -696,7 +696,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </div>
 
                         {/* 3 — Mode + Amount (less prominent) */}
-                        <div className="border border-kce-border rounded-xl p-3 flex flex-col gap-2">
+                        <div className="border border-line rounded-xl p-3 flex flex-col gap-2">
                             <ModeToggle
                                 options={[{value: 'count', label: t('penalty.mode.count')}, {
                                     value: 'euro',
@@ -713,7 +713,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                     <label className="field-label">{t('penalty.unitAmount')}</label>
                                     <div className="flex items-center gap-2">
                                         <span
-                                            className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                                            className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                                         <input className="kce-input flex-1"
                                                type="text" inputMode="decimal"
                                                value={customUnitAmount}
@@ -727,7 +727,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         {/* 4 — Save as template (admin only) */}
                         {isAdmin(user) && (
                             <button type="button"
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${saveAsTemplate ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${saveAsTemplate ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
                                     onClick={() => setSaveAsTemplate(v => !v)}>
                                 <span>{saveAsTemplate ? '✓' : '+'}</span>
                                 {t('penalty.saveAsTemplate')}
@@ -748,7 +748,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     <div className="flex gap-1">
                         {(['beer', 'shots'] as const).map(dt => (
                             <button key={dt} type="button"
-                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${drinkType === dt ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setDrinkType(dt)}>
                                 {dt === 'beer' ? `🍺 ${t('drinks.beer')}` : `🥃 ${t('drinks.shots')}`}
                             </button>
@@ -791,7 +791,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     <div className="flex gap-1">
                         {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
                             <button key={id} type="button"
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                     onClick={() => setEditTab(id)}>{label}
                             </button>
                         ))}

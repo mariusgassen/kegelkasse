@@ -61,16 +61,16 @@ function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, m
     return (
         <div>
             <button type="button" className="flex items-center justify-between w-full text-left" onClick={onToggle}>
-                <span className="text-kce-muted">{icon} {label}</span>
+                <span className="text-muted">{icon} {label}</span>
                 <span className={`font-bold ${colorClass}`} data-testid={testId}>{amountLabel}</span>
             </button>
             {open && (
                 items.length === 0
-                    ? <div className="pl-4 py-1 text-[11px] text-kce-muted">{noEntriesLabel}</div>
+                    ? <div className="pl-4 py-1 text-[11px] text-muted">{noEntriesLabel}</div>
                     : (
                         <div className="pl-4 pb-1 pt-0.5 flex flex-col gap-0.5">
                             {items.map((it, i) => (
-                                <div key={it.id ?? i} className="flex items-center justify-between text-[11px] text-kce-muted gap-2">
+                                <div key={it.id ?? i} className="flex items-center justify-between text-[11px] text-muted gap-2">
                                     <span className="truncate flex items-center gap-1 min-w-0">
                                         <span className="truncate">{it.label}</span>
                                         {myId != null && it.id === myId &&
@@ -234,27 +234,27 @@ export function TreasuryAnalysis() {
 
     return (
         <div>
-            <p className="text-xs text-kce-muted mb-3">{t('treasury.analysis.intro')}</p>
+            <p className="text-xs text-muted mb-3">{t('treasury.analysis.intro')}</p>
 
             {/* ── Nach Spielern filtern — expanded by default: it is the point of this view ── */}
             <div className="kce-card p-3 mb-3" data-testid="balance-filter">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-xs font-bold text-kce-muted truncate">
+                    <span className="text-xs font-bold text-muted truncate">
                         🔍 {t('treasury.balanceFilter.title')}
                         {balanceFilterActive && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-kce-amber text-kce-bg text-[10px] font-bold"
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-accent text-on-accent text-[10px] font-bold"
                                   data-testid="balance-filter-active">{balanceFilterIds.size}</span>
                         )}
                     </span>
                     {balanceFilterActive && (
-                        <button type="button" className="flex-shrink-0 text-[10px] text-kce-muted underline px-1"
+                        <button type="button" className="flex-shrink-0 text-[10px] text-muted underline px-1"
                                 data-testid="balance-filter-clear"
                                 onClick={clearBalanceFilter}>
                             {t('treasury.balanceFilter.clear')}
                         </button>
                     )}
                 </div>
-                <div className="text-[11px] text-kce-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
+                <div className="text-[11px] text-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
                 <div className="flex gap-2 flex-wrap">
                     {[...(balances as Balance[])].sort((a, b) => {
                         if (a.regular_member_id === myRegularMemberId) return -1
@@ -265,7 +265,7 @@ export function TreasuryAnalysis() {
                         const isMe = m.regular_member_id === myRegularMemberId
                         return (
                             <button key={m.regular_member_id} type="button"
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-accent text-on-accent border-accent' : 'bg-surface-2 text-muted border-line'}`}
                                     onClick={() => setBalanceFilterIds(prev => {
                                         const next = new Set(prev)
                                         if (next.has(m.regular_member_id)) next.delete(m.regular_member_id)
@@ -279,27 +279,27 @@ export function TreasuryAnalysis() {
                     })}
                 </div>
                 {balanceFilterActive && (
-                    <div className="flex flex-col gap-2 mt-3 pt-2 border-t border-kce-border" data-testid="balance-filter-options">
+                    <div className="flex flex-col gap-2 mt-3 pt-2 border-t border-line" data-testid="balance-filter-options">
                         <label className="flex items-start gap-2 cursor-pointer">
                             <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceOnlySelected}
                                    data-testid="balance-opt-only"
                                    onChange={e => setBalanceOnlySelected(e.target.checked)}/>
                             <span>
-                                <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.onlySelected')}</span>
-                                <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
+                                <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.onlySelected')}</span>
+                                <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
                             </span>
                         </label>
                         {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
                         <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
                              aria-disabled={balanceOnlySelected}>
-                            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
+                            <div className="text-[10px] font-bold text-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
                             <label className="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
                                        disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
                                        onChange={e => setBalanceWriteOffDebt(e.target.checked)}/>
                                 <span>
-                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optWriteOff')}</span>
-                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
+                                    <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optWriteOff')}</span>
+                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
                                 </span>
                             </label>
                             <label className="flex items-start gap-2 cursor-pointer">
@@ -307,8 +307,8 @@ export function TreasuryAnalysis() {
                                        disabled={balanceOnlySelected} data-testid="balance-opt-refund"
                                        onChange={e => setBalanceRefundPaid(e.target.checked)}/>
                                 <span>
-                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optRefund')}</span>
-                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
+                                    <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optRefund')}</span>
+                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
                                 </span>
                             </label>
                             <label className="flex items-start gap-2 cursor-pointer">
@@ -316,8 +316,8 @@ export function TreasuryAnalysis() {
                                        disabled={balanceOnlySelected} data-testid="balance-opt-share"
                                        onChange={e => setBalanceSettleShare(e.target.checked)}/>
                                 <span>
-                                    <span className="text-xs font-bold text-kce-cream">{t('treasury.balanceFilter.optShare')}</span>
-                                    <span className="block text-[10px] text-kce-muted">{t('treasury.balanceFilter.optShareHint')}</span>
+                                    <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optShare')}</span>
+                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optShareHint')}</span>
                                 </span>
                             </label>
                         </div>
@@ -329,7 +329,7 @@ export function TreasuryAnalysis() {
             <div className="kce-card p-4 mb-3">
                 <div className="flex items-center justify-between mb-2">
                     <div>
-                        <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-0.5">
+                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">
                             {t('treasury.analysis.flowHeading')}
                         </div>
                         <div className={`font-display font-bold text-2xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}
@@ -337,7 +337,7 @@ export function TreasuryAnalysis() {
                     </div>
                     <span className="text-3xl opacity-20">📊</span>
                 </div>
-                <div className="pt-2 border-t border-kce-border flex flex-col gap-1 text-xs">
+                <div className="pt-2 border-t border-line flex flex-col gap-1 text-xs">
                     <FlowRow
                         icon="⬆" label={t('treasury.flow.paidIn')}
                         amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
@@ -363,7 +363,7 @@ export function TreasuryAnalysis() {
                     )}
                     {Math.abs(shareOut) >= 0.005 && (
                         <div className="flex items-center justify-between">
-                            <span className="text-kce-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
+                            <span className="text-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
                             <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-green-400'}`}
                                   data-testid="flow-amount-share">
                                 {shareOut > 0 ? `-${fe(shareOut)}` : `+${fe(-shareOut)}`}
@@ -379,9 +379,9 @@ export function TreasuryAnalysis() {
                                 items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
                                 testId="flow-amount-outstanding"
                             />
-                            <div className="flex items-center justify-between pt-1 border-t border-kce-border">
-                                <span className="text-kce-muted">→ {t('treasury.flow.projected')}</span>
-                                <span className="font-bold" style={{color: 'var(--kce-cream)'}}>{fe(projectedCash)}</span>
+                            <div className="flex items-center justify-between pt-1 border-t border-line">
+                                <span className="text-muted">→ {t('treasury.flow.projected')}</span>
+                                <span className="font-bold" style={{color: 'var(--ink)'}}>{fe(projectedCash)}</span>
                             </div>
                         </>
                     )}
@@ -409,7 +409,7 @@ export function TreasuryAnalysis() {
                             const isMe = m.regular_member_id === myRegularMemberId
                             return (
                                 <button key={m.regular_member_id} type="button"
-                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-accent text-on-accent border-accent' : 'bg-surface-2 text-muted border-line'}`}
                                         onClick={() => setHistoryMemberId(m.regular_member_id)}>
                                     {m.nickname || m.name}
                                     {isMe && <MeBadge inverted={isActive} className="ml-1"/>}

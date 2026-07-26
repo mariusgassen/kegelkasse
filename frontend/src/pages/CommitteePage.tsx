@@ -161,20 +161,20 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                     <div key={a.id} id={`item-${a.id}`} className="kce-card p-4">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                                <p className="font-bold text-kce-cream text-sm leading-snug">{a.title}</p>
+                                <p className="font-bold text-ink text-sm leading-snug">{a.title}</p>
                                 {a.media_url && (
                                     <img
                                         src={a.media_url}
                                         alt=""
-                                        className="mt-2 rounded max-h-64 max-w-full object-contain border border-kce-border/40"
+                                        className="mt-2 rounded max-h-64 max-w-full object-contain border border-line/40"
                                     />
                                 )}
                                 {a.text && (
-                                    <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
+                                    <p className="text-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
                                         {a.text}
                                     </p>
                                 )}
-                                <p className="text-[10px] text-kce-muted mt-2">
+                                <p className="text-[10px] text-muted mt-2">
                                     {a.created_by_name && (
                                         <span>{t('committee.announcement.by')} {a.created_by_name} · </span>
                                     )}
@@ -251,7 +251,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
             {delId !== null && (
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
-                        <p className="text-kce-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
+                        <p className="text-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
                         <button className="btn-primary w-full" style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
@@ -444,7 +444,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
             {delId !== null && (
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
-                        <p className="text-kce-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
+                        <p className="text-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
                         <button className="btn-primary w-full" style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
@@ -514,14 +514,14 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-lg">🚌</span>
-                        <p className="font-bold text-kce-cream text-sm leading-snug">{trip.destination}</p>
+                        <p className="font-bold text-ink text-sm leading-snug">{trip.destination}</p>
                     </div>
-                    <p className="text-xs text-kce-amber font-bold">{fDate(trip.date)}</p>
+                    <p className="text-xs text-accent-fg font-bold">{fDate(trip.date)}</p>
                     {trip.note && (
-                        <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
+                        <p className="text-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
                     )}
                     {trip.created_by_name && (
-                        <p className="text-[10px] text-kce-muted mt-1.5">von {trip.created_by_name}</p>
+                        <p className="text-[10px] text-muted mt-1.5">von {trip.created_by_name}</p>
                     )}
                 </div>
                 {canWrite && (
@@ -699,23 +699,23 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                        <p className="font-bold text-kce-cream text-sm leading-snug">{poll.title}</p>
+                                        <p className="font-bold text-ink text-sm leading-snug">{poll.title}</p>
                                         {poll.is_closed && (
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-kce-surface2 text-kce-muted border border-kce-border/40">
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
                                                 {t('committee.poll.closed')}
                                             </span>
                                         )}
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-kce-surface2 text-kce-muted border border-kce-border/40">
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
                                             {poll.mode === 'multi' ? t('committee.poll.modeMulti') : t('committee.poll.modeSingle')}
                                         </span>
                                     </div>
                                     {poll.text && (
-                                        <p className="text-kce-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
+                                        <p className="text-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
                                             {poll.text}
                                         </p>
                                     )}
                                     {poll.created_by_name && (
-                                        <p className="text-[10px] text-kce-muted mt-1">
+                                        <p className="text-[10px] text-muted mt-1">
                                             {t('committee.poll.by')} {poll.created_by_name}
                                         </p>
                                     )}
@@ -750,11 +750,11 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                             onClick={() => toggleOption(poll, opt.id)}
                                             className={`relative w-full text-left rounded-lg px-3 py-2 text-sm transition-all overflow-hidden border ${
                                                 isMyVote
-                                                    ? 'border-kce-amber bg-kce-amber/10 text-kce-cream'
+                                                    ? 'border-accent bg-accent/10 text-ink'
                                                     : isSelected
-                                                        ? 'border-kce-primary bg-kce-primary/10 text-kce-cream'
-                                                        : 'border-kce-border/40 bg-kce-surface2 text-kce-muted'
-                                            } ${poll.is_closed || voted ? 'cursor-default' : 'hover:border-kce-primary/60'}`}
+                                                        ? 'border-accent-fg bg-accent/10 text-ink'
+                                                        : 'border-line/40 bg-surface-2 text-muted'
+                                            } ${poll.is_closed || voted ? 'cursor-default' : 'hover:border-accent-fg/60'}`}
                                         >
                                             {/* Progress bar */}
                                             {showResult && (
@@ -762,7 +762,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                                     className="absolute inset-0 rounded-lg opacity-20 transition-all"
                                                     style={{
                                                         width: `${pct}%`,
-                                                        background: isMyVote ? 'var(--kce-amber)' : 'var(--kce-primary)',
+                                                        background: isMyVote ? 'var(--accent)' : 'var(--accent-2)',
                                                     }}
                                                 />
                                             )}
@@ -774,7 +774,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                                     </span>
                                                 )}
                                                 {!showResult && isSelected && (
-                                                    <span className="text-xs font-bold text-kce-primary flex-shrink-0">✓</span>
+                                                    <span className="text-xs font-bold text-accent-fg flex-shrink-0">✓</span>
                                                 )}
                                             </div>
                                         </button>
@@ -794,7 +794,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         </button>
                                     ) : (
                                         <button
-                                            className="text-xs text-kce-muted hover:text-red-400 underline"
+                                            className="text-xs text-muted hover:text-red-400 underline"
                                             disabled={voting === poll.id}
                                             onClick={() => handleRetract(poll.id)}>
                                             {t('committee.poll.retract')}
@@ -840,8 +840,8 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         type="button"
                                         className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
                                             newMode === m
-                                                ? 'bg-kce-amber text-kce-bg border-kce-amber'
-                                                : 'bg-kce-surface2 text-kce-muted border-kce-border/40'
+                                                ? 'bg-accent text-on-accent border-accent'
+                                                : 'bg-surface-2 text-muted border-line/40'
                                         }`}
                                         onClick={() => setNewMode(m)}>
                                         {m === 'single' ? t('committee.poll.modeSingle') : t('committee.poll.modeMulti')}
@@ -863,7 +863,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         {newOptions.length > 2 && (
                                             <button
                                                 type="button"
-                                                className="text-kce-muted hover:text-red-400 text-lg leading-none px-2"
+                                                className="text-muted hover:text-red-400 text-lg leading-none px-2"
                                                 onClick={() => setNewOptions(prev => prev.filter((_, j) => j !== i))}>
                                                 ×
                                             </button>
@@ -872,7 +872,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                 ))}
                                 <button
                                     type="button"
-                                    className="text-xs text-kce-primary hover:text-kce-amber text-left py-1"
+                                    className="text-xs text-accent-fg hover:text-accent-fg text-left py-1"
                                     onClick={() => setNewOptions(prev => [...prev, ''])}>
                                     {t('committee.poll.addOption')}
                                 </button>
@@ -895,7 +895,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
             {delId !== null && (
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
-                        <p className="text-kce-muted text-sm">{t('committee.poll.deleteConfirm')}</p>
+                        <p className="text-muted text-sm">{t('committee.poll.deleteConfirm')}</p>
                         <button className="btn-primary w-full" style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
@@ -948,7 +948,7 @@ export function CommitteePage() {
                     <div className="sec-heading">{t('committee.title')}</div>
                     {canWrite && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                              style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
+                              style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
                             VGA
                         </span>
                     )}
@@ -956,7 +956,7 @@ export function CommitteePage() {
                 <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
                     {TABS.map(tb => (
                         <button key={tb.id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setTab(tb.id as any)}>{tb.label}</button>
                     ))}
                 </div>

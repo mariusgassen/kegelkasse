@@ -25,8 +25,8 @@ export function Avatar({name, src, size = 'md', variant = 'default', className =
     const muted = variant === 'muted'
     return (
         <div
-            className={`${box} ${text} rounded-full flex items-center justify-center font-bold text-kce-bg flex-shrink-0 overflow-hidden ${muted ? 'bg-kce-muted' : ''} ${className}`}
-            style={muted ? undefined : {background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
+            className={`${box} ${text} rounded-full flex items-center justify-center font-bold flex-shrink-0 overflow-hidden ${muted ? 'bg-muted text-on-muted' : 'text-on-accent'} ${className}`}
+            style={muted ? undefined : {background: 'linear-gradient(135deg,var(--accent-deep),var(--accent))'}}>
             {src
                 ? <img src={src} alt="" className="w-full h-full object-cover"/>
                 : (name[0] ?? '?').toUpperCase()}

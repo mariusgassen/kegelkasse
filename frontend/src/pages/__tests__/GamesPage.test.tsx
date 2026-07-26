@@ -1102,7 +1102,7 @@ describe('GamesPage — add game opener toggle', () => {
         await waitFor(() => screen.getByText(/game\.isOpener/))
         fireEvent.click(screen.getByText(/game\.isOpener/))
         // After clicking, the icon changes from + to ✓
-        await waitFor(() => expect(document.querySelectorAll('[class*="kce-amber"]').length).toBeGreaterThanOrEqual(0))
+        await waitFor(() => expect(document.querySelectorAll('[class*="accent"]').length).toBeGreaterThanOrEqual(0))
     })
 })
 

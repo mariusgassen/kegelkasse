@@ -114,10 +114,10 @@ export function EveningHubPage() {
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
             {/* Sub-tab strip */}
             <div className="flex items-center gap-1 px-2 pt-2 pb-1.5 flex-shrink-0 overflow-x-auto"
-                 style={{background: 'var(--kce-bg)', borderBottom: '1px solid var(--kce-border)'}}>
+                 style={{background: 'var(--canvas)', borderBottom: '1px solid var(--line)'}}>
                 {TABS.map(tb => (
                     <button key={tb.id} type="button"
-                            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${effectiveTab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${effectiveTab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                             onClick={() => setSubTab(tb.id)}>
                         {tb.label}
                     </button>
@@ -147,12 +147,12 @@ export function EveningHubPage() {
                     title={t('evening.end')}
                     onClose={() => setCloseConfirm(false)}
                 >
-                    <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <p className="text-sm text-muted mb-4">{t('evening.endConfirm')}</p>
                     <div className="mb-4">
                         <label className="field-label">{t('evening.endedAt')}</label>
                         <input type="datetime-local" className="kce-input" value={closeEndedAt}
                                onChange={e => setCloseEndedAt(e.target.value)}/>
-                        <p className="text-xs text-kce-muted mt-1">{t('evening.endedAtHint')}</p>
+                        <p className="text-xs text-muted mt-1">{t('evening.endedAtHint')}</p>
                     </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
@@ -229,7 +229,7 @@ export function EveningHubPage() {
                                     </div>
                                     {highlightMediaUrl && (
                                         <img src={highlightMediaUrl} alt=""
-                                             className="rounded max-h-32 max-w-full object-contain border border-kce-border/40"/>
+                                             className="rounded max-h-32 max-w-full object-contain border border-line/40"/>
                                     )}
                                 </div>
                             )}
@@ -245,7 +245,7 @@ export function EveningHubPage() {
                                                 <div className="flex-1 min-w-0">
                                                     {h.media_url && (
                                                         <img src={h.media_url} alt=""
-                                                             className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
+                                                             className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                     )}
                                                     {h.text && <div className="text-sm mt-1">{h.text}</div>}
                                                 </div>

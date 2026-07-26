@@ -25,7 +25,7 @@ export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNo
             {(label || onSelectAll || onSelectNone) && (
                 <div className="flex items-center mb-1.5">
                     {label && <span className="field-label" style={{margin: 0}}>{label}</span>}
-                    <span className="text-[10px] text-kce-amber font-bold ml-1">
+                    <span className="text-[10px] text-accent-fg font-bold ml-1">
             {selected.length > 0 ? `(${selected.length})` : ''}
           </span>
                     <div className="ml-auto flex gap-1.5">
@@ -44,7 +44,7 @@ export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNo
                         {o.label}
                     </button>
                 ))}
-                {!options.length && <p className="text-kce-muted text-xs">–</p>}
+                {!options.length && <p className="text-muted text-xs">–</p>}
             </div>
         </div>
     )

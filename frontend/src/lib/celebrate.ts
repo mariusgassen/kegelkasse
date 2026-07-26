@@ -3,7 +3,7 @@ import {showToast} from '@/components/ui/Toast'
 
 export type CelebrationKind = 'king' | 'allnine'
 
-const CONFETTI_COLORS = ['var(--kce-amber)', 'var(--kce-primary)', 'var(--kce-cream)', '#ef4444', '#22c55e']
+const CONFETTI_COLORS = ['var(--accent-fg)', 'var(--accent-fg)', 'var(--ink)', '#ef4444', '#22c55e']
 const CONFETTI_COUNT = 40
 const CONFETTI_DURATION_MS = 1400
 

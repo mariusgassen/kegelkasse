@@ -78,7 +78,7 @@ export function EveningPage() {
             <div className="page-scroll px-3 py-3 pb-24">
                 <div className="sec-heading">🎳 {t('nav.evening')}</div>
                 <div className="kce-card p-5">
-                    <div className="text-sm font-bold text-kce-cream mb-4">{t('evening.start')}</div>
+                    <div className="text-sm font-bold text-ink mb-4">{t('evening.start')}</div>
                     <div className="flex flex-col gap-3">
                         <div className="flex gap-3">
                             <div>
@@ -242,7 +242,7 @@ export function EveningPage() {
                 <div className="sec-heading mb-0">🎳 {t('nav.evening')}</div>
                 {!evening.is_closed && (
                     <span
-                        className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1.5 py-0.5">
+                        className="text-[10px] font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1.5 py-0.5">
                         {t('evening.active')}
                     </span>
                 )}
@@ -261,8 +261,8 @@ export function EveningPage() {
                 <div className="flex items-start justify-between gap-2">
                     <div>
                         <div className="text-sm font-bold">{formatDate(evening.date)}</div>
-                        {evening.venue && <div className="text-xs text-kce-muted mt-0.5">📍 {evening.venue}</div>}
-                        {evening.note && <div className="text-xs text-kce-muted mt-0.5 italic">{evening.note}</div>}
+                        {evening.venue && <div className="text-xs text-muted mt-0.5">📍 {evening.venue}</div>}
+                        {evening.note && <div className="text-xs text-muted mt-0.5 italic">{evening.note}</div>}
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                         <button className="btn-secondary btn-xs" onClick={openEditSheet}>✏️</button>
@@ -286,12 +286,12 @@ export function EveningPage() {
                     title={t('evening.end')}
                     onClose={() => setCloseConfirm(false)}
                 >
-                    <p className="text-sm text-kce-muted mb-4">{t('evening.endConfirm')}</p>
+                    <p className="text-sm text-muted mb-4">{t('evening.endConfirm')}</p>
                     <div className="mb-4">
                         <label className="field-label">{t('evening.endedAt')}</label>
                         <input type="datetime-local" className="kce-input" value={closeEndedAt}
                                onChange={e => setCloseEndedAt(e.target.value)}/>
-                        <p className="text-xs text-kce-muted mt-1">{t('evening.endedAtHint')}</p>
+                        <p className="text-xs text-muted mt-1">{t('evening.endedAtHint')}</p>
                     </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
@@ -315,7 +315,7 @@ export function EveningPage() {
 
             {/* ── Teams (first, so they're set up before players are assigned) ── */}
             <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
+                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
                     🤝 Teams ({teams.length})
                 </div>
                 {!evening.is_closed && (
@@ -376,7 +376,7 @@ export function EveningPage() {
                                 )}
                             </div>
                             {members.length > 0 && (
-                                <div className="text-xs text-kce-muted mt-1">
+                                <div className="text-xs text-muted mt-1">
                                     {members.map(p => p.nickname || p.name).join(', ')}
                                 </div>
                             )}
@@ -387,7 +387,7 @@ export function EveningPage() {
 
             {/* ── Players ── */}
             <div className="flex items-center justify-between mb-2 mt-4">
-                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
+                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
                     👤 {t('team.members')} ({players.length})
                 </div>
                 {!evening.is_closed && (
@@ -413,8 +413,8 @@ export function EveningPage() {
                         <div key={p.id} className="kce-card mb-2">
                             <div className="p-3 flex items-center gap-3">
                                 <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-xs flex-shrink-0 overflow-hidden"
-                                    style={{background: 'linear-gradient(135deg,#c4701a,#e8a020)'}}>
+                                    className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0 overflow-hidden"
+                                    style={{background: 'linear-gradient(135deg,var(--accent-deep),var(--accent))'}}>
                                     {rm?.avatar
                                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                         : (p.nickname || p.name)[0].toUpperCase()
@@ -426,7 +426,7 @@ export function EveningPage() {
                                         <MemberBadges isMe={p.regular_member_id === user?.regular_member_id}
                                                       isKing={p.is_king} pins={pins} memberId={p.regular_member_id}/>
                                     </div>
-                                    <div className="text-xs text-kce-muted">{team ? team.name : t('player.noTeam')}</div>
+                                    <div className="text-xs text-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
@@ -460,7 +460,7 @@ export function EveningPage() {
 
             {/* ── Highlights ── */}
             <div className="flex items-center justify-between mb-2 mt-4">
-                <div className="text-xs font-extrabold text-kce-muted uppercase tracking-wider">
+                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
                     {t('highlight.title')} ({evening.highlights.length})
                 </div>
             </div>
@@ -474,7 +474,7 @@ export function EveningPage() {
                                 <div className="flex-1 min-w-0">
                                     {h.text && <div className="text-sm">{h.text}</div>}
                                     {h.media_url && (
-                                        <img src={h.media_url} alt="" className="mt-1 rounded max-h-64 max-w-full object-contain border border-kce-border/40"/>
+                                        <img src={h.media_url} alt="" className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                     )}
                                 </div>
                                 {!evening.is_closed && (
@@ -530,7 +530,7 @@ export function EveningPage() {
                             }}>+</button>
                     </div>
                     {highlightMediaUrl && <div className="pl-0">
-                        <img src={highlightMediaUrl} alt="" className="rounded max-h-32 max-w-full object-contain border border-kce-border/40"/>
+                        <img src={highlightMediaUrl} alt="" className="rounded max-h-32 max-w-full object-contain border border-line/40"/>
                     </div>}
                 </div>
             )}
@@ -575,7 +575,7 @@ export function EveningPage() {
                                     <button
                                         key={tm.id}
                                         type="button"
-                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${addPlayerTeamId === tm.id ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${addPlayerTeamId === tm.id ? 'bg-accent text-on-accent border-accent' : 'bg-surface-2 text-muted border-line'}`}
                                         onClick={() => setAddPlayerTeamId(tm.id)}>
                                         {tm.name}
                                     </button>
@@ -598,11 +598,11 @@ export function EveningPage() {
                                         <span className="field-label mb-0">{t('member.title')}</span>
                                         <div className="flex gap-1">
                                             <button type="button"
-                                                    className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    className="text-[10px] text-muted px-1.5 py-0.5 rounded"
                                                     onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>{t('action.all')}
                                             </button>
                                             <button type="button"
-                                                    className="text-[10px] text-kce-muted px-1.5 py-0.5 rounded"
+                                                    className="text-[10px] text-muted px-1.5 py-0.5 rounded"
                                                     onClick={() => setSelectedMemberIds(new Set())}>{t('action.none')}
                                             </button>
                                         </div>
@@ -649,7 +649,7 @@ export function EveningPage() {
                                }}
                                placeholder={t('player.guestPlaceholder')}/>
                         {guestName.trim() && (
-                            <p className="text-[10px] text-kce-muted mt-1">{t('player.guestSaveHint')}</p>
+                            <p className="text-[10px] text-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
                     <button type="submit" className="btn-primary w-full"
@@ -664,7 +664,7 @@ export function EveningPage() {
                    onSubmit={saveEditPlayer}>
                 {editingPlayer && (
                     <div className="flex flex-col gap-3">
-                        <div className="text-sm font-bold text-kce-cream">{editingPlayer.name}</div>
+                        <div className="text-sm font-bold text-ink">{editingPlayer.name}</div>
                         <div>
                             <label className="field-label">{t('team.label')}</label>
                             <select className="kce-input" value={editPlayerTeam ?? ''}
@@ -835,11 +835,11 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
     return (
         <Sheet open onClose={onCancel} title={t('evening.attendance')}>
             <div className="space-y-4">
-                <p className="text-xs text-kce-muted">{t('evening.attendanceHint')}</p>
+                <p className="text-xs text-muted">{t('evening.attendanceHint')}</p>
 
                 {/* Attendance checklist */}
                 <div>
-                    <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                    <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
                         👥 {t('team.members')} ({checkedIds.size}/{activeMembers.length})
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
@@ -851,16 +851,16 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                     key={m.id}
                                     className={[
                                         'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors',
-                                        isChecked ? 'bg-green-500/10' : isAbgesagt ? 'bg-red-500/10' : 'bg-kce-surface2/40',
+                                        isChecked ? 'bg-green-500/10' : isAbgesagt ? 'bg-red-500/10' : 'bg-surface-2/40',
                                     ].join(' ')}
                                 >
                                     <button onClick={() => toggleMember(m.id)} className="flex items-center gap-2.5 flex-1 text-left min-w-0">
-                                        <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
+                                        <span className={isChecked ? 'text-green-400' : 'text-muted'}>
                                             {isChecked ? '☑' : '☐'}
                                         </span>
                                         <span className={[
                                             'text-sm flex-1',
-                                            isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
+                                            isChecked ? 'text-ink' : 'text-muted line-through',
                                         ].join(' ')}>
                                             {m.nickname || m.name}
                                             {m.id === myId && (
@@ -875,7 +875,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                                 'text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 transition-all',
                                                 isAbgesagt
                                                     ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                                    : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                                                    : 'bg-surface-2 text-muted border-line',
                                             ].join(' ')}
                                         >
                                             {isAbgesagt ? t('rsvp.absent.active') : t('rsvp.absent.short')}
@@ -889,8 +889,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
 
                 {/* Known guests chips */}
                 {knownGuests.length > 0 && (
-                    <div className="pt-2 border-t border-kce-surface2">
-                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                    <div className="pt-2 border-t border-surface-2">
+                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
                             🧑‍🤝‍🧑 {t('player.knownGuests')}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -908,8 +908,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                 )}
 
                 {/* New guest input */}
-                <div className={knownGuests.length > 0 ? '' : 'pt-2 border-t border-kce-surface2'}>
-                    <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                <div className={knownGuests.length > 0 ? '' : 'pt-2 border-t border-surface-2'}>
+                    <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
                         🧑‍🤝‍🧑 {t('player.newGuest')}
                     </div>
                     <input
@@ -922,8 +922,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
 
                 {/* Pins check — only for pins whose holder is present */}
                 {pins.some((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
-                    <div className="pt-2 border-t border-kce-surface2">
-                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                    <div className="pt-2 border-t border-surface-2">
+                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
                             📌 {t('pin.title')}
                         </div>
                         {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
@@ -938,8 +938,8 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                     ].join(' ')}
                                 >
                                     <span className="text-base flex-shrink-0">{pin.icon}</span>
-                                    <span className="flex-1 text-sm text-kce-cream">{pin.name}</span>
-                                    <span className="text-xs text-kce-muted flex-shrink-0">{pin.holder_name}</span>
+                                    <span className="flex-1 text-sm text-ink">{pin.name}</span>
+                                    <span className="text-xs text-muted flex-shrink-0">{pin.holder_name}</span>
                                     <span className={[
                                         'text-xs font-bold flex-shrink-0',
                                         brought ? 'text-green-400' : 'text-red-400',
@@ -1038,11 +1038,11 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                 const alreadyLogged = !!logEntry
                 return (
                 <div key={pin.id}
-                     className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-kce-amber/30 bg-kce-amber/5">
+                     className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-accent/30 bg-accent/5">
                     <span className="text-xl flex-shrink-0">{pin.icon}</span>
                     <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold">{pin.name}</div>
-                        <div className="text-[10px] text-kce-muted">
+                        <div className="text-[10px] text-muted">
                             {t('pin.holder')}: {holderDisplayName}
                         </div>
                     </div>

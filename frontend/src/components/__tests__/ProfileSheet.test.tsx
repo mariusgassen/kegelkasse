@@ -292,8 +292,8 @@ describe('ProfileSheet — theme toggle', () => {
         mockTheme = 'light'
         await setupApiMocks()
         await renderProfileSheet({ tab: 'settings' })
-        expect(screen.getByText('settings.theme.light').className).toContain('bg-kce-amber')
-        expect(screen.getByText('settings.theme.dark').className).not.toContain('bg-kce-amber')
+        expect(screen.getByText('settings.theme.light').className).toContain('bg-accent')
+        expect(screen.getByText('settings.theme.dark').className).not.toContain('bg-accent')
     })
 })
 
@@ -332,8 +332,8 @@ describe('ProfileSheet — celebration effects toggle', () => {
         mockEffectsEnabled = false
         await setupApiMocks()
         await renderProfileSheet({ tab: 'settings' })
-        expect(screen.getByText('settings.effects.off').className).toContain('bg-kce-amber')
-        expect(screen.getByText('settings.effects.on').className).not.toContain('bg-kce-amber')
+        expect(screen.getByText('settings.effects.off').className).toContain('bg-accent')
+        expect(screen.getByText('settings.effects.on').className).not.toContain('bg-accent')
     })
 })
 

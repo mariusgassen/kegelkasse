@@ -33,7 +33,7 @@ describe('showToast + ToastContainer', () => {
         render(<ToastContainer />)
         act(() => { showToast('Saved!') })
         const toast = screen.getByText('Saved!')
-        expect(toast.className).toContain('bg-kce-olive')
+        expect(toast.className).toContain('bg-accent-2')
     })
 
     it('removes toast after timeout', async () => {

@@ -69,7 +69,7 @@ export function StatsLab({year, players, evenings, myMemberId, onSelectYear, onS
                 <Empty icon="🎳" text={t('stats.noData')}/>
             ) : (
                 <>
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-4 mb-1">
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mt-4 mb-1">
                         {t('stats.correlation.selectEvening')}
                     </div>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{scrollbarWidth: 'none'}}>

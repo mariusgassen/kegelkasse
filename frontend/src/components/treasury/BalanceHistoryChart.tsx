@@ -31,7 +31,7 @@ const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> =
     debt: {icon: '📉', color: '#a78bfa'},
 }
 
-const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'rgba(232,160,32,0.13)'
+const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'color-mix(in srgb, var(--accent) 13%, transparent)'
 
 export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, loading, t}: {
     actualEvents: BalanceEvent[]
@@ -159,12 +159,12 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
              onClick={() => setSelectedClusterKey(null)}>
             {yTicks.map((tick, i) => (
                 <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
-                      stroke="var(--kce-border)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
+                      stroke="var(--line)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
                       strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
             ))}
             {!isAll && yTicks.map((tick, i) => (
                 <text key={`t-${i}`} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                      fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
+                      fontSize="10" fill="var(--muted)">{fe(tick.v)}</text>
             ))}
             {threeLine ? (
                 <>
@@ -173,19 +173,19 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                           fill="none" stroke={KIND_META.penalty.color} strokeWidth="1.8"
                           strokeLinecap="round" strokeLinejoin="round" opacity={0.9}/>
                     <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--kce-cream)" strokeWidth="1.8"
+                          fill="none" stroke="var(--ink)" strokeWidth="1.8"
                           strokeLinecap="round" strokeLinejoin="round"/>
                     <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--kce-primary)" strokeWidth="2.4"
+                          fill="none" stroke="var(--accent-fg)" strokeWidth="2.4"
                           strokeLinecap="round" strokeLinejoin="round"/>
                 </>
             ) : (
                 <>
                     <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--kce-primary)" strokeWidth="2" strokeDasharray="4,3"
+                          fill="none" stroke="var(--accent-fg)" strokeWidth="2" strokeDasharray="4,3"
                           strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
                     <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--kce-cream)" strokeWidth="2.2"
+                          fill="none" stroke="var(--ink)" strokeWidth="2.2"
                           strokeLinecap="round" strokeLinejoin="round"/>
                 </>
             )}
@@ -193,7 +193,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                 labelOwnerIndices.has(i) ? (
                     <text key={`label-${i}`} x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="10"
                           fontWeight={selectedIndices.has(i) ? 'bold' : 'normal'}
-                          fill={selectedIndices.has(i) ? 'var(--kce-primary)' : 'var(--kce-muted)'}>
+                          fill={selectedIndices.has(i) ? 'var(--accent-fg)' : 'var(--muted)'}>
                         {fAxisDate(p.ts)}
                     </text>
                 ) : null
@@ -231,7 +231,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                         {/* Generous transparent hit target so the small dots are easy to tap. */}
                         <circle cx={cx} cy={cy} r="13" fill="transparent"/>
                         <circle cx={cx} cy={cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
-                                fill={meta.color} stroke="var(--kce-bg)"
+                                fill={meta.color} stroke="var(--canvas)"
                                 strokeWidth={isSelected ? 1.5 : 1}/>
                         {count > 1 && (
                             <text x={cx} y={cy - (isSelected ? 8.5 : 7)} textAnchor="middle" fontSize="8"
@@ -243,7 +243,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                 )
             })}
             <line x1={BH_PAD.left} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
-                  stroke="var(--kce-border)" strokeWidth="1"/>
+                  stroke="var(--line)" strokeWidth="1"/>
         </svg>
     )
 
@@ -253,7 +253,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                 <div className="flex gap-1">
                     {(['month', 'year', 'all'] as const).map(g => (
                         <button key={g} type="button"
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${granularity === g ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${granularity === g ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => changeGranularity(g)}>
                             {t(`treasury.history.${g}` as 'treasury.history.month' | 'treasury.history.year' | 'treasury.history.all')}
                         </button>
@@ -264,14 +264,14 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                         <button type="button" aria-label={t('treasury.history.prevPeriod')}
                                 disabled={atStart}
                                 onClick={() => page(-1)}
-                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
+                                className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-2 text-muted font-bold disabled:opacity-30">
                             ‹
                         </button>
-                        <span className="text-[11px] font-bold text-kce-muted min-w-[64px] text-center">{win.label}</span>
+                        <span className="text-[11px] font-bold text-muted min-w-[64px] text-center">{win.label}</span>
                         <button type="button" aria-label={t('treasury.history.nextPeriod')}
                                 disabled={atEnd}
                                 onClick={() => page(1)}
-                                className="w-6 h-6 flex items-center justify-center rounded-md bg-kce-surface2 text-kce-muted font-bold disabled:opacity-30">
+                                className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-2 text-muted font-bold disabled:opacity-30">
                             ›
                         </button>
                     </div>
@@ -288,7 +288,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                          style={{flexShrink: 0, overflow: 'visible'}}>
                         {yTicks.map((tick, i) => (
                             <text key={i} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                                  fontSize="10" fill="var(--kce-muted)">{fe(tick.v)}</text>
+                                  fontSize="10" fill="var(--muted)">{fe(tick.v)}</text>
                         ))}
                     </svg>
                     <div className="overflow-x-auto flex-1">{chart}</div>
@@ -304,18 +304,18 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                             return (
                                 <div key={ev.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-[11px]"
                                      style={{background: withAlpha(meta.color), borderLeft: `2px solid ${meta.color}`}}>
-                                    <span className="text-kce-muted flex-shrink-0">{fDateTime(ev.ts)}</span>
+                                    <span className="text-muted flex-shrink-0">{fDateTime(ev.ts)}</span>
                                     <span className="flex-shrink-0">{ev.icon ?? meta.icon}</span>
-                                    <span className="text-[10px] text-kce-muted flex-shrink-0">{KIND_LABEL[ev.kind]}</span>
-                                    <span className="text-kce-cream truncate flex-1">{ev.label}</span>
+                                    <span className="text-[10px] text-muted flex-shrink-0">{KIND_LABEL[ev.kind]}</span>
+                                    <span className="text-ink truncate flex-1">{ev.label}</span>
                                     <span className="font-bold flex-shrink-0" style={{color: meta.color}}>{fe(ev.delta)}</span>
                                 </div>
                             )
                         })}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 px-1.5 text-[10px]">
-                        <span className="text-kce-muted">{t('treasury.history.balanceAfter')}</span>
-                        <span className="font-bold" style={{color: 'var(--kce-cream)'}}>
+                        <span className="text-muted">{t('treasury.history.balanceAfter')}</span>
+                        <span className="font-bold" style={{color: 'var(--ink)'}}>
                             {actualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].actual)}
                         </span>
                         {threeLine && overlayLabel && (
@@ -323,30 +323,30 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                                 {overlayLabel}: {fe(penaltyAt(selectedCluster.points[selectedCluster.points.length - 1]))}
                             </span>
                         )}
-                        <span className="font-bold opacity-85" style={{color: 'var(--kce-primary)'}}>
+                        <span className="font-bold opacity-85" style={{color: 'var(--accent-fg)'}}>
                             {virtualLabel}: {fe(selectedCluster.points[selectedCluster.points.length - 1].virtual)}
                         </span>
                     </div>
                 </>
             ) : (
-                <div className="text-[9px] text-kce-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
+                <div className="text-[9px] text-muted/60 italic mt-2 px-1.5">☝️ {t('treasury.history.tapHint')}</div>
             ))}
 
             {hasData && (
-                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-kce-border">
+                <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-line">
                     <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-cream)'}}/>
-                        <span className="text-[10px] text-kce-muted font-bold">{actualLabel}</span>
+                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--ink)'}}/>
+                        <span className="text-[10px] text-muted font-bold">{actualLabel}</span>
                     </div>
                     {threeLine && overlayLabel && (
                         <div className="flex items-center gap-1.5">
                             <div className="w-4 h-1.5 rounded-full" style={{background: KIND_META.penalty.color, opacity: 0.9}}/>
-                            <span className="text-[10px] text-kce-muted font-bold">{overlayLabel}</span>
+                            <span className="text-[10px] text-muted font-bold">{overlayLabel}</span>
                         </div>
                     )}
                     <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--kce-primary)', opacity: 0.85}}/>
-                        <span className="text-[10px] text-kce-muted font-bold">{virtualLabel}</span>
+                        <div className="w-4 h-1.5 rounded-full" style={{background: 'var(--accent)', opacity: 0.85}}/>
+                        <span className="text-[10px] text-muted font-bold">{virtualLabel}</span>
                     </div>
                 </div>
             )}

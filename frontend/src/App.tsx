@@ -17,86 +17,29 @@ import {useActiveEvening} from './hooks/useEvening'
 import {useNotificationStore} from './store/notifications'
 import {router} from './router'
 import {WifiOff} from 'lucide-react'
+import {hexToHsl, hslToHex} from './lib/color'
+import {DEFAULT_DARK_BG, deriveTokens} from './lib/tokens'
 
-export function hexToHsl(hex: string): [number, number, number] {
-    const r = parseInt(hex.slice(1, 3), 16) / 255
-    const g = parseInt(hex.slice(3, 5), 16) / 255
-    const b = parseInt(hex.slice(5, 7), 16) / 255
-    const max = Math.max(r, g, b), min = Math.min(r, g, b)
-    let h = 0, s = 0
-    const l = (max + min) / 2
-    if (max !== min) {
-        const d = max - min
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-        switch (max) {
-            case r:
-                h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-                break
-            case g:
-                h = ((b - r) / d + 2) / 6;
-                break
-            case b:
-                h = ((r - g) / d + 4) / 6;
-                break
-        }
-    }
-    return [h * 360, s * 100, l * 100]
-}
+export {hexToHsl, hslToHex}
 
-export function hslToHex(h: number, s: number, l: number): string {
-    h /= 360;
-    s /= 100;
-    l /= 100
-    const hue2rgb = (p: number, q: number, t: number) => {
-        if (t < 0) t += 1;
-        if (t > 1) t -= 1
-        if (t < 1 / 6) return p + (q - p) * 6 * t
-        if (t < 1 / 2) return q
-        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-        return p
-    }
-    let r, g, b
-    if (s === 0) {
-        r = g = b = l
-    } else {
-        const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-        const p = 2 * l - q
-        r = hue2rgb(p, q, h + 1 / 3);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1 / 3)
-    }
-    return '#' + [r, g, b].map(x => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')).join('')
-}
-
-function applyBgDerivations(bg: string) {
-    const root = document.documentElement
-    const [h, s, l] = hexToHsl(bg)
-    const dark = l < 50
-    // surface tones — always step away from bg
-    const step = dark ? 1 : -1
-    root.style.setProperty('--kce-surface', hslToHex(h, s, l + step * 4))
-    root.style.setProperty('--kce-surface2', hslToHex(h, s, l + step * 8))
-    root.style.setProperty('--kce-border', hslToHex(h, s, l + step * 16))
-    // text colors — contrast against bg
-    const textL = dark ? 90 : 10
-    const mutedL = dark ? 45 : 55
-    root.style.setProperty('--kce-cream', hslToHex(h, Math.min(s * 0.6, 40), textL))
-    root.style.setProperty('--kce-muted', hslToHex(h, Math.min(s * 0.3, 20), mutedL))
-}
-
+/**
+ * Writes the derived semantic token set (#70) to the document root.
+ *
+ * Unlike the previous `applyBgDerivations`, this runs for *any* branding change — not only when a
+ * background color happens to be configured. The chromatic tokens depend on the brand color and the
+ * background together, so changing just one of them still has to recompute the pair.
+ */
 export function applyClubTheme(club: {
     settings?: { primary_color?: string | null; secondary_color?: string | null; bg_color?: string | null } | null
 } | null) {
     const root = document.documentElement
-    if (club?.settings?.primary_color) root.style.setProperty('--kce-primary', club.settings.primary_color)
-    if (club?.settings?.secondary_color) root.style.setProperty('--kce-secondary', club.settings.secondary_color)
-    if (club?.settings?.bg_color) {
-        root.style.setProperty('--kce-bg', club.settings.bg_color)
-        applyBgDerivations(club.settings.bg_color)
-    }
+    const tokens = deriveTokens({
+        primary: club?.settings?.primary_color,
+        secondary: club?.settings?.secondary_color,
+        bg: club?.settings?.bg_color,
+    })
+    for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value)
 }
-
-const DEFAULT_DARK_BG = '#1a1410'
 
 /** Resolves 'system' against the OS preference; 'dark'/'light' pass through unchanged. */
 export function resolveEffectiveMode(theme: Theme): 'dark' | 'light' {
@@ -111,8 +54,8 @@ export function resolveThemedBg(baseBg: string, mode: 'dark' | 'light'): string 
     return hslToHex(h, s, Math.max(100 - l, 85))
 }
 
-/** Theme-aware wrapper around applyClubTheme — applyClubTheme itself stays a raw, unmodified pass-through
- *  (used by ClubAdminPage's brand-color live preview, which must always preview the true configured color). */
+/** Theme-aware wrapper around applyClubTheme — applyClubTheme itself takes the raw configured colors
+ *  (used by ClubAdminPage's brand-color live preview, which must always preview the true colors). */
 export function applyTheme(club: Parameters<typeof applyClubTheme>[0], theme: Theme) {
     const baseBg = club?.settings?.bg_color ?? DEFAULT_DARK_BG
     const bg = resolveThemedBg(baseBg, resolveEffectiveMode(theme))
@@ -284,9 +227,9 @@ export default function App() {
     if (!bootDone) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4"
-                 style={{background: 'var(--kce-bg)'}}>
+                 style={{background: 'var(--canvas)'}}>
                 <AppLogoAnimated size={64}/>
-                <p className="text-kce-muted text-xs font-bold tracking-widest animate-pulse">
+                <p className="text-muted text-xs font-bold tracking-widest animate-pulse">
                     {t('error.connecting')}
                 </p>
             </div>
@@ -297,13 +240,13 @@ export default function App() {
     if (bootNetworkError && !user) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6"
-                 style={{background: 'var(--kce-bg)'}}>
+                 style={{background: 'var(--canvas)'}}>
                 <AppLogoAnimated size={64}/>
                 <div className="text-center">
-                    <p className="text-kce-cream font-bold text-sm mb-1 flex items-center justify-center gap-2">
+                    <p className="text-ink font-bold text-sm mb-1 flex items-center justify-center gap-2">
                         <WifiOff size={16} strokeWidth={2}/> {t('error.serverDown')}
                     </p>
-                    <p className="text-kce-muted text-xs">{t('error.network')}</p>
+                    <p className="text-muted text-xs">{t('error.network')}</p>
                 </div>
                 <button className="btn-primary px-6" onClick={() => {
                     setBootNetworkError(false)

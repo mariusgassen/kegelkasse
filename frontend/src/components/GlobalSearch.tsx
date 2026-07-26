@@ -85,11 +85,11 @@ export function GlobalSearch({open, onClose}: Props) {
             />
             <div className="flex flex-col gap-3 mt-3 max-h-[60vh] overflow-y-auto">
                 {hasQuery && totalResults === 0 && (
-                    <p className="text-xs text-kce-muted text-center py-4">{t('search.noResults')}</p>
+                    <p className="text-xs text-muted text-center py-4">{t('search.noResults')}</p>
                 )}
                 {hasQuery && groups.filter(g => g.results.length > 0).map(g => (
                     <div key={g.key}>
-                        <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-1">
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
                             {GROUP_ICON[g.key]} {g.label}
                         </div>
                         <div className="flex flex-col gap-1">
@@ -100,9 +100,9 @@ export function GlobalSearch({open, onClose}: Props) {
                                     onClick={() => select(r)}
                                     className="kce-card p-2.5 text-left flex items-center justify-between active:opacity-70 w-full"
                                 >
-                                    <span className="text-sm text-kce-cream truncate">{r.title}</span>
+                                    <span className="text-sm text-ink truncate">{r.title}</span>
                                     {r.subtitle && (
-                                        <span className="text-[10px] text-kce-muted flex-shrink-0 ml-2">{r.subtitle}</span>
+                                        <span className="text-[10px] text-muted flex-shrink-0 ml-2">{r.subtitle}</span>
                                     )}
                                 </button>
                             ))}

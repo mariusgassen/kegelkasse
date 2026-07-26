@@ -45,29 +45,29 @@ export function SeasonComparison({selectedYear, onSelectYear}: {
             {seasons.map(s => (
                 <button key={s.year} type="button"
                         data-testid={`season-row-${s.year}`}
-                        className={`kce-card p-3 mb-2 w-full text-left active:opacity-70 transition-opacity ${s.year === selectedYear ? 'ring-1 ring-kce-amber/40' : ''}`}
+                        className={`kce-card p-3 mb-2 w-full text-left active:opacity-70 transition-opacity ${s.year === selectedYear ? 'ring-1 ring-accent/40' : ''}`}
                         onClick={() => onSelectYear?.(s.year)}>
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="font-display font-bold text-base flex-shrink-0">{s.year}</span>
                         {s.season_closed && (
-                            <span className="text-[10px] text-kce-muted font-bold">
+                            <span className="text-[10px] text-muted font-bold">
                                 ✅ {t('stats.seasons.closed')}
                             </span>
                         )}
                         <div className="flex-1"/>
-                        <span className="text-kce-amber font-bold text-sm flex-shrink-0">
+                        <span className="text-accent-fg font-bold text-sm flex-shrink-0">
                             {fe(s.penalty_total)}
                         </span>
                     </div>
-                    <div className="text-[10px] text-kce-muted mb-1.5">
+                    <div className="text-[10px] text-muted mb-1.5">
                         {s.evening_count} {t('stats.evenings')} · {s.player_count} {t('stats.seasons.players')}
                         {' · '}🍻 {s.drink_count} · ⌀ {fe(seasonPenaltyPerEvening(s))}/{t('stats.seasons.perEvening')}
                     </div>
-                    <div className="h-1 rounded-full overflow-hidden" style={{background: 'var(--kce-surface2)'}}>
+                    <div className="h-1 rounded-full overflow-hidden" style={{background: 'var(--surface-2)'}}>
                         <div className="h-full rounded-full transition-all"
                              style={{
                                  width: `${(s.penalty_total / maxPenalty) * 100}%`,
-                                 background: s.year === selectedYear ? 'var(--kce-primary)' : 'var(--kce-muted)',
+                                 background: s.year === selectedYear ? 'var(--accent)' : 'var(--muted)',
                              }}/>
                     </div>
                 </button>

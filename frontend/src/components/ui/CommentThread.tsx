@@ -34,14 +34,14 @@ export function Avatar({src, name, size = 28}: {src: string | null; name: string
             <img
                 src={src}
                 alt=""
-                className="rounded-full object-cover flex-shrink-0 border border-kce-border/30"
+                className="rounded-full object-cover flex-shrink-0 border border-line/30"
                 style={{width: size, height: size}}
             />
         )
     }
     return (
         <div
-            className="rounded-full bg-kce-surface2 flex items-center justify-center flex-shrink-0 text-kce-muted font-bold border border-kce-border/30"
+            className="rounded-full bg-surface-2 flex items-center justify-center flex-shrink-0 text-muted font-bold border border-line/30"
             style={{width: size, height: size, fontSize: Math.round(size * 0.42)}}
         >
             {initial}
@@ -91,7 +91,7 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
             <button
                 ref={btnRef}
                 type="button"
-                className="text-xs text-kce-muted hover:text-kce-cream transition-colors leading-none px-1 py-0.5 rounded"
+                className="text-xs text-muted hover:text-ink transition-colors leading-none px-1 py-0.5 rounded"
                 onClick={openPicker}
                 title="Reaktion hinzufügen"
             >
@@ -206,15 +206,15 @@ function CommentItem({
     }
 
     return (
-        <div id={`comment-${comment.id}`} className={depth > 0 ? 'pl-4 border-l-2 border-kce-border/20' : ''}>
+        <div id={`comment-${comment.id}`} className={depth > 0 ? 'pl-4 border-l-2 border-line/20' : ''}>
             <div className="flex gap-2">
                 <Avatar src={comment.created_by_avatar} name={comment.created_by_name} size={28}/>
 
                 <div className="flex-1 min-w-0">
                     {/* Bubble + heart */}
                     <div className="flex items-start gap-1">
-                        <div className="flex-1 min-w-0 bg-kce-surface2 rounded-2xl rounded-tl-sm px-3 py-2">
-                            <span className="text-xs font-bold text-kce-cream">
+                        <div className="flex-1 min-w-0 bg-surface-2 rounded-2xl rounded-tl-sm px-3 py-2">
+                            <span className="text-xs font-bold text-ink">
                                 {comment.created_by_name || t('comment.unknown')}
                             </span>
 
@@ -259,7 +259,7 @@ function CommentItem({
                                         />
                                     )}
                                     {comment.text && (
-                                        <p className="text-xs text-kce-cream/90 mt-0.5 leading-relaxed whitespace-pre-wrap">
+                                        <p className="text-xs text-ink/90 mt-0.5 leading-relaxed whitespace-pre-wrap">
                                             {comment.text}
                                         </p>
                                     )}
@@ -275,11 +275,11 @@ function CommentItem({
                                 allReactions={comment.reactions}
                                 title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                             >
-                                <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-red-400' : 'text-kce-border hover:text-red-400/60'}`}>
+                                <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-red-400' : 'text-line hover:text-red-400/60'}`}>
                                     {heartReaction?.reacted_by_me ? '❤️' : '🤍'}
                                 </span>
                                 {heartReaction && heartReaction.count > 0 && (
-                                    <span className="text-[9px] text-kce-muted leading-none">{heartReaction.count}</span>
+                                    <span className="text-[9px] text-muted leading-none">{heartReaction.count}</span>
                                 )}
                             </ReactionPill>
                         )}
@@ -289,22 +289,22 @@ function CommentItem({
                     {!editing && (
                         <div className="flex items-center gap-2.5 mt-1 ml-1 flex-wrap">
                             {comment.created_at && (
-                                <span className="text-[10px] text-kce-muted">{fRelTime(comment.created_at)}</span>
+                                <span className="text-[10px] text-muted">{fRelTime(comment.created_at)}</span>
                             )}
                             {comment.edited_at && (
-                                <span className="text-[10px] text-kce-muted italic">· {t('comment.edited')}</span>
+                                <span className="text-[10px] text-muted italic">· {t('comment.edited')}</span>
                             )}
                             {/* Show Antworten at any depth — reply always posts flat to the thread */}
                             {onReply && (
                                 <button type="button"
-                                        className="text-[10px] font-semibold text-kce-muted hover:text-kce-cream transition-colors"
+                                        className="text-[10px] font-semibold text-muted hover:text-ink transition-colors"
                                         onClick={() => onReply(comment)}>
                                     {t('comment.reply')}
                                 </button>
                             )}
                             {isOwn && (
                                 <button type="button"
-                                        className="text-[10px] text-kce-muted hover:text-kce-cream transition-colors"
+                                        className="text-[10px] text-muted hover:text-ink transition-colors"
                                         onClick={() => {setEditing(true); setEditText(comment.text ?? ''); setEditMediaUrl(comment.media_url)}}
                                         title={t('action.edit')}>
                                     ✏️
@@ -312,7 +312,7 @@ function CommentItem({
                             )}
                             {canDelete && !confirmDelete && (
                                 <button type="button"
-                                        className="text-[10px] text-kce-muted hover:text-red-400 transition-colors"
+                                        className="text-[10px] text-muted hover:text-red-400 transition-colors"
                                         onClick={() => setConfirmDelete(true)}
                                         title={t('action.delete')}>
                                     🗑️
@@ -326,7 +326,7 @@ function CommentItem({
                                         {t('action.confirmDelete')}
                                     </button>
                                     <button type="button"
-                                            className="text-[10px] text-kce-muted px-1 py-0.5 rounded"
+                                            className="text-[10px] text-muted px-1 py-0.5 rounded"
                                             onClick={() => setConfirmDelete(false)}>
                                         {t('action.cancel')}
                                     </button>
@@ -341,8 +341,8 @@ function CommentItem({
                                     className={[
                                         'text-[11px] px-1.5 py-0.5 rounded-full border leading-none transition-colors',
                                         r.reacted_by_me
-                                            ? 'border-kce-primary bg-kce-primary/20 text-kce-cream'
-                                            : 'border-kce-border text-kce-muted hover:border-kce-primary/50',
+                                            ? 'border-accent-fg bg-accent/20 text-ink'
+                                            : 'border-line text-muted hover:border-accent-fg/50',
                                     ].join(' ')}
                                     title={r.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                                 >
@@ -446,7 +446,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                         setOpen(!open)
                         if (!open) setTimeout(() => inputRef.current?.focus(), 150)
                     }}
-                    className="flex items-center gap-1.5 text-[11px] text-kce-muted hover:text-kce-cream transition-colors"
+                    className="flex items-center gap-1.5 text-[11px] text-muted hover:text-ink transition-colors"
                 >
                     <span>💬</span>
                     <span>({totalCount})</span>
@@ -457,10 +457,10 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
             {open && (
                 <div className="mt-3 flex flex-col gap-3">
                     {isLoading && (
-                        <p className="text-xs text-kce-muted">{t('action.loading')}</p>
+                        <p className="text-xs text-muted">{t('action.loading')}</p>
                     )}
                     {!isLoading && comments.length === 0 && (
-                        <p className="text-xs text-kce-muted italic pl-1">{t('comment.none')}</p>
+                        <p className="text-xs text-muted italic pl-1">{t('comment.none')}</p>
                     )}
                     {flattenAllComments(comments).map(({comment: c, depth}) => (
                         <CommentItem
@@ -476,19 +476,19 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                     {/* New comment input */}
                     <div className="flex flex-col gap-1.5">
                         {replyTo && (
-                            <div className="flex items-center gap-1 text-[10px] text-kce-muted pl-9">
-                                <span>↩ {t('comment.replyingTo')} <strong className="text-kce-cream/80">{replyTo.created_by_name || t('comment.unknown')}</strong></span>
-                                <button type="button" className="hover:text-kce-cream ml-1"
+                            <div className="flex items-center gap-1 text-[10px] text-muted pl-9">
+                                <span>↩ {t('comment.replyingTo')} <strong className="text-ink/80">{replyTo.created_by_name || t('comment.unknown')}</strong></span>
+                                <button type="button" className="hover:text-ink ml-1"
                                         onClick={() => {setReplyTo(null); setText('')}}>×</button>
                             </div>
                         )}
                         <div className="flex items-center gap-2">
                             <Avatar src={user?.avatar ?? null} name={user?.name ?? null} size={28}/>
-                            <div className="flex-1 flex items-center bg-kce-surface2 rounded-full border border-kce-border/40 px-3 gap-1.5 min-w-0"
+                            <div className="flex-1 flex items-center bg-surface-2 rounded-full border border-line/40 px-3 gap-1.5 min-w-0"
                                  style={{paddingTop: '6px', paddingBottom: '6px'}}>
                                 <input
                                     ref={inputRef}
-                                    className="flex-1 bg-transparent text-kce-cream outline-none placeholder:text-kce-muted min-w-0"
+                                    className="flex-1 bg-transparent text-ink outline-none placeholder:text-muted min-w-0"
                                     value={text}
                                     onChange={e => setText(e.target.value)}
                                     placeholder={replyTo ? `@${replyTo.created_by_name || ''}…` : t('comment.placeholder')}
@@ -506,7 +506,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                                 />
                                 <button
                                     type="button"
-                                    className={`text-sm leading-none transition-colors flex-shrink-0 ${canSubmit ? 'text-kce-primary hover:text-kce-primary/80' : 'text-kce-muted'}`}
+                                    className={`text-sm leading-none transition-colors flex-shrink-0 ${canSubmit ? 'text-accent-fg hover:text-accent-fg/80' : 'text-muted'}`}
                                     disabled={!canSubmit}
                                     onClick={handleAdd}
                                 >

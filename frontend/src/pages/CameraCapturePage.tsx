@@ -566,7 +566,7 @@ export function CameraCapturePage({onClose}: Props) {
     return (
         <div style={{
             position: 'fixed', inset: 0, zIndex: 100,
-            background: 'var(--kce-bg)',
+            background: 'var(--canvas)',
             display: 'flex', flexDirection: 'column',
             paddingTop: 'env(safe-area-inset-top, 0px)',
         }}>
@@ -575,15 +575,15 @@ export function CameraCapturePage({onClose}: Props) {
                 <div style={{
                     flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px',
-                    borderBottom: '1px solid var(--kce-border)',
-                    background: 'var(--kce-surface)',
+                    borderBottom: '1px solid var(--line)',
+                    background: 'var(--surface)',
                 }}>
                     <button onClick={onClose} aria-label={t('action.close')} style={{
-                        color: 'var(--kce-muted)', fontSize: 20, lineHeight: 1,
+                        color: 'var(--muted)', fontSize: 20, lineHeight: 1,
                         background: 'none', border: 'none', cursor: 'pointer', padding: 12,
                         minWidth: 44, minHeight: 44,
                     }}>✕</button>
-                    <span style={{fontWeight: 'bold', color: 'var(--kce-cream)', flex: 1, fontSize: 14}}>
+                    <span style={{fontWeight: 'bold', color: 'var(--ink)', flex: 1, fontSize: 14}}>
                         📷 {t('camera.title')}
                     </span>
                     <button className="btn-secondary btn-sm"
@@ -668,11 +668,11 @@ export function CameraCapturePage({onClose}: Props) {
                                                        style={{pointerEvents: 'none'}}/>
                                     })}
                                     <circle cx={roi.x} cy={roi.y} r="0.014"
-                                            fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
+                                            fill={color} stroke="var(--canvas)" strokeWidth="0.003"
                                             style={{cursor: 'nw-resize'}}
                                             onPointerDown={e => startDrag(e as any, field, 'nw')}/>
                                     <circle cx={roi.x + roi.w} cy={roi.y + roi.h} r="0.014"
-                                            fill={color} stroke="var(--kce-bg)" strokeWidth="0.003"
+                                            fill={color} stroke="var(--canvas)" strokeWidth="0.003"
                                             style={{cursor: 'se-resize'}}
                                             onPointerDown={e => startDrag(e as any, field, 'se')}/>
                                 </g>
@@ -696,17 +696,17 @@ export function CameraCapturePage({onClose}: Props) {
                                 📷 {t('camera.kiosk')}
                             </span>
                             {selectedGame && (
-                                <span style={{fontSize: 12, color: 'var(--kce-amber)', fontWeight: 'bold'}}>
+                                <span style={{fontSize: 12, color: 'var(--accent)', fontWeight: 'bold'}}>
                                     {selectedGame.name}
                                 </span>
                             )}
                             {(kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id)) && (
-                                <span style={{fontSize: 12, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
+                                <span style={{fontSize: 12, color: 'var(--accent)', fontWeight: 'bold'}}>
                                     🎳 {(() => { const p = kioskCurrentPlayer ?? players.find(p => p.id === activeGame?.active_player_id); return p ? (p.nickname || p.name) : '' })()}
                                 </span>
                             )}
                             {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
-                                <span style={{fontSize: 11, color: 'var(--kce-cream)', fontFamily: 'monospace'}}>
+                                <span style={{fontSize: 11, color: 'var(--ink)', fontFamily: 'monospace'}}>
                                     W#{currentReading.throwNum}
                                     {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
                                 </span>
@@ -714,16 +714,16 @@ export function CameraCapturePage({onClose}: Props) {
                         </div>
                         {/* Row 2: lamp indicators side by side */}
                         <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                            <span style={{fontSize: 11, color: currentReading?.lampGreen ? '#4ade80' : 'var(--kce-muted)'}}>
+                            <span style={{fontSize: 11, color: currentReading?.lampGreen ? '#4ade80' : 'var(--muted)'}}>
                                 🟢 {t('camera.lampGreenHint')}
                             </span>
-                            <span style={{fontSize: 11, color: currentReading?.lampRed ? '#f87171' : 'var(--kce-muted)'}}>
+                            <span style={{fontSize: 11, color: currentReading?.lampRed ? '#f87171' : 'var(--muted)'}}>
                                 🔴 {t('camera.lampRedHint')}
                             </span>
                         </div>
                         {/* Row 3: throw count + exit button always visible */}
                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8}}>
-                            <span style={{fontSize: 11, color: 'var(--kce-muted)'}}>
+                            <span style={{fontSize: 11, color: 'var(--muted)'}}>
                                 {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                             </span>
                             <button
@@ -743,13 +743,13 @@ export function CameraCapturePage({onClose}: Props) {
                 {/* ── CALIBRATION MODE ── */}
                 {mode === 'calibrating' && (
                     <div style={{display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4}}>
-                        <p style={{color: 'var(--kce-muted)', fontSize: 12, margin: 0}}>{t('camera.calibrateHint')}</p>
+                        <p style={{color: 'var(--muted)', fontSize: 12, margin: 0}}>{t('camera.calibrateHint')}</p>
                         {(['displayLeft', 'displayMiddle', 'displayRight'] as const).map(field => (
                             <div key={field} style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
                                 <span style={{color: ROI_COLORS[field], fontSize: 12, flex: 1, minWidth: 80}}>
                                     {roiLabel(field)}
                                 </span>
-                                <span style={{color: 'var(--kce-muted)', fontSize: 11}}>{t('camera.digits')}:</span>
+                                <span style={{color: 'var(--muted)', fontSize: 11}}>{t('camera.digits')}:</span>
                                 {([1, 2, 3] as const).map(n => (
                                     <button key={n} type="button"
                                             className={`chip ${calibration[field].digits === n ? 'active' : ''}`}
@@ -762,7 +762,7 @@ export function CameraCapturePage({onClose}: Props) {
                             </div>
                         ))}
                         <div>
-                            <label style={{color: 'var(--kce-cream)', fontSize: 12, display: 'block', marginBottom: 4}}>
+                            <label style={{color: 'var(--ink)', fontSize: 12, display: 'block', marginBottom: 4}}>
                                 {t('camera.brightness')}: <strong>{calibration.brightness}</strong>
                             </label>
                             <input type="range" min="10" max="200" step="5"
@@ -797,14 +797,14 @@ export function CameraCapturePage({onClose}: Props) {
                         {isAdmin(user) && (
                             <div style={{
                                 padding: '8px 10px', borderRadius: 10,
-                                border: `1px solid ${selectedGame ? 'var(--kce-primary)' : 'var(--kce-border)'}`,
+                                border: `1px solid ${selectedGame ? 'var(--accent)' : 'var(--line)'}`,
                                 background: selectedGame
-                                    ? 'color-mix(in srgb, var(--kce-primary) 10%, transparent)'
-                                    : 'var(--kce-surface)',
+                                    ? 'color-mix(in srgb, var(--accent) 10%, transparent)'
+                                    : 'var(--surface)',
                             }}>
                                 <div className="field-label" style={{marginBottom: 6}}>{t('camera.selectGame')}</div>
                                 {runningGames.length === 0
-                                    ? <p style={{color: 'var(--kce-muted)', fontSize: 12, margin: 0}}>{t('camera.noRunningGame')}</p>
+                                    ? <p style={{color: 'var(--muted)', fontSize: 12, margin: 0}}>{t('camera.noRunningGame')}</p>
                                     : <div style={{display: 'flex', flexWrap: 'wrap', gap: 6}}>
                                         {runningGames.map((g: Game) => (
                                             <button key={g.id} type="button"
@@ -821,7 +821,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 }
                                 {selectedGame && (
                                     <div style={{display: 'flex', alignItems: 'center', gap: 8, marginTop: 6}}>
-                                        <p style={{fontSize: 10, color: 'var(--kce-primary)', margin: 0, fontWeight: 'bold', flex: 1}}>
+                                        <p style={{fontSize: 10, color: 'var(--accent)', margin: 0, fontWeight: 'bold', flex: 1}}>
                                             ✓ {t('camera.syncActive')}
                                         </p>
                                         <button
@@ -854,7 +854,7 @@ export function CameraCapturePage({onClose}: Props) {
                             {(kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id)) && (
                                 <span style={{
                                     fontSize: 12, fontWeight: 'bold',
-                                    color: '#fff', background: 'var(--kce-primary)',
+                                    color: '#fff', background: 'var(--accent)',
                                     borderRadius: 8, padding: '3px 8px', flexShrink: 0,
                                 }}>
                                     🎳 {(() => { const p = kioskCurrentPlayer ?? players.find(pl => pl.id === activeGame?.active_player_id); return p ? (p.nickname || p.name) : '' })()}
@@ -898,7 +898,7 @@ export function CameraCapturePage({onClose}: Props) {
                                         </div>
                                         <div style={{
                                             fontSize: 26, fontFamily: 'monospace', fontWeight: 'bold',
-                                            color: val !== null ? 'var(--kce-cream)' : 'var(--kce-muted)', lineHeight: 1,
+                                            color: val !== null ? 'var(--ink)' : 'var(--muted)', lineHeight: 1,
                                         }}>
                                             {val ?? '—'}
                                         </div>
@@ -930,29 +930,29 @@ export function CameraCapturePage({onClose}: Props) {
                                 {t('camera.throwHistory')}
                             </div>
                             {throws.length === 0
-                                ? <p style={{color: 'var(--kce-muted)', fontSize: 12}}>{t('camera.noThrows')}</p>
+                                ? <p style={{color: 'var(--muted)', fontSize: 12}}>{t('camera.noThrows')}</p>
                                 : (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
                                         {throws.map((th, i) => {
                                             const thrower = players.find(p => p.id === th.playerId)
                                             return (
                                                 <div key={i} className="kce-card p-2 flex items-center gap-2">
-                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11, minWidth: 44}}>
+                                                    <span style={{color: 'var(--muted)', fontSize: 11, minWidth: 44}}>
                                                         {t('camera.throw')} #{th.throwNum}
                                                     </span>
                                                     {thrower && (
-                                                        <span style={{fontSize: 10, color: 'var(--kce-primary)', fontWeight: 'bold', flexShrink: 0}}>
+                                                        <span style={{fontSize: 10, color: 'var(--accent)', fontWeight: 'bold', flexShrink: 0}}>
                                                             {thrower.name}
                                                         </span>
                                                     )}
-                                                    <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--kce-amber)'}}>
+                                                    <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--accent)'}}>
                                                         {th.pins}
                                                     </span>
-                                                    <span style={{color: 'var(--kce-muted)', fontSize: 11}}>
+                                                    <span style={{color: 'var(--muted)', fontSize: 11}}>
                                                         {t('camera.pins')}
                                                     </span>
                                                     {th.cumulative !== null && (
-                                                        <span style={{color: 'var(--kce-muted)', fontSize: 11, marginLeft: 'auto'}}>
+                                                        <span style={{color: 'var(--muted)', fontSize: 11, marginLeft: 'auto'}}>
                                                             Σ {th.cumulative}
                                                         </span>
                                                     )}
@@ -970,7 +970,7 @@ export function CameraCapturePage({onClose}: Props) {
                         {/* 5. Winner + finish (when game selected) */}
                         {isAdmin(user) && selectedGame && (
                             <div style={{
-                                borderTop: '1px solid var(--kce-border)', paddingTop: 10,
+                                borderTop: '1px solid var(--line)', paddingTop: 10,
                                 display: 'flex', flexDirection: 'column', gap: 8,
                             }}>
                                 <div className="field-label">{t('game.winner')}</div>
@@ -991,8 +991,8 @@ export function CameraCapturePage({onClose}: Props) {
                                     ))}
                                 </div>
                                 {latestCumulative !== null && (
-                                    <p style={{fontSize: 12, color: 'var(--kce-muted)', margin: 0}}>
-                                        {t('camera.detectedScore')}: <strong style={{color: 'var(--kce-cream)'}}>{latestCumulative}</strong>
+                                    <p style={{fontSize: 12, color: 'var(--muted)', margin: 0}}>
+                                        {t('camera.detectedScore')}: <strong style={{color: 'var(--ink)'}}>{latestCumulative}</strong>
                                     </p>
                                 )}
                                 <button className="btn-primary" onClick={handleFinishGame}
@@ -1004,7 +1004,7 @@ export function CameraCapturePage({onClose}: Props) {
 
                         {/* 6. Manual test-throw mode (no camera / lane needed) */}
                         {isAdmin(user) && selectedGame && (
-                            <div style={{borderTop: '1px solid var(--kce-border)', paddingTop: 10}}>
+                            <div style={{borderTop: '1px solid var(--line)', paddingTop: 10}}>
                                 <button
                                     type="button"
                                     className="btn-secondary btn-xs"
@@ -1014,22 +1014,22 @@ export function CameraCapturePage({onClose}: Props) {
                                     🧪 {t('camera.testMode')}
                                 </button>
                                 {testMode && (
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--kce-surface)', borderRadius: 10, border: '1px solid var(--kce-border)'}}>
-                                        <p style={{fontSize: 11, color: 'var(--kce-muted)', margin: 0}}>
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--line)'}}>
+                                        <p style={{fontSize: 11, color: 'var(--muted)', margin: 0}}>
                                             {t('camera.testModeHint')}
                                         </p>
                                         {/* Current + next 3 players */}
                                         {kioskTurnOrder.length > 0 && (
                                             <div style={{display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap'}}>
                                                 {/* Current player */}
-                                                <span style={{fontSize: 12, fontWeight: 700, color: 'var(--kce-amber)', background: 'rgba(251,191,36,0.12)', borderRadius: 6, padding: '2px 8px', border: '1px solid rgba(251,191,36,0.35)'}}>
+                                                <span style={{fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-tint)', borderRadius: 6, padding: '2px 8px', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)'}}>
                                                     🎳 {kioskCurrentPlayer?.name ?? '—'}
                                                 </span>
                                                 {/* Next 3 */}
                                                 {[1, 2, 3].map(offset => {
                                                     const p = kioskTurnOrder[(kioskTurnIdx + offset) % kioskTurnOrder.length]
                                                     return p ? (
-                                                        <span key={offset} style={{fontSize: 11, color: 'var(--kce-muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)'}}>
+                                                        <span key={offset} style={{fontSize: 11, color: 'var(--muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)'}}>
                                                             {p.name}
                                                         </span>
                                                     ) : null
@@ -1037,28 +1037,28 @@ export function CameraCapturePage({onClose}: Props) {
                                             </div>
                                         )}
                                         <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                            <label style={{fontSize: 12, color: 'var(--ink)', flexShrink: 0}}>
                                                 {t('camera.throw')} #
                                             </label>
                                             <input type="number" min="1" max="99"
                                                    value={testThrowNum}
                                                    onChange={e => setTestThrowNum(Math.max(1, parseInt(e.target.value) || 1))}
-                                                   style={{width: 56, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-cream)'}}/>
-                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                                   style={{width: 56, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--ink)'}}/>
+                                            <label style={{fontSize: 12, color: 'var(--ink)', flexShrink: 0}}>
                                                 {t('camera.pins')}
                                             </label>
                                             <input type="number" min="0" max="9"
                                                    value={testPins}
                                                    onChange={e => setTestPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
-                                                   style={{width: 48, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-amber)'}}/>
-                                            <label style={{fontSize: 12, color: 'var(--kce-cream)', flexShrink: 0}}>
+                                                   style={{width: 48, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--accent)'}}/>
+                                            <label style={{fontSize: 12, color: 'var(--ink)', flexShrink: 0}}>
                                                 Σ
                                             </label>
                                             <input type="number" min="0" max="999"
                                                    value={testCumulative ?? ''}
                                                    placeholder="—"
                                                    onChange={e => setTestCumulative(e.target.value ? parseInt(e.target.value) : null)}
-                                                   style={{width: 60, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--kce-surface2)', border: '1px solid var(--kce-border)', color: 'var(--kce-muted)'}}/>
+                                                   style={{width: 60, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--muted)'}}/>
                                             <button
                                                 type="button"
                                                 className="btn-primary btn-sm"
@@ -1091,21 +1091,21 @@ export function CameraCapturePage({onClose}: Props) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                     <div style={{
-                        background: 'var(--kce-surface)',
+                        background: 'var(--surface)',
                         borderRadius: 16, padding: '24px 20px',
                         maxWidth: 300, width: '90%', textAlign: 'center',
-                        border: '1px solid var(--kce-border)',
+                        border: '1px solid var(--line)',
                     }}>
                         <div style={{
                             fontSize: 56, fontFamily: 'monospace', fontWeight: 'bold',
-                            color: 'var(--kce-amber)', lineHeight: 1, marginBottom: 4,
+                            color: 'var(--accent)', lineHeight: 1, marginBottom: 4,
                         }}>
                             {pendingThrow.throwPins ?? '?'}
                         </div>
-                        <div style={{fontSize: 12, color: 'var(--kce-muted)', marginBottom: 8}}>
+                        <div style={{fontSize: 12, color: 'var(--muted)', marginBottom: 8}}>
                             {t('camera.throw')} #{pendingThrow.throwNum}
                             {pendingThrow.cumulative !== null && (
-                                <> · {t('camera.cumulative')}: <strong style={{color: 'var(--kce-cream)'}}>{pendingThrow.cumulative}</strong></>
+                                <> · {t('camera.cumulative')}: <strong style={{color: 'var(--ink)'}}>{pendingThrow.cumulative}</strong></>
                             )}
                         </div>
 
@@ -1122,7 +1122,7 @@ export function CameraCapturePage({onClose}: Props) {
                             )
                         })()}
 
-                        <div style={{fontSize: 12, color: 'var(--kce-muted)', marginBottom: 14}}>
+                        <div style={{fontSize: 12, color: 'var(--muted)', marginBottom: 14}}>
                             {t('camera.autoConfirm').replace('{s}', String(countdown))}
                         </div>
 

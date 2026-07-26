@@ -383,7 +383,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
             const dx = d.x1 - d.x0, dy = d.y1 - d.y0
             if (dy < 0) {
                 const b = project(g.world.ball.x, g.world.ball.y)
-                ctx.strokeStyle = 'rgba(232,160,32,0.85)'
+                ctx.strokeStyle = 'color-mix(in srgb, var(--accent) 85%, transparent)'
                 ctx.lineWidth = 3
                 ctx.setLineDash([6, 6])
                 ctx.beginPath(); ctx.moveTo(b.sx, b.sy); ctx.lineTo(b.sx + dx, b.sy + dy); ctx.stroke()
