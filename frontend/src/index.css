@@ -60,10 +60,23 @@
     --font-display: 'Lora', Georgia, serif;
     --font-body: 'Nunito', system-ui, sans-serif;
 
+    /* ── Motion vocabulary (#72) ────────────────────────────────────────────────
+       The CSS twins of lib/motion.ts — a test pins the two together. Pick by role, not by number:
+       `fast` acknowledges a touch, `base` moves something in or out, `slow` rearranges a whole view,
+       `ambient` loops without demanding attention. Before this every keyframe block picked its own
+       duration and easing, so nothing in the app shared a rhythm. */
+    --motion-fast: 120ms;
+    --motion-base: 220ms;
+    --motion-slow: 400ms;
+    --motion-ambient: 1400ms;
+    --ease-standard: cubic-bezier(.2, 0, 0, 1);
+    --ease-exit: cubic-bezier(.4, 0, 1, 1);
+    --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+
     /* Named animations */
     --animate-bob: bob 3s ease-in-out infinite;
-    --animate-slide-up: slideUp .22s ease;
-    --animate-fade-in: fadeIn .18s ease;
+    --animate-slide-up: slideUp var(--motion-base) var(--ease-standard);
+    --animate-fade-in: fadeIn var(--motion-base) var(--ease-standard);
     --animate-spin-slow: spin 3s linear infinite;
 
     @keyframes bob {
@@ -307,7 +320,7 @@
     /* Page-switch enter transition — display:none → block restarts the animation,
        so the always-mounted page panes animate on every tab change for free */
     .page-pane {
-        animation: pageIn .22s ease;
+        animation: pageIn var(--motion-base) var(--ease-standard);
     }
 
     @keyframes pageIn {
@@ -315,11 +328,54 @@
         to { opacity: 1; transform: none; }
     }
 
+    /* Loading placeholder (#72). The shimmer is a moving highlight over a flat tint rather than a
+       pulsing opacity, so a column of skeletons reads as one surface loading instead of a row of
+       blinking boxes. Colours are tokens, so it works under any club theme in either mode. */
+    .kce-skeleton {
+        background-color: var(--surface-2);
+        background-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            color-mix(in srgb, var(--ink) 8%, transparent) 50%,
+            transparent 100%
+        );
+        background-size: 200% 100%;
+        background-repeat: no-repeat;
+        animation: skeleton-shimmer var(--motion-ambient) ease-in-out infinite;
+    }
+
+    @keyframes skeleton-shimmer {
+        from { background-position: -100% 0; }
+        to { background-position: 100% 0; }
+    }
+
+    /* The system-level "no animation please". This has to list *everything* — it previously covered
+       three classes while `bob`, `pop`, `deeplink-flash` and the wheel kept running regardless.
+       Durations are floored rather than zeroed so `transitionend`/`animationend` listeners still
+       fire and nothing waits forever on a callback. */
     @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 1ms !important;
+            scroll-behavior: auto !important;
+        }
+
         .page-pane,
         .animate-slide-up,
-        .animate-fade-in {
+        .animate-fade-in,
+        .kce-skeleton,
+        .kce-deeplink-flash {
             animation: none;
+        }
+
+        /* The shimmer is the only thing that made a skeleton legible as a placeholder, so give the
+           still version a visible tint instead of leaving flat blocks that read as empty content. */
+        .kce-skeleton {
+            background-image: none;
+            background-color: var(--surface-2);
         }
     }
 
@@ -354,7 +410,7 @@
     }
 
     .kce-deeplink-flash {
-        animation: deeplink-flash 2s ease-out forwards;
+        animation: deeplink-flash calc(var(--motion-slow) * 5) var(--ease-exit) forwards;
     }
 
     @keyframes deeplink-flash {
@@ -454,7 +510,9 @@
 
     .nav-btn {
         @apply flex-1 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl text-muted text-xs font-bold border-none bg-transparent cursor-pointer min-h-[48px];
-        transition: color .18s ease, background-color .18s ease, transform .12s ease;
+        transition: color var(--motion-fast) var(--ease-standard),
+                    background-color var(--motion-fast) var(--ease-standard),
+                    transform var(--motion-fast) var(--ease-standard);
     }
 
     .nav-btn:active {
@@ -563,5 +621,39 @@
         --epr-hover-bg-color: var(--surface-2) !important;
         border-color: var(--line) !important;
         border-radius: 12px !important;
+    }
+}
+
+/* ── View transitions (#72) ─────────────────────────────────────────────────────
+   Progressive enhancement: browsers without the API never see these rules, and lib/viewTransition.ts
+   runs the update directly there. Kept outside @layer so the ::view-transition pseudo-elements —
+   which live on the document root, not on any component — are not layered behind Tailwind utilities.
+
+   `kce-morph` is the shared name a tapped card and the sheet it opens both carry, so the browser
+   morphs one into the other instead of cross-fading the whole page. */
+::view-transition-old(kce-morph),
+::view-transition-new(kce-morph) {
+    animation-duration: var(--motion-slow);
+    animation-timing-function: var(--ease-spring);
+    /* Height differs wildly between a row and a sheet; let the browser scale rather than squash. */
+    height: 100%;
+    object-fit: cover;
+}
+
+::view-transition-old(root) {
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--ease-exit);
+}
+
+::view-transition-new(root) {
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
     }
 }

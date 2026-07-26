@@ -1,5 +1,7 @@
 import {type ReactNode, useEffect, useRef, useState} from 'react'
 import {useT} from '@/i18n'
+import {MORPH_NAME} from '@/lib/viewTransition'
+import {DURATION, EASING} from '@/lib/motion'
 
 interface SheetProps {
     open: boolean
@@ -12,9 +14,15 @@ interface SheetProps {
     onSubmit?: () => void
     /** Extra content rendered outside the panel, e.g. nested overlays. */
     overlays?: ReactNode
+    /**
+     * Make this sheet the *destination* of a shared-element view transition (#72), so the card that
+     * opened it appears to grow into it. Only set this when the opener wrapped its state update in
+     * `morphFrom(originElement, …)` — the effect needs both halves of the pair to carry the name.
+     */
+    morph?: boolean
 }
 
-export function Sheet({open, onClose, title, header, children, onSubmit, overlays}: SheetProps) {
+export function Sheet({open, onClose, title, header, children, onSubmit, overlays, morph}: SheetProps) {
     const t = useT()
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
@@ -121,8 +129,9 @@ export function Sheet({open, onClose, title, header, children, onSubmit, overlay
                 className="sheet-panel safe-bottom"
                 style={{
                     transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-                    transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
+                    transition: dragY > 0 ? 'none' : `transform ${DURATION.base}ms ${EASING.standard}`,
                     outline: 'none',
+                    viewTransitionName: morph ? MORPH_NAME : undefined,
                 }}
             >
                 {/* Drag handle */}

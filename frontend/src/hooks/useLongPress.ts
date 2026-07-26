@@ -1,5 +1,6 @@
 import {useRef} from 'react'
 import type {MouseEvent, PointerEvent} from 'react'
+import {haptic} from '@/lib/haptics'
 
 interface Options {
     onLongPress: () => void
@@ -29,7 +30,7 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
         // A release right after a successful hold gets its own short buzz, distinct from the
         // hold-triggered one, confirming the gesture actually ended. Unsupported (e.g. iOS
         // Safari) or desktop mouse/pen presses just no-op.
-        if (firedRef.current) navigator.vibrate?.(10)
+        if (firedRef.current) haptic('selection')
         clear()
     }
 
@@ -48,7 +49,7 @@ export function useLongPress({onLongPress, onClick, ms = 500}: Options) {
         if (e.pointerType === 'touch') e.preventDefault()
         timerRef.current = setTimeout(() => {
             firedRef.current = true
-            navigator.vibrate?.(15)
+            haptic('impact')
             onLongPress()
         }, ms)
     }

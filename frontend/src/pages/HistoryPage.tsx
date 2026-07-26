@@ -6,7 +6,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 
@@ -140,7 +140,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
             )}
 
             {isLoading
-                ? <Loading/>
+                ? <SkeletonRows rows={4}/>
                 : closed.length === 0
                     ? <Empty icon="📚" text={t('history.none')}/>
                     : closed.map(ev => {

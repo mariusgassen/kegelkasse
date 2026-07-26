@@ -425,7 +425,7 @@ export const en = {
     "settings.theme.light": "Light",
     "settings.theme.system": "System",
     "settings.effects.title": "🎉 Celebration effects",
-    "settings.effects.hint": "Confetti & sound for King and Alle Neune",
+    "settings.effects.hint": "Confetti & sound for King and Alle Neune, haptics and counting-up amounts",
     "settings.effects.on": "On",
     "settings.effects.off": "Off",
     "celebration.king": "👑 King crowned!",

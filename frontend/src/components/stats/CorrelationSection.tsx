@@ -14,7 +14,7 @@ import {useQuery} from '@tanstack/react-query'
 import {api} from '@/api/client'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonChart} from '@/components/ui/Skeleton'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {interpretR, linearRegression, pearson} from '@/lib/stats'
 import {playerColor, withAlpha} from '@/lib/chartColors.ts'
@@ -644,7 +644,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                 ))}
             </div>
 
-            {isLoading && <Loading className="py-8"/>}
+            {isLoading && <SkeletonChart height="200px"/>}
 
             {!isLoading && tab === 'evening' && (
                 hasYearData && filteredCorr!.evenings.length > 0 ? (
@@ -1176,7 +1176,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                 ))}
             </div>
 
-            {isLoading && <Loading className="py-8"/>}
+            {isLoading && <SkeletonChart height="200px"/>}
 
             {/* Compare-all mode — one heat-lane per member */}
             {!isLoading && pickedMemberId == null && (

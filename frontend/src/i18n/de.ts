@@ -425,7 +425,7 @@ export const de = {
     "settings.theme.light": "Hell",
     "settings.theme.system": "System",
     "settings.effects.title": "🎉 Feier-Effekte",
-    "settings.effects.hint": "Konfetti & Sound bei König und Alle Neune",
+    "settings.effects.hint": "Konfetti & Sound bei König und Alle Neune, Vibration und mitlaufende Beträge",
     "settings.effects.on": "An",
     "settings.effects.off": "Aus",
     "celebration.king": "👑 König gekrönt!",

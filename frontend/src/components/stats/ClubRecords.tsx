@@ -10,7 +10,7 @@ import {api} from '@/api/client'
 import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {visibleRecords} from '@/lib/statsLab.ts'
 import type {ClubRecord} from '@/types'
@@ -48,7 +48,7 @@ export function ClubRecords({myMemberId, onSelectMember}: {
         staleTime: 1000 * 60 * 5,
     })
 
-    if (isLoading && !data) return <Loading className="py-6"/>
+    if (isLoading && !data) return <SkeletonRows rows={3}/>
 
     const records = visibleRecords(data?.records ?? [], throwTracking)
     if (records.length === 0) return <Empty icon="🏅" text={t('stats.records.empty')}/>

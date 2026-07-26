@@ -6,7 +6,8 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonRows} from '@/components/ui/Skeleton'
+import {CountUp} from '@/components/ui/CountUp'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
@@ -674,7 +675,8 @@ export function TreasuryPage() {
                                 <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">💰
                                     {t('treasury.cashOnHand')}
                                 </div>
-                                <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>{fe(kassenstand)}</div>
+                                <CountUp value={kassenstand} format={fe}
+                                         className={`font-display font-bold text-3xl block ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}/>
                                 <div className="text-xs text-muted mt-1">{t('treasury.cashOnHandHint')}</div>
                             </div>
                             <span className="text-4xl opacity-20">💰</span>
@@ -682,27 +684,27 @@ export function TreasuryPage() {
                         <div className="mt-3 pt-2 border-t border-line flex flex-col gap-1 text-xs">
                             <div className="flex items-center justify-between">
                                 <span className="text-muted">⬆ {t('treasury.flow.paidIn')}</span>
-                                <span className="font-bold text-positive-fg" data-testid="glance-amount-paidIn">+{fe(summary.paidIn)}</span>
+                                <span className="font-bold text-positive-fg" data-testid="glance-amount-paidIn">+<CountUp value={summary.paidIn} format={fe}/></span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-muted">⬇ {t('treasury.flow.expenses')}</span>
-                                <span className="font-bold text-orange-400" data-testid="glance-amount-expenses">-{fe(summary.expensesGross)}</span>
+                                <span className="font-bold text-orange-400" data-testid="glance-amount-expenses">-<CountUp value={summary.expensesGross} format={fe}/></span>
                             </div>
                             {summary.otherIncome > 0 && (
                                 <div className="flex items-center justify-between">
                                     <span className="text-muted">⬆ {t('treasury.flow.otherIncome')}</span>
-                                    <span className="font-bold text-positive-fg" data-testid="glance-amount-otherIncome">+{fe(summary.otherIncome)}</span>
+                                    <span className="font-bold text-positive-fg" data-testid="glance-amount-otherIncome">+<CountUp value={summary.otherIncome} format={fe}/></span>
                                 </div>
                             )}
                             {summary.outstanding > 0 && (
                                 <>
                                     <div className="flex items-center justify-between">
                                         <span className="text-muted">🔴 {t('treasury.flow.outstanding')}</span>
-                                        <span className="font-bold text-danger-fg" data-testid="glance-amount-outstanding">{fe(summary.outstanding)}</span>
+                                        <span className="font-bold text-danger-fg" data-testid="glance-amount-outstanding"><CountUp value={summary.outstanding} format={fe}/></span>
                                     </div>
                                     <div className="flex items-center justify-between pt-1 border-t border-line">
                                         <span className="text-muted">→ {t('treasury.flow.projected')}</span>
-                                        <span className="font-bold" style={{color: 'var(--ink)'}}>{fe(projectedCash)}</span>
+                                        <span className="font-bold" style={{color: 'var(--ink)'}}><CountUp value={projectedCash} format={fe}/></span>
                                     </div>
                                 </>
                             )}
@@ -1007,7 +1009,7 @@ export function TreasuryPage() {
                         placeholder={t('treasury.accounts.search')}
                     />
                     {balancesLoading && balances.length === 0
-                        ? <Loading className="py-8"/>
+                        ? <SkeletonRows rows={5}/>
                         : filteredBalances.length === 0
                         ? <Empty icon="👤" text={t('treasury.noData')}/>
                         : [...filteredBalances].sort((a, b) => {
