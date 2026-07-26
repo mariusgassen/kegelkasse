@@ -10,6 +10,7 @@ import type {ReminderSettings, ReminderTypeSettings, EmailSettings} from '@/type
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
+import {DEFAULT_DARK_BG, DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '@/lib/tokens'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
@@ -79,7 +80,7 @@ export function ClubAdminPage() {
                 <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
                     {TABS.map(tb => (
                         <button key={tb.id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                 onClick={() => setTab(tb.id as any)}>{tb.label}</button>
                     ))}
                 </div>
@@ -166,10 +167,10 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [clubName, setClubName] = useState(club?.name || '')
     const [venue, setVenue] = useState(club?.settings?.home_venue || '')
     const [logoUploading, setLogoUploading] = useState(false)
-    const [color1, setColor1] = useState(club?.settings?.primary_color || '#e8a020')
-    const [color2, setColor2] = useState(club?.settings?.secondary_color || '#6b7c5a')
-    const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
-    const [paletteBase, setPaletteBase] = useState('#e8a020')
+    const [color1, setColor1] = useState(club?.settings?.primary_color || DEFAULT_PRIMARY)
+    const [color2, setColor2] = useState(club?.settings?.secondary_color || DEFAULT_SECONDARY)
+    const [bgColor, setBgColor] = useState(club?.settings?.bg_color || DEFAULT_DARK_BG)
+    const [paletteBase, setPaletteBase] = useState(DEFAULT_PRIMARY)
     const [suggestions, setSuggestions] = useState<Palette[]>([])
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
     const [paypalMe, setPaypalMe] = useState(club?.settings?.paypal_me || '')
@@ -182,9 +183,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         if (!club) return
         setClubName(club.name || '')
         setVenue(club.settings?.home_venue || '')
-        setColor1(club.settings?.primary_color || '#e8a020')
-        setColor2(club.settings?.secondary_color || '#6b7c5a')
-        setBgColor(club.settings?.bg_color || '#1a1410')
+        setColor1(club.settings?.primary_color || DEFAULT_PRIMARY)
+        setColor2(club.settings?.secondary_color || DEFAULT_SECONDARY)
+        setBgColor(club.settings?.bg_color || DEFAULT_DARK_BG)
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
@@ -281,7 +282,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <label className="field-label">{t('schedule.defaultTime')}</label>
                     <input type="time" className="kce-input" style={{width: 'auto'}} value={defaultEveningTime}
                            onChange={e => setDefaultEveningTime(e.target.value)}/>
-                    <p className="text-xs text-kce-muted mt-1">{t('schedule.defaultTimeHint')}</p>
+                    <p className="text-xs text-muted mt-1">{t('schedule.defaultTimeHint')}</p>
                 </div>
             </div>
 
@@ -290,16 +291,16 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 <div className="sec-heading mb-3">{t('club.settings.appearance')}</div>
 
                 {/* Logo */}
-                <div className="mb-4 pb-4 border-b border-kce-border">
+                <div className="mb-4 pb-4 border-b border-line">
                     <label className="field-label mb-2">{t('club.logo')}</label>
                     <div className="flex items-center gap-3">
                         {club?.settings?.logo_url ? (
                             <img src={club.settings.logo_url} alt="Logo"
-                                 className="h-12 w-12 rounded-lg object-contain bg-kce-surface flex-shrink-0"
-                                 style={{border: '1px solid var(--kce-border)'}}/>
+                                 className="h-12 w-12 rounded-lg object-contain bg-surface flex-shrink-0"
+                                 style={{border: '1px solid var(--line)'}}/>
                         ) : (
-                            <div className="h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0 text-kce-muted text-xl"
-                                 style={{background: 'var(--kce-surface)', border: '1px solid var(--kce-border)'}}>🎳</div>
+                            <div className="h-12 w-12 rounded-lg flex items-center justify-center flex-shrink-0 text-muted text-xl"
+                                 style={{background: 'var(--surface)', border: '1px solid var(--line)'}}>🎳</div>
                         )}
                         <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                             <label className={`btn-secondary text-xs px-3 py-1.5 cursor-pointer inline-flex items-center gap-1.5 ${logoUploading ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -310,12 +311,12 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}/>
                             </label>
                             {club?.settings?.logo_url && (
-                                <button type="button" className="text-xs text-kce-muted hover:text-red-400 text-left"
+                                <button type="button" className="text-xs text-muted hover:text-danger-fg text-left"
                                         onClick={handleLogoRemove}>
                                     {t('club.logo.remove')}
                                 </button>
                             )}
-                            <p className="text-[10px] text-kce-muted">{t('club.logo.hint')}</p>
+                            <p className="text-xs text-muted">{t('club.logo.hint')}</p>
                         </div>
                     </div>
                 </div>
@@ -328,7 +329,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                 setColor1(e.target.value)
                                 applyClubTheme({settings: {primary_color: e.target.value, secondary_color: color2, bg_color: bgColor}})
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
-                            <span className="text-kce-muted text-xs font-mono">{color1}</span>
+                            <span className="text-muted text-xs font-mono">{color1}</span>
                         </div>
                     </div>
                     <div className="flex-1">
@@ -338,7 +339,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                 setColor2(e.target.value)
                                 applyClubTheme({settings: {primary_color: color1, secondary_color: e.target.value, bg_color: bgColor}})
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
-                            <span className="text-kce-muted text-xs font-mono">{color2}</span>
+                            <span className="text-muted text-xs font-mono">{color2}</span>
                         </div>
                     </div>
                     <div className="flex-1">
@@ -348,14 +349,14 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                 setBgColor(e.target.value)
                                 applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: e.target.value}})
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
-                            <span className="text-kce-muted text-xs font-mono">{bgColor}</span>
+                            <span className="text-muted text-xs font-mono">{bgColor}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* ── Palette generator ── */}
-                <div className="mt-4 pt-4 border-t border-kce-border">
-                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                <div className="mt-4 pt-4 border-t border-line">
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                         {t('club.palette.title')}
                     </div>
                     <div className="flex gap-2 items-end">
@@ -378,7 +379,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         <div className="grid grid-cols-2 gap-2 mt-3">
                             {suggestions.map((p, i) => (
                                 <button key={i} onClick={() => applyPalette(p)}
-                                        className="flex items-center gap-2 p-2.5 rounded-lg border border-kce-border hover:border-kce-amber active:scale-95 transition-all text-left">
+                                        className="flex items-center gap-2 p-2.5 rounded-lg border border-line hover:border-accent active:scale-95 transition-all text-left">
                                     <div className="flex gap-0.5 flex-shrink-0">
                                         <div className="w-5 h-5 rounded-full border border-white/10"
                                              style={{background: p.bg}}/>
@@ -387,7 +388,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                         <div className="w-5 h-5 rounded-full border border-white/10"
                                              style={{background: p.secondary}}/>
                                     </div>
-                                    <span className="text-xs text-kce-muted">{p.label}</span>
+                                    <span className="text-xs text-muted">{p.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -401,32 +402,32 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 <div className="mb-3">
                     <label className="field-label">{t('club.penalty.guestCap')}</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                        <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
                                value={guestCap} placeholder={t('club.penalty.guestCapPlaceholder')}
                                onChange={e => setGuestCap(e.target.value)}/>
                     </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.penalty.guestCapHint')}</p>
+                    <p className="text-xs text-muted mt-1">{t('club.penalty.guestCapHint')}</p>
                 </div>
                 <div className="mb-3">
                     <label className="field-label">{t('club.noRsvpExtra')}</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                        <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
                                value={noRsvpExtra} placeholder={t('club.noRsvpExtraPlaceholder')}
                                onChange={e => setNoRsvpExtra(e.target.value)}/>
                     </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.noRsvpExtraHint')}</p>
+                    <p className="text-xs text-muted mt-1">{t('club.noRsvpExtraHint')}</p>
                 </div>
                 <div>
                     <label className="field-label">{t('club.pinPenalty')}</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                        <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
                                value={pinPenalty} placeholder={t('club.pinPenaltyPlaceholder')}
                                onChange={e => setPinPenalty(e.target.value)}/>
                     </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.pinPenaltyHint')}</p>
+                    <p className="text-xs text-muted mt-1">{t('club.pinPenaltyHint')}</p>
                 </div>
             </div>
 
@@ -438,13 +439,13 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             aria-label={t('club.throwTracking.label')}
                             onClick={() => setThrowTracking(v => !v)}
                             className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: throwTracking ? 'var(--kce-primary)' : 'var(--kce-surface2)'}}>
+                            style={{background: throwTracking ? 'var(--accent)' : 'var(--surface-2)'}}>
                         <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
                               style={{transform: throwTracking ? 'translateX(20px)' : 'none'}}/>
                     </button>
                     <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-kce-cream">{t('club.throwTracking.label')}</div>
-                        <p className="text-xs text-kce-muted mt-0.5">{t('club.throwTracking.hint')}</p>
+                        <div className="text-sm font-bold text-ink">{t('club.throwTracking.label')}</div>
+                        <p className="text-xs text-muted mt-0.5">{t('club.throwTracking.hint')}</p>
                     </div>
                 </label>
             </div>
@@ -455,12 +456,12 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 <div>
                     <label className="field-label">{t('club.paypalMe')}</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-kce-muted text-xs flex-shrink-0">paypal.me/</span>
+                        <span className="text-muted text-xs flex-shrink-0">paypal.me/</span>
                         <input className="kce-input flex-1" type="text"
                                value={paypalMe} placeholder={t('club.paypalMePlaceholder')}
                                onChange={e => setPaypalMe(e.target.value.replace(/^https?:\/\/paypal\.me\//i, '').trim())}/>
                     </div>
-                    <p className="text-xs text-kce-muted mt-1">{t('club.paypalMeHint')}</p>
+                    <p className="text-xs text-muted mt-1">{t('club.paypalMeHint')}</p>
                 </div>
             </div>
 
@@ -550,10 +551,10 @@ function EmailSettingsCard() {
     return (
         <div className="kce-card p-4">
             <div className="sec-heading mb-2">{t('email.title')}</div>
-            <p className="text-xs text-kce-muted mb-3">{t('email.hint')}</p>
+            <p className="text-xs text-muted mb-3">{t('email.hint')}</p>
 
             <div className="flex items-center justify-between py-1 mb-2">
-                <span className="text-sm font-bold text-kce-cream">{t('email.enabled')}</span>
+                <span className="text-sm font-bold text-ink">{t('email.enabled')}</span>
                 <ReminderToggle value={enabled} onChange={setEnabled}/>
             </div>
 
@@ -591,18 +592,18 @@ function EmailSettingsCard() {
                            placeholder={passwordSet ? t('email.passwordSet') : t('email.passwordPlaceholder')} autoComplete="new-password"/>
                 </div>
                 <div className="flex items-center justify-between py-0.5">
-                    <span className="text-xs text-kce-cream">{t('email.useTls')}</span>
+                    <span className="text-xs text-ink">{t('email.useTls')}</span>
                     <ReminderToggle value={useTls} onChange={v => { setUseTls(v); if (v) setUseSsl(false) }}/>
                 </div>
                 <div className="flex items-center justify-between py-0.5">
-                    <span className="text-xs text-kce-cream">{t('email.useSsl')}</span>
+                    <span className="text-xs text-ink">{t('email.useSsl')}</span>
                     <ReminderToggle value={useSsl} onChange={v => { setUseSsl(v); if (v) setUseTls(false) }}/>
                 </div>
                 <div>
                     <label className="field-label">{t('email.baseUrl')}</label>
                     <input className="kce-input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
                            placeholder="https://kegeln.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
-                    <p className="text-[11px] text-kce-muted mt-1">{t('email.baseUrlHint')}</p>
+                    <p className="text-sm text-muted mt-1">{t('email.baseUrlHint')}</p>
                 </div>
             </div>
 
@@ -624,7 +625,7 @@ function ReminderToggle({value, onChange}: { value: boolean; onChange: (v: boole
     return (
         <button
             onClick={() => onChange(!value)}
-            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-kce-amber' : 'bg-kce-surface2'].join(' ')}
+            className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-accent' : 'bg-surface-2'].join(' ')}
             aria-pressed={value}
         >
             <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
@@ -693,10 +694,10 @@ function ReminderSettingsCard() {
             {/* debt_weekly */}
             <div className="mb-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.debt_weekly')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.debt_weekly')}</span>
                     <ReminderToggle value={!!debtWeekly.enabled} onChange={v => setDebtWeekly(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted mb-2">{t('reminders.debt_weekly.hint')}</p>
+                <p className="text-xs text-muted mb-2">{t('reminders.debt_weekly.hint')}</p>
                 {debtWeekly.enabled && (
                     <div className="flex gap-3 mt-2">
                         <div className="flex-1">
@@ -717,12 +718,12 @@ function ReminderSettingsCard() {
             </div>
 
             {/* upcoming_evening */}
-            <div className="mb-4 border-t border-kce-surface2 pt-4">
+            <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.upcoming_evening')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.upcoming_evening')}</span>
                     <ReminderToggle value={!!upcoming.enabled} onChange={v => setUpcoming(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted mb-2">{t('reminders.upcoming_evening.hint')}</p>
+                <p className="text-xs text-muted mb-2">{t('reminders.upcoming_evening.hint')}</p>
                 {upcoming.enabled && (
                     <div className="mt-2 w-28">
                         <label className="field-label">{t('reminders.days_before')}</label>
@@ -734,12 +735,12 @@ function ReminderSettingsCard() {
             </div>
 
             {/* rsvp_reminder */}
-            <div className="mb-4 border-t border-kce-surface2 pt-4">
+            <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.rsvp_reminder')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.rsvp_reminder')}</span>
                     <ReminderToggle value={!!rsvp.enabled} onChange={v => setRsvp(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted mb-2">{t('reminders.rsvp_reminder.hint')}</p>
+                <p className="text-xs text-muted mb-2">{t('reminders.rsvp_reminder.hint')}</p>
                 {rsvp.enabled && (
                     <div className="mt-2 w-28">
                         <label className="field-label">{t('reminders.days_before')}</label>
@@ -751,21 +752,21 @@ function ReminderSettingsCard() {
             </div>
 
             {/* debt_day_of */}
-            <div className="mb-4 border-t border-kce-surface2 pt-4">
+            <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.debt_day_of')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.debt_day_of')}</span>
                     <ReminderToggle value={!!dayOf.enabled} onChange={v => setDayOf(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted">{t('reminders.debt_day_of.hint')}</p>
+                <p className="text-xs text-muted">{t('reminders.debt_day_of.hint')}</p>
             </div>
 
             {/* payment_request_nudge */}
-            <div className="mb-4 border-t border-kce-surface2 pt-4">
+            <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.payment_nudge')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.payment_nudge')}</span>
                     <ReminderToggle value={!!payNudge.enabled} onChange={v => setPayNudge(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted mb-2">{t('reminders.payment_nudge.hint')}</p>
+                <p className="text-xs text-muted mb-2">{t('reminders.payment_nudge.hint')}</p>
                 {payNudge.enabled && (
                     <div className="mt-2 w-28">
                         <label className="field-label">{t('reminders.days_pending')}</label>
@@ -777,12 +778,12 @@ function ReminderSettingsCard() {
             </div>
 
             {/* auto_report */}
-            <div className="mb-4 border-t border-kce-surface2 pt-4">
+            <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-kce-cream">{t('reminders.auto_report')}</span>
+                    <span className="text-sm font-bold text-ink">{t('reminders.auto_report')}</span>
                     <ReminderToggle value={!!autoReport.enabled} onChange={v => setAutoReport(s => ({...s, enabled: v}))} />
                 </div>
-                <p className="text-xs text-kce-muted mb-2">{t('reminders.auto_report.hint')}</p>
+                <p className="text-xs text-muted mb-2">{t('reminders.auto_report.hint')}</p>
                 {autoReport.enabled && (
                     <div className="mt-2 w-28">
                         <label className="field-label">{t('reminders.days_before')}</label>
@@ -883,9 +884,9 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     <span className="text-xl">{pt.icon}</span>
                     <div className="flex-1">
                         <div className="text-sm font-bold">{pt.name}</div>
-                        <div className="text-xs text-kce-muted">{fe(pt.default_amount)}</div>
+                        <div className="text-xs text-muted">{fe(pt.default_amount)}</div>
                     </div>
-                    <button className="btn-ghost btn-xs text-kce-muted" disabled={!isOnline}
+                    <button className="btn-ghost btn-xs text-muted" disabled={!isOnline}
                             onClick={() => openEdit(pt)}>✏️
                     </button>
                     <button className="btn-danger btn-xs" disabled={!isOnline}
@@ -932,7 +933,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                        } catch (e) { toastError(e) }
                    }}>
                 <div className="flex flex-col gap-3">
-                    <p className="text-xs text-kce-muted">{t('club.penalty.editHint')}</p>
+                    <p className="text-xs text-muted">{t('club.penalty.editHint')}</p>
                     <div className="flex gap-2">
                         <div>
                             <label className="field-label">Icon</label>
@@ -947,7 +948,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                     <div>
                         <label className="field-label">{t('club.penalty.defaultAmount')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
                         </div>
@@ -1025,13 +1026,13 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             {gt.is_opener && <span className="text-base">👑</span>}
                             <span className="text-sm font-bold">{gt.name}</span>
                         </div>
-                        {gt.description && <div className="text-xs text-kce-muted mt-0.5">{gt.description}</div>}
+                        {gt.description && <div className="text-xs text-muted mt-0.5">{gt.description}</div>}
                         <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] text-kce-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
+                            <span className="text-xs text-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
                             {gt.default_loser_penalty > 0 &&
-                                <span className="text-[10px] text-red-400">{fe(gt.default_loser_penalty)}</span>}
+                                <span className="text-xs text-danger-fg">{fe(gt.default_loser_penalty)}</span>}
                             {(gt.per_point_penalty ?? 0) > 0 &&
-                                <span className="text-[10px] text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
+                                <span className="text-xs text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
                         </div>
                     </div>
                     <div className="flex gap-1">
@@ -1092,7 +1093,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                     <div><label className="field-label">{t('game.perPointPenalty')}</label>
                         <input className="kce-input" type="text" inputMode="decimal" value={perPoint}
                                onChange={e => setPerPoint(e.target.value)}/>
-                        <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
+                        <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
                     <button type="submit" className="btn-primary w-full mt-1">{t('action.save')}</button>
                 </div>
@@ -1162,13 +1163,13 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                 <div key={c.id} className="kce-card p-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold truncate">{c.name}</div>
-                        <div className="text-[10px] text-kce-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
+                        <div className="text-xs text-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                         <button className="btn-secondary btn-xs" onClick={() => openEdit(c)} title={t('superadmin.clubs.edit')}>✏️</button>
                         {c.is_active ? (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
-                                  style={{background: 'rgba(232,160,32,.15)', color: '#e8a020'}}>
+                            <span className="text-xs font-extrabold px-2 py-0.5 rounded"
+                                  style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)'}}>
                                 {t('superadmin.clubs.active')}
                             </span>
                         ) : (
@@ -1176,7 +1177,7 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                                 <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
                                     {t('superadmin.clubs.switch')}
                                 </button>
-                                <button className="text-kce-muted hover:text-red-400 text-sm px-1"
+                                <button className="text-muted hover:text-danger-fg text-sm px-1"
                                         onClick={() => setDeleteClubId(c.id)}
                                         title={t('superadmin.clubs.delete')}>×</button>
                             </>
@@ -1221,7 +1222,7 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
             {deleteClubId !== null && (
                 <Sheet open onClose={() => setDeleteClubId(null)} title={t('superadmin.clubs.delete')}>
                     <div className="flex flex-col gap-3">
-                        <p className="text-kce-muted text-sm">{t('superadmin.clubs.deleteConfirm')}</p>
+                        <p className="text-muted text-sm">{t('superadmin.clubs.deleteConfirm')}</p>
                         <button className="btn-primary w-full" style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(deleteClubId)}>
                             {t('action.confirmDelete')}
@@ -1273,14 +1274,14 @@ function ClubTeamsTab() {
 
     return (
         <div>
-            <p className="text-xs text-kce-muted mb-3">{t('club.teams.description')}</p>
+            <p className="text-xs text-muted mb-3">{t('club.teams.description')}</p>
             <button className="btn-primary btn-sm mb-3" disabled={!isOnline} onClick={openNew}>+ {t('club.teams.add')}</button>
             {teams.length === 0 && <Empty icon="🤝" text={t('club.teams.none')}/>}
             {teams.map(team => (
                 <div key={team.id} className="kce-card p-3 mb-2 flex items-center gap-3">
                     <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                        style={{background: 'linear-gradient(135deg,var(--kce-secondary),var(--kce-primary))'}}>
+                        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-sm flex-shrink-0"
+                        style={{background: 'linear-gradient(135deg,var(--accent-2),var(--accent))'}}>
                         {team.name[0].toUpperCase()}
                     </div>
                     <div className="flex-1 font-bold text-sm">{team.name}</div>
@@ -1371,11 +1372,11 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                         <div className="font-bold text-sm">{p.name}</div>
                         <div className="text-xs mt-0.5">
                             {holderDisplayName
-                                ? <span className="text-kce-amber font-bold">📌 {holderDisplayName}</span>
-                                : <span className="text-kce-muted">{t('pin.noHolder')}</span>
+                                ? <span className="text-accent-fg font-bold">📌 {holderDisplayName}</span>
+                                : <span className="text-muted">{t('pin.noHolder')}</span>
                             }
                             {p.assigned_at && (
-                                <span className="text-[10px] text-kce-muted ml-1">
+                                <span className="text-xs text-muted ml-1">
                                     {t('pin.holderSince')} {new Date(p.assigned_at).toLocaleDateString('de-DE')}
                                 </span>
                             )}
@@ -1456,10 +1457,10 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
 
     return (
         <div>
-            <p className="text-kce-muted text-xs mb-4">{t('committee.membersHint')}</p>
+            <p className="text-muted text-xs mb-4">{t('committee.membersHint')}</p>
 
             {committeeMembers.length === 0 && (
-                <p className="text-kce-muted text-sm mb-4">{t('committee.noMembers')}</p>
+                <p className="text-muted text-sm mb-4">{t('committee.noMembers')}</p>
             )}
 
             {committeeMembers.length > 0 && (
@@ -1470,14 +1471,14 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                             <div key={m.id}
                                  className="card p-3 flex items-center justify-between gap-2">
                                 <div>
-                                    <p className="text-sm font-bold text-kce-cream">{m.nickname || m.name}</p>
-                                    {m.nickname && <p className="text-[10px] text-kce-muted">{m.name}</p>}
+                                    <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
+                                    {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
                                 </div>
                                 <button
                                     // disabled={busy === m.id}
                                     onClick={() => toggle(m)}
                                     className="text-xs px-3 py-1 rounded-full font-bold transition-all"
-                                    style={{background: 'rgba(232,160,32,.15)', color: '#e8a020', border: '1px solid #c4701a'}}>
+                                    style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
                                     VGA ✓
                                 </button>
                             </div>
@@ -1491,13 +1492,13 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                 {otherMembers.map(m => (
                     <div key={m.id} className="card p-3 flex items-center justify-between gap-2">
                         <div>
-                            <p className="text-sm font-bold text-kce-cream">{m.nickname || m.name}</p>
-                            {m.nickname && <p className="text-[10px] text-kce-muted">{m.name}</p>}
+                            <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
+                            {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
                         </div>
                         <button
                             disabled={busy === m.id}
                             onClick={() => toggle(m)}
-                            className="text-xs px-3 py-1 rounded-full font-bold bg-kce-surface2 text-kce-muted border border-kce-border transition-all">
+                            className="text-xs px-3 py-1 rounded-full font-bold bg-surface-2 text-muted border border-line transition-all">
                             {t('committee.isCommittee')}
                         </button>
                     </div>
@@ -1543,14 +1544,14 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
         <div className="space-y-2">
             {/* WAL / PITR window */}
             {archive && (
-                <div className="rounded-xl p-3 text-xs space-y-1" style={{background: 'var(--kce-surface2)'}}>
-                    <div className="font-bold text-kce-muted mb-1">PITR-Fenster (WAL-Archiv)</div>
+                <div className="rounded-xl p-3 text-xs space-y-1" style={{background: 'var(--surface-2)'}}>
+                    <div className="font-bold text-muted mb-1">PITR-Fenster (WAL-Archiv)</div>
                     <div className="flex justify-between">
-                        <span className="text-kce-muted">Von</span>
+                        <span className="text-muted">Von</span>
                         <span className="font-mono">{archive.min.slice(0, 8)}…</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-kce-muted">Bis</span>
+                        <span className="text-muted">Bis</span>
                         <span className="font-mono">{archive.max.slice(0, 8)}…</span>
                     </div>
                 </div>
@@ -1559,31 +1560,31 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
             {backups.length === 0 && <Empty icon="💾" text={t('backup.empty')}/>}
             {backups.map(b => (
                 <div key={b.label} className="rounded-xl p-3 space-y-1.5"
-                     style={{background: 'var(--kce-surface2)'}}>
+                     style={{background: 'var(--surface-2)'}}>
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                              style={{background: b.type === 'full' ? 'var(--kce-amber)' : 'var(--kce-surface2)', color: b.type === 'full' ? 'var(--kce-bg)' : 'var(--kce-muted)', border: b.type !== 'full' ? '1px solid var(--kce-border)' : undefined}}>
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                              style={{background: b.type === 'full' ? 'var(--accent)' : 'var(--surface-2)', color: b.type === 'full' ? 'var(--canvas)' : 'var(--muted)', border: b.type !== 'full' ? '1px solid var(--line)' : undefined}}>
                             {BACKUP_TYPE_LABEL[b.type] ?? b.type}
                         </span>
                         <span className="text-xs font-mono truncate flex-1">{b.label}</span>
-                        {b.error && <span className="text-[10px] text-red-400 font-bold">{t('backup.error')}</span>}
+                        {b.error && <span className="text-xs text-danger-fg font-bold">{t('backup.error')}</span>}
                         <button
                             onClick={() => handleDownload(b.label)}
                             disabled={!!downloading}
-                            className="text-[11px] text-kce-primary disabled:opacity-40 flex-shrink-0">
+                            className="text-sm text-accent-fg disabled:opacity-40 flex-shrink-0">
                             {downloading === b.label ? '⏳' : `⬇ ${t('backup.download')}`}
                         </button>
                         <button
                             onClick={() => setConfirmLabel(b.label)}
-                            className="text-[11px] text-red-400 flex-shrink-0">
+                            className="text-sm text-danger-fg flex-shrink-0">
                             🗑 {t('backup.delete')}
                         </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 text-[11px] text-kce-muted">
-                        <span>Start: <span className="text-kce-primary">{fmtTs(b.timestamp.start)}</span></span>
-                        <span>Ende: <span className="text-kce-primary">{fmtTs(b.timestamp.stop)}</span></span>
-                        <span>Größe: <span className="text-kce-primary">{fmtBytes(b.info.size)}</span></span>
-                        <span>Repo: <span className="text-kce-primary">{fmtBytes(b.info.repository.size)}</span></span>
+                    <div className="grid grid-cols-2 gap-x-4 text-sm text-muted">
+                        <span>Start: <span className="text-accent-fg">{fmtTs(b.timestamp.start)}</span></span>
+                        <span>Ende: <span className="text-accent-fg">{fmtTs(b.timestamp.stop)}</span></span>
+                        <span>Größe: <span className="text-accent-fg">{fmtBytes(b.info.size)}</span></span>
+                        <span>Repo: <span className="text-accent-fg">{fmtBytes(b.info.repository.size)}</span></span>
                     </div>
                 </div>
             ))}
@@ -1591,8 +1592,8 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
             {confirmLabel && (
                 <Sheet open onClose={() => setConfirmLabel(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
-                        <p className="text-kce-muted text-sm">{t('backup.delete.confirm')}</p>
-                        <p className="text-xs font-mono text-kce-primary">{confirmLabel}</p>
+                        <p className="text-muted text-sm">{t('backup.delete.confirm')}</p>
+                        <p className="text-xs font-mono text-accent-fg">{confirmLabel}</p>
                         <button className="btn-primary w-full" style={{background: '#c0392b'}}
                                 onClick={() => { onDelete(confirmLabel); setConfirmLabel(null) }}>
                             {t('action.confirmDelete')}
@@ -1644,27 +1645,27 @@ function BackupsTab() {
             </button>
 
             {error && (
-                <div className="rounded-xl px-3 py-2 text-xs text-red-400 border border-red-400/30"
-                     style={{background: 'var(--kce-surface2)'}}>
+                <div className="rounded-xl px-3 py-2 text-xs text-danger-fg border border-danger/30"
+                     style={{background: 'var(--surface-2)'}}>
                     {(error as Error).message}
                 </div>
             )}
 
             {/* Config */}
             {config && (
-                <div className="rounded-xl p-3 space-y-1.5" style={{background: 'var(--kce-surface2)'}}>
-                    <div className="text-xs font-bold text-kce-muted mb-2">{t('backup.config.title')}</div>
+                <div className="rounded-xl p-3 space-y-1.5" style={{background: 'var(--surface-2)'}}>
+                    <div className="text-xs font-bold text-muted mb-2">{t('backup.config.title')}</div>
                     <div className="flex justify-between text-xs">
-                        <span className="text-kce-muted">{t('backup.config.schedule')}</span>
+                        <span className="text-muted">{t('backup.config.schedule')}</span>
                         <span className="font-mono font-bold">{config.schedule || '—'}</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                        <span className="text-kce-muted">{t('backup.config.retainDays')}</span>
+                        <span className="text-muted">{t('backup.config.retainDays')}</span>
                         <span className="font-bold">{config.retain_full} Full-Backups</span>
                     </div>
                     {config.repo_type && (
                         <div className="flex justify-between text-xs">
-                            <span className="text-kce-muted">{t('backup.config.s3')}</span>
+                            <span className="text-muted">{t('backup.config.s3')}</span>
                             <span className="font-bold">
                                 {isS3 ? t('backup.config.s3Enabled') : t('backup.config.s3Disabled')}
                             </span>
@@ -1672,14 +1673,14 @@ function BackupsTab() {
                     )}
                     {isS3 && config.s3_bucket && (
                         <div className="flex justify-between text-xs">
-                            <span className="text-kce-muted">{t('backup.config.s3Bucket')}</span>
+                            <span className="text-muted">{t('backup.config.s3Bucket')}</span>
                             <span className="font-mono font-bold">{config.s3_bucket}</span>
                         </div>
                     )}
                 </div>
             )}
 
-            {isLoading && <div className="text-xs text-kce-muted">{t('action.loading')}</div>}
+            {isLoading && <div className="text-xs text-muted">{t('action.loading')}</div>}
 
             {/* Stanza cards */}
             {stanzas.map(s => (

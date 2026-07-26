@@ -553,9 +553,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Shared button style helpers
     function penaltyBtnStyle(isFlashing: boolean) {
         return {
-            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--kce-surface2)',
-            borderColor: isFlashing ? '#16a34a' : 'var(--kce-border)',
-            color: isFlashing ? '#86efac' : 'var(--kce-cream)',
+            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--surface-2)',
+            borderColor: isFlashing ? '#16a34a' : 'var(--line)',
+            color: isFlashing ? '#86efac' : 'var(--ink)',
         }
     }
 
@@ -564,7 +564,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             position: 'fixed',
             inset: 0,
             zIndex: 60,
-            background: 'var(--kce-bg)',
+            background: 'var(--canvas)',
             display: 'flex',
             flexDirection: 'column',
         }}>
@@ -572,8 +572,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             <div
                 className="flex-shrink-0"
                 style={{
-                    background: 'var(--kce-surface)',
-                    borderBottom: '1px solid var(--kce-border)',
+                    background: 'var(--surface)',
+                    borderBottom: '1px solid var(--line)',
                     paddingTop: 'max(env(safe-area-inset-top), 8px)',
                     paddingBottom: '6px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
@@ -587,19 +587,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     </button>
                     {activeGame ? (
                         <>
-                            <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--kce-primary)'}}>
+                            <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
                                 🎳 {activeGame.name}
                                 {activeGame.status === 'open' && (
-                                    <span style={{fontSize: 10, color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 4}}>
+                                    <span style={{fontSize: 12, color: 'var(--muted)', fontWeight: 'normal', marginLeft: 4}}>
                                         (offen)
                                     </span>
                                 )}
                             </span>
                             {activeGame.turn_mode && (
                                 <span style={{
-                                    fontSize: 9, padding: '1px 6px',
-                                    borderRadius: 6, border: '1px solid var(--kce-border)',
-                                    color: 'var(--kce-muted)', background: 'var(--kce-surface2)',
+                                    fontSize: 12, padding: '1px 6px',
+                                    borderRadius: 6, border: '1px solid var(--line)',
+                                    color: 'var(--muted)', background: 'var(--surface-2)',
                                 }}>
                                     {t(`game.turnMode.${activeGame.turn_mode}` as any)}
                                 </span>
@@ -619,7 +619,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </>
                     ) : isAdmin(user) ? (
                         <>
-                            <span className="font-bold text-kce-amber text-sm">⚡ {t('quickEntry.title')}</span>
+                            <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
                             <div style={{flex: 1, minWidth: 0}}/>
                             {!showNewGame && (
                                 <button type="button" className="btn-secondary btn-xs"
@@ -629,7 +629,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             )}
                         </>
                     ) : (
-                        <span className="font-bold text-kce-amber text-sm flex-1">⚡ {t('quickEntry.title')}</span>
+                        <span className="font-bold text-accent-fg text-sm flex-1">⚡ {t('quickEntry.title')}</span>
                     )}
                 </div>
 
@@ -641,8 +641,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)',
                         display: 'flex', alignItems: 'center', gap: 6,
                     }}>
-                        <span style={{fontSize: 11}}>⚠️</span>
-                        <span style={{fontSize: 10, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
+                        <span style={{fontSize: 12}}>⚠️</span>
+                        <span style={{fontSize: 12, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
                     </div>
                 )}
 
@@ -650,12 +650,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 {activeGame && teams.length > 0 && unassignedPlayers.length > 0 && (
                     <div style={{
                         marginTop: 6, padding: '4px 8px',
-                        background: 'rgba(251,191,36,0.1)',
-                        borderRadius: 6, border: '1px solid rgba(251,191,36,0.35)',
+                        background: 'var(--accent-tint)',
+                        borderRadius: 6, border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)',
                         display: 'flex', alignItems: 'center', gap: 6,
                     }}>
-                        <span style={{fontSize: 11}}>⚠️</span>
-                        <span style={{fontSize: 10, color: 'var(--kce-amber)'}}>
+                        <span style={{fontSize: 12}}>⚠️</span>
+                        <span style={{fontSize: 12, color: 'var(--accent)'}}>
                             {unassignedPlayers.length} {t('team.playersUnassigned')}
                         </span>
                     </div>
@@ -670,10 +670,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         {/* Current player badge */}
                         <div style={{
                             display: 'flex', alignItems: 'center', gap: 4,
-                            background: 'var(--kce-primary)',
+                            background: 'var(--accent)',
                             borderRadius: 8, padding: '3px 8px',
                         }}>
-                            <span style={{fontSize: 9, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
+                            <span style={{fontSize: 12, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
                             <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
                                 {(currentPlayer?.nickname || currentPlayer?.name) ?? '—'}
                             </span>
@@ -683,10 +683,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
                             return (
                                 <span key={i} style={{
-                                    fontSize: 10, color: 'var(--kce-muted)',
-                                    background: 'var(--kce-surface2)',
+                                    fontSize: 12, color: 'var(--muted)',
+                                    background: 'var(--surface-2)',
                                     borderRadius: 6, padding: '2px 6px',
-                                    border: '1px solid var(--kce-border)',
+                                    border: '1px solid var(--line)',
                                 }}>
                                     {p.nickname || p.name}
                                 </span>
@@ -723,12 +723,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     return (
                                         <div key={th.id} style={{
                                             display: 'flex', alignItems: 'center', gap: 4,
-                                            background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface2))',
+                                            background: 'color-mix(in srgb, var(--accent) 12%, var(--surface-2))',
                                             borderRadius: 6, padding: '3px 6px',
                                             flexShrink: 0,
-                                            border: '1px solid var(--kce-primary)',
+                                            border: '1px solid var(--accent)',
                                         }}>
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>#{th.throw_num}</span>
                                             <input
                                                 type="number" min="0" max="9"
                                                 value={editPins}
@@ -736,21 +736,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                                 style={{
                                                     width: 36, fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
                                                     padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-primary)',
-                                                    color: 'var(--kce-amber)', textAlign: 'center',
+                                                    background: 'var(--surface)', border: '1px solid var(--accent)',
+                                                    color: 'var(--accent)', textAlign: 'center',
                                                 }}
                                             />
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>Σ</span>
+                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>Σ</span>
                                             <input
                                                 type="number" min="0"
                                                 value={editCumulative ?? ''}
                                                 placeholder="—"
                                                 onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
                                                 style={{
-                                                    width: 44, fontSize: 11, fontFamily: 'monospace',
+                                                    width: 44, fontSize: 12, fontFamily: 'monospace',
                                                     padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--kce-surface)', border: '1px solid var(--kce-border)',
-                                                    color: 'var(--kce-cream)', textAlign: 'center',
+                                                    background: 'var(--surface)', border: '1px solid var(--line)',
+                                                    color: 'var(--ink)', textAlign: 'center',
                                                 }}
                                             />
                                             <button
@@ -763,7 +763,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             <button
                                                 type="button"
                                                 aria-label={t('action.cancel')}
-                                                style={{fontSize: 13, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
+                                                style={{fontSize: 13, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
                                                 onClick={cancelEdit}
                                             >✕</button>
                                         </div>
@@ -772,32 +772,32 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 return (
                                     <div key={th.id} style={{
                                         display: 'flex', alignItems: 'center', gap: 3,
-                                        background: 'var(--kce-surface2)',
+                                        background: 'var(--surface-2)',
                                         borderRadius: 6, padding: '2px 4px 2px 6px',
                                         flexShrink: 0,
-                                        border: '1px solid var(--kce-border)',
+                                        border: '1px solid var(--line)',
                                     }}>
-                                        <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>#{th.throw_num}</span>
+                                        <span style={{fontSize: 12, color: 'var(--muted)'}}>#{th.throw_num}</span>
                                         {throwerName && (
-                                            <span style={{fontSize: 9, color: 'var(--kce-primary)', fontWeight: 'bold'}}>
+                                            <span style={{fontSize: 12, color: 'var(--accent)', fontWeight: 'bold'}}>
                                                 {throwerName}
                                             </span>
                                         )}
                                         <span style={{
                                             fontSize: 13, fontFamily: 'monospace',
-                                            fontWeight: 'bold', color: 'var(--kce-amber)',
+                                            fontWeight: 'bold', color: 'var(--accent)',
                                         }}>
                                             {th.pins}
                                         </span>
                                         {th.cumulative !== null && (
-                                            <span style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>
                                                 Σ{th.cumulative}
                                             </span>
                                         )}
                                         {isAdmin(user) && (
                                             <button
                                                 type="button"
-                                                style={{fontSize: 12, color: 'var(--kce-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
+                                                style={{fontSize: 12, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
                                                 title={t('quickEntry.editThrow')}
                                                 aria-label={t('quickEntry.editThrow')}
                                                 onClick={() => startEdit(th)}
@@ -826,7 +826,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button
                                     type="button"
                                     className="btn-secondary btn-xs"
-                                    style={{flexShrink: 0, fontSize: 9, marginLeft: 2}}
+                                    style={{flexShrink: 0, fontSize: 12, marginLeft: 2}}
                                     onClick={() => setShowHeatmap(h => !h)}
                                 >
                                     🎯
@@ -857,7 +857,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             const ratio = counts[i] / maxCount
                                             const bg = ratio === 0
                                                 ? 'transparent'
-                                                : `color-mix(in srgb, var(--kce-amber) ${Math.round(ratio * 100)}%, var(--kce-surface2))`
+                                                : `color-mix(in srgb, var(--accent) ${Math.round(ratio * 100)}%, var(--surface-2))`
                                             return (
                                                 <div key={i} style={{
                                                     position: 'absolute',
@@ -865,11 +865,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                                     transform: 'translate(-50%, -50%)',
                                                     width: 18, height: 18, borderRadius: '50%',
                                                     background: bg,
-                                                    border: `2px solid ${ratio > 0 ? 'var(--kce-amber)' : '#555'}`,
+                                                    border: `2px solid ${ratio > 0 ? 'var(--accent)' : '#555'}`,
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                 }}>
                                                     {counts[i] > 0 && (
-                                                        <span style={{fontSize: 7, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--kce-amber)'}}>
+                                                        <span style={{fontSize: 12, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--accent)'}}>
                                                             {counts[i]}
                                                         </span>
                                                     )}
@@ -877,7 +877,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             )
                                         })}
                                     </div>
-                                    <div style={{fontSize: 9, color: 'var(--kce-muted)'}}>
+                                    <div style={{fontSize: 12, color: 'var(--muted)'}}>
                                         {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
                                     </div>
                                 </div>
@@ -891,18 +891,18 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     <div style={{
                         marginTop: 6,
                         padding: '10px 12px',
-                        background: 'var(--kce-surface2)',
+                        background: 'var(--surface-2)',
                         borderRadius: 10,
-                        border: '1px solid var(--kce-border)',
+                        border: '1px solid var(--line)',
                     }}>
                         <div style={{
-                            fontSize: 11, fontWeight: 'bold',
-                            color: 'var(--kce-cream)', marginBottom: 8,
+                            fontSize: 12, fontWeight: 'bold',
+                            color: 'var(--ink)', marginBottom: 8,
                         }}>
                             🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
                             {lastThrow?.cumulative != null && (
-                                <span style={{color: 'var(--kce-muted)', fontWeight: 'normal', marginLeft: 8}}>
-                                    {t('quickEntry.gameScore')}: <strong style={{color: 'var(--kce-cream)'}}>{lastThrow.cumulative}</strong>
+                                <span style={{color: 'var(--muted)', fontWeight: 'normal', marginLeft: 8}}>
+                                    {t('quickEntry.gameScore')}: <strong style={{color: 'var(--ink)'}}>{lastThrow.cumulative}</strong>
                                 </span>
                             )}
                         </div>
@@ -924,14 +924,14 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
                         {/* Score inputs */}
                         <div style={{marginBottom: 8}}>
-                            <div style={{fontSize: 10, color: 'var(--kce-muted)', marginBottom: 4}}>
+                            <div style={{fontSize: 12, color: 'var(--muted)', marginBottom: 4}}>
                                 {t('game.scores')}
                             </div>
                             <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
                                 {activeGame.winner_type === 'team'
                                     ? evening!.teams.map(team => (
                                         <div key={`t:${team.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                                            <span style={{fontSize: 11, color: 'var(--kce-cream)', flex: 1}}>{team.name}</span>
+                                            <span style={{fontSize: 12, color: 'var(--ink)', flex: 1}}>{team.name}</span>
                                             <input
                                                 className="kce-input"
                                                 type="number" min="0"
@@ -944,7 +944,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     ))
                                     : evening!.players.map(p => (
                                         <div key={`p:${p.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                                            <span style={{fontSize: 11, color: 'var(--kce-cream)', flex: 1}}>{p.nickname || p.name}</span>
+                                            <span style={{fontSize: 12, color: 'var(--ink)', flex: 1}}>{p.nickname || p.name}</span>
                                             <input
                                                 className="kce-input"
                                                 type="number" min="0"
@@ -962,9 +962,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         {finishWinnerRef && (
                             <div style={{
                                 marginBottom: 8, padding: '8px 10px',
-                                background: 'var(--kce-surface)', borderRadius: 8,
+                                background: 'var(--surface)', borderRadius: 8,
                             }}>
-                                <div style={{fontSize: 10, fontWeight: 'bold', color: 'var(--kce-muted)', marginBottom: 4}}>
+                                <div style={{fontSize: 12, fontWeight: 'bold', color: 'var(--muted)', marginBottom: 4}}>
                                     {t('game.perPointPreview')}
                                     {(activeGame.per_point_penalty ?? 0) > 0
                                         ? ` (+${fe(activeGame.per_point_penalty)}/${t('game.perPointUnit')})`
@@ -991,8 +991,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
                                             : (p.nickname || p.name)
                                         return (
-                                            <div key={ref} style={{display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0'}}>
-                                                <span style={{color: 'var(--kce-cream)'}}>{label}</span>
+                                            <div key={ref} style={{display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '1px 0'}}>
+                                                <span style={{color: 'var(--ink)'}}>{label}</span>
                                                 <span style={{color: '#f87171', fontWeight: 'bold'}}>{fe(total)}</span>
                                             </div>
                                         )
@@ -1052,7 +1052,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             }}>
 
                 {/* Column 1: Players (game zone now lives in the header) */}
-                <div className="w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-kce-border max-h-[30vh] lg:max-h-none order-2 lg:order-none" style={{
+                <div className="w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-line max-h-[30vh] lg:max-h-none order-2 lg:order-none" style={{
                     flexShrink: 0,
                     display: 'flex',
                     flexDirection: 'column',
@@ -1071,7 +1071,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         {/* Header row: label + selection status + All/None */}
                         <div style={{display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2}}>
                             <span className="field-label">{t('penalty.who')}</span>
-                            <span style={{flex: 1, fontSize: 10, color: 'var(--kce-muted)', textAlign: 'center'}}>
+                            <span style={{flex: 1, fontSize: 12, color: 'var(--muted)', textAlign: 'center'}}>
                                 {noSelection
                                     ? t('quickEntry.selectPlayer')
                                     : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
@@ -1105,21 +1105,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     className={`w-full text-left px-2 py-2 rounded-xl border font-bold text-xs
                                         transition-all active:scale-95 flex items-center gap-1
                                         ${isSelected
-                                            ? 'border-kce-amber text-kce-amber'
+                                            ? 'border-accent text-accent-fg'
                                             : isCurrent
-                                                ? 'border-kce-primary text-kce-primary'
-                                                : 'border-kce-border text-kce-cream'}
+                                                ? 'border-accent text-accent'
+                                                : 'border-line text-ink'}
                                     `}
                                     style={{
                                         background: isSelected
-                                            ? 'rgba(232,160,32,0.12)'
+                                            ? 'var(--accent-tint)'
                                             : isCurrent
-                                                ? 'color-mix(in srgb, var(--kce-primary) 12%, transparent)'
-                                                : 'var(--kce-surface2)',
+                                                ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                                                : 'var(--surface-2)',
                                     }}
                                     onClick={() => togglePlayer(p.id)}
                                 >
-                                    {isCurrent && <span style={{fontSize: 11}}>🎳</span>}
+                                    {isCurrent && <span style={{fontSize: 12}}>🎳</span>}
                                     {p.is_king && <span className="text-sm">👑</span>}
                                     <span className="flex-1 truncate">{p.name}</span>
                                     {isMe && (
@@ -1132,7 +1132,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 </div>
 
                 {/* Column 2: Drinks + Penalties — both driven by the column-1 player selection */}
-                <div className="flex-1 overflow-y-auto p-3 border-b lg:border-b-0 lg:border-r border-kce-border order-1 lg:order-none">
+                <div className="flex-1 overflow-y-auto p-3 border-b lg:border-b-0 lg:border-r border-line order-1 lg:order-none">
                     {/* Drinks — same multi-select flow as penalties (no separate sheet) */}
                     <div className="mb-4">
                         <div className="field-label mb-2">{t('drinks.title')}</div>
@@ -1211,8 +1211,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         else overviewRowRefs.current.delete(p.id)
                                     }}
                                     style={{
-                                        background: 'var(--kce-surface2)',
-                                        border: '1px solid var(--kce-border)',
+                                        background: 'var(--surface-2)',
+                                        border: '1px solid var(--line)',
                                         borderRadius: 10,
                                         padding: '6px 8px',
                                         display: 'flex',
@@ -1221,11 +1221,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     }}
                                 >
                                     <div style={{display: 'flex', alignItems: 'center', gap: 4, minWidth: 0}}>
-                                        {p.is_king && <span style={{fontSize: 11}}>👑</span>}
+                                        {p.is_king && <span style={{fontSize: 12}}>👑</span>}
                                         <span style={{
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 700,
-                                            color: 'var(--kce-cream)',
+                                            color: 'var(--ink)',
                                             flex: 1,
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
@@ -1239,12 +1239,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 6,
-                                        fontSize: 10,
+                                        fontSize: 12,
                                         fontFamily: 'monospace',
-                                        color: 'var(--kce-muted)',
+                                        color: 'var(--muted)',
                                     }}>
                                         <span style={{
-                                            color: ov.penaltyEuro > 0 ? 'var(--kce-amber)' : 'var(--kce-muted)',
+                                            color: ov.penaltyEuro > 0 ? 'var(--accent)' : 'var(--muted)',
                                             fontWeight: 700,
                                         }}>
                                             {fe(ov.penaltyEuro)}
@@ -1258,7 +1258,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     {(ov.beerCount > 0 || ov.shotsCount > 0) && (
                                         <div style={{
                                             display: 'flex', gap: 6,
-                                            fontSize: 9, color: 'var(--kce-muted)',
+                                            fontSize: 12, color: 'var(--muted)',
                                         }}>
                                             {ov.beerCount > 0 && <span>🍺 {ov.beerCount}</span>}
                                             {ov.shotsCount > 0 && <span>🥃 {ov.shotsCount}</span>}
@@ -1272,9 +1272,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     <div style={{
                         marginTop: 6,
                         paddingTop: 6,
-                        borderTop: '1px solid var(--kce-border)',
-                        fontSize: 10,
-                        color: 'var(--kce-muted)',
+                        borderTop: '1px solid var(--line)',
+                        fontSize: 12,
+                        color: 'var(--muted)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 2,
@@ -1282,13 +1282,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     }}>
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                             <span>{t('quickEntry.totalPenalty')}</span>
-                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-amber)'}}>
+                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)'}}>
                                 {fe(overviewTotalEuro)}
                             </span>
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                             <span>{t('quickEntry.averagePenalty')}</span>
-                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--kce-cream)'}}>
+                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--ink)'}}>
                                 {fe(overviewAvgEuro)}
                             </span>
                         </div>
@@ -1301,8 +1301,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 <div
                     className="flex-shrink-0 px-3 pt-2"
                     style={{
-                        borderTop: '1px solid var(--kce-border)',
-                        background: 'var(--kce-surface)',
+                        borderTop: '1px solid var(--line)',
+                        background: 'var(--surface)',
                         paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
                         paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                         paddingRight: 'max(env(safe-area-inset-right), 12px)',
@@ -1321,20 +1321,20 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     disabled={isDeleting}
                                     className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{
-                                        background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--kce-surface2)',
-                                        border: `1px solid ${isConfirming ? '#dc2626' : isPendingItem ? 'rgba(251,191,36,0.4)' : 'var(--kce-border)'}`,
+                                        background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--surface-2)',
+                                        border: `1px solid ${isConfirming ? '#dc2626' : isPendingItem ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : 'var(--line)'}`,
                                     }}
                                     onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
                                     onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}
                                 >
                                     <span className="text-sm leading-none">{isConfirming ? '🗑' : ev.icon}</span>
-                                    <span className={`text-[10px] font-bold whitespace-nowrap ${isConfirming ? 'text-red-400' : 'text-kce-cream'}`}>
+                                    <span className={`text-xs font-bold whitespace-nowrap ${isConfirming ? 'text-danger-fg' : 'text-ink'}`}>
                                         {isConfirming ? '✕ löschen?' : ev.label}
                                     </span>
-                                    <span className="text-[9px] text-kce-muted">{fTime(ev.time)}</span>
+                                    <span className="text-xs text-muted">{fTime(ev.time)}</span>
                                     {isPendingItem && !isConfirming && (
-                                        <span className="text-[9px] px-1 py-0.5 rounded font-bold"
-                                              style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                        <span className="text-xs px-1 py-0.5 rounded font-bold"
+                                              style={{background: 'var(--accent-tint)', color: 'var(--accent)'}}>
                                             ⏳ {t('sync.pendingBadge')}
                                         </span>
                                     )}

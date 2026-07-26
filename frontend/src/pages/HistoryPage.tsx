@@ -112,7 +112,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
 
             {/* Active evening at top */}
             {activeEvening && (
-                <div className="kce-card mb-2 overflow-hidden border border-kce-amber/40">
+                <div className="kce-card mb-2 overflow-hidden border border-accent/40">
                     <button className="w-full p-3 flex items-center gap-3 text-left"
                             onClick={() => setExpandedId(expandedId === activeEvening.id ? null : activeEvening.id)}>
                         <span className="text-lg">🎳</span>
@@ -121,19 +121,19 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                 <div className="text-sm font-bold">
                                     {new Date(activeEvening.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})}
                                 </div>
-                                <span className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1 py-0.5">
+                                <span className="text-xs font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
                                     {t('evening.active')}
                                 </span>
                             </div>
-                            <div className="text-xs text-kce-muted">
+                            <div className="text-xs text-muted">
                                 {activeEvening.venue ?? '–'} · {activeEvening.player_count} {t('history.players')}
                             </div>
                         </div>
-                        <span className="text-kce-muted text-xs">{expandedId === activeEvening.id ? '▲' : '▼'}</span>
+                        <span className="text-muted text-xs">{expandedId === activeEvening.id ? '▲' : '▼'}</span>
                     </button>
                     {expandedId === activeEvening.id && expandedEvening && (
-                        <div className="border-t border-kce-border px-3 pb-3 pt-2">
-                            <p className="text-xs text-kce-muted py-1">{expandedEvening.players.map(p => p.nickname || p.name).join(', ')}</p>
+                        <div className="border-t border-line px-3 pb-3 pt-2">
+                            <p className="text-xs text-muted py-1">{expandedEvening.players.map(p => p.nickname || p.name).join(', ')}</p>
                         </div>
                     )}
                 </div>
@@ -159,34 +159,34 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                         <div className="flex items-center gap-1.5">
                                             <div className="text-sm font-bold">{dateStr}</div>
                                         </div>
-                                        <div className="text-xs text-kce-muted">
+                                        <div className="text-xs text-muted">
                                             {ev.venue ?? '–'} · {ev.player_count} {t('history.players')}
                                         </div>
                                     </div>
-                                    <span className="text-kce-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
+                                    <span className="text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
                                 </button>
 
                                 {/* Expanded detail */}
                                 {isExpanded && (
-                                    <div className="border-t border-kce-border px-3 pb-3 pt-2">
+                                    <div className="border-t border-line px-3 pb-3 pt-2">
                                         {detail ? (
                                             <>
                                                 {/* Summary stats */}
                                                 <div className="flex gap-4 mb-3 text-sm">
                                                     <div>
                                                         <div
-                                                            className="text-xs text-kce-muted">{t('history.players')}</div>
+                                                            className="text-xs text-muted">{t('history.players')}</div>
                                                         <div className="font-bold">{detail.players.length}</div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-kce-muted">{t('nav.games')}</div>
+                                                        <div className="text-xs text-muted">{t('nav.games')}</div>
                                                         <div
                                                             className="font-bold">{detail.games.filter(g => g.status === 'finished').length}</div>
                                                     </div>
                                                     <div>
                                                         <div
-                                                            className="text-xs text-kce-muted">{t('history.total')}</div>
-                                                        <div className="font-bold text-kce-amber">
+                                                            className="text-xs text-muted">{t('history.total')}</div>
+                                                        <div className="font-bold text-accent-fg">
                                                             {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0))}
                                                         </div>
                                                     </div>
@@ -196,13 +196,13 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             👤 {t('history.players')}
                                                         </div>
                                                         <div className="flex flex-wrap gap-1">
                                                             {detail.players.map(p => (
                                                                 <span key={p.id}
-                                                                      className="text-[11px] px-2 py-0.5 rounded-full bg-kce-surface2 text-kce-cream">
+                                                                      className="text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                                                     {p.is_king ? '👑 ' : ''}{p.name}
                                                                 </span>
                                                             ))}
@@ -214,16 +214,16 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             🏆 {t('nav.games')}
                                                         </div>
                                                         {detail.games.filter(g => g.status === 'finished').sort((a, b) => (a.started_at ?? '').localeCompare(b.started_at ?? '') || a.sort_order - b.sort_order).map(g => (
                                                             <div key={g.id}
-                                                                 className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
+                                                                 className="flex items-center justify-between py-1 border-b border-surface-2 last:border-0">
                                                                 <span
-                                                                    className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.name}</span>
+                                                                    className="text-xs text-ink">{g.is_opener ? '👑 ' : ''}{g.name}</span>
                                                                 <span
-                                                                    className="text-xs text-kce-muted">{g.winner_name ?? '–'}</span>
+                                                                    className="text-xs text-muted">{g.winner_name ?? '–'}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -244,16 +244,16 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                     return (
                                                         <div className="mb-3">
                                                             <div
-                                                                className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                                className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('penalty.title')}
                                                             </div>
                                                             {sorted.map(({name, amount}) => (
                                                                 <div key={name}
                                                                      className="flex items-center justify-between py-0.5">
                                                                     <span
-                                                                        className="text-xs text-kce-cream">{name}</span>
+                                                                        className="text-xs text-ink">{name}</span>
                                                                     <span
-                                                                        className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                        className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -264,10 +264,10 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1">
                                                             🍺 {t('drinks.title')}
                                                         </div>
-                                                        <div className="text-xs text-kce-muted">
+                                                        <div className="text-xs text-muted">
                                                             {detail.drink_rounds.filter(r => r.drink_type === 'beer').length}× {t('drinks.beer')}
                                                             {detail.drink_rounds.filter(r => r.drink_type === 'shots').length > 0 && (
                                                                 <> · {detail.drink_rounds.filter(r => r.drink_type === 'shots').length}× {t('drinks.shots')}</>
@@ -280,7 +280,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.highlights.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             ✨ {t('highlight.title').replace('✨ ', '')}
                                                         </div>
                                                         <div className="flex flex-col gap-2">
@@ -290,9 +290,9 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                                     <div className="flex-1 min-w-0">
                                                                         {h.media_url && (
                                                                             <img src={h.media_url} alt=""
-                                                                                 className="rounded max-h-32 max-w-full object-contain border border-kce-border/40 mb-1"/>
+                                                                                 className="rounded max-h-32 max-w-full object-contain border border-line/40 mb-1"/>
                                                                         )}
-                                                                        {h.text && <span className="text-xs text-kce-cream">{h.text}</span>}
+                                                                        {h.text && <span className="text-xs text-ink">{h.text}</span>}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -302,7 +302,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
 
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-surface-2">
                                                         {ev.season_closed ? (
                                                             <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
                                                                 📦 {t('history.archived')}
@@ -331,7 +331,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 )}
                                             </>
                                         ) : (
-                                            <p className="text-xs text-kce-muted py-2">{t('action.loading')}</p>
+                                            <p className="text-xs text-muted py-2">{t('action.loading')}</p>
                                         )}
                                     </div>
                                 )}

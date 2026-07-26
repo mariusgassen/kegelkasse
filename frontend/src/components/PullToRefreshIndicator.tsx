@@ -34,8 +34,8 @@ export function PullToRefreshIndicator({pullDistance, dragging, refreshing}: Pro
                 <div style={{
                     width: 26, height: 26, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'var(--kce-surface2)',
-                    color: pastThreshold ? 'var(--kce-primary)' : 'var(--kce-muted)',
+                    background: 'var(--surface-2)',
+                    color: pastThreshold ? 'var(--accent-fg)' : 'var(--muted)',
                     transition: dragging ? 'none' : 'transform 0.25s ease-out, color 0.15s ease-out',
                     transform: `rotate(${pastThreshold ? 180 : progress * 180}deg) scale(${0.7 + progress * 0.3})`,
                 }}>

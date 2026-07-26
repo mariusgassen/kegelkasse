@@ -48,7 +48,7 @@ export function HeadToHead({players, myMemberId}: {
     const [bId, setBId] = useState<number | null>(null)
 
     if (candidates.length < 2) {
-        return <div className="text-xs text-kce-muted py-3 text-center">{t('stats.h2h.notEnough')}</div>
+        return <div className="text-xs text-muted py-3 text-center">{t('stats.h2h.notEnough')}</div>
     }
 
     const effectiveA = aId ?? candidates[0].regular_member_id!
@@ -74,7 +74,7 @@ export function HeadToHead({players, myMemberId}: {
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mb-2">
+            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
                 {t('stats.h2h.pickHint')}
             </div>
 
@@ -97,25 +97,25 @@ export function HeadToHead({players, myMemberId}: {
             </div>
 
             {!b ? (
-                <div className="text-xs text-kce-muted py-3 text-center">{t('stats.h2h.pickSecond')}</div>
+                <div className="text-xs text-muted py-3 text-center">{t('stats.h2h.pickSecond')}</div>
             ) : (
                 <div data-testid="h2h-table">
                     <div className="flex items-center gap-2 mb-2 text-sm font-bold">
                         <div className="flex-1 truncate text-right">{displayName(a)}</div>
-                        <div className="text-kce-muted text-xs flex-shrink-0">vs</div>
+                        <div className="text-muted text-xs flex-shrink-0">vs</div>
                         <div className="flex-1 truncate">{displayName(b)}</div>
                     </div>
                     {rows.map(row => (
                         <div key={row.key} className="flex items-center gap-2 py-1.5"
-                             style={{borderTop: '1px solid var(--kce-border)'}}>
-                            <div className={`flex-1 text-right text-sm font-bold ${row.winner === 'a' ? 'text-kce-amber' : ''}`}>
+                             style={{borderTop: '1px solid var(--line)'}}>
+                            <div className={`flex-1 text-right text-sm font-bold ${row.winner === 'a' ? 'text-accent-fg' : ''}`}>
                                 {formatCell(row.a, row.format)}
                             </div>
-                            <div className="flex-shrink-0 text-[10px] text-kce-muted uppercase tracking-wider text-center"
+                            <div className="flex-shrink-0 text-xs text-muted uppercase tracking-wider text-center"
                                  style={{minWidth: 110}}>
                                 {t(`stats.h2h.${row.key}` as TranslationKey)}
                             </div>
-                            <div className={`flex-1 text-sm font-bold ${row.winner === 'b' ? 'text-kce-amber' : ''}`}>
+                            <div className={`flex-1 text-sm font-bold ${row.winner === 'b' ? 'text-accent-fg' : ''}`}>
                                 {formatCell(row.b, row.format)}
                             </div>
                         </div>

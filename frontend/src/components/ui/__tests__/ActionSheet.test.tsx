@@ -9,7 +9,7 @@ describe('ActionItem', () => {
         render(<ActionItem icon="🗑️" label="Löschen" onClick={onClick} danger/>)
         const btn = screen.getByRole('button', {name: /Löschen/})
         expect(btn).toHaveTextContent('🗑️')
-        expect(btn.className).toContain('text-red-400') // danger styling
+        expect(btn.className).toContain('text-danger-fg') // danger styling
         fireEvent.click(btn)
         expect(onClick).toHaveBeenCalledTimes(1)
     })

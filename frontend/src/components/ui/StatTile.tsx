@@ -4,11 +4,11 @@ import type {ReactNode} from 'react'
 export type StatTone = 'default' | 'accent' | 'positive' | 'negative' | 'muted'
 
 const TONE_CLASS: Record<StatTone, string> = {
-    default: 'text-kce-cream',
-    accent: 'text-kce-amber',
-    positive: 'text-green-400',
-    negative: 'text-red-400',
-    muted: 'text-kce-muted',
+    default: 'text-ink',
+    accent: 'text-accent-fg',
+    positive: 'text-positive-fg',
+    negative: 'text-danger-fg',
+    muted: 'text-muted',
 }
 
 const SIZE_CLASS = {sm: 'text-base', md: 'text-lg', lg: 'text-xl'} as const
@@ -38,7 +38,7 @@ export function StatTile({
     const body = (
         <>
             <div className={`font-display font-bold ${SIZE_CLASS[size]} leading-tight ${TONE_CLASS[tone]}`}>{value}</div>
-            <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{label}</div>
+            <div className="text-xs text-muted font-bold tracking-wider mt-0.5 uppercase">{label}</div>
         </>
     )
     const shell = bare ? 'text-center' : 'kce-card p-3 text-center'

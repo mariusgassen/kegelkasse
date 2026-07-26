@@ -62,7 +62,7 @@ export function ClubRecords({myMemberId, onSelectMember}: {
                     <>
                         <span className="text-2xl flex-shrink-0">{r.icon}</span>
                         <div className="flex-1 min-w-0">
-                            <div className="text-xs font-bold text-kce-muted">
+                            <div className="text-xs font-bold text-muted">
                                 {t(`stats.records.${r.key}` as TranslationKey)}
                             </div>
                             <div className="text-sm font-bold truncate flex items-center gap-1">
@@ -70,15 +70,15 @@ export function ClubRecords({myMemberId, onSelectMember}: {
                                 {isMe && <MeBadge/>}
                             </div>
                             {r.holder_name && r.date && (
-                                <div className="text-[10px] text-kce-muted">{fDate(r.date)}</div>
+                                <div className="text-xs text-muted">{fDate(r.date)}</div>
                             )}
                         </div>
-                        <div className="text-kce-amber font-bold text-sm flex-shrink-0">
+                        <div className="text-accent-fg font-bold text-sm flex-shrink-0">
                             {formatValue(r, t)}
                         </div>
                     </>
                 )
-                const cls = `kce-card p-3 mb-2 flex items-center gap-3 w-full text-left ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`
+                const cls = `kce-card p-3 mb-2 flex items-center gap-3 w-full text-left ${isMe ? 'ring-1 ring-accent/40' : ''}`
                 return clickable ? (
                     <button key={r.key} type="button" data-testid={`record-${r.key}`}
                             className={`${cls} active:opacity-70 transition-opacity`}

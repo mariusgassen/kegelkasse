@@ -430,26 +430,35 @@ describe('hexToHsl', () => {
 })
 
 describe('applyClubTheme', () => {
-    it('sets primary CSS variable when club has primary_color', async () => {
+    it('sets the accent fill token when club has primary_color', async () => {
         const { applyClubTheme } = await import('../App')
         applyClubTheme({ settings: { primary_color: '#c47a1a', secondary_color: null, bg_color: null } })
-        expect(document.documentElement.style.getPropertyValue('--kce-primary')).toBe('#c47a1a')
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#c47a1a')
     })
 
-    it('sets secondary CSS variable when club has secondary_color', async () => {
+    it('derives the readable accent twin even when no bg_color is configured', async () => {
+        // Regression: the old applyBgDerivations only ran when bg_color was set, so a club that
+        // configured just a brand color got no derived pair at all.
+        const { applyClubTheme } = await import('../App')
+        applyClubTheme({ settings: { primary_color: '#c47a1a', secondary_color: null, bg_color: null } })
+        expect(document.documentElement.style.getPropertyValue('--accent-fg')).toBeTruthy()
+        expect(document.documentElement.style.getPropertyValue('--on-accent')).toBeTruthy()
+    })
+
+    it('sets the secondary accent token when club has secondary_color', async () => {
         const { applyClubTheme } = await import('../App')
         applyClubTheme({ settings: { primary_color: null, secondary_color: '#123456', bg_color: null } })
-        expect(document.documentElement.style.getPropertyValue('--kce-secondary')).toBe('#123456')
+        expect(document.documentElement.style.getPropertyValue('--accent-2')).toBe('#123456')
     })
 
     it('sets bg and derived surface variables when bg_color is provided', async () => {
         const { applyClubTheme } = await import('../App')
         applyClubTheme({ settings: { primary_color: null, secondary_color: null, bg_color: '#1a1a2e' } })
-        expect(document.documentElement.style.getPropertyValue('--kce-bg')).toBe('#1a1a2e')
+        expect(document.documentElement.style.getPropertyValue('--canvas')).toBe('#1a1a2e')
         // Derived surface vars should also be set
-        expect(document.documentElement.style.getPropertyValue('--kce-surface')).toBeTruthy()
-        expect(document.documentElement.style.getPropertyValue('--kce-surface2')).toBeTruthy()
-        expect(document.documentElement.style.getPropertyValue('--kce-border')).toBeTruthy()
+        expect(document.documentElement.style.getPropertyValue('--surface')).toBeTruthy()
+        expect(document.documentElement.style.getPropertyValue('--surface-2')).toBeTruthy()
+        expect(document.documentElement.style.getPropertyValue('--line')).toBeTruthy()
     })
 
     it('does nothing when club is null', async () => {
@@ -513,22 +522,34 @@ describe('theme resolution', () => {
     it('applyTheme uses the default dark bg when the club has none set', async () => {
         const { applyTheme } = await import('../App')
         applyTheme(null, 'dark')
-        expect(document.documentElement.style.getPropertyValue('--kce-bg')).toBe('#1a1410')
+        expect(document.documentElement.style.getPropertyValue('--canvas')).toBe('#1a1410')
     })
 
     it('applyTheme flips the club bg to a light variant in light mode', async () => {
         const { applyTheme, hexToHsl } = await import('../App')
         applyTheme({ settings: { bg_color: '#1a1410' } }, 'light')
-        const bg = document.documentElement.style.getPropertyValue('--kce-bg')
+        const bg = document.documentElement.style.getPropertyValue('--canvas')
         const [, , l] = hexToHsl(bg)
         expect(l).toBeGreaterThanOrEqual(85)
     })
 
-    it('applyTheme keeps primary/secondary colors unchanged across modes', async () => {
+    it('applyTheme keeps the raw brand fills unchanged across modes', async () => {
         const { applyTheme } = await import('../App')
         applyTheme({ settings: { primary_color: '#e8a020', secondary_color: '#6b7c5a', bg_color: '#1a1410' } }, 'light')
-        expect(document.documentElement.style.getPropertyValue('--kce-primary')).toBe('#e8a020')
-        expect(document.documentElement.style.getPropertyValue('--kce-secondary')).toBe('#6b7c5a')
+        expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#e8a020')
+        expect(document.documentElement.style.getPropertyValue('--accent-2')).toBe('#6b7c5a')
+    })
+
+    it('applyTheme darkens the readable accent twin in light mode (#70)', async () => {
+        const { applyTheme } = await import('../App')
+        const settings = { primary_color: '#e8a020', secondary_color: '#6b7c5a', bg_color: '#1a1410' }
+        applyTheme({ settings }, 'dark')
+        // Amber already passes on the dark background, so the twin equals the raw color...
+        expect(document.documentElement.style.getPropertyValue('--accent-fg')).toBe('#e8a020')
+        applyTheme({ settings }, 'light')
+        // ...but on the mirrored light background it must be adjusted, or every section heading
+        // and primary button would sit at ~1.8:1.
+        expect(document.documentElement.style.getPropertyValue('--accent-fg')).not.toBe('#e8a020')
     })
 })
 

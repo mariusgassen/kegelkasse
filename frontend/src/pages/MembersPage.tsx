@@ -360,7 +360,7 @@ export function MembersPage() {
                     )}
                     {admin && inactiveUsers.length > 0 && (
                         <button
-                            className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                            className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                             onClick={() => setShowInactive(v => !v)}>
                             {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
                         </button>
@@ -427,7 +427,7 @@ export function MembersPage() {
             {/* Inactive users */}
             {showInactive && inactiveUsers.length > 0 && (
                 <>
-                    <div className="text-[10px] font-bold text-kce-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
                     </div>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
@@ -453,7 +453,7 @@ export function MembersPage() {
                     <button className="btn-secondary btn-xs" onClick={openNew}>+ {t('member.add')}</button>
                 )}
             </div>
-            <p className="text-[10px] text-kce-muted mb-3">
+            <p className="text-xs text-muted mb-3">
                 {t('member.rosterHint')}
             </p>
 
@@ -492,7 +492,7 @@ export function MembersPage() {
                             memberId={m.id}
                             subtitle={m.nickname ? m.name : undefined}
                             trailing={inEvening
-                                ? <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>
+                                ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
                             onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
@@ -504,7 +504,7 @@ export function MembersPage() {
             {/* ── Gäste ── */}
             {savedGuests.length > 0 && (<>
                 <div className="sec-heading mt-4">{t('player.knownGuests')}</div>
-                <p className="text-[10px] text-kce-muted mb-3">
+                <p className="text-xs text-muted mb-3">
                     {t('member.knownGuestsHint')}
                 </p>
                 {savedGuests.map(m => {
@@ -530,7 +530,7 @@ export function MembersPage() {
                             avatarVariant="muted"
                             meta={<>{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</>}
                             trailing={inEvening
-                                ? <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>
+                                ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
                             onClick={() => openActionSheet(displayName, actions)}
@@ -550,7 +550,7 @@ export function MembersPage() {
             <Sheet open={!!removeConfirm} onClose={() => setRemoveConfirm(null)}
                    title={t('member.removeConfirm')}>
                 <div className="flex flex-col gap-4">
-                    <p className="text-sm text-kce-muted">{t('member.removeConfirmHint')}</p>
+                    <p className="text-sm text-muted">{t('member.removeConfirmHint')}</p>
                     {removeConfirm && (
                         <div className="kce-card p-3 flex items-center gap-3">
                             <Avatar name={removeConfirm.nickname || removeConfirm.name} size="sm" variant="muted"/>
@@ -560,14 +560,14 @@ export function MembersPage() {
                     {/* Payout on departure */}
                     <div>
                         <label className="field-label">{t('member.payoutLabel')}</label>
-                        <p className="text-[10px] text-kce-muted mb-1.5">{t('member.payoutHint')}</p>
+                        <p className="text-xs text-muted mb-1.5">{t('member.payoutHint')}</p>
                         {removePenaltyTotal !== null && removePenaltyTotal > 0.01 && (
-                            <p className="text-[10px] text-kce-amber mb-1.5">
+                            <p className="text-xs text-accent-fg mb-1.5">
                                 {t('member.payoutWriteOffInfo')} ({removePenaltyTotal.toFixed(2).replace('.', ',')} €)
                             </p>
                         )}
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input
                                 className="kce-input flex-1"
                                 type="text" inputMode="decimal"
@@ -593,7 +593,7 @@ export function MembersPage() {
             <Sheet open={!!promoteConfirm} onClose={() => setPromoteConfirm(null)}
                    title={t('member.promoteConfirm')}>
                 <div className="flex flex-col gap-4">
-                    <p className="text-sm text-kce-muted">{t('member.promoteConfirmHint')}</p>
+                    <p className="text-sm text-muted">{t('member.promoteConfirmHint')}</p>
                     {promoteConfirm && (
                         <div className="kce-card p-3 flex items-center gap-3">
                             <Avatar name={promoteConfirm.nickname || promoteConfirm.name} size="sm" variant="muted"/>
@@ -603,9 +603,9 @@ export function MembersPage() {
                     {/* Pro-rata entry fee (1/x of treasury incl. open debts) */}
                     <div>
                         <label className="field-label">{t('member.entryFeeLabel')}</label>
-                        <p className="text-[10px] text-kce-muted mb-1.5">{t('member.entryFeeHint')}</p>
+                        <p className="text-xs text-muted mb-1.5">{t('member.entryFeeHint')}</p>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input
                                 className="kce-input flex-1"
                                 type="text" inputMode="decimal"
@@ -631,7 +631,7 @@ export function MembersPage() {
             <Sheet open={linkSheet} onClose={() => setLinkSheet(false)}
                    title={`🔗 ${linkUserName} ${t('member.linkWith')}`}>
                 <div className="flex flex-col gap-2">
-                    <p className="text-xs text-kce-muted mb-1">
+                    <p className="text-xs text-muted mb-1">
                         {t('member.linkHint')}
                     </p>
                     {availableForLink.map(m => (
@@ -640,12 +640,12 @@ export function MembersPage() {
                             <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
-                                {m.nickname && <div className="text-xs text-kce-muted">{m.name}</div>}
+                                {m.nickname && <div className="text-xs text-muted">{m.name}</div>}
                             </div>
                         </button>
                     ))}
                     {availableForLink.length === 0 && (
-                        <p className="text-xs text-kce-muted text-center py-2">{t('member.allLinked')}</p>
+                        <p className="text-xs text-muted text-center py-2">{t('member.allLinked')}</p>
                     )}
                     <button className="btn-secondary btn-sm mt-1"
                             onClick={async () => {
@@ -661,7 +661,7 @@ export function MembersPage() {
             <Sheet open={mergeSheet} onClose={() => setMergeSheet(false)}
                    title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" ${t('member.mergeWith')}`}>
                 <div className="flex flex-col gap-2">
-                    <p className="text-xs text-kce-muted mb-1">
+                    <p className="text-xs text-muted mb-1">
                         {t('member.mergeHint')}
                     </p>
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
@@ -670,13 +670,13 @@ export function MembersPage() {
                             <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
-                                {m.nickname && <div className="text-xs text-kce-muted">{m.name}</div>}
+                                {m.nickname && <div className="text-xs text-muted">{m.name}</div>}
                             </div>
-                            <span className="text-xs text-kce-muted">{t('member.keep')}</span>
+                            <span className="text-xs text-muted">{t('member.keep')}</span>
                         </button>
                     ))}
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).length === 0 && (
-                        <p className="text-xs text-kce-muted text-center py-2">{t('member.noOtherEntries')}</p>
+                        <p className="text-xs text-muted text-center py-2">{t('member.noOtherEntries')}</p>
                     )}
                 </div>
             </Sheet>
@@ -684,12 +684,12 @@ export function MembersPage() {
             <Sheet open={inviteSheet} onClose={() => setInviteSheet(false)}
                    title={`📨 Einladung für ${inviteName}`}>
                 <div className="flex flex-col gap-3">
-                    <p className="text-xs text-kce-muted">
+                    <p className="text-xs text-muted">
                         {t('member.inviteHint')}
                     </p>
                     {inviteUrl && (
                         <>
-                            <div className="bg-kce-bg rounded-lg p-3 text-xs font-mono text-kce-cream break-all">
+                            <div className="bg-canvas rounded-lg p-3 text-xs font-mono text-ink break-all">
                                 {inviteUrl}
                             </div>
                             <div className="flex gap-2">
@@ -711,17 +711,17 @@ export function MembersPage() {
             <Sheet open={resetSheet} onClose={() => setResetSheet(false)}
                    title={`🔑 ${resetUserName}`}>
                 <div className="flex flex-col gap-3">
-                    <p className="text-xs text-kce-muted">
+                    <p className="text-xs text-muted">
                         {t('auth.reset.createLink')} — gültig 7 Tage, einmalig verwendbar.
                     </p>
                     {resetUsername && (
-                        <div className="text-xs text-kce-muted">
-                            {t('auth.username')}: <span className="font-mono text-kce-cream">@{resetUsername}</span>
+                        <div className="text-xs text-muted">
+                            {t('auth.username')}: <span className="font-mono text-ink">@{resetUsername}</span>
                         </div>
                     )}
                     {resetUrl && (
                         <>
-                            <div className="bg-kce-bg rounded-lg p-3 text-xs font-mono text-kce-cream break-all">
+                            <div className="bg-canvas rounded-lg p-3 text-xs font-mono text-ink break-all">
                                 {resetUrl}
                             </div>
                             <div className="flex gap-2">

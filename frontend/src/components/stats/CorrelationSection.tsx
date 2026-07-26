@@ -27,11 +27,11 @@ function fe(v: number) {
 type CorrTab = 'evening' | 'member' | 'strength'
 
 function rColor(r: number | null): string {
-    if (r === null) return 'var(--kce-muted)'
+    if (r === null) return 'var(--muted)'
     const a = Math.abs(r)
-    if (a < 0.2) return 'var(--kce-muted)'
-    if (r > 0) return a >= 0.5 ? '#22c55e' : '#4ade80'
-    return a >= 0.5 ? '#ef4444' : '#f87171'
+    if (a < 0.2) return 'var(--muted)'
+    if (r > 0) return a >= 0.5 ? 'var(--positive-fg)' : 'var(--positive-fg)'
+    return a >= 0.5 ? 'var(--danger-fg)' : 'var(--danger-fg)'
 }
 
 function rBadge(r: number | null, t: (k: TranslationKey) => string): { label: string; color: string } {
@@ -86,25 +86,25 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
         <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 260}}>
             {/* axes */}
             <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
-                  stroke="var(--kce-border)" strokeWidth={1}/>
+                  stroke="var(--line)" strokeWidth={1}/>
             <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
-                  stroke="var(--kce-border)" strokeWidth={1}/>
+                  stroke="var(--line)" strokeWidth={1}/>
             {/* y ticks */}
             {yTicks.map((tv, i) => (
                 <g key={`y${i}`}>
                     <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
-                          stroke="var(--kce-border)"/>
+                          stroke="var(--line)"/>
                     <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
-                          fontSize={10} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
+                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* x ticks */}
             {xTicks.map((tv, i) => (
                 <g key={`x${i}`}>
                     <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
-                          stroke="var(--kce-border)"/>
+                          stroke="var(--line)"/>
                     <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={10} fill="var(--kce-muted)">{tv.toFixed(2)}</text>
+                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* trend line */}
@@ -112,7 +112,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                 <line
                     x1={xS(xMin)} y1={yS(reg.slope * xMin + reg.intercept)}
                     x2={xS(xMax)} y2={yS(reg.slope * xMax + reg.intercept)}
-                    stroke="var(--kce-amber)" strokeWidth={1} strokeDasharray="3 3" opacity={0.7}
+                    stroke="var(--accent-fg)" strokeWidth={1} strokeDasharray="3 3" opacity={0.7}
                 />
             )}
             {/* dots */}
@@ -123,19 +123,19 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <circle
                         key={i}
                         cx={xS(p.x)} cy={yS(p.y)} r={isSelected ? r + 2 : r}
-                        fill={p.color ?? 'var(--kce-amber)'}
-                        stroke={isSelected ? 'var(--kce-cream)' : 'none'}
+                        fill={p.color ?? 'var(--accent-fg)'}
+                        stroke={isSelected ? 'var(--ink)' : 'none'}
                         strokeWidth={isSelected ? 1.5 : 0}
                         style={{cursor: onSelect ? 'pointer' : 'default'}}
                         onClick={onSelect ? () => onSelect(i) : undefined}
                     />
                 )
             })}
-            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={10}
-                  fill="var(--kce-muted)">{xLabel}</text>
+            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={12}
+                  fill="var(--muted)">{xLabel}</text>
             <text transform={`translate(10, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
-                  textAnchor="middle" dominantBaseline="middle" fontSize={10}
-                  fill="var(--kce-muted)">{yLabel}</text>
+                  textAnchor="middle" dominantBaseline="middle" fontSize={12}
+                  fill="var(--muted)">{yLabel}</text>
         </svg>
     )
 }
@@ -174,59 +174,59 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {[0, 0.25, 0.5, 0.75, 1].map(f => (
                     <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
                           y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
-                          stroke="var(--kce-border)" strokeWidth={0.5} opacity={0.4}/>
+                          stroke="var(--line)" strokeWidth={0.5} opacity={0.4}/>
                 ))}
                 {/* axes */}
                 <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
-                      stroke="var(--kce-border)"/>
+                      stroke="var(--line)"/>
                 <line x1={SC_PAD.left + SC_IW} y1={SC_PAD.top} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
-                      stroke="var(--kce-border)"/>
+                      stroke="var(--line)"/>
                 <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
-                      stroke="var(--kce-border)"/>
+                      stroke="var(--line)"/>
                 {/* y labels (left = penalty €) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="end" fontSize={10} fill="var(--kce-muted)">
+                          textAnchor="end" fontSize={12} fill="var(--muted)">
                         {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                     </text>
                 ))}
                 {/* y labels (right = drinks) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="start" fontSize={10} fill="var(--kce-cream)">
+                          textAnchor="start" fontSize={12} fill="var(--ink)">
                         {Math.round(maxD * f)}
                     </text>
                 ))}
                 {/* x labels */}
                 {tickIdx.map(i => (
                     <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={9} fill="var(--kce-muted)">{fmtX(bins[i].t)}</text>
+                          fontSize={12} fill="var(--muted)">{fmtX(bins[i].t)}</text>
                 ))}
                 {/* penalty line */}
-                <path d={pathP} fill="none" stroke="var(--kce-amber)" strokeWidth={1.8} strokeLinejoin="round"/>
+                <path d={pathP} fill="none" stroke="var(--accent-fg)" strokeWidth={1.8} strokeLinejoin="round"/>
                 {/* drinks line */}
-                <path d={pathD} fill="none" stroke="var(--kce-cream)" strokeWidth={1.8} strokeLinejoin="round" strokeDasharray="4 2"/>
+                <path d={pathD} fill="none" stroke="var(--ink)" strokeWidth={1.8} strokeLinejoin="round" strokeDasharray="4 2"/>
                 {/* hover dots */}
                 {bins.map((b, i) => (
                     <g key={i} onClick={() => setHoverIdx(i === hoverIdx ? null : i)} style={{cursor: 'pointer'}}>
                         <circle cx={xS(i)} cy={yPenalty(b.cum_penalty)} r={hoverIdx === i ? 4 : 2.5}
-                                fill="var(--kce-amber)"/>
+                                fill="var(--accent-fg)"/>
                         <circle cx={xS(i)} cy={yDrinks(b.cum_drinks)} r={hoverIdx === i ? 4 : 2.5}
-                                fill="var(--kce-cream)"/>
+                                fill="var(--ink)"/>
                         <rect x={xS(i) - 6} y={SC_PAD.top} width={12} height={SC_IH}
                               fill="transparent"/>
                     </g>
                 ))}
                 {/* legend */}
                 <g>
-                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--kce-muted)">{leftLabel}</text>
-                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--kce-cream)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--kce-muted)">{rightLabel}</text>
+                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
+                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
                 </g>
             </svg>
             {hoverIdx !== null && bins[hoverIdx] && (
-                <div className="text-[10px] text-kce-muted text-center -mt-1">
+                <div className="text-xs text-muted text-center -mt-1">
                     {fmtX(bins[hoverIdx].t)}
                     {bins[hoverIdx].delta_penalty != null && ` · Δ€ ${bins[hoverIdx].delta_penalty!.toFixed(2)}`}
                     {bins[hoverIdx].delta_drinks != null && ` · Δ🍻 ${bins[hoverIdx].delta_drinks}`}
@@ -251,10 +251,10 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
     const badge = rBadge(r, t)
     const [open, setOpen] = useState(false)
     return (
-        <div className="rounded-lg" style={{background: 'var(--kce-surface2)'}}>
+        <div className="rounded-lg" style={{background: 'var(--surface-2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="flex flex-col">
-                    <div className="text-[10px] text-kce-muted uppercase font-bold">{t(labelKey)}</div>
+                    <div className="text-xs text-muted uppercase font-bold">{t(labelKey)}</div>
                     <div className="text-xs font-bold" style={{color: badge.color}}>{badge.label}</div>
                 </div>
                 <div className="text-2xl font-extrabold" style={{color: badge.color}}>
@@ -262,7 +262,7 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
                 </div>
             </div>
             {r !== null && (
-                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     {t(pearsonDirectionKey(r))}
                     <button type="button"
                             className="ml-1 underline decoration-dotted"
@@ -296,28 +296,28 @@ function DrinkRateBadge({
     const ratio = baselineRate != null && baselineRate > 0 && rate != null ? rate / baselineRate : null
     const pct = ratio != null ? Math.round((ratio - 1) * 100) : null
     // Above baseline = each drink costs more (worse) → amber; below = cheaper drinks → green.
-    const compareColor = pct == null ? 'var(--kce-muted)'
-        : pct <= -20 ? '#22c55e'
-        : pct >= 20 ? 'var(--kce-amber)'
-        : 'var(--kce-muted)'
+    const compareColor = pct == null ? 'var(--muted)'
+        : pct <= -20 ? 'var(--positive-fg)'
+        : pct >= 20 ? 'var(--accent-fg)'
+        : 'var(--muted)'
     return (
-        <div className="rounded-lg mt-2" style={{background: 'var(--kce-surface2)'}}>
+        <div className="rounded-lg mt-2" style={{background: 'var(--surface-2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="flex flex-col min-w-0">
-                    <div className="text-[10px] text-kce-muted uppercase font-bold">{label}</div>
-                    <div className="text-xs text-kce-cream truncate">
+                    <div className="text-xs text-muted uppercase font-bold">{label}</div>
+                    <div className="text-xs text-ink truncate">
                         🍻 {drinks} · €{penalty.toFixed(2)}
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-2xl font-extrabold text-kce-amber leading-none">
+                    <div className="text-2xl font-extrabold text-accent-fg leading-none">
                         {rate == null ? '–' : fe(rate)}
                     </div>
-                    <div className="text-[9px] text-kce-muted">{t('stats.correlation.rateUnit')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.rateUnit')}</div>
                 </div>
             </div>
             {pct != null && baselineLabel && (
-                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     <span style={{color: compareColor}} className="font-bold">
                         {pct > 0 ? '+' : ''}{pct}%
                     </span>
@@ -326,7 +326,7 @@ function DrinkRateBadge({
                         ? t('stats.correlation.rateAbove').replace('{label}', baselineLabel)
                         : t('stats.correlation.rateBelow').replace('{label}', baselineLabel)}
                     {ratio != null && (
-                        <span className="text-kce-muted/70"> ({ratio.toFixed(2)}×)</span>
+                        <span className="text-muted/70"> ({ratio.toFixed(2)}×)</span>
                     )}
                     <button type="button"
                             className="ml-1 underline decoration-dotted"
@@ -339,12 +339,12 @@ function DrinkRateBadge({
                 </div>
             )}
             {pct == null && rate != null && (
-                <div className="px-3 pb-2 text-[10px] text-kce-muted leading-snug">
+                <div className="px-3 pb-2 text-xs text-muted leading-snug">
                     {t('stats.correlation.rateExplain')}
                 </div>
             )}
             {rate == null && (
-                <div className="px-3 pb-2 text-[10px] text-kce-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     {drinks === 0
                         ? t('stats.correlation.rateNoDrinks')
                         : t('stats.correlation.rateNoPenalty')}
@@ -363,7 +363,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
 
     const colorFor = (memberId: number, idx: number) =>
-        memberId === myMemberId ? 'var(--kce-amber)' : playerColor(idx)
+        memberId === myMemberId ? 'var(--accent-fg)' : playerColor(idx)
 
     const memberColorMap = new Map<number, string>()
     members.forEach((m, i) => memberColorMap.set(m.regular_member_id, colorFor(m.regular_member_id, i)))
@@ -374,7 +374,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
         m.evening_points.map(p => ({
             x: p.penalty_euro,
             y: p.drink_count,
-            color: memberColorMap.get(m.regular_member_id) ?? 'var(--kce-muted)',
+            color: memberColorMap.get(m.regular_member_id) ?? 'var(--muted)',
             label: m.nickname || m.name,
             memberId: m.regular_member_id,
             date: p.date,
@@ -385,7 +385,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
 
     return (
         <>
-            <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
+            <div className="text-xs text-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
             {/* Member legend pills */}
             <div className="flex gap-1.5 flex-wrap mb-2">
                 <button type="button"
@@ -428,7 +428,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                         onSelect={i => setSelectedIdx(i === selectedIdx ? null : i)}
                     />
                     {selectedIdx !== null && points[selectedIdx] && (
-                        <div className="text-[10px] text-kce-muted text-center mb-2">
+                        <div className="text-xs text-muted text-center mb-2">
                             <span className="font-bold">{points[selectedIdx].label}</span>
                             {points[selectedIdx].memberId === myMemberId && (
                                 <> · <MeBadge/></>
@@ -467,7 +467,7 @@ function YearCumulativeDualAxis({evenings, t}: {
 
     return (
         <div className="mt-3">
-            <div className="text-[10px] font-bold text-kce-muted uppercase mb-1">
+            <div className="text-xs font-bold text-muted uppercase mb-1">
                 {t('stats.correlation.yearCumulativeTitle')}
             </div>
             <DualAxisLineChart
@@ -513,43 +513,43 @@ function EveningQuartileSummary({evenings, t}: {
     return (
         <div className="mt-3">
             {slopeText && (
-                <div className="text-[11px] text-kce-muted mb-2 text-center">{slopeText}</div>
+                <div className="text-sm text-muted mb-2 text-center">{slopeText}</div>
             )}
-            <div className="text-[10px] font-bold text-kce-muted uppercase mb-1">
+            <div className="text-xs font-bold text-muted uppercase mb-1">
                 {t('stats.correlation.quartileTitle')}
             </div>
             <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
-                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.quartileTop')}</div>
-                    <div className="text-base font-extrabold text-kce-amber">🍻 {avgTop.toFixed(1)}</div>
-                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
+                    <div className="text-xs text-muted">{t('stats.correlation.quartileTop')}</div>
+                    <div className="text-base font-extrabold text-accent-fg">🍻 {avgTop.toFixed(1)}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                 </div>
-                <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
-                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.quartileBottom')}</div>
+                <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
+                    <div className="text-xs text-muted">{t('stats.correlation.quartileBottom')}</div>
                     <div className="text-base font-extrabold">🍻 {avgBottom.toFixed(1)}</div>
-                    <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                 </div>
             </div>
             {ratio && avgTop > avgBottom && (
-                <div className="text-[11px] font-bold text-kce-amber text-center mt-2">
+                <div className="text-sm font-bold text-accent-fg text-center mt-2">
                     {t('stats.correlation.timesMore').replace('{n}', ratio)}
                 </div>
             )}
             {streak && (
                 <div className="mt-3">
-                    <div className="text-[10px] font-bold text-kce-muted uppercase mb-1">
+                    <div className="text-xs font-bold text-muted uppercase mb-1">
                         {t('stats.correlation.streakTitle')}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
-                            <div className="text-[10px] text-kce-muted">{t('stats.correlation.streakTop5')}</div>
-                            <div className="text-base font-extrabold text-kce-amber">🍻 {streak.top5Avg.toFixed(1)}</div>
-                            <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                        <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
+                            <div className="text-xs text-muted">{t('stats.correlation.streakTop5')}</div>
+                            <div className="text-base font-extrabold text-accent-fg">🍻 {streak.top5Avg.toFixed(1)}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                         </div>
-                        <div className="p-2 rounded-lg" style={{background: 'var(--kce-surface2)'}}>
-                            <div className="text-[10px] text-kce-muted">{t('stats.correlation.streakBottom5')}</div>
+                        <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
+                            <div className="text-xs text-muted">{t('stats.correlation.streakBottom5')}</div>
                             <div className="text-base font-extrabold">🍻 {streak.bottom5Avg.toFixed(1)}</div>
-                            <div className="text-[10px] text-kce-muted">{t('stats.correlation.avgDrinks')}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                         </div>
                     </div>
                 </div>
@@ -630,13 +630,13 @@ export function CorrelationSection({year, myMemberId, t}: {
             <div className="flex items-baseline justify-between mb-1">
                 <div className="text-sm font-extrabold">{t('stats.correlation.title')}</div>
             </div>
-            <div className="text-[10px] text-kce-muted mb-2">{t('stats.correlation.subtitle')}</div>
+            <div className="text-xs text-muted mb-2">{t('stats.correlation.subtitle')}</div>
 
             <div className="flex gap-1 overflow-x-auto pb-1 mb-3" style={{scrollbarWidth: 'none'}}>
                 {tabs.map(({key, labelKey}) => (
                     <button
                         key={key} type="button"
-                        className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${tab === key ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                        className={`flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${tab === key ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                         onClick={() => setTab(key)}
                     >
                         {t(labelKey)}
@@ -653,7 +653,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                             points={filteredCorr!.evenings.map(e => ({
                                 x: e.penalty_euro, y: e.drink_count,
                                 label: fDate(e.date),
-                                color: 'var(--kce-amber)',
+                                color: 'var(--accent-fg)',
                             }))}
                             xLabel={t('stats.correlation.xPenalty')}
                             yLabel={t('stats.correlation.yDrinks')}
@@ -662,7 +662,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                             onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
                         />
                         {selectedDot !== null && filteredCorr!.evenings[selectedDot] && (
-                            <div className="text-[10px] text-kce-muted text-center mb-2">
+                            <div className="text-xs text-muted text-center mb-2">
                                 {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count.toFixed(2)}
                             </div>
                         )}
@@ -719,7 +719,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                     const maxRate = Math.max(...withRate.map(m => m.rate))
                     return (
                         <>
-                            <div className="text-[10px] text-kce-muted mb-2 leading-snug">
+                            <div className="text-xs text-muted mb-2 leading-snug">
                                 {t('stats.correlation.fallbackRate')}
                             </div>
                             {withRate.map(m => {
@@ -727,23 +727,23 @@ export function CorrelationSection({year, myMemberId, t}: {
                                 const pct = maxRate > 0 ? (m.rate / maxRate) * 100 : 0
                                 return (
                                     <div key={m.regular_member_id}
-                                         className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
-                                         style={{background: 'var(--kce-surface2)'}}>
+                                         className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-accent/40' : ''}`}
+                                         style={{background: 'var(--surface-2)'}}>
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="text-xs font-bold truncate flex items-center gap-1">
                                                 {m.nickname || m.name}
                                                 {isMe && <MeBadge/>}
                                             </div>
-                                            <div className="text-xs font-extrabold flex-shrink-0 text-kce-amber">
+                                            <div className="text-xs font-extrabold flex-shrink-0 text-accent-fg">
                                                 {fe(m.rate)} / 🍻
                                             </div>
                                         </div>
                                         <div className="h-1.5 rounded-full overflow-hidden"
-                                             style={{background: 'var(--kce-bg)'}}>
+                                             style={{background: 'var(--canvas)'}}>
                                             <div className="h-full rounded-full"
-                                                 style={{width: `${pct}%`, background: 'var(--kce-amber)'}}/>
+                                                 style={{width: `${pct}%`, background: 'var(--accent)'}}/>
                                         </div>
-                                        <div className="text-[9px] text-kce-muted mt-1">
+                                        <div className="text-xs text-muted mt-1">
                                             🍻 {m.total_drink_count} · €{m.total_penalty_euro.toFixed(2)} · {m.evening_points.length} {m.evening_points.length === 1 ? t('stats.eveningSingular') : t('stats.eveningsPlural')}
                                         </div>
                                     </div>
@@ -756,7 +756,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                 return (
                     <>
                         {/* Scale ticks: −1 · 0 · +1 */}
-                        <div className="relative h-3 mb-1 text-[9px] text-kce-muted font-bold">
+                        <div className="relative h-3 mb-1 text-xs text-muted font-bold">
                             <span className="absolute left-0">−1</span>
                             <span className="absolute left-1/2 -translate-x-1/2">0</span>
                             <span className="absolute right-0">+1</span>
@@ -767,8 +767,8 @@ export function CorrelationSection({year, myMemberId, t}: {
                             const pct = Math.abs(r) * 50  // half-width fraction
                             return (
                                 <div key={m.regular_member_id}
-                                     className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`}
-                                     style={{background: 'var(--kce-surface2)'}}>
+                                     className={`mb-2 p-2 rounded-lg ${isMe ? 'ring-1 ring-accent/40' : ''}`}
+                                     style={{background: 'var(--surface-2)'}}>
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="text-xs font-bold truncate flex items-center gap-1">
                                             {m.nickname || m.name}
@@ -781,9 +781,9 @@ export function CorrelationSection({year, myMemberId, t}: {
                                     </div>
                                     {/* Diverging bar: centered at 0, fills left for negative, right for positive */}
                                     <div className="relative h-1.5 rounded-full overflow-hidden"
-                                         style={{background: 'var(--kce-bg)'}}>
+                                         style={{background: 'var(--canvas)'}}>
                                         <div className="absolute top-0 bottom-0 w-px"
-                                             style={{left: '50%', background: 'var(--kce-border)'}}/>
+                                             style={{left: '50%', background: 'var(--line)'}}/>
                                         {r >= 0 ? (
                                             <div className="absolute top-0 bottom-0 rounded-r-full"
                                                  style={{left: '50%', width: `${pct}%`, background: rColor(r)}}/>
@@ -796,7 +796,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                             )
                         })}
                         {tooFew.length > 0 && (
-                            <div className="text-[10px] text-kce-muted mt-2">
+                            <div className="text-xs text-muted mt-2">
                                 {t('stats.correlation.notEnoughEvenings')}: {tooFew.map(m => m.nickname || m.name).join(', ')}
                             </div>
                         )}
@@ -836,29 +836,29 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {[0.25, 0.5, 0.75].map(f => (
                 <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
                       y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
-                      stroke="var(--kce-border)" strokeWidth={0.5} opacity={0.4}/>
+                      stroke="var(--line)" strokeWidth={0.5} opacity={0.4}/>
             ))}
             {/* x baseline */}
             <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
-                  stroke="var(--kce-border)"/>
+                  stroke="var(--line)"/>
             {/* y labels (left = Δ€) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="end" fontSize={10} fill="var(--kce-muted)">
+                      textAnchor="end" fontSize={12} fill="var(--muted)">
                     {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                 </text>
             ))}
             {/* y labels (right = Δdrinks) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="start" fontSize={10} fill="var(--kce-cream)">
+                      textAnchor="start" fontSize={12} fill="var(--ink)">
                     {Math.round(maxD * f)}
                 </text>
             ))}
             {/* x labels */}
             {tickIdx.map(i => (
                 <text key={`t${i}`} x={SC_PAD.left + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
-                      textAnchor="middle" fontSize={9} fill="var(--kce-muted)">{fmtTime(bins[i].t)}</text>
+                      textAnchor="middle" fontSize={12} fill="var(--muted)">{fmtTime(bins[i].t)}</text>
             ))}
             {/* bars */}
             {bins.map((b, i) => {
@@ -869,21 +869,21 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
                     <g key={i}>
                         {b.delta_penalty > 0 && (
                             <rect x={cx - barW - 0.5} y={SC_PAD.top + SC_IH - hP} width={barW} height={hP}
-                                  fill="var(--kce-amber)" rx={1}/>
+                                  fill="var(--accent-fg)" rx={1}/>
                         )}
                         {b.cum_drinks > 0 && (
                             <rect x={cx + 0.5} y={SC_PAD.top + SC_IH - hD} width={barW} height={hD}
-                                  fill="var(--kce-cream)" rx={1}/>
+                                  fill="var(--ink)" rx={1}/>
                         )}
                     </g>
                 )
             })}
             {/* legend */}
             <g>
-                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--kce-amber)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--kce-muted)">{leftLabel}</text>
-                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--kce-cream)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--kce-muted)">{rightLabel}</text>
+                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
+                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
             </g>
         </svg>
     )
@@ -927,12 +927,12 @@ function MemberHeatLane({
         <svg viewBox={`0 0 320 ${LANE_H}`} className="w-full block" preserveAspectRatio="none"
              style={{height: LANE_H}}>
             {/* Member name */}
-            <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
-                  dominantBaseline="middle" fill="var(--kce-cream)">
+            <text x={6} y={LANE_H / 2 + 1} fontSize={12} fontWeight={700}
+                  dominantBaseline="middle" fill="var(--ink)">
                 {isMe
                     ? (label.length > 7 ? `${label.slice(0, 6)}…` : label)
                     : (label.length > 11 ? `${label.slice(0, 10)}…` : label)}
-                {isMe && <tspan fill="var(--kce-primary)" fontSize={7} dx={3}> Ich</tspan>}
+                {isMe && <tspan fill="var(--accent-fg)" fontSize={12} dx={3}> Ich</tspan>}
             </text>
 
             {/* Background heat cells: Δpenalty intensity — tinted with the club primary */}
@@ -942,19 +942,19 @@ function MemberHeatLane({
                     <rect key={i}
                           x={LANE_NAME_W + i * cellW} y={2}
                           width={Math.max(0.5, cellW - 0.5)} height={LANE_H - 4}
-                          fill="var(--kce-primary)" fillOpacity={intensity * 0.85}/>
+                          fill="var(--accent-fg)" fillOpacity={intensity * 0.85}/>
                 )
             })}
 
             {/* Cumulative drinks line — cream always contrasts with bg */}
-            <path d={cumPath} fill="none" stroke="var(--kce-cream)" strokeWidth={1.6}
+            <path d={cumPath} fill="none" stroke="var(--ink)" strokeWidth={1.6}
                   strokeLinejoin="round" opacity={0.95}/>
             {/* End-dot for the line */}
             {bins.length > 0 && (() => {
                 const last = bins[bins.length - 1]
                 const x = LANE_NAME_W + (bins.length - 0.5) * cellW
                 const y = LANE_H - 4 - (last.cum_drinks / globalMaxCum) * (LANE_H - 10)
-                return <circle cx={x} cy={y} r={2.5} fill="var(--kce-cream)"/>
+                return <circle cx={x} cy={y} r={2.5} fill="var(--ink)"/>
             })()}
 
             {/* Totals at the right edge */}
@@ -963,12 +963,12 @@ function MemberHeatLane({
                 const totalDrinks = bins[bins.length - 1].cum_drinks
                 return (
                     <>
-                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={10} textAnchor="end"
-                              fill="var(--kce-primary)" fontWeight={700}>
+                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={12} textAnchor="end"
+                              fill="var(--accent-fg)" fontWeight={700}>
                             €{totalPenalty.toFixed(1)}
                         </text>
-                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={10} textAnchor="end"
-                              fill="var(--kce-cream)" fontWeight={700}>
+                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={12} textAnchor="end"
+                              fill="var(--ink)" fontWeight={700}>
                             🍻 {totalDrinks}
                         </text>
                     </>
@@ -980,7 +980,7 @@ function MemberHeatLane({
 
             {/* Optional r badge in name area, small */}
             {rPearson != null && (
-                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={9} textAnchor="end"
+                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={12} textAnchor="end"
                       dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
                     r={rPearson.toFixed(2)}
                 </text>
@@ -988,8 +988,8 @@ function MemberHeatLane({
         </svg>
     )
 
-    const className = `block w-full rounded-lg overflow-hidden mb-1 transition-all ${onFocus ? 'active:opacity-70' : ''} ${isMe ? 'ring-1 ring-kce-amber/40' : ''}`
-    const style = {background: 'var(--kce-surface2)'}
+    const className = `block w-full rounded-lg overflow-hidden mb-1 transition-all ${onFocus ? 'active:opacity-70' : ''} ${isMe ? 'ring-1 ring-accent/40' : ''}`
+    const style = {background: 'var(--surface-2)'}
     if (onFocus) {
         return (
             <button type="button" onClick={onFocus} aria-label={label}
@@ -1026,14 +1026,14 @@ function MemberHeatLanes({
     })
     return (
         <div>
-            <div className="text-[10px] text-kce-muted mb-2">
+            <div className="text-xs text-muted mb-2">
                 {t('stats.correlation.heatLaneHint')}
             </div>
             {sorted.map(m => (
                 <MemberHeatLane
                     key={m.evening_player_id}
                     bins={m.bins}
-                    color={memberColors.get(m.evening_player_id) ?? 'var(--kce-muted)'}
+                    color={memberColors.get(m.evening_player_id) ?? 'var(--muted)'}
                     label={m.nickname || m.name}
                     isMe={m.regular_member_id != null && m.regular_member_id === myMemberId}
                     rPearson={m.derivative_pearson_r}
@@ -1043,13 +1043,13 @@ function MemberHeatLanes({
                 />
             ))}
             {/* Legend */}
-            <div className="flex items-center gap-3 mt-2 text-[10px] text-kce-muted">
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted">
                 <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-2 rounded-sm" style={{background: 'rgba(232,160,32,0.85)'}}/>
+                    <span className="inline-block w-3 h-2 rounded-sm" style={{background: 'color-mix(in srgb, var(--accent) 85%, transparent)'}}/>
                     {t('stats.correlation.deltaPenalty')}
                 </span>
                 <span className="flex items-center gap-1">
-                    <span className="inline-block w-3" style={{height: 2, background: 'var(--kce-cream)'}}/>
+                    <span className="inline-block w-3" style={{height: 2, background: 'var(--ink)'}}/>
                     {t('stats.correlation.cumDrinks')}
                 </span>
             </div>
@@ -1093,7 +1093,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
             map.set(
                 m.evening_player_id,
                 m.regular_member_id === myMemberId
-                    ? 'var(--kce-amber)'
+                    ? 'var(--accent-fg)'
                     : playerColor(i),
             )
         })
@@ -1133,7 +1133,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
             {/* Titled "within one evening" rather than reusing the year-wide section title —
                 in the Statistik-Labor both panels sit next to each other (#68). */}
             <div className="sec-heading text-sm mb-1">🎲 {t('stats.correlation.tab.timeline')}</div>
-            <div className="text-[10px] text-kce-muted mb-2">
+            <div className="text-xs text-muted mb-2">
                 {pickedMemberId == null ? t('stats.correlation.compareAllHint') : t('stats.correlation.subtitle')}
             </div>
 
@@ -1166,7 +1166,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
 
             {/* Bin-size pill picker */}
             <div className="flex gap-1.5 flex-wrap items-center mb-3">
-                <span className="text-[10px] text-kce-muted mr-1">{t('stats.correlation.binMinutes')}:</span>
+                <span className="text-xs text-muted mr-1">{t('stats.correlation.binMinutes')}:</span>
                 {[5, 15, 30].map(m => (
                     <button key={m} type="button"
                             className={`chip ${binMinutes === m ? 'active' : ''}`}
@@ -1213,7 +1213,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                         leftLabel={t('stats.correlation.cumPenalty')}
                         rightLabel={t('stats.correlation.cumDrinks')}
                     />
-                    <div className="text-[10px] text-kce-muted text-center mt-1 mb-2">
+                    <div className="text-xs text-muted text-center mt-1 mb-2">
                         {t('stats.correlation.deltaTitle')}
                     </div>
                     <DeltaBarChart

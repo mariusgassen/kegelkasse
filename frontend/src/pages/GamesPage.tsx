@@ -35,9 +35,9 @@ function playerLabel(p: { name: string; nickname?: string | null; is_king: boole
 }
 
 const STATUS_COLOR: Record<string, string> = {
-    open: 'bg-kce-muted',
-    running: 'bg-green-400',
-    finished: 'bg-kce-amber',
+    open: 'bg-muted',
+    running: 'bg-positive',
+    finished: 'bg-accent',
 }
 
 export function GamesPage() {
@@ -320,7 +320,7 @@ export function GamesPage() {
             {/* ── Unassigned-players warning (teams exist but not all players assigned) ── */}
             {unassignedPlayers.length > 0 && (
                 <div className="rounded-lg px-3 py-2 mb-3 flex items-center gap-2"
-                     style={{background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.35)'}}>
+                     style={{background: 'var(--accent-tint)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)'}}>
                     <span className="text-xs text-amber-400 flex-1">
                         ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
                     </span>
@@ -349,22 +349,22 @@ export function GamesPage() {
                         {/* Header row */}
                         <div className="flex items-center gap-2 mb-2">
                             <span
-                                className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[game.status] ?? 'bg-kce-muted'}`}/>
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLOR[game.status] ?? 'bg-muted'}`}/>
                             <span className="text-sm font-bold flex-1 truncate">
                                 {game.is_opener ? '👑 ' : ''}{game.name}
                             </span>
                             {game.id < 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                                      style={{background: 'rgba(251,191,36,0.12)', color: 'var(--kce-amber)'}}>
+                                <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                      style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                     ⏳ {t('sync.pendingBadge')}
                                 </span>
                             )}
                             {game.status === 'running' && game.started_at && (
                                 <span
-                                    className="text-xs text-green-400 font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
+                                    className="text-xs text-positive-fg font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
                             )}
                             {game.status === 'finished' && game.finished_at && (
-                                <span className="text-xs text-kce-muted flex-shrink-0">{fTime(game.finished_at)}</span>
+                                <span className="text-xs text-muted flex-shrink-0">{fTime(game.finished_at)}</span>
                             )}
                         </div>
 
@@ -373,16 +373,16 @@ export function GamesPage() {
                             const last = game.throws[game.throws.length - 1]
                             return (
                                 <div className="flex items-center gap-1.5 mb-2">
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                          style={{background: 'color-mix(in srgb, var(--kce-primary) 15%, transparent)', color: 'var(--kce-primary)'}}>
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                                          style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)'}}>
                                         📷
                                     </span>
-                                    <span className="text-xs text-kce-muted">
+                                    <span className="text-xs text-muted">
                                         {t('camera.throw')} #{last.throw_num} &nbsp;·&nbsp;
-                                        <span className="font-bold text-kce-cream font-mono">{last.pins}</span>
+                                        <span className="font-bold text-ink font-mono">{last.pins}</span>
                                         {' '}{t('camera.pins')}
                                         {last.cumulative !== null && (
-                                            <> &nbsp;·&nbsp; Σ <span className="font-bold text-kce-cream font-mono">{last.cumulative}</span></>
+                                            <> &nbsp;·&nbsp; Σ <span className="font-bold text-ink font-mono">{last.cumulative}</span></>
                                         )}
                                     </span>
                                 </div>
@@ -392,19 +392,19 @@ export function GamesPage() {
                         {/* Winner / status info */}
                         {game.status === 'finished' && game.winner_ref && (
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xs text-kce-muted">🏆 {winnerDisplayName(game.winner_ref)}</span>
+                                <span className="text-xs text-muted">🏆 {winnerDisplayName(game.winner_ref)}</span>
                                 {game.loser_penalty > 0 && (
-                                    <span className="text-xs text-red-400 ml-auto">
+                                    <span className="text-xs text-danger-fg ml-auto">
                                         {fe(game.loser_penalty)}{(game.per_point_penalty ?? 0) > 0 ? ` +${fe(game.per_point_penalty)}/P` : ''}
                                     </span>
                                 )}
                             </div>
                         )}
                         {game.status === 'open' && (
-                            <p className="text-xs text-kce-muted mb-2">{t('game.status.open')}</p>
+                            <p className="text-xs text-muted mb-2">{t('game.status.open')}</p>
                         )}
                         {game.status === 'open' && teams.length === 0 && (
-                            <p className="text-xs mb-2" style={{color: '#fca5a5'}}>⚠️ {t('game.teamsRequired')}</p>
+                            <p className="text-xs mb-2" style={{color: 'var(--danger-fg)'}}>⚠️ {t('game.teamsRequired')}</p>
                         )}
 
                         {/* Action buttons */}
@@ -425,13 +425,13 @@ export function GamesPage() {
                                 </button>
                             )}
                             {game.status !== 'finished' && (
-                                <button className="btn-ghost btn-xs text-kce-muted px-2"
+                                <button className="btn-ghost btn-xs text-muted px-2"
                                         aria-label={t('action.edit')}
                                         onClick={() => openEditSheet(game)}>✏️
                                 </button>
                             )}
                             {isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished') && (
-                                <button className="btn-ghost btn-xs text-kce-muted px-2"
+                                <button className="btn-ghost btn-xs text-muted px-2"
                                         aria-label={t('game.editTimes')}
                                         title={t('game.editTimes')}
                                         onClick={() => openTimeEditSheet(game)}>🕐
@@ -483,12 +483,12 @@ export function GamesPage() {
                     {/* is_opener toggle */}
                     {hasOpener && !isOpener ? (
                         <div
-                            className="text-xs text-kce-muted px-3 py-2 rounded-lg border border-kce-border opacity-50">
+                            className="text-xs text-muted px-3 py-2 rounded-lg border border-line opacity-50">
                             👑 {t('game.isOpener')} — {t('game.openerExists')}
                         </div>
                     ) : (
                         <button type="button"
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${isOpener ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${isOpener ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
                                 onClick={() => {
                                     setIsOpener(v => {
                                         const next = !v
@@ -536,22 +536,22 @@ export function GamesPage() {
                     <div>
                         <label className="field-label">{t('game.loserPenalty')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={loserPenalty} onChange={e => setLoserPenalty(e.target.value)}/>
                         </div>
-                        <p className="text-xs text-kce-muted mt-1">{t('game.loserNote')}</p>
+                        <p className="text-xs text-muted mt-1">{t('game.loserNote')}</p>
                     </div>
 
                     {/* Per-point penalty */}
                     <div>
                         <label className="field-label">{t('game.perPointPenalty')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={perPointPenalty} onChange={e => setPerPointPenalty(e.target.value)}/>
                         </div>
-                        <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
+                        <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
 
                     {/* Note */}
@@ -567,7 +567,7 @@ export function GamesPage() {
                             <input type="checkbox" checked={autoAddTeams}
                                    onChange={e => setAutoAddTeams(e.target.checked)}
                                    className="accent-amber-500"/>
-                            <span className="text-xs text-kce-muted">{t('game.autoAddTeams')}</span>
+                            <span className="text-xs text-muted">{t('game.autoAddTeams')}</span>
                         </label>
                     )}
 
@@ -589,7 +589,7 @@ export function GamesPage() {
                             <div className="field-label">{t('game.winner')}</div>
                             {canPickTeam && teams.length > 0 && (
                                 <div className="mb-2">
-                                    <div className="text-xs text-kce-muted mb-1">{t('game.winnerType.team')}</div>
+                                    <div className="text-xs text-muted mb-1">{t('game.winnerType.team')}</div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {teams.map(team => (
                                             <button key={`t:${team.id}`} type="button"
@@ -604,7 +604,7 @@ export function GamesPage() {
                             {canPickPlayer && players.length > 0 && (
                                 <div>
                                     {canPickTeam && <div
-                                        className="text-xs text-kce-muted mb-1">{t('game.winnerType.player')}</div>}
+                                        className="text-xs text-muted mb-1">{t('game.winnerType.player')}</div>}
                                     <div className="flex flex-wrap gap-1.5">
                                         {players.map(p => (
                                             <button key={`p:${p.id}`} type="button"
@@ -626,7 +626,7 @@ export function GamesPage() {
                                     {finishTarget.winner_type === 'team'
                                         ? teams.map(team => (
                                             <div key={`t:${team.id}`} className="flex items-center gap-2">
-                                                <span className="text-xs text-kce-cream flex-1">{team.name}</span>
+                                                <span className="text-xs text-ink flex-1">{team.name}</span>
                                                 <input className="kce-input w-20" type="number" min="0"
                                                        value={scoresInput[`t:${team.id}`] ?? ''}
                                                        onChange={e => setScoresInput(prev => ({
@@ -638,7 +638,7 @@ export function GamesPage() {
                                         ))
                                         : players.map(p => (
                                             <div key={`p:${p.id}`} className="flex items-center gap-2">
-                                                <span className="text-xs text-kce-cream flex-1">{playerLabel(p)}</span>
+                                                <span className="text-xs text-ink flex-1">{playerLabel(p)}</span>
                                                 <input className="kce-input w-20" type="number" min="0"
                                                        value={scoresInput[`p:${p.id}`] ?? ''}
                                                        onChange={e => setScoresInput(prev => ({
@@ -658,7 +658,7 @@ export function GamesPage() {
                             <label className="field-label">{t('game.loserPenalty')}</label>
                             <div className="flex items-center gap-2">
                                 <span
-                                    className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                    className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                                 <input className="kce-input flex-1" type="text" inputMode="decimal"
                                        value={finishPenalty}
                                        onChange={e => setFinishPenalty(e.target.value)}/>
@@ -667,8 +667,8 @@ export function GamesPage() {
 
                         {/* Loser penalty preview */}
                         {finishTarget && winnerRef && (
-                            <div className="rounded-lg p-3" style={{background: 'var(--kce-surface2)'}}>
-                                <div className="text-xs font-bold text-kce-muted mb-2">
+                            <div className="rounded-lg p-3" style={{background: 'var(--surface-2)'}}>
+                                <div className="text-xs font-bold text-muted mb-2">
                                     {t('game.perPointPreview')}
                                     {(finishTarget.per_point_penalty ?? 0) > 0
                                         ? ` (+${fe(finishTarget.per_point_penalty)}/${t('game.perPointUnit')})`
@@ -696,8 +696,8 @@ export function GamesPage() {
                                             : playerLabel(p)
                                         return (
                                             <div key={ref} className="flex justify-between text-xs py-0.5">
-                                                <span className="text-kce-cream">{label}</span>
-                                                <span className="text-red-400 font-bold">{fe(total)}</span>
+                                                <span className="text-ink">{label}</span>
+                                                <span className="text-danger-fg font-bold">{fe(total)}</span>
                                             </div>
                                         )
                                     })
@@ -720,7 +720,7 @@ export function GamesPage() {
             <Sheet open={!!confirmFinishGame} onClose={() => setConfirmFinishGame(null)}
                    title={`"${confirmFinishGame?.name}" – ${t('game.mustFinishFirst')}`}
                    onSubmit={() => { openFinishSheet(confirmFinishGame!); setConfirmFinishGame(null) }}>
-                <p className="text-sm text-kce-muted">{t('game.mustFinishFirstHint')}</p>
+                <p className="text-sm text-muted">{t('game.mustFinishFirstHint')}</p>
             </Sheet>
 
             {/* ── Edit metadata sheet (open/running games) ── */}
@@ -734,7 +734,7 @@ export function GamesPage() {
                     {/* Opener toggle — only show if this game IS the opener, or no opener exists yet */}
                     {(editIsOpener || !hasOpener || editTarget?.is_opener) && (
                         <button type="button"
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${editIsOpener ? 'border-kce-amber text-kce-amber bg-kce-amber/10' : 'border-kce-border text-kce-muted'}`}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${editIsOpener ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
                                 onClick={() => {
                                     setEditIsOpener(v => {
                                         const next = !v
@@ -781,7 +781,7 @@ export function GamesPage() {
                     <div>
                         <label className="field-label">{t('game.loserPenalty')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editLoserPenalty} onChange={e => setEditLoserPenalty(e.target.value)}/>
                         </div>
@@ -789,11 +789,11 @@ export function GamesPage() {
                     <div>
                         <label className="field-label">{t('game.perPointPenalty')}</label>
                         <div className="flex items-center gap-2">
-                            <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                            <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editPerPointPenalty} onChange={e => setEditPerPointPenalty(e.target.value)}/>
                         </div>
-                        <p className="text-xs text-kce-muted mt-1">{t('game.perPointNote')}</p>
+                        <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
                     <div>
                         <label className="field-label">{t('game.note')}</label>
@@ -811,7 +811,7 @@ export function GamesPage() {
                    onSubmit={submitTimeEdit}>
                 {timeEditTarget && (
                     <div className="flex flex-col gap-3">
-                        <p className="text-xs text-kce-muted">{t('game.editTimesHint')}</p>
+                        <p className="text-xs text-muted">{t('game.editTimesHint')}</p>
                         <div>
                             <label className="field-label">{t('game.startedAt')}</label>
                             <input className="kce-input" type="datetime-local" value={editStartedAt}

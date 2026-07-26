@@ -88,8 +88,8 @@ export function SpinWheel({penaltyTypes, onResult}: SpinWheelProps) {
             {result && !spinning && (
                 <div className="text-center animate-fade-in">
                     <div className="text-2xl mb-1">{result.icon}</div>
-                    <div className="font-bold text-kce-amber">{result.name}</div>
-                    <div className="text-kce-muted text-xs">{result.default_amount.toFixed(2)} €</div>
+                    <div className="font-bold text-accent-fg">{result.name}</div>
+                    <div className="text-muted text-xs">{result.default_amount.toFixed(2)} €</div>
                 </div>
             )}
         </div>

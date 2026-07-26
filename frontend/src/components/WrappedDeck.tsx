@@ -9,11 +9,11 @@ function fe(v: number) {
 }
 
 const ACCENT_CLASS: Record<WrappedAccent, string> = {
-    primary: 'text-kce-primary',
-    amber: 'text-kce-amber',
-    red: 'text-red-400',
-    green: 'text-green-400',
-    cream: 'text-kce-cream',
+    primary: 'text-accent-fg',
+    amber: 'text-accent-fg',
+    red: 'text-danger-fg',
+    green: 'text-positive-fg',
+    cream: 'text-ink',
 }
 
 interface WrappedDeckProps {
@@ -83,7 +83,7 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
         <div
             className="fixed inset-0 z-[60] flex flex-col"
             style={{
-                background: 'radial-gradient(circle at 50% 20%, var(--kce-surface2), var(--kce-bg) 70%)',
+                background: 'radial-gradient(circle at 50% 20%, var(--surface-2), var(--canvas) 70%)',
                 paddingTop: 'env(safe-area-inset-top)',
                 paddingBottom: 'env(safe-area-inset-bottom)',
             }}
@@ -101,9 +101,9 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
                         aria-label={t(c.headlineKey as never)}
                         className="flex-1 py-2 -my-1 cursor-pointer"
                     >
-                        <div className="h-1 rounded-full overflow-hidden bg-kce-border">
+                        <div className="h-1 rounded-full overflow-hidden bg-line">
                             <div
-                                className="h-full bg-kce-cream transition-all"
+                                className="h-full bg-ink transition-all"
                                 style={{width: i <= idx ? '100%' : '0%', opacity: i <= idx ? 1 : 0.3}}
                             />
                         </div>
@@ -112,13 +112,13 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
             </div>
 
             <div className="flex items-center justify-between px-4 pb-2">
-                <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">
+                <div className="text-xs font-bold text-muted uppercase tracking-wider">
                     {t('wrapped.title')} {stats.year}
                 </div>
                 <button
                     onClick={onClose}
                     aria-label={t('action.close')}
-                    className="w-11 h-11 flex items-center justify-center text-kce-cream text-2xl active:opacity-60"
+                    className="w-11 h-11 flex items-center justify-center text-ink text-2xl active:opacity-60"
                 >
                     ✕
                 </button>
@@ -135,28 +135,28 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
 
                 {isFinale ? (
                     <>
-                        <div className="text-xs font-bold text-kce-muted uppercase tracking-[0.2em] mb-3">
+                        <div className="text-xs font-bold text-muted uppercase tracking-[0.2em] mb-3">
                             {t(card.headlineKey as never)}
                         </div>
                         <div className={`font-display font-bold text-4xl leading-tight ${accent}`}>
                             {card.subtextKey ? t(card.subtextKey as never) : ''}
                         </div>
                         {card.subtextKey && (
-                            <div className="text-sm text-kce-cream/80 mt-3 max-w-xs">
+                            <div className="text-sm text-ink/80 mt-3 max-w-xs">
                                 {t(`${card.subtextKey}.sub` as never)}
                             </div>
                         )}
                     </>
                 ) : (
                     <>
-                        <div className="text-xs font-bold text-kce-muted uppercase tracking-[0.2em] mb-4">
+                        <div className="text-xs font-bold text-muted uppercase tracking-[0.2em] mb-4">
                             {t(card.headlineKey as never)}
                         </div>
                         <div className={`font-display font-bold text-6xl leading-none ${accent}`}>
                             {card.value}
                         </div>
                         {(card.subtextKey || card.subtextValue) && (
-                            <div className="text-sm text-kce-cream/80 mt-4">
+                            <div className="text-sm text-ink/80 mt-4">
                                 {card.subtextKey ? t(card.subtextKey as never) : ''}
                                 {card.subtextKey && card.subtextValue ? ' ' : ''}
                                 {card.subtextValue ?? ''}
@@ -166,7 +166,7 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
                 )}
             </div>
 
-            <div className="flex items-center justify-center gap-2 pb-6 text-[11px] text-kce-muted">
+            <div className="flex items-center justify-center gap-2 pb-6 text-sm text-muted">
                 {idx < cards.length - 1 ? t('wrapped.tapNext') : t('wrapped.tapDone')}
             </div>
         </div>

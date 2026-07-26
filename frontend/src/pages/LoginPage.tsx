@@ -131,12 +131,12 @@ export function LoginPage({onLogin}: LoginPageProps) {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8"
-             style={{background: 'linear-gradient(160deg,#1a1410 0%,#241c18 60%,#2a1e18 100%)'}}>
+             style={{background: 'linear-gradient(160deg,var(--canvas) 0%,var(--surface) 60%,var(--surface-2) 100%)'}}>
             {/* Language toggle */}
             <div className="absolute right-4 flex gap-1" style={{top: 'max(env(safe-area-inset-top, 0px), 1rem)'}}>
                 {(['de', 'en'] as const).map(l => (
                     <button key={l} onClick={() => setLocale(l)}
-                            className={`text-xs font-bold px-2 py-1 rounded ${locale === l ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted'}`}>
+                            className={`text-xs font-bold px-2 py-1 rounded ${locale === l ? 'bg-accent text-on-accent' : 'text-muted'}`}>
                         {l.toUpperCase()}
                     </button>
                 ))}
@@ -146,15 +146,15 @@ export function LoginPage({onLogin}: LoginPageProps) {
             <div className="mb-6 flex flex-col items-center gap-3">
                 <AppLogo size={80}/>
                 <div className="text-center">
-                    <h1 className="font-display font-bold text-kce-amber text-2xl leading-tight">{t('app.name')}</h1>
-                    <p className="text-kce-muted text-xs font-bold tracking-widest mt-0.5">{t('app.subtitle')}</p>
+                    <h1 className="font-display font-bold text-accent-fg text-2xl leading-tight">{t('app.name')}</h1>
+                    <p className="text-muted text-xs font-bold tracking-widest mt-0.5">{t('app.subtitle')}</p>
                 </div>
             </div>
 
             <div className="kce-card w-full max-w-sm p-6">
                 {mode === 'login' ? (
                     <>
-                        <h2 className="font-display font-bold text-kce-cream text-lg mb-5">{t('auth.login')}</h2>
+                        <h2 className="font-display font-bold text-ink text-lg mb-5">{t('auth.login')}</h2>
                         <form onSubmit={handleLogin} className="flex flex-col gap-3">
                             <div>
                                 <label className="field-label" htmlFor="login-username">{t('auth.email')} / {t('auth.username')}</label>
@@ -185,32 +185,32 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 {loading ? t('action.loading') : t('auth.loginButton')}
                             </button>
                         </form>
-                        <p className="text-center text-kce-muted text-xs mt-4">
+                        <p className="text-center text-muted text-xs mt-4">
                             {t('auth.haveInvite')}{' '}
                             <button onClick={() => setMode('register')}
-                                    className="text-kce-amber font-bold">{t('auth.clickHere')}</button>
+                                    className="text-accent-fg font-bold">{t('auth.clickHere')}</button>
                         </p>
-                        <p className="text-center text-kce-muted text-xs mt-2">
+                        <p className="text-center text-muted text-xs mt-2">
                             <button onClick={() => {
                                 setError('');
                                 setMode('forgot')
-                            }} className="text-kce-amber font-bold">{t('auth.forgot.link')}</button>
+                            }} className="text-accent-fg font-bold">{t('auth.forgot.link')}</button>
                         </p>
                         {import.meta.env.DEV && (
                             <button type="button" onClick={handleDevLogin} disabled={loading}
-                                    className="mt-3 w-full text-xs py-1.5 rounded border border-dashed border-kce-muted text-kce-muted hover:border-kce-amber hover:text-kce-amber transition-colors">
+                                    className="mt-3 w-full text-xs py-1.5 rounded border border-dashed border-muted text-muted hover:border-accent hover:text-accent-fg transition-colors">
                                 ⚡ Dev Login
                             </button>
                         )}
                     </>
                 ) : mode === 'forgot' ? (
                     <>
-                        <h2 className="font-display font-bold text-kce-cream text-lg mb-4">{t('auth.forgot.title')}</h2>
+                        <h2 className="font-display font-bold text-ink text-lg mb-4">{t('auth.forgot.title')}</h2>
                         {forgotDone ? (
-                            <p className="text-green-400 text-sm mb-4">{t('auth.forgot.done')}</p>
+                            <p className="text-positive-fg text-sm mb-4">{t('auth.forgot.done')}</p>
                         ) : (
                             <form onSubmit={handleForgot} className="flex flex-col gap-3">
-                                <p className="text-kce-muted text-xs">{t('auth.forgot.intro')}</p>
+                                <p className="text-muted text-xs">{t('auth.forgot.intro')}</p>
                                 <div>
                                     <label className="field-label" htmlFor="forgot-email">{t('auth.forgot.emailLabel')}</label>
                                     <input className="kce-input" type="email" value={email}
@@ -229,22 +229,22 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 </button>
                             </form>
                         )}
-                        <p className="text-center text-kce-muted text-xs mt-4">
+                        <p className="text-center text-muted text-xs mt-4">
                             <button onClick={() => {
                                 setMode('login');
                                 setForgotDone(false);
                                 setError('')
-                            }} className="text-kce-amber font-bold">
+                            }} className="text-accent-fg font-bold">
                                 ← {t('auth.login')}
                             </button>
                         </p>
                     </>
                 ) : mode === 'reset' ? (
                     <>
-                        <h2 className="font-display font-bold text-kce-cream text-lg mb-4">{t('auth.reset.title')}</h2>
+                        <h2 className="font-display font-bold text-ink text-lg mb-4">{t('auth.reset.title')}</h2>
                         {resetDone ? (
                             <>
-                                <p className="text-green-400 text-sm mb-4">{t('auth.reset.success')}</p>
+                                <p className="text-positive-fg text-sm mb-4">{t('auth.reset.success')}</p>
                                 <button className="btn-primary w-full" onClick={() => {
                                     setMode('login');
                                     setResetDone(false)
@@ -271,18 +271,18 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 </button>
                             </form>
                         )}
-                        <p className="text-center text-kce-muted text-xs mt-4">
-                            <button onClick={() => setMode('login')} className="text-kce-amber font-bold">
+                        <p className="text-center text-muted text-xs mt-4">
+                            <button onClick={() => setMode('login')} className="text-accent-fg font-bold">
                                 ← {t('auth.login')}
                             </button>
                         </p>
                     </>
                 ) : (
                     <>
-                        <h2 className="font-display font-bold text-kce-cream text-lg mb-1">{t('auth.register.title')}</h2>
+                        <h2 className="font-display font-bold text-ink text-lg mb-1">{t('auth.register.title')}</h2>
                         {prefilledName && (
-                            <p className="text-kce-muted text-xs mb-4">
-                                {t('auth.register.welcome')} <span className="text-kce-cream font-bold">{prefilledName}</span>! {t('auth.register.welcomeSuffix')}
+                            <p className="text-muted text-xs mb-4">
+                                {t('auth.register.welcome')} <span className="text-ink font-bold">{prefilledName}</span>! {t('auth.register.welcomeSuffix')}
                             </p>
                         )}
                         <form onSubmit={handleRegister} className="flex flex-col gap-3">
@@ -306,7 +306,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 <label className="field-label" htmlFor="register-username">{t('auth.username')}</label>
                                 <div className="relative">
                                     <span
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">@</span>
                                     <input className="kce-input pl-6" value={username}
                                            id="register-username"
                                            name="username"
@@ -332,15 +332,15 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                 {loading ? t('action.loading') : t('auth.register.button')}
                             </button>
                         </form>
-                        <p className="text-center text-kce-muted text-xs mt-4">
+                        <p className="text-center text-muted text-xs mt-4">
                             <button onClick={() => setMode('login')}
-                                    className="text-kce-amber font-bold">← {t('auth.login')}</button>
+                                    className="text-accent-fg font-bold">← {t('auth.login')}</button>
                         </p>
                     </>
                 )}
             </div>
 
-            <p className="text-kce-muted text-[10px] mt-6 italic tracking-wider">{t('app.motto')}</p>
+            <p className="text-muted text-xs mt-6 italic tracking-wider">{t('app.motto')}</p>
         </div>
     )
 }

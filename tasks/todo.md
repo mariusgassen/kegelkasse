@@ -1,89 +1,137 @@
-# Roadmap #69 — Komponenten-Konsolidierung (+ #73-Affordanzregeln)
+# Roadmap #70 + #71 — Semantische Tokens & Lesbarkeit
 
-Branch: `claude/roadmap-undone-items-ufklre`
+Branch: `claude/roadmap-priorities-3grpjd`
 
-Die in CLAUDE.md als Prosa-Konventionen beschriebenen Muster werden echte Komponenten.
-Die #73-Regeln (sichtbare Affordanz, keine `title`-Tooltips auf Touch) werden dort direkt
-mit angewandt, wo die neuen Komponenten das Muster ohnehin kapseln.
+## Ausgangslage (gemessen, nicht vermutet)
 
-## Bestandsaufnahme
+`resolveThemedBg` (`App.tsx:108`) spiegelt im Hellmodus **nur die Hintergrund-Helligkeit**.
+`--kce-primary`, `--kce-secondary` und die sechs hartkodierten `.team-N`-Farben
+(`index.css:396-424`) laufen ungeprüft durch. Gemessen gegen den Hell-Hintergrund, den das
+Default-Theme ableitet (`#efe9e5`):
 
-| Muster | Vorkommen heute |
-|---|---|
-| Avatar (Gradient-Kreis, Bild oder Initiale) | ~8 handgerollte Kopien, 3 Größen, Hex `#c4701a` inline |
-| `Ich`-Badge | 23 Kopien, hartkodiertes Deutsch (verletzt die i18n-Konvention) |
-| Pin-Icons am Namen | 6 Kopien, alle mit `title={pin.name}` (auf Touch unsichtbar → #73) |
-| Mitglieder-Zeile (Avatar + Name + Badges + Subtitle + Trailing) | MembersPage ×2, StatsPage ×3, EveningPage |
-| Stat-Kachel (Wert + Label) | `StatBox` (StatsPage-privat) + ~14 Inline-Kopien |
-| Aufklappbare Karte (Button + ▲/▼ + `aria-expanded`) | TreasuryPage ×3, CorrelationSection ×2 |
-| Bottom-Sheet-Implementierung | `ui/Sheet.tsx` + private Zweitimplementierung in `ProfileSheet.tsx` |
+| Token | Dunkel | Hell | AA (4.5:1) |
+|---|---|---|---|
+| `--kce-cream` (Fließtext) | 15,7:1 | 14,5:1 | ✅ |
+| `--kce-muted` (Labels, Untertitel, Meta, Nav) | 5,6:1 | **2,78:1** | ❌ |
+| `--kce-primary` (jede `.sec-heading`, Beträge, aktiver Tab) | 8,2:1 | **1,84:1** | ❌ |
+| `.team-1` grün | 7,5:1 | **2,03:1** | ❌ |
+| `.team-5` orange | 8,4:1 | **1,81:1** | ❌ |
+| `btn-danger` rot | 4,5:1 | **3,35:1** | ❌ |
+
+Dazu: `bg-kce-amber text-kce-bg` (`.btn-primary`, `.chip.active`) ist im Hellmodus
+Amber-auf-Weiß = **1,84:1** — primäre Knöpfe sind unlesbar.
+
+**Regression-Historie:** #49 hob `--kce-muted` bewusst auf `#a08a7e` („~5,6:1 WCAG-AA",
+Kommentar in `index.css:56`). `applyBgDerivations` **berechnet** muted aber aus einer Formel
+(`mutedL = dark ? 45 : 55`) — der in #55 nachgezogene Hellmodus landete damit wieder bei
+2,78:1. Genau deshalb braucht es berechnete Paare statt handgetunter Hex-Werte.
+
+#71 verschärft es: **281** Verwendungen von `text-[9px]`–`text-[11px]` in 36 Dateien
+(StatsPage 52, CorrelationSection 34, SchedulePage 23, TreasuryPage 19) plus SVG-`fontSize`
+7–10. Sub-12px bei 2,7:1 ist die Kombination — und die Zielgruppe ist ein Kegelverein.
 
 ## Plan
 
-### Phase 1 — Geteilte Primitive (`components/ui/`)
-- [x] `Avatar.tsx` — Gradient-Kreis, Bild oder Initiale, Größen `sm|md|lg`, `variant="muted"` für Gäste
-- [x] `MemberBadges.tsx` — `MeBadge` (i18n) + `PinBadges` + kombiniertes `MemberBadges`, **ohne** `title` (#73)
-- [x] `MemberRow.tsx` — Avatar + Kegelname + Badges + Subtitle/Meta + Trailing-Slot; optional tappbar
-- [x] `StatTile.tsx` — Wert + Label, `tone`/`size`/`bare`, optional `onClick`
-- [x] `ExpandableCard.tsx` — Header-Button + Chevron + `aria-expanded` + Body, un-/kontrolliert
+### Phase 1 — Kontrast-Engine (rein, testbar)
+- [x] `lib/contrast.ts`: `relativeLuminance`, `contrastRatio`, `ensureContrast(fg, bg, target)`
+      (hält Hue/Sättigung, wandert Helligkeit vom Hintergrund weg bis AA erreicht),
+      `readableOn(bg)` (dunkel/hell je nach besserem Kontrast), `mixOver(fg, bg, pct)`
+      (spiegelt `color-mix(in srgb, …, transparent)` für Tint-Hintergründe)
+- [x] Vitest: Grenzfälle (bereits konform → unverändert, Weiß auf Weiß, Schwarz auf Schwarz,
+      Hue-Erhalt, unmögliche Ziele clampen)
 
-### Phase 2 — Adoption
-- [x] `MembersPage` — alle drei Listen (App-Nutzer, Roster, Gäste) → `MemberRow`; 5 weitere Avatare → `Avatar`
-- [x] `StatsPage` — `StatBox` + 12 Inline-Kacheln → `StatTile`; Ranking-/Detail-Zeilen → `MemberBadges`/`Avatar`
-- [x] `TreasuryPage` — 3 Aufklapp-Muster → `ExpandableCard`, 3 State-Hooks entfallen
-- [x] `EveningPage` / `ProtocolPage` — Spieler-Zeilen und Filter-Chips → `MemberBadges`/`PinBadges`
-- [x] `ProfileSheet` — Stat-Grids → `StatTile`; private Sheet-Implementierung → geteiltes `<Sheet>`
+### Phase 2 — Semantische Token-Paare
+- [x] `:root`-Defaults + `@theme`-Tailwind-Namen für: `--surface`/`--on-surface`,
+      `--surface-2`, `--line`, `--muted`, `--accent`/`--accent-fg`/`--on-accent`,
+      `--accent-2`/`--on-accent-2`, `--danger`/`--danger-fg`/`--on-danger`,
+      `--positive`/`--positive-fg`, `--team-N`/`--team-N-fg`
+- [x] `applyBgDerivations` → `applyDerivedTokens(primary, secondary, bg)`: berechnet **alle**
+      Paare kontrastgeprüft; läuft jetzt auch, wenn nur `primary_color` gesetzt ist (vorher
+      an `bg_color` gekoppelt — latenter Bug)
+- [x] `muted` gegen `surface` (schlechterer der beiden) auf AA prüfen statt fixe Formel
+- [x] Verbliebene Hex-Literale auf Tokens: Avatar-Gradient `#c4701a`, `.role-badge-*`,
+      `.opener-card` `#3d3540`, `.offline-banner`
 
-### Phase 3 — #73-Affordanz (in den berührten Flächen)
-- [x] Pin-/König-`title`-Tooltips → `aria-label`
-- [x] `Ich` über neuen i18n-Key `common.me` (de „Ich" / en „Me")
-- [x] `ProfileSheet` bekommt sichtbaren Schließen-Knopf, Escape und Scroll-Sperre
+### Phase 3 — Accent: Füllung vs. Text trennen (der eigentliche Bug)
+- [x] `bg-kce-amber` (50) → `bg-accent`; `border-kce-amber` (23) → `border-accent`
+- [x] `text-kce-amber` (65) → `text-accent-fg` (kontrastsicher)
+- [x] `text-kce-bg` auf Accent-Füllungen → `text-on-accent`
+- [x] Inline `var(--kce-amber)`/`var(--kce-primary)` (104, überwiegend SVG-Striche) →
+      `var(--accent-fg)` wo Sichtbarkeit zählt, `var(--accent)` nur für Füllungen
+- [x] Neutrale mechanisch umbenennen: `kce-bg`→`canvas`, `kce-surface`→`surface`,
+      `kce-surface2`→`surface-2`, `kce-border`→`line`, `kce-cream`→`ink`, `kce-muted`→`muted`
+- [x] `--kce-*` ersatzlos entfernen — ein System, keine zwei
 
-### Phase 4 — Verifikation
-- [x] Vitest: `MemberRow.test.tsx` (16) + `StatTile.test.tsx` (12)
-- [x] Bestehende Suiten nachgezogen (`Ich` → `common.me`, `getByTitle` → `getByLabelText`)
-- [x] CLAUDE.md-Konventionen + Roadmap #69/#73 + README + docs, Version 1.44.0
+### Phase 4 — Typo-Skala (#71)
+- [x] Regel: **nie unter 12px**, 14px für Inhalte; Hierarchie über Gewicht/Farbe/Abstand
+- [x] `text-[9px]`/`[10px]`/`[11px]` → `text-xs` (12px Boden) bzw. `text-sm` (14px) wo es
+      gelesener Inhalt ist (Untertitel, Meta-Zeilen, Werte, Formular-Labels)
+- [x] SVG-`fontSize` 7/8/9/10 → 11/12, viewBox-Proportion je Chart prüfen
+- [x] Seitenweise: Kasse → Abend → Stats → Rest
+- [x] Konvention in CLAUDE.md verankern
+
+### Phase 5 — Verifikation
+- [x] Kontrast-Regressionstest: **jedes** Token-Paar in Dunkel **und** Hell gegen AA prüfen
+      (der Test, der #49→#55 verhindert hätte)
+- [x] Volle Vitest-Suite, `tsc --noEmit`, `eslint`
+- [x] CLAUDE.md-Roadmap (#70 ✅, #71 ✅), README, `docs/docs/`, Version-Bump
 
 ## Bewusst nicht in diesem Schritt
 
-- **`ProfileSheet` → echte Route.** Das Roadmap-Ziel dahinter ist „ein Fokus-Management statt zwei" —
-  das erreicht die Umstellung auf das geteilte `<Sheet>`. Eine echte Route widerspräche der in #54
-  bewusst getroffenen Entscheidung, dass `ProfileSheet` reiner Overlay-State (`profileOpen`) ohne
-  Routen-Bindung ist, und würde jeden Aufrufer plus die Legacy-Hash-Übersetzung (#64) anfassen.
-- **`<ActionMenu>`** — bereits in #81 als `components/ui/ActionSheet.tsx` geliefert.
-- Flächendeckendes Ersetzen aller 92 `nickname || name`-Stellen; nur dort, wo die volle Zeilenform
-  tatsächlich passt (sonst reine Churn ohne Nutzen).
+- **Kiosk-Ansichten auf die `-fg`-Zwillinge umstellen.** `TabletQuickEntryPage`, `CameraCapturePage` und
+  `BowlingGame` sind bewusst dunkel-only (#55: Blendschutz am Stativ-Tablet). Die `-fg`-Tokens sind gegen
+  den *gethemten* Seitenhintergrund abgeleitet — im Hellmodus also ein dunkles Amber, das auf der dunklen
+  Kiosk-Chrome unsichtbar wäre. Sie nutzen daher den rohen `accent`, was ihr heutiges Aussehen exakt
+  erhält. Ein eigener, gegen einen festen dunklen Hintergrund abgeleiteter Kiosk-Token-Satz (z. B. per
+  `.kiosk`-Scope, der dieselben Namen neu bindet) wäre die saubere Lösung, kostet aber einen Eingriff in
+  zwei komplexe Kiosk-Seiten für einen Randfall (Verein wählt eine sehr dunkle Markenfarbe *und* nutzt den
+  Kiosk). Als Folgearbeit vermerkt, nicht hier erledigt.
+- **`Logo.tsx` / `SpinWheel.tsx`.** Illustrationen mit fester Palette (Kegel-Grafik, Glücksrad-Segmente),
+  keine UI-Chrome — #70 nennt explizit nur Avatar-Gradient und Role-Badges.
+- **Dichte/Abstände (`p-*`, `gap-*`) systematisch überarbeiten.** #71 nennt „Typo- & Dichte-Pass"; die
+  Typo-Seite ist vollständig, die Abstände sind nur dort angepasst, wo der Schriftgrößen-Bump es verlangte
+  (Donut-Rendergröße, kleine Heatmap). Ein eigenständiger Spacing-Pass gehört eher zu #72 (Motion/Polish)
+  und hätte diesen Diff ohne Lesbarkeitsgewinn verdoppelt.
 
 ## Review
 
-Fünf wiederkehrende Muster sind jetzt Komponenten, und die Konventionen in CLAUDE.md verweisen
-darauf statt Verhalten in Prosa zu beschreiben — genau das, was #69 angekündigt hatte.
+**Was der Ausgangszustand wirklich war.** Nicht „Politur", sondern messbar unlesbare UI im Hellmodus.
+Gegen den vom Default-Theme abgeleiteten Hell-Hintergrund (`#efe9e5`): Markenfarbe **1,84:1** (jede
+`.sec-heading`, jeder Betrag, der aktive Tab, der Text auf `btn-primary`), Sekundärtext **2,78:1**,
+Teamfarben **1,8–2,0:1**, und Tailwinds feste Palette, mit der die Kasse Geld malt, bei **2,3:1** (rot)
+bzw. **1,45:1** (grün). Dazu 281 Textstellen unter 12px.
 
-**Neu in `components/ui/`:** `Avatar`, `MemberBadges` (mit `MeBadge`/`PinBadges`), `MemberRow`,
-`StatTile`, `ExpandableCard`. `<ActionMenu>` existierte bereits als `ActionSheet` aus #81 und ist
-nur noch in der Konventions-Tabelle ergänzt.
+**Warum handgetunte Werte das nicht lösen konnten.** #49 hob `--kce-muted` bewusst auf 5,6:1 und
+dokumentierte das per Kommentar in `index.css`. #55 fügte den Hellmodus hinzu, der muted aus einer festen
+Helligkeitsformel *neu berechnet* — und landete wieder bei 2,78:1. Der Kommentar stand weiter da und war
+falsch. Der Raum ist zweidimensional (Vereins-Branding × Hell/Dunkel); ein Punkt darin lässt sich nicht
+von Hand wählen. Deshalb werden Tokens jetzt abgeleitet und geprüft, und `contrastContract()` macht die
+Zusage explizit und testbar.
 
-**Was dabei aufgefallen ist:**
-- Der `Ich`-Badge war 23× **hartkodiertes Deutsch** — die App verletzte an ihrer meistkopierten
-  Stelle ihre eigene i18n-Konvention. Jetzt `common.me`.
-- Alle 6 Pin-Icon-Kopien trugen `title={pin.name}`, das auf Touch unsichtbar ist. Jetzt `aria-label`.
-- Die App-Nutzer-Zeile der `MembersPage` bildete ihre Avatar-Initiale aus `u.name`, während die
-  Roster-Zeile `nickname || name` nutzte. `MemberRow` vereinheitlicht das auf den Kegelnamen.
-- `ProfileSheet` hatte eine vollständige zweite Bottom-Sheet-Implementierung (Overlay, Panel,
-  Drag-Handle, Fokus-Speicherung) — **ohne** Escape-Handling, Scroll-Sperre und Schließen-Knopf,
-  die das geteilte `<Sheet>` längst hatte. Die Kopie ist weg; das Profil hat die drei jetzt.
+**Der eigentliche Bug war eine Doppelrolle.** `--kce-primary` war gleichzeitig Füllfarbe (`btn-primary`,
+`chip.active`) und Textfarbe (`sec-heading`, Chart-Striche). Eine Farbe kann nicht beides sein: als Füllung
+soll sie die Marke zeigen, als Text muss sie gegen die Seite lesbar sein. Die Aufspaltung in
+`accent` / `accent-fg` / `on-accent` ist der Kern der Änderung — der Rest folgt daraus.
 
-**Verhaltensänderungen (beabsichtigt):** Profil-Schließen-Knopf/Escape/Scroll-Sperre, Kegelname
-als Avatar-Initiale bei App-Nutzern, Pin-/Krone-Namen als Accessible Label statt Hover-Tooltip.
+**Was der Test gefunden hat, das ich nicht gesehen hätte.** Der Contract-Test schlug beim ersten Lauf fehl
+und deckte einen Fehler in *meiner* Ableitung auf: ich hatte gegen den schlechteren von Canvas/Surface
+korrigiert, aber die Korrektur kann kippen, *welcher* der schlechtere ist — `ensureContrast` nimmt jetzt
+eine Liste von Hintergründen und erfüllt alle gleichzeitig. Der Browser-Audit (Kontrast jedes Textknotens
+gegen seinen aufgelösten Hintergrund) fand zwei weitere: den Offline-Banner bei **4,36:1** (ich hatte
+`AA_LARGE` angesetzt, aber 12px **bold** ist nach WCAG kein „large text" — das beginnt bei 18,66px) und
+den dunklen Stopp des Avatar-Gradienten bei **3,95:1** gegen seine eigene Initiale (Altbestand, gleiches
+Problem hatte schon `#c4701a`). Beides wäre beim Code-Lesen nicht aufgefallen.
 
-**Bewusst nicht gemacht:** `ProfileSheet` zu einer echten Route (das Roadmap-Ziel „ein
-Fokus-Management statt zwei" ist über `<Sheet>` erreicht; eine Route widerspräche der in #54
-getroffenen Overlay-Entscheidung und fasste jeden Aufrufer plus die Legacy-Hash-Übersetzung an).
-Ebenso kein flächendeckendes Umstellen aller 92 `nickname || name`-Stellen — nur dort, wo die
-Zeilenform passt. #73 bleibt deshalb 🚧: die Regel ist verankert und in den berührten Flächen
-durchgesetzt, der Rest-Durchgang (`ClubAdminPage`, `SchedulePage`, `GamesPage`; Lucide-vs-Emoji)
-steht noch aus.
+**Nebenbei gefunden:** Login-Seite und Boot-Splash wendeten das Theme **gar nicht** an (`if (!club) return`
+vor dem `applyTheme`-Aufruf) — wer Hellmodus eingestellt hatte, bekam jedes Mal einen dunklen Login. Und
+der Strafen-**Donut** rendert 120px aus einer 200-Einheiten-viewBox, sein Mittelwert stand damit bei **6
+effektiven px**; SVG-Größen mussten pro Chart gegen ihre viewBox gerechnet werden statt pauschal erhöht.
 
-Verifiziert: volle Vitest-Suite **2315/2315** grün (89 Dateien), `tsc --noEmit` clean,
-`eslint` 0 Fehler. Die volle Suite lief hier bewusst lokal, weil der Refactor 18 Dateien quer
-durch die App berührt.
+**Verhaltensänderungen (beabsichtigt):** Im Hellmodus sind Markenfarbe, Teamfarben, Status-Rot/Grün und
+Medaillen-Stufen abgedunkelt (Farbton bleibt); Dunkelmodus ist optisch praktisch unverändert. Alle Texte
+sind ≥12px, gelesene Inhalte 14px. Der Strafen-Donut ist 150px statt 120px groß. Die Login-Seite folgt
+jetzt dem Hell/Dunkel-Modus.
+
+**Verifiziert:** Vitest **2354/2354** grün (37 neue Tests), `tsc --noEmit` clean, `eslint` 0 Fehler,
+`npm run build` clean. Zusätzlich Chromium über eine Komponenten-Harness in beiden Modi: **0
+Kontrastverstöße**, kleinste gerenderte Schrift **12px** in Dunkel *und* Hell.

@@ -11,7 +11,7 @@ interface MeBadgeProps {
 export function MeBadge({inverted, className = ''}: MeBadgeProps) {
     const t = useT()
     return (
-        <span className={`text-[9px] font-bold flex-shrink-0 ${inverted ? 'text-kce-bg' : 'text-kce-amber'} ${className}`}>
+        <span className={`text-xs font-bold flex-shrink-0 ${inverted ? 'text-on-accent' : 'text-accent-fg'} ${className}`}>
             {t('common.me')}
         </span>
     )

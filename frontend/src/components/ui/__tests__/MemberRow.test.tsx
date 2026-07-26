@@ -26,7 +26,7 @@ describe('Avatar', () => {
     it('uses a flat grey disc for the muted (guest) variant', () => {
         const {container} = render(<Avatar name="Gast" variant="muted"/>)
         const el = container.firstElementChild as HTMLElement
-        expect(el.className).toContain('bg-kce-muted')
+        expect(el.className).toContain('bg-muted')
         expect(el.getAttribute('style') ?? '').not.toContain('gradient')
     })
 
@@ -44,7 +44,7 @@ describe('MeBadge', () => {
 
     it('flips to the inverted colour on a selected pill', () => {
         render(<MeBadge inverted/>)
-        expect(screen.getByText('Ich').className).toContain('text-kce-bg')
+        expect(screen.getByText('Ich').className).toContain('text-on-accent')
     })
 })
 

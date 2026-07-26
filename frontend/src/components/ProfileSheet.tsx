@@ -47,7 +47,7 @@ function ChannelToggles({value, onChange, emailEnabled, disabled}: {
         onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c])
     }
     return (
-        <div className={['flex items-center gap-0.5 bg-kce-surface2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
+        <div className={['flex items-center gap-0.5 bg-surface-2 rounded-lg p-0.5 flex-shrink-0', disabled ? 'opacity-40' : ''].join(' ')} role="group">
             {options.map(o => {
                 const on = selected.includes(o.c)
                 return (
@@ -59,7 +59,7 @@ function ChannelToggles({value, onChange, emailEnabled, disabled}: {
                         aria-label={o.label}
                         title={o.label}
                         className={['text-xs font-bold px-2 py-1 rounded-md transition-colors leading-none',
-                            on ? 'bg-kce-amber text-kce-bg' : 'text-kce-muted',
+                            on ? 'bg-accent text-on-accent' : 'text-muted',
                             disabled ? 'cursor-not-allowed' : ''].join(' ')}
                     >
                         <span aria-hidden>{o.icon}</span>
@@ -108,11 +108,11 @@ function ThrowTrendMini({evenings}: { evenings: EveningThrowSummary[] }) {
     })
     return (
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display: 'block', overflow: 'visible'}}>
-            <polyline points={pts.join(' ')} fill="none" stroke="var(--kce-amber)" strokeWidth="2"
+            <polyline points={pts.join(' ')} fill="none" stroke="var(--accent-fg)" strokeWidth="2"
                       strokeLinejoin="round" strokeLinecap="round"/>
             {avgs.map((v, i) => {
                 const [x, y] = pts[i].split(',').map(Number)
-                return <circle key={i} cx={x} cy={y} r="3" fill="var(--kce-amber)">
+                return <circle key={i} cx={x} cy={y} r="3" fill="var(--accent-fg)">
                     <title>{v}</title>
                 </circle>
             })}
@@ -368,7 +368,7 @@ export function ProfileSheet({open, onClose}: Props) {
                    <div className="flex gap-1 overflow-x-auto pb-1 min-w-0">
                        {(['season', 'settings'] as const).map(tb => (
                            <button key={tb} type="button"
-                                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                                    onClick={() => setTab(tb)}>
                                {t(`profile.tab.${tb}`)}
                            </button>
@@ -386,12 +386,12 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Balance & payment link */}
                     {myBalance?.balance != null && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                                 {t('profile.myBalance')}
                             </div>
                             <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs text-kce-muted">{t('profile.balance')}</span>
-                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-red-400' : myBalance.balance > 0.01 ? 'text-green-400' : 'text-kce-muted'}`}>
+                                <span className="text-xs text-muted">{t('profile.balance')}</span>
+                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-danger-fg' : myBalance.balance > 0.01 ? 'text-positive-fg' : 'text-muted'}`}>
                                     {myBalance.balance.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
                                 </span>
                             </div>
@@ -411,7 +411,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                     ) : (
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-kce-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
+                                                <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                                                 <input
                                                     className="kce-input flex-1"
                                                     type="text" inputMode="decimal"
@@ -453,22 +453,22 @@ export function ProfileSheet({open, onClose}: Props) {
                                 </div>
                             )}
                             {hasPendingRequest && (
-                                <div className="text-xs text-kce-amber text-center py-1">
+                                <div className="text-xs text-accent-fg text-center py-1">
                                     ⏳ {t('paymentRequest.pending')}
                                 </div>
                             )}
                             {myRequests.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-kce-surface2">
-                                    <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-2">
+                                <div className="mt-3 pt-3 border-t border-surface-2">
+                                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
                                         {t('profile.paymentRequests')}
                                     </div>
                                     {myRequests.map(r => (
                                         <div key={r.id} className="flex items-center justify-between py-1 text-xs">
-                                            <span className="text-kce-muted">
+                                            <span className="text-muted">
                                                 {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) : ''}
                                             </span>
                                             <span className="font-bold">{r.amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
-                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-green-400' : r.status === 'rejected' ? 'text-red-400' : 'text-kce-amber'}`}>
+                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-positive-fg' : r.status === 'rejected' ? 'text-danger-fg' : 'text-accent-fg'}`}>
                                                 {t(`paymentRequest.${r.status}` as any)}
                                             </span>
                                         </div>
@@ -481,7 +481,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Personal year stats */}
                     {myStats && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                                 {t('profile.myStats')} {year}
                             </div>
                             <div className="grid grid-cols-2 gap-2">
@@ -497,7 +497,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Throw performance card */}
                     {throwTrackingEnabled(club?.settings) && myThrowStats && myThrowStats.throw_count > 0 && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                                 {t('profile.throwStats')} {year}
                             </div>
                             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -508,7 +508,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {myThrowStats.evenings.length > 1 && (
                                 <ThrowTrendMini evenings={myThrowStats.evenings}/>
                             )}
-                            <div className="text-[10px] text-kce-muted text-center mt-1">
+                            <div className="text-xs text-muted text-center mt-1">
                                 {myThrowStats.throw_count} {t('stats.throwCount')} · {myThrowStats.total_pins} {t('stats.totalPins')}
                             </div>
                         </div>
@@ -519,14 +519,14 @@ export function ProfileSheet({open, onClose}: Props) {
                         <button
                             onClick={() => setWrappedOpen(true)}
                             className="kce-card p-4 w-full flex items-center gap-3 text-left active:opacity-70 transition-opacity"
-                            style={{background: 'linear-gradient(135deg, var(--kce-surface2), var(--kce-surface))'}}
+                            style={{background: 'linear-gradient(135deg, var(--surface-2), var(--surface))'}}
                         >
                             <span className="text-3xl">🎁</span>
                             <span className="flex-1">
-                                <span className="block text-sm font-bold text-kce-cream">{t('wrapped.title')} {year}</span>
-                                <span className="block text-[11px] text-kce-muted">{t('wrapped.launchHint')}</span>
+                                <span className="block text-sm font-bold text-ink">{t('wrapped.title')} {year}</span>
+                                <span className="block text-sm text-muted">{t('wrapped.launchHint')}</span>
                             </span>
-                            <span className="text-kce-primary text-lg">›</span>
+                            <span className="text-accent-fg text-lg">›</span>
                         </button>
                     )}
 
@@ -538,22 +538,22 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Hidden bowling game leaderboard — revealed only after the Easter egg is found */}
                     {bowlingDiscovered && (
                         <div className="kce-card p-4" data-testid="bowling-leaderboard">
-                            <div className="text-sm font-bold text-kce-cream flex items-center gap-2">
+                            <div className="text-sm font-bold text-ink flex items-center gap-2">
                                 🎳 {t('bowling.leaderboard')}
                             </div>
                             {bowlingBoard.length === 0 ? (
-                                <div className="text-[11px] text-kce-muted">{t('bowling.leaderboard.empty')}</div>
+                                <div className="text-sm text-muted">{t('bowling.leaderboard.empty')}</div>
                             ) : (
                                 <div className="flex flex-col gap-1 mt-2">
                                     {bowlingBoard.map(e => (
                                         <div key={`${e.rank}-${e.player_name}`}
                                              className="flex items-center gap-2 text-xs">
-                                            <span className="w-5 text-right font-bold text-kce-muted">{e.rank}.</span>
-                                            <span className={`flex-1 truncate ${e.is_me ? 'text-kce-primary font-bold' : 'text-kce-cream'}`}>
+                                            <span className="w-5 text-right font-bold text-muted">{e.rank}.</span>
+                                            <span className={`flex-1 truncate ${e.is_me ? 'text-accent-fg font-bold' : 'text-ink'}`}>
                                                 {e.player_name}
                                                 {e.is_me && <MeBadge/>}
                                             </span>
-                                            <span className="font-bold tabular-nums text-kce-cream">{e.score}</span>
+                                            <span className="font-bold tabular-nums text-ink">{e.score}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -569,8 +569,8 @@ export function ProfileSheet({open, onClose}: Props) {
                     <div className="flex flex-col items-center gap-2 mb-2">
                         <div className="relative">
                             <button
-                                className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-2xl text-kce-bg flex-shrink-0 active:opacity-80 transition-opacity"
-                                style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}
+                                className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-2xl text-on-accent flex-shrink-0 active:opacity-80 transition-opacity"
+                                style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-shade),var(--accent))'}}
                                 onClick={() => fileRef.current?.click()}
                                 disabled={avatarLoading}>
                                 {user?.avatar
@@ -580,18 +580,18 @@ export function ProfileSheet({open, onClose}: Props) {
                             </button>
                             <button
                                 className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs"
-                                style={{background: 'var(--kce-primary)', color: 'var(--kce-bg)'}}
+                                style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
                                 onClick={() => fileRef.current?.click()}>
                                 ✏️
                             </button>
                         </div>
                         <div className="text-center">
-                            <div className="font-display font-bold text-kce-cream">{displayName}</div>
-                            {linkedMember?.nickname && <div className="text-xs text-kce-muted">{user?.name}</div>}
-                            {user?.username && <div className="text-xs text-kce-muted">@{user.username}</div>}
+                            <div className="font-display font-bold text-ink">{displayName}</div>
+                            {linkedMember?.nickname && <div className="text-xs text-muted">{user?.name}</div>}
+                            {user?.username && <div className="text-xs text-muted">@{user.username}</div>}
                         </div>
                         {user?.avatar && (
-                            <button className="text-[10px] text-kce-muted" onClick={handleRemoveAvatar}>
+                            <button className="text-xs text-muted" onClick={handleRemoveAvatar}>
                                 {t('profile.removeAvatar')}
                             </button>
                         )}
@@ -608,7 +608,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             <label className="field-label">{t('auth.username')}</label>
                             <div className="relative">
                                 <span
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-kce-muted text-sm">@</span>
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">@</span>
                                 <input className="kce-input pl-6" value={username}
                                        onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                        placeholder={t('auth.usernamePlaceholder')}/>
@@ -617,7 +617,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div>
                             <label className="field-label">{t('profile.loginEmail')}</label>
                             {isFakeEmail && !email && (
-                                <p className="text-[10px] text-kce-muted mb-1">{t('profile.noEmail')}</p>
+                                <p className="text-xs text-muted mb-1">{t('profile.noEmail')}</p>
                             )}
                             <input className="kce-input" type="email" value={email}
                                    onChange={e => setEmail(e.target.value)} placeholder={t('profile.emailPlaceholder')}/>
@@ -625,7 +625,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     </div>
 
                     <div className="kce-card p-4 flex flex-col gap-3">
-                        <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('profile.changePassword')}</div>
+                        <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('profile.changePassword')}</div>
                         <div>
                             <label className="field-label">{t('profile.currentPassword')}</label>
                             <input className="kce-input" type="password" value={currentPw}
@@ -640,7 +640,7 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     {/* Language */}
                     <div className="kce-card p-4 flex items-center justify-between">
-                        <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.language')}</span>
+                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.language')}</span>
                         <div className="flex gap-1">
                             {(['de', 'en'] as const).map(l => (
                                 <button key={l} onClick={() => {
@@ -648,7 +648,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                     api.updateLocale(l).catch(() => {
                                     })
                                 }}
-                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${locale === l ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${locale === l ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {l.toUpperCase()}
                                 </button>
                             ))}
@@ -657,11 +657,11 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     {/* Theme */}
                     <div className="kce-card p-4 flex items-center justify-between">
-                        <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.theme.title')}</span>
+                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.theme.title')}</span>
                         <div className="flex gap-1">
                             {(['dark', 'light', 'system'] as Theme[]).map(th => (
                                 <button key={th} onClick={() => setTheme(th)}
-                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${theme === th ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(`settings.theme.${th}` as any)}
                                 </button>
                             ))}
@@ -671,13 +671,13 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Celebration effects */}
                     <div className="kce-card p-4 flex items-center justify-between">
                         <div>
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('settings.effects.title')}</div>
-                            <div className="text-[10px] text-kce-muted mt-0.5">{t('settings.effects.hint')}</div>
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.effects.title')}</div>
+                            <div className="text-xs text-muted mt-0.5">{t('settings.effects.hint')}</div>
                         </div>
                         <div className="flex gap-1">
                             {([true, false] as const).map(v => (
                                 <button key={String(v)} onClick={() => setEffectsEnabled(v)}
-                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${effectsEnabled === v ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}>
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${effectsEnabled === v ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(v ? 'settings.effects.on' : 'settings.effects.off')}
                                 </button>
                             ))}
@@ -687,7 +687,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Install app (PWA) */}
                     {!isStandalone && (canInstall || isIos) && (
                         <div className="kce-card p-4 flex items-center justify-between">
-                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('install.profile.button')}</span>
                             <button
                                 onClick={async () => {
                                     if (isIos && !canInstall) {
@@ -697,15 +697,15 @@ export function ProfileSheet({open, onClose}: Props) {
                                     const outcome = await promptInstall()
                                     if (outcome === 'accepted') showToast(t('install.done'))
                                 }}
-                                className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-amber text-kce-bg">
+                                className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-accent text-on-accent">
                                 📲 {t('install.banner.button')}
                             </button>
                         </div>
                     )}
                     {isStandalone && (
                         <div className="kce-card p-4 flex items-center justify-between">
-                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('install.profile.button')}</span>
-                            <span className="text-[10px] text-green-400 font-bold">✓ {t('install.profile.installed')}</span>
+                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <span className="text-xs text-positive-fg font-bold">✓ {t('install.profile.installed')}</span>
                         </div>
                     )}
 
@@ -713,25 +713,25 @@ export function ProfileSheet({open, onClose}: Props) {
                     {pushConfigured && (pushSupported ? (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
-                                <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('push.label')}</span>
-                                {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">{t('push.activeOnDevice')}</div>}
+                                <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('push.label')}</span>
+                                {pushSubscribed && <div className="text-xs text-positive-fg mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
                                 <button
                                     onClick={handlePushToggle}
                                     disabled={pushLoading}
-                                    className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-kce-surface2 text-kce-muted' : 'bg-kce-amber text-kce-bg'}`}>
+                                    className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${pushSubscribed ? 'bg-surface-2 text-muted' : 'bg-accent text-on-accent'}`}>
                                     {pushLoading ? '…' : pushSubscribed ? t('push.deactivate') : t('push.activate')}
                                 </button>
                             </div>
                         </div>
                     ) : isIos && !isStandalone ? (
                         <div className="kce-card p-4">
-                            <span className="text-xs font-bold text-kce-muted uppercase tracking-wider">{t('push.iosInstallTitle')}</span>
-                            <p className="text-xs text-kce-muted mt-1.5 mb-2">{t('push.iosInstallHint')}</p>
-                            <div className="flex gap-3 text-xs text-kce-muted">
+                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('push.iosInstallTitle')}</span>
+                            <p className="text-xs text-muted mt-1.5 mb-2">{t('push.iosInstallHint')}</p>
+                            <div className="flex gap-3 text-xs text-muted">
                                 <span>{t('push.iosInstallStep1')}</span>
-                                <span className="text-kce-muted opacity-40">→</span>
+                                <span className="text-muted opacity-40">→</span>
                                 <span>{t('push.iosInstallStep2')}</span>
                             </div>
                         </div>
@@ -740,40 +740,40 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Push notification preferences — shown whenever prefs loaded, not just when subscribed */}
                     {pushPrefs && (
                         <div className="kce-card p-4 space-y-2">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-3">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
                             </div>
-                            <p className="text-[11px] text-kce-muted mb-2 -mt-1">{t('push.channelHint')}</p>
+                            <p className="text-sm text-muted mb-2 -mt-1">{t('push.channelHint')}</p>
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
-                                <span className="text-xs text-kce-cream">{t('push.pref.committee')}</span>
+                                <span className="text-xs text-ink">{t('push.pref.committee')}</span>
                                 <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
-                                    <span className="text-xs text-kce-cream">{t(`push.pref.${key}` as any)}</span>
+                                    <span className="text-xs text-ink">{t(`push.pref.${key}` as any)}</span>
                                     <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} />
                                 </div>
                             ))}
 
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider pt-3 pb-1">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider pt-3 pb-1">
                                 {t('push.reminders')}
                             </div>
 
                             {/* reminder_debt */}
                             <div className="flex items-center justify-between py-0.5">
-                                <span className="text-xs text-kce-cream">{t('push.pref.reminder_debt')}</span>
+                                <span className="text-xs text-ink">{t('push.pref.reminder_debt')}</span>
                                 <ChannelToggles value={pushPrefs.reminder_debt as ChannelPref} onChange={c => setPushChannels('reminder_debt', c)} emailEnabled={emailConfigured} />
                             </div>
 
                             {/* reminder_schedule + per-user days_before */}
                             <div className="flex items-center justify-between py-0.5">
-                                <span className="text-xs text-kce-cream">{t('push.pref.reminder_schedule')}</span>
+                                <span className="text-xs text-ink">{t('push.pref.reminder_schedule')}</span>
                                 <ChannelToggles value={pushPrefs.reminder_schedule as ChannelPref} onChange={c => setPushChannels('reminder_schedule', c)} emailEnabled={emailConfigured} />
                             </div>
                             {(pushPrefs.reminder_schedule?.length ?? 0) > 0 && (
                                 <div className="flex items-center justify-between py-0.5 pl-2">
-                                    <span className="text-xs text-kce-muted">{t('push.reminder_schedule_days')}</span>
+                                    <span className="text-xs text-muted">{t('push.reminder_schedule_days')}</span>
                                     <input
                                         type="number"
                                         min={1} max={30}
@@ -798,14 +798,14 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* reminder_payments — admins only */}
                             {isAdmin(user) && (
                                 <div className="flex items-center justify-between py-0.5">
-                                    <span className="text-xs text-kce-cream">{t('push.pref.reminder_payments')}</span>
+                                    <span className="text-xs text-ink">{t('push.pref.reminder_payments')}</span>
                                     <ChannelToggles value={pushPrefs.reminder_payments as ChannelPref} onChange={c => setPushChannels('reminder_payments', c)} emailEnabled={emailConfigured} />
                                 </div>
                             )}
 
                             {/* Test button — works even without VAPID (logs to bell panel) */}
                             <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
-                                <span className="text-xs text-kce-muted">{t('push.testLabel')}</span>
+                                <span className="text-xs text-muted">{t('push.testLabel')}</span>
                                 <button
                                     onClick={async () => {
                                         setPushTesting(true)
@@ -819,7 +819,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                         }
                                     }}
                                     disabled={pushTesting}
-                                    className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-surface2 text-kce-muted active:opacity-60">
+                                    className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-surface-2 text-muted active:opacity-60">
                                     {pushTesting ? '…' : 'Test'}
                                 </button>
                             </div>
@@ -829,10 +829,10 @@ export function ProfileSheet({open, onClose}: Props) {
                     {/* Email digest — personalized periodic summary */}
                     {pushPrefs && (
                         <div className="kce-card p-4 space-y-2" data-testid="digest-card">
-                            <div className="text-xs font-bold text-kce-muted uppercase tracking-wider mb-1">
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
                                 {t('digest.title')}
                             </div>
-                            <p className="text-[11px] text-kce-muted mb-2">{t('digest.hint')}</p>
+                            <p className="text-sm text-muted mb-2">{t('digest.hint')}</p>
                             <div className="flex flex-wrap gap-1">
                                 {(['off', 'daily', 'weekly', 'monthly'] as DigestFrequency[]).map(freq => {
                                     const active = (pushPrefs.digest_frequency ?? 'off') === freq
@@ -841,7 +841,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                             key={freq}
                                             onClick={() => setDigestFrequency(freq)}
                                             className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${
-                                                active ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'
+                                                active ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'
                                             }`}>
                                             {t(`digest.freq.${freq}` as any)}
                                         </button>
@@ -849,11 +849,11 @@ export function ProfileSheet({open, onClose}: Props) {
                                 })}
                             </div>
                             {!emailConfigured && (
-                                <p className="text-[11px] text-kce-muted pt-1">{t('digest.noEmail')}</p>
+                                <p className="text-sm text-muted pt-1">{t('digest.noEmail')}</p>
                             )}
                             {emailConfigured && (pushPrefs.digest_frequency ?? 'off') !== 'off' && (
                                 <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
-                                    <span className="text-xs text-kce-muted">{t('digest.sendNowLabel')}</span>
+                                    <span className="text-xs text-muted">{t('digest.sendNowLabel')}</span>
                                     <button
                                         onClick={async () => {
                                             setDigestTesting(true)
@@ -868,7 +868,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                         }}
                                         disabled={digestTesting}
                                         data-testid="digest-send-btn"
-                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-kce-amber text-kce-bg active:opacity-60">
+                                        className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-accent text-on-accent active:opacity-60">
                                         {digestTesting ? '…' : t('digest.sendNow')}
                                     </button>
                                 </div>
@@ -883,22 +883,22 @@ export function ProfileSheet({open, onClose}: Props) {
                         href="/docs/index.html"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
+                        className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
                     >
                         <span>{t('profile.docs')}</span>
-                        <span className="text-kce-muted text-xs">↗</span>
+                        <span className="text-muted text-xs">↗</span>
                     </a>
                     <a
                         href="/api/docs"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="kce-card p-3 flex items-center justify-between text-sm text-kce-cream no-underline active:opacity-70 transition-opacity"
+                        className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
                     >
                         <span>{t('profile.apiDocs')}</span>
-                        <span className="text-kce-muted text-xs">↗</span>
+                        <span className="text-muted text-xs">↗</span>
                     </a>
                     <button
-                        className="w-full py-2.5 text-sm font-bold text-kce-muted bg-kce-surface2 border border-kce-border rounded-lg transition-all active:scale-95"
+                        className="w-full py-2.5 text-sm font-bold text-muted bg-surface-2 border border-line rounded-lg transition-all active:scale-95"
                         onClick={() => {
                             authState.setToken(null)
                             setUser(null)
@@ -908,18 +908,18 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     {/* Account delete */}
                     {!confirmDelete ? (
-                        <button className="text-[11px] text-kce-muted/50 text-center py-1 w-full"
+                        <button className="text-sm text-muted/50 text-center py-1 w-full"
                                 onClick={() => setConfirmDelete(true)}>
                             {t('profile.deleteAccount')}
                         </button>
                     ) : (
                         <div className="kce-card p-3 flex flex-col gap-2">
-                            <p className="text-xs text-center text-kce-muted">{t('profile.deleteConfirm')}</p>
+                            <p className="text-xs text-center text-muted">{t('profile.deleteConfirm')}</p>
                             <div className="flex gap-2">
                                 <button className="btn-secondary flex-1 btn-sm"
                                         onClick={() => setConfirmDelete(false)}>{t('action.cancel')}
                                 </button>
-                                <button className="btn-secondary flex-1 btn-sm text-red-400/70" onClick={async () => {
+                                <button className="btn-secondary flex-1 btn-sm text-danger-fg/70" onClick={async () => {
                                     await api.deleteAccount()
                                     authState.setToken(null)
                                     setUser(null)
@@ -929,7 +929,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     )}
 
-                    <p className="text-[10px] text-kce-muted/40 text-center py-2">
+                    <p className="text-xs text-muted/40 text-center py-2">
                         v{__APP_VERSION__} · © 2026 Marius Gassen
                     </p>
                 </div>

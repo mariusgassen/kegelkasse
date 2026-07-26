@@ -32,7 +32,7 @@ describe('StatTile', () => {
 
     it('colours the value by tone', () => {
         render(<StatTile value="9" label="Offen" tone="negative"/>)
-        expect(screen.getByText('9').className).toContain('text-red-400')
+        expect(screen.getByText('9').className).toContain('text-danger-fg')
     })
 
     it('drops the card chrome in bare mode', () => {

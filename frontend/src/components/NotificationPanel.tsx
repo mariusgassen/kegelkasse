@@ -92,8 +92,8 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
         <div
             className="rounded-xl transition-colors"
             style={{
-                background: n.read ? 'rgba(255,255,255,0.03)' : 'rgba(232,160,32,0.08)',
-                border: `1px solid ${n.read ? 'var(--kce-border)' : 'rgba(232,160,32,0.2)'}`,
+                background: n.read ? 'rgba(255,255,255,0.03)' : 'color-mix(in srgb, var(--accent) 8%, transparent)',
+                border: `1px solid ${n.read ? 'var(--line)' : 'color-mix(in srgb, var(--accent) 20%, transparent)'}`,
             }}
         >
             {/* Main row — click to navigate */}
@@ -104,18 +104,18 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                 {!n.read && (
                     <div
                         className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
-                        style={{background: '#e8a020'}}
+                        style={{background: 'var(--accent)'}}
                     />
                 )}
                 {n.read && <div className="w-2 flex-shrink-0"/>}
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-kce-cream leading-snug">{n.title}</p>
-                    <p className="text-[11px] text-kce-muted mt-0.5 leading-snug">{n.body}</p>
-                    <p className="text-[10px] text-kce-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
+                    <p className="text-xs font-bold text-ink leading-snug">{n.title}</p>
+                    <p className="text-sm text-muted mt-0.5 leading-snug">{n.body}</p>
+                    <p className="text-xs text-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
                 </div>
                 <button
                     className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
-                    style={{background: 'rgba(255,255,255,0.07)', color: 'var(--kce-muted)', fontSize: 12}}
+                    style={{background: 'rgba(255,255,255,0.07)', color: 'var(--muted)', fontSize: 12}}
                     onClick={(e) => {
                         e.stopPropagation()
                         if (n.serverLogId) api.markNotificationsRead([n.serverLogId]).catch(() => {})
@@ -198,7 +198,7 @@ export function NotificationPanel({open, onClose}: Props) {
                             <button
                                 type="button"
                                 onClick={handleClearAll}
-                                className="text-[10px] font-bold text-kce-muted active:opacity-60 px-2 py-1 rounded-lg"
+                                className="text-xs font-bold text-muted active:opacity-60 px-2 py-1 rounded-lg"
                                 style={{background: 'rgba(255,255,255,0.07)'}}
                             >
                                 {t('notifications.clearAll')}
@@ -207,7 +207,7 @@ export function NotificationPanel({open, onClose}: Props) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-kce-muted active:opacity-60"
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-muted active:opacity-60"
                             style={{background: 'rgba(255,255,255,0.07)', fontSize: 16, lineHeight: 1}}
                         >
                             ✕
@@ -217,7 +217,7 @@ export function NotificationPanel({open, onClose}: Props) {
 
                 {/* Notification list */}
                 {notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-kce-muted">
+                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted">
                         <span style={{fontSize: 32}}>🔔</span>
                         <p className="text-xs font-bold">{t('notifications.empty')}</p>
                     </div>

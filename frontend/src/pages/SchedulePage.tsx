@@ -65,8 +65,8 @@ function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void 
             <button disabled={busy} onClick={() => toggle('absent')}
                     className={['w-full text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
                         isAbsent
-                            ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                            : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                            ? 'bg-danger/20 text-danger-fg border-danger/40'
+                            : 'bg-surface-2 text-muted border-line',
                     ].join(' ')}>
                 {isAbsent ? t('rsvp.absent.active') : t('rsvp.absent.short')}
             </button>
@@ -118,11 +118,11 @@ function AddGuestForm({se, onAdded, onCancel}: {
     }
 
     return (
-        <div className="mt-2 p-2.5 rounded-lg bg-kce-bg border border-kce-border space-y-2">
+        <div className="mt-2 p-2.5 rounded-lg bg-canvas border border-line space-y-2">
             {/* Known guest chips */}
             {availableKnownGuests.length > 0 && (
                 <div>
-                    <div className="text-[10px] text-kce-muted font-bold uppercase tracking-wider mb-1">
+                    <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">
                         {t('player.knownGuests')}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -142,7 +142,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
             {/* New guest name input */}
             <div>
                 {availableKnownGuests.length > 0 && (
-                    <div className="text-[10px] text-kce-muted font-bold uppercase tracking-wider mb-1">
+                    <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">
                         {t('player.newGuest')}
                     </div>
                 )}
@@ -154,7 +154,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
                     autoFocus={availableKnownGuests.length === 0}
                 />
                 {matchedId && (
-                    <p className="text-[10px] text-green-400 mt-1">✓ {t('schedule.guestKnown')}</p>
+                    <p className="text-xs text-positive-fg mt-1">✓ {t('schedule.guestKnown')}</p>
                 )}
             </div>
             <div className="flex gap-2">
@@ -301,7 +301,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
     return (
         <Sheet open onClose={onClose} title={t('schedule.startConfirm')}>
             <div className="space-y-4">
-                <div className="text-sm text-kce-muted">
+                <div className="text-sm text-muted">
                     {fDateTimeLong(se.scheduled_at)}{se.venue ? ` · ${se.venue}` : ''}
                 </div>
 
@@ -311,7 +311,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                     <>
                         {/* Attendance checklist */}
                         <div>
-                            <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                 👥 {t('schedule.attendance')} ({checkedIds.size}/{activeMembers.length})
                             </div>
                             <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
@@ -325,15 +325,15 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             onClick={() => toggleMember(m.id)}
                                             className={[
                                                 'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors text-left',
-                                                isChecked ? 'bg-green-500/10' : 'bg-kce-surface2/40',
+                                                isChecked ? 'bg-positive/10' : 'bg-surface-2/40',
                                             ].join(' ')}
                                         >
-                                            <span className={isChecked ? 'text-green-400' : 'text-kce-muted'}>
+                                            <span className={isChecked ? 'text-positive-fg' : 'text-muted'}>
                                                 {isChecked ? '☑' : '☐'}
                                             </span>
                                             <span className={[
                                                 'text-sm flex-1',
-                                                isChecked ? 'text-kce-cream' : 'text-kce-muted line-through',
+                                                isChecked ? 'text-ink' : 'text-muted line-through',
                                             ].join(' ')}>
                                                 {m.nickname || m.name}
                                                 {m.id === myId && (
@@ -341,7 +341,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                 )}
                                             </span>
                                             {wasAbsent && isChecked && (
-                                                <span className="text-[10px] text-yellow-400 font-bold flex-shrink-0">
+                                                <span className="text-xs text-yellow-400 font-bold flex-shrink-0">
                                                     {t('schedule.showedUpAnyway')}
                                                 </span>
                                             )}
@@ -349,8 +349,8 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                 <button
                                                     onClick={e => { e.stopPropagation(); toggleAbgesagt(m.id) }}
                                                     className={[
-                                                        'text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0',
-                                                        isAbgesagt ? 'bg-red-500/20 text-red-400' : 'text-kce-muted',
+                                                        'text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0',
+                                                        isAbgesagt ? 'bg-danger/20 text-danger-fg' : 'text-muted',
                                                     ].join(' ')}
                                                 >
                                                     {t('schedule.absent')}
@@ -363,9 +363,9 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                         </div>
 
                         {/* Guests */}
-                        <div className="pt-2 border-t border-kce-surface2">
+                        <div className="pt-2 border-t border-surface-2">
                             <div className="flex items-center justify-between mb-1.5">
-                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
                                     🧑‍🤝‍🧑 {t('schedule.guests')}{guests.length > 0 ? ` (${guests.length})` : ''}
                                 </div>
                                 {!addingGuest && (
@@ -375,10 +375,10 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                 )}
                             </div>
                             {guests.map(g => (
-                                <div key={g.id} className="flex items-center gap-2 text-sm text-kce-cream mb-1 px-1">
+                                <div key={g.id} className="flex items-center gap-2 text-sm text-ink mb-1 px-1">
                                     <span className="flex-1">🧑‍🤝‍🧑 {g.name}</span>
                                     <button
-                                        className="text-kce-muted active:text-red-400 text-xs"
+                                        className="text-muted active:text-danger-fg text-xs"
                                         onClick={async () => {
                                             try {
                                                 await api.removeScheduledGuest(se.id, g.id)
@@ -406,8 +406,8 @@ export function StartEveningSheet({se, onClose, onStarted}: {
 
                         {/* Pins check — only for pins whose holder is present */}
                         {pins.some(p => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
-                            <div className="pt-2 border-t border-kce-surface2">
-                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                            <div className="pt-2 border-t border-surface-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     📌 {t('pin.title')}
                                 </div>
                                 {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
@@ -418,15 +418,15 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             onClick={() => toggleMissingPin(pin.id)}
                                             className={[
                                                 'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
-                                                brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                                brought ? 'bg-positive/10' : 'bg-danger/10',
                                             ].join(' ')}
                                         >
                                             <span className="text-base flex-shrink-0">{pin.icon}</span>
-                                            <span className="flex-1 text-sm text-kce-cream">{pin.name}</span>
-                                            <span className="text-xs text-kce-muted flex-shrink-0">{pin.holder_name}</span>
+                                            <span className="flex-1 text-sm text-ink">{pin.name}</span>
+                                            <span className="text-xs text-muted flex-shrink-0">{pin.holder_name}</span>
                                             <span className={[
                                                 'text-xs font-bold flex-shrink-0',
-                                                brought ? 'text-green-400' : 'text-red-400',
+                                                brought ? 'text-positive-fg' : 'text-danger-fg',
                                             ].join(' ')}>
                                                 {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
                                             </span>
@@ -483,13 +483,13 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
             {/* Header row */}
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-kce-cream">{fDateTimeLong(se.scheduled_at)}</div>
-                    {se.venue && <div className="text-xs text-kce-muted mt-0.5 truncate">🏠 {se.venue}</div>}
-                    {se.note && <div className="text-xs text-kce-muted mt-0.5 italic truncate">{se.note}</div>}
+                    <div className="text-sm font-bold text-ink">{fDateTimeLong(se.scheduled_at)}</div>
+                    {se.venue && <div className="text-xs text-muted mt-0.5 truncate">🏠 {se.venue}</div>}
+                    {se.note && <div className="text-xs text-muted mt-0.5 italic truncate">{se.note}</div>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                     {se.absent_count > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-danger/15 text-danger-fg">
                             ❌ {se.absent_count}
                         </span>
                     )}
@@ -508,14 +508,14 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
 
             {/* Guests section (admin only) */}
             {isAdminUser && (
-                <div className="mt-2.5 pt-2.5 border-t border-kce-surface2">
+                <div className="mt-2.5 pt-2.5 border-t border-surface-2">
                     <div className="flex items-center justify-between mb-1.5">
                         <button
                             onClick={() => setShowGuests(v => !v)}
-                            className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider flex items-center gap-1">
+                            className="text-xs font-extrabold text-muted uppercase tracking-wider flex items-center gap-1">
                             🧑‍🤝‍🧑 {t('schedule.guests')}
                             {se.guests.length > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-kce-surface2 font-bold">
+                                <span className="px-1.5 py-0.5 rounded-full bg-surface-2 font-bold">
                                     {se.guests.length}
                                 </span>
                             )}
@@ -537,9 +537,9 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {se.guests.map(g => (
                                         <div key={g.id}
-                                             className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-kce-surface2 text-kce-cream">
+                                             className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                             <span>{g.name}</span>
-                                            <button className="text-kce-muted active:text-red-400 ml-0.5"
+                                            <button className="text-muted active:text-danger-fg ml-0.5"
                                                     onClick={() => removeGuest(g.id)}>✕</button>
                                         </div>
                                     ))}
@@ -562,7 +562,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
 
             {/* Start button (admin, only on/after date) */}
             {isAdminUser && (
-                <div className="mt-2.5 pt-2.5 border-t border-kce-surface2">
+                <div className="mt-2.5 pt-2.5 border-t border-surface-2">
                     {isAlreadyStarted ? (
                         <button
                             className="btn-primary w-full text-sm"
@@ -585,7 +585,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                 {t('schedule.start')}
                             </button>
                             {!canStart && (
-                                <p className="text-[10px] text-kce-muted text-center mt-1">{t('schedule.startNotToday')}</p>
+                                <p className="text-xs text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
                             )}
                         </>
                     )}
@@ -681,8 +681,8 @@ function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName
     return (
         <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}>
             <div className="space-y-3">
-                <p className="text-xs text-kce-muted">{t('schedule.icalHint')}</p>
-                <div className="bg-kce-surface2 rounded-lg p-2.5 text-[11px] font-mono text-kce-cream break-all select-all">
+                <p className="text-xs text-muted">{t('schedule.icalHint')}</p>
+                <div className="bg-surface-2 rounded-lg p-2.5 text-sm font-mono text-ink break-all select-all">
                     {url}
                 </div>
                 <div className="flex gap-2">
@@ -693,7 +693,7 @@ function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName
                         {copied ? '✓' : t('schedule.icalCopy')}
                     </button>
                 </div>
-                <p className="text-[10px] text-kce-muted text-center">{t('schedule.icalFor')} {clubName}</p>
+                <p className="text-xs text-muted text-center">{t('schedule.icalFor')} {clubName}</p>
             </div>
         </Sheet>
     )
@@ -723,19 +723,19 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
         <Sheet open onClose={onClose} title={t('schedule.rsvpQuickTitle')}>
             <div className="space-y-3">
                 <div className="kce-card p-3">
-                    <div className="text-sm font-bold text-kce-cream">{fDateTimeLong(se.scheduled_at)}</div>
-                    {se.venue && <div className="text-xs text-kce-muted mt-0.5">🏠 {se.venue}</div>}
-                    {se.note && <div className="text-xs text-kce-muted mt-0.5 italic">{se.note}</div>}
+                    <div className="text-sm font-bold text-ink">{fDateTimeLong(se.scheduled_at)}</div>
+                    {se.venue && <div className="text-xs text-muted mt-0.5">🏠 {se.venue}</div>}
+                    {se.note && <div className="text-xs text-muted mt-0.5 italic">{se.note}</div>}
                 </div>
-                <p className="text-sm text-kce-muted text-center">{t('schedule.rsvpQuickHint')}</p>
+                <p className="text-sm text-muted text-center">{t('schedule.rsvpQuickHint')}</p>
                 <div className="flex gap-3">
                     <button
                         disabled={busy}
                         onClick={() => toggle('attending')}
                         className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
                             se.my_rsvp === 'attending'
-                                ? 'bg-green-500/20 text-green-400 border-green-500/40'
-                                : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                                ? 'bg-positive/20 text-positive-fg border-positive/40'
+                                : 'bg-surface-2 text-muted border-line',
                         ].join(' ')}>
                         {t('rsvp.attending.short')}
                     </button>
@@ -744,8 +744,8 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                         onClick={() => toggle('absent')}
                         className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
                             se.my_rsvp === 'absent'
-                                ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                : 'bg-kce-surface2 text-kce-muted border-kce-border',
+                                ? 'bg-danger/20 text-danger-fg border-danger/40'
+                                : 'bg-surface-2 text-muted border-line',
                         ].join(' ')}>
                         ❌ {t('rsvp.absent.short')}
                     </button>
@@ -786,12 +786,12 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                     <>
                         {attending.length > 0 && (
                             <div>
-                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     ✅ {t('schedule.attending')} ({attending.length})
                                 </div>
                                 {attending.map(r => (
                                     <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
-                                        <span className="flex-1 text-sm text-kce-cream truncate">
+                                        <span className="flex-1 text-sm text-ink truncate">
                                             {r.nickname || r.name}
                                         </span>
                                         <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'absent')}>
@@ -803,12 +803,12 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                         )}
                         {absent.length > 0 && (
                             <div>
-                                <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     ❌ {t('schedule.absent')} ({absent.length})
                                 </div>
                                 {absent.map(r => (
                                     <div key={r.regular_member_id} className="kce-card p-2.5 mb-1.5 flex items-center gap-2">
-                                        <span className="flex-1 text-sm text-kce-muted truncate">
+                                        <span className="flex-1 text-sm text-muted truncate">
                                             {r.nickname || r.name}
                                         </span>
                                         <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
@@ -933,18 +933,18 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
 
             {/* Active evening at top */}
             {activeEvening && (
-                <div className="kce-card mb-2 overflow-hidden border border-kce-amber/40">
+                <div className="kce-card mb-2 overflow-hidden border border-accent/40">
                     <button className="w-full p-3 flex items-center gap-3 text-left"
                             onClick={() => onNavigate?.()}>
                         <span className="text-base">🎳</span>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <div className="text-sm font-bold">{fDate(activeEvening.date)}</div>
-                                <span className="text-[10px] font-extrabold tracking-widest text-kce-amber border border-kce-amber rounded px-1 py-0.5">
+                                <span className="text-xs font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
                                     {t('evening.active')}
                                 </span>
                             </div>
-                            <div className="text-xs text-kce-muted">
+                            <div className="text-xs text-muted">
                                 {activeEvening.venue ?? '–'} · {activeEvening.player_count} {t('history.players')}
                             </div>
                         </div>
@@ -966,42 +966,42 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                     <span className="text-base">📅</span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold">{fDate(ev.date)}</div>
-                                        <div className="text-xs text-kce-muted">
+                                        <div className="text-xs text-muted">
                                             {ev.venue ?? '–'} · {ev.player_count} {t('history.players')}
                                         </div>
                                     </div>
-                                    <span className="text-kce-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
+                                    <span className="text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
                                 </button>
 
                                 {isExpanded && (
-                                    <div className="border-t border-kce-border px-3 pb-3 pt-2">
+                                    <div className="border-t border-line px-3 pb-3 pt-2">
                                         {detail ? (
                                             <>
                                                 <div className="flex gap-4 mb-3 text-sm">
                                                     <div>
-                                                        <div className="text-xs text-kce-muted">{t('history.players')}</div>
+                                                        <div className="text-xs text-muted">{t('history.players')}</div>
                                                         <div className="font-bold">{detail.players.length}</div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-kce-muted">{t('nav.games')}</div>
+                                                        <div className="text-xs text-muted">{t('nav.games')}</div>
                                                         <div className="font-bold">{detail.games.filter(g => g.status === 'finished').length}</div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-kce-muted">{t('history.total')}</div>
-                                                        <div className="font-bold text-kce-amber">
+                                                        <div className="text-xs text-muted">{t('history.total')}</div>
+                                                        <div className="font-bold text-accent-fg">
                                                             {fe(detail.penalty_log.reduce((s, l) => s + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)), 0))}
                                                         </div>
                                                     </div>
                                                 </div>
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             👤 {t('history.players')}
                                                         </div>
                                                         <div className="flex flex-wrap gap-1">
                                                             {detail.players.map(p => (
                                                                 <span key={p.id}
-                                                                      className="text-[11px] px-2 py-0.5 rounded-full bg-kce-surface2 text-kce-cream">
+                                                                      className="text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                                                     {p.is_king ? '👑 ' : ''}{p.name}
                                                                 </span>
                                                             ))}
@@ -1010,14 +1010,14 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             🏆 {t('nav.games')}
                                                         </div>
                                                         {detail.games.filter(g => g.status === 'finished').sort((a, b) => (a.started_at ?? '').localeCompare(b.started_at ?? '') || a.sort_order - b.sort_order).map(g => (
                                                             <div key={g.id}
-                                                                 className="flex items-center justify-between py-1 border-b border-kce-surface2 last:border-0">
-                                                                <span className="text-xs text-kce-cream">{g.is_opener ? '👑 ' : ''}{g.name}</span>
-                                                                <span className="text-xs text-kce-muted">{g.winner_name ?? '–'}</span>
+                                                                 className="flex items-center justify-between py-1 border-b border-surface-2 last:border-0">
+                                                                <span className="text-xs text-ink">{g.is_opener ? '👑 ' : ''}{g.name}</span>
+                                                                <span className="text-xs text-muted">{g.winner_name ?? '–'}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1030,13 +1030,13 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                     }
                                                     return (
                                                         <div className="mb-3">
-                                                            <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('penalty.title')}
                                                             </div>
                                                             {[...totals.values()].sort((a, b) => b.amount - a.amount).map(({name, amount}) => (
                                                                 <div key={name} className="flex items-center justify-between py-0.5">
-                                                                    <span className="text-xs text-kce-cream">{name}</span>
-                                                                    <span className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                    <span className="text-xs text-ink">{name}</span>
+                                                                    <span className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1044,10 +1044,10 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 })()}
                                                 {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1">
                                                             🍺 {t('drinks.title')}
                                                         </div>
-                                                        <div className="text-xs text-kce-muted">
+                                                        <div className="text-xs text-muted">
                                                             {detail.drink_rounds.filter(r => r.drink_type === 'beer').length}× {t('drinks.beer')}
                                                             {detail.drink_rounds.filter(r => r.drink_type === 'shots').length > 0 && (
                                                                 <> · {detail.drink_rounds.filter(r => r.drink_type === 'shots').length}× {t('drinks.shots')}</>
@@ -1057,7 +1057,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                                 {detail.highlights.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-kce-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             ✨ {t('highlight.title').replace('✨ ', '')}
                                                         </div>
                                                         <div className="flex flex-col gap-2">
@@ -1067,9 +1067,9 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                                     <div className="flex-1 min-w-0">
                                                                         {h.media_url && (
                                                                             <img src={h.media_url} alt=""
-                                                                                 className="rounded max-h-32 max-w-full object-contain border border-kce-border/40 mb-1"/>
+                                                                                 className="rounded max-h-32 max-w-full object-contain border border-line/40 mb-1"/>
                                                                         )}
-                                                                        {h.text && <span className="text-xs text-kce-cream">{h.text}</span>}
+                                                                        {h.text && <span className="text-xs text-ink">{h.text}</span>}
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -1077,7 +1077,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                     </div>
                                                 )}
                                                 {isAdmin(user) && (
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-kce-surface2">
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-surface-2">
                                                         {ev.season_closed ? (
                                                             <span className="btn-secondary btn-sm flex-1 opacity-50 cursor-default justify-center">
                                                                 📦 {t('history.archived')}
@@ -1108,7 +1108,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                             </>
                                         ) : (
-                                            <p className="text-xs text-kce-muted py-2">{t('action.loading')}</p>
+                                            <p className="text-xs text-muted py-2">{t('action.loading')}</p>
                                         )}
                                     </div>
                                 )}
@@ -1274,14 +1274,14 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
                         ))}
                         {hiddenCount > 0 && !showAllUpcoming && (
                             <button
-                                className="w-full text-xs text-kce-muted py-2 mb-1 border border-dashed border-kce-border rounded-lg hover:text-kce-cream hover:border-kce-cream transition-colors"
+                                className="w-full text-xs text-muted py-2 mb-1 border border-dashed border-line rounded-lg hover:text-ink hover:border-ink transition-colors"
                                 onClick={() => setShowAllUpcoming(true)}>
                                 + {hiddenCount} {t('schedule.moreUpcoming')}
                             </button>
                         )}
                         {showAllUpcoming && hiddenCount > 0 && (
                             <button
-                                className="w-full text-xs text-kce-muted py-1.5 mb-1"
+                                className="w-full text-xs text-muted py-1.5 mb-1"
                                 onClick={() => setShowAllUpcoming(false)}>
                                 ▲ {t('schedule.showLess')}
                             </button>

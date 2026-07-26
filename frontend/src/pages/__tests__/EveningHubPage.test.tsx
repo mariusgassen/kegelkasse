@@ -719,7 +719,7 @@ describe('EveningHubPage — tab switching', () => {
         vi.mocked(useHashTab).mockReturnValue(['games', vi.fn()] as any)
         await renderHubPage()
         const gamesTabBtn = screen.getByText(/nav\.games/).closest('button')!
-        expect(gamesTabBtn.className).toContain('bg-kce-amber')
+        expect(gamesTabBtn.className).toContain('bg-accent')
     })
 })
 

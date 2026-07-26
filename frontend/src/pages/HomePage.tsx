@@ -60,7 +60,7 @@ function Sparkline({points}: {points: number[]}) {
         .join(' ')
     return (
         <svg width={w} height={h} className="flex-shrink-0" aria-hidden="true">
-            <path d={path} fill="none" stroke="var(--kce-primary)" strokeWidth={2}
+            <path d={path} fill="none" stroke="var(--accent-fg)" strokeWidth={2}
                   strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
     )
@@ -76,10 +76,10 @@ function Section({title, action, onAction, children}: {
     return (
         <div className="kce-card p-3">
             <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-bold text-kce-cream">{title}</h2>
+                <h2 className="text-sm font-bold text-ink">{title}</h2>
                 {action && (
                     <button onClick={onAction}
-                            className="text-[11px] font-bold text-kce-primary flex items-center gap-0.5 active:opacity-70">
+                            className="text-sm font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
                         {action} <ChevronRight size={12} strokeWidth={2.5}/>
                     </button>
                 )}
@@ -116,10 +116,10 @@ function NextAppointment({se, locale, onChanged}: {
     const responded = attending || absent
     return (
         <div>
-            <div className="text-base font-bold text-kce-cream">{fDateTime(se.scheduled_at, locale)}</div>
-            {se.venue && <div className="text-xs text-kce-muted mt-0.5 truncate">🏠 {se.venue}</div>}
+            <div className="text-base font-bold text-ink">{fDateTime(se.scheduled_at, locale)}</div>
+            {se.venue && <div className="text-xs text-muted mt-0.5 truncate">🏠 {se.venue}</div>}
             {se.attending_count > 0 && (
-                <div className="text-[11px] text-kce-muted mt-0.5">✅ {se.attending_count}</div>
+                <div className="text-sm text-muted mt-0.5">✅ {se.attending_count}</div>
             )}
 
             {responded ? (
@@ -127,26 +127,26 @@ function NextAppointment({se, locale, onChanged}: {
                 <div className="flex items-center justify-between gap-2 mt-2.5">
                     <span className={['text-xs font-bold px-2.5 py-1.5 rounded-full',
                         attending
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'].join(' ')}>
+                            ? 'bg-positive/20 text-positive-fg'
+                            : 'bg-danger/20 text-danger-fg'].join(' ')}>
                         {attending ? t('home.rsvp.attendingState') : t('home.rsvp.absentState')}
                     </span>
                     <button disabled={busy} onClick={() => setStatus(attending ? 'absent' : 'attending')}
-                            className="text-xs font-bold py-1.5 px-3 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted transition-all active:scale-95 select-none">
+                            className="text-xs font-bold py-1.5 px-3 rounded-full border border-line bg-surface-2 text-muted transition-all active:scale-95 select-none">
                         {attending ? t('home.rsvp.decline') : t('home.rsvp.accept')}
                     </button>
                 </div>
             ) : (
                 // No answer yet → prompt for the initial choice.
                 <div className="mt-2.5">
-                    <div className="text-[11px] text-kce-muted mb-1.5">{t('home.rsvp.prompt')}</div>
+                    <div className="text-sm text-muted mb-1.5">{t('home.rsvp.prompt')}</div>
                     <div className="flex gap-2">
                         <button disabled={busy} onClick={() => setStatus('attending')}
-                                className="flex-1 text-xs py-2 px-3 rounded-full border border-green-500/40 bg-green-500/15 text-green-400 font-bold transition-all active:scale-95 select-none">
+                                className="flex-1 text-xs py-2 px-3 rounded-full border border-positive/40 bg-positive/15 text-positive-fg font-bold transition-all active:scale-95 select-none">
                             {t('home.rsvp.accept')}
                         </button>
                         <button disabled={busy} onClick={() => setStatus('absent')}
-                                className="flex-1 text-xs py-2 px-3 rounded-full border border-kce-border bg-kce-surface2 text-kce-muted font-bold transition-all active:scale-95 select-none">
+                                className="flex-1 text-xs py-2 px-3 rounded-full border border-line bg-surface-2 text-muted font-bold transition-all active:scale-95 select-none">
                             {t('home.rsvp.decline')}
                         </button>
                     </div>
@@ -170,10 +170,10 @@ function CommunityRow({item}: {item: CommunityItem}) {
                 className="w-full flex items-center gap-2 py-1.5 text-left active:opacity-70">
             <span className="text-base flex-shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-kce-cream truncate">{item.title}</div>
-                {item.subtitle && <div className="text-[11px] text-kce-muted truncate">{item.subtitle}</div>}
+                <div className="text-xs font-bold text-ink truncate">{item.title}</div>
+                {item.subtitle && <div className="text-sm text-muted truncate">{item.subtitle}</div>}
             </div>
-            <ChevronRight size={14} strokeWidth={2} className="flex-shrink-0 text-kce-muted"/>
+            <ChevronRight size={14} strokeWidth={2} className="flex-shrink-0 text-muted"/>
         </button>
     )
 }
@@ -192,22 +192,22 @@ function PenaltyEveningGroup({g, locale}: {g: PenaltyEveningSummary; locale: str
         <div className="py-2">
             {/* Evening header: date on the left, the evening's total on the right. */}
             <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-bold text-kce-cream">
+                <div className="text-xs font-bold text-ink">
                     {fShortDate(g.date, locale) || t('home.penaltyUndated')}
                 </div>
-                <div className="text-sm font-bold text-kce-primary flex-shrink-0">{fe(g.total)}</div>
+                <div className="text-sm font-bold text-accent-fg flex-shrink-0">{fe(g.total)}</div>
             </div>
             {/* A few of the evening's penalties, then "and N more". */}
             <div className="mt-1 space-y-0.5">
                 {g.items.map(p => (
                     <div key={p.id} className="flex items-center gap-2">
                         <span className="text-sm flex-shrink-0">{p.icon}</span>
-                        <div className="flex-1 min-w-0 text-[11px] text-kce-muted truncate">{p.name}</div>
-                        <div className="text-[11px] text-kce-muted flex-shrink-0">{fe(p.amount)}</div>
+                        <div className="flex-1 min-w-0 text-sm text-muted truncate">{p.name}</div>
+                        <div className="text-sm text-muted flex-shrink-0">{fe(p.amount)}</div>
                     </div>
                 ))}
                 {g.more > 0 && (
-                    <div className="pl-6 text-[11px] italic text-kce-muted">
+                    <div className="pl-6 text-sm italic text-muted">
                         {t('home.penaltyMore').replace('{n}', String(g.more))}
                     </div>
                 )}
@@ -277,10 +277,10 @@ export function HomePage() {
         <div className="page-scroll px-3 py-3 pb-24 space-y-3">
             {/* Greeting */}
             <div className="pt-1">
-                <h1 className="font-display font-bold text-xl text-kce-cream">
+                <h1 className="font-display font-bold text-xl text-ink">
                     {displayName ? t('home.greeting').replace('{name}', displayName) : t('home.greetingNoName')}
                 </h1>
-                <p className="text-xs text-kce-muted mt-0.5">{t('home.subtitle')}</p>
+                <p className="text-xs text-muted mt-0.5">{t('home.subtitle')}</p>
             </div>
 
             {/* Active evening callout */}
@@ -289,15 +289,15 @@ export function HomePage() {
                     onClick={() => router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {})}
                     className="w-full kce-card p-3 flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
                     style={{
-                        background: 'color-mix(in srgb, var(--kce-primary) 12%, var(--kce-surface))',
-                        borderColor: 'color-mix(in srgb, var(--kce-primary) 45%, transparent)',
+                        background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))',
+                        borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)',
                     }}>
-                    <Trophy size={22} strokeWidth={2.2} className="text-kce-primary flex-shrink-0"/>
+                    <Trophy size={22} strokeWidth={2.2} className="text-accent-fg flex-shrink-0"/>
                     <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-kce-cream">{t('home.eveningLive.title')}</div>
-                        <div className="text-[11px] text-kce-muted">{t('home.eveningLive.sub')}</div>
+                        <div className="text-sm font-bold text-ink">{t('home.eveningLive.title')}</div>
+                        <div className="text-sm text-muted">{t('home.eveningLive.sub')}</div>
                     </div>
-                    <ChevronRight size={16} strokeWidth={2.5} className="text-kce-primary flex-shrink-0"/>
+                    <ChevronRight size={16} strokeWidth={2.5} className="text-accent-fg flex-shrink-0"/>
                 </button>
             )}
 
@@ -307,12 +307,12 @@ export function HomePage() {
                 <button
                     onClick={() => router.navigate({to: '/evening'}).catch(() => {})}
                     className="w-full kce-card p-3 flex items-center gap-3 text-left active:scale-[0.99] transition-transform">
-                    <Trophy size={22} strokeWidth={2.2} className="text-kce-muted flex-shrink-0"/>
+                    <Trophy size={22} strokeWidth={2.2} className="text-muted flex-shrink-0"/>
                     <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-kce-cream">{t('home.startEvening.title')}</div>
-                        <div className="text-[11px] text-kce-muted">{t('home.startEvening.sub')}</div>
+                        <div className="text-sm font-bold text-ink">{t('home.startEvening.title')}</div>
+                        <div className="text-sm text-muted">{t('home.startEvening.sub')}</div>
                     </div>
-                    <ChevronRight size={16} strokeWidth={2.5} className="text-kce-muted flex-shrink-0"/>
+                    <ChevronRight size={16} strokeWidth={2.5} className="text-muted flex-shrink-0"/>
                 </button>
             )}
 
@@ -324,7 +324,7 @@ export function HomePage() {
                 ) : upcoming ? (
                     <NextAppointment se={upcoming} locale={locale} onChanged={refreshSchedule}/>
                 ) : (
-                    <p className="text-xs text-kce-muted py-1">{t('home.noAppointment')}</p>
+                    <p className="text-xs text-muted py-1">{t('home.noAppointment')}</p>
                 )}
             </Section>
 
@@ -335,19 +335,19 @@ export function HomePage() {
                     {myBalance?.balance != null ? (
                         <div className="flex items-center justify-between">
                             <div className={['font-display font-bold text-2xl',
-                                bState === 'owed' ? 'text-red-400' : bState === 'credit' ? 'text-green-400' : 'text-kce-muted'].join(' ')}>
+                                bState === 'owed' ? 'text-danger-fg' : bState === 'credit' ? 'text-positive-fg' : 'text-muted'].join(' ')}>
                                 {fe(myBalance.balance)}
                             </div>
                             <div className="text-xs font-bold px-2.5 py-1 rounded-full"
                                  style={{
-                                     background: 'var(--kce-surface2)',
-                                     color: bState === 'owed' ? '#f87171' : bState === 'credit' ? '#4ade80' : 'var(--kce-muted)',
+                                     background: 'var(--surface-2)',
+                                     color: bState === 'owed' ? 'var(--danger-fg)' : bState === 'credit' ? 'var(--positive-fg)' : 'var(--muted)',
                                  }}>
                                 {bState === 'owed' ? t('home.balance.owed') : bState === 'credit' ? t('home.balance.credit') : t('home.balance.settled')}
                             </div>
                         </div>
                     ) : (
-                        <p className="text-xs text-kce-muted py-1">{t('home.balance.settled')}</p>
+                        <p className="text-xs text-muted py-1">{t('home.balance.settled')}</p>
                     )}
                 </Section>
             )}
@@ -356,7 +356,7 @@ export function HomePage() {
             {news.length > 0 && (
                 <Section title={t('home.community')} action={t('home.allNews')}
                          onAction={() => router.navigate({to: '/committee', search: {tab: 'announcements'}}).catch(() => {})}>
-                    <div className="divide-y divide-kce-surface2">
+                    <div className="divide-y divide-surface-2">
                         {news.map(item => <CommunityRow key={`${item.kind}-${item.id}`} item={item}/>)}
                     </div>
                 </Section>
@@ -368,10 +368,10 @@ export function HomePage() {
                          onAction={() => router.navigate({to: '/stats', search: {tab: 'year'}}).catch(() => {})}>
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <div className="font-display font-bold text-2xl text-kce-cream">
+                            <div className="font-display font-bold text-2xl text-ink">
                                 {throwStats.avg_pins.toFixed(1)}
                             </div>
-                            <div className="text-[11px] text-kce-muted">{t('home.avgPins')}</div>
+                            <div className="text-sm text-muted">{t('home.avgPins')}</div>
                         </div>
                         <Sparkline points={spark}/>
                     </div>
@@ -382,7 +382,7 @@ export function HomePage() {
             {rmid && penaltyEvenings.length > 0 && (
                 <Section title={t('home.recentPenalties')} action={t('home.toTreasury')}
                          onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
-                    <div className="divide-y divide-kce-surface2">
+                    <div className="divide-y divide-surface-2">
                         {penaltyEvenings.map(g => <PenaltyEveningGroup key={g.key} g={g} locale={locale}/>)}
                     </div>
                 </Section>

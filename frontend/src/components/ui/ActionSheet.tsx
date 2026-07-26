@@ -20,7 +20,7 @@ export type SheetAction = {
 export function ActionItem({icon, label, onClick, danger, disabled}: SheetAction) {
     return (
         <button type="button" disabled={disabled}
-                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-red-400' : ''}`}
+                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-danger-fg' : ''}`}
                 onClick={onClick}>
             <span className="text-lg flex-shrink-0" aria-hidden="true">{icon}</span>
             <span className="text-sm font-bold flex-1">{label}</span>
@@ -40,7 +40,7 @@ export function MoreButton({onClick, label}: {onClick: () => void; label?: strin
             type="button"
             aria-label={label ?? t('action.more')}
             title={label ?? t('action.more')}
-            className="flex-shrink-0 p-1.5 rounded-lg text-kce-muted hover:text-kce-cream hover:bg-white/5 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-white/5 transition-colors"
             onClick={onClick}>
             <MoreVertical size={18} strokeWidth={2}/>
         </button>
