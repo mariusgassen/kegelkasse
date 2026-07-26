@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonChart} from '@/components/ui/Skeleton'
 import {
     type BalanceEvent,
     type DualPoint,
@@ -279,7 +279,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
             </div>
 
             {loading && !hasData ? (
-                <Loading className="py-8"/>
+                <SkeletonChart height="180px"/>
             ) : !hasData ? (
                 <Empty icon="📈" text={t('treasury.history.noData')}/>
             ) : isAll ? (

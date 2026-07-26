@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import {type ReactNode, useRef} from 'react'
 import {Avatar} from './Avatar'
 import {MemberBadges} from './MemberBadges'
 import type {ClubPin} from '@/types'
@@ -24,8 +24,11 @@ interface MemberRowProps {
     /**
      * Makes the whole row tappable. A `›` chevron is shown so the affordance is
      * visible rather than implied — rows without an action stay inert.
+     *
+     * Receives the row element, so a caller opening a detail sheet can pass it to `morphFrom()`
+     * and have the row grow into the sheet (#72). Handlers that ignore the argument are fine.
      */
-    onClick?: () => void
+    onClick?: (origin: HTMLElement | null) => void
     /** Accessible name for the tappable row; falls back to the display name. */
     actionLabel?: string
     className?: string
@@ -41,17 +44,19 @@ export function MemberRow({
     trailing, onClick, actionLabel, className = '',
 }: MemberRowProps) {
     const interactive = !!onClick
+    const rowRef = useRef<HTMLDivElement>(null)
     return (
         <div
+            ref={rowRef}
             className={`kce-card p-3 flex items-center gap-3 ${interactive ? 'cursor-pointer active:opacity-70 transition-opacity' : ''} ${className}`}
             role={interactive ? 'button' : undefined}
             tabIndex={interactive ? 0 : undefined}
             aria-label={interactive ? (actionLabel ?? name) : undefined}
-            onClick={onClick}
+            onClick={interactive ? () => onClick?.(rowRef.current) : undefined}
             onKeyDown={interactive ? e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    onClick?.()
+                    onClick?.(rowRef.current)
                 }
             } : undefined}>
             <Avatar name={name} src={avatar} variant={avatarVariant}/>

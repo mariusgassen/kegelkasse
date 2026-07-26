@@ -12,6 +12,7 @@ import {MemberRow} from '@/components/ui/MemberRow.tsx'
 import {Avatar} from '@/components/ui/Avatar.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {morphFrom} from '@/lib/viewTransition.ts'
 import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
@@ -80,11 +81,15 @@ export function MembersPage() {
     // Row action sheet — tap a member/user row to see its available actions
     const [actionSheet, setActionSheet] = useState<{ title: string; actions: MemberAction[] } | null>(null)
 
-    function openActionSheet(title: string, actions: MemberAction[]) {
-        setActionSheet({
+    /**
+     * `origin` is the tapped row. Passing it through `morphFrom` lets the browser grow that row
+     * into the sheet (#72) where View Transitions are supported; elsewhere the sheet just opens.
+     */
+    function openActionSheet(title: string, actions: MemberAction[], origin?: HTMLElement | null) {
+        void morphFrom(origin, () => setActionSheet({
             title,
             actions: actions.map(a => ({...a, onClick: () => { setActionSheet(null); a.onClick() }})),
-        })
+        }))
     }
 
     async function openResetSheet(userId: number, userName: string) {
@@ -418,7 +423,7 @@ export function MembersPage() {
                                 </span>
                             }
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
-                            onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                            onClick={hasActions ? (origin) => openActionSheet(displayName, actions, origin) : undefined}
                         />
                     )
                 })
@@ -495,7 +500,7 @@ export function MembersPage() {
                                 ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
-                            onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                            onClick={hasActions ? (origin) => openActionSheet(displayName, actions, origin) : undefined}
                         />
                     )
                 })
@@ -533,14 +538,14 @@ export function MembersPage() {
                                 ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
                             actionLabel={`${t('member.actionsFor')} ${displayName}`}
-                            onClick={() => openActionSheet(displayName, actions)}
+                            onClick={(origin) => openActionSheet(displayName, actions, origin)}
                         />
                     )
                 })}
             </>)}
 
             {/* Row action sheet — actions for the tapped member/user */}
-            <Sheet open={!!actionSheet} onClose={() => setActionSheet(null)} title={actionSheet?.title ?? ''}>
+            <Sheet open={!!actionSheet} onClose={() => setActionSheet(null)} title={actionSheet?.title ?? ''} morph>
                 <div className="flex flex-col gap-2">
                     {actionSheet?.actions.map((a, i) => <ActionItem key={i} {...a}/>)}
                 </div>

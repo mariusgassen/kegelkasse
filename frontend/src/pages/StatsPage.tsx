@@ -7,7 +7,7 @@ import {api} from '../api/client'
 import {useT, useI18n} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonRows, SkeletonChart} from '@/components/ui/Skeleton'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
@@ -1416,7 +1416,7 @@ export function StatsPage() {
             {tab === 'evening' && (
             <>
             {eveningsLoading && sortedEvenings.length === 0 ? (
-                <Loading className="py-8"/>
+                <SkeletonRows rows={4}/>
             ) : sortedEvenings.length === 0 ? (
                 <Empty icon="🎳" text={t('stats.noData')}/>
             ) : (
@@ -1623,7 +1623,7 @@ export function StatsPage() {
                             )}
                         </>
                     ) : (
-                        <Loading className="py-8"/>
+                        <SkeletonChart height="200px"/>
                     )}
                 </>
             )}
@@ -1649,7 +1649,7 @@ export function StatsPage() {
             <>
             {/* ── Jahresrückblick ── */}
             {yearStatsLoading && !yearStats ? (
-                <Loading className="py-8"/>
+                <SkeletonRows rows={4}/>
             ) : !yearStats || yearStats.evening_count === 0 ? (
                 <Empty icon="📅" text={`${t('stats.noYearData')} ${year}`}/>
             ) : (

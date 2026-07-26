@@ -86,6 +86,19 @@ Updated after every significant correction — reviewed at session start.
 ### Sync after mutations
 - After every create/update/delete, immediately re-fetch all affected lists. Never rely on optimistic state alone.
 
+### Motion
+- Durations/easings come from `--motion-*` / `--ease-*` or `lib/motion.ts`. Never hardcode a new `.22s` or a fourth
+  `cubic-bezier` — a test pins the CSS and JS halves together.
+- Add every new animation to the `prefers-reduced-motion` block in the same edit. That block silently covered three
+  of eight animations until #72.
+- `prefersReducedMotion()` gates structural motion, `flourishEnabled()` gates the extras. A skeleton is a loading
+  state, not an effect — never put one behind the 🎉 celebration switch.
+- **`requestAnimationFrame` is not a guarantee.** Browsers throttle or suspend it in a backgrounded tab, so any
+  rAF tween needs a `setTimeout` backstop that lands the final value — otherwise a wrong number stays on screen.
+  This showed up as a flaky treasury test stuck on `+9,95 €` instead of `+10,00 €`.
+- Replacing a text loading state with a visual one removes the only thing a screen reader had to announce. Wrap
+  skeletons in `role="status"` with an sr-only label instead.
+
 ---
 
 ## Versioning

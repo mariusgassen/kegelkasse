@@ -13,7 +13,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonCard} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -150,7 +150,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 placeholder={t('committee.search')}
             />
 
-            {isLoading && <Loading className="py-8"/>}
+            {isLoading && <SkeletonCard className="mb-2"/>}
 
             {!isLoading && filteredAnnouncements.length === 0 && (
                 <Empty icon="📣" text={t('committee.announcement.none')}/>
@@ -372,7 +372,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 placeholder={t('committee.search')}
             />
 
-            {isLoading && <Loading className="py-8"/>}
+            {isLoading && <SkeletonCard className="mb-2"/>}
 
             {!isLoading && filteredTrips.length === 0 && (
                 <Empty icon="🚌" text={t('committee.trip.none')}/>
@@ -681,7 +681,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                 </button>
             )}
 
-            {isLoading && <Loading className="py-8"/>}
+            {isLoading && <SkeletonCard className="mb-2"/>}
 
             {!isLoading && (polls as ClubPoll[]).length === 0 && (
                 <Empty icon="🗳️" text={t('committee.poll.none')}/>

@@ -15,7 +15,8 @@ import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {router} from '@/router'
 import {toastError} from '@/utils/error.ts'
-import {Loading} from '@/components/ui/Loading.tsx'
+import {SkeletonCard} from '@/components/ui/Skeleton'
+import {CountUp} from '@/components/ui/CountUp'
 import type {RsvpStatus, ScheduledEvening} from '@/types.ts'
 import {
     nextAppointment,
@@ -320,7 +321,7 @@ export function HomePage() {
             <Section title={t('home.nextAppointment')} action={t('home.allDates')}
                      onAction={() => router.navigate({to: '/schedule'}).catch(() => {})}>
                 {schedLoading ? (
-                    <Loading/>
+                    <SkeletonCard lines={2}/>
                 ) : upcoming ? (
                     <NextAppointment se={upcoming} locale={locale} onChanged={refreshSchedule}/>
                 ) : (
@@ -334,10 +335,10 @@ export function HomePage() {
                          onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
                     {myBalance?.balance != null ? (
                         <div className="flex items-center justify-between">
-                            <div className={['font-display font-bold text-2xl',
-                                bState === 'owed' ? 'text-danger-fg' : bState === 'credit' ? 'text-positive-fg' : 'text-muted'].join(' ')}>
-                                {fe(myBalance.balance)}
-                            </div>
+                            <CountUp
+                                value={myBalance.balance} format={fe}
+                                className={['font-display font-bold text-2xl',
+                                    bState === 'owed' ? 'text-danger-fg' : bState === 'credit' ? 'text-positive-fg' : 'text-muted'].join(' ')}/>
                             <div className="text-xs font-bold px-2.5 py-1 rounded-full"
                                  style={{
                                      background: 'var(--surface-2)',
