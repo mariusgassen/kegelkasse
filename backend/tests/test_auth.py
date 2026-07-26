@@ -117,6 +117,33 @@ class TestLogin:
 
 
 # ---------------------------------------------------------------------------
+# Access-token lifetime. The session itself is carried by the refresh token
+# (see test_refresh.py); the access token is deliberately short so that a
+# leaked one stops working on its own.
+# ---------------------------------------------------------------------------
+
+class TestTokenLifetime:
+    def test_login_token_expires_within_the_hour(self, client: TestClient, user):
+        from core.config import settings
+        from core.security import decode_token
+
+        resp = client.post("/api/v1/auth/login", json={"email": "member@test.de", "password": "testpass"})
+        assert resp.status_code == 200
+        payload = decode_token(resp.json()["access_token"])
+        expires_in = datetime.fromtimestamp(payload["exp"], UTC) - datetime.now(UTC)
+        assert expires_in <= timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        assert expires_in > timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES - 5)
+
+    def test_explicit_expires_delta_still_wins(self):
+        from core.security import create_access_token, decode_token
+
+        token = create_access_token({"sub": "1"}, expires_delta=timedelta(minutes=5))
+        payload = decode_token(token)
+        expires_in = datetime.fromtimestamp(payload["exp"], UTC) - datetime.now(UTC)
+        assert expires_in <= timedelta(minutes=5)
+
+
+# ---------------------------------------------------------------------------
 # GET /api/v1/auth/me
 # ---------------------------------------------------------------------------
 

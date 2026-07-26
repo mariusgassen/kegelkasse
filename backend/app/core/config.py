@@ -7,7 +7,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
     ENVIRONMENT: str = "development"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+    # Session length is split in two: the access token is what every request
+    # carries and nothing can revoke it early, so it stays short; the refresh
+    # token is a revocable database row and is what actually keeps a member
+    # logged in between Kegelabende.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60          # 1 hour
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 365           # inactivity before re-login
+    # Grace period in which re-presenting an already-rotated refresh token is
+    # treated as a double-fired request from the same client (two tabs, a retry)
+    # rather than as a stolen-token replay. Beyond it the whole login family is
+    # revoked.
+    REFRESH_REUSE_GRACE_SECONDS: int = 30
     FIRST_SUPERADMIN_EMAIL: str = "admin@kegelkasse.de"
     FIRST_SUPERADMIN_PASSWORD: str = "changeme123"
     # Web Push (VAPID) — optional; push disabled if not set

@@ -38,7 +38,17 @@ import {
 } from '@/types';
 
 const API_BASE = '/api/v1'
-let _token: string | null = localStorage.getItem('kegelkasse_token')
+const TOKEN_KEY = 'kegelkasse_token'
+const REFRESH_KEY = 'kegelkasse_refresh_token'
+let _token: string | null = localStorage.getItem(TOKEN_KEY)
+let _refreshToken: string | null = localStorage.getItem(REFRESH_KEY)
+
+/** What login and registration hand back: both halves of a session, plus the user. */
+export interface Session {
+    access_token: string
+    refresh_token: string
+    user: User
+}
 
 /** Client-generated key so retried/double-tapped money mutations aren't booked twice. */
 function newIdempotencyKey(): string {
@@ -73,14 +83,30 @@ type UnauthorizedCallback = () => void
 let _unauthorizedCallbacks: UnauthorizedCallback[] = []
 
 export const authState = {
+    /** Replace the access token only — e.g. the superadmin's club switch. */
     setToken(t: string | null) {
         _token = t
-        if (t) localStorage.setItem('kegelkasse_token', t)
-        else localStorage.removeItem('kegelkasse_token')
+        if (t) localStorage.setItem(TOKEN_KEY, t)
+        else localStorage.removeItem(TOKEN_KEY)
         persistTokenForSW(t)
     },
+    /** Store both halves of a session (login, registration, refresh). */
+    setSession(access: string, refresh: string | null) {
+        authState.setToken(access)
+        _refreshToken = refresh
+        if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
+        else localStorage.removeItem(REFRESH_KEY)
+    },
+    clearSession() {
+        authState.setToken(null)
+        _refreshToken = null
+        localStorage.removeItem(REFRESH_KEY)
+    },
     getToken: () => _token,
-    isLoggedIn: () => !!_token,
+    getRefreshToken: () => _refreshToken,
+    // A stale access token still counts as logged in: the first request refreshes
+    // it. Only losing both halves ends the session.
+    isLoggedIn: () => !!_token || !!_refreshToken,
     onUnauthorized(cb: UnauthorizedCallback): () => void {
         _unauthorizedCallbacks.push(cb)
         return () => { _unauthorizedCallbacks = _unauthorizedCallbacks.filter(f => f !== cb) }
@@ -90,9 +116,84 @@ export const authState = {
     },
 }
 
+/**
+ * In-flight refresh, shared by every caller that hits a 401 at the same time.
+ *
+ * This is not just an optimisation. Refresh tokens rotate, so two parallel
+ * refreshes would present the same token twice — which the server is right to
+ * read as a replay. One request per expiry keeps the honest client from looking
+ * like a thief.
+ */
+let _refreshInFlight: Promise<boolean> | null = null
+
+/**
+ * Trade the refresh token for a new access token.
+ *
+ * Returns false when the session is genuinely over (revoked, expired, reused).
+ * Throws NetworkError when the server could not be reached — a blip must not
+ * cost the member their session.
+ */
+async function tryRefresh(): Promise<boolean> {
+    if (!_refreshToken) return false
+    if (!_refreshInFlight) {
+        const pending = (async () => {
+            let res: Response
+            try {
+                res = await fetch(`${API_BASE}/auth/refresh`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({refresh_token: _refreshToken}),
+                })
+            } catch {
+                throw new NetworkError()
+            }
+            if (!res.ok) return false
+            const data = await res.json() as { access_token: string; refresh_token: string }
+            authState.setSession(data.access_token, data.refresh_token)
+            return true
+        })()
+        _refreshInFlight = pending.finally(() => { _refreshInFlight = null })
+    }
+    return _refreshInFlight
+}
+
+/**
+ * fetch() with the access token attached, retried once through a refresh.
+ *
+ * Every authenticated call in this module goes through here, so token renewal
+ * lives in exactly one place instead of at each of the five 401 checks.
+ */
+async function authedFetch(url: string, init: RequestInit = {}, isRetry = false): Promise<Response> {
+    const headers: Record<string, string> = {...(init.headers as Record<string, string> | undefined)}
+    if (_token) headers['Authorization'] = `Bearer ${_token}`
+    const res = await fetch(url, {...init, headers})
+    if (res.status !== 401 || isRetry) return res
+    if (!await tryRefresh()) return res
+    return authedFetch(url, init, true)
+}
+
+/**
+ * End the session. Clears locally first, then tells the server to revoke the
+ * refresh token — a logout the network can't refuse.
+ */
+export async function logout(): Promise<void> {
+    const refresh = _refreshToken
+    authState.clearSession()
+    if (!refresh) return
+    try {
+        await fetch(`${API_BASE}/auth/logout`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({refresh_token: refresh}),
+        })
+    } catch {
+        // Best effort: the token stays valid server-side until it expires or is
+        // rotated out, but this device no longer holds it.
+    }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = {'Content-Type': 'application/json'}
-    if (_token) headers['Authorization'] = `Bearer ${_token}`
 
     // Fast-path: if the browser already knows we're offline, skip the fetch entirely
     // so the UI never hangs waiting for a connection that won't come.
@@ -172,7 +273,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
     let res: Response
     try {
-        res = await fetch(API_BASE + path, {
+        res = await authedFetch(API_BASE + path, {
             method, headers, body: body ? JSON.stringify(body) : undefined,
         })
     } catch {
@@ -205,9 +306,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export async function uploadMedia(file: File): Promise<string> {
     const form = new FormData()
     form.append('file', file)
-    const headers: Record<string, string> = {}
-    if (_token) headers['Authorization'] = `Bearer ${_token}`
-    const res = await fetch(`${API_BASE}/uploads/media`, {method: 'POST', headers, body: form})
+    const res = await authedFetch(`${API_BASE}/uploads/media`, {method: 'POST', body: form})
     if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
     if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -220,17 +319,23 @@ export async function uploadMedia(file: File): Promise<string> {
 export const api = {
     // Auth
     login: (email: string, pw: string) =>
-        request<{ access_token: string; user: User }>('POST', '/auth/login', {email, password: pw}),
+        request<Session>('POST', '/auth/login', {email, password: pw}),
+    logout,
     me: () => request<User>('GET', '/auth/me'),
     updateLocale: (locale: string) => request<void>('PATCH', '/auth/locale', {locale}),
-    updateProfile: (d: {
+    updateProfile: async (d: {
         name?: string;
         username?: string;
         email?: string;
         current_password?: string;
         new_password?: string
-    }) =>
-        request<User>('PATCH', '/auth/profile', d),
+    }) => {
+        const res = await request<User & { refresh_token?: string }>('PATCH', '/auth/profile', d)
+        // Changing the password revokes every session, so the server hands this
+        // device a replacement — adopt it or the next refresh logs us out.
+        if (res?.refresh_token && _token) authState.setSession(_token, res.refresh_token)
+        return res
+    },
     updateAvatar: (avatar: string | null) => request<User>('PATCH', '/auth/avatar', {avatar}),
     deleteAccount: () => request<void>('DELETE', '/auth/me'),
     createInvite: () => request<{ token: string; expires_at: string; invite_url: string }>('POST', '/auth/invite'),
@@ -243,7 +348,7 @@ export const api = {
     getInviteInfo: (token: string) =>
         request<{ valid: boolean; member_name: string | null }>('GET', `/auth/invite-info?token=${token}`),
     register: (token: string, pw: string, username: string, name?: string) =>
-        request<{ access_token: string; user: User }>('POST', '/auth/register', {
+        request<Session>('POST', '/auth/register', {
             token, password: pw, username, ...(name ? {name} : {})
         }),
 
@@ -252,9 +357,7 @@ export const api = {
     uploadClubLogo: async (file: File): Promise<{ logo_url: string }> => {
         const formData = new FormData()
         formData.append('file', file)
-        const headers: Record<string, string> = {}
-        if (_token) headers['Authorization'] = `Bearer ${_token}`
-        const res = await fetch(`${API_BASE}/club/logo`, {method: 'POST', headers, body: formData})
+        const res = await authedFetch(`${API_BASE}/club/logo`, {method: 'POST', body: formData})
         if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))
@@ -727,12 +830,11 @@ export const api = {
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
         const headers: Record<string, string> = {}
-        if (_token) headers['Authorization'] = `Bearer ${_token}`
         const params = new URLSearchParams()
         if (year) params.set('year', String(year))
         if (format !== 'xlsx') params.set('format', format)
         const qs = params.toString() ? `?${params}` : ''
-        const res = await fetch(`${API_BASE}/reports/export${qs}`, {headers})
+        const res = await authedFetch(`${API_BASE}/reports/export${qs}`, {headers})
         if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))
@@ -762,8 +864,7 @@ export const api = {
     deleteBackup: (label: string) => request<{ ok: boolean }>('DELETE', `/backups/${encodeURIComponent(label)}`),
     downloadBackup: async (label: string): Promise<void> => {
         const headers: Record<string, string> = {}
-        if (_token) headers['Authorization'] = `Bearer ${_token}`
-        const res = await fetch(`${API_BASE}/backups/${encodeURIComponent(label)}/download`, {headers})
+        const res = await authedFetch(`${API_BASE}/backups/${encodeURIComponent(label)}/download`, {headers})
         if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))

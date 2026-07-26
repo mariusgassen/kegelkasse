@@ -2,7 +2,7 @@ declare const __APP_VERSION__: string
 
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {api, authState} from '@/api/client'
+import {api} from '@/api/client'
 import {useAppStore, isAdmin} from '@/store/app'
 import {useThemeStore, type Theme} from '@/store/theme'
 import {useEffectsStore} from '@/store/effects'
@@ -899,8 +899,8 @@ export function ProfileSheet({open, onClose}: Props) {
                     </a>
                     <button
                         className="w-full py-2.5 text-sm font-bold text-muted bg-surface-2 border border-line rounded-lg transition-all active:scale-95"
-                        onClick={() => {
-                            authState.setToken(null)
+                        onClick={async () => {
+                            await api.logout()
                             setUser(null)
                         }}>
                         {t('auth.logout')}
@@ -921,7 +921,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 </button>
                                 <button className="btn-secondary flex-1 btn-sm text-danger-fg/70" onClick={async () => {
                                     await api.deleteAccount()
-                                    authState.setToken(null)
+                                    await api.logout()
                                     setUser(null)
                                 }}>{t('action.confirmDelete')}
                                 </button>

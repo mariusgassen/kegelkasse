@@ -233,3 +233,149 @@ describe('api — season methods', () => {
         expect(body.notes).toBe('some notes')
     })
 })
+
+// ── Refresh-token flow ────────────────────────────────────────────────────────
+
+describe('api — refresh token flow', () => {
+    const ME = {
+        id: 1, email: 'a@b.de', name: 'A', username: null, role: 'member',
+        club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null,
+    }
+
+    beforeEach(() => {
+        authState.setSession('stale-access', 'refresh-1')
+        vi.stubGlobal('navigator', { onLine: true })
+        vi.stubGlobal('fetch', vi.fn())
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        authState.clearSession()
+    })
+
+    it('refreshes and replays the request when the access token is stale', async () => {
+        vi.mocked(fetch)
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+            .mockResolvedValueOnce(jsonOk({ access_token: 'fresh', refresh_token: 'refresh-2', user: ME }))
+            .mockResolvedValueOnce(jsonOk(ME))
+
+        await expect(api.me()).resolves.toMatchObject({ email: 'a@b.de' })
+
+        const urls = vi.mocked(fetch).mock.calls.map(c => String(c[0]))
+        expect(urls[1]).toContain('/auth/refresh')
+        // The replay carries the new access token, not the stale one.
+        expect((vi.mocked(fetch).mock.calls[2][1]?.headers as Record<string, string>).Authorization)
+            .toBe('Bearer fresh')
+    })
+
+    it('stores the rotated refresh token', async () => {
+        vi.mocked(fetch)
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+            .mockResolvedValueOnce(jsonOk({ access_token: 'fresh', refresh_token: 'refresh-2', user: ME }))
+            .mockResolvedValueOnce(jsonOk(ME))
+
+        await api.me()
+        expect(authState.getRefreshToken()).toBe('refresh-2')
+        expect(authState.getToken()).toBe('fresh')
+    })
+
+    it('gives up and fires _fireUnauthorized when the refresh token is rejected', async () => {
+        vi.mocked(fetch)
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid or expired refresh token'))
+
+        const cb = vi.fn()
+        const unsub = authState.onUnauthorized(cb)
+        await expect(api.me()).rejects.toBeInstanceOf(UnauthorizedError)
+        expect(cb).toHaveBeenCalledOnce()
+        unsub()
+    })
+
+    it('replays only once — a 401 on the retry is not refreshed again', async () => {
+        vi.mocked(fetch)
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+            .mockResolvedValueOnce(jsonOk({ access_token: 'fresh', refresh_token: 'refresh-2', user: ME }))
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+
+        await expect(api.me()).rejects.toBeInstanceOf(UnauthorizedError)
+        expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3)
+    })
+
+    it('shares one refresh across concurrent 401s', async () => {
+        // Rotation makes a second parallel refresh look like a stolen-token
+        // replay, so the client must never fire two.
+        vi.mocked(fetch).mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
+            const u = String(url)
+            if (u.includes('/auth/refresh')) {
+                return jsonOk({ access_token: 'fresh', refresh_token: 'refresh-2', user: ME })
+            }
+            const auth = (init?.headers as Record<string, string> | undefined)?.Authorization
+            return auth === 'Bearer fresh' ? jsonOk(ME) : errorResponse(401, 'Invalid token')
+        })
+
+        await Promise.all([api.me(), api.me(), api.me()])
+
+        const refreshCalls = vi.mocked(fetch).mock.calls
+            .filter(c => String(c[0]).includes('/auth/refresh'))
+        expect(refreshCalls).toHaveLength(1)
+    })
+
+    it('keeps the session on a network failure during refresh', async () => {
+        vi.mocked(fetch)
+            .mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+        const cb = vi.fn()
+        const unsub = authState.onUnauthorized(cb)
+        await expect(api.me()).rejects.toBeInstanceOf(NetworkError)
+        expect(cb).not.toHaveBeenCalled()
+        expect(authState.getRefreshToken()).toBe('refresh-1')
+        unsub()
+    })
+
+    it('does not attempt a refresh when no refresh token is held', async () => {
+        authState.setToken('only-access')
+        authState.setSession('only-access', null)
+        vi.mocked(fetch).mockResolvedValueOnce(errorResponse(401, 'Invalid token'))
+
+        await expect(api.me()).rejects.toBeInstanceOf(UnauthorizedError)
+        expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('api.logout', () => {
+    beforeEach(() => {
+        authState.setSession('access', 'refresh-1')
+        vi.stubGlobal('navigator', { onLine: true })
+        vi.stubGlobal('fetch', vi.fn())
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        authState.clearSession()
+    })
+
+    it('revokes the refresh token server-side and clears both halves', async () => {
+        vi.mocked(fetch).mockResolvedValueOnce(jsonOk({ ok: true }))
+        await api.logout()
+
+        const call = vi.mocked(fetch).mock.calls[0]
+        expect(String(call[0])).toContain('/auth/logout')
+        expect(JSON.parse(call[1]?.body as string)).toMatchObject({ refresh_token: 'refresh-1' })
+        expect(authState.getToken()).toBeNull()
+        expect(authState.getRefreshToken()).toBeNull()
+    })
+
+    it('still clears locally when the revoke call fails', async () => {
+        vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        await expect(api.logout()).resolves.toBeUndefined()
+        expect(authState.getToken()).toBeNull()
+        expect(authState.getRefreshToken()).toBeNull()
+    })
+
+    it('skips the network call when there is nothing to revoke', async () => {
+        authState.clearSession()
+        await api.logout()
+        expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+    })
+})

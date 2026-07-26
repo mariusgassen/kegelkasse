@@ -237,6 +237,10 @@ def deactivate_member(member_id: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Verwende 'Konto löschen' im eigenen Profil")
     target.is_active = False
     db.commit()
+    # Drop the sessions too, so a later reactivation doesn't silently revive a
+    # refresh token that has been sitting on an old device for months.
+    from core.refresh import revoke_all_for_user
+    revoke_all_for_user(db, target.id)
     logger.info("Member deactivated: user=%d by admin=%d", member_id, user.id)
     return {"ok": True}
 
@@ -340,6 +344,9 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
     if linked_user:
         linked_user.is_active = False
     db.commit()
+    if linked_user:
+        from core.refresh import revoke_all_for_user
+        revoke_all_for_user(db, linked_user.id)
     logger.info("Regular member removed from club: member=%d by admin=%d", mid, user.id)
     return {"ok": True}
 

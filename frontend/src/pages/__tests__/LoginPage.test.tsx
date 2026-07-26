@@ -14,6 +14,7 @@ vi.mock('@/api/client.ts', () => ({
     },
     authState: {
         setToken: vi.fn(),
+        setSession: vi.fn(),
     },
 }))
 
@@ -92,7 +93,7 @@ describe('LoginPage — login mode', () => {
         const setUser = vi.fn()
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.login).mockResolvedValueOnce({
-            access_token: 'tok-123',
+            access_token: 'tok-123', refresh_token: 'refresh-tok-123',
             user: { id: 1, email: 'u@e.de', name: 'U', username: null, role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
@@ -107,7 +108,7 @@ describe('LoginPage — login mode', () => {
         fireEvent.submit(screen.getByText('auth.loginButton').closest('form')!)
 
         await waitFor(() => {
-            expect(authState.setToken).toHaveBeenCalledWith('tok-123')
+            expect(authState.setSession).toHaveBeenCalledWith('tok-123', 'refresh-tok-123')
             expect(onLogin).toHaveBeenCalledOnce()
         })
     })
@@ -272,7 +273,7 @@ describe('LoginPage — register success', () => {
         const setUser = vi.fn()
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.register).mockResolvedValueOnce({
-            access_token: 'reg-tok',
+            access_token: 'reg-tok', refresh_token: 'refresh-reg-tok',
             user: { id: 2, email: 'new@e.de', name: 'New', username: 'newbie', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
@@ -298,7 +299,7 @@ describe('LoginPage — register success', () => {
         fireEvent.submit(screen.getByText('auth.register.button').closest('form')!)
 
         await waitFor(() => {
-            expect(authState.setToken).toHaveBeenCalledWith('reg-tok')
+            expect(authState.setSession).toHaveBeenCalledWith('reg-tok', 'refresh-reg-tok')
             expect(setUser).toHaveBeenCalled()
             expect(onLogin).toHaveBeenCalled()
         })
@@ -399,7 +400,7 @@ describe('LoginPage — register mode with invite token in URL', () => {
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.getInviteInfo).mockResolvedValueOnce({ member_name: 'Franz' } as any)
         vi.mocked(api.register).mockResolvedValueOnce({
-            access_token: 'tok-pf',
+            access_token: 'tok-pf', refresh_token: 'refresh-tok-pf',
             user: { id: 3, email: 'f@e.de', name: 'Franz', username: 'franz', role: 'member', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         const onLogin = vi.fn()
@@ -417,7 +418,7 @@ describe('LoginPage — register mode with invite token in URL', () => {
         fireEvent.submit(screen.getByText('auth.register.button').closest('form')!)
 
         await waitFor(() => {
-            expect(authState.setToken).toHaveBeenCalledWith('tok-pf')
+            expect(authState.setSession).toHaveBeenCalledWith('tok-pf', 'refresh-tok-pf')
             expect(onLogin).toHaveBeenCalled()
         })
         // name should be undefined when prefilledName is set
@@ -442,7 +443,7 @@ describe('LoginPage — login with preferred_locale', () => {
         const { useAppStore } = await import('@/store/app.ts')
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser: vi.fn() }))
         vi.mocked(api.login).mockResolvedValueOnce({
-            access_token: 'tok-en',
+            access_token: 'tok-en', refresh_token: 'refresh-tok-en',
             user: { id: 1, email: 'u@e.de', name: 'U', username: null, role: 'member', club_id: 1, preferred_locale: 'en', avatar: null, regular_member_id: null },
         })
         await renderLoginPage()
@@ -450,7 +451,7 @@ describe('LoginPage — login with preferred_locale', () => {
         fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'pass' } })
         fireEvent.submit(screen.getByText('auth.loginButton').closest('form')!)
         await waitFor(() => {
-            expect(authState.setToken).toHaveBeenCalledWith('tok-en')
+            expect(authState.setSession).toHaveBeenCalledWith('tok-en', 'refresh-tok-en')
             expect(mockSetLocale).toHaveBeenCalledWith('en')
         })
     })
@@ -483,7 +484,7 @@ describe('LoginPage — dev login', () => {
         const setUser = vi.fn()
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ setUser }))
         vi.mocked(api.login).mockResolvedValueOnce({
-            access_token: 'dev-tok',
+            access_token: 'dev-tok', refresh_token: 'refresh-dev-tok',
             user: { id: 1, email: 'admin@kegelkasse.de', name: 'Admin', username: null, role: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: null },
         })
         await renderLoginPage()
@@ -495,7 +496,7 @@ describe('LoginPage — dev login', () => {
                 expect.any(String),
                 expect.any(String),
             )
-            expect(authState.setToken).toHaveBeenCalledWith('dev-tok')
+            expect(authState.setSession).toHaveBeenCalledWith('dev-tok', 'refresh-dev-tok')
         })
     })
 
