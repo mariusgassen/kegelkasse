@@ -163,6 +163,8 @@ vi.mock('@/store/app.ts', () => ({
 const mockAuthState = {
     isLoggedIn: vi.fn(() => false),
     setToken: vi.fn(),
+    setSession: vi.fn(),
+    clearSession: vi.fn(),
     onUnauthorized: vi.fn(() => () => {}),
     getToken: vi.fn(() => null),
 }
@@ -871,7 +873,7 @@ describe('App — boot success path', () => {
         await renderApp()
 
         await waitFor(() => {
-            expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+            expect(mockAuthState.clearSession).toHaveBeenCalled()
             expect(storeState.setUser).toHaveBeenCalledWith(null)
         })
     })
@@ -887,7 +889,7 @@ describe('App — boot success path', () => {
             expect(screen.queryByTestId('login-page')).toBeInTheDocument()
         })
         // Token must NOT be cleared — onUnauthorized handles it
-        expect(mockAuthState.setToken).not.toHaveBeenCalled()
+        expect(mockAuthState.clearSession).not.toHaveBeenCalled()
     })
 })
 
@@ -915,7 +917,7 @@ describe('App — onUnauthorized callback', () => {
         vi.unstubAllGlobals()
     })
 
-    it('calls setToken(null) and setUser(null) and shows toast when user was logged in', async () => {
+    it('clears the session and user and shows toast when user was logged in', async () => {
         let capturedCallback: (() => void) | null = null
         mockAuthState.onUnauthorized.mockImplementation(((cb: () => void) => {
             capturedCallback = cb
@@ -928,7 +930,7 @@ describe('App — onUnauthorized callback', () => {
         // User is in store, so wasLoggedIn = true
         act(() => { capturedCallback!() })
 
-        expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+        expect(mockAuthState.clearSession).toHaveBeenCalled()
         expect(storeState.setUser).toHaveBeenCalledWith(null)
         const { showToast } = await import('@/components/ui/Toast.tsx')
         expect(showToast).toHaveBeenCalledWith('error.session', 'error')
@@ -947,7 +949,7 @@ describe('App — onUnauthorized callback', () => {
 
         act(() => { capturedCallback!() })
 
-        expect(mockAuthState.setToken).toHaveBeenCalledWith(null)
+        expect(mockAuthState.clearSession).toHaveBeenCalled()
         const { showToast } = await import('@/components/ui/Toast.tsx')
         expect(showToast).not.toHaveBeenCalled()
     })

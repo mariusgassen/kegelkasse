@@ -51,7 +51,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
         setLoading(true)
         try {
             const res = await api.login(email, pw)
-            authState.setToken(res.access_token)
+            authState.setSession(res.access_token, res.refresh_token)
             clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
@@ -71,7 +71,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                 import.meta.env.VITE_DEV_EMAIL ?? 'admin@kegelkasse.de',
                 import.meta.env.VITE_DEV_PASSWORD ?? 'change_after_first_login',
             )
-            authState.setToken(res.access_token)
+            authState.setSession(res.access_token, res.refresh_token)
             clearAuthParams()
             setUser(res.user)
             if (res.user.preferred_locale) setLocale(res.user.preferred_locale as any)
@@ -89,7 +89,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
         setLoading(true)
         try {
             const res = await api.register(inviteToken, pw, username, prefilledName ? undefined : name)
-            authState.setToken(res.access_token)
+            authState.setSession(res.access_token, res.refresh_token)
             clearAuthParams()
             setUser(res.user)
             onLogin?.()

@@ -88,7 +88,7 @@ export default function App() {
     useEffect(() => {
         return authState.onUnauthorized(() => {
             const wasLoggedIn = !!useAppStore.getState().user
-            authState.setToken(null)
+            authState.clearSession()
             useAppStore.getState().setUser(null)
             if (wasLoggedIn) showToast(tI18n('error.session'), 'error')
         })
@@ -192,7 +192,7 @@ export default function App() {
                 } else {
                     // Auth error (401 fires via onUnauthorized) or other — clear session
                     if (!(e instanceof UnauthorizedError)) {
-                        authState.setToken(null)
+                        authState.clearSession()
                         setUser(null)
                     }
                     setBootDone(true)

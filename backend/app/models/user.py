@@ -53,3 +53,27 @@ class PasswordResetToken(Base):
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)  # null for self-service resets
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class RefreshToken(Base):
+    """One row per issued refresh token — i.e. one row per login *step*.
+
+    The raw token never touches the database: only its SHA-256 hash is stored,
+    so a database dump cannot be replayed as a session (same reasoning as
+    hashing passwords). Rotation means every use mints a successor and revokes
+    the presented row; ``family_id`` ties a whole login lineage together so a
+    replayed (stolen) token can take the entire family down with it.
+    """
+    __tablename__ = "refresh_token"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True, nullable=False)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)
+    family_id = Column(String(36), index=True, nullable=False)
+    user_agent = Column(String(255), nullable=True)  # for a future "active sessions" view
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), index=True, nullable=False)
+    # Spent by a rotation. Distinct from revoked_at on purpose: a rotated token
+    # is briefly replayable (see REFRESH_REUSE_GRACE_SECONDS), a revoked one is
+    # never usable again — logging out must mean logged out.
+    rotated_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)

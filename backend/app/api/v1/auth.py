@@ -12,6 +12,12 @@ from sqlalchemy.orm import Session
 from api.deps import get_current_user
 from core.database import get_db
 from core.push import push_to_club_admins
+from core.refresh import (
+    issue_refresh_token,
+    revoke_all_for_user,
+    revoke_refresh_token,
+    rotate_refresh_token,
+)
 from core.security import verify_password, get_password_hash, create_access_token
 from models.user import User, UserRole, InviteToken, PasswordResetToken
 
@@ -42,7 +48,7 @@ def _user_dict(u: User) -> dict:
 
 
 @router.post("/login")
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # Accept email or username in the email field; compare case-insensitively
     identifier = req.email.strip().lower()
     user = (db.query(User).filter(User.email == identifier).first()
@@ -54,8 +60,60 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         logger.warning("Login attempt for deactivated account: %s (user_id=%s)", identifier, user.id)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account deactivated")
     token = create_access_token({"sub": str(user.id)})
+    refresh = issue_refresh_token(db, user, user_agent=request.headers.get("user-agent"))
     logger.info("User logged in: %s (user_id=%s)", user.email, user.id)
-    return {"access_token": token, "user": _user_dict(user)}
+    return {"access_token": token, "refresh_token": refresh, "user": _user_dict(user)}
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh")
+def refresh_session(req: RefreshRequest, request: Request, db: Session = Depends(get_db)):
+    """Exchange a refresh token for a fresh access token and its successor.
+
+    Public by design — the refresh token *is* the credential, and the caller
+    reaches here precisely because its access token is no longer accepted.
+    """
+    result = rotate_refresh_token(db, req.refresh_token,
+                                  user_agent=request.headers.get("user-agent"))
+    if not result:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid or expired refresh token")
+    user, new_refresh = result
+    return {
+        "access_token": create_access_token({"sub": str(user.id)}),
+        "refresh_token": new_refresh,
+        "user": _user_dict(user),
+    }
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
+    all_devices: bool = False
+
+
+@router.post("/logout")
+def logout(req: LogoutRequest, db: Session = Depends(get_db)):
+    """Revoke the caller's refresh token, ending the session server-side.
+
+    Deliberately unauthenticated and always ``{"ok": true}``: logging out is
+    exactly the moment an access token may already have expired, and a logout
+    that can fail is a logout users learn to distrust. Only the bearer of the
+    token can revoke anything, so there is nothing to enumerate.
+    """
+    if not req.refresh_token:
+        return {"ok": True}
+    if req.all_devices:
+        from core.refresh import hash_refresh_token
+        from models.user import RefreshToken as _RT
+        row = db.query(_RT).filter(_RT.token_hash == hash_refresh_token(req.refresh_token)).first()
+        if row:
+            revoke_all_for_user(db, row.user_id)
+        return {"ok": True}
+    revoke_refresh_token(db, req.refresh_token)
+    return {"ok": True}
 
 
 @router.get("/me")
@@ -92,7 +150,7 @@ class UpdateProfileRequest(BaseModel):
 
 
 @router.patch("/profile")
-def update_profile(req: UpdateProfileRequest, db: Session = Depends(get_db),
+def update_profile(req: UpdateProfileRequest, request: Request, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
     """Update display name, username, login email, and/or password."""
     if req.name is not None:
@@ -122,7 +180,17 @@ def update_profile(req: UpdateProfileRequest, db: Session = Depends(get_db),
         current_user.hashed_password = get_password_hash(req.new_password)
 
     db.commit()
-    return _user_dict(current_user)
+    result = _user_dict(current_user)
+    if req.new_password:
+        # A password change is how you throw someone out who got in. Every
+        # existing session dies with it — including this device's, which is
+        # immediately handed a replacement so changing your password doesn't
+        # log you out of the tab you changed it in.
+        revoke_all_for_user(db, current_user.id)
+        result["refresh_token"] = issue_refresh_token(
+            db, current_user, user_agent=request.headers.get("user-agent"))
+        logger.info("Password changed for user_id=%s — all sessions revoked", current_user.id)
+    return result
 
 
 @router.delete("/me")
@@ -130,6 +198,7 @@ def delete_own_account(db: Session = Depends(get_db), current_user: User = Depen
     """Self-service account deactivation (soft delete)."""
     current_user.is_active = False
     db.commit()
+    revoke_all_for_user(db, current_user.id)
     return {"ok": True}
 
 
@@ -176,7 +245,10 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(req.new_password)
     reset.used_at = datetime.now(UTC)
     db.commit()
-    logger.info("Password reset completed for user_id=%s", user.id)
+    # Whoever reset the password now owns the account — cut every session that
+    # was open before, including one an attacker may have been sitting on.
+    revoke_all_for_user(db, user.id)
+    logger.info("Password reset completed for user_id=%s — all sessions revoked", user.id)
     return {"ok": True}
 
 
@@ -300,6 +372,7 @@ def get_invite_info(token: str, db: Session = Depends(get_db)):
 
 @router.post("/register")
 def register_with_invite(req: RegisterRequest,
+                         request: Request,
                          background_tasks: BackgroundTasks,
                          db: Session = Depends(get_db)):
     invite = db.query(InviteToken).filter(
@@ -353,4 +426,5 @@ def register_with_invite(req: RegisterRequest,
             category="members",
         )
     token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "user": _user_dict(user)}
+    refresh = issue_refresh_token(db, user, user_agent=request.headers.get("user-agent"))
+    return {"access_token": token, "refresh_token": refresh, "user": _user_dict(user)}

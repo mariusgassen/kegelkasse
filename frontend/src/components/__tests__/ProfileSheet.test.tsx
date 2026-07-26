@@ -76,6 +76,7 @@ vi.mock('@/api/client.ts', () => ({
         deleteAvatar: vi.fn(),
         updateAvatar: vi.fn(),
         deleteAccount: vi.fn(),
+        logout: vi.fn(),
         createPaymentRequest: vi.fn(),
         getMyPaymentRequests: vi.fn(),
         updateLocale: vi.fn(),
@@ -791,11 +792,11 @@ describe('ProfileSheet — logout and account delete', () => {
         await setupApiMocks()
     })
 
-    it('calls authState.setToken(null) on logout', async () => {
-        const { authState } = await import('@/api/client.ts')
+    it('calls api.logout on logout', async () => {
+        const { api } = await import('@/api/client.ts')
         await renderProfileSheet({ tab: 'settings' })
         fireEvent.click(screen.getByText('auth.logout'))
-        expect(authState.setToken).toHaveBeenCalledWith(null)
+        expect(api.logout).toHaveBeenCalled()
     })
 
     it('shows deleteConfirm UI after clicking deleteAccount', async () => {

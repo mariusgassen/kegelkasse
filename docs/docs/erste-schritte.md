@@ -27,8 +27,14 @@ Der Einladungslink ist ein Einmaltoken und verfällt nach der ersten Nutzung.
 2. Gib deine **E-Mail-Adresse** und dein **Passwort** ein
 3. Klicke auf **Anmelden**
 
-Die Sitzung bleibt für **ein Jahr** aktiv — du wirst danach automatisch abgemeldet und musst dich
-einmal neu anmelden.
+Die Sitzung bleibt für **ein Jahr** aktiv und verlängert sich bei jeder Nutzung im Hintergrund — du
+musst dich also praktisch nie neu anmelden, solange du die App gelegentlich öffnest. Erst nach einem
+ganzen Jahr ohne Nutzung ist eine erneute Anmeldung nötig.
+
+Über **Abmelden** im Profil wird die Sitzung auch auf dem Server beendet; andere Geräte, an denen du
+angemeldet bist, bleiben davon unberührt. Änderst du dein Passwort (oder setzt es zurück), werden
+alle anderen Geräte automatisch abgemeldet — nur das Gerät, an dem du die Änderung vornimmst, bleibt
+angemeldet.
 
 ## App installieren (PWA)
 

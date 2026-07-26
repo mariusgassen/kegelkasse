@@ -12,6 +12,8 @@ scheduler = AsyncIOScheduler()
 def start_scheduler() -> None:
     scheduler.add_job(run_daily_reminders, CronTrigger(hour=9, minute=0), id="daily_reminders", replace_existing=True)
     scheduler.add_job(run_daily_digests, CronTrigger(hour=8, minute=0), id="daily_digests", replace_existing=True)
+    scheduler.add_job(run_refresh_token_purge, CronTrigger(hour=3, minute=30),
+                      id="refresh_token_purge", replace_existing=True)
 
     from core.config import settings
     if settings.BACKUP_SCHEDULE:
@@ -50,6 +52,14 @@ async def run_daily_reminders() -> None:
     with SessionLocal() as db:
         await send_all_reminders(db)
     logger.info("Daily reminders complete")
+
+
+async def run_refresh_token_purge() -> None:
+    """Entry point for the nightly cleanup of dead refresh-token rows."""
+    from core.database import SessionLocal
+    from core.refresh import purge_expired
+    with SessionLocal() as db:
+        purge_expired(db)
 
 
 async def run_daily_digests() -> None:
