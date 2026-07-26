@@ -20,7 +20,7 @@ export type SheetAction = {
 export function ActionItem({icon, label, onClick, danger, disabled}: SheetAction) {
     return (
         <button type="button" disabled={disabled}
-                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-red-400' : ''}`}
+                className={`kce-card p-3 flex items-center gap-3 text-left active:opacity-70 disabled:opacity-40 ${danger ? 'text-danger-fg' : ''}`}
                 onClick={onClick}>
             <span className="text-lg flex-shrink-0" aria-hidden="true">{icon}</span>
             <span className="text-sm font-bold flex-1">{label}</span>

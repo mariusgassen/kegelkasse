@@ -174,7 +174,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                         {a.text}
                                     </p>
                                 )}
-                                <p className="text-[10px] text-muted mt-2">
+                                <p className="text-xs text-muted mt-2">
                                     {a.created_by_name && (
                                         <span>{t('committee.announcement.by')} {a.created_by_name} · </span>
                                     )}
@@ -521,7 +521,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
                         <p className="text-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
                     )}
                     {trip.created_by_name && (
-                        <p className="text-[10px] text-muted mt-1.5">von {trip.created_by_name}</p>
+                        <p className="text-xs text-muted mt-1.5">von {trip.created_by_name}</p>
                     )}
                 </div>
                 {canWrite && (
@@ -701,11 +701,11 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <p className="font-bold text-ink text-sm leading-snug">{poll.title}</p>
                                         {poll.is_closed && (
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
+                                            <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
                                                 {t('committee.poll.closed')}
                                             </span>
                                         )}
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
+                                        <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-surface-2 text-muted border border-line/40">
                                             {poll.mode === 'multi' ? t('committee.poll.modeMulti') : t('committee.poll.modeSingle')}
                                         </span>
                                     </div>
@@ -715,7 +715,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         </p>
                                     )}
                                     {poll.created_by_name && (
-                                        <p className="text-[10px] text-muted mt-1">
+                                        <p className="text-xs text-muted mt-1">
                                             {t('committee.poll.by')} {poll.created_by_name}
                                         </p>
                                     )}
@@ -794,7 +794,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         </button>
                                     ) : (
                                         <button
-                                            className="text-xs text-muted hover:text-red-400 underline"
+                                            className="text-xs text-muted hover:text-danger-fg underline"
                                             disabled={voting === poll.id}
                                             onClick={() => handleRetract(poll.id)}>
                                             {t('committee.poll.retract')}
@@ -863,7 +863,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         {newOptions.length > 2 && (
                                             <button
                                                 type="button"
-                                                className="text-muted hover:text-red-400 text-lg leading-none px-2"
+                                                className="text-muted hover:text-danger-fg text-lg leading-none px-2"
                                                 onClick={() => setNewOptions(prev => prev.filter((_, j) => j !== i))}>
                                                 ×
                                             </button>
@@ -879,7 +879,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                             </div>
                         </div>
                         {newOptions.map(o => o.trim()).filter(Boolean).length < 2 && (
-                            <p className="text-xs text-red-400">{t('committee.poll.minOptions')}</p>
+                            <p className="text-xs text-danger-fg">{t('committee.poll.minOptions')}</p>
                         )}
                         <button
                             type="submit"
@@ -947,7 +947,7 @@ export function CommitteePage() {
                 <div className="flex items-center justify-between mb-2">
                     <div className="sec-heading">{t('committee.title')}</div>
                     {canWrite && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
                               style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
                             VGA
                         </span>

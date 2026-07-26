@@ -597,7 +597,7 @@ export function CameraCapturePage({onClose}: Props) {
             {cameraError && (
                 <div style={{padding: '10px 16px', color: '#f87171', fontSize: 12, textAlign: 'center'}}>
                     ⚠️ {t('camera.noCamera')}<br/>
-                    <span style={{opacity: 0.7, fontSize: 11}}>{cameraError}</span>
+                    <span style={{opacity: 0.7, fontSize: 12}}>{cameraError}</span>
                 </div>
             )}
 
@@ -692,7 +692,7 @@ export function CameraCapturePage({onClose}: Props) {
                     }}>
                         {/* Row 1: game context */}
                         <div style={{display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 10px'}}>
-                            <span style={{fontSize: 11, color: '#4ade80', fontWeight: 'bold'}}>
+                            <span style={{fontSize: 12, color: '#4ade80', fontWeight: 'bold'}}>
                                 📷 {t('camera.kiosk')}
                             </span>
                             {selectedGame && (
@@ -706,7 +706,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 </span>
                             )}
                             {currentReading?.throwNum !== null && currentReading?.throwNum !== undefined && (
-                                <span style={{fontSize: 11, color: 'var(--ink)', fontFamily: 'monospace'}}>
+                                <span style={{fontSize: 12, color: 'var(--ink)', fontFamily: 'monospace'}}>
                                     W#{currentReading.throwNum}
                                     {currentReading.throwPins !== null && ` · ${currentReading.throwPins}`}
                                 </span>
@@ -714,16 +714,16 @@ export function CameraCapturePage({onClose}: Props) {
                         </div>
                         {/* Row 2: lamp indicators side by side */}
                         <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                            <span style={{fontSize: 11, color: currentReading?.lampGreen ? '#4ade80' : 'var(--muted)'}}>
+                            <span style={{fontSize: 12, color: currentReading?.lampGreen ? '#4ade80' : 'var(--muted)'}}>
                                 🟢 {t('camera.lampGreenHint')}
                             </span>
-                            <span style={{fontSize: 11, color: currentReading?.lampRed ? '#f87171' : 'var(--muted)'}}>
+                            <span style={{fontSize: 12, color: currentReading?.lampRed ? '#f87171' : 'var(--muted)'}}>
                                 🔴 {t('camera.lampRedHint')}
                             </span>
                         </div>
                         {/* Row 3: throw count + exit button always visible */}
                         <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8}}>
-                            <span style={{fontSize: 11, color: 'var(--muted)'}}>
+                            <span style={{fontSize: 12, color: 'var(--muted)'}}>
                                 {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                             </span>
                             <button
@@ -749,7 +749,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 <span style={{color: ROI_COLORS[field], fontSize: 12, flex: 1, minWidth: 80}}>
                                     {roiLabel(field)}
                                 </span>
-                                <span style={{color: 'var(--muted)', fontSize: 11}}>{t('camera.digits')}:</span>
+                                <span style={{color: 'var(--muted)', fontSize: 12}}>{t('camera.digits')}:</span>
                                 {([1, 2, 3] as const).map(n => (
                                     <button key={n} type="button"
                                             className={`chip ${calibration[field].digits === n ? 'active' : ''}`}
@@ -821,7 +821,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 }
                                 {selectedGame && (
                                     <div style={{display: 'flex', alignItems: 'center', gap: 8, marginTop: 6}}>
-                                        <p style={{fontSize: 10, color: 'var(--accent)', margin: 0, fontWeight: 'bold', flex: 1}}>
+                                        <p style={{fontSize: 12, color: 'var(--accent)', margin: 0, fontWeight: 'bold', flex: 1}}>
                                             ✓ {t('camera.syncActive')}
                                         </p>
                                         <button
@@ -842,7 +842,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 background: 'rgba(234,179,8,0.12)',
                                 border: '1px solid rgba(234,179,8,0.35)',
                                 color: '#fbbf24',
-                                fontSize: 11, fontWeight: 'bold',
+                                fontSize: 12, fontWeight: 'bold',
                                 display: 'flex', alignItems: 'center', gap: 6,
                             }}>
                                 ⚠️ {t('camera.noGameTestMode')}
@@ -862,7 +862,7 @@ export function CameraCapturePage({onClose}: Props) {
                             )}
                             {currentReading?.lampGreen && (
                                 <span style={{
-                                    fontSize: 11, color: '#4ade80', fontWeight: 'bold',
+                                    fontSize: 12, color: '#4ade80', fontWeight: 'bold',
                                     background: 'rgba(34,197,94,0.15)',
                                     border: '1px solid rgba(34,197,94,0.4)',
                                     borderRadius: 6, padding: '2px 8px',
@@ -872,7 +872,7 @@ export function CameraCapturePage({onClose}: Props) {
                             )}
                             {currentReading?.lampRed && (
                                 <span style={{
-                                    fontSize: 11, color: '#f87171', fontWeight: 'bold',
+                                    fontSize: 12, color: '#f87171', fontWeight: 'bold',
                                     background: 'rgba(239,68,68,0.15)',
                                     border: '1px solid rgba(239,68,68,0.4)',
                                     borderRadius: 6, padding: '2px 8px',
@@ -893,7 +893,7 @@ export function CameraCapturePage({onClose}: Props) {
                                     ] as const
                                 ).map(([key, val, field]) => (
                                     <div key={field} className="kce-card p-2 text-center">
-                                        <div style={{fontSize: 9, color: ROI_COLORS[field as RoiField], marginBottom: 2, fontWeight: 'bold'}}>
+                                        <div style={{fontSize: 12, color: ROI_COLORS[field as RoiField], marginBottom: 2, fontWeight: 'bold'}}>
                                             {t(key as any)}
                                         </div>
                                         <div style={{
@@ -926,7 +926,7 @@ export function CameraCapturePage({onClose}: Props) {
 
                         {/* 4. Throw history */}
                         <div>
-                            <div className="sec-heading" style={{fontSize: 11, marginBottom: 4}}>
+                            <div className="sec-heading" style={{fontSize: 12, marginBottom: 4}}>
                                 {t('camera.throwHistory')}
                             </div>
                             {throws.length === 0
@@ -937,28 +937,28 @@ export function CameraCapturePage({onClose}: Props) {
                                             const thrower = players.find(p => p.id === th.playerId)
                                             return (
                                                 <div key={i} className="kce-card p-2 flex items-center gap-2">
-                                                    <span style={{color: 'var(--muted)', fontSize: 11, minWidth: 44}}>
+                                                    <span style={{color: 'var(--muted)', fontSize: 12, minWidth: 44}}>
                                                         {t('camera.throw')} #{th.throwNum}
                                                     </span>
                                                     {thrower && (
-                                                        <span style={{fontSize: 10, color: 'var(--accent)', fontWeight: 'bold', flexShrink: 0}}>
+                                                        <span style={{fontSize: 12, color: 'var(--accent)', fontWeight: 'bold', flexShrink: 0}}>
                                                             {thrower.name}
                                                         </span>
                                                     )}
                                                     <span style={{fontFamily: 'monospace', fontWeight: 'bold', fontSize: 18, color: 'var(--accent)'}}>
                                                         {th.pins}
                                                     </span>
-                                                    <span style={{color: 'var(--muted)', fontSize: 11}}>
+                                                    <span style={{color: 'var(--muted)', fontSize: 12}}>
                                                         {t('camera.pins')}
                                                     </span>
                                                     {th.cumulative !== null && (
-                                                        <span style={{color: 'var(--muted)', fontSize: 11, marginLeft: 'auto'}}>
+                                                        <span style={{color: 'var(--muted)', fontSize: 12, marginLeft: 'auto'}}>
                                                             Σ {th.cumulative}
                                                         </span>
                                                     )}
                                                     {selectedGame
-                                                        ? <span style={{fontSize: 9, color: '#4ade80', marginLeft: 'auto'}}>✓</span>
-                                                        : <span style={{fontSize: 9, color: '#fbbf24', marginLeft: 'auto'}}>Test</span>
+                                                        ? <span style={{fontSize: 12, color: '#4ade80', marginLeft: 'auto'}}>✓</span>
+                                                        : <span style={{fontSize: 12, color: '#fbbf24', marginLeft: 'auto'}}>Test</span>
                                                     }
                                                 </div>
                                             )
@@ -1015,7 +1015,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 </button>
                                 {testMode && (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--line)'}}>
-                                        <p style={{fontSize: 11, color: 'var(--muted)', margin: 0}}>
+                                        <p style={{fontSize: 12, color: 'var(--muted)', margin: 0}}>
                                             {t('camera.testModeHint')}
                                         </p>
                                         {/* Current + next 3 players */}
@@ -1029,7 +1029,7 @@ export function CameraCapturePage({onClose}: Props) {
                                                 {[1, 2, 3].map(offset => {
                                                     const p = kioskTurnOrder[(kioskTurnIdx + offset) % kioskTurnOrder.length]
                                                     return p ? (
-                                                        <span key={offset} style={{fontSize: 11, color: 'var(--muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)'}}>
+                                                        <span key={offset} style={{fontSize: 12, color: 'var(--muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)'}}>
                                                             {p.name}
                                                         </span>
                                                     ) : null
@@ -1114,7 +1114,7 @@ export function CameraCapturePage({onClose}: Props) {
                             const globeCount = pendingThrow.pinStates.filter(Boolean).length
                             const match = globeCount === pendingThrow.throwPins
                             return (
-                                <div style={{fontSize: 11, color: match ? '#4ade80' : '#f87171', marginBottom: 12}}>
+                                <div style={{fontSize: 12, color: match ? '#4ade80' : '#f87171', marginBottom: 12}}>
                                     {match
                                         ? `✓ ${t('camera.globeMatch')}`
                                         : `⚠ ${t('camera.globeMismatch')} (${t('camera.globes')}: ${globeCount}, ${t('camera.display')}: ${pendingThrow.throwPins})`}

@@ -36,7 +36,7 @@ function playerLabel(p: { name: string; nickname?: string | null; is_king: boole
 
 const STATUS_COLOR: Record<string, string> = {
     open: 'bg-muted',
-    running: 'bg-green-400',
+    running: 'bg-positive',
     finished: 'bg-accent',
 }
 
@@ -354,14 +354,14 @@ export function GamesPage() {
                                 {game.is_opener ? '👑 ' : ''}{game.name}
                             </span>
                             {game.id < 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
                                       style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                     ⏳ {t('sync.pendingBadge')}
                                 </span>
                             )}
                             {game.status === 'running' && game.started_at && (
                                 <span
-                                    className="text-xs text-green-400 font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
+                                    className="text-xs text-positive-fg font-mono flex-shrink-0">⏱ {fTime(game.started_at)}</span>
                             )}
                             {game.status === 'finished' && game.finished_at && (
                                 <span className="text-xs text-muted flex-shrink-0">{fTime(game.finished_at)}</span>
@@ -373,7 +373,7 @@ export function GamesPage() {
                             const last = game.throws[game.throws.length - 1]
                             return (
                                 <div className="flex items-center gap-1.5 mb-2">
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded"
                                           style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)'}}>
                                         📷
                                     </span>
@@ -394,7 +394,7 @@ export function GamesPage() {
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="text-xs text-muted">🏆 {winnerDisplayName(game.winner_ref)}</span>
                                 {game.loser_penalty > 0 && (
-                                    <span className="text-xs text-red-400 ml-auto">
+                                    <span className="text-xs text-danger-fg ml-auto">
                                         {fe(game.loser_penalty)}{(game.per_point_penalty ?? 0) > 0 ? ` +${fe(game.per_point_penalty)}/P` : ''}
                                     </span>
                                 )}
@@ -404,7 +404,7 @@ export function GamesPage() {
                             <p className="text-xs text-muted mb-2">{t('game.status.open')}</p>
                         )}
                         {game.status === 'open' && teams.length === 0 && (
-                            <p className="text-xs mb-2" style={{color: '#fca5a5'}}>⚠️ {t('game.teamsRequired')}</p>
+                            <p className="text-xs mb-2" style={{color: 'var(--danger-fg)'}}>⚠️ {t('game.teamsRequired')}</p>
                         )}
 
                         {/* Action buttons */}
@@ -697,7 +697,7 @@ export function GamesPage() {
                                         return (
                                             <div key={ref} className="flex justify-between text-xs py-0.5">
                                                 <span className="text-ink">{label}</span>
-                                                <span className="text-red-400 font-bold">{fe(total)}</span>
+                                                <span className="text-danger-fg font-bold">{fe(total)}</span>
                                             </div>
                                         )
                                     })

@@ -121,7 +121,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                 <div className="text-sm font-bold">
                                     {new Date(activeEvening.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})}
                                 </div>
-                                <span className="text-[10px] font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
+                                <span className="text-xs font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
                                     {t('evening.active')}
                                 </span>
                             </div>
@@ -196,13 +196,13 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             👤 {t('history.players')}
                                                         </div>
                                                         <div className="flex flex-wrap gap-1">
                                                             {detail.players.map(p => (
                                                                 <span key={p.id}
-                                                                      className="text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-ink">
+                                                                      className="text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                                                     {p.is_king ? '👑 ' : ''}{p.name}
                                                                 </span>
                                                             ))}
@@ -214,7 +214,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             🏆 {t('nav.games')}
                                                         </div>
                                                         {detail.games.filter(g => g.status === 'finished').sort((a, b) => (a.started_at ?? '').localeCompare(b.started_at ?? '') || a.sort_order - b.sort_order).map(g => (
@@ -244,7 +244,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                     return (
                                                         <div className="mb-3">
                                                             <div
-                                                                className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                                className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('penalty.title')}
                                                             </div>
                                                             {sorted.map(({name, amount}) => (
@@ -253,7 +253,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                                     <span
                                                                         className="text-xs text-ink">{name}</span>
                                                                     <span
-                                                                        className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                        className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -264,7 +264,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1">
                                                             🍺 {t('drinks.title')}
                                                         </div>
                                                         <div className="text-xs text-muted">
@@ -280,7 +280,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                 {detail.highlights.length > 0 && (
                                                     <div className="mb-3">
                                                         <div
-                                                            className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                            className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             ✨ {t('highlight.title').replace('✨ ', '')}
                                                         </div>
                                                         <div className="flex flex-col gap-2">

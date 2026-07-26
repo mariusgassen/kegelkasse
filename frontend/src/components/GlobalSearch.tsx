@@ -89,7 +89,7 @@ export function GlobalSearch({open, onClose}: Props) {
                 )}
                 {hasQuery && groups.filter(g => g.results.length > 0).map(g => (
                     <div key={g.key}>
-                        <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
+                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
                             {GROUP_ICON[g.key]} {g.label}
                         </div>
                         <div className="flex flex-col gap-1">
@@ -102,7 +102,7 @@ export function GlobalSearch({open, onClose}: Props) {
                                 >
                                     <span className="text-sm text-ink truncate">{r.title}</span>
                                     {r.subtitle && (
-                                        <span className="text-[10px] text-muted flex-shrink-0 ml-2">{r.subtitle}</span>
+                                        <span className="text-xs text-muted flex-shrink-0 ml-2">{r.subtitle}</span>
                                     )}
                                 </button>
                             ))}

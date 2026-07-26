@@ -78,7 +78,7 @@ export function InstallPrompt() {
                     </span>
                     <button
                         onClick={handleInstall}
-                        className="text-[11px] font-bold px-3 py-1 rounded-full flex-shrink-0 active:opacity-70"
+                        className="text-sm font-bold px-3 py-1 rounded-full flex-shrink-0 active:opacity-70"
                         style={{background: 'var(--accent)', color: 'var(--on-accent)', border: 'none'}}>
                         {t('install.banner.button')}
                     </button>

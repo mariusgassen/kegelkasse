@@ -26,7 +26,7 @@ describe('showToast + ToastContainer', () => {
         render(<ToastContainer />)
         act(() => { showToast('Something went wrong', 'error') })
         const toast = screen.getByText('Something went wrong')
-        expect(toast.className).toContain('bg-red-800')
+        expect(toast.className).toContain('bg-danger')
     })
 
     it('shows success-styled toast by default', () => {

@@ -110,8 +110,8 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                 {n.read && <div className="w-2 flex-shrink-0"/>}
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-ink leading-snug">{n.title}</p>
-                    <p className="text-[11px] text-muted mt-0.5 leading-snug">{n.body}</p>
-                    <p className="text-[10px] text-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
+                    <p className="text-sm text-muted mt-0.5 leading-snug">{n.body}</p>
+                    <p className="text-xs text-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
                 </div>
                 <button
                     className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
@@ -198,7 +198,7 @@ export function NotificationPanel({open, onClose}: Props) {
                             <button
                                 type="button"
                                 onClick={handleClearAll}
-                                className="text-[10px] font-bold text-muted active:opacity-60 px-2 py-1 rounded-lg"
+                                className="text-xs font-bold text-muted active:opacity-60 px-2 py-1 rounded-lg"
                                 style={{background: 'rgba(255,255,255,0.07)'}}
                             >
                                 {t('notifications.clearAll')}

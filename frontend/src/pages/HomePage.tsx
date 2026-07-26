@@ -79,7 +79,7 @@ function Section({title, action, onAction, children}: {
                 <h2 className="text-sm font-bold text-ink">{title}</h2>
                 {action && (
                     <button onClick={onAction}
-                            className="text-[11px] font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
+                            className="text-sm font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
                         {action} <ChevronRight size={12} strokeWidth={2.5}/>
                     </button>
                 )}
@@ -119,7 +119,7 @@ function NextAppointment({se, locale, onChanged}: {
             <div className="text-base font-bold text-ink">{fDateTime(se.scheduled_at, locale)}</div>
             {se.venue && <div className="text-xs text-muted mt-0.5 truncate">🏠 {se.venue}</div>}
             {se.attending_count > 0 && (
-                <div className="text-[11px] text-muted mt-0.5">✅ {se.attending_count}</div>
+                <div className="text-sm text-muted mt-0.5">✅ {se.attending_count}</div>
             )}
 
             {responded ? (
@@ -127,8 +127,8 @@ function NextAppointment({se, locale, onChanged}: {
                 <div className="flex items-center justify-between gap-2 mt-2.5">
                     <span className={['text-xs font-bold px-2.5 py-1.5 rounded-full',
                         attending
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'].join(' ')}>
+                            ? 'bg-positive/20 text-positive-fg'
+                            : 'bg-danger/20 text-danger-fg'].join(' ')}>
                         {attending ? t('home.rsvp.attendingState') : t('home.rsvp.absentState')}
                     </span>
                     <button disabled={busy} onClick={() => setStatus(attending ? 'absent' : 'attending')}
@@ -139,10 +139,10 @@ function NextAppointment({se, locale, onChanged}: {
             ) : (
                 // No answer yet → prompt for the initial choice.
                 <div className="mt-2.5">
-                    <div className="text-[11px] text-muted mb-1.5">{t('home.rsvp.prompt')}</div>
+                    <div className="text-sm text-muted mb-1.5">{t('home.rsvp.prompt')}</div>
                     <div className="flex gap-2">
                         <button disabled={busy} onClick={() => setStatus('attending')}
-                                className="flex-1 text-xs py-2 px-3 rounded-full border border-green-500/40 bg-green-500/15 text-green-400 font-bold transition-all active:scale-95 select-none">
+                                className="flex-1 text-xs py-2 px-3 rounded-full border border-positive/40 bg-positive/15 text-positive-fg font-bold transition-all active:scale-95 select-none">
                             {t('home.rsvp.accept')}
                         </button>
                         <button disabled={busy} onClick={() => setStatus('absent')}
@@ -171,7 +171,7 @@ function CommunityRow({item}: {item: CommunityItem}) {
             <span className="text-base flex-shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-ink truncate">{item.title}</div>
-                {item.subtitle && <div className="text-[11px] text-muted truncate">{item.subtitle}</div>}
+                {item.subtitle && <div className="text-sm text-muted truncate">{item.subtitle}</div>}
             </div>
             <ChevronRight size={14} strokeWidth={2} className="flex-shrink-0 text-muted"/>
         </button>
@@ -202,12 +202,12 @@ function PenaltyEveningGroup({g, locale}: {g: PenaltyEveningSummary; locale: str
                 {g.items.map(p => (
                     <div key={p.id} className="flex items-center gap-2">
                         <span className="text-sm flex-shrink-0">{p.icon}</span>
-                        <div className="flex-1 min-w-0 text-[11px] text-muted truncate">{p.name}</div>
-                        <div className="text-[11px] text-muted flex-shrink-0">{fe(p.amount)}</div>
+                        <div className="flex-1 min-w-0 text-sm text-muted truncate">{p.name}</div>
+                        <div className="text-sm text-muted flex-shrink-0">{fe(p.amount)}</div>
                     </div>
                 ))}
                 {g.more > 0 && (
-                    <div className="pl-6 text-[11px] italic text-muted">
+                    <div className="pl-6 text-sm italic text-muted">
                         {t('home.penaltyMore').replace('{n}', String(g.more))}
                     </div>
                 )}
@@ -295,7 +295,7 @@ export function HomePage() {
                     <Trophy size={22} strokeWidth={2.2} className="text-accent-fg flex-shrink-0"/>
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold text-ink">{t('home.eveningLive.title')}</div>
-                        <div className="text-[11px] text-muted">{t('home.eveningLive.sub')}</div>
+                        <div className="text-sm text-muted">{t('home.eveningLive.sub')}</div>
                     </div>
                     <ChevronRight size={16} strokeWidth={2.5} className="text-accent-fg flex-shrink-0"/>
                 </button>
@@ -310,7 +310,7 @@ export function HomePage() {
                     <Trophy size={22} strokeWidth={2.2} className="text-muted flex-shrink-0"/>
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold text-ink">{t('home.startEvening.title')}</div>
-                        <div className="text-[11px] text-muted">{t('home.startEvening.sub')}</div>
+                        <div className="text-sm text-muted">{t('home.startEvening.sub')}</div>
                     </div>
                     <ChevronRight size={16} strokeWidth={2.5} className="text-muted flex-shrink-0"/>
                 </button>
@@ -335,13 +335,13 @@ export function HomePage() {
                     {myBalance?.balance != null ? (
                         <div className="flex items-center justify-between">
                             <div className={['font-display font-bold text-2xl',
-                                bState === 'owed' ? 'text-red-400' : bState === 'credit' ? 'text-green-400' : 'text-muted'].join(' ')}>
+                                bState === 'owed' ? 'text-danger-fg' : bState === 'credit' ? 'text-positive-fg' : 'text-muted'].join(' ')}>
                                 {fe(myBalance.balance)}
                             </div>
                             <div className="text-xs font-bold px-2.5 py-1 rounded-full"
                                  style={{
                                      background: 'var(--surface-2)',
-                                     color: bState === 'owed' ? '#f87171' : bState === 'credit' ? '#4ade80' : 'var(--muted)',
+                                     color: bState === 'owed' ? 'var(--danger-fg)' : bState === 'credit' ? 'var(--positive-fg)' : 'var(--muted)',
                                  }}>
                                 {bState === 'owed' ? t('home.balance.owed') : bState === 'credit' ? t('home.balance.credit') : t('home.balance.settled')}
                             </div>
@@ -371,7 +371,7 @@ export function HomePage() {
                             <div className="font-display font-bold text-2xl text-ink">
                                 {throwStats.avg_pins.toFixed(1)}
                             </div>
-                            <div className="text-[11px] text-muted">{t('home.avgPins')}</div>
+                            <div className="text-sm text-muted">{t('home.avgPins')}</div>
                         </div>
                         <Sparkline points={spark}/>
                     </div>

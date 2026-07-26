@@ -70,7 +70,7 @@ export function ClubRecords({myMemberId, onSelectMember}: {
                                 {isMe && <MeBadge/>}
                             </div>
                             {r.holder_name && r.date && (
-                                <div className="text-[10px] text-muted">{fDate(r.date)}</div>
+                                <div className="text-xs text-muted">{fDate(r.date)}</div>
                             )}
                         </div>
                         <div className="text-accent-fg font-bold text-sm flex-shrink-0">

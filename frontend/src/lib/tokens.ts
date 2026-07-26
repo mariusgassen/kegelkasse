@@ -40,6 +40,11 @@ export const DEFAULT_DARK_BG = '#1a1410'
 const DANGER_BASE = '#d95050'
 const POSITIVE_BASE = '#5cb87a'
 
+/** Medal tiers (achievement badges #52, year podium #7). Gold is the club accent by design;
+ *  bronze and silver are fixed hues that still need a readable twin per theme — silver as text
+ *  is ~1.4:1 on a light background. */
+const TIER_BASE: Record<string, string> = {'tier-bronze': '#cd7f32', 'tier-silver': '#c0c0c0'}
+
 export interface TokenInput {
     primary?: string | null
     secondary?: string | null
@@ -102,12 +107,23 @@ export function deriveTokens(input: TokenInput = {}): Record<string, string> {
     family('danger', DANGER_BASE)
     family('positive', POSITIVE_BASE)
     TEAM_BASE.forEach((base, i) => family(`team-${i}`, base))
+    Object.entries(TIER_BASE).forEach(([name, base]) => family(name, base))
 
     // A deepened accent for gradients and the offline banner — previously the hardcoded #c4701a.
-    // AA_LARGE is the right bar: it is only ever a fill behind large/bold text, never body copy.
+    // Two constraints, applied in order: the fill has to be distinguishable from the page (AA_LARGE
+    // is enough for a block of color), and the text on it has to reach full AA. The offline banner
+    // sets 12px bold, which is *not* WCAG "large text" (that starts at 18.66px bold), so the pair
+    // cannot settle for 3:1 — an earlier version did and landed at 4.36:1 in light mode.
     const [ah, as] = hexToHsl(primary)
-    tokens['--accent-deep'] = ensureContrast(hslToHex(ah, Math.min(as + 10, 100), dark ? 42 : 34), canvas, AA_LARGE)
-    tokens['--on-accent-deep'] = readableOn(tokens['--accent-deep'])
+    const deepSeed = ensureContrast(hslToHex(ah, Math.min(as + 10, 100), dark ? 42 : 34), canvas, AA_LARGE)
+    const onDeep = readableOn(deepSeed)
+    tokens['--accent-deep'] = ensureContrast(deepSeed, onDeep, AA_TEXT)
+    tokens['--on-accent-deep'] = onDeep
+
+    // The darker stop of the avatar gradient. It has to stay shallow enough that `--on-accent` — the
+    // initial painted across the whole gradient — is readable on it too; `--accent-deep` is not, it
+    // pairs with its own white/black. (The old hardcoded #c4701a start had the same 3.9:1 problem.)
+    tokens['--accent-shade'] = ensureContrast(mixOver('#000000', primary, 18), tokens['--on-accent'], AA_TEXT)
 
     return tokens
 }
@@ -127,13 +143,16 @@ export function contrastContract(tokens: Record<string, string>): Array<[string,
         ['--on-muted', '--muted', AA_TEXT],
         ['--line', '--canvas', 1.2], // a divider only has to be perceptible, not readable
     ]
-    const families = ['accent', 'accent-2', 'danger', 'positive', ...TEAM_BASE.map((_, i) => `team-${i}`)]
+    const families = ['accent', 'accent-2', 'danger', 'positive',
+        ...TEAM_BASE.map((_, i) => `team-${i}`), ...Object.keys(TIER_BASE)]
     for (const f of families) {
         pairs.push([`--${f}-fg`, '--canvas', AA_TEXT])
         pairs.push([`--${f}-fg`, '--surface', AA_TEXT])
         pairs.push([`--on-${f}`, `--${f}`, AA_TEXT])
         pairs.push([`--${f}-tint-fg`, `--${f}-tint`, AA_TEXT])
     }
-    pairs.push(['--on-accent-deep', '--accent-deep', AA_LARGE])
+    pairs.push(['--on-accent-deep', '--accent-deep', AA_TEXT])
+    pairs.push(['--on-accent', '--accent-shade', AA_TEXT])
+    pairs.push(['--accent-deep', '--canvas', AA_LARGE])
     return pairs.filter(([fg, bg]) => tokens[fg] && tokens[bg])
 }

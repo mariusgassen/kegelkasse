@@ -275,11 +275,11 @@ function CommentItem({
                                 allReactions={comment.reactions}
                                 title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                             >
-                                <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-red-400' : 'text-line hover:text-red-400/60'}`}>
+                                <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-danger-fg' : 'text-line hover:text-danger-fg/60'}`}>
                                     {heartReaction?.reacted_by_me ? '❤️' : '🤍'}
                                 </span>
                                 {heartReaction && heartReaction.count > 0 && (
-                                    <span className="text-[9px] text-muted leading-none">{heartReaction.count}</span>
+                                    <span className="text-xs text-muted leading-none">{heartReaction.count}</span>
                                 )}
                             </ReactionPill>
                         )}
@@ -289,22 +289,22 @@ function CommentItem({
                     {!editing && (
                         <div className="flex items-center gap-2.5 mt-1 ml-1 flex-wrap">
                             {comment.created_at && (
-                                <span className="text-[10px] text-muted">{fRelTime(comment.created_at)}</span>
+                                <span className="text-xs text-muted">{fRelTime(comment.created_at)}</span>
                             )}
                             {comment.edited_at && (
-                                <span className="text-[10px] text-muted italic">· {t('comment.edited')}</span>
+                                <span className="text-xs text-muted italic">· {t('comment.edited')}</span>
                             )}
                             {/* Show Antworten at any depth — reply always posts flat to the thread */}
                             {onReply && (
                                 <button type="button"
-                                        className="text-[10px] font-semibold text-muted hover:text-ink transition-colors"
+                                        className="text-xs font-semibold text-muted hover:text-ink transition-colors"
                                         onClick={() => onReply(comment)}>
                                     {t('comment.reply')}
                                 </button>
                             )}
                             {isOwn && (
                                 <button type="button"
-                                        className="text-[10px] text-muted hover:text-ink transition-colors"
+                                        className="text-xs text-muted hover:text-ink transition-colors"
                                         onClick={() => {setEditing(true); setEditText(comment.text ?? ''); setEditMediaUrl(comment.media_url)}}
                                         title={t('action.edit')}>
                                     ✏️
@@ -312,7 +312,7 @@ function CommentItem({
                             )}
                             {canDelete && !confirmDelete && (
                                 <button type="button"
-                                        className="text-[10px] text-muted hover:text-red-400 transition-colors"
+                                        className="text-xs text-muted hover:text-danger-fg transition-colors"
                                         onClick={() => setConfirmDelete(true)}
                                         title={t('action.delete')}>
                                     🗑️
@@ -321,12 +321,12 @@ function CommentItem({
                             {confirmDelete && (
                                 <>
                                     <button type="button"
-                                            className="text-[10px] text-red-400 font-bold px-1 py-0.5 rounded hover:bg-red-400/10"
+                                            className="text-xs text-danger-fg font-bold px-1 py-0.5 rounded hover:bg-danger/10"
                                             onClick={handleDelete}>
                                         {t('action.confirmDelete')}
                                     </button>
                                     <button type="button"
-                                            className="text-[10px] text-muted px-1 py-0.5 rounded"
+                                            className="text-xs text-muted px-1 py-0.5 rounded"
                                             onClick={() => setConfirmDelete(false)}>
                                         {t('action.cancel')}
                                     </button>
@@ -339,7 +339,7 @@ function CommentItem({
                                     onClick={() => handleReaction(r.emoji)}
                                     allReactions={comment.reactions}
                                     className={[
-                                        'text-[11px] px-1.5 py-0.5 rounded-full border leading-none transition-colors',
+                                        'text-sm px-1.5 py-0.5 rounded-full border leading-none transition-colors',
                                         r.reacted_by_me
                                             ? 'border-accent-fg bg-accent/20 text-ink'
                                             : 'border-line text-muted hover:border-accent-fg/50',
@@ -446,11 +446,11 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                         setOpen(!open)
                         if (!open) setTimeout(() => inputRef.current?.focus(), 150)
                     }}
-                    className="flex items-center gap-1.5 text-[11px] text-muted hover:text-ink transition-colors"
+                    className="flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors"
                 >
                     <span>💬</span>
                     <span>({totalCount})</span>
-                    <span className="text-[10px]">{open ? '▲' : '▼'}</span>
+                    <span className="text-xs">{open ? '▲' : '▼'}</span>
                 </button>
             )}
 
@@ -476,7 +476,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                     {/* New comment input */}
                     <div className="flex flex-col gap-1.5">
                         {replyTo && (
-                            <div className="flex items-center gap-1 text-[10px] text-muted pl-9">
+                            <div className="flex items-center gap-1 text-xs text-muted pl-9">
                                 <span>↩ {t('comment.replyingTo')} <strong className="text-ink/80">{replyTo.created_by_name || t('comment.unknown')}</strong></span>
                                 <button type="button" className="hover:text-ink ml-1"
                                         onClick={() => {setReplyTo(null); setText('')}}>×</button>

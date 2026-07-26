@@ -476,7 +476,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-line"/>
                                 <span
-                                    className="text-[10px] font-bold text-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                    className="text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     ▶ {event.game.name} · {fTime(event.ts)}
                                     {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
@@ -489,7 +489,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-accent/40"/>
                                 <span
-                                    className="text-[10px] font-bold text-accent-fg uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                    className="text-xs font-bold text-accent-fg uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
                                     {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
@@ -517,7 +517,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                     <span className="truncate">{entry.player_name}</span>
                                     {isPendingEntry && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                        <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
                                               style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                             ⏳ {t('sync.pendingBadge')}
                                         </span>
@@ -531,8 +531,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             </div>
                             <div className="text-right flex-shrink-0">
                                 {entry.mode === 'euro'
-                                    ? <span className="text-sm font-bold text-red-400">{fe(entry.amount)}</span>
-                                    : <span className="text-sm font-bold text-red-400">
+                                    ? <span className="text-sm font-bold text-danger-fg">{fe(entry.amount)}</span>
+                                    : <span className="text-sm font-bold text-danger-fg">
                                     {entry.unit_amount != null
                                         ? `${entry.amount} × ${fe(entry.unit_amount)}`
                                         : `×${entry.amount}`}
@@ -581,7 +581,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 <div className="text-sm font-bold flex items-center gap-1.5">
                                     <span>{label}{r.variety ? ` · ${r.variety}` : ''}</span>
                                     {isPendingDrink && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
+                                        <span className="text-xs px-1.5 py-0.5 rounded font-bold flex-shrink-0"
                                               style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>
                                             ⏳ {t('sync.pendingBadge')}
                                         </span>

@@ -42,7 +42,7 @@ export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
                 />
                 <button
                     type="button"
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none"
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-danger text-white text-xs flex items-center justify-center leading-none"
                     onClick={onRemove}
                     title={t('media.remove')}
                 >

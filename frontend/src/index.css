@@ -25,11 +25,17 @@
     --color-accent-tint: var(--accent-tint);
     --color-accent-tint-fg: var(--accent-tint-fg);
     --color-accent-deep: var(--accent-deep);
+    --color-accent-shade: var(--accent-shade);
     --color-on-accent-deep: var(--on-accent-deep);
 
     --color-accent-2: var(--accent-2);
     --color-accent-2-fg: var(--accent-2-fg);
     --color-on-accent-2: var(--on-accent-2);
+
+    --color-tier-bronze: var(--tier-bronze);
+    --color-tier-bronze-fg: var(--tier-bronze-fg);
+    --color-tier-silver: var(--tier-silver);
+    --color-tier-silver-fg: var(--tier-silver-fg);
 
     --color-danger: var(--danger);
     --color-danger-fg: var(--danger-fg);
@@ -143,8 +149,19 @@
     --on-team-5: #141414;
     --team-5-tint: #3c2815;
     --team-5-tint-fg: #ff9632;
+    --tier-bronze: #cd7f32;
+    --tier-bronze-fg: #cd7f32;
+    --on-tier-bronze: #141414;
+    --tier-bronze-tint: #352415;
+    --tier-bronze-tint-fg: #cd7f32;
+    --tier-silver: #c0c0c0;
+    --tier-silver-fg: #c0c0c0;
+    --on-tier-silver: #141414;
+    --tier-silver-tint: #332e2a;
+    --tier-silver-tint-fg: #c0c0c0;
     --accent-deep: #cd8609;
     --on-accent-deep: #141414;
+    --accent-shade: #be831a;
 }
 
 @layer base {

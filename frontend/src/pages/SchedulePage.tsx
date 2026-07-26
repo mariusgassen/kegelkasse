@@ -65,7 +65,7 @@ function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void 
             <button disabled={busy} onClick={() => toggle('absent')}
                     className={['w-full text-xs py-1.5 px-3 rounded-full border font-bold transition-all active:scale-95 select-none',
                         isAbsent
-                            ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                            ? 'bg-danger/20 text-danger-fg border-danger/40'
                             : 'bg-surface-2 text-muted border-line',
                     ].join(' ')}>
                 {isAbsent ? t('rsvp.absent.active') : t('rsvp.absent.short')}
@@ -122,7 +122,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
             {/* Known guest chips */}
             {availableKnownGuests.length > 0 && (
                 <div>
-                    <div className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">
+                    <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">
                         {t('player.knownGuests')}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -142,7 +142,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
             {/* New guest name input */}
             <div>
                 {availableKnownGuests.length > 0 && (
-                    <div className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">
+                    <div className="text-xs text-muted font-bold uppercase tracking-wider mb-1">
                         {t('player.newGuest')}
                     </div>
                 )}
@@ -154,7 +154,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
                     autoFocus={availableKnownGuests.length === 0}
                 />
                 {matchedId && (
-                    <p className="text-[10px] text-green-400 mt-1">✓ {t('schedule.guestKnown')}</p>
+                    <p className="text-xs text-positive-fg mt-1">✓ {t('schedule.guestKnown')}</p>
                 )}
             </div>
             <div className="flex gap-2">
@@ -311,7 +311,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                     <>
                         {/* Attendance checklist */}
                         <div>
-                            <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                 👥 {t('schedule.attendance')} ({checkedIds.size}/{activeMembers.length})
                             </div>
                             <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
@@ -325,10 +325,10 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             onClick={() => toggleMember(m.id)}
                                             className={[
                                                 'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors text-left',
-                                                isChecked ? 'bg-green-500/10' : 'bg-surface-2/40',
+                                                isChecked ? 'bg-positive/10' : 'bg-surface-2/40',
                                             ].join(' ')}
                                         >
-                                            <span className={isChecked ? 'text-green-400' : 'text-muted'}>
+                                            <span className={isChecked ? 'text-positive-fg' : 'text-muted'}>
                                                 {isChecked ? '☑' : '☐'}
                                             </span>
                                             <span className={[
@@ -341,7 +341,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                 )}
                                             </span>
                                             {wasAbsent && isChecked && (
-                                                <span className="text-[10px] text-yellow-400 font-bold flex-shrink-0">
+                                                <span className="text-xs text-yellow-400 font-bold flex-shrink-0">
                                                     {t('schedule.showedUpAnyway')}
                                                 </span>
                                             )}
@@ -349,8 +349,8 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                 <button
                                                     onClick={e => { e.stopPropagation(); toggleAbgesagt(m.id) }}
                                                     className={[
-                                                        'text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0',
-                                                        isAbgesagt ? 'bg-red-500/20 text-red-400' : 'text-muted',
+                                                        'text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0',
+                                                        isAbgesagt ? 'bg-danger/20 text-danger-fg' : 'text-muted',
                                                     ].join(' ')}
                                                 >
                                                     {t('schedule.absent')}
@@ -365,7 +365,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                         {/* Guests */}
                         <div className="pt-2 border-t border-surface-2">
                             <div className="flex items-center justify-between mb-1.5">
-                                <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
                                     🧑‍🤝‍🧑 {t('schedule.guests')}{guests.length > 0 ? ` (${guests.length})` : ''}
                                 </div>
                                 {!addingGuest && (
@@ -378,7 +378,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                 <div key={g.id} className="flex items-center gap-2 text-sm text-ink mb-1 px-1">
                                     <span className="flex-1">🧑‍🤝‍🧑 {g.name}</span>
                                     <button
-                                        className="text-muted active:text-red-400 text-xs"
+                                        className="text-muted active:text-danger-fg text-xs"
                                         onClick={async () => {
                                             try {
                                                 await api.removeScheduledGuest(se.id, g.id)
@@ -407,7 +407,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                         {/* Pins check — only for pins whose holder is present */}
                         {pins.some(p => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
                             <div className="pt-2 border-t border-surface-2">
-                                <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     📌 {t('pin.title')}
                                 </div>
                                 {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
@@ -418,7 +418,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             onClick={() => toggleMissingPin(pin.id)}
                                             className={[
                                                 'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
-                                                brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                                brought ? 'bg-positive/10' : 'bg-danger/10',
                                             ].join(' ')}
                                         >
                                             <span className="text-base flex-shrink-0">{pin.icon}</span>
@@ -426,7 +426,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                             <span className="text-xs text-muted flex-shrink-0">{pin.holder_name}</span>
                                             <span className={[
                                                 'text-xs font-bold flex-shrink-0',
-                                                brought ? 'text-green-400' : 'text-red-400',
+                                                brought ? 'text-positive-fg' : 'text-danger-fg',
                                             ].join(' ')}>
                                                 {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
                                             </span>
@@ -489,7 +489,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
                     {se.absent_count > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-danger/15 text-danger-fg">
                             ❌ {se.absent_count}
                         </span>
                     )}
@@ -512,7 +512,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                     <div className="flex items-center justify-between mb-1.5">
                         <button
                             onClick={() => setShowGuests(v => !v)}
-                            className="text-[10px] font-extrabold text-muted uppercase tracking-wider flex items-center gap-1">
+                            className="text-xs font-extrabold text-muted uppercase tracking-wider flex items-center gap-1">
                             🧑‍🤝‍🧑 {t('schedule.guests')}
                             {se.guests.length > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-surface-2 font-bold">
@@ -537,9 +537,9 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {se.guests.map(g => (
                                         <div key={g.id}
-                                             className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-ink">
+                                             className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                             <span>{g.name}</span>
-                                            <button className="text-muted active:text-red-400 ml-0.5"
+                                            <button className="text-muted active:text-danger-fg ml-0.5"
                                                     onClick={() => removeGuest(g.id)}>✕</button>
                                         </div>
                                     ))}
@@ -585,7 +585,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                 {t('schedule.start')}
                             </button>
                             {!canStart && (
-                                <p className="text-[10px] text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
+                                <p className="text-xs text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
                             )}
                         </>
                     )}
@@ -682,7 +682,7 @@ function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName
         <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}>
             <div className="space-y-3">
                 <p className="text-xs text-muted">{t('schedule.icalHint')}</p>
-                <div className="bg-surface-2 rounded-lg p-2.5 text-[11px] font-mono text-ink break-all select-all">
+                <div className="bg-surface-2 rounded-lg p-2.5 text-sm font-mono text-ink break-all select-all">
                     {url}
                 </div>
                 <div className="flex gap-2">
@@ -693,7 +693,7 @@ function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName
                         {copied ? '✓' : t('schedule.icalCopy')}
                     </button>
                 </div>
-                <p className="text-[10px] text-muted text-center">{t('schedule.icalFor')} {clubName}</p>
+                <p className="text-xs text-muted text-center">{t('schedule.icalFor')} {clubName}</p>
             </div>
         </Sheet>
     )
@@ -734,7 +734,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                         onClick={() => toggle('attending')}
                         className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
                             se.my_rsvp === 'attending'
-                                ? 'bg-green-500/20 text-green-400 border-green-500/40'
+                                ? 'bg-positive/20 text-positive-fg border-positive/40'
                                 : 'bg-surface-2 text-muted border-line',
                         ].join(' ')}>
                         {t('rsvp.attending.short')}
@@ -744,7 +744,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                         onClick={() => toggle('absent')}
                         className={['flex-1 py-3 rounded-xl text-sm font-bold border transition-all active:scale-95',
                             se.my_rsvp === 'absent'
-                                ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                ? 'bg-danger/20 text-danger-fg border-danger/40'
                                 : 'bg-surface-2 text-muted border-line',
                         ].join(' ')}>
                         ❌ {t('rsvp.absent.short')}
@@ -786,7 +786,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                     <>
                         {attending.length > 0 && (
                             <div>
-                                <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     ✅ {t('schedule.attending')} ({attending.length})
                                 </div>
                                 {attending.map(r => (
@@ -803,7 +803,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                         )}
                         {absent.length > 0 && (
                             <div>
-                                <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                                <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                                     ❌ {t('schedule.absent')} ({absent.length})
                                 </div>
                                 {absent.map(r => (
@@ -940,7 +940,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <div className="text-sm font-bold">{fDate(activeEvening.date)}</div>
-                                <span className="text-[10px] font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
+                                <span className="text-xs font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1 py-0.5">
                                     {t('evening.active')}
                                 </span>
                             </div>
@@ -995,13 +995,13 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 </div>
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             👤 {t('history.players')}
                                                         </div>
                                                         <div className="flex flex-wrap gap-1">
                                                             {detail.players.map(p => (
                                                                 <span key={p.id}
-                                                                      className="text-[11px] px-2 py-0.5 rounded-full bg-surface-2 text-ink">
+                                                                      className="text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                                                     {p.is_king ? '👑 ' : ''}{p.name}
                                                                 </span>
                                                             ))}
@@ -1010,7 +1010,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                                 {detail.games.filter(g => g.status === 'finished').length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             🏆 {t('nav.games')}
                                                         </div>
                                                         {detail.games.filter(g => g.status === 'finished').sort((a, b) => (a.started_at ?? '').localeCompare(b.started_at ?? '') || a.sort_order - b.sort_order).map(g => (
@@ -1030,13 +1030,13 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                     }
                                                     return (
                                                         <div className="mb-3">
-                                                            <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('penalty.title')}
                                                             </div>
                                                             {[...totals.values()].sort((a, b) => b.amount - a.amount).map(({name, amount}) => (
                                                                 <div key={name} className="flex items-center justify-between py-0.5">
                                                                     <span className="text-xs text-ink">{name}</span>
-                                                                    <span className="text-xs text-red-400 font-bold">{fe(amount)}</span>
+                                                                    <span className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1044,7 +1044,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 })()}
                                                 {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1">
                                                             🍺 {t('drinks.title')}
                                                         </div>
                                                         <div className="text-xs text-muted">
@@ -1057,7 +1057,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                                 {detail.highlights.length > 0 && (
                                                     <div className="mb-3">
-                                                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             ✨ {t('highlight.title').replace('✨ ', '')}
                                                         </div>
                                                         <div className="flex flex-col gap-2">

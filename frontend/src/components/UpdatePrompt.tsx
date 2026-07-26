@@ -25,7 +25,7 @@ export function UpdatePrompt() {
             </span>
             <button
                 onClick={applyUpdate}
-                className="text-[11px] font-bold px-3 py-1 rounded-full flex-shrink-0 active:opacity-70"
+                className="text-sm font-bold px-3 py-1 rounded-full flex-shrink-0 active:opacity-70"
                 style={{background: 'var(--accent)', color: 'var(--on-accent)', border: 'none'}}>
                 {t('update.banner.button')}
             </button>

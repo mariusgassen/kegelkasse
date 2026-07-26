@@ -4,8 +4,8 @@ import type {Achievement, AchievementTier} from '@/types'
 import {earnedCount, progressFraction, sortAchievements} from '@/lib/achievements'
 
 const TIER_COLOR: Record<AchievementTier, string> = {
-    bronze: '#cd7f32',
-    silver: '#c0c0c0',
+    bronze: 'var(--tier-bronze-fg)',
+    silver: 'var(--tier-silver-fg)',
     gold: 'var(--accent-fg)',
 }
 
@@ -43,10 +43,10 @@ function BadgeCell({a, selected, onSelect}: {
             >
                 {a.icon}
             </div>
-            <div className="text-[9px] leading-tight text-ink font-semibold max-w-[64px]">{title}</div>
+            <div className="text-xs leading-tight text-ink font-semibold max-w-[64px]">{title}</div>
             {a.earned && a.tier && (
                 <div
-                    className="text-[8px] font-bold uppercase tracking-wider"
+                    className="text-xs font-bold uppercase tracking-wider"
                     style={{color: TIER_COLOR[a.tier]}}
                 >
                     {t(tierLabelKey(a.tier) as never)}
@@ -57,7 +57,7 @@ function BadgeCell({a, selected, onSelect}: {
                     <div className="h-1 rounded-full bg-line overflow-hidden">
                         <div className="h-full rounded-full bg-accent" style={{width: `${frac * 100}%`}}/>
                     </div>
-                    <div className="text-[8px] text-muted mt-0.5">
+                    <div className="text-xs text-muted mt-0.5">
                         {Math.round(a.progress)}/{a.target}
                     </div>
                 </div>
@@ -87,14 +87,14 @@ function BadgeDetail({a}: { a: Achievement }) {
                 </div>
                 <div className="min-w-0">
                     <div className="text-sm font-bold text-ink">{title}</div>
-                    <div className="text-[11px] text-muted leading-snug">{desc}</div>
+                    <div className="text-sm text-muted leading-snug">{desc}</div>
                 </div>
             </div>
 
             {/* Status line: unlocked tier, or how far to the next threshold. */}
             {a.earned ? (
-                <div className="mt-2 text-[11px] font-semibold flex items-center gap-1 flex-wrap">
-                    <span className="text-green-400">✓ {t('achievement.status.earned')}</span>
+                <div className="mt-2 text-sm font-semibold flex items-center gap-1 flex-wrap">
+                    <span className="text-positive-fg">✓ {t('achievement.status.earned')}</span>
                     {a.tier && (
                         <span style={{color: TIER_COLOR[a.tier]}}>· {t(tierLabelKey(a.tier) as never)}</span>
                     )}
@@ -106,7 +106,7 @@ function BadgeDetail({a}: { a: Achievement }) {
                 </div>
             ) : (
                 <div className="mt-2">
-                    <div className="text-[11px] font-semibold text-muted mb-1">
+                    <div className="text-sm font-semibold text-muted mb-1">
                         {t('achievement.status.locked')}
                     </div>
                     {a.target !== null && (
@@ -114,7 +114,7 @@ function BadgeDetail({a}: { a: Achievement }) {
                             <div className="h-1.5 rounded-full bg-line overflow-hidden">
                                 <div className="h-full rounded-full bg-accent" style={{width: `${frac * 100}%`}}/>
                             </div>
-                            <div className="text-[10px] text-muted mt-1">
+                            <div className="text-xs text-muted mt-1">
                                 {Math.round(a.progress)} / {a.target}
                             </div>
                         </>
@@ -137,11 +137,11 @@ export function AchievementShelf({achievements}: { achievements: Achievement[] }
                 <div className="text-xs font-bold text-muted uppercase tracking-wider">
                     {t('achievement.title')}
                 </div>
-                <div className="text-[11px] font-bold text-accent-fg">
+                <div className="text-sm font-bold text-accent-fg">
                     {earned}/{achievements.length}
                 </div>
             </div>
-            <div className="text-[10px] text-muted mb-3">{t('achievement.tapHint')}</div>
+            <div className="text-xs text-muted mb-3">{t('achievement.tapHint')}</div>
             <div className="grid grid-cols-4 gap-y-3 gap-x-1">
                 {sorted.map(a => (
                     <BadgeCell

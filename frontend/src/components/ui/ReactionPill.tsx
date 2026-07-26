@@ -68,7 +68,7 @@ export function ReactionPill({className, title, onClick, allReactions, children}
                     style={{position: 'fixed', bottom: pos.bottom, left: pos.left, zIndex: 9999, width: 200}}
                     className="kce-card p-2 shadow-lg"
                 >
-                    <p className="text-[10px] font-bold text-muted mb-1">{t('comment.reaction.reactedBy')}</p>
+                    <p className="text-xs font-bold text-muted mb-1">{t('comment.reaction.reactedBy')}</p>
                     <ul className="space-y-0.5 max-h-40 overflow-y-auto">
                         {groups.map(group => (
                             <li key={group.emoji} className="text-xs text-ink truncate">

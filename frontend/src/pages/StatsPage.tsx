@@ -83,7 +83,7 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
 
     return (
         <div className="mb-1">
-            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">{title}</div>
+            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">{title}</div>
             <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
                  style={{overflow: 'visible', display: 'block'}}
                  onClick={onSelect ? () => onSelect(null) : undefined}>
@@ -95,12 +95,12 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                 {/* Y labels */}
                 {yTicks.map((tick, i) => (
                     <text key={i} x={PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                          fontSize="10" fill="var(--muted)">{yFormat(tick.v)}</text>
+                          fontSize="15" fill="var(--muted)">{yFormat(tick.v)}</text>
                 ))}
                 {/* X labels */}
                 {xTicks.map((tick, i) => (
                     <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                          fontSize="10" fill="var(--muted)">{tick.label}</text>
+                          fontSize="15" fill="var(--muted)">{tick.label}</text>
                 ))}
                 {/* Series */}
                 {series.map(s => (
@@ -247,17 +247,17 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                             onSelect={setSelectedPoint}
                         />
                         {selectedDetail ? (
-                            <div className="flex items-center gap-2 mb-2 px-1.5 py-1 rounded text-[11px]"
+                            <div className="flex items-center gap-2 mb-2 px-1.5 py-1 rounded text-sm"
                                  style={{background: withAlpha(selectedDetail.color), borderLeft: `2px solid ${selectedDetail.color}`}}>
                                 <span className="text-muted flex-shrink-0">{selectedDetail.time}</span>
                                 <span className="font-bold flex-shrink-0" style={{color: selectedDetail.color}}>{selectedDetail.player}</span>
                                 <span className="text-ink truncate flex-1">
                                     {selectedDetail.entry.icon ? `${selectedDetail.entry.icon} ` : ''}{selectedDetail.entry.penalty_type_name}
                                 </span>
-                                <span className="text-red-400 font-bold flex-shrink-0">{feShort(selectedDetail.amount)}</span>
+                                <span className="text-danger-fg font-bold flex-shrink-0">{feShort(selectedDetail.amount)}</span>
                             </div>
                         ) : (
-                            <div className="text-[9px] text-muted/60 italic mb-2 px-1.5">
+                            <div className="text-xs text-muted/60 italic mb-2 px-1.5">
                                 ☝️ {t('stats.tapPenaltyDot')}
                             </div>
                         )}
@@ -272,7 +272,7 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                     {activePlayers.map(p => (
                         <div key={p.id} className="flex items-center gap-1.5">
                             <div className="w-4 h-1.5 rounded-full" style={{background: colorOf(p.id)}}/>
-                            <span className="text-[10px] text-muted font-bold">{p.name}</span>
+                            <span className="text-xs text-muted font-bold">{p.name}</span>
                         </div>
                     ))}
                 </div>
@@ -426,8 +426,8 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
         <>
         <div className="mb-4">
             <div className="flex gap-3 items-center mb-3">
-                <div style={{flexShrink: 0, width: 120}}>
-                    <svg width="120" height="120" viewBox="0 0 200 200"
+                <div style={{flexShrink: 0, width: 150}}>
+                    <svg width="150" height="150" viewBox="0 0 200 200"
                          onClick={() => setSelectedId(null)}
                          style={{cursor: 'default'}}>
                         <circle cx={CX} cy={CY} r={R} fill="none"
@@ -463,26 +463,26 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                         })}
                         {selected ? (
                             <>
-                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="12"
+                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="17"
                                       fill={selected.color} fontWeight="bold">
                                     {feShort(selected.total)}
                                 </text>
-                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
+                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="16"
                                       fill="var(--ink)">
                                     {selected.name.length > 10 ? selected.name.slice(0, 9) + '…' : selected.name}
                                 </text>
                             </>
                         ) : (
                             <>
-                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="13"
+                                <text x={CX} y={CY - 8} textAnchor="middle" fontSize="18"
                                       fill="var(--ink)" fontWeight="bold">
                                     {feShort(visibleTotal)}
                                 </text>
-                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="10"
+                                <text x={CX} y={CY + 8} textAnchor="middle" fontSize="16"
                                       fill="var(--muted)">
                                     {penaltyCount} {t('stats.penalties')}
                                 </text>
-                                <text x={CX} y={CY + 22} textAnchor="middle" fontSize="10"
+                                <text x={CX} y={CY + 26} textAnchor="middle" fontSize="16"
                                       fill="var(--muted)">{t('stats.totalEuro')}</text>
                             </>
                         )}
@@ -491,37 +491,37 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                 <div className="flex flex-col gap-2 flex-1">
                     <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
                         <div className="font-display font-bold text-accent-fg text-lg leading-tight">🍺 {beerRounds}</div>
-                        <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
+                        <div className="text-xs text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
                     </button>
                     <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('shots')}>
                         <div className="font-display font-bold text-accent-fg text-lg leading-tight">🥃 {shotRounds}</div>
-                        <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
+                        <div className="text-xs text-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
                     </button>
                     {gameCount > 0 && (
                         <button type="button" className="kce-card p-2 text-center active:opacity-70 transition-opacity"
                                 onClick={() => setGamesOpen(true)}>
                             <div className="font-display font-bold text-accent-fg text-lg leading-tight">🏆 {gameCountLabel}</div>
-                            <div className="text-[9px] text-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
+                            <div className="text-xs text-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
                         </button>
                     )}
                 </div>
             </div>
             <div className="kce-card p-2">
                 <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider">
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider">
                         {t('stats.penaltyDistribution')}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {hasAbsent && (
                             <button type="button"
-                                    className="chip text-[9px]"
+                                    className="chip"
                                     style={showAbsent ? {borderColor: 'var(--accent-fg)', color: 'var(--accent-fg)', background: 'color-mix(in srgb, var(--accent) 15%, transparent)'} : {borderColor: 'var(--line)', color: 'var(--muted)', opacity: 0.6}}
                                     onClick={() => { setShowAbsent(v => !v); setSelectedId(null) }}>
                                 🏠 {t('stats.toggleAbsent')}
                             </button>
                         )}
                         <button type="button"
-                                className="chip text-[9px]"
+                                className="chip"
                                 onClick={() => setTimelineOpen(true)}>
                             📋 {t('stats.penaltyTimeline')}
                         </button>
@@ -538,12 +538,12 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
                                 <div className="flex items-center gap-1.5 min-w-0">
                                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                          style={{background: seg.color}}/>
-                                    <span className="text-[11px] text-ink truncate">{seg.name}</span>
+                                    <span className="text-sm text-ink truncate">{seg.name}</span>
                                     {seg.id.startsWith('r:') && (
-                                        <span className="text-[9px] text-muted">🏠</span>
+                                        <span className="text-xs text-muted">🏠</span>
                                     )}
                                 </div>
-                                <span className="text-[11px] font-bold flex-shrink-0"
+                                <span className="text-sm font-bold flex-shrink-0"
                                       style={{color: isSelected ? seg.color : 'var(--accent-fg)'}}>
                                     {feShort(seg.total)}
                                 </span>
@@ -603,7 +603,7 @@ function GamesDetailSheet({evening, t, onClose}: {
 
     const statusLabel = (g: Game) => {
         if (g.status === 'finished') return {text: t('stats.gameStatusFinished'), color: 'var(--accent-fg)'}
-        if (g.status === 'running') return {text: t('stats.gameStatusRunning'), color: '#22c55e'}
+        if (g.status === 'running') return {text: t('stats.gameStatusRunning'), color: 'var(--positive-fg)'}
         return {text: t('stats.gameStatusOpen'), color: 'var(--muted)'}
     }
 
@@ -631,7 +631,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                                         {g.is_opener && <span title="Eröffnungsspiel">👑</span>}
                                         <span className="truncate">{g.name}</span>
                                     </div>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
+                                    <span className="text-xs font-bold uppercase tracking-wider flex-shrink-0"
                                           style={{color: status.color}}>
                                         {status.text}
                                     </span>
@@ -644,7 +644,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                                 )}
 
                                 {(startedAt || finishedAt) && (
-                                    <div className="text-[10px] text-muted mb-1.5">
+                                    <div className="text-xs text-muted mb-1.5">
                                         {startedAt && <>⏱ {startedAt}</>}
                                         {startedAt && finishedAt && ' · '}
                                         {finishedAt && <>🏁 {finishedAt}</>}
@@ -653,7 +653,7 @@ function GamesDetailSheet({evening, t, onClose}: {
 
                                 {scoreEntries.length > 0 && (
                                     <div className="mb-1.5">
-                                        <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
+                                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
                                             {t('stats.scores')}
                                         </div>
                                         <div className="space-y-0.5">
@@ -675,23 +675,23 @@ function GamesDetailSheet({evening, t, onClose}: {
                                     <div className="flex justify-around text-center pt-1.5 border-t border-line">
                                         <div>
                                             <div className="font-bold text-ink text-xs">{totalPins}</div>
-                                            <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
+                                            <div className="text-xs text-muted">{t('stats.totalPins')}</div>
                                         </div>
                                         <div>
                                             <div className="font-bold text-ink text-xs">{throwCount}</div>
-                                            <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
+                                            <div className="text-xs text-muted">{t('stats.throwCount')}</div>
                                         </div>
                                         {avgPins !== null && (
                                             <div>
                                                 <div className="font-bold text-accent-fg text-xs">{avgPins}</div>
-                                                <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
+                                                <div className="text-xs text-muted">{t('stats.avgPins')}</div>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
                                 {g.note && (
-                                    <div className="text-[11px] text-muted mt-1.5 italic">
+                                    <div className="text-sm text-muted mt-1.5 italic">
                                         {g.note}
                                     </div>
                                 )}
@@ -737,17 +737,17 @@ function PenaltyTimelineSheet({evening, t, onSelectPlayer, onClose}: {
                                 </span>
                                 {player ? (
                                     <button type="button"
-                                            className="chip text-[10px] flex-shrink-0"
+                                            className="chip flex-shrink-0"
                                             onClick={() => onSelectPlayer(player)}>
                                         {player.is_king ? '👑 ' : ''}{displayName}
                                     </button>
                                 ) : (
-                                    <span className="chip text-[10px] flex-shrink-0"
+                                    <span className="chip flex-shrink-0"
                                           style={{opacity: 0.7, cursor: 'default'}}>
                                         🏠 {displayName}
                                     </span>
                                 )}
-                                <span className="text-red-400 font-bold flex-shrink-0 tabular-nums">{feShort(amount)}</span>
+                                <span className="text-danger-fg font-bold flex-shrink-0 tabular-nums">{feShort(amount)}</span>
                             </div>
                         )
                     })}
@@ -795,7 +795,7 @@ function YearEveningsBarChart({evenings, t}: {
         <div className="kce-card p-3 mb-4">
             {/* Header row: title + selected detail */}
             <div className="flex items-center justify-between gap-2 mb-2" style={{minHeight: 18}}>
-                <div className="text-[10px] font-bold text-muted uppercase tracking-wider flex-shrink-0">
+                <div className="text-xs font-bold text-muted uppercase tracking-wider flex-shrink-0">
                     {t('stats.eveningBars')}
                 </div>
                 {selected ? (
@@ -803,12 +803,12 @@ function YearEveningsBarChart({evenings, t}: {
                         <span className="text-xs font-bold text-accent-fg flex-shrink-0">
                             {feShort(selected.penalty_total ?? 0)}
                         </span>
-                        <span className="text-[10px] text-muted truncate">
+                        <span className="text-xs text-muted truncate">
                             {fLongDate(selected.date)}{selected.venue ? ` · ${selected.venue}` : ''}
                         </span>
                     </div>
                 ) : (
-                    <span className="text-[10px] text-muted/50 italic">
+                    <span className="text-xs text-muted/50 italic">
                         ☝️ antippen
                     </span>
                 )}
@@ -839,7 +839,7 @@ function YearEveningsBarChart({evenings, t}: {
                                   style={{transition: 'opacity 0.12s'}}/>
                             {showLabel && (
                                 <text x={labelX} y={VH - 6} textAnchor="middle"
-                                      fontSize="10"
+                                      fontSize="15"
                                       fontWeight={isSelected ? 'bold' : 'normal'}
                                       fill={isSelected ? 'var(--accent-fg)' : 'var(--muted)'}>
                                     {fShortDate(bar.date)}
@@ -867,13 +867,13 @@ function YearPodium({players, myMemberId, t, onSelect}: {
 
     const PODIUM_CONFIG = [
         {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,#9ca3af,#d1d5db)', label: '🥈', borderColor: '#9ca3af'},
-        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,var(--accent-deep),var(--accent))', label: '🥇', borderColor: 'var(--accent-fg)'},
-        {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,#cd7f32)', label: '🥉', borderColor: '#cd7f32'},
+        {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,var(--accent-shade),var(--accent))', label: '🥇', borderColor: 'var(--accent-fg)'},
+        {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,var(--tier-bronze))', label: '🥉', borderColor: '#cd7f32'},
     ]
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">
+            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                 {t('stats.podium')}
             </div>
             <div style={{display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, paddingBottom: 4}}>
@@ -897,12 +897,12 @@ function YearPodium({players, myMemberId, t, onSelect}: {
                                 }
                             </div>
                             <div style={{textAlign: 'center', maxWidth: 88}}>
-                                <div style={{fontSize: 11, fontWeight: 'bold', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                                <div style={{fontSize: 13, fontWeight: 'bold', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                                     {displayName}
                                 </div>
                                 {isMe && <MeBadge/>}
                             </div>
-                            <div style={{fontSize: 10, color: '#f87171', fontWeight: 'bold'}}>
+                            <div style={{fontSize: 12, color: 'var(--danger-fg)', fontWeight: 'bold'}}>
                                 {feShort(p.penalty_total)}
                             </div>
                             <div style={{
@@ -977,30 +977,30 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
     if (!data || data.throw_count === 0) return <div className="text-xs text-muted py-2 text-center">{t('stats.noThrowData')}</div>
     return (
         <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
-            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
+            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
                     <div className="font-bold text-ink text-sm">{data.avg_pins ?? '—'}</div>
-                    <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
+                    <div className="text-xs text-muted">{t('stats.avgPins')}</div>
                 </div>
                 <div className="text-center">
-                    <div className="font-bold text-green-400 text-sm">{data.best_avg ?? '—'}</div>
-                    <div className="text-[9px] text-muted">{t('profile.bestAvg')}</div>
+                    <div className="font-bold text-positive-fg text-sm">{data.best_avg ?? '—'}</div>
+                    <div className="text-xs text-muted">{t('profile.bestAvg')}</div>
                 </div>
                 <div className="text-center">
-                    <div className="font-bold text-red-400 text-sm">{data.worst_avg ?? '—'}</div>
-                    <div className="text-[9px] text-muted">{t('profile.worstAvg')}</div>
+                    <div className="font-bold text-danger-fg text-sm">{data.worst_avg ?? '—'}</div>
+                    <div className="text-xs text-muted">{t('profile.worstAvg')}</div>
                 </div>
             </div>
             {data.evenings.length > 1 && (
                 <div className="mb-2">
-                    <div className="text-[9px] text-muted mb-1">{t('stats.throwTrend')}</div>
+                    <div className="text-xs text-muted mb-1">{t('stats.throwTrend')}</div>
                     <ThrowTrendSmall evenings={data.evenings}/>
                 </div>
             )}
             <div className="space-y-0.5">
                 {data.evenings.map(e => (
-                    <div key={e.evening_id} className="flex items-center justify-between text-[10px]">
+                    <div key={e.evening_id} className="flex items-center justify-between text-xs">
                         <span className="text-muted">
                             {new Date(e.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
                             {e.location ? ` · ${e.location}` : ''}
@@ -1009,7 +1009,7 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
                     </div>
                 ))}
             </div>
-            <div className="text-[9px] text-muted text-right mt-1">
+            <div className="text-xs text-muted text-right mt-1">
                 {data.throw_count} {t('stats.throwCount')} · {data.total_pins} {t('stats.totalPins')}
             </div>
         </div>
@@ -1149,7 +1149,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
 
             {/* Penalty breakdown */}
             <div className="kce-card p-3 mb-3">
-                <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
+                <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
                 {penalties.length === 0 ? (
                     <div className="text-xs text-muted text-center py-1">{t('stats.noPenalties')}</div>
                 ) : (
@@ -1160,7 +1160,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                                 <div key={l.id} className="flex items-center gap-2 text-xs">
                                     <span className="text-muted flex-shrink-0">{fTime(l.client_timestamp)}</span>
                                     <span className="text-ink truncate flex-1">{l.icon ? `${l.icon} ` : ''}{l.penalty_type_name}</span>
-                                    <span className="text-red-400 font-bold flex-shrink-0">{feShort(amount)}</span>
+                                    <span className="text-danger-fg font-bold flex-shrink-0">{feShort(amount)}</span>
                                 </div>
                             )
                         })}
@@ -1171,7 +1171,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Games */}
             {gamesWithPlayer.length > 0 && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
                     <div className="space-y-1.5">
                         {gamesWithPlayer.map(g => {
                             const won = g.winner_ref === `p:${player.id}` || (!!player.team_id && g.winner_ref === `t:${player.team_id}`)
@@ -1197,7 +1197,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Drink rounds */}
             {(beerRoundsPlayer.length > 0 || shotRoundsPlayer.length > 0) && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.drinkRoundsDetail')}</div>
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.drinkRoundsDetail')}</div>
                     <div className="space-y-1">
                         {beerRoundsPlayer.map((r, i) => (
                             <div key={r.id} className="flex items-center justify-between text-xs">
@@ -1218,26 +1218,26 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Throw stats + heatmap */}
             {throwCount > 0 && (
                 <div className="kce-card p-3">
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">{t('stats.throwStats')}</div>
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.throwStats')}</div>
                     <div className="flex justify-around text-center mb-3">
                         <div>
                             <div className="font-bold text-ink text-sm">{totalPins}</div>
-                            <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
+                            <div className="text-xs text-muted">{t('stats.totalPins')}</div>
                         </div>
                         <div>
                             <div className="font-bold text-ink text-sm">{throwCount}</div>
-                            <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
+                            <div className="text-xs text-muted">{t('stats.throwCount')}</div>
                         </div>
                         {avgPins !== null && (
                             <div>
                                 <div className="font-bold text-accent-fg text-sm">{avgPins}</div>
-                                <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
+                                <div className="text-xs text-muted">{t('stats.avgPins')}</div>
                             </div>
                         )}
                     </div>
                     {hasHeatmap && (
                         <>
-                            <div className="text-[9px] text-muted text-center mb-2">{t('stats.heatmap')}</div>
+                            <div className="text-xs text-muted text-center mb-2">{t('stats.heatmap')}</div>
                             <svg width="120" height="100" viewBox="0 0 120 100" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
                                 {PIN_POS.map(([px, py], i) => {
                                     const ratio = pinCounts[i] / maxPinCount
@@ -1256,7 +1256,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
                                                     x={cx} y={cy}
                                                     textAnchor="middle"
                                                     dominantBaseline="central"
-                                                    fontSize="8"
+                                                    fontSize="12"
                                                     fontWeight="bold"
                                                     fill="white"
                                                     stroke="rgba(0,0,0,0.55)"
@@ -1324,11 +1324,11 @@ function DrinkRoundsDetailSheet({evening, initialTab, t, onClose}: {
                                     {tab === 'beer' ? '🍺' : '🥃'} {t('stats.drinkRound')} {i + 1}
                                     {r.variety ? ` · ${r.variety}` : ''}
                                 </span>
-                                <span className="text-[10px] text-muted">{fTime(r.client_timestamp)}</span>
+                                <span className="text-xs text-muted">{fTime(r.client_timestamp)}</span>
                             </div>
                             <div className="flex flex-wrap gap-1">
                                 {r.participant_ids.map(pid => (
-                                    <span key={pid} className="chip text-[10px]">{playerName(pid)}</span>
+                                    <span key={pid} className="chip">{playerName(pid)}</span>
                                 ))}
                             </div>
                         </div>
@@ -1532,7 +1532,7 @@ export function StatsPage() {
                                             return (
                                                 <button key={p.id} type="button" className="kce-card p-3 w-full text-left active:opacity-70 transition-opacity" onClick={() => setEveningPlayerDetail(p)}>
                                                     <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-on-accent text-sm mb-2"
-                                                         style={{background: 'linear-gradient(135deg,var(--accent-deep),var(--accent))', margin: '0 auto'}}>
+                                                         style={{background: 'linear-gradient(135deg,var(--accent-shade),var(--accent))', margin: '0 auto'}}>
                                                         {rm?.avatar
                                                             ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                                             : p.name[0].toUpperCase()
@@ -1547,15 +1547,15 @@ export function StatsPage() {
                                                     <div className="flex justify-around text-center">
                                                         <div>
                                                             <div className="text-accent-fg font-bold text-sm">{wins}</div>
-                                                            <div className="text-[9px] text-muted">{t('stats.wins')}</div>
+                                                            <div className="text-xs text-muted">{t('stats.wins')}</div>
                                                         </div>
                                                         <div>
-                                                            <div className="text-red-400 font-bold text-sm">{fe(pTotal)}</div>
-                                                            <div className="text-[9px] text-muted">{t('stats.penalties')}</div>
+                                                            <div className="text-danger-fg font-bold text-sm">{fe(pTotal)}</div>
+                                                            <div className="text-xs text-muted">{t('stats.penalties')}</div>
                                                         </div>
                                                         <div>
                                                             <div className="text-accent-fg font-bold text-sm">🍺{beerC}</div>
-                                                            <div className="text-[9px] text-muted">{t('stats.beer')}</div>
+                                                            <div className="text-xs text-muted">{t('stats.beer')}</div>
                                                         </div>
                                                     </div>
                                                     {throwCount > 0 && (
@@ -1563,23 +1563,23 @@ export function StatsPage() {
                                                             <div className="flex justify-around text-center">
                                                                 <div>
                                                                     <div className="text-ink font-bold text-sm">🎳{totalPins}</div>
-                                                                    <div className="text-[9px] text-muted">{t('stats.totalPins')}</div>
+                                                                    <div className="text-xs text-muted">{t('stats.totalPins')}</div>
                                                                 </div>
                                                                 <div>
                                                                     <div className="text-ink font-bold text-sm">{throwCount}</div>
-                                                                    <div className="text-[9px] text-muted">{t('stats.throwCount')}</div>
+                                                                    <div className="text-xs text-muted">{t('stats.throwCount')}</div>
                                                                 </div>
                                                                 {avgPins !== null && (
                                                                     <div>
                                                                         <div className="text-ink font-bold text-sm">{avgPins}</div>
-                                                                        <div className="text-[9px] text-muted">{t('stats.avgPins')}</div>
+                                                                        <div className="text-xs text-muted">{t('stats.avgPins')}</div>
                                                                     </div>
                                                                 )}
                                                             </div>
                                                             {hasHeatmap && (
                                                                 <div className="mt-2">
-                                                                    <div className="text-[9px] text-muted text-center mb-1">{t('stats.heatmap')}</div>
-                                                                    <svg width="80" height="68" viewBox="0 0 80 68" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
+                                                                    <div className="text-xs text-muted text-center mb-1">{t('stats.heatmap')}</div>
+                                                                    <svg width="100" height="85" viewBox="0 0 80 68" style={{display: 'block', margin: '0 auto', overflow: 'visible'}}>
                                                                         {PIN_POS.map(([px, py], i) => {
                                                                             const ratio = pinCounts[i] / maxPinCount
                                                                             const cx = px * 80
@@ -1597,7 +1597,7 @@ export function StatsPage() {
                                                                                             x={cx} y={cy}
                                                                                             textAnchor="middle"
                                                                                             dominantBaseline="central"
-                                                                                            fontSize="7"
+                                                                                            fontSize="10"
                                                                                             fontWeight="bold"
                                                                                             fill="white"
                                                                                             stroke="rgba(0,0,0,0.55)"
@@ -1699,16 +1699,16 @@ export function StatsPage() {
                                             {p.nickname || p.name}
                                             <MemberBadges isMe={isMe} pins={pins} memberId={p.regular_member_id}/>
                                         </div>
-                                        <div className="text-[10px] text-muted">
+                                        <div className="text-xs text-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
                                         </div>
                                         {p.throw_count > 0 && (
-                                            <div className="text-[10px] text-muted">
+                                            <div className="text-xs text-muted">
                                                 🎳 Ø {p.avg_pins} · {p.throw_count} {t('stats.throwCount')}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-red-400 font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
+                                    <div className="text-danger-fg font-bold text-sm flex-shrink-0">{fe(p.penalty_total)}</div>
                                 </div>
                                 <div className="h-1 rounded-full overflow-hidden"
                                      style={{background: 'var(--surface-2)'}}>
@@ -1716,7 +1716,7 @@ export function StatsPage() {
                                          style={{
                                              width: `${barWidth}%`,
                                              background: isMe ? 'var(--accent)'
-                                                 : i === 0 ? '#ef4444' : i < 3 ? '#f97316' : 'var(--muted)'
+                                                 : i === 0 ? 'var(--danger-fg)' : i < 3 ? 'var(--accent-deep)' : 'var(--muted)'
                                          }}/>
                                 </div>
                             </button>

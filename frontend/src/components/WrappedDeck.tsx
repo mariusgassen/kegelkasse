@@ -11,8 +11,8 @@ function fe(v: number) {
 const ACCENT_CLASS: Record<WrappedAccent, string> = {
     primary: 'text-accent-fg',
     amber: 'text-accent-fg',
-    red: 'text-red-400',
-    green: 'text-green-400',
+    red: 'text-danger-fg',
+    green: 'text-positive-fg',
     cream: 'text-ink',
 }
 
@@ -166,7 +166,7 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
                 )}
             </div>
 
-            <div className="flex items-center justify-center gap-2 pb-6 text-[11px] text-muted">
+            <div className="flex items-center justify-center gap-2 pb-6 text-sm text-muted">
                 {idx < cards.length - 1 ? t('wrapped.tapNext') : t('wrapped.tapDone')}
             </div>
         </div>

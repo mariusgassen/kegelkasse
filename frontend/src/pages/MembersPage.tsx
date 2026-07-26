@@ -360,7 +360,7 @@ export function MembersPage() {
                     )}
                     {admin && inactiveUsers.length > 0 && (
                         <button
-                            className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
+                            className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${showInactive ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                             onClick={() => setShowInactive(v => !v)}>
                             {showInactive ? t('member.hideInactive') : `+ ${inactiveUsers.length} ${t('member.showInactive')}`}
                         </button>
@@ -427,7 +427,7 @@ export function MembersPage() {
             {/* Inactive users */}
             {showInactive && inactiveUsers.length > 0 && (
                 <>
-                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
                     </div>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
@@ -453,7 +453,7 @@ export function MembersPage() {
                     <button className="btn-secondary btn-xs" onClick={openNew}>+ {t('member.add')}</button>
                 )}
             </div>
-            <p className="text-[10px] text-muted mb-3">
+            <p className="text-xs text-muted mb-3">
                 {t('member.rosterHint')}
             </p>
 
@@ -504,7 +504,7 @@ export function MembersPage() {
             {/* ── Gäste ── */}
             {savedGuests.length > 0 && (<>
                 <div className="sec-heading mt-4">{t('player.knownGuests')}</div>
-                <p className="text-[10px] text-muted mb-3">
+                <p className="text-xs text-muted mb-3">
                     {t('member.knownGuestsHint')}
                 </p>
                 {savedGuests.map(m => {
@@ -560,9 +560,9 @@ export function MembersPage() {
                     {/* Payout on departure */}
                     <div>
                         <label className="field-label">{t('member.payoutLabel')}</label>
-                        <p className="text-[10px] text-muted mb-1.5">{t('member.payoutHint')}</p>
+                        <p className="text-xs text-muted mb-1.5">{t('member.payoutHint')}</p>
                         {removePenaltyTotal !== null && removePenaltyTotal > 0.01 && (
-                            <p className="text-[10px] text-accent-fg mb-1.5">
+                            <p className="text-xs text-accent-fg mb-1.5">
                                 {t('member.payoutWriteOffInfo')} ({removePenaltyTotal.toFixed(2).replace('.', ',')} €)
                             </p>
                         )}
@@ -603,7 +603,7 @@ export function MembersPage() {
                     {/* Pro-rata entry fee (1/x of treasury incl. open debts) */}
                     <div>
                         <label className="field-label">{t('member.entryFeeLabel')}</label>
-                        <p className="text-[10px] text-muted mb-1.5">{t('member.entryFeeHint')}</p>
+                        <p className="text-xs text-muted mb-1.5">{t('member.entryFeeHint')}</p>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input

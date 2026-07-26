@@ -25,7 +25,7 @@ export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNo
             {(label || onSelectAll || onSelectNone) && (
                 <div className="flex items-center mb-1.5">
                     {label && <span className="field-label" style={{margin: 0}}>{label}</span>}
-                    <span className="text-[10px] text-accent-fg font-bold ml-1">
+                    <span className="text-xs text-accent-fg font-bold ml-1">
             {selected.length > 0 ? `(${selected.length})` : ''}
           </span>
                     <div className="ml-auto flex gap-1.5">

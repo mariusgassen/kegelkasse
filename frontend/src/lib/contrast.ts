@@ -85,8 +85,8 @@ export function ensureContrast(fg: string, bg: string | string[], target = AA_TE
 }
 
 /**
- * Composites `fg` over `bg` at `pct` opacity in sRGB — the JS twin of
- * `color-mix(in srgb, var(--x) 15%, transparent)` layered on the page background.
+ * Composites `fg` over `bg` at `pct` opacity in sRGB — the JS twin of a
+ * `color-mix(in srgb, <color> 15%, transparent)` layered on the page background.
  *
  * Needed because the tinted badge/team backgrounds are translucent: their effective background is
  * the *mix*, not the page background, so that mix is what the text on them must be checked against.

@@ -572,19 +572,19 @@ export function TreasuryPage() {
                                 <div>
                                     {myBalanceEntry.balance < -0.01 ? (
                                         <>
-                                            <div className="font-display font-bold text-2xl text-red-400">{fe(Math.abs(myBalanceEntry.balance))}</div>
-                                            <div className="text-[11px] text-red-400 font-bold">{t('treasury.my.owe')}</div>
+                                            <div className="font-display font-bold text-2xl text-danger-fg">{fe(Math.abs(myBalanceEntry.balance))}</div>
+                                            <div className="text-sm text-danger-fg font-bold">{t('treasury.my.owe')}</div>
                                         </>
                                     ) : myBalanceEntry.balance > 0.01 ? (
                                         <>
-                                            <div className="font-display font-bold text-2xl text-green-400">+{fe(myBalanceEntry.balance)}</div>
-                                            <div className="text-[11px] text-green-400 font-bold">{t('treasury.my.credit')}</div>
-                                            <div className="text-[10px] text-muted">{t('treasury.my.creditHint')}</div>
+                                            <div className="font-display font-bold text-2xl text-positive-fg">+{fe(myBalanceEntry.balance)}</div>
+                                            <div className="text-sm text-positive-fg font-bold">{t('treasury.my.credit')}</div>
+                                            <div className="text-xs text-muted">{t('treasury.my.creditHint')}</div>
                                         </>
                                     ) : (
                                         <>
-                                            <div className="font-display font-bold text-2xl text-green-400">✓ {t('treasury.my.settled')}</div>
-                                            <div className="text-[10px] text-muted">{t('treasury.my.settledHint')}</div>
+                                            <div className="font-display font-bold text-2xl text-positive-fg">✓ {t('treasury.my.settled')}</div>
+                                            <div className="text-xs text-muted">{t('treasury.my.settledHint')}</div>
                                         </>
                                     )}
                                 </div>
@@ -596,7 +596,7 @@ export function TreasuryPage() {
                             {paidShare(myBalanceEntry) !== null && (
                                 <>
                                     <PaidShareBar b={myBalanceEntry}/>
-                                    <div className="text-[10px] text-muted mt-1">
+                                    <div className="text-xs text-muted mt-1">
                                         {Math.round((paidShare(myBalanceEntry) ?? 0) * 100)}% {t('treasury.my.paidShare')}
                                     </div>
                                 </>
@@ -674,15 +674,15 @@ export function TreasuryPage() {
                                 <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">💰
                                     {t('treasury.cashOnHand')}
                                 </div>
-                                <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fe(kassenstand)}</div>
-                                <div className="text-[10px] text-muted mt-1">{t('treasury.cashOnHandHint')}</div>
+                                <div className={`font-display font-bold text-3xl ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>{fe(kassenstand)}</div>
+                                <div className="text-xs text-muted mt-1">{t('treasury.cashOnHandHint')}</div>
                             </div>
                             <span className="text-4xl opacity-20">💰</span>
                         </div>
                         <div className="mt-3 pt-2 border-t border-line flex flex-col gap-1 text-xs">
                             <div className="flex items-center justify-between">
                                 <span className="text-muted">⬆ {t('treasury.flow.paidIn')}</span>
-                                <span className="font-bold text-green-400" data-testid="glance-amount-paidIn">+{fe(summary.paidIn)}</span>
+                                <span className="font-bold text-positive-fg" data-testid="glance-amount-paidIn">+{fe(summary.paidIn)}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-muted">⬇ {t('treasury.flow.expenses')}</span>
@@ -691,14 +691,14 @@ export function TreasuryPage() {
                             {summary.otherIncome > 0 && (
                                 <div className="flex items-center justify-between">
                                     <span className="text-muted">⬆ {t('treasury.flow.otherIncome')}</span>
-                                    <span className="font-bold text-green-400" data-testid="glance-amount-otherIncome">+{fe(summary.otherIncome)}</span>
+                                    <span className="font-bold text-positive-fg" data-testid="glance-amount-otherIncome">+{fe(summary.otherIncome)}</span>
                                 </div>
                             )}
                             {summary.outstanding > 0 && (
                                 <>
                                     <div className="flex items-center justify-between">
                                         <span className="text-muted">🔴 {t('treasury.flow.outstanding')}</span>
-                                        <span className="font-bold text-red-400" data-testid="glance-amount-outstanding">{fe(summary.outstanding)}</span>
+                                        <span className="font-bold text-danger-fg" data-testid="glance-amount-outstanding">{fe(summary.outstanding)}</span>
                                     </div>
                                     <div className="flex items-center justify-between pt-1 border-t border-line">
                                         <span className="text-muted">→ {t('treasury.flow.projected')}</span>
@@ -707,7 +707,7 @@ export function TreasuryPage() {
                                 </>
                             )}
                             <button type="button" data-testid="goto-analysis"
-                                    className="mt-1 text-[11px] text-accent-fg font-bold text-left"
+                                    className="mt-1 text-sm text-accent-fg font-bold text-left"
                                     onClick={() => setTab('analysis' as Parameters<typeof setTab>[0])}>
                                 {t('treasury.analysis.link')} ›
                             </button>
@@ -716,8 +716,8 @@ export function TreasuryPage() {
                         {/* How does the treasury work? — tucked away inside the hero, less prominent than a standalone card */}
                         <div className="mt-2 pt-2 border-t border-line">
                             <ExpandableCard bare
-                                            title={<span className="text-[10px] text-muted">❓ {t('treasury.help.title')}</span>}>
-                                <ul className="pt-1.5 flex flex-col gap-1 text-[10px] text-muted list-disc list-inside">
+                                            title={<span className="text-xs text-muted">❓ {t('treasury.help.title')}</span>}>
+                                <ul className="pt-1.5 flex flex-col gap-1 text-xs text-muted list-disc list-inside">
                                     <li>{t('treasury.help.penalties')}</li>
                                     <li>{t('treasury.help.payments')}</li>
                                     <li>{t('treasury.help.cash')}</li>
@@ -732,21 +732,21 @@ export function TreasuryPage() {
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-muted">{t('treasury.openLabel')}</span>
-                            <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
+                            <span className="font-display font-bold text-danger-fg text-xl">{fe(totalOutstanding)}</span>
                             <span
-                                className="text-[10px] text-muted">{debtors.length} {t('treasury.membersCount')}</span>
+                                className="text-xs text-muted">{debtors.length} {t('treasury.membersCount')}</span>
                         </div>
                         <div className="kce-card p-4 flex flex-col gap-1">
                             <span className="text-xs text-muted">{t('treasury.creditLabel')}</span>
-                            <span className="font-display font-bold text-green-400 text-xl">{fe(totalSurplus)}</span>
+                            <span className="font-display font-bold text-positive-fg text-xl">{fe(totalSurplus)}</span>
                             <span
-                                className="text-[10px] text-muted">{credits.length} {t('treasury.membersCount')}</span>
+                                className="text-xs text-muted">{credits.length} {t('treasury.membersCount')}</span>
                         </div>
                     </div>
 
                     {debtors.length === 0 && credits.length === 0
                         ? <div
-                            className="kce-card p-4 text-center text-sm font-bold text-green-400">{t('treasury.noOutstanding')}</div>
+                            className="kce-card p-4 text-center text-sm font-bold text-positive-fg">{t('treasury.noOutstanding')}</div>
                         : null
                     }
 
@@ -768,7 +768,7 @@ export function TreasuryPage() {
                                                 setRemindingDebtors(false)
                                             }
                                         }}
-                                        className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-surface-2 text-muted transition-all">
+                                        className="text-xs font-extrabold px-2 py-0.5 rounded-md bg-surface-2 text-muted transition-all">
                                         {remindingDebtors ? '…' : t('treasury.remindDebtors')}
                                     </button>
                                 )}
@@ -793,7 +793,7 @@ export function TreasuryPage() {
                                                 <PaidShareBar b={b}/>
                                             </div>
                                             <span
-                                                className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                                className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
                                             {admin && (
                                                 <button className="btn-primary btn-sm flex-shrink-0"
                                                         onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
@@ -827,7 +827,7 @@ export function TreasuryPage() {
                                         </div>
                                     </div>
                                     <span
-                                        className="font-bold text-green-400 text-sm flex-shrink-0">+{fe(b.balance)}</span>
+                                        className="font-bold text-positive-fg text-sm flex-shrink-0">+{fe(b.balance)}</span>
                                 </div>
                             ))}
                         </>
@@ -845,7 +845,7 @@ export function TreasuryPage() {
                                         return 0
                                     }).map(b => (
                                         <span key={b.regular_member_id}
-                                              className="px-2 py-1 rounded-full bg-surface-2 border border-line text-[11px] text-muted flex items-center gap-1">
+                                              className="px-2 py-1 rounded-full bg-surface-2 border border-line text-sm text-muted flex items-center gap-1">
                                             {b.nickname || b.name}
                                             {b.regular_member_id === myRegularMemberId &&
                                                 <MeBadge/>}
@@ -873,7 +873,7 @@ export function TreasuryPage() {
                                             </div>
                                             <PaidShareBar b={b}/>
                                         </div>
-                                        <span className="font-bold text-red-400 text-sm flex-shrink-0">{fe(b.balance)}</span>
+                                        <span className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
                                         {admin && (
                                             <button className="btn-primary btn-sm flex-shrink-0"
                                                     onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
@@ -942,15 +942,15 @@ export function TreasuryPage() {
                         <div className="grid grid-cols-2 gap-2 mb-3">
                             <div className="kce-card p-4 flex flex-col gap-1">
                                 <span className="text-xs text-muted">{t('treasury.accounts.totalOpen')}</span>
-                                <span className="font-display font-bold text-red-400 text-xl">{fe(totalOutstanding)}</span>
-                                <span className="text-[10px] text-muted">{debtors.length} {t('treasury.membersCount')}</span>
+                                <span className="font-display font-bold text-danger-fg text-xl">{fe(totalOutstanding)}</span>
+                                <span className="text-xs text-muted">{debtors.length} {t('treasury.membersCount')}</span>
                             </div>
                             <div className="kce-card p-4 flex flex-col gap-1">
                                 <span className="text-xs text-muted">{t('treasury.accounts.totalPaid')}</span>
-                                <span className="font-display font-bold text-green-400 text-xl">{fe(totalPaidMembers)}</span>
+                                <span className="font-display font-bold text-positive-fg text-xl">{fe(totalPaidMembers)}</span>
                                 {totalSurplus > 0
-                                    ? <span className="text-[10px] text-muted">{t('treasury.accounts.creditOwed')}: {fe(totalSurplus)}</span>
-                                    : <span className="text-[10px] text-muted">{credits.length} {t('treasury.membersCount')}</span>
+                                    ? <span className="text-xs text-muted">{t('treasury.accounts.creditOwed')}: {fe(totalSurplus)}</span>
+                                    : <span className="text-xs text-muted">{credits.length} {t('treasury.membersCount')}</span>
                                 }
                             </div>
                         </div>
@@ -961,13 +961,13 @@ export function TreasuryPage() {
                         <ExpandableCard className="mb-3"
                                         title={<span className="text-xs font-bold text-muted">📊 {t('treasury.accounts.shareChart')}</span>}>
                                 <div>
-                                    <div className="flex items-center justify-end gap-3 text-[10px] text-muted mb-2">
+                                    <div className="flex items-center justify-end gap-3 text-xs text-muted mb-2">
                                         <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: '#22c55e'}}/>
+                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: 'var(--positive-fg)'}}/>
                                             {t('treasury.paidLabel')}
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: '#ef4444'}}/>
+                                            <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{background: 'var(--danger-fg)'}}/>
                                             {t('treasury.accounts.shareChartOpen')}
                                         </span>
                                     </div>
@@ -989,8 +989,8 @@ export function TreasuryPage() {
                                                     </div>
                                                     <div className="h-1.5 rounded-full overflow-hidden flex"
                                                          style={{background: 'var(--surface-2)', gap: '2px'}}>
-                                                        {paidPct > 0 && <div className="h-full rounded-full" style={{width: `${paidPct}%`, background: '#22c55e'}}/>}
-                                                        {openPct > 0 && <div className="h-full rounded-full" style={{width: `${openPct}%`, background: '#ef4444'}}/>}
+                                                        {paidPct > 0 && <div className="h-full rounded-full" style={{width: `${paidPct}%`, background: 'var(--positive-fg)'}}/>}
+                                                        {openPct > 0 && <div className="h-full rounded-full" style={{width: `${openPct}%`, background: 'var(--danger-fg)'}}/>}
                                                     </div>
                                                 </div>
                                             )
@@ -1022,9 +1022,9 @@ export function TreasuryPage() {
                             const isExpanded = expandedMember === b.regular_member_id
                             const isMe = b.regular_member_id === myRegularMemberId
                             const dotColor = hasDebt
-                                ? 'linear-gradient(135deg,#ef4444,#dc2626)'
+                                ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))'
                                 : hasCredit
-                                    ? 'linear-gradient(135deg,#22c55e,#16a34a)'
+                                    ? 'linear-gradient(135deg,var(--positive),color-mix(in srgb, var(--positive) 70%, black))'
                                     : 'linear-gradient(135deg,#6b7280,#4b5563)'
                             return (
                                 <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
@@ -1047,10 +1047,10 @@ export function TreasuryPage() {
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             {hasDebt && (
-                                                <div className="font-bold text-sm text-red-400">{fe(b.balance)}</div>
+                                                <div className="font-bold text-sm text-danger-fg">{fe(b.balance)}</div>
                                             )}
                                             {hasCredit && (
-                                                <div className="font-bold text-sm text-green-400">+{fe(b.balance)}</div>
+                                                <div className="font-bold text-sm text-positive-fg">+{fe(b.balance)}</div>
                                             )}
                                             {!hasDebt && !hasCredit && (
                                                 <div className="text-sm text-muted">✓</div>
@@ -1068,7 +1068,7 @@ export function TreasuryPage() {
                                                 : (memberPayments as MemberPayment[]).map(p => (
                                                     <div key={p.id} className="flex items-center gap-2 mb-1.5 text-xs">
                                                         <span
-                                                            className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                            className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                             {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                                         </span>
                                                         <span
@@ -1180,13 +1180,13 @@ export function TreasuryPage() {
                                 return (
                                     <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0"
-                                             style={{background: hasDebt ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#6b7280,#4b5563)'}}>
+                                             style={{background: hasDebt ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))' : 'linear-gradient(135deg,#6b7280,#4b5563)'}}>
                                             {b.name[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1">
                                                 {b.nickname || b.name}
-                                                <span className="text-[9px] text-muted font-bold border border-line rounded px-1">{t('player.guestLabel')}</span>
+                                                <span className="text-xs text-muted font-bold border border-line rounded px-1">{t('player.guestLabel')}</span>
                                             </div>
                                             <div className="text-xs text-muted">
                                                 {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
@@ -1195,7 +1195,7 @@ export function TreasuryPage() {
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             {hasDebt
-                                                ? <div className="font-bold text-sm text-red-400">{fe(b.balance)}</div>
+                                                ? <div className="font-bold text-sm text-danger-fg">{fe(b.balance)}</div>
                                                 : <div className="text-sm text-muted">✓</div>
                                             }
                                         </div>
@@ -1225,7 +1225,7 @@ export function TreasuryPage() {
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-xs text-muted">{t('treasury.netExpenses')}</span>
-                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-green-400' : 'text-orange-400'}`}>{fe(-totalExpenses)}</div>
+                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-positive-fg' : 'text-orange-400'}`}>{fe(-totalExpenses)}</div>
                         </div>
                         {admin && (
                             <button className="btn-primary btn-sm" onClick={openBookingSheet}>
@@ -1241,7 +1241,7 @@ export function TreasuryPage() {
                                 const p = entry.data
                                 return (
                                     <div key={`p-${p.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <span className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        <span className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                             {p.amount >= 0 ? '⬆' : '⬇'}
                                         </span>
                                         <div className="flex-1 min-w-0">
@@ -1254,7 +1254,7 @@ export function TreasuryPage() {
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                            <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                 {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                             </div>
                                             <div className="text-xs text-muted">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
@@ -1274,17 +1274,17 @@ export function TreasuryPage() {
                                 const e = entry.data
                                 return (
                                     <div key={`e-${e.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <span className={`text-xl flex-shrink-0 ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                                        <span className={`text-xl flex-shrink-0 ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
                                             {e.amount < 0 ? '⬆' : '⬇'}
                                         </span>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
                                                 {e.description}
-                                                <span className="text-[9px] text-muted font-bold border border-line rounded px-1">{t('treasury.booking.club')}</span>
+                                                <span className="text-xs text-muted font-bold border border-line rounded px-1">{t('treasury.booking.club')}</span>
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                            <div className={`font-bold text-sm ${e.amount < 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                                            <div className={`font-bold text-sm ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
                                                 {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
                                             </div>
                                             <div className="text-xs text-muted">{e.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>

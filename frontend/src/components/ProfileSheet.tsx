@@ -391,7 +391,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             </div>
                             <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs text-muted">{t('profile.balance')}</span>
-                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-red-400' : myBalance.balance > 0.01 ? 'text-green-400' : 'text-muted'}`}>
+                                <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-danger-fg' : myBalance.balance > 0.01 ? 'text-positive-fg' : 'text-muted'}`}>
                                     {myBalance.balance.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
                                 </span>
                             </div>
@@ -468,7 +468,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                                 {r.created_at ? new Date(r.created_at).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'}) : ''}
                                             </span>
                                             <span className="font-bold">{r.amount.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
-                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-green-400' : r.status === 'rejected' ? 'text-red-400' : 'text-accent-fg'}`}>
+                                            <span className={`font-bold ${r.status === 'confirmed' ? 'text-positive-fg' : r.status === 'rejected' ? 'text-danger-fg' : 'text-accent-fg'}`}>
                                                 {t(`paymentRequest.${r.status}` as any)}
                                             </span>
                                         </div>
@@ -508,7 +508,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {myThrowStats.evenings.length > 1 && (
                                 <ThrowTrendMini evenings={myThrowStats.evenings}/>
                             )}
-                            <div className="text-[10px] text-muted text-center mt-1">
+                            <div className="text-xs text-muted text-center mt-1">
                                 {myThrowStats.throw_count} {t('stats.throwCount')} · {myThrowStats.total_pins} {t('stats.totalPins')}
                             </div>
                         </div>
@@ -524,7 +524,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             <span className="text-3xl">🎁</span>
                             <span className="flex-1">
                                 <span className="block text-sm font-bold text-ink">{t('wrapped.title')} {year}</span>
-                                <span className="block text-[11px] text-muted">{t('wrapped.launchHint')}</span>
+                                <span className="block text-sm text-muted">{t('wrapped.launchHint')}</span>
                             </span>
                             <span className="text-accent-fg text-lg">›</span>
                         </button>
@@ -542,7 +542,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 🎳 {t('bowling.leaderboard')}
                             </div>
                             {bowlingBoard.length === 0 ? (
-                                <div className="text-[11px] text-muted">{t('bowling.leaderboard.empty')}</div>
+                                <div className="text-sm text-muted">{t('bowling.leaderboard.empty')}</div>
                             ) : (
                                 <div className="flex flex-col gap-1 mt-2">
                                     {bowlingBoard.map(e => (
@@ -570,7 +570,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div className="relative">
                             <button
                                 className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-2xl text-on-accent flex-shrink-0 active:opacity-80 transition-opacity"
-                                style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-deep),var(--accent))'}}
+                                style={{background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-shade),var(--accent))'}}
                                 onClick={() => fileRef.current?.click()}
                                 disabled={avatarLoading}>
                                 {user?.avatar
@@ -591,7 +591,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {user?.username && <div className="text-xs text-muted">@{user.username}</div>}
                         </div>
                         {user?.avatar && (
-                            <button className="text-[10px] text-muted" onClick={handleRemoveAvatar}>
+                            <button className="text-xs text-muted" onClick={handleRemoveAvatar}>
                                 {t('profile.removeAvatar')}
                             </button>
                         )}
@@ -617,7 +617,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div>
                             <label className="field-label">{t('profile.loginEmail')}</label>
                             {isFakeEmail && !email && (
-                                <p className="text-[10px] text-muted mb-1">{t('profile.noEmail')}</p>
+                                <p className="text-xs text-muted mb-1">{t('profile.noEmail')}</p>
                             )}
                             <input className="kce-input" type="email" value={email}
                                    onChange={e => setEmail(e.target.value)} placeholder={t('profile.emailPlaceholder')}/>
@@ -672,7 +672,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     <div className="kce-card p-4 flex items-center justify-between">
                         <div>
                             <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.effects.title')}</div>
-                            <div className="text-[10px] text-muted mt-0.5">{t('settings.effects.hint')}</div>
+                            <div className="text-xs text-muted mt-0.5">{t('settings.effects.hint')}</div>
                         </div>
                         <div className="flex gap-1">
                             {([true, false] as const).map(v => (
@@ -705,7 +705,7 @@ export function ProfileSheet({open, onClose}: Props) {
                     {isStandalone && (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('install.profile.button')}</span>
-                            <span className="text-[10px] text-green-400 font-bold">✓ {t('install.profile.installed')}</span>
+                            <span className="text-xs text-positive-fg font-bold">✓ {t('install.profile.installed')}</span>
                         </div>
                     )}
 
@@ -714,7 +714,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
                                 <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('push.label')}</span>
-                                {pushSubscribed && <div className="text-[10px] text-green-400 mt-0.5">{t('push.activeOnDevice')}</div>}
+                                {pushSubscribed && <div className="text-xs text-positive-fg mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
                                 <button
@@ -743,7 +743,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                                 {t('push.preferences')}
                             </div>
-                            <p className="text-[11px] text-muted mb-2 -mt-1">{t('push.channelHint')}</p>
+                            <p className="text-sm text-muted mb-2 -mt-1">{t('push.channelHint')}</p>
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-ink">{t('push.pref.committee')}</span>
@@ -832,7 +832,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
                                 {t('digest.title')}
                             </div>
-                            <p className="text-[11px] text-muted mb-2">{t('digest.hint')}</p>
+                            <p className="text-sm text-muted mb-2">{t('digest.hint')}</p>
                             <div className="flex flex-wrap gap-1">
                                 {(['off', 'daily', 'weekly', 'monthly'] as DigestFrequency[]).map(freq => {
                                     const active = (pushPrefs.digest_frequency ?? 'off') === freq
@@ -849,7 +849,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 })}
                             </div>
                             {!emailConfigured && (
-                                <p className="text-[11px] text-muted pt-1">{t('digest.noEmail')}</p>
+                                <p className="text-sm text-muted pt-1">{t('digest.noEmail')}</p>
                             )}
                             {emailConfigured && (pushPrefs.digest_frequency ?? 'off') !== 'off' && (
                                 <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
@@ -908,7 +908,7 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     {/* Account delete */}
                     {!confirmDelete ? (
-                        <button className="text-[11px] text-muted/50 text-center py-1 w-full"
+                        <button className="text-sm text-muted/50 text-center py-1 w-full"
                                 onClick={() => setConfirmDelete(true)}>
                             {t('profile.deleteAccount')}
                         </button>
@@ -919,7 +919,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 <button className="btn-secondary flex-1 btn-sm"
                                         onClick={() => setConfirmDelete(false)}>{t('action.cancel')}
                                 </button>
-                                <button className="btn-secondary flex-1 btn-sm text-red-400/70" onClick={async () => {
+                                <button className="btn-secondary flex-1 btn-sm text-danger-fg/70" onClick={async () => {
                                     await api.deleteAccount()
                                     authState.setToken(null)
                                     setUser(null)
@@ -929,7 +929,7 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     )}
 
-                    <p className="text-[10px] text-muted/40 text-center py-2">
+                    <p className="text-xs text-muted/40 text-center py-2">
                         v{__APP_VERSION__} · © 2026 Marius Gassen
                     </p>
                 </div>

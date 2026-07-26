@@ -30,8 +30,8 @@ function rColor(r: number | null): string {
     if (r === null) return 'var(--muted)'
     const a = Math.abs(r)
     if (a < 0.2) return 'var(--muted)'
-    if (r > 0) return a >= 0.5 ? '#22c55e' : '#4ade80'
-    return a >= 0.5 ? '#ef4444' : '#f87171'
+    if (r > 0) return a >= 0.5 ? 'var(--positive-fg)' : 'var(--positive-fg)'
+    return a >= 0.5 ? 'var(--danger-fg)' : 'var(--danger-fg)'
 }
 
 function rBadge(r: number | null, t: (k: TranslationKey) => string): { label: string; color: string } {
@@ -95,7 +95,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
                           stroke="var(--line)"/>
                     <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
-                          fontSize={10} fill="var(--muted)">{tv.toFixed(2)}</text>
+                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* x ticks */}
@@ -104,7 +104,7 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
                           stroke="var(--line)"/>
                     <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={10} fill="var(--muted)">{tv.toFixed(2)}</text>
+                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
                 </g>
             ))}
             {/* trend line */}
@@ -131,10 +131,10 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     />
                 )
             })}
-            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={10}
+            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={12}
                   fill="var(--muted)">{xLabel}</text>
             <text transform={`translate(10, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
-                  textAnchor="middle" dominantBaseline="middle" fontSize={10}
+                  textAnchor="middle" dominantBaseline="middle" fontSize={12}
                   fill="var(--muted)">{yLabel}</text>
         </svg>
     )
@@ -186,21 +186,21 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* y labels (left = penalty €) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="end" fontSize={10} fill="var(--muted)">
+                          textAnchor="end" fontSize={12} fill="var(--muted)">
                         {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                     </text>
                 ))}
                 {/* y labels (right = drinks) */}
                 {[0, 0.5, 1].map(f => (
                     <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="start" fontSize={10} fill="var(--ink)">
+                          textAnchor="start" fontSize={12} fill="var(--ink)">
                         {Math.round(maxD * f)}
                     </text>
                 ))}
                 {/* x labels */}
                 {tickIdx.map(i => (
                     <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={9} fill="var(--muted)">{fmtX(bins[i].t)}</text>
+                          fontSize={12} fill="var(--muted)">{fmtX(bins[i].t)}</text>
                 ))}
                 {/* penalty line */}
                 <path d={pathP} fill="none" stroke="var(--accent-fg)" strokeWidth={1.8} strokeLinejoin="round"/>
@@ -220,13 +220,13 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                 {/* legend */}
                 <g>
                     <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--muted)">{leftLabel}</text>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
                     <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--muted)">{rightLabel}</text>
+                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
                 </g>
             </svg>
             {hoverIdx !== null && bins[hoverIdx] && (
-                <div className="text-[10px] text-muted text-center -mt-1">
+                <div className="text-xs text-muted text-center -mt-1">
                     {fmtX(bins[hoverIdx].t)}
                     {bins[hoverIdx].delta_penalty != null && ` · Δ€ ${bins[hoverIdx].delta_penalty!.toFixed(2)}`}
                     {bins[hoverIdx].delta_drinks != null && ` · Δ🍻 ${bins[hoverIdx].delta_drinks}`}
@@ -254,7 +254,7 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
         <div className="rounded-lg" style={{background: 'var(--surface-2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="flex flex-col">
-                    <div className="text-[10px] text-muted uppercase font-bold">{t(labelKey)}</div>
+                    <div className="text-xs text-muted uppercase font-bold">{t(labelKey)}</div>
                     <div className="text-xs font-bold" style={{color: badge.color}}>{badge.label}</div>
                 </div>
                 <div className="text-2xl font-extrabold" style={{color: badge.color}}>
@@ -262,7 +262,7 @@ function PearsonBadge({r, t, labelKey = 'stats.correlation.pearson'}: {
                 </div>
             </div>
             {r !== null && (
-                <div className="px-3 pb-2 text-[10px] text-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     {t(pearsonDirectionKey(r))}
                     <button type="button"
                             className="ml-1 underline decoration-dotted"
@@ -297,14 +297,14 @@ function DrinkRateBadge({
     const pct = ratio != null ? Math.round((ratio - 1) * 100) : null
     // Above baseline = each drink costs more (worse) → amber; below = cheaper drinks → green.
     const compareColor = pct == null ? 'var(--muted)'
-        : pct <= -20 ? '#22c55e'
+        : pct <= -20 ? 'var(--positive-fg)'
         : pct >= 20 ? 'var(--accent-fg)'
         : 'var(--muted)'
     return (
         <div className="rounded-lg mt-2" style={{background: 'var(--surface-2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="flex flex-col min-w-0">
-                    <div className="text-[10px] text-muted uppercase font-bold">{label}</div>
+                    <div className="text-xs text-muted uppercase font-bold">{label}</div>
                     <div className="text-xs text-ink truncate">
                         🍻 {drinks} · €{penalty.toFixed(2)}
                     </div>
@@ -313,11 +313,11 @@ function DrinkRateBadge({
                     <div className="text-2xl font-extrabold text-accent-fg leading-none">
                         {rate == null ? '–' : fe(rate)}
                     </div>
-                    <div className="text-[9px] text-muted">{t('stats.correlation.rateUnit')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.rateUnit')}</div>
                 </div>
             </div>
             {pct != null && baselineLabel && (
-                <div className="px-3 pb-2 text-[10px] text-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     <span style={{color: compareColor}} className="font-bold">
                         {pct > 0 ? '+' : ''}{pct}%
                     </span>
@@ -339,12 +339,12 @@ function DrinkRateBadge({
                 </div>
             )}
             {pct == null && rate != null && (
-                <div className="px-3 pb-2 text-[10px] text-muted leading-snug">
+                <div className="px-3 pb-2 text-xs text-muted leading-snug">
                     {t('stats.correlation.rateExplain')}
                 </div>
             )}
             {rate == null && (
-                <div className="px-3 pb-2 text-[10px] text-muted">
+                <div className="px-3 pb-2 text-xs text-muted">
                     {drinks === 0
                         ? t('stats.correlation.rateNoDrinks')
                         : t('stats.correlation.rateNoPenalty')}
@@ -385,7 +385,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
 
     return (
         <>
-            <div className="text-[10px] text-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
+            <div className="text-xs text-muted mb-2">{t('stats.correlation.memberEveningHint')}</div>
             {/* Member legend pills */}
             <div className="flex gap-1.5 flex-wrap mb-2">
                 <button type="button"
@@ -428,7 +428,7 @@ function MemberEveningScatter({members, myMemberId, t}: {
                         onSelect={i => setSelectedIdx(i === selectedIdx ? null : i)}
                     />
                     {selectedIdx !== null && points[selectedIdx] && (
-                        <div className="text-[10px] text-muted text-center mb-2">
+                        <div className="text-xs text-muted text-center mb-2">
                             <span className="font-bold">{points[selectedIdx].label}</span>
                             {points[selectedIdx].memberId === myMemberId && (
                                 <> · <MeBadge/></>
@@ -467,7 +467,7 @@ function YearCumulativeDualAxis({evenings, t}: {
 
     return (
         <div className="mt-3">
-            <div className="text-[10px] font-bold text-muted uppercase mb-1">
+            <div className="text-xs font-bold text-muted uppercase mb-1">
                 {t('stats.correlation.yearCumulativeTitle')}
             </div>
             <DualAxisLineChart
@@ -513,43 +513,43 @@ function EveningQuartileSummary({evenings, t}: {
     return (
         <div className="mt-3">
             {slopeText && (
-                <div className="text-[11px] text-muted mb-2 text-center">{slopeText}</div>
+                <div className="text-sm text-muted mb-2 text-center">{slopeText}</div>
             )}
-            <div className="text-[10px] font-bold text-muted uppercase mb-1">
+            <div className="text-xs font-bold text-muted uppercase mb-1">
                 {t('stats.correlation.quartileTitle')}
             </div>
             <div className="grid grid-cols-2 gap-2">
                 <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
-                    <div className="text-[10px] text-muted">{t('stats.correlation.quartileTop')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.quartileTop')}</div>
                     <div className="text-base font-extrabold text-accent-fg">🍻 {avgTop.toFixed(1)}</div>
-                    <div className="text-[10px] text-muted">{t('stats.correlation.avgDrinks')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                 </div>
                 <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
-                    <div className="text-[10px] text-muted">{t('stats.correlation.quartileBottom')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.quartileBottom')}</div>
                     <div className="text-base font-extrabold">🍻 {avgBottom.toFixed(1)}</div>
-                    <div className="text-[10px] text-muted">{t('stats.correlation.avgDrinks')}</div>
+                    <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                 </div>
             </div>
             {ratio && avgTop > avgBottom && (
-                <div className="text-[11px] font-bold text-accent-fg text-center mt-2">
+                <div className="text-sm font-bold text-accent-fg text-center mt-2">
                     {t('stats.correlation.timesMore').replace('{n}', ratio)}
                 </div>
             )}
             {streak && (
                 <div className="mt-3">
-                    <div className="text-[10px] font-bold text-muted uppercase mb-1">
+                    <div className="text-xs font-bold text-muted uppercase mb-1">
                         {t('stats.correlation.streakTitle')}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
-                            <div className="text-[10px] text-muted">{t('stats.correlation.streakTop5')}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.streakTop5')}</div>
                             <div className="text-base font-extrabold text-accent-fg">🍻 {streak.top5Avg.toFixed(1)}</div>
-                            <div className="text-[10px] text-muted">{t('stats.correlation.avgDrinks')}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                         </div>
                         <div className="p-2 rounded-lg" style={{background: 'var(--surface-2)'}}>
-                            <div className="text-[10px] text-muted">{t('stats.correlation.streakBottom5')}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.streakBottom5')}</div>
                             <div className="text-base font-extrabold">🍻 {streak.bottom5Avg.toFixed(1)}</div>
-                            <div className="text-[10px] text-muted">{t('stats.correlation.avgDrinks')}</div>
+                            <div className="text-xs text-muted">{t('stats.correlation.avgDrinks')}</div>
                         </div>
                     </div>
                 </div>
@@ -630,7 +630,7 @@ export function CorrelationSection({year, myMemberId, t}: {
             <div className="flex items-baseline justify-between mb-1">
                 <div className="text-sm font-extrabold">{t('stats.correlation.title')}</div>
             </div>
-            <div className="text-[10px] text-muted mb-2">{t('stats.correlation.subtitle')}</div>
+            <div className="text-xs text-muted mb-2">{t('stats.correlation.subtitle')}</div>
 
             <div className="flex gap-1 overflow-x-auto pb-1 mb-3" style={{scrollbarWidth: 'none'}}>
                 {tabs.map(({key, labelKey}) => (
@@ -662,7 +662,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                             onSelect={i => setSelectedDot(i === selectedDot ? null : i)}
                         />
                         {selectedDot !== null && filteredCorr!.evenings[selectedDot] && (
-                            <div className="text-[10px] text-muted text-center mb-2">
+                            <div className="text-xs text-muted text-center mb-2">
                                 {fDate(filteredCorr!.evenings[selectedDot].date)} · {fe(filteredCorr!.evenings[selectedDot].penalty_euro)} · 🍻 {filteredCorr!.evenings[selectedDot].drink_count.toFixed(2)}
                             </div>
                         )}
@@ -719,7 +719,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                     const maxRate = Math.max(...withRate.map(m => m.rate))
                     return (
                         <>
-                            <div className="text-[10px] text-muted mb-2 leading-snug">
+                            <div className="text-xs text-muted mb-2 leading-snug">
                                 {t('stats.correlation.fallbackRate')}
                             </div>
                             {withRate.map(m => {
@@ -743,7 +743,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                                             <div className="h-full rounded-full"
                                                  style={{width: `${pct}%`, background: 'var(--accent)'}}/>
                                         </div>
-                                        <div className="text-[9px] text-muted mt-1">
+                                        <div className="text-xs text-muted mt-1">
                                             🍻 {m.total_drink_count} · €{m.total_penalty_euro.toFixed(2)} · {m.evening_points.length} {m.evening_points.length === 1 ? t('stats.eveningSingular') : t('stats.eveningsPlural')}
                                         </div>
                                     </div>
@@ -756,7 +756,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                 return (
                     <>
                         {/* Scale ticks: −1 · 0 · +1 */}
-                        <div className="relative h-3 mb-1 text-[9px] text-muted font-bold">
+                        <div className="relative h-3 mb-1 text-xs text-muted font-bold">
                             <span className="absolute left-0">−1</span>
                             <span className="absolute left-1/2 -translate-x-1/2">0</span>
                             <span className="absolute right-0">+1</span>
@@ -796,7 +796,7 @@ export function CorrelationSection({year, myMemberId, t}: {
                             )
                         })}
                         {tooFew.length > 0 && (
-                            <div className="text-[10px] text-muted mt-2">
+                            <div className="text-xs text-muted mt-2">
                                 {t('stats.correlation.notEnoughEvenings')}: {tooFew.map(m => m.nickname || m.name).join(', ')}
                             </div>
                         )}
@@ -844,21 +844,21 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {/* y labels (left = Δ€) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="end" fontSize={10} fill="var(--muted)">
+                      textAnchor="end" fontSize={12} fill="var(--muted)">
                     {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
                 </text>
             ))}
             {/* y labels (right = Δdrinks) */}
             {[0, 0.5, 1].map(f => (
                 <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="start" fontSize={10} fill="var(--ink)">
+                      textAnchor="start" fontSize={12} fill="var(--ink)">
                     {Math.round(maxD * f)}
                 </text>
             ))}
             {/* x labels */}
             {tickIdx.map(i => (
                 <text key={`t${i}`} x={SC_PAD.left + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
-                      textAnchor="middle" fontSize={9} fill="var(--muted)">{fmtTime(bins[i].t)}</text>
+                      textAnchor="middle" fontSize={12} fill="var(--muted)">{fmtTime(bins[i].t)}</text>
             ))}
             {/* bars */}
             {bins.map((b, i) => {
@@ -881,9 +881,9 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
             {/* legend */}
             <g>
                 <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={9} fill="var(--muted)">{leftLabel}</text>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
                 <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={9} fill="var(--muted)">{rightLabel}</text>
+                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
             </g>
         </svg>
     )
@@ -927,12 +927,12 @@ function MemberHeatLane({
         <svg viewBox={`0 0 320 ${LANE_H}`} className="w-full block" preserveAspectRatio="none"
              style={{height: LANE_H}}>
             {/* Member name */}
-            <text x={6} y={LANE_H / 2 + 1} fontSize={10} fontWeight={700}
+            <text x={6} y={LANE_H / 2 + 1} fontSize={12} fontWeight={700}
                   dominantBaseline="middle" fill="var(--ink)">
                 {isMe
                     ? (label.length > 7 ? `${label.slice(0, 6)}…` : label)
                     : (label.length > 11 ? `${label.slice(0, 10)}…` : label)}
-                {isMe && <tspan fill="var(--accent-fg)" fontSize={7} dx={3}> Ich</tspan>}
+                {isMe && <tspan fill="var(--accent-fg)" fontSize={12} dx={3}> Ich</tspan>}
             </text>
 
             {/* Background heat cells: Δpenalty intensity — tinted with the club primary */}
@@ -963,11 +963,11 @@ function MemberHeatLane({
                 const totalDrinks = bins[bins.length - 1].cum_drinks
                 return (
                     <>
-                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={10} textAnchor="end"
+                        <text x={320 - 4} y={LANE_H / 2 - 3} fontSize={12} textAnchor="end"
                               fill="var(--accent-fg)" fontWeight={700}>
                             €{totalPenalty.toFixed(1)}
                         </text>
-                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={10} textAnchor="end"
+                        <text x={320 - 4} y={LANE_H / 2 + 8} fontSize={12} textAnchor="end"
                               fill="var(--ink)" fontWeight={700}>
                             🍻 {totalDrinks}
                         </text>
@@ -980,7 +980,7 @@ function MemberHeatLane({
 
             {/* Optional r badge in name area, small */}
             {rPearson != null && (
-                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={9} textAnchor="end"
+                <text x={LANE_NAME_W - 4} y={LANE_H / 2 + 1} fontSize={12} textAnchor="end"
                       dominantBaseline="middle" fill={rColor(rPearson)} fontWeight={700}>
                     r={rPearson.toFixed(2)}
                 </text>
@@ -1026,7 +1026,7 @@ function MemberHeatLanes({
     })
     return (
         <div>
-            <div className="text-[10px] text-muted mb-2">
+            <div className="text-xs text-muted mb-2">
                 {t('stats.correlation.heatLaneHint')}
             </div>
             {sorted.map(m => (
@@ -1043,7 +1043,7 @@ function MemberHeatLanes({
                 />
             ))}
             {/* Legend */}
-            <div className="flex items-center gap-3 mt-2 text-[10px] text-muted">
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted">
                 <span className="flex items-center gap-1">
                     <span className="inline-block w-3 h-2 rounded-sm" style={{background: 'color-mix(in srgb, var(--accent) 85%, transparent)'}}/>
                     {t('stats.correlation.deltaPenalty')}
@@ -1133,7 +1133,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
             {/* Titled "within one evening" rather than reusing the year-wide section title —
                 in the Statistik-Labor both panels sit next to each other (#68). */}
             <div className="sec-heading text-sm mb-1">🎲 {t('stats.correlation.tab.timeline')}</div>
-            <div className="text-[10px] text-muted mb-2">
+            <div className="text-xs text-muted mb-2">
                 {pickedMemberId == null ? t('stats.correlation.compareAllHint') : t('stats.correlation.subtitle')}
             </div>
 
@@ -1166,7 +1166,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
 
             {/* Bin-size pill picker */}
             <div className="flex gap-1.5 flex-wrap items-center mb-3">
-                <span className="text-[10px] text-muted mr-1">{t('stats.correlation.binMinutes')}:</span>
+                <span className="text-xs text-muted mr-1">{t('stats.correlation.binMinutes')}:</span>
                 {[5, 15, 30].map(m => (
                     <button key={m} type="button"
                             className={`chip ${binMinutes === m ? 'active' : ''}`}
@@ -1213,7 +1213,7 @@ export function EveningCorrelationPanel({eveningId, myMemberId, t}: {
                         leftLabel={t('stats.correlation.cumPenalty')}
                         rightLabel={t('stats.correlation.cumDrinks')}
                     />
-                    <div className="text-[10px] text-muted text-center mt-1 mb-2">
+                    <div className="text-xs text-muted text-center mt-1 mb-2">
                         {t('stats.correlation.deltaTitle')}
                     </div>
                     <DeltaBarChart

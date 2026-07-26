@@ -210,7 +210,7 @@ export function SeasonTab() {
                     </div>
                 ) : nonZeroBalances.length === 0 ? (
                     <div className="kce-card p-4">
-                        <p className="text-sm text-green-400">{t('season.step1.noDebts')}</p>
+                        <p className="text-sm text-positive-fg">{t('season.step1.noDebts')}</p>
                     </div>
                 ) : (
                     <div className="kce-card px-4 flex flex-col gap-0 divide-y divide-line">
@@ -236,7 +236,7 @@ export function SeasonTab() {
                                     <span className="text-sm text-kce-text truncate">{displayName(b)}</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm flex-shrink-0">
-                                    <span className={b.balance < 0 ? 'text-red-400' : 'text-green-400'}>
+                                    <span className={b.balance < 0 ? 'text-danger-fg' : 'text-positive-fg'}>
                                         {fe(b.balance)}
                                     </span>
                                     {settledIds.has(b.regular_member_id) && (
@@ -433,7 +433,7 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
                     <div className="flex gap-2">
                         <button
                             type="button"
-                            className="flex-1 text-xs py-1.5 rounded-lg bg-red-900/50 text-red-400 font-medium"
+                            className="flex-1 text-xs py-1.5 rounded-lg bg-danger/25 text-danger-fg font-medium"
                             disabled={reopening}
                             onClick={handleReopen}
                         >

@@ -10,7 +10,7 @@ import type {ReminderSettings, ReminderTypeSettings, EmailSettings} from '@/type
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
-import {DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '@/lib/tokens'
+import {DEFAULT_DARK_BG, DEFAULT_PRIMARY, DEFAULT_SECONDARY} from '@/lib/tokens'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
@@ -169,7 +169,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [logoUploading, setLogoUploading] = useState(false)
     const [color1, setColor1] = useState(club?.settings?.primary_color || DEFAULT_PRIMARY)
     const [color2, setColor2] = useState(club?.settings?.secondary_color || DEFAULT_SECONDARY)
-    const [bgColor, setBgColor] = useState(club?.settings?.bg_color || '#1a1410')
+    const [bgColor, setBgColor] = useState(club?.settings?.bg_color || DEFAULT_DARK_BG)
     const [paletteBase, setPaletteBase] = useState(DEFAULT_PRIMARY)
     const [suggestions, setSuggestions] = useState<Palette[]>([])
     const [guestCap, setGuestCap] = useState(club?.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
@@ -185,7 +185,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setVenue(club.settings?.home_venue || '')
         setColor1(club.settings?.primary_color || DEFAULT_PRIMARY)
         setColor2(club.settings?.secondary_color || DEFAULT_SECONDARY)
-        setBgColor(club.settings?.bg_color || '#1a1410')
+        setBgColor(club.settings?.bg_color || DEFAULT_DARK_BG)
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
@@ -311,12 +311,12 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}/>
                             </label>
                             {club?.settings?.logo_url && (
-                                <button type="button" className="text-xs text-muted hover:text-red-400 text-left"
+                                <button type="button" className="text-xs text-muted hover:text-danger-fg text-left"
                                         onClick={handleLogoRemove}>
                                     {t('club.logo.remove')}
                                 </button>
                             )}
-                            <p className="text-[10px] text-muted">{t('club.logo.hint')}</p>
+                            <p className="text-xs text-muted">{t('club.logo.hint')}</p>
                         </div>
                     </div>
                 </div>
@@ -603,7 +603,7 @@ function EmailSettingsCard() {
                     <label className="field-label">{t('email.baseUrl')}</label>
                     <input className="kce-input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
                            placeholder="https://kegeln.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
-                    <p className="text-[11px] text-muted mt-1">{t('email.baseUrlHint')}</p>
+                    <p className="text-sm text-muted mt-1">{t('email.baseUrlHint')}</p>
                 </div>
             </div>
 
@@ -1028,11 +1028,11 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         </div>
                         {gt.description && <div className="text-xs text-muted mt-0.5">{gt.description}</div>}
                         <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] text-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
+                            <span className="text-xs text-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
                             {gt.default_loser_penalty > 0 &&
-                                <span className="text-[10px] text-red-400">{fe(gt.default_loser_penalty)}</span>}
+                                <span className="text-xs text-danger-fg">{fe(gt.default_loser_penalty)}</span>}
                             {(gt.per_point_penalty ?? 0) > 0 &&
-                                <span className="text-[10px] text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
+                                <span className="text-xs text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
                         </div>
                     </div>
                     <div className="flex gap-1">
@@ -1163,12 +1163,12 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                 <div key={c.id} className="kce-card p-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold truncate">{c.name}</div>
-                        <div className="text-[10px] text-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
+                        <div className="text-xs text-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                         <button className="btn-secondary btn-xs" onClick={() => openEdit(c)} title={t('superadmin.clubs.edit')}>✏️</button>
                         {c.is_active ? (
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded"
+                            <span className="text-xs font-extrabold px-2 py-0.5 rounded"
                                   style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)'}}>
                                 {t('superadmin.clubs.active')}
                             </span>
@@ -1177,7 +1177,7 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                                 <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
                                     {t('superadmin.clubs.switch')}
                                 </button>
-                                <button className="text-muted hover:text-red-400 text-sm px-1"
+                                <button className="text-muted hover:text-danger-fg text-sm px-1"
                                         onClick={() => setDeleteClubId(c.id)}
                                         title={t('superadmin.clubs.delete')}>×</button>
                             </>
@@ -1376,7 +1376,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                                 : <span className="text-muted">{t('pin.noHolder')}</span>
                             }
                             {p.assigned_at && (
-                                <span className="text-[10px] text-muted ml-1">
+                                <span className="text-xs text-muted ml-1">
                                     {t('pin.holderSince')} {new Date(p.assigned_at).toLocaleDateString('de-DE')}
                                 </span>
                             )}
@@ -1472,7 +1472,7 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                                  className="card p-3 flex items-center justify-between gap-2">
                                 <div>
                                     <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
-                                    {m.nickname && <p className="text-[10px] text-muted">{m.name}</p>}
+                                    {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
                                 </div>
                                 <button
                                     // disabled={busy === m.id}
@@ -1493,7 +1493,7 @@ function CommitteeAdminTab({regularMembers, onChanged}: {
                     <div key={m.id} className="card p-3 flex items-center justify-between gap-2">
                         <div>
                             <p className="text-sm font-bold text-ink">{m.nickname || m.name}</p>
-                            {m.nickname && <p className="text-[10px] text-muted">{m.name}</p>}
+                            {m.nickname && <p className="text-xs text-muted">{m.name}</p>}
                         </div>
                         <button
                             disabled={busy === m.id}
@@ -1562,25 +1562,25 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
                 <div key={b.label} className="rounded-xl p-3 space-y-1.5"
                      style={{background: 'var(--surface-2)'}}>
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded"
                               style={{background: b.type === 'full' ? 'var(--accent)' : 'var(--surface-2)', color: b.type === 'full' ? 'var(--canvas)' : 'var(--muted)', border: b.type !== 'full' ? '1px solid var(--line)' : undefined}}>
                             {BACKUP_TYPE_LABEL[b.type] ?? b.type}
                         </span>
                         <span className="text-xs font-mono truncate flex-1">{b.label}</span>
-                        {b.error && <span className="text-[10px] text-red-400 font-bold">{t('backup.error')}</span>}
+                        {b.error && <span className="text-xs text-danger-fg font-bold">{t('backup.error')}</span>}
                         <button
                             onClick={() => handleDownload(b.label)}
                             disabled={!!downloading}
-                            className="text-[11px] text-accent-fg disabled:opacity-40 flex-shrink-0">
+                            className="text-sm text-accent-fg disabled:opacity-40 flex-shrink-0">
                             {downloading === b.label ? '⏳' : `⬇ ${t('backup.download')}`}
                         </button>
                         <button
                             onClick={() => setConfirmLabel(b.label)}
-                            className="text-[11px] text-red-400 flex-shrink-0">
+                            className="text-sm text-danger-fg flex-shrink-0">
                             🗑 {t('backup.delete')}
                         </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 text-[11px] text-muted">
+                    <div className="grid grid-cols-2 gap-x-4 text-sm text-muted">
                         <span>Start: <span className="text-accent-fg">{fmtTs(b.timestamp.start)}</span></span>
                         <span>Ende: <span className="text-accent-fg">{fmtTs(b.timestamp.stop)}</span></span>
                         <span>Größe: <span className="text-accent-fg">{fmtBytes(b.info.size)}</span></span>
@@ -1645,7 +1645,7 @@ function BackupsTab() {
             </button>
 
             {error && (
-                <div className="rounded-xl px-3 py-2 text-xs text-red-400 border border-red-400/30"
+                <div className="rounded-xl px-3 py-2 text-xs text-danger-fg border border-danger/30"
                      style={{background: 'var(--surface-2)'}}>
                     {(error as Error).message}
                 </div>

@@ -131,7 +131,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8"
-             style={{background: 'linear-gradient(160deg,#1a1410 0%,#241c18 60%,#2a1e18 100%)'}}>
+             style={{background: 'linear-gradient(160deg,var(--canvas) 0%,var(--surface) 60%,var(--surface-2) 100%)'}}>
             {/* Language toggle */}
             <div className="absolute right-4 flex gap-1" style={{top: 'max(env(safe-area-inset-top, 0px), 1rem)'}}>
                 {(['de', 'en'] as const).map(l => (
@@ -207,7 +207,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                     <>
                         <h2 className="font-display font-bold text-ink text-lg mb-4">{t('auth.forgot.title')}</h2>
                         {forgotDone ? (
-                            <p className="text-green-400 text-sm mb-4">{t('auth.forgot.done')}</p>
+                            <p className="text-positive-fg text-sm mb-4">{t('auth.forgot.done')}</p>
                         ) : (
                             <form onSubmit={handleForgot} className="flex flex-col gap-3">
                                 <p className="text-muted text-xs">{t('auth.forgot.intro')}</p>
@@ -244,7 +244,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                         <h2 className="font-display font-bold text-ink text-lg mb-4">{t('auth.reset.title')}</h2>
                         {resetDone ? (
                             <>
-                                <p className="text-green-400 text-sm mb-4">{t('auth.reset.success')}</p>
+                                <p className="text-positive-fg text-sm mb-4">{t('auth.reset.success')}</p>
                                 <button className="btn-primary w-full" onClick={() => {
                                     setMode('login');
                                     setResetDone(false)
@@ -340,7 +340,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                 )}
             </div>
 
-            <p className="text-muted text-[10px] mt-6 italic tracking-wider">{t('app.motto')}</p>
+            <p className="text-muted text-xs mt-6 italic tracking-wider">{t('app.motto')}</p>
         </div>
     )
 }

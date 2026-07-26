@@ -74,7 +74,7 @@ export function HeadToHead({players, myMemberId}: {
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">
+            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
                 {t('stats.h2h.pickHint')}
             </div>
 
@@ -111,7 +111,7 @@ export function HeadToHead({players, myMemberId}: {
                             <div className={`flex-1 text-right text-sm font-bold ${row.winner === 'a' ? 'text-accent-fg' : ''}`}>
                                 {formatCell(row.a, row.format)}
                             </div>
-                            <div className="flex-shrink-0 text-[10px] text-muted uppercase tracking-wider text-center"
+                            <div className="flex-shrink-0 text-xs text-muted uppercase tracking-wider text-center"
                                  style={{minWidth: 110}}>
                                 {t(`stats.h2h.${row.key}` as TranslationKey)}
                             </div>

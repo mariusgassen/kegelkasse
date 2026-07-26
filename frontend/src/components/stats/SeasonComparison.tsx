@@ -50,7 +50,7 @@ export function SeasonComparison({selectedYear, onSelectYear}: {
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="font-display font-bold text-base flex-shrink-0">{s.year}</span>
                         {s.season_closed && (
-                            <span className="text-[10px] text-muted font-bold">
+                            <span className="text-xs text-muted font-bold">
                                 ✅ {t('stats.seasons.closed')}
                             </span>
                         )}
@@ -59,7 +59,7 @@ export function SeasonComparison({selectedYear, onSelectYear}: {
                             {fe(s.penalty_total)}
                         </span>
                     </div>
-                    <div className="text-[10px] text-muted mb-1.5">
+                    <div className="text-xs text-muted mb-1.5">
                         {s.evening_count} {t('stats.evenings')} · {s.player_count} {t('stats.seasons.players')}
                         {' · '}🍻 {s.drink_count} · ⌀ {fe(seasonPenaltyPerEvening(s))}/{t('stats.seasons.perEvening')}
                     </div>

@@ -50,7 +50,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                      style={{background: 'color-mix(in srgb, var(--accent) 10%, var(--surface))'}}>
                     <div className="flex items-center justify-between">
                         <div className="text-xs font-bold text-muted truncate">{game.name}</div>
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1"
+                        <span className="text-xs font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1"
                               style={{background: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent-fg)'}}>
                             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background: 'var(--accent)'}}/>
                             {t('live.running')}
@@ -59,22 +59,22 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
 
                     <div className="flex items-end justify-between gap-3 mt-3">
                         <div className="min-w-0">
-                            <div className="text-[10px] font-bold text-muted uppercase tracking-wider">{t('live.onTurn')}</div>
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.onTurn')}</div>
                             <div className="font-display font-bold text-2xl text-ink truncate">
                                 {activePlayer ? (activePlayer.nickname || activePlayer.name) : '—'}
                             </div>
                             {nextPlayer && (
-                                <div className="text-[11px] text-muted mt-0.5 truncate">
+                                <div className="text-sm text-muted mt-0.5 truncate">
                                     {t('live.next')}: {nextPlayer.nickname || nextPlayer.name}
                                 </div>
                             )}
                         </div>
                         {throwTracking && lastThrow && (
                             <div className="text-right flex-shrink-0">
-                                <div className="text-[10px] font-bold text-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
+                                <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
                                 <div className="font-display font-bold text-3xl text-accent-fg leading-none">{lastThrow.pins}</div>
                                 {lastThrow.cumulative != null && (
-                                    <div className="text-[11px] text-muted mt-0.5">Σ {lastThrow.cumulative}</div>
+                                    <div className="text-sm text-muted mt-0.5">Σ {lastThrow.cumulative}</div>
                                 )}
                             </div>
                         )}
@@ -84,7 +84,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                 <button onClick={onGoGames}
                         className="w-full kce-card p-4 text-left active:scale-[0.99] transition-transform">
                     <div className="text-sm font-bold text-ink">{t('live.noGame')}</div>
-                    <div className="text-[11px] text-muted mt-0.5">{t('live.noGameSub')}</div>
+                    <div className="text-sm text-muted mt-0.5">{t('live.noGameSub')}</div>
                 </button>
             )}
 
@@ -92,19 +92,19 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
             <div className="grid grid-cols-4 gap-2">
                 <div className="kce-card p-2.5 text-center">
                     <div className="font-display font-bold text-base text-ink leading-tight">{fe(totals.penaltyEuro)}</div>
-                    <div className="text-[10px] text-muted">{t('live.stat.penalties')}</div>
+                    <div className="text-xs text-muted">{t('live.stat.penalties')}</div>
                 </div>
                 <div className="kce-card p-2.5 text-center">
                     <div className="font-display font-bold text-base text-ink leading-tight">🍺 {totals.beerRounds}</div>
-                    <div className="text-[10px] text-muted">{t('live.stat.beer')}</div>
+                    <div className="text-xs text-muted">{t('live.stat.beer')}</div>
                 </div>
                 <div className="kce-card p-2.5 text-center">
                     <div className="font-display font-bold text-base text-ink leading-tight">🥃 {totals.shotRounds}</div>
-                    <div className="text-[10px] text-muted">{t('live.stat.shots')}</div>
+                    <div className="text-xs text-muted">{t('live.stat.shots')}</div>
                 </div>
                 <div className="kce-card p-2.5 text-center">
                     <div className="font-display font-bold text-base text-ink leading-tight">{totals.gamesFinished}/{totals.gamesTotal}</div>
-                    <div className="text-[10px] text-muted">{t('nav.games')}</div>
+                    <div className="text-xs text-muted">{t('nav.games')}</div>
                 </div>
             </div>
 
@@ -128,12 +128,12 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                                 <span className="text-lg flex-shrink-0">{e.icon}</span>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold text-ink truncate">{e.title}</div>
-                                    {e.subtitle && <div className="text-[11px] text-muted truncate">{e.subtitle}</div>}
+                                    {e.subtitle && <div className="text-sm text-muted truncate">{e.subtitle}</div>}
                                 </div>
                                 {e.amount != null && e.amount > 0 && (
                                     <span className="text-sm font-bold text-accent-fg flex-shrink-0">{fe(e.amount)}</span>
                                 )}
-                                <span className="text-[10px] text-muted flex-shrink-0 w-14 text-right">{relTime(e.ts, now, t)}</span>
+                                <span className="text-xs text-muted flex-shrink-0 w-14 text-right">{relTime(e.ts, now, t)}</span>
                             </div>
                         ))}
                     </div>
@@ -149,7 +149,7 @@ function QuickAction({emoji, label, onClick}: {emoji: string; label: string; onC
         <button onClick={onClick} disabled={disabled}
                 className="kce-card p-3 flex flex-col items-center gap-1 active:scale-95 transition-transform disabled:opacity-40">
             <span className="text-xl leading-none">{emoji}</span>
-            <span className="text-[11px] font-bold text-ink text-center leading-tight">{label}</span>
+            <span className="text-sm font-bold text-ink text-center leading-tight">{label}</span>
         </button>
     )
 }

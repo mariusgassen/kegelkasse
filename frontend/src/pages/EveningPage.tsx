@@ -242,7 +242,7 @@ export function EveningPage() {
                 <div className="sec-heading mb-0">🎳 {t('nav.evening')}</div>
                 {!evening.is_closed && (
                     <span
-                        className="text-[10px] font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1.5 py-0.5">
+                        className="text-xs font-extrabold tracking-widest text-accent-fg border border-accent rounded px-1.5 py-0.5">
                         {t('evening.active')}
                     </span>
                 )}
@@ -414,7 +414,7 @@ export function EveningPage() {
                             <div className="p-3 flex items-center gap-3">
                                 <div
                                     className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0 overflow-hidden"
-                                    style={{background: 'linear-gradient(135deg,var(--accent-deep),var(--accent))'}}>
+                                    style={{background: 'linear-gradient(135deg,var(--accent-shade),var(--accent))'}}>
                                     {rm?.avatar
                                         ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
                                         : (p.nickname || p.name)[0].toUpperCase()
@@ -449,7 +449,7 @@ export function EveningPage() {
                                 )}
                             </div>
                             {confirmRemovePlayerId === p.id && (
-                                <div className="text-xs text-red-400 px-3 pb-2">
+                                <div className="text-xs text-danger-fg px-3 pb-2">
                                     ⚠️ {t('player.removeWarning')}
                                 </div>
                             )}
@@ -563,7 +563,7 @@ export function EveningPage() {
                 <div className="flex flex-col gap-3">
                     {/* Team selection — required */}
                     {teams.length === 0 ? (
-                        <div className="rounded-lg px-3 py-2 text-xs text-red-400"
+                        <div className="rounded-lg px-3 py-2 text-xs text-danger-fg"
                              style={{background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)'}}>
                             ⚠️ {t('player.noTeamsYet')}
                         </div>
@@ -598,11 +598,11 @@ export function EveningPage() {
                                         <span className="field-label mb-0">{t('member.title')}</span>
                                         <div className="flex gap-1">
                                             <button type="button"
-                                                    className="text-[10px] text-muted px-1.5 py-0.5 rounded"
+                                                    className="text-xs text-muted px-1.5 py-0.5 rounded"
                                                     onClick={() => setSelectedMemberIds(new Set(stamm.map(m => m.id)))}>{t('action.all')}
                                             </button>
                                             <button type="button"
-                                                    className="text-[10px] text-muted px-1.5 py-0.5 rounded"
+                                                    className="text-xs text-muted px-1.5 py-0.5 rounded"
                                                     onClick={() => setSelectedMemberIds(new Set())}>{t('action.none')}
                                             </button>
                                         </div>
@@ -649,7 +649,7 @@ export function EveningPage() {
                                }}
                                placeholder={t('player.guestPlaceholder')}/>
                         {guestName.trim() && (
-                            <p className="text-[10px] text-muted mt-1">{t('player.guestSaveHint')}</p>
+                            <p className="text-xs text-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
                     <button type="submit" className="btn-primary w-full"
@@ -839,7 +839,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
 
                 {/* Attendance checklist */}
                 <div>
-                    <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                    <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                         👥 {t('team.members')} ({checkedIds.size}/{activeMembers.length})
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
@@ -851,11 +851,11 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                     key={m.id}
                                     className={[
                                         'w-full p-2 rounded-lg flex items-center gap-2.5 transition-colors',
-                                        isChecked ? 'bg-green-500/10' : isAbgesagt ? 'bg-red-500/10' : 'bg-surface-2/40',
+                                        isChecked ? 'bg-positive/10' : isAbgesagt ? 'bg-danger/10' : 'bg-surface-2/40',
                                     ].join(' ')}
                                 >
                                     <button onClick={() => toggleMember(m.id)} className="flex items-center gap-2.5 flex-1 text-left min-w-0">
-                                        <span className={isChecked ? 'text-green-400' : 'text-muted'}>
+                                        <span className={isChecked ? 'text-positive-fg' : 'text-muted'}>
                                             {isChecked ? '☑' : '☐'}
                                         </span>
                                         <span className={[
@@ -872,9 +872,9 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                         <button
                                             onClick={() => toggleAbgesagt(m.id)}
                                             className={[
-                                                'text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 transition-all',
+                                                'text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 transition-all',
                                                 isAbgesagt
-                                                    ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                    ? 'bg-danger/20 text-danger-fg border-danger/40'
                                                     : 'bg-surface-2 text-muted border-line',
                                             ].join(' ')}
                                         >
@@ -890,7 +890,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                 {/* Known guests chips */}
                 {knownGuests.length > 0 && (
                     <div className="pt-2 border-t border-surface-2">
-                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                             🧑‍🤝‍🧑 {t('player.knownGuests')}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -909,7 +909,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
 
                 {/* New guest input */}
                 <div className={knownGuests.length > 0 ? '' : 'pt-2 border-t border-surface-2'}>
-                    <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                    <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                         🧑‍🤝‍🧑 {t('player.newGuest')}
                     </div>
                     <input
@@ -923,7 +923,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                 {/* Pins check — only for pins whose holder is present */}
                 {pins.some((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)) && (
                     <div className="pt-2 border-t border-surface-2">
-                        <div className="text-[10px] font-extrabold text-muted uppercase tracking-wider mb-2">
+                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
                             📌 {t('pin.title')}
                         </div>
                         {pins.filter((p: ClubPin) => p.holder_regular_member_id && checkedIds.has(p.holder_regular_member_id)).map((pin: ClubPin) => {
@@ -934,7 +934,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                     onClick={() => toggleMissingPin(pin.id)}
                                     className={[
                                         'w-full flex items-center gap-2.5 p-2 rounded-lg mb-1 text-left transition-colors',
-                                        brought ? 'bg-green-500/10' : 'bg-red-500/10',
+                                        brought ? 'bg-positive/10' : 'bg-danger/10',
                                     ].join(' ')}
                                 >
                                     <span className="text-base flex-shrink-0">{pin.icon}</span>
@@ -942,7 +942,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                     <span className="text-xs text-muted flex-shrink-0">{pin.holder_name}</span>
                                     <span className={[
                                         'text-xs font-bold flex-shrink-0',
-                                        brought ? 'text-green-400' : 'text-red-400',
+                                        brought ? 'text-positive-fg' : 'text-danger-fg',
                                     ].join(' ')}>
                                         {brought ? `✓ ${t('pin.brought')}` : `✕ ${t('pin.forgotten')}`}
                                     </span>
@@ -1042,13 +1042,13 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                     <span className="text-xl flex-shrink-0">{pin.icon}</span>
                     <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold">{pin.name}</div>
-                        <div className="text-[10px] text-muted">
+                        <div className="text-xs text-muted">
                             {t('pin.holder')}: {holderDisplayName}
                         </div>
                     </div>
                     {alreadyLogged
                         ? <div className="flex items-center gap-1 flex-shrink-0">
-                            <span className="text-xs text-green-400 font-bold">✓ {t('pin.missingPenalty')}</span>
+                            <span className="text-xs text-positive-fg font-bold">✓ {t('pin.missingPenalty')}</span>
                             <button className="btn-secondary btn-xs" title={t('action.cancel')}
                                     onClick={() => undoMissingPin(pin, logEntry!.id)}>↩</button>
                           </div>

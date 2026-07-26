@@ -66,11 +66,11 @@ function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, m
             </button>
             {open && (
                 items.length === 0
-                    ? <div className="pl-4 py-1 text-[11px] text-muted">{noEntriesLabel}</div>
+                    ? <div className="pl-4 py-1 text-sm text-muted">{noEntriesLabel}</div>
                     : (
                         <div className="pl-4 pb-1 pt-0.5 flex flex-col gap-0.5">
                             {items.map((it, i) => (
-                                <div key={it.id ?? i} className="flex items-center justify-between text-[11px] text-muted gap-2">
+                                <div key={it.id ?? i} className="flex items-center justify-between text-sm text-muted gap-2">
                                     <span className="truncate flex items-center gap-1 min-w-0">
                                         <span className="truncate">{it.label}</span>
                                         {myId != null && it.id === myId &&
@@ -242,19 +242,19 @@ export function TreasuryAnalysis() {
                     <span className="text-xs font-bold text-muted truncate">
                         🔍 {t('treasury.balanceFilter.title')}
                         {balanceFilterActive && (
-                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-accent text-on-accent text-[10px] font-bold"
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-accent text-on-accent text-xs font-bold"
                                   data-testid="balance-filter-active">{balanceFilterIds.size}</span>
                         )}
                     </span>
                     {balanceFilterActive && (
-                        <button type="button" className="flex-shrink-0 text-[10px] text-muted underline px-1"
+                        <button type="button" className="flex-shrink-0 text-xs text-muted underline px-1"
                                 data-testid="balance-filter-clear"
                                 onClick={clearBalanceFilter}>
                             {t('treasury.balanceFilter.clear')}
                         </button>
                     )}
                 </div>
-                <div className="text-[11px] text-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
+                <div className="text-sm text-muted mb-2">{t('treasury.balanceFilter.hint')}</div>
                 <div className="flex gap-2 flex-wrap">
                     {[...(balances as Balance[])].sort((a, b) => {
                         if (a.regular_member_id === myRegularMemberId) return -1
@@ -286,20 +286,20 @@ export function TreasuryAnalysis() {
                                    onChange={e => setBalanceOnlySelected(e.target.checked)}/>
                             <span>
                                 <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.onlySelected')}</span>
-                                <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
+                                <span className="block text-xs text-muted">{t('treasury.balanceFilter.onlySelectedHint')}</span>
                             </span>
                         </label>
                         {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
                         <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
                              aria-disabled={balanceOnlySelected}>
-                            <div className="text-[10px] font-bold text-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
+                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
                             <label className="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
                                        disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
                                        onChange={e => setBalanceWriteOffDebt(e.target.checked)}/>
                                 <span>
                                     <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optWriteOff')}</span>
-                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
+                                    <span className="block text-xs text-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
                                 </span>
                             </label>
                             <label className="flex items-start gap-2 cursor-pointer">
@@ -308,7 +308,7 @@ export function TreasuryAnalysis() {
                                        onChange={e => setBalanceRefundPaid(e.target.checked)}/>
                                 <span>
                                     <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optRefund')}</span>
-                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
+                                    <span className="block text-xs text-muted">{t('treasury.balanceFilter.optRefundHint')}</span>
                                 </span>
                             </label>
                             <label className="flex items-start gap-2 cursor-pointer">
@@ -317,7 +317,7 @@ export function TreasuryAnalysis() {
                                        onChange={e => setBalanceSettleShare(e.target.checked)}/>
                                 <span>
                                     <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optShare')}</span>
-                                    <span className="block text-[10px] text-muted">{t('treasury.balanceFilter.optShareHint')}</span>
+                                    <span className="block text-xs text-muted">{t('treasury.balanceFilter.optShareHint')}</span>
                                 </span>
                             </label>
                         </div>
@@ -332,7 +332,7 @@ export function TreasuryAnalysis() {
                         <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">
                             {t('treasury.analysis.flowHeading')}
                         </div>
-                        <div className={`font-display font-bold text-2xl ${kassenstand >= 0 ? 'text-green-400' : 'text-red-400'}`}
+                        <div className={`font-display font-bold text-2xl ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}
                              data-testid="analysis-cash">{fe(kassenstand)}</div>
                     </div>
                     <span className="text-3xl opacity-20">📊</span>
@@ -340,7 +340,7 @@ export function TreasuryAnalysis() {
                 <div className="pt-2 border-t border-line flex flex-col gap-1 text-xs">
                     <FlowRow
                         icon="⬆" label={t('treasury.flow.paidIn')}
-                        amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-green-400"
+                        amountLabel={`+${fe(summary.paidIn)}`} colorClass="text-positive-fg"
                         open={flowDetail === 'paidIn'} onToggle={() => setFlowDetail(flowDetail === 'paidIn' ? null : 'paidIn')}
                         items={paidInBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
                         testId="flow-amount-paidIn"
@@ -355,7 +355,7 @@ export function TreasuryAnalysis() {
                     {summary.otherIncome > 0 && (
                         <FlowRow
                             icon="⬆" label={t('treasury.flow.otherIncome')}
-                            amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-green-400"
+                            amountLabel={`+${fe(summary.otherIncome)}`} colorClass="text-positive-fg"
                             open={flowDetail === 'otherIncome'} onToggle={() => setFlowDetail(flowDetail === 'otherIncome' ? null : 'otherIncome')}
                             items={otherIncomeBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
                             testId="flow-amount-otherIncome"
@@ -364,7 +364,7 @@ export function TreasuryAnalysis() {
                     {Math.abs(shareOut) >= 0.005 && (
                         <div className="flex items-center justify-between">
                             <span className="text-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
-                            <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-green-400'}`}
+                            <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-positive-fg'}`}
                                   data-testid="flow-amount-share">
                                 {shareOut > 0 ? `-${fe(shareOut)}` : `+${fe(-shareOut)}`}
                             </span>
@@ -374,7 +374,7 @@ export function TreasuryAnalysis() {
                         <>
                             <FlowRow
                                 icon="🔴" label={t('treasury.flow.outstanding')}
-                                amountLabel={fe(summary.outstanding)} colorClass="text-red-400"
+                                amountLabel={fe(summary.outstanding)} colorClass="text-danger-fg"
                                 open={flowDetail === 'outstanding'} onToggle={() => setFlowDetail(flowDetail === 'outstanding' ? null : 'outstanding')}
                                 items={outstandingBreakdown} myId={myRegularMemberId} noEntriesLabel={t('treasury.flow.noEntries')}
                                 testId="flow-amount-outstanding"

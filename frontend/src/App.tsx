@@ -213,12 +213,13 @@ export default function App() {
 
     // Apply club theme whenever club data or the user's light/dark/system preference changes;
     // in 'system' mode also react to the OS-level prefers-color-scheme flipping without a reload.
+    // Runs before `club` resolves too (it falls back to the default branding), so the login screen
+    // and the boot splash already honour a light-mode preference instead of always painting dark.
     useEffect(() => {
-        if (!club) return
-        applyTheme(club, theme)
+        applyTheme(club ?? null, theme)
         if (theme !== 'system') return
         const mq = window.matchMedia('(prefers-color-scheme: light)')
-        const handler = () => applyTheme(club, theme)
+        const handler = () => applyTheme(club ?? null, theme)
         mq.addEventListener('change', handler)
         return () => mq.removeEventListener('change', handler)
     }, [club, theme])

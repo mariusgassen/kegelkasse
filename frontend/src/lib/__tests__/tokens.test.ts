@@ -1,10 +1,14 @@
 /// <reference types="node" />
 import {describe, expect, it} from 'vitest'
-import {readFileSync} from 'node:fs'
+import {globSync, readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 import {contrastContract, deriveTokens, DEFAULT_DARK_BG, TEAM_BASE, TINT_PCT} from '../tokens'
 import {contrastRatio, mixOver} from '../contrast'
 import {hexToHsl} from '../color'
+
+/** index.css is read from disk rather than imported: the Tailwind Vite plugin owns .css transforms
+ *  and hands back an empty module for `?raw` in the test pipeline. */
+const cssText = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 
 /** The light background the default dark theme mirrors to in light mode (App.resolveThemedBg). */
 const LIGHT_BG = '#efe9e5'
@@ -82,7 +86,8 @@ describe('deriveTokens', () => {
     it('derives the deep accent that replaced the hardcoded #c4701a', () => {
         const t = deriveTokens({primary: '#e8a020', bg: DEFAULT_DARK_BG})
         expect(t['--accent-deep']).toMatch(/^#[0-9a-f]{6}$/)
-        expect(contrastRatio(t['--on-accent-deep'], t['--accent-deep'])).toBeGreaterThanOrEqual(3)
+        // The offline banner sets 12px bold on this fill, which is not WCAG large text.
+        expect(contrastRatio(t['--on-accent-deep'], t['--accent-deep'])).toBeGreaterThanOrEqual(4.5)
     })
 })
 
@@ -107,15 +112,33 @@ describe('contrast contract', () => {
     // frame is painted with stale colors and (worse) hand-edits there look authoritative — which is
     // how the muted value in #49 ended up contradicting the formula that actually produced it.
     it('matches the :root defaults declared in index.css', () => {
-        // Read as a file rather than importing it: the Tailwind Vite plugin owns .css transforms and
-        // hands back an empty module for `?raw` in the test pipeline.
-        const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
-        const block = css.match(/^:root \{([\s\S]*?)^}/m)
+        const block = cssText.match(/^:root \{([\s\S]*?)^}/m)
         expect(block, ':root block not found in index.css').toBeTruthy()
         const declared = Object.fromEntries(
             [...block![1].matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)].map(m => [m[1], m[2].trim()]),
         )
         expect(declared).toEqual(deriveTokens())
+    })
+
+    // A mistyped token name fails silently in CSS: the declaration is dropped and the element
+    // inherits, so text can end up invisible rather than throwing. With ~1800 call sites migrated
+    // onto this vocabulary, that needs a guard.
+    it('leaves no var() reference undefined', () => {
+        const files = [
+            'src/index.css',
+            ...globSync('src/**/*.{ts,tsx}'),
+        ]
+        const defined = new Set([...cssText.matchAll(/^\s*(--[a-z0-9-]+):/gm)].map(m => m[1]))
+        // Set from JS at the call site rather than declared in :root.
+        const runtime = new Set(['--target'])
+        const missing = new Set<string>()
+        for (const f of files) {
+            const text = readFileSync(resolve(process.cwd(), f), 'utf8')
+            for (const m of text.matchAll(/var\((--[a-z0-9-]+)/g)) {
+                if (!defined.has(m[1]) && !runtime.has(m[1])) missing.add(`${m[1]} (${f})`)
+            }
+        }
+        expect([...missing]).toEqual([])
     })
 
     it('covers every chromatic family it emits', () => {

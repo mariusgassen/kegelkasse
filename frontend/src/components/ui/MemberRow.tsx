@@ -61,7 +61,7 @@ export function MemberRow({
                     <MemberBadges isMe={isMe} isKing={isKing} isPresident={isPresident} pins={pins} memberId={memberId}/>
                 </div>
                 {subtitle && <div className="text-xs text-muted truncate">{subtitle}</div>}
-                {meta && <div className="text-[10px] text-muted truncate">{meta}</div>}
+                {meta && <div className="text-xs text-muted truncate">{meta}</div>}
             </div>
             {trailing}
             {interactive && <span className="text-muted text-lg flex-shrink-0" aria-hidden="true">›</span>}

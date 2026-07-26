@@ -160,11 +160,11 @@ export function RootLayout() {
                             <h1 className="font-display font-bold text-accent-fg text-sm leading-tight truncate">
                                 {club?.name || t('app.name')}
                             </h1>
-                            <p className="text-[10px] text-muted font-bold tracking-widest">{t('app.subtitle')}</p>
+                            <p className="text-xs text-muted font-bold tracking-widest">{t('app.subtitle')}</p>
                         </div>
                         {activeEveningId && (
                             <button
-                                className="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
+                                className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
                                 style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)', border: '1px solid color-mix(in srgb, var(--accent) 60%, transparent)'}}
                                 onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
                                 <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
@@ -187,7 +187,7 @@ export function RootLayout() {
                             <Bell size={14} strokeWidth={2}/>
                             {badgeCount > 0 && (
                                 <span
-                                    className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-[9px] font-bold leading-none px-0.5"
+                                    className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-xs font-bold leading-none px-0.5"
                                     style={{background: 'var(--accent)', color: 'var(--on-accent)'}}>
                                     {badgeCount > 9 ? '9+' : badgeCount}
                                 </span>
@@ -198,7 +198,7 @@ export function RootLayout() {
                             aria-label="Profil"
                             className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
                             style={{
-                                background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-deep),var(--accent))',
+                                background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-shade),var(--accent))',
                                 color: 'var(--canvas)'
                             }}
                             onClick={() => setProfileOpen(true)}>
@@ -272,7 +272,7 @@ export function RootLayout() {
                 {/* Meta footer — desktop rail only (mobile bottom bar has no room). Gives the
                     full-height rail a defined bottom so it doesn't read as empty below the items. */}
                 {APP_VERSION && (
-                    <div className="app-nav-footer hidden lg:block px-2 pt-3 text-[10px] font-bold text-muted tracking-wide">
+                    <div className="app-nav-footer hidden lg:block px-2 pt-3 text-xs font-bold text-muted tracking-wide">
                         v{APP_VERSION}
                     </div>
                 )}

@@ -149,8 +149,8 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                 onClick={() => handleToggle('❤️')}
                 allReactions={reactions}
                 className={[PILL, heartReaction?.reacted_by_me
-                    ? 'border-red-400/60 bg-red-400/10 text-red-400'
-                    : 'border-line text-muted hover:border-red-400/40 hover:text-red-400/70',
+                    ? 'border-danger/60 bg-danger/10 text-danger-fg'
+                    : 'border-line text-muted hover:border-danger/40 hover:text-danger-fg/70',
                 ].join(' ')}
                 title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
             >
