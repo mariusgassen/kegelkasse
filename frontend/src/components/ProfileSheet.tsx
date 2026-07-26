@@ -16,6 +16,9 @@ import {throwTrackingEnabled} from '@/lib/clubSettings'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
 import {WrappedDeck} from '@/components/WrappedDeck'
+import {Sheet} from '@/components/ui/Sheet'
+import {MeBadge} from '@/components/ui/MemberBadges'
+import {StatTile} from '@/components/ui/StatTile'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -152,67 +155,6 @@ export function ProfileSheet({open, onClose}: Props) {
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const {canInstall, isIos, isStandalone, promptInstall} = usePwaInstall()
     const [installHowToOpen, setInstallHowToOpen] = useState(false)
-    const [dragY, setDragY] = useState(0)
-    const startYRef = useRef(0)
-    const isDraggingRef = useRef(false)
-    const dragYRef = useRef(0)
-    const handleRef = useRef<HTMLDivElement>(null)
-    const panelRef = useRef<HTMLDivElement>(null)
-    const previouslyFocusedRef = useRef<HTMLElement | null>(null)
-
-    useEffect(() => {
-        if (!open) {
-            setDragY(0)
-            dragYRef.current = 0
-        }
-    }, [open])
-
-    // Move focus into the sheet on open, restore it to the trigger element on close
-    useEffect(() => {
-        if (open) {
-            previouslyFocusedRef.current = document.activeElement as HTMLElement | null
-            panelRef.current?.focus()
-        } else {
-            previouslyFocusedRef.current?.focus()
-            previouslyFocusedRef.current = null
-        }
-    }, [open])
-
-    useEffect(() => {
-        const el = handleRef.current
-        if (!el) return
-        const onStart = (e: TouchEvent) => {
-            startYRef.current = e.touches[0].clientY
-            isDraggingRef.current = true
-        }
-        const onMove = (e: TouchEvent) => {
-            if (!isDraggingRef.current) return
-            e.preventDefault()
-            const delta = e.touches[0].clientY - startYRef.current
-            if (delta > 0) {
-                dragYRef.current = delta;
-                setDragY(delta)
-            }
-        }
-        const onEnd = () => {
-            isDraggingRef.current = false
-            if (dragYRef.current > 80) {
-                onClose()
-            } else {
-                dragYRef.current = 0;
-                setDragY(0)
-            }
-        }
-        el.addEventListener('touchstart', onStart, {passive: true})
-        el.addEventListener('touchmove', onMove, {passive: false})
-        el.addEventListener('touchend', onEnd, {passive: true})
-        return () => {
-            el.removeEventListener('touchstart', onStart)
-            el.removeEventListener('touchmove', onMove)
-            el.removeEventListener('touchend', onEnd)
-        }
-    }, [open, onClose])
-
     const [pushPrefs, setPushPrefs] = useState<PushPreferences | null>(null)
 
     // Check push status when sheet opens (subscription state needs push support; config/email don't)
@@ -421,35 +363,24 @@ export function ProfileSheet({open, onClose}: Props) {
     const initials = displayName[0].toUpperCase()
 
     return (
-        <div className="bottom-sheet" role="dialog" aria-modal="true" onClick={e => {
-            if (e.target === e.currentTarget) onClose()
-        }}>
-            <div
-                ref={panelRef}
-                tabIndex={-1}
-                className="sheet-panel safe-bottom"
-                style={{
-                    transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-                    transition: dragY > 0 ? 'none' : 'transform 0.2s ease',
-                    outline: 'none',
-                }}
-            >
-                <div
-                    ref={handleRef}
-                    className="sheet-handle"
-                />
-
-                {/* Tab bar */}
-                <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-                    {(['season', 'settings'] as const).map(tb => (
-                        <button key={tb} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
-                                onClick={() => setTab(tb)}>
-                            {t(`profile.tab.${tb}`)}
-                        </button>
-                    ))}
-                </div>
-
+        <Sheet open={open} onClose={onClose} title={t('profile.title')}
+               header={
+                   <div className="flex gap-1 overflow-x-auto pb-1 min-w-0">
+                       {(['season', 'settings'] as const).map(tb => (
+                           <button key={tb} type="button"
+                                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-kce-amber text-kce-bg' : 'bg-kce-surface2 text-kce-muted'}`}
+                                   onClick={() => setTab(tb)}>
+                               {t(`profile.tab.${tb}`)}
+                           </button>
+                       ))}
+                   </div>
+               }
+               overlays={<>
+                   <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
+                   {myWrapped && (
+                       <WrappedDeck open={wrappedOpen} onClose={() => setWrappedOpen(false)} stats={myWrapped}/>
+                   )}
+               </>}>
                 {tab === 'season' && (
                 <div className="flex flex-col gap-3">
                     {/* Balance & payment link */}
@@ -554,26 +485,11 @@ export function ProfileSheet({open, onClose}: Props) {
                                 {t('profile.myStats')} {year}
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-red-400 text-lg">{fe(myStats.penalty_total)}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.penalties')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-cream text-lg">{myStats.evenings_attended}/{myStats.total_evenings}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.evenings')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-amber text-lg">{myStats.game_wins}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.wins')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div
-                                        className="font-display font-bold text-kce-cream text-lg">🍺 {myStats.beer_rounds}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.beerRounds')}</div>
-                                </div>
+                                <StatTile bare tone="negative" value={fe(myStats.penalty_total)} label={t('profile.penalties')}/>
+                                <StatTile bare tone="default" label={t('profile.evenings')}
+                                          value={`${myStats.evenings_attended}/${myStats.total_evenings}`}/>
+                                <StatTile bare value={myStats.game_wins} label={t('profile.wins')}/>
+                                <StatTile bare tone="default" value={`🍺 ${myStats.beer_rounds}`} label={t('profile.beerRounds')}/>
                             </div>
                         </div>
                     )}
@@ -585,18 +501,9 @@ export function ProfileSheet({open, onClose}: Props) {
                                 {t('profile.throwStats')} {year}
                             </div>
                             <div className="grid grid-cols-3 gap-2 mb-3">
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-kce-cream text-lg">{myThrowStats.avg_pins ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('stats.avgPins')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-green-400 text-lg">{myThrowStats.best_avg ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.bestAvg')}</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="font-display font-bold text-red-400 text-lg">{myThrowStats.worst_avg ?? '—'}</div>
-                                    <div className="text-[9px] text-kce-muted uppercase tracking-wider">{t('profile.worstAvg')}</div>
-                                </div>
+                                <StatTile bare tone="default" value={myThrowStats.avg_pins ?? '—'} label={t('stats.avgPins')}/>
+                                <StatTile bare tone="positive" value={myThrowStats.best_avg ?? '—'} label={t('profile.bestAvg')}/>
+                                <StatTile bare tone="negative" value={myThrowStats.worst_avg ?? '—'} label={t('profile.worstAvg')}/>
                             </div>
                             {myThrowStats.evenings.length > 1 && (
                                 <ThrowTrendMini evenings={myThrowStats.evenings}/>
@@ -644,7 +551,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                             <span className="w-5 text-right font-bold text-kce-muted">{e.rank}.</span>
                                             <span className={`flex-1 truncate ${e.is_me ? 'text-kce-primary font-bold' : 'text-kce-cream'}`}>
                                                 {e.player_name}
-                                                {e.is_me && <span className="ml-1 text-[9px] text-kce-amber font-bold">Ich</span>}
+                                                {e.is_me && <MeBadge/>}
                                             </span>
                                             <span className="font-bold tabular-nums text-kce-cream">{e.score}</span>
                                         </div>
@@ -1027,11 +934,6 @@ export function ProfileSheet({open, onClose}: Props) {
                     </p>
                 </div>
                 )}
-            </div>
-            <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
-            {myWrapped && (
-                <WrappedDeck open={wrappedOpen} onClose={() => setWrappedOpen(false)} stats={myWrapped}/>
-            )}
-        </div>
+        </Sheet>
     )
 }

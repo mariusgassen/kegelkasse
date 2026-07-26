@@ -37,6 +37,8 @@ Tippe oben rechts auf dein **Profilsymbol**. Das Profil ist in zwei Tabs aufgete
 
   Der **Speichern**-Knopf gilt nur für diesen Tab.
 
+Das Profil schließt du über das **✕** oben rechts, mit der **Esc**-Taste, durch Herunterziehen am Griff oder mit einem Tipp neben das Fenster.
+
 ---
 
 ## Am Abend teilnehmen

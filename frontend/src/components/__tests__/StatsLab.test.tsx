@@ -91,7 +91,7 @@ describe('ClubRecords', () => {
     it('marks the current user with an Ich badge', async () => {
         render(<ClubRecords myMemberId={2}/>, {wrapper: wrapper()})
         await waitFor(() => expect(screen.getByTestId('record-most_kings')).toBeTruthy())
-        expect(screen.getByText('Ich')).toBeTruthy()
+        expect(screen.getByText('common.me')).toBeTruthy()
     })
 
     it('opens the member detail when a record with a holder is tapped', async () => {

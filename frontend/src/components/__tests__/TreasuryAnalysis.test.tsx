@@ -104,7 +104,7 @@ describe('TreasuryAnalysis', () => {
         const chips = screen.getByTestId('balance-filter').querySelectorAll('button')
         // Hansi (regular_member_id 5 = the logged-in member) sorts to the front
         expect(chips[0].textContent).toContain('Hansi')
-        expect(chips[0].textContent).toContain('Ich')
+        expect(chips[0].textContent).toContain('common.me')
     })
 
     it('expands a flow row into the underlying bookings', async () => {

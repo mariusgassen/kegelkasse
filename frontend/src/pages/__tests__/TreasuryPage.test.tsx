@@ -308,7 +308,7 @@ describe('TreasuryPage — accounts tab', () => {
         await setupAsMember()
         await renderTreasuryPage()
         await waitFor(() => {
-            expect(screen.getByText('Ich')).toBeInTheDocument()
+            expect(screen.getByText('common.me')).toBeInTheDocument()
         })
     })
 
@@ -474,7 +474,7 @@ describe('TreasuryPage — my balance section', () => {
         await renderTreasuryPage()
         await waitFor(() => {
             // Hansi (member_id=5) has -5.50 balance — debtor — shows Ich badge
-            expect(screen.getByText('Ich')).toBeInTheDocument()
+            expect(screen.getByText('common.me')).toBeInTheDocument()
         })
     })
 

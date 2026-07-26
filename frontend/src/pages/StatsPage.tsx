@@ -11,6 +11,9 @@ import {Loading} from '@/components/ui/Loading.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {Avatar} from '@/components/ui/Avatar.tsx'
+import {StatTile} from '@/components/ui/StatTile.tsx'
+import {MemberBadges, MeBadge} from '@/components/ui/MemberBadges.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {computeHallOfShame, type ShameEntry} from '@/lib/stats'
@@ -363,28 +366,16 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
         return (
             <>
             <div className="grid grid-cols-2 gap-2 mb-4">
-                <StatBox value={fe(totalEuro)} label={t('stats.totalEuro')}/>
-                <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity"
-                        onClick={() => setTimelineOpen(true)}
-                        disabled={penaltyCount === 0}>
-                    <div className="font-display font-bold text-kce-amber text-xl leading-tight">{penaltyCount}</div>
-                    <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.penalties')}</div>
-                </button>
-                <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('beer')}>
-                    <div className="font-display font-bold text-kce-amber text-xl leading-tight">🍺 {beerRounds}</div>
-                    <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.beer')}</div>
-                </button>
-                <button type="button" className="kce-card p-3 text-center active:opacity-70 transition-opacity" onClick={() => setDrinkDetail('shots')}>
-                    <div className="font-display font-bold text-kce-amber text-xl leading-tight">🥃 {shotRounds}</div>
-                    <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('drinks.shots')}</div>
-                </button>
+                <StatTile size="lg" value={fe(totalEuro)} label={t('stats.totalEuro')}/>
+                <StatTile size="lg" value={penaltyCount} label={t('stats.penalties')}
+                          onClick={() => setTimelineOpen(true)} disabled={penaltyCount === 0}/>
+                <StatTile size="lg" value={`🍺 ${beerRounds}`} label={t('drinks.beer')}
+                          onClick={() => setDrinkDetail('beer')}/>
+                <StatTile size="lg" value={`🥃 ${shotRounds}`} label={t('drinks.shots')}
+                          onClick={() => setDrinkDetail('shots')}/>
                 {gameCount > 0 && (
-                    <button type="button"
-                            className="kce-card p-3 text-center active:opacity-70 transition-opacity col-span-2"
-                            onClick={() => setGamesOpen(true)}>
-                        <div className="font-display font-bold text-kce-amber text-xl leading-tight">🏆 {gameCountLabel}</div>
-                        <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{t('stats.games')}</div>
-                    </button>
+                    <StatTile size="lg" className="col-span-2" value={`🏆 ${gameCountLabel}`}
+                              label={t('stats.games')} onClick={() => setGamesOpen(true)}/>
                 )}
             </div>
             {drinkDetail && (
@@ -909,7 +900,7 @@ function YearPodium({players, myMemberId, t, onSelect}: {
                                 <div style={{fontSize: 11, fontWeight: 'bold', color: 'var(--kce-cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
                                     {displayName}
                                 </div>
-                                {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                                {isMe && <MeBadge/>}
                             </div>
                             <div style={{fontSize: 10, color: '#f87171', fontWeight: 'bold'}}>
                                 {feShort(p.penalty_total)}
@@ -1051,18 +1042,12 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
         <Sheet open onClose={onClose} title={t('stats.playerDetail')}>
             {/* Player header */}
             <div className="flex items-center gap-3 mb-5">
-                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-lg flex-shrink-0"
-                     style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
-                    {rm?.avatar
-                        ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                        : displayName[0].toUpperCase()
-                    }
-                </div>
+                <Avatar name={displayName} src={rm?.avatar} size="lg"/>
                 <div className="min-w-0">
                     <div className="font-bold text-kce-cream text-base flex items-center gap-1.5 flex-wrap">
                         <span className="text-xl">{medals[rank] ?? `${rank + 1}.`}</span>
                         <span className="truncate">{displayName}</span>
-                        {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
+                        {isMe && <MeBadge/>}
                     </div>
                     <div className="text-xs text-kce-muted">{year}</div>
                 </div>
@@ -1070,32 +1055,13 @@ function PlayerDetailSheet({player, year, rank, isMe, t, onClose}: {
 
             {/* Year stats grid */}
             <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-red-400 text-lg leading-tight">
-                        {player.penalty_total.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}
-                    </div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('member.totalPenalties')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">{player.evenings}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.evenings')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-amber text-lg leading-tight">{player.game_wins}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.wins')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">🍺 {player.beer_rounds}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.beer')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-cream text-lg leading-tight">🥃 {player.shot_rounds}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.shotRounds')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-muted text-lg leading-tight">{player.penalty_count}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.penalties')}</div>
-                </div>
+                <StatTile tone="negative" label={t('member.totalPenalties')}
+                          value={player.penalty_total.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}/>
+                <StatTile tone="default" value={player.evenings} label={t('stats.evenings')}/>
+                <StatTile value={player.game_wins} label={t('stats.wins')}/>
+                <StatTile tone="default" value={`🍺 ${player.beer_rounds}`} label={t('stats.beer')}/>
+                <StatTile tone="default" value={`🥃 ${player.shot_rounds}`} label={t('stats.shotRounds')}/>
+                <StatTile tone="muted" value={player.penalty_count} label={t('stats.penalties')}/>
             </div>
 
             {/* Throw performance */}
@@ -1162,21 +1128,12 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
         <Sheet open onClose={onClose} title={displayName}>
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-kce-bg text-lg flex-shrink-0"
-                     style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
-                    {rm?.avatar
-                        ? <img src={rm.avatar} alt="" className="w-full h-full object-cover"/>
-                        : displayName[0].toUpperCase()
-                    }
-                </div>
+                <Avatar name={displayName} src={rm?.avatar} size="lg"/>
                 <div className="min-w-0">
                     <div className="font-bold text-kce-cream text-base flex items-center gap-1.5 flex-wrap">
-                        {player.is_king && <span>👑</span>}
                         <span className="truncate">{displayName}</span>
-                        {isMe && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                        {pins.filter((pin: any) => pin.holder_regular_member_id === player.regular_member_id).map((pin: any) => (
-                            <span key={pin.id} title={pin.name}>{pin.icon}</span>
-                        ))}
+                        <MemberBadges isMe={isMe} isKing={player.is_king} pins={pins}
+                                      memberId={player.regular_member_id}/>
                     </div>
                     <div className="text-xs text-kce-muted">{new Date(evening.date).toLocaleDateString(locale, {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
                 </div>
@@ -1184,18 +1141,10 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
 
             {/* Summary */}
             <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-red-400 text-lg leading-tight">{fe(penaltyTotal)}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.penalties')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-amber text-lg leading-tight">{wins}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('stats.wins')}</div>
-                </div>
-                <div className="kce-card p-3 text-center">
-                    <div className="font-display font-bold text-kce-cream text-base leading-tight">🍺{beerRoundsPlayer.length} · 🥃{shotRoundsPlayer.length}</div>
-                    <div className="text-[9px] text-kce-muted uppercase tracking-wider mt-0.5">{t('drinks.title')}</div>
-                </div>
+                <StatTile tone="negative" value={fe(penaltyTotal)} label={t('stats.penalties')}/>
+                <StatTile value={wins} label={t('stats.wins')}/>
+                <StatTile size="sm" tone="default" label={t('drinks.title')}
+                          value={`🍺${beerRoundsPlayer.length} · 🥃${shotRoundsPlayer.length}`}/>
             </div>
 
             {/* Penalty breakdown */}
@@ -1592,10 +1541,8 @@ export function StatsPage() {
                                                     <div className="text-center text-xs font-bold mb-2 truncate flex items-center justify-center gap-1">
                                                         {p.is_king ? '👑 ' : ''}
                                                         {p.name}
-                                                        {p.regular_member_id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                                                        {pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => (
-                                                            <span key={pin.id} title={pin.name}>{pin.icon}</span>
-                                                        ))}
+                                                        <MemberBadges isMe={p.regular_member_id === user?.regular_member_id}
+                                                                      pins={pins} memberId={p.regular_member_id}/>
                                                     </div>
                                                     <div className="flex justify-around text-center">
                                                         <div>
@@ -1708,9 +1655,9 @@ export function StatsPage() {
             ) : (
                 <>
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                        <StatBox value={String(yearStats.evening_count)} label={t('stats.evenings')}/>
-                        <StatBox value={fe(yearStats.total_penalties)} label={t('member.totalPenalties')}/>
-                        <StatBox value={`🍺 ${yearStats.total_beers}`} label={t('drinks.beer')}/>
+                        <StatTile size="lg" value={String(yearStats.evening_count)} label={t('stats.evenings')}/>
+                        <StatTile size="lg" value={fe(yearStats.total_penalties)} label={t('member.totalPenalties')}/>
+                        <StatTile size="lg" value={`🍺 ${yearStats.total_beers}`} label={t('drinks.beer')}/>
                     </div>
 
                     <YearEveningsBarChart evenings={yearStats.evenings ?? []} t={t}/>
@@ -1750,10 +1697,7 @@ export function StatsPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold truncate flex items-center gap-1">
                                             {p.nickname || p.name}
-                                            {isMe && <span className="text-[9px] text-kce-amber font-bold">Ich</span>}
-                                            {pins.filter((pin: any) => pin.holder_regular_member_id === p.regular_member_id).map((pin: any) => (
-                                                <span key={pin.id} title={pin.name} className="flex-shrink-0">{pin.icon}</span>
-                                            ))}
+                                            <MemberBadges isMe={isMe} pins={pins} memberId={p.regular_member_id}/>
                                         </div>
                                         <div className="text-[10px] text-kce-muted">
                                             {p.evenings} {t('stats.evenings')} · {p.game_wins} {t('stats.wins')} · 🍺{p.beer_rounds}
@@ -1826,15 +1770,6 @@ export function StatsPage() {
             />
         )}
         </>
-    )
-}
-
-function StatBox({value, label}: { value: string; label: string }) {
-    return (
-        <div className="kce-card p-3 text-center">
-            <div className="font-display font-bold text-kce-amber text-xl leading-tight">{value}</div>
-            <div className="text-[9px] text-kce-muted font-bold tracking-wider mt-0.5 uppercase">{label}</div>
-        </div>
     )
 }
 

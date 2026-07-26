@@ -62,11 +62,23 @@ Updated after every significant correction — reviewed at session start.
 
 ## UI & Design
 
+### Reach for the shared primitive first
+- Before hand-rolling a member row, avatar, stat tile, disclosure card, action menu or bottom sheet,
+  check `components/ui/` — `MemberRow`, `Avatar`, `MemberBadges`, `StatTile`, `ExpandableCard`,
+  `ActionSheet`, `Sheet` all exist. Copying the markup is how the 23 divergent `Ich` badges happened.
+- A convention that can only be expressed as prose is a missing component.
+
 ### Display names
 - Always use `member.nickname || member.name` — never `member.name` alone when a nickname exists.
+  This includes the avatar initial, not just the label.
 
 ### "Ich" badge
-- Every member list needs the amber `Ich` badge next to the current user's entry.
+- Every member list marks the current user — `<MemberRow isMe>` or `<MeBadge/>`, never a hand-written span.
+- The label is the i18n key `common.me`. Page tests mock `useT` as identity, so assert on `'common.me'`.
+
+### Touch affordance
+- Never put meaning in a `title` tooltip — it does not exist on touch. Use `aria-label`, and assert with
+  `getByLabelText` rather than `getByTitle`.
 
 ### Current user first
 - Non-ranking lists always sort the current user to the top.

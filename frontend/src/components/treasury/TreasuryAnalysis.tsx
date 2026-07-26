@@ -12,6 +12,7 @@ import {
     memberPenaltyEvents,
 } from '@/lib/balanceHistory.ts'
 import {refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
+import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -73,7 +74,7 @@ function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, m
                                     <span className="truncate flex items-center gap-1 min-w-0">
                                         <span className="truncate">{it.label}</span>
                                         {myId != null && it.id === myId &&
-                                            <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
+                                            <MeBadge/>}
                                         {it.date && <span className="opacity-60 flex-shrink-0">· {fDate(it.date)}</span>}
                                     </span>
                                     <span className="flex-shrink-0">{fe(it.amount)}</span>
@@ -272,7 +273,7 @@ export function TreasuryAnalysis() {
                                         return next
                                     })}>
                                 {m.nickname || m.name}
-                                {isMe && <span className={`ml-1 text-[9px] font-bold ${selected ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                {isMe && <MeBadge inverted={selected} className="ml-1"/>}
                             </button>
                         )
                     })}
@@ -411,7 +412,7 @@ export function TreasuryAnalysis() {
                                         className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isActive ? 'bg-kce-amber text-kce-bg border-kce-amber' : 'bg-kce-surface2 text-kce-muted border-kce-border'}`}
                                         onClick={() => setHistoryMemberId(m.regular_member_id)}>
                                     {m.nickname || m.name}
-                                    {isMe && <span className={`ml-1 text-[9px] font-bold ${isActive ? 'text-kce-bg' : 'text-kce-amber'}`}>Ich</span>}
+                                    {isMe && <MeBadge inverted={isActive} className="ml-1"/>}
                                 </button>
                             )
                         })}

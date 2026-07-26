@@ -8,6 +8,8 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ActionItem, type SheetAction} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {MemberRow} from '@/components/ui/MemberRow.tsx'
+import {Avatar} from '@/components/ui/Avatar.tsx'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -396,40 +398,28 @@ export function MembersPage() {
                     const hasActions = actions.length > 0
 
                     return (
-                        <div key={u.id}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${hasActions ? 'active:opacity-70 cursor-pointer' : ''}`}
-                             role={hasActions ? 'button' : undefined}
-                             tabIndex={hasActions ? 0 : undefined}
-                             aria-label={hasActions ? `${t('member.actionsFor')} ${displayName}` : undefined}
-                             onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
-                             onKeyDown={hasActions ? e => {
-                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
-                             } : undefined}>
-                            <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
-                                style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
-                                {u.avatar
-                                    ? <img src={u.avatar} alt="" className="w-full h-full object-cover"/>
-                                    : u.name[0].toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                    {displayName}
-                                    {u.id === user?.id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                                    {linked && pins.filter((p: any) => p.holder_regular_member_id === linked.id).map((p: any) => (
-                                        <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
-                                    ))}
-                                </div>
-                                {linked?.nickname && <div className="text-xs text-kce-muted truncate">{u.name}</div>}
-                                {u.username && admin && <div className="text-[10px] text-kce-muted truncate">@{u.username}</div>}
-                                {!linked && <div className="text-[10px] text-kce-muted">{t('member.noRosterEntry')}</div>}
-                            </div>
-                            <span
-                                className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
-                                {u.role}
-                            </span>
-                            {hasActions && <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>}
-                        </div>
+                        <MemberRow
+                            key={u.id}
+                            className="mb-2"
+                            name={displayName}
+                            avatar={u.avatar}
+                            isMe={u.id === user?.id}
+                            pins={pins}
+                            memberId={linked?.id}
+                            subtitle={linked?.nickname ? u.name : undefined}
+                            meta={<>
+                                {u.username && admin && <div className="truncate">@{u.username}</div>}
+                                {!linked && <div>{t('member.noRosterEntry')}</div>}
+                            </>}
+                            trailing={
+                                <span
+                                    className={u.role === 'admin' || u.role === 'superadmin' ? 'role-badge-admin' : 'role-badge-member'}>
+                                    {u.role}
+                                </span>
+                            }
+                            actionLabel={`${t('member.actionsFor')} ${displayName}`}
+                            onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                        />
                     )
                 })
             }
@@ -441,10 +431,7 @@ export function MembersPage() {
                     </div>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
-                            <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
-                                {u.name[0].toUpperCase()}
-                            </div>
+                            <Avatar name={u.name} variant="muted"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate line-through">{u.name}</div>
                             </div>
@@ -495,35 +482,21 @@ export function MembersPage() {
                     const hasActions = actions.length > 0
 
                     return (
-                        <div key={m.id}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${hasActions ? 'active:opacity-70 cursor-pointer' : ''}`}
-                             role={hasActions ? 'button' : undefined}
-                             tabIndex={hasActions ? 0 : undefined}
-                             aria-label={hasActions ? `${t('member.actionsFor')} ${displayName}` : undefined}
-                             onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
-                             onKeyDown={hasActions ? e => {
-                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
-                             } : undefined}>
-                            <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden"
-                                style={{background: 'linear-gradient(135deg,#c4701a, var(--kce-primary))'}}>
-                                {m.avatar
-                                    ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
-                                    : (m.nickname || m.name)[0].toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate flex items-center gap-1.5">
-                                    {displayName}
-                                    {m.id === user?.regular_member_id && <span className="text-[9px] text-kce-amber font-bold flex-shrink-0">Ich</span>}
-                                    {pins.filter((p: any) => p.holder_regular_member_id === m.id).map((p: any) => (
-                                        <span key={p.id} title={p.name} className="flex-shrink-0">{p.icon}</span>
-                                    ))}
-                                </div>
-                                {m.nickname && <div className="text-xs text-kce-muted truncate">{m.name}</div>}
-                            </div>
-                            {inEvening && <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>}
-                            {hasActions && <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>}
-                        </div>
+                        <MemberRow
+                            key={m.id}
+                            className="mb-2"
+                            name={displayName}
+                            avatar={m.avatar}
+                            isMe={m.id === user?.regular_member_id}
+                            pins={pins}
+                            memberId={m.id}
+                            subtitle={m.nickname ? m.name : undefined}
+                            trailing={inEvening
+                                ? <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>
+                                : undefined}
+                            actionLabel={`${t('member.actionsFor')} ${displayName}`}
+                            onClick={hasActions ? () => openActionSheet(displayName, actions) : undefined}
+                        />
                     )
                 })
             }
@@ -549,27 +522,19 @@ export function MembersPage() {
                     if (admin) actions.push({icon: '⬆️', label: t('member.reactivateRoster'), onClick: () => openPromoteConfirm(m)})
 
                     return (
-                        <div key={m.id}
-                             className="kce-card p-3 mb-2 flex items-center gap-3 active:opacity-70 cursor-pointer"
-                             role="button" tabIndex={0}
-                             aria-label={`${t('member.actionsFor')} ${displayName}`}
-                             onClick={() => openActionSheet(displayName, actions)}
-                             onKeyDown={e => {
-                                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActionSheet(displayName, actions) }
-                             }}>
-                            <div
-                                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 overflow-hidden bg-kce-muted">
-                                {m.avatar
-                                    ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/>
-                                    : (m.nickname || m.name)[0].toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold truncate">{displayName}</div>
-                                <div className="text-[10px] text-kce-muted">{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</div>
-                            </div>
-                            {inEvening && <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>}
-                            <span className="text-kce-muted text-lg flex-shrink-0" aria-hidden="true">›</span>
-                        </div>
+                        <MemberRow
+                            key={m.id}
+                            className="mb-2"
+                            name={displayName}
+                            avatar={m.avatar}
+                            avatarVariant="muted"
+                            meta={<>{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</>}
+                            trailing={inEvening
+                                ? <span className="text-kce-amber text-sm flex-shrink-0" aria-hidden="true">✓</span>
+                                : undefined}
+                            actionLabel={`${t('member.actionsFor')} ${displayName}`}
+                            onClick={() => openActionSheet(displayName, actions)}
+                        />
                     )
                 })}
             </>)}
@@ -588,9 +553,7 @@ export function MembersPage() {
                     <p className="text-sm text-kce-muted">{t('member.removeConfirmHint')}</p>
                     {removeConfirm && (
                         <div className="kce-card p-3 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
-                                {(removeConfirm.nickname || removeConfirm.name)[0].toUpperCase()}
-                            </div>
+                            <Avatar name={removeConfirm.nickname || removeConfirm.name} size="sm" variant="muted"/>
                             <div className="font-bold text-sm">{removeConfirm.nickname || removeConfirm.name}</div>
                         </div>
                     )}
@@ -633,9 +596,7 @@ export function MembersPage() {
                     <p className="text-sm text-kce-muted">{t('member.promoteConfirmHint')}</p>
                     {promoteConfirm && (
                         <div className="kce-card p-3 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0 bg-kce-muted">
-                                {(promoteConfirm.nickname || promoteConfirm.name)[0].toUpperCase()}
-                            </div>
+                            <Avatar name={promoteConfirm.nickname || promoteConfirm.name} size="sm" variant="muted"/>
                             <div className="font-bold text-sm">{promoteConfirm.nickname || promoteConfirm.name}</div>
                         </div>
                     )}
@@ -676,11 +637,7 @@ export function MembersPage() {
                     {availableForLink.map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleLink(m.id)}>
-                            <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                                style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
-                                {m.name[0].toUpperCase()}
-                            </div>
+                            <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
                                 {m.nickname && <div className="text-xs text-kce-muted">{m.name}</div>}
@@ -710,11 +667,7 @@ export function MembersPage() {
                     {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleMerge(m.id)}>
-                            <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-kce-bg text-sm flex-shrink-0"
-                                style={{background: 'linear-gradient(135deg,#c4701a,var(--kce-primary))'}}>
-                                {m.name[0].toUpperCase()}
-                            </div>
+                            <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
                                 {m.nickname && <div className="text-xs text-kce-muted">{m.name}</div>}
