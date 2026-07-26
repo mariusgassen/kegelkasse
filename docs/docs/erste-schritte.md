@@ -69,8 +69,21 @@ Kegelkasse startet standardmäßig im dunklen Design. Wer lieber ein helles Desi
 3. Wähle unter **Darstellung**: **Dunkel**, **Hell** oder **System**
 
 **System** folgt automatisch der Geräteeinstellung (z. B. dem hellen/dunklen Modus deines Handys) und
-wechselt live mit, ohne dass die App neu geladen werden muss. Ist für den Verein eine eigene Vereinsfarbe
-hinterlegt (Verein → Erscheinungsbild), bleibt diese Markenfarbe in beiden Modi erkennbar.
+wechselt live mit, ohne dass die App neu geladen werden muss. Die Auswahl gilt ab sofort auch für die
+Login-Seite — vorher startete die App dort immer dunkel, egal welcher Modus eingestellt war.
+
+Ist für den Verein eine eigene Vereinsfarbe hinterlegt (Verein → Erscheinungsbild), bleibt diese
+Markenfarbe in beiden Modi erkennbar: im hellen Modus wird sie so weit abgedunkelt, wie es für gute
+Lesbarkeit nötig ist, behält dabei aber ihren Farbton. Dasselbe gilt für Teamfarben, Beträge in Rot/Grün
+und Abzeichen-Stufen — jede Schrift- und Linienfarbe wird gegen ihren Hintergrund geprüft, sodass keine
+Kombination aus Vereinsfarbe und Hell/Dunkel-Modus unleserlich werden kann.
+
+## Schriftgrößen
+
+Alle Texte sind mindestens 12 Pixel groß, gelesene Inhalte (Untertitel, Beträge, Hinweise) 14 Pixel.
+Unterschiede in der Wichtigkeit werden über Schriftstärke, Farbe und Abstand ausgedrückt — nicht dadurch,
+dass Text kleiner wird. Auch die Beschriftungen der Diagramme (Achsen, Werte in der Mitte des
+Strafen-Donuts, Zahlen in der Kegel-Heatmap) sind entsprechend vergrößert.
 
 ## Navigation
 
