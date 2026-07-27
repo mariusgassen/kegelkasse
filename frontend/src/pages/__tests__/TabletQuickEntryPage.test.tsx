@@ -1101,7 +1101,7 @@ describe('TabletQuickEntryPage — throw strip', () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
         // Each throw card has a ✕ void button; first is #2 (newest first), second is #1
-        const voidBtns = screen.getAllByTitle('quickEntry.voidThrow')
+        const voidBtns = screen.getAllByLabelText('quickEntry.voidThrow')
         fireEvent.click(voidBtns[0])
         await waitFor(() => {
             expect(api.deleteCameraThrow).toHaveBeenCalledWith(42, 1, expect.any(Number))

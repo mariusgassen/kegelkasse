@@ -127,6 +127,18 @@ function makeWrapper() {
     }
 }
 
+// Termin-Aktionen (RSVP-Liste / Bearbeiten / Löschen) liegen hinter einem ⋮-Menü
+// (CardActionMenu, Feature #73). Der Kebab-Trigger trägt aria-label 'action.more';
+// die geöffnete Liste zeigt jede Aktion mit ihrem (gemockten i18n-) Label als Text.
+function openCardMenu(index = 0) {
+    fireEvent.click(screen.getAllByLabelText('action.more')[index])
+}
+async function clickCardAction(labelKey: string, index = 0) {
+    openCardMenu(index)
+    await waitFor(() => screen.getByText(labelKey))
+    fireEvent.click(screen.getByText(labelKey))
+}
+
 async function renderSchedulePage() {
     const { SchedulePage } = await import('../SchedulePage')
     return render(<SchedulePage />, { wrapper: makeWrapper() })
@@ -339,9 +351,11 @@ describe('SchedulePage — admin card features', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
+        await waitFor(() => screen.getByLabelText('action.more'))
+        openCardMenu()
         await waitFor(() => {
-            expect(screen.getByText('✏️')).toBeInTheDocument()
-            expect(screen.getByText('✕')).toBeInTheDocument()
+            expect(screen.getByText('action.edit')).toBeInTheDocument()
+            expect(screen.getByText('action.delete')).toBeInTheDocument()
         })
     })
 
@@ -352,8 +366,10 @@ describe('SchedulePage — admin card features', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
+        await waitFor(() => screen.getByLabelText('action.more'))
+        openCardMenu()
         await waitFor(() => {
-            expect(screen.getByTitle('schedule.rsvpTitle')).toBeInTheDocument()
+            expect(screen.getByText('schedule.rsvpTitle')).toBeInTheDocument()
         })
     })
 
@@ -364,8 +380,8 @@ describe('SchedulePage — admin card features', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✕'))
-        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.delete')
         await waitFor(() => {
             expect(screen.getByText('schedule.deleteConfirm')).toBeInTheDocument()
         })
@@ -379,8 +395,8 @@ describe('SchedulePage — admin card features', () => {
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         vi.mocked(api.deleteScheduledEvening).mockResolvedValueOnce(undefined as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✕'))
-        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
@@ -531,7 +547,7 @@ describe('SchedulePage — iCal subscribe', () => {
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
         await waitFor(() => {
-            expect(screen.getByTitle('schedule.subscribeCalendar')).toBeInTheDocument()
+            expect(screen.getByLabelText('schedule.subscribeCalendar')).toBeInTheDocument()
         })
     })
 
@@ -544,8 +560,8 @@ describe('SchedulePage — iCal subscribe', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByTitle('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByTitle('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
+        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
         await waitFor(() => {
             expect(screen.getByText('schedule.subscribeCalendar')).toBeInTheDocument()
         })
@@ -565,8 +581,8 @@ describe('SchedulePage — edit schedule sheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✏️'))
-        fireEvent.click(screen.getByText('✏️'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -579,8 +595,8 @@ describe('SchedulePage — edit schedule sheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✏️'))
-        fireEvent.click(screen.getByText('✏️'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('schedule.edit')).toBeInTheDocument()
         })
@@ -593,8 +609,8 @@ describe('SchedulePage — edit schedule sheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✏️'))
-        fireEvent.click(screen.getByText('✏️'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('schedule.date')).toBeInTheDocument()
         })
@@ -693,8 +709,8 @@ describe('SchedulePage — delete schedule', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✕'))
-        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.delete')
         await waitFor(() => {
             expect(screen.getByText('schedule.deleteConfirm')).toBeInTheDocument()
         })
@@ -708,8 +724,8 @@ describe('SchedulePage — delete schedule', () => {
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         vi.mocked(api.deleteScheduledEvening).mockResolvedValueOnce(undefined as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✕'))
-        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
@@ -724,8 +740,8 @@ describe('SchedulePage — delete schedule', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✕'))
-        fireEvent.click(screen.getByText('✕'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.delete')
         await waitFor(() => screen.getByText('action.cancel'))
         fireEvent.click(screen.getByText('action.cancel'))
         await waitFor(() => {
@@ -776,8 +792,8 @@ describe('SchedulePage — update schedule submit', () => {
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         vi.mocked(api.updateScheduledEvening).mockResolvedValueOnce(undefined as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('✏️'))
-        fireEvent.click(screen.getByText('✏️'))
+        await waitFor(() => screen.getByLabelText('action.more'))
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // Submit the form
         fireEvent.click(screen.getByText('close-sheet'))
@@ -911,8 +927,8 @@ describe('SchedulePage — RsvpSheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue(RSVP_ENTRIES as any)
 
         await renderSchedulePage()
-        await waitFor(() => expect(screen.getByText('👥')).toBeInTheDocument())
-        fireEvent.click(screen.getByText('👥'))
+        await waitFor(() => expect(screen.getByLabelText('action.more')).toBeInTheDocument())
+        await clickCardAction('schedule.rsvpTitle')
 
         await waitFor(() => {
             // RsvpSheet title includes schedule.rsvpTitle
@@ -926,8 +942,8 @@ describe('SchedulePage — RsvpSheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue(RSVP_ENTRIES as any)
 
         await renderSchedulePage()
-        await waitFor(() => expect(screen.getByText('👥')).toBeInTheDocument())
-        fireEvent.click(screen.getByText('👥'))
+        await waitFor(() => expect(screen.getByLabelText('action.more')).toBeInTheDocument())
+        await clickCardAction('schedule.rsvpTitle')
 
         await waitFor(() => {
             // Attending section
@@ -941,8 +957,8 @@ describe('SchedulePage — RsvpSheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue(RSVP_ENTRIES as any)
 
         await renderSchedulePage()
-        await waitFor(() => expect(screen.getByText('👥')).toBeInTheDocument())
-        fireEvent.click(screen.getByText('👥'))
+        await waitFor(() => expect(screen.getByLabelText('action.more')).toBeInTheDocument())
+        await clickCardAction('schedule.rsvpTitle')
 
         await waitFor(() => {
             expect(screen.getByText(/schedule\.absent/)).toBeInTheDocument()
@@ -956,8 +972,8 @@ describe('SchedulePage — RsvpSheet', () => {
         vi.mocked(api.setRsvpForMember).mockResolvedValue({ status: 'absent' } as any)
 
         await renderSchedulePage()
-        await waitFor(() => expect(screen.getByText('👥')).toBeInTheDocument())
-        fireEvent.click(screen.getByText('👥'))
+        await waitFor(() => expect(screen.getByLabelText('action.more')).toBeInTheDocument())
+        await clickCardAction('schedule.rsvpTitle')
 
         await waitFor(() => {
             // The attending toggle buttons show "→ rsvp.absent.short"
@@ -976,8 +992,8 @@ describe('SchedulePage — RsvpSheet', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
 
         await renderSchedulePage()
-        await waitFor(() => expect(screen.getByText('👥')).toBeInTheDocument())
-        fireEvent.click(screen.getByText('👥'))
+        await waitFor(() => expect(screen.getByLabelText('action.more')).toBeInTheDocument())
+        await clickCardAction('schedule.rsvpTitle')
         await waitFor(() => expect(screen.getByText('close-sheet')).toBeInTheDocument())
         fireEvent.click(screen.getByText('close-sheet'))
         expect(screen.queryByText(/schedule\.rsvpTitle/)).not.toBeInTheDocument()
@@ -1026,7 +1042,7 @@ describe('SchedulePage — guest display', () => {
         fireEvent.click(screen.getByText(/schedule\.guests/))
         await waitFor(() => expect(screen.getByText('Gast Hans')).toBeInTheDocument())
         // Guest chip has ✕ button
-        const guestBtns = screen.getAllByText('✕')
+        const guestBtns = screen.getAllByLabelText(/^action\.delete: /)
         fireEvent.click(guestBtns[guestBtns.length - 1])
         await waitFor(() => {
             expect(api.removeScheduledGuest).toHaveBeenCalledWith(10, 1)
@@ -1547,8 +1563,8 @@ describe('SchedulePage — iCal sheet copy button', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('📆'))
-        fireEvent.click(screen.getByText('📆'))
+        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
+        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
         await waitFor(() => screen.getByText(/schedule\.icalCopy/))
         expect(screen.getByText(/schedule\.icalCopy/)).toBeInTheDocument()
     })
@@ -1560,8 +1576,8 @@ describe('SchedulePage — iCal sheet copy button', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('📆'))
-        fireEvent.click(screen.getByText('📆'))
+        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
+        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
         await waitFor(() => screen.getByText(/mytoken/))
         expect(screen.getByText(/mytoken/)).toBeInTheDocument()
     })
@@ -1727,7 +1743,7 @@ describe('SchedulePage — UpcomingCard guest management', () => {
         await waitFor(() => screen.getByText(/schedule\.guests/))
         fireEvent.click(screen.getByText(/schedule\.guests/))
         await waitFor(() => screen.getByText('Gaston'))
-        const removeBtns = screen.getAllByText('✕')
+        const removeBtns = screen.getAllByLabelText(/^action\.delete: /)
         fireEvent.click(removeBtns[removeBtns.length - 1])
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
@@ -2039,10 +2055,9 @@ describe('SchedulePage — RsvpSheet absent member interaction', () => {
         vi.mocked(api.listRsvps).mockResolvedValue(RSVPS_WITH_ABSENT as any)
         vi.mocked(api.setRsvpForMember).mockRejectedValueOnce(new Error('setFor fail'))
         await renderSchedulePage()
-        await waitFor(() => screen.getByText(/👥/))
-        // Open RSVP sheet
-        const rsvpBtns = screen.getAllByText('👥')
-        fireEvent.click(rsvpBtns[0])
+        await waitFor(() => screen.getByLabelText('action.more'))
+        // Open RSVP sheet via the ⋮ menu
+        await clickCardAction('schedule.rsvpTitle')
         await waitFor(() => screen.getByTestId('sheet'))
         // Click the → attending button for an absent member
         await waitFor(() => screen.getByText(/rsvp\.attending\.short/))
@@ -2110,8 +2125,8 @@ describe('SchedulePage — IcalSheet onClose', () => {
     it('closes IcalSheet when close-sheet button clicked', async () => {
         const { SchedulePage } = await import('../SchedulePage')
         render(<SchedulePage />, { wrapper: makeWrapper() })
-        await waitFor(() => screen.getByText('📆'))
-        fireEvent.click(screen.getByText('📆'))
+        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
+        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('close-sheet'))
         await waitFor(() => expect(screen.queryByTestId('sheet')).toBeNull())
@@ -2141,8 +2156,8 @@ describe('SchedulePage — IcalSheet copy (already have basic tests)', () => {
         const writeText = vi.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
         await renderSchedulePage()
-        await waitFor(() => screen.getByText('📆'))
-        fireEvent.click(screen.getByText('📆'))
+        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
+        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
         await waitFor(() => screen.getByTestId('sheet'))
         const copyBtns = screen.getAllByRole('button')
         const copyBtn = copyBtns.find(b => b.textContent?.includes('schedule.copyLink'))

@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {CalendarPlus, X} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -15,6 +16,7 @@ import {useEveningList} from '@/hooks/useEvening.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -378,6 +380,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                 <div key={g.id} className="flex items-center gap-2 text-sm text-ink mb-1 px-1">
                                     <span className="flex-1">🧑‍🤝‍🧑 {g.name}</span>
                                     <button
+                                        aria-label={`${t('action.delete')}: ${g.name}`}
                                         className="text-muted active:text-danger-fg text-xs"
                                         onClick={async () => {
                                             try {
@@ -494,11 +497,13 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                         </span>
                     )}
                     {isAdminUser && (
-                        <>
-                            <button className="btn-secondary btn-xs" title={t('schedule.rsvpTitle')} onClick={onViewRsvps}>👥</button>
-                            <button className="btn-secondary btn-xs" onClick={onEdit}>✏️</button>
-                            <button className="btn-danger btn-xs" onClick={onDelete}>✕</button>
-                        </>
+                        <CardActionMenu
+                            title={fDateTimeLong(se.scheduled_at)}
+                            actions={[
+                                {icon: '👥', label: t('schedule.rsvpTitle'), onClick: onViewRsvps},
+                                {icon: '✏️', label: t('action.edit'), onClick: onEdit},
+                                {icon: '🗑️', label: t('action.delete'), onClick: onDelete, danger: true},
+                            ]}/>
                     )}
                 </div>
             </div>
@@ -539,8 +544,11 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                         <div key={g.id}
                                              className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
                                             <span>{g.name}</span>
-                                            <button className="text-muted active:text-danger-fg ml-0.5"
-                                                    onClick={() => removeGuest(g.id)}>✕</button>
+                                            <button className="text-muted active:text-danger-fg ml-0.5 p-1 -m-0.5"
+                                                    aria-label={`${t('action.delete')}: ${g.name}`}
+                                                    onClick={() => removeGuest(g.id)}>
+                                                <X size={12} strokeWidth={2.5} aria-hidden="true"/>
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -570,17 +578,19 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                             🎳 {t('evening.active')}
                         </button>
                     ) : activeEveningId !== null ? (
-                        <button
-                            className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
-                            disabled title={t('evening.alreadyActive')}>
-                            {t('schedule.start')}
-                        </button>
+                        <>
+                            <button
+                                className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
+                                disabled>
+                                {t('schedule.start')}
+                            </button>
+                            <p className="text-xs text-muted text-center mt-1">{t('evening.alreadyActive')}</p>
+                        </>
                     ) : (
                         <>
                             <button
                                 className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
                                 disabled={!canStart}
-                                title={!canStart ? t('schedule.startNotToday') : undefined}
                                 onClick={() => canStart && setStartSheet(true)}>
                                 {t('schedule.start')}
                             </button>
@@ -1095,6 +1105,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                                     ✓ {t('action.delete')}
                                                                 </button>
                                                                 <button className="btn-secondary btn-sm"
+                                                                        aria-label={t('action.cancel')}
                                                                         onClick={() => setConfirmDeleteId(null)}>✕
                                                                 </button>
                                                             </div>
@@ -1239,9 +1250,10 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
                 <div className="sec-heading flex-1">📅 {t('schedule.upcoming')}</div>
                 <div className="flex items-center gap-1.5 ml-2 mb-3 flex-shrink-0">
                     {icalToken && (
-                        <button className="btn-secondary btn-xs" title={t('schedule.subscribeCalendar')}
+                        <button className="btn-secondary btn-xs"
+                                aria-label={t('schedule.subscribeCalendar')}
                                 onClick={() => setIcalSheet(true)}>
-                            📆
+                            <CalendarPlus size={14} strokeWidth={2} aria-hidden="true"/>
                         </button>
                     )}
                     {isAdminUser && (

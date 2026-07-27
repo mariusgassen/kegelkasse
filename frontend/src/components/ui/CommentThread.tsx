@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
 import {createPortal} from 'react-dom'
 import {useEffect} from 'react'
+import {Pencil, SendHorizontal, SmilePlus, Trash2, X} from 'lucide-react'
 import {flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {api} from '@/api/client'
 import {useAppStore} from '@/store/app'
@@ -50,6 +51,7 @@ export function Avatar({src, name, size = 28}: {src: string | null; name: string
 }
 
 function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
+    const t = useT()
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({top: 0, left: 0})
     const btnRef = useRef<HTMLButtonElement>(null)
@@ -91,11 +93,11 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
             <button
                 ref={btnRef}
                 type="button"
-                className="text-xs text-muted hover:text-ink transition-colors leading-none px-1 py-0.5 rounded"
+                className="text-muted hover:text-ink transition-colors leading-none px-1 py-0.5 rounded"
                 onClick={openPicker}
-                title="Reaktion hinzufügen"
+                aria-label={t('comment.reaction.pick')}
             >
-                +😀
+                <SmilePlus size={14} strokeWidth={2} aria-hidden="true"/>
             </button>
             {open && createPortal(
                 <div ref={pickerRef} style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999}}>
@@ -273,7 +275,7 @@ function CommentItem({
                                 className="flex flex-col items-center justify-center gap-0.5 self-center px-0.5 flex-shrink-0 min-w-[28px]"
                                 onClick={() => handleReaction('❤️')}
                                 allReactions={comment.reactions}
-                                title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
+                                label={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
                             >
                                 <span className={`text-base leading-none transition-colors ${heartReaction?.reacted_by_me ? 'text-danger-fg' : 'text-line hover:text-danger-fg/60'}`}>
                                     {heartReaction?.reacted_by_me ? '❤️' : '🤍'}
@@ -304,18 +306,18 @@ function CommentItem({
                             )}
                             {isOwn && (
                                 <button type="button"
-                                        className="text-xs text-muted hover:text-ink transition-colors"
-                                        onClick={() => {setEditing(true); setEditText(comment.text ?? ''); setEditMediaUrl(comment.media_url)}}
-                                        title={t('action.edit')}>
-                                    ✏️
+                                        className="text-xs font-semibold text-muted hover:text-ink transition-colors flex items-center gap-1"
+                                        onClick={() => {setEditing(true); setEditText(comment.text ?? ''); setEditMediaUrl(comment.media_url)}}>
+                                    <Pencil size={12} strokeWidth={2.5} aria-hidden="true"/>
+                                    {t('action.edit')}
                                 </button>
                             )}
                             {canDelete && !confirmDelete && (
                                 <button type="button"
-                                        className="text-xs text-muted hover:text-danger-fg transition-colors"
-                                        onClick={() => setConfirmDelete(true)}
-                                        title={t('action.delete')}>
-                                    🗑️
+                                        className="text-xs font-semibold text-muted hover:text-danger-fg transition-colors flex items-center gap-1"
+                                        onClick={() => setConfirmDelete(true)}>
+                                    <Trash2 size={12} strokeWidth={2.5} aria-hidden="true"/>
+                                    {t('action.delete')}
                                 </button>
                             )}
                             {confirmDelete && (
@@ -344,7 +346,7 @@ function CommentItem({
                                             ? 'border-accent-fg bg-accent/20 text-ink'
                                             : 'border-line text-muted hover:border-accent-fg/50',
                                     ].join(' ')}
-                                    title={r.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
+                                    label={`${r.emoji} — ${r.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}`}
                                 >
                                     {r.emoji} {r.count}
                                 </ReactionPill>
@@ -447,6 +449,8 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                         if (!open) setTimeout(() => inputRef.current?.focus(), 150)
                     }}
                     className="flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors"
+                    aria-expanded={open}
+                    aria-label={`${open ? t('comment.collapse') : t('comment.show')} (${totalCount})`}
                 >
                     <span>💬</span>
                     <span>({totalCount})</span>
@@ -478,8 +482,11 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                         {replyTo && (
                             <div className="flex items-center gap-1 text-xs text-muted pl-9">
                                 <span>↩ {t('comment.replyingTo')} <strong className="text-ink/80">{replyTo.created_by_name || t('comment.unknown')}</strong></span>
-                                <button type="button" className="hover:text-ink ml-1"
-                                        onClick={() => {setReplyTo(null); setText('')}}>×</button>
+                                <button type="button" className="hover:text-ink ml-1 p-1 -m-1"
+                                        aria-label={t('action.cancel')}
+                                        onClick={() => {setReplyTo(null); setText('')}}>
+                                    <X size={14} strokeWidth={2.5} aria-hidden="true"/>
+                                </button>
                             </div>
                         )}
                         <div className="flex items-center gap-2">
@@ -506,11 +513,12 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
                                 />
                                 <button
                                     type="button"
-                                    className={`text-sm leading-none transition-colors flex-shrink-0 ${canSubmit ? 'text-accent-fg hover:text-accent-fg/80' : 'text-muted'}`}
+                                    className={`leading-none transition-colors flex-shrink-0 p-1 -m-1 ${canSubmit ? 'text-accent-fg hover:text-accent-fg/80' : 'text-muted'}`}
                                     disabled={!canSubmit}
+                                    aria-label={t('comment.send')}
                                     onClick={handleAdd}
                                 >
-                                    ↵
+                                    <SendHorizontal size={18} strokeWidth={2} aria-hidden="true"/>
                                 </button>
                             </div>
                         </div>

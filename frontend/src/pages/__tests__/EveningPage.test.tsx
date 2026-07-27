@@ -383,7 +383,7 @@ describe('EveningPage — edit evening sheet', () => {
     it('opens edit sheet when pencil button clicked', async () => {
         await renderEveningPage()
         // First ✏️ is the evening edit button (player edit buttons come after)
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        fireEvent.click(screen.getAllByLabelText(/^action\.edit/)[0])
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -391,7 +391,7 @@ describe('EveningPage — edit evening sheet', () => {
 
     it('shows edit sheet title', async () => {
         await renderEveningPage()
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        fireEvent.click(screen.getAllByLabelText(/^action\.edit/)[0])
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('evening.edit')
         })
@@ -401,7 +401,7 @@ describe('EveningPage — edit evening sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
         await renderEveningPage()
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        fireEvent.click(screen.getAllByLabelText(/^action\.edit/)[0])
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -506,7 +506,7 @@ describe('EveningPage — player management', () => {
     it('shows player removal confirmation when ✕ clicked', async () => {
         await renderEveningPage()
         // There are multiple ✕ buttons (one per player); click first one
-        const removeBtns = screen.getAllByText('✕')
+        const removeBtns = screen.getAllByLabelText(/^player\.remove: /)
         fireEvent.click(removeBtns[0])
         await waitFor(() => {
             expect(screen.getByText(/player\.removeWarning/)).toBeInTheDocument()
@@ -517,10 +517,10 @@ describe('EveningPage — player management', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.removePlayer).mockResolvedValueOnce({} as any)
         await renderEveningPage()
-        const removeBtns = screen.getAllByText('✕')
+        const removeBtns = screen.getAllByLabelText(/^player\.remove: /)
         fireEvent.click(removeBtns[0])
         await waitFor(() => screen.getByText(/player\.removeWarning/))
-        fireEvent.click(screen.getByText('✓'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.removePlayer).toHaveBeenCalledWith(42, expect.any(Number))
         })
@@ -534,8 +534,7 @@ describe('EveningPage — player management', () => {
     it('shows add team button', async () => {
         await renderEveningPage()
         // + button for adding team
-        const plusBtns = screen.getAllByText('+')
-        expect(plusBtns.length).toBeGreaterThan(0)
+        expect(screen.getByText(/team\.create/)).toBeInTheDocument()
     })
 
     it('renders player nickname instead of name when both are present', async () => {
@@ -596,8 +595,7 @@ describe('EveningPage — team management', () => {
     it('shows new team sheet when + button clicked', async () => {
         await renderEveningPage()
         // First + button is team add button (second is highlight submit)
-        const plusBtns = screen.getAllByText('+')
-        fireEvent.click(plusBtns[0])
+        fireEvent.click(screen.getByText(/team\.create/))
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -794,7 +792,7 @@ describe('EveningPage — edit player sheet', () => {
     it('opens edit player sheet when player pencil clicked', async () => {
         await renderEveningPage()
         // Edit buttons: first is evening edit, rest are per player
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[1]) // first player edit
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
@@ -803,7 +801,7 @@ describe('EveningPage — edit player sheet', () => {
 
     it('shows player edit sheet title', async () => {
         await renderEveningPage()
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[1])
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('player.edit')
@@ -814,7 +812,7 @@ describe('EveningPage — edit player sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updatePlayer).mockResolvedValueOnce({} as any)
         await renderEveningPage()
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[1])
         await waitFor(() => screen.getByText('submit-sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
@@ -873,15 +871,14 @@ describe('EveningPage — highlight interaction', () => {
     it('shows delete highlight button', async () => {
         await renderEveningPage()
         // Highlights section has delete buttons
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+        expect(screen.getAllByLabelText('highlight.delete').length).toBeGreaterThan(0)
     })
 
     it('calls api.deleteHighlight when delete clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteHighlight).mockResolvedValueOnce(undefined as any)
         await renderEveningPage()
-        const deleteBtns = screen.getAllByText('✕')
-        // Highlight delete is the last ✕ (player removes come first)
+        const deleteBtns = screen.getAllByLabelText('highlight.delete')
         fireEvent.click(deleteBtns[deleteBtns.length - 1])
         await waitFor(() => {
             expect(api.deleteHighlight).toHaveBeenCalledWith(42, 1)
@@ -942,9 +939,8 @@ describe('EveningPage — team CRUD', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteTeam).mockResolvedValueOnce(undefined as any)
         await renderEveningPage()
-        // ✕ buttons: player remove (×2) + team delete (×2)
-        const xBtns = screen.getAllByText('✕')
-        fireEvent.click(xBtns[0])
+        const teamDeleteBtns = screen.getAllByLabelText(/^action\.delete: /)
+        fireEvent.click(teamDeleteBtns[0])
         await waitFor(() => {
             expect(api.deleteTeam).toHaveBeenCalled()
         })
@@ -953,8 +949,7 @@ describe('EveningPage — team CRUD', () => {
     it('opens new team sheet when + button clicked', async () => {
         await renderEveningPage()
         // + button in teams section
-        const plusBtns = screen.getAllByText('+')
-        fireEvent.click(plusBtns[0])
+        fireEvent.click(screen.getByText(/team\.create/))
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -963,7 +958,7 @@ describe('EveningPage — team CRUD', () => {
     it('opens edit team sheet when team ✏️ clicked', async () => {
         await renderEveningPage()
         // First ✏️ is evening edit, then team edits
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[1]) // first team edit
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('team.edit')
@@ -974,7 +969,7 @@ describe('EveningPage — team CRUD', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateTeam).mockResolvedValueOnce({} as any)
         await renderEveningPage()
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[1])
         await waitFor(() => screen.getByText('submit-sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
@@ -987,8 +982,7 @@ describe('EveningPage — team CRUD', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createTeam).mockResolvedValueOnce({} as any)
         await renderEveningPage()
-        const plusBtns = screen.getAllByText('+')
-        fireEvent.click(plusBtns[0])
+        fireEvent.click(screen.getByText(/team\.create/))
         await waitFor(() => screen.getByTestId('sheet'))
         // Type a team name
         const nameInput = screen.getByPlaceholderText('team.namePlaceholder')
@@ -1025,7 +1019,7 @@ describe('EveningPage — apply/randomize teams buttons', () => {
 
     it('shows randomize (dice) button when no teams', async () => {
         await renderEveningPage()
-        expect(screen.getByText('🎲')).toBeInTheDocument()
+        expect(screen.getByLabelText('team.randomize')).toBeInTheDocument()
     })
 
     it('calls api.applyClubTeamsToEvening(id, false) on apply templates', async () => {
@@ -1050,7 +1044,7 @@ describe('EveningPage — apply/randomize teams buttons', () => {
             isPending: false,
         } as any)
         await renderEveningPage()
-        fireEvent.click(screen.getByText('🎲'))
+        fireEvent.click(screen.getByLabelText('team.randomize'))
         await waitFor(() => {
             expect(showToast).toHaveBeenCalled()
         })
@@ -1061,7 +1055,7 @@ describe('EveningPage — apply/randomize teams buttons', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.applyClubTeamsToEvening).mockResolvedValueOnce(undefined as any)
         await renderEveningPage()
-        fireEvent.click(screen.getByText('🎲'))
+        fireEvent.click(screen.getByLabelText('team.randomize'))
         await waitFor(() => {
             expect(api.applyClubTeamsToEvening).toHaveBeenCalledWith(42, true)
         })
@@ -1245,7 +1239,7 @@ describe('EveningPage — PinsAlert sub-component', () => {
         await renderEveningPage()
         await waitFor(() => {
             // undo button is ↩
-            expect(screen.getByText('↩')).toBeInTheDocument()
+            expect(screen.getByText('action.undo')).toBeInTheDocument()
         })
     })
 })
@@ -1290,8 +1284,8 @@ describe('EveningPage — PinsAlert error and undo', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deletePenalty).mockResolvedValueOnce(undefined as any)
         await renderEveningPage()
-        await waitFor(() => screen.getByText('↩'))
-        fireEvent.click(screen.getByText('↩'))
+        await waitFor(() => screen.getByText('action.undo'))
+        fireEvent.click(screen.getByText('action.undo'))
         await waitFor(() => expect(api.deletePenalty).toHaveBeenCalledWith(42, 99))
     })
 
@@ -1301,8 +1295,8 @@ describe('EveningPage — PinsAlert error and undo', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.deletePenalty).mockRejectedValueOnce(new Error('delete failed'))
         await renderEveningPage()
-        await waitFor(() => screen.getByText('↩'))
-        fireEvent.click(screen.getByText('↩'))
+        await waitFor(() => screen.getByText('action.undo'))
+        fireEvent.click(screen.getByText('action.undo'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 })
@@ -1495,17 +1489,18 @@ describe('EveningPage — confirm remove player cancel', () => {
 
     it('shows cancel (✕) button after remove confirm', async () => {
         await renderEveningPage()
-        const xBtns = screen.getAllByText('✕')
+        const xBtns = screen.getAllByLabelText(/^player\.remove: /)
         fireEvent.click(xBtns[0]) // click first player remove
         await waitFor(() => {
-            // Now shows both ✓ and ✕ for the confirmation
-            expect(screen.getAllByText('✕').length).toBeGreaterThan(1)
+            // Confirmation replaces the icon pair with two labelled buttons
+            expect(screen.getByText('action.confirmDelete')).toBeInTheDocument()
+            expect(screen.getByText('action.cancel')).toBeInTheDocument()
         })
     })
 
     it('shows removal warning text after remove confirm', async () => {
         await renderEveningPage()
-        const xBtns = screen.getAllByText('✕')
+        const xBtns = screen.getAllByLabelText(/^player\.remove: /)
         fireEvent.click(xBtns[0])
         await waitFor(() => {
             expect(screen.getByText(/player\.removeWarning/)).toBeInTheDocument()
@@ -1517,10 +1512,10 @@ describe('EveningPage — confirm remove player cancel', () => {
         vi.mocked(api.removePlayer).mockResolvedValueOnce(undefined as any)
         await renderEveningPage()
         // Sort order: current user (Admin, id=1) first, then Hansi
-        const xBtns = screen.getAllByText('✕')
+        const xBtns = screen.getAllByLabelText(/^player\.remove: /)
         fireEvent.click(xBtns[0])
-        await waitFor(() => screen.getByText('✓'))
-        fireEvent.click(screen.getByText('✓'))
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.removePlayer).toHaveBeenCalled()
         })
@@ -1584,9 +1579,9 @@ describe('EveningPage — edit sheet input interactions', () => {
     async function openEditSheet() {
         await renderEveningPage()
         // Click the ✏️ edit button
-        await waitFor(() => screen.getAllByText('✏️'))
+        await waitFor(() => screen.getAllByLabelText(/^action\.edit/))
         // Click the first ✏️ which should be the evening edit button
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        fireEvent.click(screen.getAllByLabelText(/^action\.edit/)[0])
         await waitFor(() => screen.getByTestId('sheet'))
     }
 
@@ -1665,8 +1660,8 @@ describe('EveningPage — error handling in save operations', () => {
         vi.mocked(api.updateEvening).mockRejectedValueOnce(new Error('save fail'))
         await renderEveningPage()
         // Open edit sheet and submit
-        await waitFor(() => screen.getAllByText('✏️'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await waitFor(() => screen.getAllByLabelText(/^action\.edit/))
+        fireEvent.click(screen.getAllByLabelText(/^action\.edit/)[0])
         await waitFor(() => screen.getByText('submit-sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
@@ -1747,8 +1742,8 @@ describe('EveningPage — saveEditPlayer error', () => {
         vi.mocked(api.updatePlayer).mockRejectedValueOnce(new Error('update fail'))
         await renderEveningPage()
         // Click ✏️ on a player to open edit player sheet
-        await waitFor(() => screen.getAllByText('✏️'))
-        const editBtns = screen.getAllByText('✏️')
+        await waitFor(() => screen.getAllByLabelText(/^action\.edit/))
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         // The player ✏️ buttons are after the first (which is the evening edit button)
         fireEvent.click(editBtns[editBtns.length - 1])
         await waitFor(() => screen.getByTestId('sheet'))
@@ -1778,9 +1773,7 @@ describe('EveningPage — addHighlight button click', () => {
         await waitFor(() => screen.getByPlaceholderText('highlight.placeholder'))
         const highlightInput = screen.getByPlaceholderText('highlight.placeholder')
         fireEvent.change(highlightInput, { target: { value: 'Test highlight' } })
-        // Click the + button for highlights (last + button on the page)
-        const addBtns = screen.getAllByRole('button', { name: '+' })
-        fireEvent.click(addBtns[addBtns.length - 1])
+        fireEvent.click(screen.getByLabelText('highlight.add'))
         await waitFor(() => expect(api.addHighlight).toHaveBeenCalledWith(42, expect.objectContaining({ text: 'Test highlight' })))
     })
 
@@ -1946,7 +1939,7 @@ describe('EveningPage — edit sheet onChange handlers', () => {
         vi.mocked(api.updateEvening).mockResolvedValue({} as any)
         await renderEveningPage()
         // Click ✏️ to open edit sheet (first ✏️ is the evening edit button)
-        const editBtns = screen.getAllByText('✏️')
+        const editBtns = screen.getAllByLabelText(/^action\.edit/)
         fireEvent.click(editBtns[0])
         await waitFor(() => screen.getByTestId('sheet'))
         // Find date input and change it

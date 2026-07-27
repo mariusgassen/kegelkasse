@@ -1,4 +1,5 @@
 import {useRef, useState} from 'react'
+import {ImagePlus, Loader2, X} from 'lucide-react'
 import {uploadMedia} from '@/api/client'
 import {toastError} from '@/utils/error'
 import {useT} from '@/i18n'
@@ -40,13 +41,16 @@ export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
                     alt=""
                     className="h-16 w-16 object-cover rounded border border-line"
                 />
+                {/* Sits in the corner of a 64px thumbnail, so the 44px guidance cannot be met
+                    without covering the image it belongs to — 24px is the largest that still reads
+                    as a corner badge rather than an overlay. */}
                 <button
                     type="button"
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-danger text-white text-xs flex items-center justify-center leading-none"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-danger text-on-danger flex items-center justify-center leading-none"
                     onClick={onRemove}
-                    title={t('media.remove')}
+                    aria-label={t('media.remove')}
                 >
-                    ×
+                    <X size={14} strokeWidth={3} aria-hidden="true"/>
                 </button>
             </div>
         )
@@ -66,9 +70,11 @@ export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
                 className="btn-secondary btn-xs flex-shrink-0 flex items-center gap-1"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
-                title={t('media.attach')}
+                aria-label={t('media.attach')}
             >
-                {uploading ? '⏳' : '🖼'}
+                {uploading
+                    ? <Loader2 size={16} strokeWidth={2} className="animate-spin" aria-hidden="true"/>
+                    : <ImagePlus size={16} strokeWidth={2} aria-hidden="true"/>}
             </button>
         </>
     )

@@ -219,7 +219,7 @@ describe('CommentThread — open thread content', () => {
 
     it('shows submit button ↵', async () => {
         await renderOpen()
-        expect(screen.getByText('↵')).toBeInTheDocument()
+        expect(screen.getByLabelText('comment.send')).toBeInTheDocument()
     })
 
     it('shows "comment.none" when there are no comments', async () => {
@@ -231,13 +231,13 @@ describe('CommentThread — open thread content', () => {
         await renderOpen()
         const input = screen.getByPlaceholderText('comment.placeholder')
         fireEvent.change(input, { target: { value: 'Test comment' } })
-        const submitBtn = screen.getByText('↵')
+        const submitBtn = screen.getByLabelText('comment.send')
         expect(submitBtn).not.toBeDisabled()
     })
 
     it('disables submit when text is empty', async () => {
         await renderOpen()
-        const submitBtn = screen.getByText('↵')
+        const submitBtn = screen.getByLabelText('comment.send')
         expect(submitBtn).toBeDisabled()
     })
 
@@ -246,7 +246,7 @@ describe('CommentThread — open thread content', () => {
         await renderOpen()
         const input = screen.getByPlaceholderText('comment.placeholder')
         fireEvent.change(input, { target: { value: 'Hello world' } })
-        fireEvent.click(screen.getByText('↵'))
+        fireEvent.click(screen.getByLabelText('comment.send'))
         await waitFor(() => {
             expect(api.addComment).toHaveBeenCalledWith('highlight', 1, 'Hello world', undefined, undefined)
         })
@@ -322,7 +322,7 @@ describe('CommentThread — with comments', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(useAppStore).mockImplementation((sel?: (s: any) => any) => sel ? sel(ownState) : ownState)
         await renderWithComments([makeComment({ id: 1, created_by_id: 42 })])
-        expect(screen.getByTitle('action.delete')).toBeInTheDocument()
+        expect(screen.getByText('action.delete')).toBeInTheDocument()
     })
 
     it('shows edit button for own comments', async () => {
@@ -331,7 +331,7 @@ describe('CommentThread — with comments', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(useAppStore).mockImplementation((sel?: (s: any) => any) => sel ? sel(ownState) : ownState)
         await renderWithComments([makeComment({ id: 1, created_by_id: 42 })])
-        expect(screen.getByTitle('action.edit')).toBeInTheDocument()
+        expect(screen.getByText('action.edit')).toBeInTheDocument()
     })
 
     it('shows other emoji reactions as pills', async () => {
@@ -377,7 +377,7 @@ describe('CommentThread — delete flow', () => {
 
     it('shows confirm buttons after clicking delete icon', async () => {
         await renderOwnComment()
-        fireEvent.click(screen.getByTitle('action.delete'))
+        fireEvent.click(screen.getByText('action.delete'))
         expect(screen.getByText('action.confirmDelete')).toBeInTheDocument()
         expect(screen.getByText('action.cancel')).toBeInTheDocument()
     })
@@ -385,7 +385,7 @@ describe('CommentThread — delete flow', () => {
     it('calls api.deleteComment on confirm', async () => {
         const { api } = await import('@/api/client')
         await renderOwnComment()
-        fireEvent.click(screen.getByTitle('action.delete'))
+        fireEvent.click(screen.getByText('action.delete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.deleteComment).toHaveBeenCalledWith(10)
@@ -394,7 +394,7 @@ describe('CommentThread — delete flow', () => {
 
     it('hides confirm on cancel', async () => {
         await renderOwnComment()
-        fireEvent.click(screen.getByTitle('action.delete'))
+        fireEvent.click(screen.getByText('action.delete'))
         fireEvent.click(screen.getByText('action.cancel'))
         expect(screen.queryByText('action.confirmDelete')).not.toBeInTheDocument()
     })
@@ -426,7 +426,7 @@ describe('CommentThread — reply flow', () => {
         await renderWithReplyComment()
         fireEvent.click(screen.getByText('comment.reply'))
         // The cancel × button appears in the reply indicator area
-        expect(screen.getByText('×')).toBeInTheDocument()
+        expect(screen.getByLabelText('action.cancel')).toBeInTheDocument()
         // Input is prefilled with @Alice
         const input = screen.getByPlaceholderText(/comment\.placeholder|@Alice/)
         expect((input as HTMLInputElement).value).toBe('@Alice ')
@@ -444,10 +444,10 @@ describe('CommentThread — reply flow', () => {
         await renderWithReplyComment()
         fireEvent.click(screen.getByText('comment.reply'))
         // Verify replyTo cancel button is shown
-        expect(screen.getByText('×')).toBeInTheDocument()
+        expect(screen.getByLabelText('action.cancel')).toBeInTheDocument()
         // Click the × cancel button
-        fireEvent.click(screen.getByText('×'))
-        expect(screen.queryByText('×')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByLabelText('action.cancel'))
+        expect(screen.queryByLabelText('action.cancel')).not.toBeInTheDocument()
         // Input should be cleared
         const input = screen.getByPlaceholderText('comment.placeholder')
         expect((input as HTMLInputElement).value).toBe('')
@@ -461,7 +461,7 @@ describe('CommentThread — reply flow', () => {
         // Add something so submit is possible
         const input = screen.getByPlaceholderText(/comment\.placeholder|@Alice/)
         fireEvent.change(input, { target: { value: '@Alice nice' } })
-        fireEvent.click(screen.getByText('↵'))
+        fireEvent.click(screen.getByLabelText('comment.send'))
         await waitFor(() => {
             // replyTo.id = 5, parentType=highlight, parentId=1
             expect(api.addComment).toHaveBeenCalledWith('highlight', 1, '@Alice nice', undefined, 5)
@@ -484,7 +484,7 @@ describe('CommentThread — add comment error handling', () => {
         )
         const input = screen.getByPlaceholderText('comment.placeholder')
         fireEvent.change(input, { target: { value: 'Test' } })
-        fireEvent.click(screen.getByText('↵'))
+        fireEvent.click(screen.getByLabelText('comment.send'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
@@ -514,7 +514,7 @@ describe('CommentThread — edit flow', () => {
 
     it('clicking edit icon switches to edit mode showing input', async () => {
         await renderEditableComment()
-        fireEvent.click(screen.getByTitle('action.edit'))
+        fireEvent.click(screen.getByText('action.edit'))
         // Should show the save and cancel buttons
         expect(screen.getByText('action.save')).toBeInTheDocument()
         expect(screen.getByText('action.cancel')).toBeInTheDocument()
@@ -522,7 +522,7 @@ describe('CommentThread — edit flow', () => {
 
     it('cancel edit restores view mode', async () => {
         await renderEditableComment()
-        fireEvent.click(screen.getByTitle('action.edit'))
+        fireEvent.click(screen.getByText('action.edit'))
         expect(screen.getByText('action.save')).toBeInTheDocument()
         fireEvent.click(screen.getByText('action.cancel'))
         expect(screen.queryByText('action.save')).not.toBeInTheDocument()
@@ -533,7 +533,7 @@ describe('CommentThread — edit flow', () => {
     it('saving edit calls api.editComment', async () => {
         const { api } = await import('@/api/client')
         await renderEditableComment()
-        fireEvent.click(screen.getByTitle('action.edit'))
+        fireEvent.click(screen.getByText('action.edit'))
         // Edit input has the original text pre-filled
         const editInput = screen.getByDisplayValue('Original text')
         fireEvent.change(editInput, { target: { value: 'Updated text' } })
@@ -546,7 +546,7 @@ describe('CommentThread — edit flow', () => {
     it('pressing Enter in edit input saves the comment', async () => {
         const { api } = await import('@/api/client')
         await renderEditableComment()
-        fireEvent.click(screen.getByTitle('action.edit'))
+        fireEvent.click(screen.getByText('action.edit'))
         const editInput = screen.getByDisplayValue('Original text')
         fireEvent.change(editInput, { target: { value: 'Enter save' } })
         fireEvent.keyDown(editInput, { key: 'Enter', shiftKey: false })
@@ -557,7 +557,7 @@ describe('CommentThread — edit flow', () => {
 
     it('pressing Escape in edit input cancels editing', async () => {
         await renderEditableComment()
-        fireEvent.click(screen.getByTitle('action.edit'))
+        fireEvent.click(screen.getByText('action.edit'))
         const editInput = screen.getByDisplayValue('Original text')
         fireEvent.keyDown(editInput, { key: 'Escape' })
         expect(screen.queryByText('action.save')).not.toBeInTheDocument()

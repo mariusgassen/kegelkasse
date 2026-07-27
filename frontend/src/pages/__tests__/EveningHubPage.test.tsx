@@ -211,7 +211,7 @@ describe('EveningHubPage — with active evening', () => {
         fireEvent.change(screen.getByPlaceholderText('highlight.placeholder'), {
             target: { value: 'Amazing shot!' },
         })
-        fireEvent.click(screen.getByText('+'))
+        fireEvent.click(screen.getByLabelText('highlight.add'))
         await waitFor(() => {
             expect(api.addHighlight).toHaveBeenCalledWith(1, { text: 'Amazing shot!' })
         })
@@ -363,7 +363,7 @@ describe('EveningHubPage — highlight interactions', () => {
         const { api } = await import('@/api/client.ts')
         await setupHighlightsTab()
         // Button should be disabled when text is empty
-        const addBtn = screen.getByText('+')
+        const addBtn = screen.getByLabelText('highlight.add')
         expect(addBtn).toBeDisabled()
         fireEvent.click(addBtn)
         expect(api.addHighlight).not.toHaveBeenCalled()
@@ -377,7 +377,7 @@ describe('EveningHubPage — highlight interactions', () => {
         fireEvent.change(screen.getByPlaceholderText('highlight.placeholder'), {
             target: { value: 'A great moment' },
         })
-        fireEvent.click(screen.getByText('+'))
+        fireEvent.click(screen.getByLabelText('highlight.add'))
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
@@ -390,7 +390,7 @@ describe('EveningHubPage — highlight interactions', () => {
         fireEvent.change(screen.getByPlaceholderText('highlight.placeholder'), {
             target: { value: 'Score!' },
         })
-        fireEvent.click(screen.getByText('+'))
+        fireEvent.click(screen.getByLabelText('highlight.add'))
         await waitFor(() => {
             expect(invalidate).toHaveBeenCalled()
         })
@@ -446,7 +446,7 @@ describe('EveningHubPage — highlight interactions', () => {
         await setupHighlightsTab()
         const input = screen.getByPlaceholderText('highlight.placeholder')
         fireEvent.change(input, { target: { value: 'Some text' } })
-        fireEvent.click(screen.getByText('+'))
+        fireEvent.click(screen.getByLabelText('highlight.add'))
         await waitFor(() => {
             expect((input as HTMLInputElement).value).toBe('')
         })
@@ -608,7 +608,7 @@ describe('EveningHubPage — highlight with media_url only', () => {
         } as any)
         vi.mocked(useHashTab).mockReturnValue(['highlights', vi.fn()] as any)
         await renderHubPage()
-        const addBtn = screen.getByText('+')
+        const addBtn = screen.getByLabelText('highlight.add')
         expect(addBtn).toBeDisabled()
     })
 
@@ -632,7 +632,7 @@ describe('EveningHubPage — highlight with media_url only', () => {
         const input = screen.getByPlaceholderText('highlight.placeholder')
         // Text with only spaces should be treated as empty
         fireEvent.change(input, { target: { value: '   ' } })
-        const addBtn = screen.getByText('+')
+        const addBtn = screen.getByLabelText('highlight.add')
         // Button should be disabled when text is only whitespace and no media
         expect(addBtn).toBeDisabled()
     })

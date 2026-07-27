@@ -1,6 +1,7 @@
 import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
 import {useEffect, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
+import {Smile} from 'lucide-react'
 import {useT} from '@/i18n'
 
 const PICKER_W = 300
@@ -87,10 +88,10 @@ export function EmojiPickerButton({value, onChange, mode = 'icon'}: EmojiPickerB
                     ref={triggerRef}
                     type="button"
                     className="btn-secondary btn-xs h-full px-2 flex-shrink-0"
-                    title={t('emoji.insert')}
+                    aria-label={t('emoji.insert')}
                     onClick={openPicker}
                 >
-                    😀
+                    <Smile size={16} strokeWidth={2} aria-hidden="true"/>
                 </button>
                 {portal}
             </>
@@ -103,7 +104,7 @@ export function EmojiPickerButton({value, onChange, mode = 'icon'}: EmojiPickerB
                 ref={triggerRef}
                 type="button"
                 className="kce-input w-14 text-center text-xl cursor-pointer"
-                title={t('emoji.pick')}
+                aria-label={t('emoji.pick')}
                 onClick={openPicker}
             >
                 {value || '😀'}

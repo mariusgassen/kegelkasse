@@ -15,14 +15,15 @@ interface ReactionGroup {
 
 interface Props {
     className: string
-    title?: string
+    /** Accessible name — the pill's own content is emoji + count, which reads as nothing useful. */
+    label: string
     onClick: () => void
     /** Every reaction group on this item — holding any pill shows the full breakdown, not just this pill's own. */
     allReactions: ReactionGroup[]
     children: React.ReactNode
 }
 
-export function ReactionPill({className, title, onClick, allReactions, children}: Props) {
+export function ReactionPill({className, label, onClick, allReactions, children}: Props) {
     const t = useT()
     const btnRef = useRef<HTMLButtonElement>(null)
     const [pos, setPos] = useState<{bottom: number; left: number} | null>(null)
@@ -57,7 +58,7 @@ export function ReactionPill({className, title, onClick, allReactions, children}
                 ref={btnRef}
                 type="button"
                 className={`${className} select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent]`}
-                title={title}
+                aria-label={label}
                 {...longPress}
             >
                 {children}

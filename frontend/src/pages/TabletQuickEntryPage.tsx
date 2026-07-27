@@ -582,7 +582,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             >
                 {/* Row 1: close + game identity + primary actions */}
                 <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                    <button type="button" className="btn-secondary btn-xs" onClick={onClose} aria-label="Close">
+                    <button type="button" className="btn-secondary btn-xs" onClick={onClose} aria-label={t('action.close')}>
                         ✕
                     </button>
                     {activeGame ? (
@@ -798,7 +798,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             <button
                                                 type="button"
                                                 style={{fontSize: 12, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
-                                                title={t('quickEntry.editThrow')}
                                                 aria-label={t('quickEntry.editThrow')}
                                                 onClick={() => startEdit(th)}
                                             >✎</button>
@@ -807,12 +806,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             type="button"
                                             disabled={voidingThrowId === th.id}
                                             style={{
-                                                fontSize: 13, color: '#f87171',
+                                                fontSize: 13, color: 'var(--danger-fg)',
                                                 background: 'none', border: 'none',
                                                 cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32,
                                                 opacity: voidingThrowId === th.id ? 0.4 : 1,
                                             }}
-                                            title={t('quickEntry.voidThrow')}
                                             aria-label={t('quickEntry.voidThrow')}
                                             onClick={() => activeGame && handleVoidThrow(activeGame.id, th.id)}
                                         >
@@ -826,6 +824,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button
                                     type="button"
                                     className="btn-secondary btn-xs"
+                                    aria-label={t('quickEntry.heatmap')}
+                                    aria-pressed={showHeatmap}
                                     style={{flexShrink: 0, fontSize: 12, marginLeft: 2}}
                                     onClick={() => setShowHeatmap(h => !h)}
                                 >
@@ -1250,7 +1250,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             {fe(ov.penaltyEuro)}
                                         </span>
                                         {ov.gameScore != null && (
-                                            <span title={t('quickEntry.gameScore')}>
+                                            <span role="img" aria-label={t('quickEntry.gameScore')}>
                                                 🎳 {ov.gameScore}
                                             </span>
                                         )}

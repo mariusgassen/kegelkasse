@@ -628,7 +628,7 @@ function GamesDetailSheet({evening, t, onClose}: {
                             <div key={g.id} className="kce-card p-3">
                                 <div className="flex items-start justify-between gap-2 mb-1.5">
                                     <div className="font-bold text-ink text-sm flex items-center gap-1 min-w-0">
-                                        {g.is_opener && <span title="Eröffnungsspiel">👑</span>}
+                                        {g.is_opener && <span role="img" aria-label={t('game.isOpener')}>👑</span>}
                                         <span className="truncate">{g.name}</span>
                                     </div>
                                     <span className="text-xs font-bold uppercase tracking-wider flex-shrink-0"

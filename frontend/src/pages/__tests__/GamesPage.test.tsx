@@ -184,7 +184,7 @@ describe('GamesPage — with active evening', () => {
             regularMembers: [],
         }))
         await renderGamesPage()
-        expect(screen.getByTitle('camera.title')).toBeInTheDocument()
+        expect(screen.getByLabelText('camera.title')).toBeInTheDocument()
     })
 
     it('non-admin does not see camera button', async () => {

@@ -863,6 +863,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         {newOptions.length > 2 && (
                                             <button
                                                 type="button"
+                                                aria-label={`${t('action.delete')}: ${t('committee.poll.optionPlaceholder')} ${i + 1}`}
                                                 className="text-muted hover:text-danger-fg text-lg leading-none px-2"
                                                 onClick={() => setNewOptions(prev => prev.filter((_, j) => j !== i))}>
                                                 ×
