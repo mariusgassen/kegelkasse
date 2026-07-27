@@ -22,6 +22,7 @@ import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {todayDateInput, toDateInput} from '@/lib/datetime.ts'
 import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
 import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
@@ -1433,7 +1434,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
 
     function openNew() {
         setEditing(null); setPinName(''); setPinIcon('📌'); setHolderId(null);
-        setPinDate(new Date().toISOString().slice(0, 10)); setSheet(true)
+        setPinDate(todayDateInput()); setSheet(true)
     }
 
     function openEdit(p: ClubPin) {
@@ -1441,7 +1442,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
         setPinName(p.name);
         setPinIcon(p.icon);
         setHolderId(p.holder_regular_member_id);
-        setPinDate(p.assigned_at ? new Date(p.assigned_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+        setPinDate(p.assigned_at ? toDateInput(p.assigned_at) : todayDateInput());
         setSheet(true)
     }
 

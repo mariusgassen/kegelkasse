@@ -7,6 +7,8 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {CardActionMenu, type SheetAction} from '@/components/ui/ActionSheet.tsx'
+import {toDateTimeInput} from '@/lib/datetime.ts'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
 import {celebrate} from '@/lib/celebrate'
@@ -21,13 +23,6 @@ function fe(v: number) {
 
 function fTime(iso: string) {
     return new Date(iso).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
-}
-
-function toDatetimeLocal(iso: string | null | undefined) {
-    if (!iso) return ''
-    const d = new Date(iso)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function playerLabel(p: { name: string; nickname?: string | null; is_king: boolean }) {
@@ -153,8 +148,8 @@ export function GamesPage() {
 
     function openTimeEditSheet(game: Game) {
         setTimeEditTarget(game)
-        setEditStartedAt(toDatetimeLocal(game.started_at))
-        setEditFinishedAt(toDatetimeLocal(game.finished_at))
+        setEditStartedAt(toDateTimeInput(game.started_at))
+        setEditFinishedAt(toDateTimeInput(game.finished_at))
     }
 
     function winnerDisplayName(ref: string) {
@@ -408,8 +403,9 @@ export function GamesPage() {
                             <p className="text-xs mb-2" style={{color: 'var(--danger-fg)'}}>⚠️ {t('game.teamsRequired')}</p>
                         )}
 
-                        {/* Action buttons */}
-                        <div className="flex gap-1 justify-end">
+                        {/* Action buttons — the status action stays a labelled button, everything
+                            else (edit, times, delete) lives behind the shared ⋮ menu. */}
+                        <div className="flex items-center gap-1 justify-end">
                             {game.status === 'open' && (
                                 <button className="btn-primary btn-sm" onClick={() => startGame(game.id)}>
                                     ▶ {t('game.start')}
@@ -425,34 +421,38 @@ export function GamesPage() {
                                     ✏️ {t('game.editResult')}
                                 </button>
                             )}
-                            {game.status !== 'finished' && (
-                                <button className="btn-ghost btn-xs text-muted px-2"
-                                        aria-label={t('action.edit')}
-                                        onClick={() => openEditSheet(game)}>✏️
-                                </button>
-                            )}
-                            {isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished') && (
-                                <button className="btn-ghost btn-xs text-muted px-2"
-                                        aria-label={t('game.editTimes')}
-                                        onClick={() => openTimeEditSheet(game)}>🕐
-                                </button>
-                            )}
-                            {confirmDeleteId === game.id ? (
-                                <div className="flex gap-1">
-                                    <button className="btn-danger btn-xs" aria-label={t('action.delete')}
-                                            onClick={() => doDelete(game.id)}>✓</button>
-                                    <button className="btn-secondary btn-xs" aria-label={t('action.cancel')}
-                                            onClick={() => setConfirmDeleteId(null)}>✕
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="btn-danger btn-xs" aria-label={t('action.delete')}
-                                        onClick={() => setConfirmDeleteId(game.id)}>✕</button>
-                            )}
+                            <CardActionMenu
+                                title={game.name}
+                                label={`${t('action.more')}: ${game.name}`}
+                                actions={[
+                                    ...(game.status !== 'finished'
+                                        ? [{icon: '✏️', label: t('action.edit'), onClick: () => openEditSheet(game)}]
+                                        : []),
+                                    ...(isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished')
+                                        ? [{icon: '🕐', label: t('game.editTimes'), onClick: () => openTimeEditSheet(game)}]
+                                        : []),
+                                    {
+                                        icon: '🗑️', label: t('action.delete'), danger: true,
+                                        onClick: () => setConfirmDeleteId(game.id),
+                                    },
+                                ] satisfies SheetAction[]}/>
                         </div>
                     </div>
                 ))
             }
+
+            {/* ── Delete game confirm ── */}
+            {confirmDeleteId !== null && (
+                <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-muted text-sm">{t('game.deleteConfirm')}</p>
+                        <button type="button" className="btn-danger w-full"
+                                onClick={() => doDelete(confirmDeleteId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
 
             {/* ── Add game sheet ── */}
             <Sheet open={addSheet} onClose={() => setAddSheet(false)} title={t('game.add')} onSubmit={submitAdd}>

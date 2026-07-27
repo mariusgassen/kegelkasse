@@ -3,6 +3,7 @@ import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
 import {pendingStore} from '@/pendingStore'
 import {persistTokenForSW} from '@/lib/tokenStore'
 import type {ScoreboardData} from '@/lib/scoreboard'
+import {todayDateInput} from '@/lib/datetime.ts'
 import {
     Club,
     ClubAnnouncement,
@@ -206,7 +207,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
                 const tempId = -Date.now()
                 await offlineQueue.enqueue(method, path, body, tempId)
                 const b = body as {date?: string; venue?: string; note?: string} ?? {}
-                const date = b.date ?? new Date().toISOString().slice(0, 10)
+                const date = b.date ?? todayDateInput()
                 await pendingStore.save({tempId, date, venue: b.venue ?? null, memberIds: []})
                 window.dispatchEvent(new CustomEvent('kegelkasse:queue-changed'))
                 return {
@@ -223,7 +224,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
             if (method === 'POST' && /^\/schedule\/\d+\/start$/.test(path)) {
                 const tempId = -Date.now()
                 await offlineQueue.enqueue(method, path, body, tempId)
-                const date = new Date().toISOString().slice(0, 10)
+                const date = todayDateInput()
                 await pendingStore.save({
                     tempId,
                     date,

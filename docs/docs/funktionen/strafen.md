@@ -61,9 +61,15 @@ Falls ein Stammspieler fehlt, können Abwesenheitsstrafen berechnet werden:
 2. Wähle die fehlenden Stammspieler
 3. Die konfigurierten Abwesenheitsstrafen werden eingetragen
 
+Während der Berechnung zeigt der Knopf einen Ladezustand; danach meldet ein **Hinweis-Toast**,
+wie viele Abwesende eingetragen wurden und wie hoch die Ø-Strafe ist — bzw. dass **niemand
+gefehlt hat** und deshalb nichts eingetragen wurde. Das gilt auch beim *Neuberechnen*, wo sich
+im Protokoll selbst oft nichts sichtbar ändert. Die Mitglieder- und Gästekonten werden
+anschließend automatisch neu geladen.
+
 ## Strafe bearbeiten
 
-1. Tippe auf eine Strafe in der Liste
+1. Tippe auf das **⋮**-Menü der Strafe → **Bearbeiten**
 2. Wähle den Reiter **Schnell** (Strafentyp aus der Liste) oder **Individuell** (eigenes **Icon** und **Name** frei editierbar — z. B. für Freitext-Strafen, die keinem Strafentyp entsprechen)
 3. Ändere **Betrag**, **Modus** oder **Spieler**
 4. Admins können zusätzlich das **Datum** ändern — die Uhrzeit wird in lokaler Zeit eingegeben und angezeigt
@@ -71,7 +77,7 @@ Falls ein Stammspieler fehlt, können Abwesenheitsstrafen berechnet werden:
 
 ## Strafe löschen
 
-Tippe auf eine Strafe → **Löschen**
+Tippe auf das **⋮**-Menü der Strafe → **Löschen** (rot) und bestätige im Sicherheits-Dialog.
 
 Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der Datenbank, wird aber aus der Ansicht entfernt. Dies ermöglicht ein Rückgängigmachen.
 

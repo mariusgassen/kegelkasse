@@ -17,8 +17,9 @@ import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, Schedul
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
+import {todayDateInput} from '@/lib/datetime.ts'
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayDateInput()
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})

@@ -18,6 +18,7 @@ import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {computeHallOfShame, type ShameEntry} from '@/lib/stats'
 import {playerColor, withAlpha} from '@/lib/chartColors.ts'
+import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
 import {StatsLab} from '@/components/stats/StatsLab.tsx'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 
@@ -36,9 +37,9 @@ type ChartEvent = { ts: number; delta: number; entry?: PenaltyLogEntry }
 type ChartSeries = { id: number; name: string; color: string; events: ChartEvent[] }
 type SelectedPoint = { seriesId: number; entryId: number }
 
-const PAD = {top: 12, right: 12, bottom: 22, left: 38}
+const PAD = {top: 12, right: 12, bottom: 22}
 const VW = 400, VH = 140
-const IW = VW - PAD.left - PAD.right
+const AXIS_FONT = 15
 const IH = VH - PAD.top - PAD.bottom
 
 function CumulativeChart({series, yFormat, title, selected, onSelect}: {
@@ -59,7 +60,14 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
         ...series.map(s => s.events.reduce((sum, e) => sum + e.delta, 0))
     )
 
-    const xS = (t: number) => PAD.left + ((t - tMin) / tSpan) * IW
+    // The gutter is measured from the actual tick labels: a fixed one drawn for "€12" clips
+    // "€1.234,56" straight out of the chart, and a euro axis routinely reaches four figures.
+    const yTickValues = [0, 0.5, 1].map(f => f * maxVal)
+    const yTickLabels = yTickValues.map(yFormat)
+    const padLeft = axisLeftPad(yTickLabels, AXIS_FONT, {gap: 5, min: 26})
+    const IW = VW - padLeft - PAD.right
+
+    const xS = (t: number) => padLeft + ((t - tMin) / tSpan) * IW
     const yS = (v: number) => PAD.top + IH - (v / maxVal) * IH
 
     function buildPath(events: { ts: number; delta: number }[]) {
@@ -74,7 +82,7 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
         return d
     }
 
-    const yTicks = [0, 0.5, 1].map(f => ({v: f * maxVal, y: yS(f * maxVal)}))
+    const yTicks = yTickValues.map((v, i) => ({v, y: yS(v), label: yTickLabels[i]}))
     const fTime = (ms: number) =>
         new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
     const xTicks = hasData
@@ -89,18 +97,18 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                  onClick={onSelect ? () => onSelect(null) : undefined}>
                 {/* Grid */}
                 {yTicks.filter(t => t.v > 0).map((tick, i) => (
-                    <line key={i} x1={PAD.left} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
+                    <line key={i} x1={padLeft} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
                           stroke="var(--line)" strokeWidth="0.8" strokeDasharray="3,3"/>
                 ))}
                 {/* Y labels */}
                 {yTicks.map((tick, i) => (
-                    <text key={i} x={PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                          fontSize="15" fill="var(--muted)">{yFormat(tick.v)}</text>
+                    <text key={i} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
+                          fontSize={AXIS_FONT} fill="var(--muted)">{tick.label}</text>
                 ))}
                 {/* X labels */}
                 {xTicks.map((tick, i) => (
                     <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                          fontSize="15" fill="var(--muted)">{tick.label}</text>
+                          fontSize={AXIS_FONT} fill="var(--muted)">{tick.label}</text>
                 ))}
                 {/* Series */}
                 {series.map(s => (
@@ -147,9 +155,9 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
                     })
                 })}
                 {/* Axes */}
-                <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + IH}
+                <line x1={padLeft} y1={PAD.top} x2={padLeft} y2={PAD.top + IH}
                       stroke="var(--line)" strokeWidth="1"/>
-                <line x1={PAD.left} y1={PAD.top + IH} x2={VW - PAD.right} y2={PAD.top + IH}
+                <line x1={padLeft} y1={PAD.top + IH} x2={VW - PAD.right} y2={PAD.top + IH}
                       stroke="var(--line)" strokeWidth="1"/>
             </svg>
         </div>
@@ -242,7 +250,7 @@ function EveningTimeline({evening, t}: { evening: Evening; t: (k: any) => string
                 {anyPenaltyTotal && (
                     <>
                         <CumulativeChart
-                            series={penaltySeries} yFormat={feShort} title="Strafen €"
+                            series={penaltySeries} yFormat={compactEuro} title="Strafen €"
                             selected={selectedPoint}
                             onSelect={setSelectedPoint}
                         />

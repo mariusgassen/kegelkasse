@@ -42,7 +42,7 @@ Unter dem Spieler-/Team-Bereich gibt es einen **✨ Highlights**-Abschnitt:
 
 - Trage denkwürdige Momente des Abends als Freitext ein (z. B. *„Schuh geworfen"*, *„Kugel gegen die Heizung"*)
 - Highlights werden mit dem Abend gespeichert und erscheinen beim nächsten Öffnen
-- Jeder Spieler des Abends kann Highlights eintragen und löschen
+- Jeder Spieler des Abends kann Highlights eintragen und über das **⋮**-Menü der Highlight-Karte löschen
 
 ## Spieler verwalten
 
@@ -88,7 +88,7 @@ Wenn der Abend beendet ist:
 
 Der Abend wird in die **Historie** verschoben und kann nicht mehr bearbeitet werden (außer durch Wiedereröffnen).
 
-Beim Beenden kannst du den **Endzeitpunkt** direkt setzen — vorausgefüllt mit dem zuletzt gespeicherten Endzeitpunkt (bzw. jetzt, falls noch keiner existiert). Das ist z. B. hilfreich, wenn du das Beenden am eigentlichen Kegelabend vergessen hast und den korrekten Zeitpunkt nachträglich einträgst. Alle automatisch berechneten **Abwesenheitsstrafen** verwenden diesen Endzeitpunkt statt des Bearbeitungszeitpunkts, damit sie im Strafenprotokoll chronologisch korrekt einsortiert sind.
+Beim Beenden kannst du den **Endzeitpunkt** direkt setzen — vorausgefüllt mit dem zuletzt gespeicherten Endzeitpunkt (bzw. jetzt, falls noch keiner existiert), **in deiner lokalen Uhrzeit**. Das ist z. B. hilfreich, wenn du das Beenden am eigentlichen Kegelabend vergessen hast und den korrekten Zeitpunkt nachträglich einträgst. Alle automatisch berechneten **Abwesenheitsstrafen** verwenden diesen Endzeitpunkt statt des Bearbeitungszeitpunkts, damit sie im Strafenprotokoll chronologisch korrekt einsortiert sind.
 
 ### Abend wiedereröffnen
 

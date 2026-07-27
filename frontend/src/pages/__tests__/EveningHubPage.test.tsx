@@ -340,6 +340,34 @@ describe('EveningHubPage — close evening edge cases', () => {
         fireEvent.click(screen.getByText('evening.end'))
         expect(screen.queryByText('📚')).not.toBeInTheDocument()
     })
+
+    it('prefills the end-time picker with local wall-clock time, not UTC', async () => {
+        await setupOpen()
+        fireEvent.click(screen.getByText('evening.end'))
+        const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
+        expect(input).not.toBeNull()
+        const now = new Date()
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+            + `T${pad(now.getHours())}:${pad(now.getMinutes())}`
+        expect(input.value).toBe(local)
+    })
+
+    it('sends the picked end time as a timezone-aware instant', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateEvening).mockResolvedValueOnce({} as any)
+        await setupOpen()
+        fireEvent.click(screen.getByText('evening.end'))
+        const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
+        fireEvent.change(input, { target: { value: '2026-02-15T22:15' } })
+        fireEvent.click(screen.getByText('action.done'))
+        await waitFor(() => {
+            expect(api.updateEvening).toHaveBeenCalledWith(expect.any(Number), {
+                is_closed: true,
+                ended_at: new Date(2026, 1, 15, 22, 15).toISOString(),
+            })
+        })
+    })
 })
 
 describe('EveningHubPage — highlight interactions', () => {

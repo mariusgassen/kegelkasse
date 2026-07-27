@@ -1,6 +1,5 @@
 import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {Pencil, Trash2} from 'lucide-react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {useAppStore} from '@/store/app.ts'
@@ -13,7 +12,9 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
+import {todayDateInput} from '@/lib/datetime.ts'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 
@@ -27,7 +28,7 @@ export function EveningPage() {
         useCloseReopenEvening(evening?.id, invalidate)
 
     // ── Start evening form ──
-    const [startDate, setStartDate] = useState(today())
+    const [startDate, setStartDate] = useState(todayDateInput)
     const [startTime, setStartTime] = useState('')
     const [startVenue, setStartVenue] = useState('')
     useEffect(() => {
@@ -68,6 +69,8 @@ export function EveningPage() {
     const [teamPlayerIds, setTeamPlayerIds] = useState<(number | string)[]>([])
 
     const [confirmRemovePlayerId, setConfirmRemovePlayerId] = useState<number | null>(null)
+    const [confirmDeleteTeamId, setConfirmDeleteTeamId] = useState<number | null>(null)
+    const [confirmDeleteHighlightId, setConfirmDeleteHighlightId] = useState<number | null>(null)
 
     // ── Pins ──
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
@@ -265,10 +268,7 @@ export function EveningPage() {
                         {evening.venue && <div className="text-xs text-muted mt-0.5">📍 {evening.venue}</div>}
                         {evening.note && <div className="text-xs text-muted mt-0.5 italic">{evening.note}</div>}
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                        <button className="btn-secondary btn-xs" aria-label={t('action.edit')} onClick={openEditSheet}>
-                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
-                        </button>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                         {!evening.is_closed ? (
                             <button className="btn-danger btn-xs" onClick={() => openCloseConfirm(evening.ended_at)}>
                                 {t('evening.end')}
@@ -278,6 +278,9 @@ export function EveningPage() {
                                 {t('evening.reopen')}
                             </button>
                         )}
+                        <CardActionMenu
+                            title={formatDate(evening.date)}
+                            actions={[{icon: '✏️', label: t('evening.edit'), onClick: openEditSheet}]}/>
                     </div>
                 </div>
             </div>
@@ -371,19 +374,16 @@ export function EveningPage() {
                             <div className="flex items-center justify-between">
                                 <div className="text-sm font-bold">{team.name}</div>
                                 {!evening.is_closed && (
-                                    <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" aria-label={`${t('action.edit')}: ${team.name}`}
-                                                onClick={() => openEditTeam(team)}>
-                                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
-                                        </button>
-                                        <button className="btn-danger btn-xs" aria-label={`${t('action.delete')}: ${team.name}`}
-                                                onClick={async () => {
-                                                    await api.deleteTeam(evening.id, team.id)
-                                                    invalidate()
-                                                }}>
-                                            <Trash2 size={14} strokeWidth={2} aria-hidden="true"/>
-                                        </button>
-                                    </div>
+                                    <CardActionMenu
+                                        title={team.name}
+                                        label={`${t('action.more')}: ${team.name}`}
+                                        actions={[
+                                            {icon: '✏️', label: t('action.edit'), onClick: () => openEditTeam(team)},
+                                            {
+                                                icon: '🗑️', label: t('action.delete'), danger: true,
+                                                onClick: () => setConfirmDeleteTeamId(team.id),
+                                            },
+                                        ]}/>
                                 )}
                             </div>
                             {members.length > 0 && (
@@ -440,38 +440,56 @@ export function EveningPage() {
                                     <div className="text-xs text-muted">{team ? team.name : t('player.noTeam')}</div>
                                 </div>
                                 {!evening.is_closed && (
-                                    <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" aria-label={`${t('action.edit')}: ${p.nickname || p.name}`}
-                                                onClick={() => openEditPlayer(p)}>
-                                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
-                                        </button>
-                                        {confirmRemovePlayerId === p.id ? (
-                                            <>
-                                                <button className="btn-danger btn-xs" onClick={async () => {
-                                                    await api.removePlayer(evening.id, p.id)
-                                                    setConfirmRemovePlayerId(null)
-                                                    invalidate()
-                                                }}>{t('action.confirmDelete')}</button>
-                                                <button className="btn-secondary btn-xs"
-                                                        onClick={() => setConfirmRemovePlayerId(null)}>{t('action.cancel')}</button>
-                                            </>
-                                        ) : (
-                                            <button className="btn-danger btn-xs"
-                                                    aria-label={`${t('player.remove')}: ${p.nickname || p.name}`}
-                                                    onClick={() => setConfirmRemovePlayerId(p.id)}>✕</button>
-                                        )}
-                                    </div>
+                                    <CardActionMenu
+                                        title={p.nickname || p.name}
+                                        label={`${t('action.more')}: ${p.nickname || p.name}`}
+                                        actions={[
+                                            {icon: '✏️', label: t('action.edit'), onClick: () => openEditPlayer(p)},
+                                            {
+                                                icon: '🗑️', label: t('player.remove'), danger: true,
+                                                onClick: () => setConfirmRemovePlayerId(p.id),
+                                            },
+                                        ]}/>
                                 )}
                             </div>
-                            {confirmRemovePlayerId === p.id && (
-                                <div className="text-xs text-danger-fg px-3 pb-2">
-                                    ⚠️ {t('player.removeWarning')}
-                                </div>
-                            )}
                         </div>
                     )
                 })
             }
+
+            {/* Remove player confirm */}
+            {confirmRemovePlayerId !== null && (
+                <Sheet open onClose={() => setConfirmRemovePlayerId(null)} title={t('player.removeConfirm')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-danger-fg text-sm">⚠️ {t('player.removeWarning')}</p>
+                        <button type="button" className="btn-danger w-full" onClick={async () => {
+                            const pid = confirmRemovePlayerId
+                            setConfirmRemovePlayerId(null)
+                            try {
+                                await api.removePlayer(evening.id, pid)
+                                invalidate()
+                            } catch (e) { toastError(e) }
+                        }}>{t('action.confirmDelete')}</button>
+                    </div>
+                </Sheet>
+            )}
+
+            {/* Delete team confirm */}
+            {confirmDeleteTeamId !== null && (
+                <Sheet open onClose={() => setConfirmDeleteTeamId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-muted text-sm">{t('team.deleteConfirm')}</p>
+                        <button type="button" className="btn-danger w-full" onClick={async () => {
+                            const tid = confirmDeleteTeamId
+                            setConfirmDeleteTeamId(null)
+                            try {
+                                await api.deleteTeam(evening.id, tid)
+                                invalidate()
+                            } catch (e) { toastError(e) }
+                        }}>{t('action.confirmDelete')}</button>
+                    </div>
+                </Sheet>
+            )}
 
             {/* ── Highlights ── */}
             <div className="flex items-center justify-between mb-2 mt-4">
@@ -493,14 +511,13 @@ export function EveningPage() {
                                     )}
                                 </div>
                                 {!evening.is_closed && (
-                                    <button className="btn-danger btn-xs flex-shrink-0"
-                                            aria-label={t('highlight.delete')}
-                                            onClick={async () => {
-                                        try {
-                                            await api.deleteHighlight(evening.id, h.id)
-                                            invalidate()
-                                        } catch (e) { toastError(e) }
-                                    }}>✕</button>
+                                    <CardActionMenu
+                                        title={t('highlight.title')}
+                                        label={t('highlight.delete')}
+                                        actions={[{
+                                            icon: '🗑️', label: t('action.delete'), danger: true,
+                                            onClick: () => setConfirmDeleteHighlightId(h.id),
+                                        }]}/>
                                 )}
                             </div>
                             <CommentThread parentType="highlight" parentId={h.id}/>
@@ -508,6 +525,23 @@ export function EveningPage() {
                     ))}
                 </div>
             }
+
+            {/* Delete highlight confirm */}
+            {confirmDeleteHighlightId !== null && (
+                <Sheet open onClose={() => setConfirmDeleteHighlightId(null)} title={t('highlight.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-muted text-sm">{t('highlight.deleteConfirm')}</p>
+                        <button type="button" className="btn-danger w-full" onClick={async () => {
+                            const hid = confirmDeleteHighlightId
+                            setConfirmDeleteHighlightId(null)
+                            try {
+                                await api.deleteHighlight(evening.id, hid)
+                                invalidate()
+                            } catch (e) { toastError(e) }
+                        }}>{t('action.confirmDelete')}</button>
+                    </div>
+                </Sheet>
+            )}
             {!evening.is_closed && (
                 <div className="flex flex-col gap-1.5 mb-4">
                     <div className="flex gap-2">
@@ -982,10 +1016,6 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
             </div>
         </Sheet>
     )
-}
-
-function today() {
-    return new Date().toISOString().slice(0, 10)
 }
 
 function formatDate(iso: string) {

@@ -19,6 +19,7 @@ import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
+import {todayDateInput} from '@/lib/datetime.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -411,7 +412,7 @@ export function TreasuryPage() {
     const [bookingDirection, setBookingDirection] = useState<'in' | 'out'>('out')
     const [bookingAmount, setBookingAmount] = useState('')
     const [bookingNote, setBookingNote] = useState('')
-    const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10))
+    const [bookingDate, setBookingDate] = useState(todayDateInput)
     const [savingBooking, setSavingBooking] = useState(false)
 
     function openBookingSheet() {
@@ -419,7 +420,7 @@ export function TreasuryPage() {
         setBookingDirection('out')
         setBookingAmount('')
         setBookingNote('')
-        setBookingDate(new Date().toISOString().slice(0, 10))
+        setBookingDate(todayDateInput())
         setBookingSheet(true)
     }
 

@@ -104,6 +104,28 @@ const ACTIVE_EVENING = {
     player_count: 2, game_count: 3,
 }
 
+// ── card action menu helpers (every row action lives behind the shared ⋮ menu) ─
+
+function openCardMenu(index = 0) {
+    fireEvent.click(screen.getAllByLabelText(/^action\.more/)[index])
+}
+
+async function clickCardAction(labelKey: string, index = 0) {
+    openCardMenu(index)
+    await waitFor(() => screen.getByText(labelKey))
+    fireEvent.click(screen.getByText(labelKey))
+}
+
+/** Labels of the actions offered by the ⋮ menu of the card at `index`. */
+async function cardActionLabels(index = 0): Promise<string[]> {
+    openCardMenu(index)
+    await waitFor(() => screen.getByTestId('sheet'))
+    const labels = Array.from(screen.getByTestId('sheet').querySelectorAll('button > span:last-child'))
+        .map(el => el.textContent ?? '')
+    fireEvent.click(screen.getByText('close-sheet'))
+    return labels
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function makeWrapper() {
@@ -433,8 +455,7 @@ describe('GamesPage — edit game sheet', () => {
     it('opens edit sheet for open game when pencil button clicked', async () => {
         await renderGamesPage()
         // Open game (Warmup) has an edit button (✏️ button that is not btn-secondary)
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('action.edit')
         })
@@ -442,8 +463,7 @@ describe('GamesPage — edit game sheet', () => {
 
     it('shows game name input pre-filled in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             const input = screen.getByDisplayValue('Warmup')
             expect(input).toBeInTheDocument()
@@ -454,8 +474,7 @@ describe('GamesPage — edit game sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByDisplayValue('Warmup'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -474,23 +493,23 @@ describe('GamesPage — delete game', () => {
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
     })
 
-    it('shows delete confirm buttons after clicking delete', async () => {
+    it('asks for confirmation before deleting instead of deleting on the first tap', async () => {
+        const { api } = await import('@/api/client.ts')
         await renderGamesPage()
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete')
         await waitFor(() => {
-            expect(screen.getByText('✓')).toBeInTheDocument()
+            expect(screen.getByText('game.deleteConfirm')).toBeInTheDocument()
         })
+        expect(api.deleteGame).not.toHaveBeenCalled()
     })
 
     it('calls api.deleteGame when confirmed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteGame).mockResolvedValueOnce(undefined as any)
         await renderGamesPage()
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
-        await waitFor(() => screen.getByText('✓'))
-        fireEvent.click(screen.getByText('✓'))
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.deleteGame).toHaveBeenCalledWith(42, expect.any(Number))
         })
@@ -709,7 +728,7 @@ describe('GamesPage — retroactive time edit sheet', () => {
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
         await renderGamesPage()
-        expect(screen.queryByText('🕐')).not.toBeInTheDocument()
+        expect(await cardActionLabels(1)).not.toContain('game.editTimes')
     })
 
     it('shows the time-edit button for admins on running/finished games only', async () => {
@@ -720,8 +739,10 @@ describe('GamesPage — retroactive time edit sheet', () => {
             gameTemplates: [], regularMembers: [],
         }))
         await renderGamesPage()
-        // RUNNING_GAME + FINISHED_GAME → two buttons; OPEN_GAME has none.
-        expect(screen.getAllByText('🕐').length).toBe(2)
+        // RUNNING_GAME + FINISHED_GAME offer it; OPEN_GAME does not.
+        expect(await cardActionLabels(0)).not.toContain('game.editTimes')
+        expect(await cardActionLabels(1)).toContain('game.editTimes')
+        expect(await cardActionLabels(2)).toContain('game.editTimes')
     })
 
     it('opens the time-edit sheet pre-filled and submits started_at/finished_at', async () => {
@@ -742,7 +763,7 @@ describe('GamesPage — retroactive time edit sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
         await renderGamesPage()
-        fireEvent.click(screen.getAllByText('🕐')[1]) // finishedWithTimes
+        await clickCardAction('game.editTimes', 2) // finishedWithTimes
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('game.editTimes')
         })
@@ -766,7 +787,7 @@ describe('GamesPage — delete game', () => {
         vi.mocked(isAdmin).mockReturnValue(false)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
         await renderGamesPage()
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+        expect(await cardActionLabels(0)).toContain('action.delete')
     })
 })
 
@@ -811,8 +832,7 @@ describe('GamesPage — edit game update', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -822,8 +842,7 @@ describe('GamesPage — edit game update', () => {
 
     it('shows per-point penalty input in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('game.perPointPenalty')).toBeInTheDocument()
         })
@@ -909,8 +928,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('shows winner type chips in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('club.template.winnerType.individual')).toBeInTheDocument()
             expect(screen.getByText('club.template.winnerType.team')).toBeInTheDocument()
@@ -919,8 +937,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('switching to team winner type reveals turn mode chips', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByText('club.template.winnerType.team'))
         fireEvent.click(screen.getByText('club.template.winnerType.team'))
         await waitFor(() => {
@@ -931,8 +948,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('clicking block turn mode chip selects it', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByText('club.template.winnerType.team'))
         fireEvent.click(screen.getByText('club.template.winnerType.team'))
         await waitFor(() => screen.getByText('game.turnMode.block'))
@@ -943,8 +959,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('shows loser penalty input in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('game.loserPenalty')).toBeInTheDocument()
         })
@@ -952,8 +967,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('shows note input in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByText('game.note')).toBeInTheDocument()
         })
@@ -961,8 +975,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
 
     it('updates edit name input when changed', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByDisplayValue('Warmup'))
         const nameInput = screen.getByDisplayValue('Warmup')
         fireEvent.change(nameInput, { target: { value: 'Neuer Name' } })
@@ -973,8 +986,7 @@ describe('GamesPage — edit metadata sheet interactions', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateGame).mockResolvedValueOnce({} as any)
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByText('club.template.winnerType.team'))
         fireEvent.click(screen.getByText('club.template.winnerType.team'))
         await waitFor(() => screen.getByText('game.turnMode.alternating'))
@@ -1052,11 +1064,9 @@ describe('GamesPage — error handling', () => {
         vi.mocked(api.deleteGame).mockRejectedValueOnce(new Error('delete fail'))
         await renderGamesPage()
         // Click delete on first open game
-        const deleteButtons = screen.getAllByText('✕')
-        fireEvent.click(deleteButtons[0])
-        // Confirm delete by clicking the ✓ button
-        await waitFor(() => screen.getByText('✓'))
-        fireEvent.click(screen.getByText('✓'))
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 
@@ -1191,8 +1201,7 @@ describe('GamesPage — submitEdit error', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updateGame).mockRejectedValueOnce(new Error('edit fail'))
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
@@ -1214,8 +1223,7 @@ describe('GamesPage — edit sheet input changes', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateGame).mockResolvedValue({} as any)
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // Find inputs inside sheet and change them
         const inputs = document.querySelectorAll('input.kce-input, input[type="text"]')
@@ -1229,12 +1237,11 @@ describe('GamesPage — edit sheet input changes', () => {
 
     it('shows confirm delete UI and can cancel it', async () => {
         await renderGamesPage()
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
-        await waitFor(() => screen.getByText('✓'))
-        // Cancel the confirm dialog
-        fireEvent.click(screen.getAllByText('✕')[0])
-        await waitFor(() => expect(screen.queryByText('✓')).not.toBeInTheDocument())
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        // Dismissing the confirm sheet leaves the game alone
+        fireEvent.click(screen.getByText('close-sheet'))
+        await waitFor(() => expect(screen.queryByText('action.confirmDelete')).not.toBeInTheDocument())
     })
 })
 
@@ -1376,16 +1383,14 @@ describe('GamesPage — edit sheet opener toggle', () => {
 
     it('shows opener toggle in edit sheet when no opener exists', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         expect(screen.getByText(/game\.isOpener/)).toBeInTheDocument()
     })
 
     it('toggles opener button in edit sheet', async () => {
         await renderGamesPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByText(/game\.isOpener/))
         // Click the opener toggle button (contains 'game.isOpener' text)
         const openerBtn = screen.getByText(/game\.isOpener/).closest('button')
@@ -1409,20 +1414,13 @@ describe('GamesPage — icon button aria-labels', () => {
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
     })
 
-    it('exposes aria-label on the edit and delete-trigger buttons', async () => {
+    it('names the ⋮ trigger after the game it belongs to', async () => {
         await renderGamesPage()
-        expect(screen.getByLabelText('action.edit')).toBeInTheDocument()
-        expect(screen.getByLabelText('action.delete')).toBeInTheDocument()
+        expect(screen.getByLabelText(`action.more: ${OPEN_GAME.name}`)).toBeInTheDocument()
     })
 
-    it('exposes aria-label on the confirm/cancel buttons of the inline delete confirm', async () => {
+    it('offers edit and delete inside the ⋮ menu instead of as bare icons', async () => {
         await renderGamesPage()
-        fireEvent.click(screen.getByLabelText('action.delete'))
-        await waitFor(() => {
-            expect(screen.getByLabelText('action.cancel')).toBeInTheDocument()
-        })
-        // Two buttons now share the 'action.delete' label: the confirm checkmark (still present
-        // from the trigger having been replaced) — assert there's at least one delete-labelled button left
-        expect(screen.getAllByLabelText('action.delete').length).toBeGreaterThan(0)
+        expect(await cardActionLabels(0)).toEqual(['action.edit', 'action.delete'])
     })
 })

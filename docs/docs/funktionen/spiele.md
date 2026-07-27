@@ -60,7 +60,7 @@ Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des
 
 ## Spiel bearbeiten
 
-Tippe auf ein beendetes Spiel → **Bearbeiten**:
+Tippe bei einem beendeten Spiel auf **✏️ Ergebnis bearbeiten**:
 
 - Gewinner ändern
 - Punktzahlen anpassen
@@ -82,7 +82,11 @@ Wird bei einem bereits beendeten Spiel nur die **Endzeit korrigiert** (ohne die 
 
 ## Spiel löschen
 
-Tippe auf ein Spiel → **Löschen**
+Tippe auf das **⋮**-Menü des Spiels → **Löschen** (rot) und bestätige im Sicherheits-Dialog.
+
+Im selben **⋮**-Menü liegen auch **Bearbeiten** (Name, Vorlagen-Einstellungen) und — für Admins —
+**Start-/Endzeit bearbeiten**. Die Start-/Beenden-Aktion bleibt als beschrifteter Knopf auf der
+Karte.
 
 Gelöschte Spiele sind **weich gelöscht** (Soft-Delete) — die zugehörigen Verliererstrafen werden ebenfalls entfernt, aber alle Daten bleiben in der Datenbank erhalten.
 
