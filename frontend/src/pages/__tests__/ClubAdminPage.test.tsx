@@ -48,6 +48,7 @@ vi.mock('@/api/client.ts', () => ({
         broadcastPush: vi.fn(),
         uploadClubLogo: vi.fn(),
         deleteClubLogo: vi.fn(),
+        regenerateScoreboardToken: vi.fn(),
         updateClubSettings: vi.fn(),
         createPenaltyType: vi.fn(),
         updatePenaltyType: vi.fn(),
@@ -346,6 +347,31 @@ describe('ClubAdminPage — settings tab', () => {
                 expect.objectContaining({throw_tracking_enabled: false}),
             )
         })
+    })
+
+    it('shows the public TV scoreboard link', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue(
+            { id: 1, name: 'TestClub', settings: { scoreboard_token: 'tv-tok' } } as any)
+        await renderClubAdminPage()
+        expect(await screen.findByText(`${window.location.origin}/tv/tv-tok`)).toBeInTheDocument()
+    })
+
+    it('rotates the scoreboard token only after confirming', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue(
+            { id: 1, name: 'TestClub', settings: { scoreboard_token: 'tv-tok' } } as any)
+        vi.mocked(api.regenerateScoreboardToken).mockResolvedValue({ scoreboard_token: 'new' } as any)
+        await renderClubAdminPage()
+
+        fireEvent.click(await screen.findByText('scoreboard.regenerate'))
+        expect(screen.getByText('scoreboard.regenerateConfirm')).toBeInTheDocument()
+        expect(vi.mocked(api.regenerateScoreboardToken)).not.toHaveBeenCalled()
+
+        // The confirm sheet's destructive button carries the same label as the trigger.
+        const buttons = screen.getAllByText('scoreboard.regenerate')
+        fireEvent.click(buttons[buttons.length - 1])
+        await waitFor(() => expect(vi.mocked(api.regenerateScoreboardToken)).toHaveBeenCalled())
     })
 
     it('shows reminder settings section', async () => {

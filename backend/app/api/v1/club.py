@@ -43,6 +43,9 @@ def _serialize_settings(s: ClubSettings) -> dict:
         "pin_penalty": extra.get("pin_penalty"),
         "default_evening_time": extra.get("default_evening_time"),
         "ical_token": extra.get("ical_token"),
+        # Public read-only TV/beamer scoreboard link (#74) — same secret-token pattern as the
+        # iCal feed: unguessable, rotatable, and the only thing a device without a login needs.
+        "scoreboard_token": extra.get("scoreboard_token"),
         # Camera-based pin/throw tracking (feature #33). Opt-out per club: clubs whose bowling
         # machine can't feed throw data hide it in the UI and stats. Defaults to enabled so
         # existing clubs keep their current behaviour.
@@ -52,14 +55,21 @@ def _serialize_settings(s: ClubSettings) -> dict:
 
 # ── Club info & settings ──
 
-def _ensure_ical_token(s: ClubSettings, db: Session) -> None:
-    """Lazily generate ical_token for clubs created before migration 023."""
+def _ensure_public_tokens(s: ClubSettings, db: Session) -> None:
+    """Lazily generate the public link tokens for clubs that predate them.
+
+    `ical_token` predates migration 023, `scoreboard_token` was added with the TV scoreboard (#74).
+    Both are plain uuid4 secrets living in `extra`, so a club never has to be migrated to get one.
+    """
     import uuid
     extra = dict(s.extra or {})
-    if not extra.get("ical_token"):
-        extra["ical_token"] = str(uuid.uuid4())
-        s.extra = extra
-        db.commit()
+    missing = [k for k in ("ical_token", "scoreboard_token") if not extra.get(k)]
+    if not missing:
+        return
+    for key in missing:
+        extra[key] = str(uuid.uuid4())
+    s.extra = extra
+    db.commit()
 
 
 @router.get("/")
@@ -68,7 +78,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
     if not club: raise HTTPException(404)
     s = club.settings
     if s:
-        _ensure_ical_token(s, db)
+        _ensure_public_tokens(s, db)
     return {
         "id": club.id, "name": club.name, "slug": club.slug,
         "settings": _serialize_settings(s) if s else {}
@@ -131,6 +141,21 @@ def regenerate_ical_token(db: Session = Depends(get_db), user: User = Depends(re
     s.extra = extra
     db.commit()
     return {"ical_token": extra["ical_token"]}
+
+
+@router.post("/settings/regenerate-scoreboard-token")
+def regenerate_scoreboard_token(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin only: rotate the public TV scoreboard token (invalidates old links)."""
+    import uuid
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    extra = dict(s.extra or {})
+    extra["scoreboard_token"] = str(uuid.uuid4())
+    s.extra = extra
+    db.commit()
+    return {"scoreboard_token": extra["scoreboard_token"]}
 
 
 _UPLOAD_DIR = Path("/app/uploads/logos")

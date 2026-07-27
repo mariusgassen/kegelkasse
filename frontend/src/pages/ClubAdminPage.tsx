@@ -451,6 +451,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </label>
             </div>
 
+            {/* ── TV-Scoreboard ── */}
+            <ScoreboardLinkCard token={club?.settings?.scoreboard_token ?? null}/>
+
             {/* ── Zahlungen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.payments')}</div>
@@ -473,6 +476,88 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             <ReminderSettingsCard />
             <EmailSettingsCard />
             <BroadcastPushCard />
+        </div>
+    )
+}
+
+
+/**
+ * The public TV/beamer scoreboard link (#74).
+ *
+ * Same shape as the iCal subscribe sheet: show the URL, make it copyable, and let an admin rotate
+ * it. Rotating is behind a confirmation because it silently blanks whatever screen is currently
+ * showing the old link.
+ */
+function ScoreboardLinkCard({token}: {token: string | null}) {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const [confirmRegen, setConfirmRegen] = useState(false)
+    const [copied, setCopied] = useState(false)
+    const url = token ? `${window.location.origin}/tv/${token}` : null
+
+    async function copy() {
+        if (!url) return
+        try {
+            await navigator.clipboard.writeText(url)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            showToast(url)
+        }
+    }
+
+    async function regenerate() {
+        try {
+            await api.regenerateScoreboardToken()
+            await qc.invalidateQueries({queryKey: ['club']})
+            setConfirmRegen(false)
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-3">{t('scoreboard.title')}</div>
+            <p className="text-xs text-muted mb-3">{t('scoreboard.hint')}</p>
+            {url ? (
+                <>
+                    <div className="bg-surface-2 rounded-lg p-2.5 text-sm font-mono text-ink break-all select-all">
+                        {url}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                        <a href={url} target="_blank" rel="noreferrer" className="flex-1 btn-primary text-center text-sm">
+                            {t('scoreboard.open')}
+                        </a>
+                        <button className="btn-secondary btn-sm flex-shrink-0" onClick={copy}>
+                            {copied ? '✓' : t('scoreboard.copy')}
+                        </button>
+                    </div>
+                    <button className="btn-secondary btn-sm w-full mt-2" disabled={!isOnline}
+                            onClick={() => setConfirmRegen(true)}>
+                        {t('scoreboard.regenerate')}
+                    </button>
+                    <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
+                </>
+            ) : (
+                <p className="text-xs text-muted">{t('action.loading')}</p>
+            )}
+
+            {confirmRegen && (
+                <Sheet open onClose={() => setConfirmRegen(false)} title={t('scoreboard.regenerate')}>
+                    <p className="text-sm text-ink mb-3">{t('scoreboard.regenerateConfirm')}</p>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary flex-1" onClick={() => setConfirmRegen(false)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-danger flex-1" onClick={regenerate}>
+                            {t('scoreboard.regenerate')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
         </div>
     )
 }

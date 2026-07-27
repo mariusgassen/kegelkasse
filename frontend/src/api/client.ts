@@ -2,6 +2,7 @@ import {t as tl} from '@/i18n'
 import {offlineQueue, isQueuableMutation} from '@/offlineQueue'
 import {pendingStore} from '@/pendingStore'
 import {persistTokenForSW} from '@/lib/tokenStore'
+import type {ScoreboardData} from '@/lib/scoreboard'
 import {
     Club,
     ClubAnnouncement,
@@ -785,6 +786,8 @@ export const api = {
         request<void>('POST', '/push/notifications/read', ids ? {ids} : {}),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
+    regenerateScoreboardToken: () =>
+        request<{ scoreboard_token: string }>('POST', '/club/settings/regenerate-scoreboard-token'),
     getReminderSettings: () => request<ReminderSettings>('GET', '/club/reminder-settings'),
     updateReminderSettings: (d: Partial<ReminderSettings>) => request<{ ok: boolean }>('PATCH', '/club/reminder-settings', d),
     getEmailSettings: () => request<EmailSettings>('GET', '/club/email-settings'),
@@ -826,6 +829,25 @@ export const api = {
     getBowlingLeaderboard: () => request<BowlingLeaderboardEntry[]>('GET', '/bowling/leaderboard'),
     submitBowlingScore: (score: number) =>
         request<BowlingSubmitResult>('POST', '/bowling/scores', {score}),
+
+    /**
+     * Public TV scoreboard (#74) — the one endpoint that is deliberately *not* authenticated.
+     *
+     * It uses a bare fetch rather than `request`: the TV has no session, so the 401-refresh path
+     * would be meaningless, and a 404 (rotated or mistyped token) must surface as an error the
+     * scoreboard can explain rather than as a logout.
+     */
+    getScoreboard: async (token: string): Promise<ScoreboardData> => {
+        let res: Response
+        try {
+            res = await fetch(`${API_BASE}/scoreboard/${encodeURIComponent(token)}`)
+        } catch {
+            throw new NetworkError()
+        }
+        if (res.status === 404) throw new Error('invalid-token')
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json() as Promise<ScoreboardData>
+    },
 
     // Reports — Excel/PDF export (admin only)
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
