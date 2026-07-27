@@ -7,7 +7,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "0.139.2"
+fastapi = "0.140.2"
 uvicorn = {version = ">=0.46,<0.52", extras = ["standard"]}
 sqlalchemy = {version = "^2.0.50", extras = ["asyncio"]}
 alembic = "^1.13.3"
@@ -20,7 +20,7 @@ pydantic = "^2.9.2"
 pydantic-settings = "^2.5.2"
 httpx = "^0.28.1"
 pywebpush = "^2.0.0"
-ruff = "^0.15.10"
+ruff = ">=0.15.10,<0.17.0"
 greenlet = "^3.3.2"
 babel = "^2.18.0"
 apscheduler = "^3.10"
