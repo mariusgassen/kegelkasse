@@ -34,7 +34,7 @@ die Auswahl zurückgesetzt — kein separates Dialog-Fenster nötig.
 
 ## Runde löschen
 
-Tippe auf eine Runde → **Löschen**
+Tippe auf das **⋮**-Menü der Runde → **Löschen** (rot) und bestätige im Sicherheits-Dialog.
 
 Runden werden **weich gelöscht** (Soft-Delete).
 

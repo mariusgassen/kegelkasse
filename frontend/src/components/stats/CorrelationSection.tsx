@@ -18,6 +18,7 @@ import {SkeletonChart} from '@/components/ui/Skeleton'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {interpretR, linearRegression, pearson} from '@/lib/stats'
 import {playerColor, withAlpha} from '@/lib/chartColors.ts'
+import {axisLeftPad, compactNumber} from '@/lib/chartAxis.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
@@ -43,9 +44,39 @@ function rBadge(r: number | null, t: (k: TranslationKey) => string): { label: st
 }
 
 const SC_VW = 320, SC_VH = 220
-const SC_PAD = {top: 12, right: 12, bottom: 30, left: 38}
-const SC_IW = SC_VW - SC_PAD.left - SC_PAD.right
+const SC_PAD = {top: 12, right: 12, bottom: 30}
 const SC_IH = SC_VH - SC_PAD.top - SC_PAD.bottom
+const SC_AXIS_FONT = 12
+// Width of the rotated y-axis title, kept clear to the left of the tick labels.
+const SC_TITLE_W = 14
+
+/** Left gutter sized to the widest tick label, so nothing draws outside the viewBox. */
+function scLeftPad(labels: string[], opts: {reserve?: number} = {}) {
+    return axisLeftPad(labels, SC_AXIS_FONT, {gap: 4, min: 24, reserve: opts.reserve ?? 0})
+}
+
+/**
+ * Two-row in-chart legend for the dual-axis charts. The rows are spaced by the font size —
+ * they used to sit 8 units apart under a 12-unit font, i.e. printed on top of each other.
+ */
+function ChartLegend({x, y, leftLabel, rightLabel}: {
+    x: number
+    y: number
+    leftLabel: string
+    rightLabel: string
+}) {
+    const row = SC_AXIS_FONT + 2
+    return (
+        <g>
+            <rect x={x} y={y} width={8} height={3} fill="var(--accent-fg)"/>
+            <text x={x + 12} y={y + 3.5} fontSize={SC_AXIS_FONT} dominantBaseline="middle"
+                  fill="var(--muted)">{leftLabel}</text>
+            <rect x={x} y={y + row} width={8} height={3} fill="var(--ink)"/>
+            <text x={x + 12} y={y + row + 3.5} fontSize={SC_AXIS_FONT} dominantBaseline="middle"
+                  fill="var(--muted)">{rightLabel}</text>
+        </g>
+    )
+}
 
 interface ScatterPoint {
     x: number
@@ -72,39 +103,47 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
     const yMax = Math.max(...ys, yMin + 1)
     const xRange = xMax - xMin || 1
     const yRange = yMax - yMin || 1
-    const xS = (v: number) => SC_PAD.left + ((v - xMin) / xRange) * SC_IW
+
+    const xTicks = [0, 0.5, 1].map(f => xMin + f * xRange)
+    const yTicks = [0, 0.5, 1].map(f => yMin + f * yRange)
+    const yTickLabels = yTicks.map(v => compactNumber(v))
+    const xTickLabels = xTicks.map(v => compactNumber(v))
+    // Keep the rotated axis title clear of the tick labels — at a fixed gutter the two used to
+    // draw on top of each other as soon as the values grew past two digits.
+    const padLeft = scLeftPad(yTickLabels, {reserve: SC_TITLE_W})
+    const IW = SC_VW - padLeft - SC_PAD.right
+
+    const xS = (v: number) => padLeft + ((v - xMin) / xRange) * IW
     const yS = (v: number) => SC_PAD.top + SC_IH - ((v - yMin) / yRange) * SC_IH
 
     const reg = trendLine && points.length >= 2
         ? linearRegression(points.map(p => ({x: p.x, y: p.y})))
         : null
 
-    const xTicks = [0, 0.5, 1].map(f => xMin + f * xRange)
-    const yTicks = [0, 0.5, 1].map(f => yMin + f * yRange)
-
     return (
         <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 260}}>
             {/* axes */}
-            <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
+            <line x1={padLeft} y1={SC_PAD.top} x2={padLeft} y2={SC_PAD.top + SC_IH}
                   stroke="var(--line)" strokeWidth={1}/>
-            <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+            <line x1={padLeft} y1={SC_PAD.top + SC_IH} x2={padLeft + IW} y2={SC_PAD.top + SC_IH}
                   stroke="var(--line)" strokeWidth={1}/>
             {/* y ticks */}
             {yTicks.map((tv, i) => (
                 <g key={`y${i}`}>
-                    <line x1={SC_PAD.left - 3} x2={SC_PAD.left} y1={yS(tv)} y2={yS(tv)}
+                    <line x1={padLeft - 3} x2={padLeft} y1={yS(tv)} y2={yS(tv)}
                           stroke="var(--line)"/>
-                    <text x={SC_PAD.left - 5} y={yS(tv) + 3} textAnchor="end"
-                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
+                    <text x={padLeft - 4} y={yS(tv) + 3} textAnchor="end"
+                          fontSize={SC_AXIS_FONT} fill="var(--muted)">{yTickLabels[i]}</text>
                 </g>
             ))}
-            {/* x ticks */}
+            {/* x ticks — outer labels hug the axis ends so they stay inside the viewBox */}
             {xTicks.map((tv, i) => (
                 <g key={`x${i}`}>
                     <line x1={xS(tv)} x2={xS(tv)} y1={SC_PAD.top + SC_IH} y2={SC_PAD.top + SC_IH + 3}
                           stroke="var(--line)"/>
-                    <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={12} fill="var(--muted)">{tv.toFixed(2)}</text>
+                    <text x={xS(tv)} y={SC_PAD.top + SC_IH + 12}
+                          textAnchor={i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle'}
+                          fontSize={SC_AXIS_FONT} fill="var(--muted)">{xTickLabels[i]}</text>
                 </g>
             ))}
             {/* trend line */}
@@ -131,10 +170,10 @@ function ScatterChart({points, xLabel, yLabel, trendLine = false, selectedIndex,
                     />
                 )
             })}
-            <text x={SC_PAD.left + SC_IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={12}
+            <text x={padLeft + IW / 2} y={SC_VH - 2} textAnchor="middle" fontSize={SC_AXIS_FONT}
                   fill="var(--muted)">{xLabel}</text>
-            <text transform={`translate(10, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
-                  textAnchor="middle" dominantBaseline="middle" fontSize={12}
+            <text transform={`translate(${SC_TITLE_W / 2}, ${SC_PAD.top + SC_IH / 2}) rotate(-90)`}
+                  textAnchor="middle" dominantBaseline="middle" fontSize={SC_AXIS_FONT}
                   fill="var(--muted)">{yLabel}</text>
         </svg>
     )
@@ -151,7 +190,14 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
     const maxP = Math.max(1, ...bins.map(b => b.cum_penalty))
     const maxD = Math.max(1, ...bins.map(b => b.cum_drinks))
     const n = bins.length
-    const xS = (i: number) => SC_PAD.left + (n === 1 ? SC_IW / 2 : (i / (n - 1)) * SC_IW)
+    // Both gutters are sized from their own tick labels: the left one used to clip four-figure
+    // euro sums, the right one used to push the drinks count past the edge of the viewBox.
+    const leftTicks = [1, 0.5, 0].map(f => compactNumber(maxP * f))
+    const rightTicks = [1, 0.5, 0].map(f => compactNumber(Math.round(maxD * f)))
+    const padLeft = scLeftPad(leftTicks)
+    const padRight = axisLeftPad(rightTicks, SC_AXIS_FONT, {gap: 4, min: SC_PAD.right})
+    const IW = SC_VW - padLeft - padRight
+    const xS = (i: number) => padLeft + (n === 1 ? IW / 2 : (i / (n - 1)) * IW)
     const yPenalty = (v: number) => SC_PAD.top + SC_IH - (v / maxP) * SC_IH
     const yDrinks = (v: number) => SC_PAD.top + SC_IH - (v / maxD) * SC_IH
 
@@ -172,35 +218,32 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
             <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 260}}>
                 {/* horizontal grid */}
                 {[0, 0.25, 0.5, 0.75, 1].map(f => (
-                    <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
+                    <line key={f} x1={padLeft} x2={padLeft + IW}
                           y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
                           stroke="var(--line)" strokeWidth={0.5} opacity={0.4}/>
                 ))}
                 {/* axes */}
-                <line x1={SC_PAD.left} y1={SC_PAD.top} x2={SC_PAD.left} y2={SC_PAD.top + SC_IH}
+                <line x1={padLeft} y1={SC_PAD.top} x2={padLeft} y2={SC_PAD.top + SC_IH}
                       stroke="var(--line)"/>
-                <line x1={SC_PAD.left + SC_IW} y1={SC_PAD.top} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                <line x1={padLeft + IW} y1={SC_PAD.top} x2={padLeft + IW} y2={SC_PAD.top + SC_IH}
                       stroke="var(--line)"/>
-                <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+                <line x1={padLeft} y1={SC_PAD.top + SC_IH} x2={padLeft + IW} y2={SC_PAD.top + SC_IH}
                       stroke="var(--line)"/>
                 {/* y labels (left = penalty €) */}
-                {[0, 0.5, 1].map(f => (
-                    <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="end" fontSize={12} fill="var(--muted)">
-                        {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
-                    </text>
+                {leftTicks.map((label, i) => (
+                    <text key={`l${i}`} x={padLeft - 4} y={SC_PAD.top + (i / 2) * SC_IH + 3}
+                          textAnchor="end" fontSize={SC_AXIS_FONT} fill="var(--muted)">{label}</text>
                 ))}
                 {/* y labels (right = drinks) */}
-                {[0, 0.5, 1].map(f => (
-                    <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                          textAnchor="start" fontSize={12} fill="var(--ink)">
-                        {Math.round(maxD * f)}
-                    </text>
+                {rightTicks.map((label, i) => (
+                    <text key={`r${i}`} x={padLeft + IW + 4} y={SC_PAD.top + (i / 2) * SC_IH + 3}
+                          textAnchor="start" fontSize={SC_AXIS_FONT} fill="var(--ink)">{label}</text>
                 ))}
-                {/* x labels */}
-                {tickIdx.map(i => (
-                    <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12} textAnchor="middle"
-                          fontSize={12} fill="var(--muted)">{fmtX(bins[i].t)}</text>
+                {/* x labels — outer ones hug the axis ends so they stay inside the viewBox */}
+                {tickIdx.map((i, k) => (
+                    <text key={`t${i}`} x={xS(i)} y={SC_PAD.top + SC_IH + 12}
+                          textAnchor={k === 0 ? 'start' : k === tickIdx.length - 1 ? 'end' : 'middle'}
+                          fontSize={SC_AXIS_FONT} fill="var(--muted)">{fmtX(bins[i].t)}</text>
                 ))}
                 {/* penalty line */}
                 <path d={pathP} fill="none" stroke="var(--accent-fg)" strokeWidth={1.8} strokeLinejoin="round"/>
@@ -218,12 +261,8 @@ function DualAxisLineChart({bins, leftLabel, rightLabel, xFormat}: {
                     </g>
                 ))}
                 {/* legend */}
-                <g>
-                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
-                    <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
-                    <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
-                </g>
+                <ChartLegend x={padLeft + 4} y={SC_PAD.top + 2}
+                             leftLabel={leftLabel} rightLabel={rightLabel}/>
             </svg>
             {hoverIdx !== null && bins[hoverIdx] && (
                 <div className="text-xs text-muted text-center -mt-1">
@@ -818,7 +857,12 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
     const maxP = Math.max(0.01, ...bins.map(b => b.delta_penalty))
     const maxD = Math.max(1, ...bins.map(b => b.cum_drinks))
     const n = bins.length
-    const slot = SC_IW / n
+    const leftTicks = [1, 0.5, 0].map(f => compactNumber(maxP * f))
+    const rightTicks = [1, 0.5, 0].map(f => compactNumber(Math.round(maxD * f)))
+    const padLeft = scLeftPad(leftTicks)
+    const padRight = axisLeftPad(rightTicks, SC_AXIS_FONT, {gap: 4, min: SC_PAD.right})
+    const IW = SC_VW - padLeft - padRight
+    const slot = IW / n
     const barW = Math.max(2, slot * 0.4 - 1)
 
     const fmtTime = (iso: string) => {
@@ -834,35 +878,32 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
         <svg viewBox={`0 0 ${SC_VW} ${SC_VH}`} className="w-full" style={{maxHeight: 220}}>
             {/* horizontal grid */}
             {[0.25, 0.5, 0.75].map(f => (
-                <line key={f} x1={SC_PAD.left} x2={SC_PAD.left + SC_IW}
+                <line key={f} x1={padLeft} x2={padLeft + IW}
                       y1={SC_PAD.top + f * SC_IH} y2={SC_PAD.top + f * SC_IH}
                       stroke="var(--line)" strokeWidth={0.5} opacity={0.4}/>
             ))}
             {/* x baseline */}
-            <line x1={SC_PAD.left} y1={SC_PAD.top + SC_IH} x2={SC_PAD.left + SC_IW} y2={SC_PAD.top + SC_IH}
+            <line x1={padLeft} y1={SC_PAD.top + SC_IH} x2={padLeft + IW} y2={SC_PAD.top + SC_IH}
                   stroke="var(--line)"/>
             {/* y labels (left = Δ€) */}
-            {[0, 0.5, 1].map(f => (
-                <text key={`l${f}`} x={SC_PAD.left - 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="end" fontSize={12} fill="var(--muted)">
-                    {(maxP * f).toFixed(maxP < 5 ? 1 : 0)}
-                </text>
+            {leftTicks.map((label, i) => (
+                <text key={`l${i}`} x={padLeft - 4} y={SC_PAD.top + (i / 2) * SC_IH + 3}
+                      textAnchor="end" fontSize={SC_AXIS_FONT} fill="var(--muted)">{label}</text>
             ))}
             {/* y labels (right = Δdrinks) */}
-            {[0, 0.5, 1].map(f => (
-                <text key={`r${f}`} x={SC_PAD.left + SC_IW + 4} y={SC_PAD.top + (1 - f) * SC_IH + 3}
-                      textAnchor="start" fontSize={12} fill="var(--ink)">
-                    {Math.round(maxD * f)}
-                </text>
+            {rightTicks.map((label, i) => (
+                <text key={`r${i}`} x={padLeft + IW + 4} y={SC_PAD.top + (i / 2) * SC_IH + 3}
+                      textAnchor="start" fontSize={SC_AXIS_FONT} fill="var(--ink)">{label}</text>
             ))}
-            {/* x labels */}
-            {tickIdx.map(i => (
-                <text key={`t${i}`} x={SC_PAD.left + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
-                      textAnchor="middle" fontSize={12} fill="var(--muted)">{fmtTime(bins[i].t)}</text>
+            {/* x labels — outer ones hug the axis ends so they stay inside the viewBox */}
+            {tickIdx.map((i, k) => (
+                <text key={`t${i}`} x={padLeft + (i + 0.5) * slot} y={SC_PAD.top + SC_IH + 12}
+                      textAnchor={k === 0 ? 'start' : k === tickIdx.length - 1 ? 'end' : 'middle'}
+                      fontSize={SC_AXIS_FONT} fill="var(--muted)">{fmtTime(bins[i].t)}</text>
             ))}
             {/* bars */}
             {bins.map((b, i) => {
-                const cx = SC_PAD.left + (i + 0.5) * slot
+                const cx = padLeft + (i + 0.5) * slot
                 const hP = (b.delta_penalty / maxP) * SC_IH
                 const hD = (b.cum_drinks / maxD) * SC_IH
                 return (
@@ -879,12 +920,8 @@ function DeltaBarChart({bins, leftLabel, rightLabel}: {
                 )
             })}
             {/* legend */}
-            <g>
-                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 2} width={8} height={3} fill="var(--accent-fg)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 5} fontSize={12} fill="var(--muted)">{leftLabel}</text>
-                <rect x={SC_PAD.left + 4} y={SC_PAD.top + 10} width={8} height={3} fill="var(--ink)"/>
-                <text x={SC_PAD.left + 14} y={SC_PAD.top + 13} fontSize={12} fill="var(--muted)">{rightLabel}</text>
-            </g>
+            <ChartLegend x={padLeft + 4} y={SC_PAD.top + 2}
+                         leftLabel={leftLabel} rightLabel={rightLabel}/>
         </svg>
     )
 }

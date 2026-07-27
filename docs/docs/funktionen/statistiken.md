@@ -91,7 +91,7 @@ Eine Zeile pro Saison mit Strafensumme, Anzahl Abende, Anzahl Spieler, Getränke
 - **📋 Verlauf**: Öffnet die chronologisch sortierte Strafenliste des Abends. Jede Zeile zeigt Zeit, Strafe, einen anklickbaren Spieler-Chip (führt ins Spieler-Detail) und Betrag. Auch im „Strafen"-Kachel-Layout zugänglich
 - **🍺 / 🥃-Karten**: Öffnen die Getränke-Runden-Übersicht
 - **🏆 Spiele-Karte**: Öffnet die **Spiele & Ergebnisse**-Übersicht mit Status, Sieger, Punkten und Wurf-Statistik je Spiel. Zeigt nur die Gesamtzahl, wenn alle Spiele beendet sind, sonst `fertig/gesamt`
-- **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Punkte auf der Strafenkurve können antippbar — sie blenden die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) ein
+- **Verlauf-Chart**: Kumulative Strafen- und Getränke-Kurve pro Spieler. Die Y-Achse beschriftet sich in gekürzter Form (`€1,2k` statt `€1.234,56`) und reserviert genau so viel Platz, wie ihre längste Beschriftung braucht — dadurch laufen große Beträge nicht mehr aus dem Diagramm heraus. Dasselbe gilt für die Streu- und Dual-Achsen-Diagramme im **📊 Labor** sowie für den Saldo-Verlauf in der Kasse. Punkte auf der Strafenkurve können antippbar — sie blenden die zugehörige Einzelstrafe (Zeit, Spieler, Typ, Betrag) ein
 - **Hall of Fame**: Auszeichnungen wie StrafenkaiserIn, Bier-Champ, Spiele-KönigIn
 
 ## Strafen × Getränke-Korrelation

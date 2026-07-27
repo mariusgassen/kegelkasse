@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { estimateTextWidth } from '@/lib/chartAxis.ts'
 
 // ── mocks ─────────────────────────────────────────────────────────────────────
 
@@ -898,5 +899,66 @@ describe('StatsPage — correlation section', () => {
             const lastCall = calls[calls.length - 1]
             expect(lastCall?.[1]).toBe(30)
         })
+    })
+})
+
+// ── axis geometry ─────────────────────────────────────────────────────────────
+
+describe('StatsPage — cumulative chart axis labels', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        storeState.user = null
+        storeState.activeEveningId = null
+        storeState.regularMembers = []
+    })
+
+    /** The chart's own viewBox, so we can check nothing is drawn outside it. */
+    function cumulativeChart(): SVGSVGElement {
+        const svgs = Array.from(document.querySelectorAll('svg'))
+            .filter(el => el.getAttribute('viewBox') === '0 0 400 140') as SVGSVGElement[]
+        expect(svgs.length).toBeGreaterThan(0)
+        return svgs[0]
+    }
+
+    async function renderWithPenalties(amounts: number[]) {
+        await setupWithEvenings()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue({
+            ...EVENING_WITH_PLAYERS,
+            penalty_log: amounts.map((amount, i) => ({
+                id: i + 1, player_id: 1, mode: 'euro', amount,
+                penalty_type_name: 'Regelstrafe', client_timestamp: Date.now() - (amounts.length - i) * 1000,
+            })),
+        } as any)
+        await renderStatsPage()
+        await waitFor(() => expect(cumulativeChart()).toBeTruthy())
+    }
+
+    it('keeps four-figure euro labels inside the chart', async () => {
+        // ~2.400 € over one evening — the old fixed 38-unit gutter drew this past x = 0.
+        await renderWithPenalties([900, 850, 700])
+        const labels = Array.from(cumulativeChart().querySelectorAll('text[text-anchor="end"]'))
+        expect(labels.length).toBeGreaterThan(0)
+        for (const label of labels) {
+            const x = Number(label.getAttribute('x'))
+            const width = estimateTextWidth(label.textContent ?? '', Number(label.getAttribute('font-size')))
+            expect(x - width).toBeGreaterThanOrEqual(0)
+        }
+    })
+
+    it('abbreviates large euro ticks instead of spelling them out', async () => {
+        await renderWithPenalties([900, 850, 700])
+        const texts = Array.from(cumulativeChart().querySelectorAll('text[text-anchor="end"]'))
+            .map(el => el.textContent ?? '')
+        expect(texts.some(t => /k$/.test(t))).toBe(true)
+    })
+
+    it('keeps small euro labels inside the chart too', async () => {
+        await renderWithPenalties([3, 1.5])
+        for (const label of cumulativeChart().querySelectorAll('text[text-anchor="end"]')) {
+            const x = Number(label.getAttribute('x'))
+            const width = estimateTextWidth(label.textContent ?? '', Number(label.getAttribute('font-size')))
+            expect(x - width).toBeGreaterThanOrEqual(0)
+        }
     })
 })

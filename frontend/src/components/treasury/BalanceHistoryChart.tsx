@@ -1,6 +1,7 @@
 import {useState} from 'react'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonChart} from '@/components/ui/Skeleton'
+import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
 import {
     type BalanceEvent,
     type DualPoint,
@@ -18,7 +19,8 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-const BH_PAD = {top: 12, right: 10, bottom: 22, left: 46}
+const BH_PAD = {top: 12, right: 10, bottom: 22}
+const BH_AXIS_FONT = 15
 const BH_VH = 160
 const BH_VW = 400
 const BH_IH = BH_VH - BH_PAD.top - BH_PAD.bottom
@@ -98,22 +100,27 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
     const buckets = Array.from(new Set(points.map(p => bucketStart(p.ts, granularity)))).sort((a, b) => a - b)
     const bucketIndex = new Map(buckets.map((b, i) => [b, i]))
     const chartWidth = isAll ? Math.max(BH_VW, buckets.length * BH_PX_PER_EVENT) : BH_VW
-    const innerWidth = chartWidth - BH_PAD.left - BH_PAD.right
+    // Gutter measured from the actual euro labels — a fixed one clips as soon as a club's
+    // balance reaches four figures.
+    const padLeft = axisLeftPad(
+        [minV, 0, maxV].map(v => compactEuro(v)), BH_AXIS_FONT, {gap: 5, min: 30})
+    const innerWidth = chartWidth - padLeft - BH_PAD.right
     const xS = (ts: number) => {
-        if (buckets.length === 0) return BH_PAD.left
+        if (buckets.length === 0) return padLeft
         const idx = bucketIndex.get(bucketStart(ts, granularity)) ?? 0
-        return buckets.length === 1 ? BH_PAD.left + innerWidth / 2 : BH_PAD.left + (idx / (buckets.length - 1)) * innerWidth
+        return buckets.length === 1 ? padLeft + innerWidth / 2 : padLeft + (idx / (buckets.length - 1)) * innerWidth
     }
     const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
 
     function buildPath(valueAt: (p: DualPoint) => number, baseline: number) {
-        let d = `M ${BH_PAD.left},${yS(baseline)}`
+        let d = `M ${padLeft},${yS(baseline)}`
         for (const p of points) d += ` H ${xS(p.ts)} V ${yS(valueAt(p))}`
-        d += ` H ${BH_PAD.left + innerWidth}`
+        d += ` H ${padLeft + innerWidth}`
         return d
     }
 
-    const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i).map(v => ({v, y: yS(v)}))
+    const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i)
+        .map(v => ({v, y: yS(v), label: compactEuro(v)}))
 
     // Cluster points sharing the same x-axis bucket + curve into one marker, so a bucket with
     // several bookings gets a single clickable dot instead of stacked circles where only the
@@ -158,13 +165,13 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
              style={{display: 'block', overflow: 'visible', flexShrink: 0}}
              onClick={() => setSelectedClusterKey(null)}>
             {yTicks.map((tick, i) => (
-                <line key={i} x1={BH_PAD.left} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
+                <line key={i} x1={padLeft} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
                       stroke="var(--line)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
                       strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
             ))}
             {!isAll && yTicks.map((tick, i) => (
-                <text key={`t-${i}`} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                      fontSize="15" fill="var(--muted)">{fe(tick.v)}</text>
+                <text key={`t-${i}`} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
+                      fontSize={BH_AXIS_FONT} fill="var(--muted)">{tick.label}</text>
             ))}
             {threeLine ? (
                 <>
@@ -242,7 +249,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                     </g>
                 )
             })}
-            <line x1={BH_PAD.left} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
+            <line x1={padLeft} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
                   stroke="var(--line)" strokeWidth="1"/>
         </svg>
     )
@@ -284,11 +291,11 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                 <Empty icon="📈" text={t('treasury.history.noData')}/>
             ) : isAll ? (
                 <div className="flex">
-                    <svg width={BH_PAD.left + 4} height={BH_VH} viewBox={`0 0 ${BH_PAD.left + 4} ${BH_VH}`}
+                    <svg width={padLeft + 4} height={BH_VH} viewBox={`0 0 ${padLeft + 4} ${BH_VH}`}
                          style={{flexShrink: 0, overflow: 'visible'}}>
                         {yTicks.map((tick, i) => (
-                            <text key={i} x={BH_PAD.left - 5} y={tick.y + 3.5} textAnchor="end"
-                                  fontSize="15" fill="var(--muted)">{fe(tick.v)}</text>
+                            <text key={i} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
+                                  fontSize={BH_AXIS_FONT} fill="var(--muted)">{tick.label}</text>
                         ))}
                     </svg>
                     <div className="overflow-x-auto flex-1">{chart}</div>

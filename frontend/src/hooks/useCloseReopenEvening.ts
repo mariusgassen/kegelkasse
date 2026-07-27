@@ -3,6 +3,7 @@ import {useQueryClient} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {toastError} from '@/utils/error.ts'
+import {dateTimeInputToIso, nowDateTimeInput, toDateTimeInput} from '@/lib/datetime.ts'
 
 /**
  * Shared close/reopen-evening logic for EveningHubPage and EveningPage.
@@ -17,10 +18,12 @@ export function useCloseReopenEvening(eveningId: number | undefined, invalidate:
     const [closing, setClosing] = useState(false)
     const [closeEndedAt, setCloseEndedAt] = useState('')
 
-    // Open the close-confirm dialog, prefilling the end-time picker with the
-    // evening's previously saved ended_at (kept across reopen) or now.
+    // Open the close-confirm dialog, prefilling the end-time picker with the evening's
+    // previously saved ended_at (kept across reopen) or now — in local wall-clock time, which
+    // is the only thing a <input type="datetime-local"> can show. Submitting sends a
+    // timezone-aware ISO string, because the backend reads a naive timestamp as UTC.
     function openCloseConfirm(currentEndedAt?: string | null) {
-        setCloseEndedAt((currentEndedAt ? new Date(currentEndedAt) : new Date()).toISOString().slice(0, 16))
+        setCloseEndedAt(currentEndedAt ? toDateTimeInput(currentEndedAt) : nowDateTimeInput())
         setCloseConfirm(true)
     }
 
@@ -28,7 +31,7 @@ export function useCloseReopenEvening(eveningId: number | undefined, invalidate:
         if (!eveningId) return
         setClosing(true)
         try {
-            await api.updateEvening(eveningId, {is_closed: true, ended_at: closeEndedAt || undefined})
+            await api.updateEvening(eveningId, {is_closed: true, ended_at: dateTimeInputToIso(closeEndedAt)})
             setCloseConfirm(false)
             setActiveEveningId(null)
             qc.invalidateQueries({queryKey: ['evenings']})

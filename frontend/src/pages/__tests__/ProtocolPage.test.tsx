@@ -42,6 +42,7 @@ vi.mock('@/api/client.ts', () => ({
 }))
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
+vi.mock('@/components/ui/Toast.tsx', () => ({ showToast: vi.fn() }))
 vi.mock('@/utils/parse.ts', () => ({ parseAmount: (s: string) => parseFloat(s) || 0 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
     Sheet: ({ open, children, title, onClose, onSubmit }: any) =>
@@ -143,6 +144,28 @@ const ACTIVE_EVENING = {
     highlights: [],
     player_count: 2,
     game_count: 0,
+}
+
+// ── card action menu helpers (every row action lives behind the shared ⋮ menu) ─
+
+function openCardMenu(index = 0) {
+    fireEvent.click(screen.getAllByLabelText(/^action\.more/)[index])
+}
+
+async function clickCardAction(labelKey: string, index = 0) {
+    openCardMenu(index)
+    await waitFor(() => screen.getByText(labelKey))
+    fireEvent.click(screen.getByText(labelKey))
+}
+
+/** Labels of the actions offered by the ⋮ menu of the row at `index`. */
+async function cardActionLabels(index = 0): Promise<string[]> {
+    openCardMenu(index)
+    await waitFor(() => screen.getByTestId('sheet'))
+    const labels = Array.from(screen.getByTestId('sheet').querySelectorAll('button > span:last-child'))
+        .map(el => el.textContent ?? '')
+    fireEvent.click(screen.getByText('close-sheet'))
+    return labels
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -475,42 +498,36 @@ describe('ProtocolPage — penalty log interactions', () => {
         await setupDefaultMocks()
     })
 
-    it('shows edit button for each penalty entry', async () => {
+    it('offers edit and delete in the ⋮ menu of each penalty entry', async () => {
         await renderProtocolPage()
-        expect(screen.getAllByText('✏️').length).toBeGreaterThan(0)
+        expect(await cardActionLabels(0)).toEqual(['action.edit', 'action.delete'])
     })
 
-    it('shows delete button for each penalty entry', async () => {
+    it('asks for confirmation before deleting instead of deleting on the first tap', async () => {
+        const { api } = await import('@/api/client.ts')
         await renderProtocolPage()
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
-    })
-
-    it('shows delete confirmation when ✕ clicked', async () => {
-        await renderProtocolPage()
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete')
         await waitFor(() => {
-            expect(screen.getByText('✓')).toBeInTheDocument()
+            expect(screen.getByText('penalty.deleteConfirm')).toBeInTheDocument()
         })
+        expect(api.deletePenalty).not.toHaveBeenCalled()
     })
 
     it('calls api.deletePenalty when deletion confirmed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deletePenalty).mockResolvedValueOnce(undefined as any)
         await renderProtocolPage()
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
-        await waitFor(() => screen.getByText('✓'))
-        fireEvent.click(screen.getByText('✓'))
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.deletePenalty).toHaveBeenCalled()
         })
     })
 
-    it('opens edit sheet when ✏️ clicked on penalty entry', async () => {
+    it('opens edit sheet from the ⋮ menu of a penalty entry', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -737,6 +754,64 @@ describe('ProtocolPage — calculate absence penalties', () => {
             expect(api.calculateAbsencePenalties).toHaveBeenCalledWith(42)
         })
     })
+
+    it('reports the result in a toast so the tap is never left unanswered', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.calculateAbsencePenalties).mockResolvedValueOnce({ avg: 2.5, absent_count: 3 } as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('penalty.absence.result'))
+        })
+        expect(vi.mocked(showToast).mock.calls[0][0]).toContain('3')
+    })
+
+    it('says so explicitly when nobody was absent', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.calculateAbsencePenalties).mockResolvedValueOnce({ avg: 0, absent_count: 0 } as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith('penalty.absence.none', 'info')
+        })
+        await waitFor(() => {
+            expect(screen.getByText('penalty.absence.none')).toBeInTheDocument()
+        })
+    })
+
+    it('shows a loading state on the button while the calculation runs', async () => {
+        const { api } = await import('@/api/client.ts')
+        let resolve!: (v: any) => void
+        vi.mocked(api.calculateAbsencePenalties).mockReturnValueOnce(
+            new Promise(r => { resolve = r }) as any)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            expect(screen.getByText(/action\.loading/)).toBeInTheDocument()
+        })
+        resolve({ avg: 0, absent_count: 0 })
+        await waitFor(() => {
+            expect(screen.queryByText(/action\.loading/)).not.toBeInTheDocument()
+        })
+    })
+
+    it('refreshes the balances the calculation just moved', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.calculateAbsencePenalties).mockResolvedValueOnce({ avg: 1, absent_count: 1 } as any)
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const spy = vi.spyOn(qc, 'invalidateQueries')
+        const { ProtocolPage } = await import('@/pages/ProtocolPage.tsx')
+        render(
+            <QueryClientProvider client={qc}><ProtocolPage/></QueryClientProvider>,
+        )
+        fireEvent.click(screen.getByText(/penalty\.absence\.calculate/))
+        await waitFor(() => {
+            expect(spy).toHaveBeenCalledWith({ queryKey: ['member-balances'] })
+            expect(spy).toHaveBeenCalledWith({ queryKey: ['guest-balances'] })
+        })
+    })
 })
 
 // ── new coverage tests ─────────────────────────────────────────────────────────
@@ -827,8 +902,7 @@ describe('ProtocolPage — edit penalty sheet', () => {
 
     it('opens edit sheet with penalty.edit title when ✏️ clicked', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('penalty.edit')
         })
@@ -838,8 +912,7 @@ describe('ProtocolPage — edit penalty sheet', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -849,8 +922,7 @@ describe('ProtocolPage — edit penalty sheet', () => {
 
     it('closes edit sheet when cancel clicked', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('close-sheet'))
         await waitFor(() => {
@@ -886,18 +958,20 @@ describe('ProtocolPage — drink round delete', () => {
         await setupDefaultMocks()
     })
 
-    it('shows delete button for drink round', async () => {
+    it('offers delete in the ⋮ menu of a drink round', async () => {
         await renderProtocolPage()
         await waitFor(() => screen.getByText(/Kölsch/))
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+        expect(await cardActionLabels(0)).toContain('action.delete')
     })
 
-    it('calls api.deleteDrinkRound when drink ✕ clicked', async () => {
+    it('calls api.deleteDrinkRound once the delete is confirmed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deleteDrinkRound).mockResolvedValueOnce(undefined as any)
         await renderProtocolPage()
         await waitFor(() => screen.getByText(/Kölsch/))
-        fireEvent.click(screen.getAllByText('✕')[0])
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('drinks.deleteConfirm'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
             expect(api.deleteDrinkRound).toHaveBeenCalledWith(42, 301)
         })
@@ -1101,8 +1175,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('shows penalty type chips inside edit sheet', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // penalty types should be rendered as chip buttons in edit sheet
         expect(screen.getAllByText(/Bier/).length).toBeGreaterThan(0)
@@ -1111,8 +1184,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('clicking a penalty type chip in edit sheet updates selection', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const sheet = screen.getByTestId('sheet')
         // Click the 'Strafe' chip (⚠️ Strafe) within the edit sheet
@@ -1124,8 +1196,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('shows mode toggle (count/euro) inside edit sheet', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         expect(screen.getAllByText('penalty.mode.count').length).toBeGreaterThan(0)
         expect(screen.getAllByText('penalty.mode.euro').length).toBeGreaterThan(0)
@@ -1133,8 +1204,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('clicking mode toggle in edit sheet changes mode', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // Click the count mode button via ModeToggle mock
         const countBtns = screen.getAllByText('penalty.mode.count')
@@ -1145,8 +1215,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('shows player selection chips inside edit sheet', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const sheet = screen.getByTestId('sheet')
         // Players should render as chip buttons with their names
@@ -1156,8 +1225,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('clicking player chip in edit sheet selects that player', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const sheet = screen.getByTestId('sheet')
         const hansiBtn = within(sheet).getByText('Hansi')
@@ -1168,16 +1236,14 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
 
     it('shows date override label for admin in edit sheet', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         expect(screen.getByText('penalty.date')).toBeInTheDocument()
     })
 
     it('shows datetime-local input in admin edit sheet', async () => {
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // datetime-local input is pre-filled with created_at date
         const dateInputs = document.querySelectorAll('input[type="datetime-local"]')
@@ -1188,8 +1254,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updatePenalty).mockResolvedValueOnce({} as any)
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         // Select a penalty type chip and player within sheet before submitting
         const sheet = screen.getByTestId('sheet')
@@ -1206,8 +1271,7 @@ describe('ProtocolPage — edit penalty sheet interactions', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.updatePenalty).mockRejectedValueOnce(new Error('update fail'))
         await renderProtocolPage()
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const sheet = screen.getByTestId('sheet')
         fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
@@ -1242,7 +1306,7 @@ describe('ProtocolPage — edit custom (individual) penalty', () => {
 
     async function openEditSheet() {
         await renderProtocolPage()
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         return screen.getByTestId('sheet')
     }
@@ -1327,7 +1391,7 @@ describe('ProtocolPage — edit quick penalty keeps quick tab', () => {
 
     it('opens quick tab with type chips for a template-matching penalty', async () => {
         await renderProtocolPage()
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const sheet = screen.getByTestId('sheet')
         expect(within(sheet).getAllByText(/Bier/).length).toBeGreaterThan(0)
@@ -1391,12 +1455,9 @@ describe('ProtocolPage — confirmDelete error', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.deletePenalty).mockRejectedValueOnce(new Error('delete fail'))
         await renderProtocolPage()
-        await waitFor(() => screen.getAllByText('✕'))
-        // First ✕ click sets confirmDeleteId (shows confirm UI with ✓ button)
-        fireEvent.click(screen.getAllByText('✕')[0])
-        // Now click ✓ to call confirmDelete
-        await waitFor(() => screen.getByText('✓'))
-        fireEvent.click(screen.getByText('✓'))
+        await clickCardAction('action.delete')
+        await waitFor(() => screen.getByText('action.confirmDelete'))
+        fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => expect(toastError).toHaveBeenCalled())
     })
 })
@@ -1478,8 +1539,7 @@ describe('ProtocolPage — admin edit date input', () => {
 
     it('updates edit date input in edit sheet for admin', async () => {
         await renderProtocolPage()
-        await waitFor(() => screen.getAllByText('✏️'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit')
         await waitFor(() => screen.getByTestId('sheet'))
         const dateInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement
         expect(dateInput).not.toBeNull()

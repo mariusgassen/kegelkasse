@@ -21,6 +21,7 @@ import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
+import {todayDateInput} from '@/lib/datetime.ts'
 
 function fDate(isoStr: string) {
     const date = isoStr.length > 10 ? isoStr.slice(0, 10) : isoStr
@@ -37,7 +38,7 @@ function fDateTime(isoStr: string) {
 }
 
 function todayStr() {
-    return new Date().toISOString().slice(0, 10)
+    return todayDateInput()
 }
 
 interface DeepLink {

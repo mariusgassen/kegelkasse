@@ -9,7 +9,10 @@ import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
+import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {toDateTimeInput} from '@/lib/datetime.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 import {PinBadges} from '@/components/ui/MemberBadges.tsx'
@@ -20,12 +23,6 @@ function fe(v: number) {
 
 function fTime(ms: number) {
     return new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
-}
-
-/** Format a timestamp as local wall-clock value for <input type="datetime-local"> */
-function toLocalInputValue(ms: number) {
-    const offset = new Date(ms).getTimezoneOffset() * 60000
-    return new Date(ms - offset).toISOString().slice(0, 16)
 }
 
 /** Amount input with € or × prefix, adapts step/placeholder to mode */
@@ -105,6 +102,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
     // Delete confirmation
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+    const [confirmDeleteDrinkId, setConfirmDeleteDrinkId] = useState<number | null>(null)
 
     // Filters
     const [filterPlayer, setFilterPlayer] = useState<number | null>(() => {
@@ -212,7 +210,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         setEditName(entry.penalty_type_name)
         setEditMode(entry.mode)
         setEditAmount(String(entry.amount))
-        setEditDate(toLocalInputValue(entry.client_timestamp))
+        setEditDate(toDateTimeInput(entry.client_timestamp))
     }
 
     async function submitQuick() {
@@ -297,6 +295,21 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         }
     }
 
+    async function confirmDeleteDrink(rid: number) {
+        try {
+            if (rid < 0) {
+                await cancelPendingItem(rid, 'drink')
+            } else {
+                await api.deleteDrinkRound(evening!.id, rid)
+                invalidate()
+            }
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setConfirmDeleteDrinkId(null)
+        }
+    }
+
     async function submitEdit() {
         if (!editEntry) return
         const pt = penaltyTypes.find(p => p.id === editType)
@@ -318,7 +331,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
         if (newAmount !== editEntry.amount) patch.amount = newAmount
         // Compare in local wall-clock; send timezone-aware ISO so the backend
         // (which treats naive strings as UTC) stores the intended local time
-        const originalDate = toLocalInputValue(editEntry.client_timestamp)
+        const originalDate = toDateTimeInput(editEntry.client_timestamp)
         if (editDate && editDate !== originalDate) patch.date = new Date(editDate).toISOString()
         setSaving(true)
         try {
@@ -340,6 +353,16 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             const result = await api.calculateAbsencePenalties(evening!.id)
             setAbsenceResult(result)
             invalidate()
+            // The calculation books (and re-books) penalties, so the accounts move with it.
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
+            // Recalculating often changes nothing visible in the log (same absentees, same
+            // amounts), so say out loud what happened instead of leaving the tap unanswered.
+            if (result.absent_count > 0) {
+                showToast(`🏠 ${result.absent_count} ${t('penalty.absence.result')} · Ø ${fe(result.avg)}`)
+            } else {
+                showToast(t('penalty.absence.none'), 'info')
+            }
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -410,11 +433,15 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all border flex items-center justify-center gap-2 ${hasAbsenceEntries ? 'border-accent text-accent-fg bg-accent/10' : 'border-line text-muted'}`}
                             onClick={doCalculateAbsence}
                             disabled={absenceLoading}>
-                            🏠 {hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
+                            🏠 {absenceLoading
+                                ? t('action.loading')
+                                : hasAbsenceEntries ? t('penalty.absence.recalculate') : t('penalty.absence.calculate')}
                         </button>
-                        {absenceResult && (
+                        {absenceResult && !absenceLoading && (
                             <p className="text-xs text-muted text-center mt-1">
-                                {absenceResult.absent_count} {t('penalty.absence.result')} · Ø {fe(absenceResult.avg)}
+                                {absenceResult.absent_count > 0
+                                    ? `${absenceResult.absent_count} ${t('penalty.absence.result')} · Ø ${fe(absenceResult.avg)}`
+                                    : t('penalty.absence.none')}
                             </p>
                         )}
                     </div>
@@ -540,33 +567,38 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 }
                                 <div className="text-xs text-muted">{fTime(entry.client_timestamp)}</div>
                             </div>
-                            {!isPendingEntry && (
-                                <button className="btn-ghost btn-xs flex-shrink-0 text-muted"
-                                        aria-label={t('action.edit')}
-                                        onClick={() => openEditSheet(entry)}>✏️
-                                </button>
-                            )}
-                            {confirmDeleteId === entry.id ? (
-                                <div className="flex gap-1 flex-shrink-0">
-                                    <button className="btn-danger btn-xs"
-                                            aria-label={t('action.confirmDelete')}
-                                            onClick={() => confirmDelete(entry.id)}>✓
-                                    </button>
-                                    <button className="btn-secondary btn-xs"
-                                            aria-label={t('action.cancel')}
-                                            onClick={() => setConfirmDeleteId(null)}>✕
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="btn-danger btn-xs flex-shrink-0"
-                                        aria-label={t('action.delete')}
-                                        onClick={() => setConfirmDeleteId(entry.id)}>✕
-                                </button>
-                            )}
+                            <CardActionMenu
+                                title={`${entry.icon} ${entry.penalty_type_name} · ${entry.player_name}`}
+                                label={`${t('action.more')}: ${entry.penalty_type_name} · ${entry.player_name}`}
+                                actions={[
+                                    // A queued entry has no server row yet, so there is nothing to edit —
+                                    // only the queued creation itself can be cancelled.
+                                    ...(isPendingEntry ? [] : [{
+                                        icon: '✏️', label: t('action.edit'),
+                                        onClick: () => openEditSheet(entry),
+                                    }]),
+                                    {
+                                        icon: '🗑️', label: t('action.delete'), danger: true,
+                                        onClick: () => setConfirmDeleteId(entry.id),
+                                    },
+                                ]}/>
                         </div>
                     )
                 })
             }
+
+            {/* Delete penalty confirm */}
+            {confirmDeleteId !== null && (
+                <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-muted text-sm">{t('penalty.deleteConfirm')}</p>
+                        <button type="button" className="btn-danger w-full"
+                                onClick={() => confirmDelete(confirmDeleteId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
 
             {/* ── GETRÄNKE section ── */}
             <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2 mt-5">
@@ -594,21 +626,31 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 <div className="text-xs text-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
                             </div>
                             {!evening.is_closed && (
-                                <button className="btn-danger btn-xs flex-shrink-0"
-                                        aria-label={`${t('action.delete')}: ${label}`}
-                                        onClick={async () => {
-                                    if (isPendingDrink) {
-                                        await cancelPendingItem(r.id, 'drink')
-                                    } else {
-                                        await api.deleteDrinkRound(evening.id, r.id)
-                                        invalidate()
-                                    }
-                                }}>✕</button>
+                                <CardActionMenu
+                                    title={`${icon} ${label}`}
+                                    label={`${t('action.more')}: ${label}`}
+                                    actions={[{
+                                        icon: '🗑️', label: t('action.delete'), danger: true,
+                                        onClick: () => setConfirmDeleteDrinkId(r.id),
+                                    }]}/>
                             )}
                         </div>
                     )
                 })
             }
+
+            {/* Delete drink round confirm */}
+            {confirmDeleteDrinkId !== null && (
+                <Sheet open onClose={() => setConfirmDeleteDrinkId(null)} title={t('action.delete')}>
+                    <div className="flex flex-col gap-3">
+                        <p className="text-muted text-sm">{t('drinks.deleteConfirm')}</p>
+                        <button type="button" className="btn-danger w-full"
+                                onClick={() => confirmDeleteDrink(confirmDeleteDrinkId)}>
+                            {t('action.confirmDelete')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
 
             {/* Add penalty sheet */}
             <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}

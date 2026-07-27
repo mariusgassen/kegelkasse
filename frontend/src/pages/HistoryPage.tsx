@@ -9,6 +9,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
+import {todayDateInput} from '@/lib/datetime.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -26,7 +27,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [expandedId, setExpandedId] = useState<number | null>(null)
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
     const [backlogSheet, setBacklogSheet] = useState(false)
-    const [backlogDate, setBacklogDate] = useState(() => new Date().toISOString().slice(0, 10))
+    const [backlogDate, setBacklogDate] = useState(todayDateInput)
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
 
@@ -102,7 +103,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
             {isAdmin(user) && (
                 <button className="btn-secondary w-full mb-4 text-sm"
                         onClick={() => {
-                            setBacklogDate(new Date().toISOString().slice(0, 10))
+                            setBacklogDate(todayDateInput())
                             setBacklogVenue('')
                             setBacklogSheet(true)
                         }}>
