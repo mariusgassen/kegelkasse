@@ -270,6 +270,7 @@ export function SeasonTab() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
+                        aria-label={t('action.back')}
                         className="text-muted text-sm px-2 py-1 rounded bg-surface-2"
                         onClick={() => setStep('preview')}
                     >

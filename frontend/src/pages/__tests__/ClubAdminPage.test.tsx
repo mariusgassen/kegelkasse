@@ -151,6 +151,18 @@ function makeWrapper() {
     }
 }
 
+// Bearbeiten/Löschen liegen in den Konfigurations-Listen hinter einem ⋮-Menü
+// (CardActionMenu, Feature #73). Der Kebab-Trigger trägt aria-label 'action.more';
+// die geöffnete Liste zeigt jede Aktion mit ihrem (gemockten i18n-) Label als Text.
+function openCardMenu(index = 0) {
+    fireEvent.click(screen.getAllByLabelText('action.more')[index])
+}
+async function clickCardAction(labelKey: string, index = 0) {
+    openCardMenu(index)
+    await waitFor(() => screen.getByText(labelKey))
+    fireEvent.click(screen.getByText(labelKey))
+}
+
 async function renderClubAdminPage() {
     const { ClubAdminPage } = await import('../ClubAdminPage')
     return render(<ClubAdminPage />, { wrapper: makeWrapper() })
@@ -490,8 +502,7 @@ describe('ClubAdminPage — penalties CRUD', () => {
         vi.mocked(api.deletePenaltyType).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Bier'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete', 0)
         await waitFor(() => {
             expect(api.deletePenaltyType).toHaveBeenCalledWith(1)
         })
@@ -500,8 +511,7 @@ describe('ClubAdminPage — penalties CRUD', () => {
     it('opens edit sheet when ✏️ clicked on penalty type', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Bier'))
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
             expect(screen.getByText('club.penalty.editLabel')).toBeInTheDocument()
@@ -513,8 +523,7 @@ describe('ClubAdminPage — penalties CRUD', () => {
         vi.mocked(api.updatePenaltyType).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Bier'))
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -539,8 +548,7 @@ describe('ClubAdminPage — game templates CRUD', () => {
         vi.mocked(api.deleteGameTemplate).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete', 0)
         await waitFor(() => {
             expect(api.deleteGameTemplate).toHaveBeenCalledWith(1)
         })
@@ -558,8 +566,7 @@ describe('ClubAdminPage — game templates CRUD', () => {
     it('opens edit template sheet when ✏️ clicked', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -584,8 +591,7 @@ describe('ClubAdminPage — teams CRUD', () => {
         vi.mocked(api.deleteClubTeam).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Team Alpha'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete', 0)
         await waitFor(() => {
             expect(api.deleteClubTeam).toHaveBeenCalledWith(1)
         })
@@ -649,8 +655,7 @@ describe('ClubAdminPage — pins tab', () => {
         vi.mocked(api.deletePin).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Silbernadel'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+        await clickCardAction('action.delete', 0)
         await waitFor(() => {
             expect(api.deletePin).toHaveBeenCalledWith(1)
         })
@@ -1008,7 +1013,7 @@ describe('ClubAdminPage — game templates CRUD extended', () => {
         vi.mocked(api.updateGameTemplate).mockResolvedValueOnce({} as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -1047,7 +1052,7 @@ describe('ClubAdminPage — pins CRUD extended', () => {
     it('opens edit pin sheet when ✏️ clicked', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Silbernadel'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet-title')).toHaveTextContent(/pin\.edit/)
         })
@@ -1058,7 +1063,7 @@ describe('ClubAdminPage — pins CRUD extended', () => {
         vi.mocked(api.updatePin).mockResolvedValueOnce({} as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Silbernadel'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -1109,8 +1114,7 @@ describe('ClubAdminPage — superadmin clubs CRUD extended', () => {
     it('opens edit club sheet when ✏️ clicked', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('superadmin.clubs.edit', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -1121,7 +1125,7 @@ describe('ClubAdminPage — superadmin clubs CRUD extended', () => {
         vi.mocked(api.updateClub).mockResolvedValueOnce({} as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('superadmin.clubs.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -1536,7 +1540,7 @@ describe('ClubAdminPage — game template sheet field interactions', () => {
     it('changing winner type to team shows turn mode selector', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const wtypeSelect = screen.getByDisplayValue('club.template.winnerType.individual') as HTMLSelectElement
         fireEvent.change(wtypeSelect, { target: { value: 'team' } })
@@ -1548,7 +1552,7 @@ describe('ClubAdminPage — game template sheet field interactions', () => {
     it('clicking turn mode block button changes selection', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const wtypeSelect = screen.getByDisplayValue('club.template.winnerType.individual') as HTMLSelectElement
         fireEvent.change(wtypeSelect, { target: { value: 'team' } })
@@ -1560,7 +1564,7 @@ describe('ClubAdminPage — game template sheet field interactions', () => {
     it('changes is_opener checkbox in template sheet', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const checkbox = screen.getByRole('checkbox') as HTMLInputElement
         fireEvent.change(checkbox, { target: { checked: true } })
@@ -1570,7 +1574,7 @@ describe('ClubAdminPage — game template sheet field interactions', () => {
     it('changes description input in template sheet', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Warmup'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const inputs = screen.getAllByRole('textbox') as HTMLInputElement[]
         const descInput = inputs.find(i => i.value === '') as HTMLInputElement
@@ -1599,8 +1603,7 @@ describe('ClubAdminPage — teams edit sheet', () => {
     it('opens edit sheet with team name displayed', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Team Alpha'))
-        const editBtns = screen.getAllByText('✏️')
-        fireEvent.click(editBtns[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
             expect(screen.getByDisplayValue('Team Alpha')).toBeInTheDocument()
@@ -1610,7 +1613,7 @@ describe('ClubAdminPage — teams edit sheet', () => {
     it('changes sort order input in teams edit sheet', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Team Alpha'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const sortInput = screen.getByDisplayValue('0') as HTMLInputElement
         fireEvent.change(sortInput, { target: { value: '3' } })
@@ -1622,7 +1625,7 @@ describe('ClubAdminPage — teams edit sheet', () => {
         vi.mocked(api.updateClubTeam).mockResolvedValueOnce({} as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('Team Alpha'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -1735,8 +1738,7 @@ describe('ClubAdminPage — superadmin clubs delete flow', () => {
     it('shows delete confirm sheet when × button clicked', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        const deleteBtn = screen.getByTitle('superadmin.clubs.delete')
-        fireEvent.click(deleteBtn)
+        await clickCardAction('superadmin.clubs.delete', 0)
         await waitFor(() => {
             expect(screen.getByText('superadmin.clubs.deleteConfirm')).toBeInTheDocument()
         })
@@ -1747,8 +1749,7 @@ describe('ClubAdminPage — superadmin clubs delete flow', () => {
         vi.mocked(api.deleteClub).mockResolvedValueOnce(undefined as any)
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        const deleteBtn = screen.getByTitle('superadmin.clubs.delete')
-        fireEvent.click(deleteBtn)
+        await clickCardAction('superadmin.clubs.delete', 0)
         await waitFor(() => screen.getByText('action.confirmDelete'))
         fireEvent.click(screen.getByText('action.confirmDelete'))
         await waitFor(() => {
@@ -1762,7 +1763,7 @@ describe('ClubAdminPage — superadmin clubs delete flow', () => {
         vi.mocked(api.updateClub).mockRejectedValueOnce(new Error('update failed'))
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('superadmin.clubs.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
@@ -1773,7 +1774,7 @@ describe('ClubAdminPage — superadmin clubs delete flow', () => {
     it('changes editName input in edit club sheet', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('superadmin.clubs.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const nameInput = screen.getByDisplayValue('TestClub') as HTMLInputElement
         fireEvent.change(nameInput, { target: { value: 'NewClubName' } })
@@ -1783,7 +1784,7 @@ describe('ClubAdminPage — superadmin clubs delete flow', () => {
     it('changes editSlug input in edit club sheet', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByText('TestClub'))
-        fireEvent.click(screen.getAllByText('✏️')[0])
+        await clickCardAction('superadmin.clubs.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         const slugInput = screen.getByDisplayValue('testclub') as HTMLInputElement
         fireEvent.change(slugInput, { target: { value: 'new-slug' } })

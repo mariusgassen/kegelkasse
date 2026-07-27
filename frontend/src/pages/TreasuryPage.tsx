@@ -1076,7 +1076,7 @@ export function TreasuryPage() {
                                                         <span
                                                             className="text-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
                                                         <span
-                                                            className="text-muted flex-shrink-0">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
+                                                            className="text-muted flex-shrink-0">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
                                                         {admin && (
                                                             <button className="btn-secondary btn-xs flex-shrink-0"
                                                                     aria-label={t('treasury.booking.edit')}
@@ -1084,6 +1084,7 @@ export function TreasuryPage() {
                                                         )}
                                                         {admin && (
                                                             <button className="btn-danger btn-xs flex-shrink-0"
+                                                                    aria-label={t('treasury.payment.deleteConfirm')}
                                                                     onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</button>
                                                         )}
                                                     </div>
@@ -1259,7 +1260,7 @@ export function TreasuryPage() {
                                             <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                 {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                             </div>
-                                            <div className="text-xs text-muted">{p.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
+                                            <div className="text-xs text-muted">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
                                         </div>
                                         {admin && (
                                             <button className="btn-secondary btn-xs flex-shrink-0"
@@ -1268,6 +1269,7 @@ export function TreasuryPage() {
                                         )}
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
+                                                    aria-label={t('treasury.payment.deleteConfirm')}
                                                     onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</button>
                                         )}
                                     </div>
@@ -1289,7 +1291,7 @@ export function TreasuryPage() {
                                             <div className={`font-bold text-sm ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
                                                 {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
                                             </div>
-                                            <div className="text-xs text-muted">{e.updated_at && <span title={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>
+                                            <div className="text-xs text-muted">{e.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>
                                         </div>
                                         {admin && (
                                             <button className="btn-secondary btn-xs flex-shrink-0"
@@ -1298,6 +1300,7 @@ export function TreasuryPage() {
                                         )}
                                         {admin && (
                                             <button className="btn-danger btn-xs flex-shrink-0"
+                                                    aria-label={t('treasury.expense.deleteConfirm')}
                                                     onClick={() => setConfirmDeleteExpense(e.id)}>✕</button>
                                         )}
                                     </div>

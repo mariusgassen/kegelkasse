@@ -7,6 +7,7 @@ import {useState, useRef, useEffect} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import EmojiPicker, {EmojiClickData, Theme} from 'emoji-picker-react'
 import {createPortal} from 'react-dom'
+import {MessageCircle, SmilePlus} from 'lucide-react'
 import {api} from '@/api/client'
 import {useT} from '@/i18n'
 import {toastError} from '@/utils/error'
@@ -19,6 +20,7 @@ const PICKER_H = 380
 const PILL = 'flex items-center gap-1 text-sm px-2.5 py-1 rounded-full border leading-none transition-colors cursor-pointer'
 
 function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
+    const t = useT()
     const [open, setOpen] = useState(false)
     const [pos, setPos] = useState({top: 0, left: 0})
     const btnRef = useRef<HTMLButtonElement>(null)
@@ -62,9 +64,9 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
                 type="button"
                 className={`${PILL} border-line text-muted hover:border-line/70`}
                 onClick={openPicker}
-                title="Reaktion hinzufügen"
+                aria-label={t('comment.reaction.pick')}
             >
-                +😀
+                <SmilePlus size={16} strokeWidth={2} aria-hidden="true"/>
             </button>
             {open && createPortal(
                 <div ref={pickerRef} style={{position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999}}>
@@ -137,9 +139,10 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                         ? 'border-accent-fg bg-accent/10 text-ink'
                         : 'border-line text-muted hover:border-line/70',
                     ].join(' ')}
-                    title="Kommentare"
+                    aria-expanded={commentOpen}
+                    aria-label={`${commentOpen ? t('comment.collapse') : t('comment.show')} (${commentCount})`}
                 >
-                    <span>💬</span>
+                    <MessageCircle size={16} strokeWidth={2} aria-hidden="true"/>
                     <span className="text-xs font-medium">{commentCount}</span>
                 </button>
             )}
@@ -152,7 +155,7 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                     ? 'border-danger/60 bg-danger/10 text-danger-fg'
                     : 'border-line text-muted hover:border-danger/40 hover:text-danger-fg/70',
                 ].join(' ')}
-                title={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
+                label={heartReaction?.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
             >
                 <span>{heartReaction?.reacted_by_me ? '❤️' : '🤍'}</span>
                 {heartReaction && heartReaction.count > 0 && (
@@ -170,7 +173,7 @@ export function ItemReactionBar({parentType, parentId, commentOpen, onCommentTog
                         ? 'border-accent-fg bg-accent/20 text-ink'
                         : 'border-line text-muted hover:border-accent-fg/50',
                     ].join(' ')}
-                    title={r.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}
+                    label={`${r.emoji} — ${r.reacted_by_me ? t('comment.reaction.remove') : t('comment.reaction.add')}`}
                 >
                     <span>{r.emoji}</span>
                     <span className="text-xs font-medium">{r.count}</span>

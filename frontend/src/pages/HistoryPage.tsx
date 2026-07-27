@@ -318,6 +318,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                                 <button className="btn-danger btn-sm flex-1"
                                                                         onClick={() => doDelete(ev.id)}>✓ {t('action.delete')}</button>
                                                                 <button className="btn-secondary btn-sm"
+                                                                        aria-label={t('action.cancel')}
                                                                         onClick={() => setConfirmDeleteId(null)}>✕
                                                                 </button>
                                                             </div>

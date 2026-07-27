@@ -20,7 +20,7 @@ describe('ReactionPill', () => {
 
     function renderPill(allReactions: {emoji: string; users: string[]}[], onClick = vi.fn()) {
         render(
-            <ReactionPill className="pill" onClick={onClick} allReactions={allReactions}>
+            <ReactionPill className="pill" label="❤️" onClick={onClick} allReactions={allReactions}>
                 <span>❤️ 2</span>
             </ReactionPill>,
         )

@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {Camera} from 'lucide-react'
 import {router} from '@/router'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
@@ -336,8 +337,8 @@ export function GamesPage() {
                     + {t('game.add')}
                 </button>
                 {isAdmin(user) && throwTracking && (
-                    <button className="btn-secondary" title={t('camera.title')} onClick={() => setCameraOpen(true)}>
-                        📷
+                    <button className="btn-secondary" aria-label={t('camera.title')} onClick={() => setCameraOpen(true)}>
+                        <Camera size={16} strokeWidth={2} aria-hidden="true"/>
                     </button>
                 )}
             </div>
@@ -433,7 +434,6 @@ export function GamesPage() {
                             {isAdmin(user) && game.id > 0 && (game.status === 'running' || game.status === 'finished') && (
                                 <button className="btn-ghost btn-xs text-muted px-2"
                                         aria-label={t('game.editTimes')}
-                                        title={t('game.editTimes')}
                                         onClick={() => openTimeEditSheet(game)}>🕐
                                 </button>
                             )}

@@ -19,6 +19,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
@@ -886,12 +887,15 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                         <div className="text-sm font-bold">{pt.name}</div>
                         <div className="text-xs text-muted">{fe(pt.default_amount)}</div>
                     </div>
-                    <button className="btn-ghost btn-xs text-muted" disabled={!isOnline}
-                            onClick={() => openEdit(pt)}>✏️
-                    </button>
-                    <button className="btn-danger btn-xs" disabled={!isOnline}
-                            onClick={() => api.deletePenaltyType(pt.id).then(onChanged).catch(toastError)}>✕
-                    </button>
+                    <CardActionMenu
+                        title={pt.name}
+                        actions={[
+                            {icon: '✏️', label: t('action.edit'), onClick: () => openEdit(pt), disabled: !isOnline},
+                            {
+                                icon: '🗑️', label: t('action.delete'), danger: true, disabled: !isOnline,
+                                onClick: () => api.deletePenaltyType(pt.id).then(onChanged).catch(toastError),
+                            },
+                        ]}/>
                 </div>
             ))}
             <form className="kce-card p-3 mt-2" onSubmit={async e => {
@@ -1035,12 +1039,15 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                 <span className="text-xs text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
                         </div>
                     </div>
-                    <div className="flex gap-1">
-                        <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={() => openEdit(gt)}>✏️</button>
-                        <button className="btn-danger btn-xs" disabled={!isOnline}
-                                onClick={() => api.deleteGameTemplate(gt.id).then(onChanged).catch(toastError)}>✕
-                        </button>
-                    </div>
+                    <CardActionMenu
+                        title={gt.name}
+                        actions={[
+                            {icon: '✏️', label: t('action.edit'), onClick: () => openEdit(gt), disabled: !isOnline},
+                            {
+                                icon: '🗑️', label: t('action.delete'), danger: true, disabled: !isOnline,
+                                onClick: () => api.deleteGameTemplate(gt.id).then(onChanged).catch(toastError),
+                            },
+                        ]}/>
                 </div>
             ))}
 
@@ -1166,22 +1173,27 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                         <div className="text-xs text-muted font-mono">{c.slug} · {c.member_count} Mitglieder</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                        <button className="btn-secondary btn-xs" onClick={() => openEdit(c)} title={t('superadmin.clubs.edit')}>✏️</button>
                         {c.is_active ? (
                             <span className="text-xs font-extrabold px-2 py-0.5 rounded"
                                   style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)'}}>
                                 {t('superadmin.clubs.active')}
                             </span>
                         ) : (
-                            <>
-                                <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
-                                    {t('superadmin.clubs.switch')}
-                                </button>
-                                <button className="text-muted hover:text-danger-fg text-sm px-1"
-                                        onClick={() => setDeleteClubId(c.id)}
-                                        title={t('superadmin.clubs.delete')}>×</button>
-                            </>
+                            <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
+                                {t('superadmin.clubs.switch')}
+                            </button>
                         )}
+                        <CardActionMenu
+                            title={c.name}
+                            actions={[
+                                {icon: '✏️', label: t('superadmin.clubs.edit'), onClick: () => openEdit(c)},
+                                ...(c.is_active ? [] : [{
+                                    icon: '🗑️',
+                                    label: t('superadmin.clubs.delete'),
+                                    onClick: () => setDeleteClubId(c.id),
+                                    danger: true,
+                                }]),
+                            ]}/>
                     </div>
                 </div>
             ))}
@@ -1192,7 +1204,9 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                     <input className="kce-input flex-1" value={newName} onChange={e => setNewName(e.target.value)}
                            placeholder={t('superadmin.clubs.namePlaceholder')}
                            onKeyDown={e => e.key === 'Enter' && handleCreate()}/>
-                    <button className="btn-primary btn-sm flex-shrink-0" onClick={handleCreate}>+</button>
+                    <button className="btn-primary btn-sm flex-shrink-0" onClick={handleCreate}>
+                        + {t('action.add')}
+                    </button>
                 </div>
             </div>
 
@@ -1285,10 +1299,15 @@ function ClubTeamsTab() {
                         {team.name[0].toUpperCase()}
                     </div>
                     <div className="flex-1 font-bold text-sm">{team.name}</div>
-                    <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={() => openEdit(team)}>✏️</button>
-                    <button className="btn-danger btn-xs" disabled={!isOnline}
-                            onClick={() => api.deleteClubTeam(team.id).then(() => refetch()).catch(toastError)}>✕
-                    </button>
+                    <CardActionMenu
+                        title={team.name}
+                        actions={[
+                            {icon: '✏️', label: t('action.edit'), onClick: () => openEdit(team), disabled: !isOnline},
+                            {
+                                icon: '🗑️', label: t('action.delete'), danger: true, disabled: !isOnline,
+                                onClick: () => api.deleteClubTeam(team.id).then(() => refetch()).catch(toastError),
+                            },
+                        ]}/>
                 </div>
             ))}
 
@@ -1382,11 +1401,15 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                             )}
                         </div>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                        <button className="btn-secondary btn-xs" onClick={() => openEdit(p)}>✏️</button>
-                        <button className="btn-danger btn-xs"
-                                onClick={() => api.deletePin(p.id).then(() => refetch())}>✕</button>
-                    </div>
+                    <CardActionMenu
+                        title={p.name}
+                        actions={[
+                            {icon: '✏️', label: t('action.edit'), onClick: () => openEdit(p)},
+                            {
+                                icon: '🗑️', label: t('action.delete'), danger: true,
+                                onClick: () => api.deletePin(p.id).then(() => refetch()),
+                            },
+                        ]}/>
                 </div>
                 )
             })}

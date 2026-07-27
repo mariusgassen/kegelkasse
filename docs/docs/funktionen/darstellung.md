@@ -80,3 +80,39 @@ Unter **Profil → Einstellungen → 🎉 Feier-Effekte** schaltest du die Zugab
 - **mitzählende Beträge**
 
 Ladeplatzhalter bleiben dabei erhalten — sie sind kein Effekt, sondern zeigen an, dass etwas lädt.
+
+## Symbole: wann Emoji, wann Strichzeichnung
+
+Die App benutzt bewusst zwei Bildsprachen:
+
+- **Emoji sind Inhalt.** Eine Strafenart (🍺 Bier, 🎯 Pudel), ein Abzeichen, eine Team-Farbe, ein
+  Feier-Moment — das sind Dinge, die *dir gehören* und die den Ton der App ausmachen. Die bleiben.
+- **Strichzeichnungen sind Bedienelemente.** Schließen, ⋮-Menü, Kommentar-Umschalter,
+  Reaktion hinzufügen, Bild anhängen, Kamera — alles, was etwas *tut*, ist ein neutrales Icon und
+  hat immer entweder eine sichtbare Beschriftung daneben oder eine hinterlegte Bezeichnung für
+  Screenreader.
+
+## Keine unsichtbaren Erklärungen mehr
+
+Auf einem Handy oder Tablet gibt es kein „Mauszeiger drüberhalten". Ein Text, der nur beim
+Drüberfahren erscheint, ist auf einem Touch-Gerät schlicht nicht vorhanden — und wenn er der
+einzige Hinweis war, was ein Knopf tut, war der Knopf unbeschriftet.
+
+Solche versteckten Erklärungen gibt es in der App nicht mehr:
+
+- Jeder Knopf, der nur aus einem Symbol besteht, hat eine hinterlegte Bezeichnung.
+- Erklärungen, die vorher an einem **ausgegrauten** Knopf hingen („Es läuft bereits ein anderer
+  Abend"), stehen jetzt als sichtbarer Satz darunter.
+- Der ✏️-Marker an einer nachträglich geänderten Buchung und die 👑 am Eröffnungsspiel sind für
+  Screenreader benannt, statt nur ein Bildchen zu sein.
+
+## Das ⋮-Menü
+
+Wo vorher mehrere kleine Symbol-Knöpfe nebeneinander standen (Termin-Zeile, die
+Verwaltungs-Listen für Strafenarten, Spielvorlagen, Teams und Nadeln, die Vereins-Übersicht der
+Superadmins), gibt es jetzt **einen ⋮-Knopf**. Ein Tipp darauf öffnet eine Liste mit ausgeschriebenen
+Aktionen — „Bearbeiten", „Löschen", „Rückmeldungen" — statt drei Glyphen, die man raten muss.
+
+Nebeneffekt, der wichtiger ist als er klingt: **Löschen** steht dort als eigener, rot markierter
+Eintrag. Vorher konnte ein Fehltipp auf ein winziges ✕ eine Strafenart oder Spielvorlage sofort und
+ohne Rückfrage entfernen.

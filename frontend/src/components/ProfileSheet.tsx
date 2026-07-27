@@ -57,7 +57,6 @@ function ChannelToggles({value, onChange, emailEnabled, disabled}: {
                         disabled={disabled}
                         aria-pressed={on}
                         aria-label={o.label}
-                        title={o.label}
                         className={['text-xs font-bold px-2 py-1 rounded-md transition-colors leading-none',
                             on ? 'bg-accent text-on-accent' : 'text-muted',
                             disabled ? 'cursor-not-allowed' : ''].join(' ')}
@@ -579,6 +578,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 }
                             </button>
                             <button
+                                aria-label={t('profile.avatarChange')}
                                 className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs"
                                 style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
                                 onClick={() => fileRef.current?.click()}>

@@ -1,4 +1,5 @@
 import {useState, useEffect} from 'react'
+import {X} from 'lucide-react'
 import {useNotificationStore, unreadCount} from '../store/notifications'
 import {useT} from '../i18n'
 import {api} from '../api/client'
@@ -114,8 +115,9 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                     <p className="text-xs text-muted opacity-60 mt-1">{relativeTime(n.receivedAt)}</p>
                 </div>
                 <button
-                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60"
-                    style={{background: 'rgba(255,255,255,0.07)', color: 'var(--muted)', fontSize: 12}}
+                    aria-label={t('notifications.remove')}
+                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-60 bg-surface-2 text-muted text-xs"
+
                     onClick={(e) => {
                         e.stopPropagation()
                         if (n.serverLogId) api.markNotificationsRead([n.serverLogId]).catch(() => {})
@@ -207,10 +209,10 @@ export function NotificationPanel({open, onClose}: Props) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-muted active:opacity-60"
-                            style={{background: 'rgba(255,255,255,0.07)', fontSize: 16, lineHeight: 1}}
+                            aria-label={t('action.close')}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-muted active:opacity-60 bg-surface-2"
                         >
-                            ✕
+                            <X size={16} strokeWidth={2.5} aria-hidden="true"/>
                         </button>
                     </div>
                 </div>

@@ -39,7 +39,7 @@ describe('MediaUploadButton — no value', () => {
 
     it('renders 🖼 upload button when no value', async () => {
         await renderButton({})
-        expect(screen.getByText('🖼')).toBeInTheDocument()
+        expect(screen.getByLabelText('media.attach')).toBeInTheDocument()
     })
 
     it('has hidden file input', async () => {
@@ -99,7 +99,7 @@ describe('MediaUploadButton — no value', () => {
         fireEvent.change(input)
 
         await waitFor(() => {
-            expect(screen.getByText('⏳')).toBeInTheDocument()
+            expect(screen.getByLabelText('media.attach')).toBeInTheDocument()
         })
     })
 })
@@ -116,13 +116,13 @@ describe('MediaUploadButton — with value', () => {
 
     it('shows remove button when value provided', async () => {
         await renderButton({ value: 'https://example.com/img.jpg' })
-        expect(screen.getByText('×')).toBeInTheDocument()
+        expect(screen.getByLabelText('media.remove')).toBeInTheDocument()
     })
 
     it('calls onRemove when × clicked', async () => {
         const onRemove = vi.fn()
         await renderButton({ value: 'https://example.com/img.jpg', onRemove })
-        fireEvent.click(screen.getByText('×'))
+        fireEvent.click(screen.getByLabelText('media.remove'))
         expect(onRemove).toHaveBeenCalled()
     })
 

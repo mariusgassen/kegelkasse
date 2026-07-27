@@ -39,8 +39,7 @@ export function MoreButton({onClick, label}: {onClick: () => void; label?: strin
         <button
             type="button"
             aria-label={label ?? t('action.more')}
-            title={label ?? t('action.more')}
-            className="flex-shrink-0 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-white/5 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface-2 transition-colors"
             onClick={onClick}>
             <MoreVertical size={18} strokeWidth={2}/>
         </button>

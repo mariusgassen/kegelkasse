@@ -6,6 +6,7 @@
  * to a separate top-level page.
  */
 import {useEffect, useState} from 'react'
+import {Plus} from 'lucide-react'
 import {useT} from '@/i18n'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
@@ -223,8 +224,9 @@ export function EveningHubPage() {
                                         />
                                         <button className="btn-primary btn-sm flex-shrink-0"
                                                 disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
+                                                aria-label={t('highlight.add')}
                                                 onClick={addHighlight}>
-                                            +
+                                            <Plus size={16} strokeWidth={2.5} aria-hidden="true"/>
                                         </button>
                                     </div>
                                     {highlightMediaUrl && (
@@ -251,6 +253,7 @@ export function EveningHubPage() {
                                                 </div>
                                                 {!isClosed && (
                                                     <button className="btn-danger btn-xs flex-shrink-0"
+                                                            aria-label={t('highlight.delete')}
                                                             onClick={async () => {
                                                                 try {
                                                                     await api.deleteHighlight(evening.id, h.id)

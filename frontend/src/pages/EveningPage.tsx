@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {Pencil, Trash2} from 'lucide-react'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {useAppStore} from '@/store/app.ts'
@@ -265,7 +266,9 @@ export function EveningPage() {
                         {evening.note && <div className="text-xs text-muted mt-0.5 italic">{evening.note}</div>}
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                        <button className="btn-secondary btn-xs" onClick={openEditSheet}>✏️</button>
+                        <button className="btn-secondary btn-xs" aria-label={t('action.edit')} onClick={openEditSheet}>
+                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
+                        </button>
                         {!evening.is_closed ? (
                             <button className="btn-danger btn-xs" onClick={() => openCloseConfirm(evening.ended_at)}>
                                 {t('evening.end')}
@@ -321,7 +324,7 @@ export function EveningPage() {
                 {!evening.is_closed && (
                     <div className="flex gap-1">
                         {teams.length === 0 && (
-                            <button className="btn-secondary btn-xs" title={t('team.fromTemplate')}
+                            <button className="btn-secondary btn-xs" aria-label={t('team.fromTemplate')}
                                     onClick={async () => {
                                         try {
                                             await api.applyClubTeamsToEvening(evening.id, false)
@@ -333,7 +336,7 @@ export function EveningPage() {
                                 {t('team.fromTemplateBadge')}
                             </button>
                         )}
-                        <button className="btn-secondary btn-xs" title={t('team.randomize')}
+                        <button className="btn-secondary btn-xs" aria-label={t('team.randomize')}
                                 onClick={async () => {
                                     if (players.length === 0) {
                                         showToast(t('team.noPlayers'))
@@ -352,7 +355,9 @@ export function EveningPage() {
                                 }}>
                             🎲
                         </button>
-                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>+</button>
+                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>
+                            + {t('team.create')}
+                        </button>
                     </div>
                 )}
             </div>
@@ -367,11 +372,17 @@ export function EveningPage() {
                                 <div className="text-sm font-bold">{team.name}</div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditTeam(team)}>✏️</button>
-                                        <button className="btn-danger btn-xs" onClick={async () => {
-                                            await api.deleteTeam(evening.id, team.id)
-                                            invalidate()
-                                        }}>✕</button>
+                                        <button className="btn-secondary btn-xs" aria-label={`${t('action.edit')}: ${team.name}`}
+                                                onClick={() => openEditTeam(team)}>
+                                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
+                                        </button>
+                                        <button className="btn-danger btn-xs" aria-label={`${t('action.delete')}: ${team.name}`}
+                                                onClick={async () => {
+                                                    await api.deleteTeam(evening.id, team.id)
+                                                    invalidate()
+                                                }}>
+                                            <Trash2 size={14} strokeWidth={2} aria-hidden="true"/>
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -430,19 +441,23 @@ export function EveningPage() {
                                 </div>
                                 {!evening.is_closed && (
                                     <div className="flex gap-1">
-                                        <button className="btn-secondary btn-xs" onClick={() => openEditPlayer(p)}>✏️</button>
+                                        <button className="btn-secondary btn-xs" aria-label={`${t('action.edit')}: ${p.nickname || p.name}`}
+                                                onClick={() => openEditPlayer(p)}>
+                                            <Pencil size={14} strokeWidth={2} aria-hidden="true"/>
+                                        </button>
                                         {confirmRemovePlayerId === p.id ? (
                                             <>
                                                 <button className="btn-danger btn-xs" onClick={async () => {
                                                     await api.removePlayer(evening.id, p.id)
                                                     setConfirmRemovePlayerId(null)
                                                     invalidate()
-                                                }}>✓</button>
+                                                }}>{t('action.confirmDelete')}</button>
                                                 <button className="btn-secondary btn-xs"
-                                                        onClick={() => setConfirmRemovePlayerId(null)}>✕</button>
+                                                        onClick={() => setConfirmRemovePlayerId(null)}>{t('action.cancel')}</button>
                                             </>
                                         ) : (
                                             <button className="btn-danger btn-xs"
+                                                    aria-label={`${t('player.remove')}: ${p.nickname || p.name}`}
                                                     onClick={() => setConfirmRemovePlayerId(p.id)}>✕</button>
                                         )}
                                     </div>
@@ -478,7 +493,9 @@ export function EveningPage() {
                                     )}
                                 </div>
                                 {!evening.is_closed && (
-                                    <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                    <button className="btn-danger btn-xs flex-shrink-0"
+                                            aria-label={t('highlight.delete')}
+                                            onClick={async () => {
                                         try {
                                             await api.deleteHighlight(evening.id, h.id)
                                             invalidate()
@@ -517,7 +534,9 @@ export function EveningPage() {
                             onUploaded={setHighlightMediaUrl}
                             onRemove={() => setHighlightMediaUrl(null)}
                         />
-                        <button className="btn-primary btn-sm flex-shrink-0" disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
+                        <button className="btn-primary btn-sm flex-shrink-0"
+                            aria-label={t('highlight.add')}
+                            disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
                             onClick={async () => {
                                 if (!highlightText.trim() && !highlightMediaUrl) return
                                 setAddingHighlight(true)
@@ -1049,8 +1068,10 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                     {alreadyLogged
                         ? <div className="flex items-center gap-1 flex-shrink-0">
                             <span className="text-xs text-positive-fg font-bold">✓ {t('pin.missingPenalty')}</span>
-                            <button className="btn-secondary btn-xs" title={t('action.cancel')}
-                                    onClick={() => undoMissingPin(pin, logEntry!.id)}>↩</button>
+                            <button className="btn-secondary btn-xs"
+                                    onClick={() => undoMissingPin(pin, logEntry!.id)}>
+                                {t('action.undo')}
+                            </button>
                           </div>
                         : <button
                             className="btn-danger btn-xs flex-shrink-0"

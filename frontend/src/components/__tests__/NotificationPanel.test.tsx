@@ -131,7 +131,7 @@ describe('NotificationPanel — open with empty list', () => {
 
     it('calls onClose when ✕ close button clicked', async () => {
         const { onClose } = await renderPanel(true, [])
-        fireEvent.click(screen.getByText('✕'))
+        fireEvent.click(screen.getByLabelText('action.close'))
         expect(onClose).toHaveBeenCalled()
     })
 })
@@ -180,9 +180,9 @@ describe('NotificationPanel — with notifications', () => {
 
     it('calls dismiss when row ✕ button clicked', async () => {
         const { store } = await renderPanel(true, [BASIC_NOTIFICATION])
-        // Panel renders: [0] panel-close ✕, [1] row-dismiss ✕
-        const dismissBtns = screen.getAllByText('✕')
-        fireEvent.click(dismissBtns[1])
+        // Panel-close and row-dismiss now carry distinct labels, so this only matches rows.
+        const dismissBtns = screen.getAllByLabelText('notifications.remove')
+        fireEvent.click(dismissBtns[0])
         expect(store.dismiss).toHaveBeenCalledWith('n1')
     })
 })

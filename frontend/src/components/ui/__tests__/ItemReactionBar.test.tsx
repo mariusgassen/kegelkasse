@@ -78,12 +78,12 @@ describe('ItemReactionBar — basic rendering', () => {
 
     it('renders emoji picker button (+😀)', async () => {
         await renderBar({})
-        expect(screen.getByText('+😀')).toBeInTheDocument()
+        expect(screen.getByLabelText('comment.reaction.pick')).toBeInTheDocument()
     })
 
     it('does not show comment button when onCommentToggle not provided', async () => {
         await renderBar({})
-        expect(screen.queryByText('💬')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText(/^comment\.show/)).not.toBeInTheDocument()
     })
 })
 
@@ -92,13 +92,13 @@ describe('ItemReactionBar — comment toggle', () => {
 
     it('shows comment toggle button when onCommentToggle provided', async () => {
         await renderBar({ onCommentToggle: vi.fn() })
-        expect(screen.getByText('💬')).toBeInTheDocument()
+        expect(screen.getByLabelText(/^comment\.show/)).toBeInTheDocument()
     })
 
     it('calls onCommentToggle when 💬 button clicked', async () => {
         const onCommentToggle = vi.fn()
         await renderBar({ onCommentToggle })
-        fireEvent.click(screen.getByText('💬'))
+        fireEvent.click(screen.getByLabelText(/^comment\.show/))
         expect(onCommentToggle).toHaveBeenCalled()
     })
 
@@ -180,7 +180,7 @@ describe('ItemReactionBar — emoji picker', () => {
 
     it('opens emoji picker when +😀 button clicked', async () => {
         await renderBar({})
-        fireEvent.click(screen.getByText('+😀'))
+        fireEvent.click(screen.getByLabelText('comment.reaction.pick'))
         await waitFor(() => {
             expect(screen.getByTestId('emoji-picker')).toBeInTheDocument()
         })
@@ -190,7 +190,7 @@ describe('ItemReactionBar — emoji picker', () => {
         const { api } = await import('@/api/client')
         vi.mocked(api.toggleItemReaction).mockResolvedValue({ reactions: [] } as any)
         await renderBar({})
-        fireEvent.click(screen.getByText('+😀'))
+        fireEvent.click(screen.getByLabelText('comment.reaction.pick'))
         await waitFor(() => screen.getByTestId('emoji-picker'))
         fireEvent.click(screen.getByText('😂'))
         await waitFor(() => {

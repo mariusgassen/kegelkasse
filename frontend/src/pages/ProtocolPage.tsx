@@ -542,20 +542,24 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             </div>
                             {!isPendingEntry && (
                                 <button className="btn-ghost btn-xs flex-shrink-0 text-muted"
+                                        aria-label={t('action.edit')}
                                         onClick={() => openEditSheet(entry)}>✏️
                                 </button>
                             )}
                             {confirmDeleteId === entry.id ? (
                                 <div className="flex gap-1 flex-shrink-0">
                                     <button className="btn-danger btn-xs"
+                                            aria-label={t('action.confirmDelete')}
                                             onClick={() => confirmDelete(entry.id)}>✓
                                     </button>
                                     <button className="btn-secondary btn-xs"
+                                            aria-label={t('action.cancel')}
                                             onClick={() => setConfirmDeleteId(null)}>✕
                                     </button>
                                 </div>
                             ) : (
                                 <button className="btn-danger btn-xs flex-shrink-0"
+                                        aria-label={t('action.delete')}
                                         onClick={() => setConfirmDeleteId(entry.id)}>✕
                                 </button>
                             )}
@@ -590,7 +594,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                 <div className="text-xs text-muted">{r.participant_ids.length} {t('drinks.playerCount')} · {fTime(r.client_timestamp)}</div>
                             </div>
                             {!evening.is_closed && (
-                                <button className="btn-danger btn-xs flex-shrink-0" onClick={async () => {
+                                <button className="btn-danger btn-xs flex-shrink-0"
+                                        aria-label={`${t('action.delete')}: ${label}`}
+                                        onClick={async () => {
                                     if (isPendingDrink) {
                                         await cancelPendingItem(r.id, 'drink')
                                     } else {

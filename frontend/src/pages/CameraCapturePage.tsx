@@ -783,8 +783,10 @@ export function CameraCapturePage({onClose}: Props) {
                             <button className="btn-primary" style={{flex: 1}} onClick={saveCalibration}>
                                 💾 {t('camera.saveCalibration')}
                             </button>
-                            <button className="btn-secondary" title={t('camera.resetCalibration')}
-                                    onClick={() => setCalibration({...DEFAULT_CALIBRATION})}>↩</button>
+                            <button className="btn-secondary"
+                                    onClick={() => setCalibration({...DEFAULT_CALIBRATION})}>
+                                {t('camera.resetCalibration')}
+                            </button>
                         </div>
                     </div>
                 )}
