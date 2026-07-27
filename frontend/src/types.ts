@@ -37,6 +37,8 @@ export interface ClubSettings {
     pin_penalty: number | null
     default_evening_time: string | null
     ical_token: string | null
+    // Public read-only TV/beamer scoreboard link (#74) — same secret-token pattern as the iCal feed.
+    scoreboard_token: string | null
     // Camera-based pin/throw tracking (#33). Defaults to true when the club predates the setting.
     throw_tracking_enabled?: boolean
 }

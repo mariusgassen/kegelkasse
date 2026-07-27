@@ -5,7 +5,7 @@ import type {ClubSettings} from '@/types'
 const settings = (over: Partial<ClubSettings> = {}): ClubSettings => ({
     home_venue: null, logo_url: null, primary_color: '#e8a020', secondary_color: '#6b7c5a',
     bg_color: null, guest_penalty_cap: null, paypal_me: null, no_cancel_fee: null,
-    pin_penalty: null, default_evening_time: null, ical_token: null, ...over,
+    pin_penalty: null, default_evening_time: null, ical_token: null, scoreboard_token: null, ...over,
 })
 
 describe('throwTrackingEnabled', () => {

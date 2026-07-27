@@ -1574,6 +1574,40 @@ describe('api.regenerateIcalToken', () => {
     })
 })
 
+describe('api.regenerateScoreboardToken', () => {
+    it('POSTs to /club/settings/regenerate-scoreboard-token', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ scoreboard_token: 'new-tok' }))
+        const { api } = await import('../client')
+        await api.regenerateScoreboardToken()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/settings/regenerate-scoreboard-token')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    })
+})
+
+describe('api.getScoreboard', () => {
+    it('GETs the public scoreboard without an Authorization header', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ club: { name: 'KC' }, evening: null }))
+        const { api } = await import('../client')
+        await api.getScoreboard('tok')
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/scoreboard/tok')
+        // Called with the URL only — no init object, so nothing can attach a token.
+        expect(mockFetch.mock.calls[0][1]).toBeUndefined()
+    })
+
+    it('encodes the token', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ club: { name: 'KC' }, evening: null }))
+        const { api } = await import('../client')
+        await api.getScoreboard('a/b')
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/scoreboard/a%2Fb')
+    })
+
+    it('reports a rotated link as invalid-token rather than logging anyone out', async () => {
+        mockFetch.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+        const { api } = await import('../client')
+        await expect(api.getScoreboard('stale')).rejects.toThrow('invalid-token')
+    })
+})
+
 describe('api.getReminderSettings', () => {
     it('GETs /club/reminder-settings', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({}))
