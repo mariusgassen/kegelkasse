@@ -266,6 +266,8 @@ export interface GameThrowLog {
     cumulative: number | null
     pin_states: boolean[]
     player_id: number | null
+    /** Server-side capture time (ISO). Lets the live ticker place a throw chronologically (#65). */
+    created_at?: string | null
 }
 
 export interface EveningThrowSummary {

@@ -118,6 +118,7 @@ export const en = {
     "live.ticker": "Activity",
     "live.tickerEmpty": "Nothing yet.",
     "live.now": "just now",
+    "live.allNine": "All nine!",
     "evening.endedAt": "End time",
     "evening.endedAtHint": "When the evening actually ended — useful if you forgot to end it in time.",
     "evening.noActive": "No bowling evening active.",
