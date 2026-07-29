@@ -38,7 +38,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const t = useT()
     const throwTracking = useThrowTracking()
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
-    const feed = buildEventFeed(evening)
+    const feed = buildEventFeed(evening, {throws: throwTracking})
     const totals = eveningTotals(evening)
     const now = Date.now()
 
@@ -124,11 +124,16 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                 ) : (
                     <div className="flex flex-col gap-1.5">
                         {feed.map(e => (
-                            <div key={e.key} className="kce-card px-3 py-2 flex items-center gap-2.5">
+                            <div key={e.key} className="kce-card px-3 py-2 flex items-center gap-2.5"
+                                 style={e.kind === 'throw'
+                                     ? {background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))'}
+                                     : undefined}>
                                 <span className="text-lg flex-shrink-0">{e.icon}</span>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold text-ink truncate">{e.title}</div>
-                                    {e.subtitle && <div className="text-sm text-muted truncate">{e.subtitle}</div>}
+                                    {e.kind === 'throw'
+                                        ? <div className="text-sm font-bold text-accent-fg truncate">{t('live.allNine')}</div>
+                                        : e.subtitle && <div className="text-sm text-muted truncate">{e.subtitle}</div>}
                                 </div>
                                 {e.amount != null && e.amount > 0 && (
                                     <span className="text-sm font-bold text-accent-fg flex-shrink-0">{fe(e.amount)}</span>

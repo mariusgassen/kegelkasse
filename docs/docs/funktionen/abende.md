@@ -30,8 +30,15 @@ bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
 - **Kennzahlen-Zeile**: Straf-Summe des Abends, Anzahl Bier- und Schnapsrunden, beendete Spiele.
 - **Schnellaktionen** (daumengroß): **Strafe** / **Runde** öffnen die Schnellerfassung,
   **Highlight** springt zum Highlights-Reiter, **Spiele** zum Spiele-Reiter.
-- **Verlauf-Ticker**: Strafen, Getränkerunden und Highlights chronologisch (neueste zuerst) mit
-  Icon, Betrag und relativer Zeit.
+- **Verlauf-Ticker**: Strafen, Getränkerunden, Highlights und **🎳 Alle Neune** chronologisch
+  (neueste zuerst) mit Icon, Betrag und relativer Zeit.
+
+:::note
+Im Ticker landen von den Würfen nur die **Alle Neune** — ein Abend erzeugt hunderte Würfe, der
+volle Wurf-Strom würde Strafen, Getränke und Highlights binnen eines Spiels aus dem Verlauf
+drängen. Der laufende Wurf-Stand steht in der Anzeigetafel. Ist die Wurf-Erfassung im Verein
+abgeschaltet, erscheinen auch die Alle-Neune-Einträge nicht.
+:::
 
 Beim Beenden des Abends verschwindet der Live-Reiter wieder, und der Abend-Bereich zeigt wie
 gewohnt zuerst das Protokoll.

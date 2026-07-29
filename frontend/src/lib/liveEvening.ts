@@ -6,10 +6,12 @@
  * derive the scoreboard state and the chronological event ticker so the view stays a thin
  * component and the logic is unit-testable.
  *
- * Note on the ticker: penalties, drink rounds and highlights carry timestamps
- * (`client_timestamp` / `created_at`), so they interleave chronologically. Individual throws do
- * not carry a per-throw timestamp in the API, so they are surfaced in the scoreboard header (the
- * live throw state) rather than faked into the chronological feed.
+ * Note on the ticker: penalties, drink rounds, highlights and throws all carry timestamps
+ * (`client_timestamp` / `created_at`), so they interleave chronologically. Only *milestone* throws
+ * (Alle Neune) enter the feed — an evening produces hundreds of throws, and the full stream would
+ * push everything else out of the capped ticker within a single game. The running throw state stays
+ * in the scoreboard header, which answers "what's the score" while the ticker answers "what just
+ * happened".
  */
 import type {Evening, EveningPlayer, Game} from '../types'
 import {buildTurnOrder} from './turnOrder'
@@ -76,7 +78,10 @@ export function currentGameState(evening: Evening | null): LiveGameState {
     return {game, activePlayer, nextPlayer, lastThrow}
 }
 
-export type LiveEventKind = 'penalty' | 'drink' | 'highlight'
+export type LiveEventKind = 'penalty' | 'drink' | 'highlight' | 'throw'
+
+/** Pin count that makes a throw a milestone worth its own ticker entry ("Alle Neune"). */
+export const ALL_NINE = 9
 
 export interface LiveEvent {
     kind: LiveEventKind
@@ -91,11 +96,23 @@ export interface LiveEvent {
     amount: number | null
 }
 
+export interface EventFeedOptions {
+    /** Maximum number of entries. Default 30. */
+    limit?: number
+    /**
+     * Include milestone throws (Alle Neune). Off by default so the caller has to opt in with the
+     * club's throw-tracking setting (#78) — a club that records no throws never sees the kind.
+     */
+    throws?: boolean
+}
+
 /**
- * Build the chronological event ticker (newest first) from penalties, drink rounds and
- * highlights. Capped at `limit`. Player/participant names use the Kegelname convention.
+ * Build the chronological event ticker (newest first) from penalties, drink rounds, highlights and
+ * — when `throws` is set — milestone throws. Capped at `limit`. Player/participant names use the
+ * Kegelname convention.
  */
-export function buildEventFeed(evening: Evening | null, limit = 30): LiveEvent[] {
+export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions = {}): LiveEvent[] {
+    const {limit = 30, throws = false} = opts
     if (!evening) return []
     const byId = new Map(evening.players.map(p => [p.id, p]))
     const events: LiveEvent[] = []
@@ -139,6 +156,28 @@ export function buildEventFeed(evening: Evening | null, limit = 30): LiveEvent[]
             subtitle: null,
             amount: null,
         })
+    }
+
+    if (throws) {
+        for (const g of evening.games) {
+            for (const th of g.throws) {
+                if (th.pins < ALL_NINE) continue
+                // No parseable timestamp (legacy row, offline-queued throw) — a made-up position in
+                // a chronological feed is worse than leaving it out; the scoreboard still shows it.
+                const ts = th.created_at ? Date.parse(th.created_at) : NaN
+                if (Number.isNaN(ts)) continue
+                const thrower = th.player_id != null ? byId.get(th.player_id) : undefined
+                events.push({
+                    kind: 'throw',
+                    key: `throw-${th.id}`,
+                    ts,
+                    icon: '🎳',
+                    title: thrower ? displayName(thrower) : g.name,
+                    subtitle: null,
+                    amount: null,
+                })
+            }
+        }
     }
 
     return events.sort((a, b) => b.ts - a.ts).slice(0, limit)

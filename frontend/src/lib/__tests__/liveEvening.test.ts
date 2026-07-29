@@ -11,8 +11,9 @@ function player(id: number, name: string, team_id: number | null = null): Evenin
     return {id, name, nickname: null, regular_member_id: null, team_id, is_king: false}
 }
 
-function throwLog(throw_num: number, pins: number, player_id: number | null, cumulative: number | null = null): GameThrowLog {
-    return {id: throw_num, throw_num, pins, cumulative, pin_states: [], player_id}
+function throwLog(throw_num: number, pins: number, player_id: number | null,
+                  cumulative: number | null = null, created_at: string | null = null): GameThrowLog {
+    return {id: throw_num, throw_num, pins, cumulative, pin_states: [], player_id, created_at}
 }
 
 function game(overrides: Partial<Game> = {}): Game {
@@ -136,7 +137,7 @@ describe('buildEventFeed', () => {
 
     it('caps the feed at the given limit', () => {
         const ev = evening({penalty_log: [penalty(1), penalty(2), penalty(3)]})
-        expect(buildEventFeed(ev, 2)).toHaveLength(2)
+        expect(buildEventFeed(ev, {limit: 2})).toHaveLength(2)
     })
 
     it('produces stable unique keys across kinds', () => {
@@ -147,6 +148,60 @@ describe('buildEventFeed', () => {
 
     it('returns [] for a null evening', () => {
         expect(buildEventFeed(null)).toEqual([])
+    })
+
+    it('adds an "Alle Neune" throw when throws are enabled', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            games: [game({throws: [throwLog(1, 9, 1, 9, '1970-01-01T00:00:05Z')]})],
+        })
+        const [e] = buildEventFeed(ev, {throws: true})
+        expect(e.kind).toBe('throw')
+        expect(e.icon).toBe('🎳')
+        expect(e.title).toBe('Rudi')
+        expect(e.ts).toBe(5000)
+    })
+
+    it('leaves ordinary throws out of the ticker', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            games: [game({throws: [throwLog(1, 8, 1, 8, '1970-01-01T00:00:05Z')]})],
+        })
+        expect(buildEventFeed(ev, {throws: true})).toEqual([])
+    })
+
+    it('omits throws entirely when the club records none', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            games: [game({throws: [throwLog(1, 9, 1, 9, '1970-01-01T00:00:05Z')]})],
+        })
+        expect(buildEventFeed(ev)).toEqual([])
+        expect(buildEventFeed(ev, {throws: false})).toEqual([])
+    })
+
+    it('skips a milestone throw without a parseable timestamp', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            games: [game({throws: [throwLog(1, 9, 1, 9, null), throwLog(2, 9, 1, 18, 'nonsense')]})],
+        })
+        expect(buildEventFeed(ev, {throws: true})).toEqual([])
+    })
+
+    it('interleaves throws chronologically with the other kinds', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            penalty_log: [penalty(1, {client_timestamp: 1000})],
+            drink_rounds: [drink(1, {client_timestamp: 9000})],
+            games: [game({throws: [throwLog(1, 9, 1, 9, '1970-01-01T00:00:05Z')]})],
+        })
+        expect(buildEventFeed(ev, {throws: true}).map(e => e.kind)).toEqual(['drink', 'throw', 'penalty'])
+    })
+
+    it('falls back to the game name when the thrower is unknown', () => {
+        const ev = evening({
+            games: [game({name: 'Eröffnung', throws: [throwLog(1, 9, null, 9, '1970-01-01T00:00:05Z')]})],
+        })
+        expect(buildEventFeed(ev, {throws: true})[0].title).toBe('Eröffnung')
     })
 })
 

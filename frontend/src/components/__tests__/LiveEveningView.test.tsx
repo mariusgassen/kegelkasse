@@ -124,6 +124,33 @@ describe('LiveEveningView', () => {
         expect(screen.getByText('live.tickerEmpty')).toBeInTheDocument()
     })
 
+    it('puts an "Alle Neune" throw into the ticker', () => {
+        const ev = evening({
+            players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false}],
+            games: [runningGame(1, [
+                {id: 1, throw_num: 1, pins: 9, cumulative: 9, pin_states: [], player_id: 1, created_at: '2026-07-23T20:00:00Z'},
+                {id: 2, throw_num: 2, pins: 4, cumulative: 13, pin_states: [], player_id: 1, created_at: '2026-07-23T20:01:00Z'},
+            ])],
+        })
+        renderView(ev)
+        // The nine gets its own ticker row; the ordinary throw stays out of the feed.
+        expect(screen.getByText('live.allNine')).toBeInTheDocument()
+        expect(screen.queryByText('live.tickerEmpty')).not.toBeInTheDocument()
+    })
+
+    it('keeps throws out of the ticker when throw tracking is disabled', () => {
+        throwTrackingMock.mockReturnValue(false)
+        const ev = evening({
+            players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false}],
+            games: [runningGame(1, [
+                {id: 1, throw_num: 1, pins: 9, cumulative: 9, pin_states: [], player_id: 1, created_at: '2026-07-23T20:00:00Z'},
+            ])],
+        })
+        renderView(ev)
+        expect(screen.queryByText('live.allNine')).not.toBeInTheDocument()
+        expect(screen.getByText('live.tickerEmpty')).toBeInTheDocument()
+    })
+
     it('hides the last throw when throw tracking is disabled', () => {
         throwTrackingMock.mockReturnValue(false)
         const ev = evening({

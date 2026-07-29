@@ -118,6 +118,7 @@ export const de = {
     "live.ticker": "Verlauf",
     "live.tickerEmpty": "Noch nichts passiert.",
     "live.now": "gerade eben",
+    "live.allNine": "Alle Neune!",
     "evening.endedAt": "Ende",
     "evening.endedAtHint": "Zeitpunkt, an dem der Abend endete — z. B. wichtig, wenn du das Beenden vergessen hast.",
     "evening.noActive": "Kein Kegelabend aktiv.",

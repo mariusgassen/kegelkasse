@@ -76,7 +76,10 @@ def serialize_evening(e: Evening) -> dict:
                    "active_player_id": g.active_player_id,
                    "throws": [{"id": t.id, "throw_num": t.throw_num, "pins": t.pins,
                                 "cumulative": t.cumulative, "pin_states": t.pin_states,
-                                "player_id": t.player_id}
+                                "player_id": t.player_id,
+                                # Lets the live ticker place a throw chronologically among
+                                # penalties, drink rounds and highlights (#65).
+                                "created_at": t.created_at.isoformat() if t.created_at else None}
                                for t in g.throws]}
                   for g in e.games if not g.is_deleted],
         "drink_rounds": [{"id": r.id, "drink_type": r.drink_type, "variety": r.variety,

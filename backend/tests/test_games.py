@@ -668,6 +668,22 @@ class TestCameraThrows:
         )
         assert resp.status_code == 401
 
+    def test_serialized_throw_carries_a_timestamp(self, client: TestClient, db, evening, running_game,
+                                                  admin_headers):
+        """The evening payload dates each throw so the live ticker can place it chronologically (#65)."""
+        client.post(
+            f"/api/v1/evening/{evening.id}/games/{running_game.id}/throws",
+            json={"throw_num": 1, "pins": 9, "cumulative": 9},
+            headers=admin_headers,
+        )
+        resp = client.get(f"/api/v1/evening/{evening.id}", headers=admin_headers)
+        assert resp.status_code == 200
+        game = next(g for g in resp.json()["games"] if g["id"] == running_game.id)
+        created_at = game["throws"][0]["created_at"]
+        assert created_at
+        # Parseable as an ISO timestamp on the client (`Date.parse`).
+        datetime.fromisoformat(created_at)
+
     def test_admin_can_delete_single_throw(self, client: TestClient, db, evening, running_game, admin_headers):
         """DELETE /throws/{tid} removes a specific throw."""
         throw = GameThrowLog(game_id=running_game.id, throw_num=2, pins=4)
