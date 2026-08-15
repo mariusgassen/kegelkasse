@@ -219,14 +219,18 @@ export function TreasuryAnalysis() {
 
     // The Kasse-scope "actual" line honors the filter's "only" mode (guests always pass through,
     // since they're never selectable); the leaving simulation leaves it untouched, since money
-    // already received doesn't stop being real. The debt overlay stays whole-club regardless —
-    // it's a single club-wide backend timeline, not attributable to individual members.
+    // already received doesn't stop being real. Club expenses/other-income aren't attributable to
+    // any member, so "only selected" — a view restricted to that subset's own money — excludes them
+    // too, same as it excludes every other member's payments. The debt overlay stays whole-club
+    // regardless — it's a single club-wide backend timeline, not attributable to individual members.
     const guestIds = new Set((guestBalances as Balance[]).map(b => b.regular_member_id))
-    const filteredClubPayments = (balanceFilterActive && balanceOnlySelected)
+    const onlySelectedActive = balanceFilterActive && balanceOnlySelected
+    const filteredClubPayments = onlySelectedActive
         ? (allPayments as Payment[]).filter(p => guestIds.has(p.regular_member_id) || balanceFilterIds.has(p.regular_member_id))
         : (allPayments as Payment[])
+    const filteredClubExpenses = onlySelectedActive ? [] : (expenses as Expense[])
     const historyActualEvents = historyScope === 'club'
-        ? clubEventsFromBookings(filteredClubPayments, expenses as Expense[])
+        ? clubEventsFromBookings(filteredClubPayments, filteredClubExpenses)
         : memberPaymentEvents(historyMemberPayments as MemberPayment[])
     const historyOverlayEvents = historyScope === 'club'
         ? debtEventsFromTimeline(debtTimeline)

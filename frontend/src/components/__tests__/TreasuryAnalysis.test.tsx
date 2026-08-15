@@ -34,6 +34,15 @@ vi.mock('@/components/ui/ModeToggle.tsx', () => ({
     ),
 }))
 
+// Captures the events actually handed to the graph, so the "only selected" filter's effect on
+// the Kasse-scope actual line can be asserted without depending on the chart's own date windowing.
+vi.mock('@/components/treasury/BalanceHistoryChart.tsx', () => ({
+    BalanceHistoryChart: ({ actualEvents, overlayEvents, t }: any) =>
+        actualEvents.length === 0 && overlayEvents.length === 0
+            ? <div>{t('treasury.history.noData')}</div>
+            : <div data-testid="chart-actual-event-ids">{actualEvents.map((e: any) => e.id).join(',')}</div>,
+}))
+
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 const MEMBER_USER = {
@@ -129,5 +138,36 @@ describe('TreasuryAnalysis', () => {
         await setupMocks({ balances: [], expenses: [] })
         await renderAnalysis()
         await waitFor(() => expect(screen.getByText(/treasury\.history\.noData/)).toBeInTheDocument())
+    })
+
+    it('keeps club-wide expenses in the Kasse history line without a filter or during the leaving simulation', async () => {
+        const payments = [{ id: 1, regular_member_id: 5, member_name: 'Hansi', amount: 10, note: null, created_at: '2026-01-05T10:00:00', updated_at: null, date: null }]
+        await setupMocks({ payments })
+        await renderAnalysis()
+        await waitFor(() => expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('expense-1'))
+        expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('payment-1')
+
+        // Selecting a member without "Nur Auswahl anzeigen" simulates them leaving — expenses
+        // aren't attributable to a member and stay out of that simulation.
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getByTestId('balance-opt-only')).toBeInTheDocument())
+        expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('expense-1')
+    })
+
+    it('excludes club-wide expenses from the Kasse history line when "only selected" restricts the view', async () => {
+        const payments = [{ id: 1, regular_member_id: 5, member_name: 'Hansi', amount: 10, note: null, created_at: '2026-01-05T10:00:00', updated_at: null, date: null }]
+        await setupMocks({ payments })
+        await renderAnalysis()
+        await waitFor(() => expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('expense-1'))
+
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getByTestId('balance-opt-only')).toBeInTheDocument())
+        fireEvent.click(screen.getByTestId('balance-opt-only'))
+
+        await waitFor(() => {
+            const ids = screen.getByTestId('chart-actual-event-ids').textContent
+            expect(ids).toContain('payment-1')
+            expect(ids).not.toContain('expense-1')
+        })
     })
 })
