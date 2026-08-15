@@ -48,6 +48,8 @@ vi.mock('@/lib/turnOrder.ts', () => ({
     buildTurnOrder: vi.fn(() => []),
 }))
 vi.mock('@/lib/celebrate', () => ({ celebrate: vi.fn() }))
+const throwTrackingMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({ useThrowTracking: () => throwTrackingMock() }))
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +109,15 @@ async function renderTabletQuickEntry(props: Record<string, any> = {}) {
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
+
+// Reset the throw-tracking flag and turn-order stub before every test — individual tests below
+// override them, and without a blanket reset that would silently leak into unrelated tests further
+// down the file (mock return values survive vi.clearAllMocks(), which only clears call history).
+beforeEach(async () => {
+    throwTrackingMock.mockReturnValue(true)
+    const { buildTurnOrder } = await import('@/lib/turnOrder.ts')
+    vi.mocked(buildTurnOrder).mockReturnValue([])
+})
 
 describe('TabletQuickEntryPage — basic rendering', () => {
     beforeEach(async () => {
@@ -237,6 +248,52 @@ describe('TabletQuickEntryPage — running game', () => {
     it('shows finish game button for admin', async () => {
         await renderTabletQuickEntry()
         expect(screen.getByText(/quickEntry\.finishGame/)).toBeInTheDocument()
+    })
+})
+
+describe('TabletQuickEntryPage — turn order gated by throw tracking', () => {
+    const RUNNING_GAME = {
+        id: 1, name: 'Hauptspiel', status: 'running', is_opener: true,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 2.00,
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: 'alternating',
+        started_at: '2026-01-10T20:30:00', finished_at: null,
+        note: '', is_deleted: false, game_players: [],
+        throws: [],
+        active_player_id: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningWithGame = { ...ACTIVE_EVENING, games: [RUNNING_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: eveningWithGame as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.setActivePlayer).mockResolvedValue(undefined as any)
+        const { buildTurnOrder } = await import('@/lib/turnOrder.ts')
+        vi.mocked(buildTurnOrder).mockReturnValue(PLAYERS as any)
+        throwTrackingMock.mockReturnValue(true)
+    })
+
+    it('shows the turn-order row when throw tracking is on', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.getByText('quickEntry.currentPlayer')).toBeInTheDocument()
+        expect(screen.getByText(/quickEntry\.advanceTurn/)).toBeInTheDocument()
+    })
+
+    it('hides the turn-order row when throw tracking is off', async () => {
+        throwTrackingMock.mockReturnValue(false)
+        await renderTabletQuickEntry()
+        expect(screen.queryByText('quickEntry.currentPlayer')).not.toBeInTheDocument()
+        expect(screen.queryByText(/quickEntry\.advanceTurn/)).not.toBeInTheDocument()
     })
 })
 

@@ -105,8 +105,10 @@ Funktion. Vereine, deren Kegelbahn keine Wurfdaten liefert, können sie unter
 **Verein → Einstellungen → Wurf-Erfassung** ausschalten (Standard: aktiviert).
 
 Ist die Erfassung deaktiviert, werden alle wurfbezogenen Ansichten und Statistiken ausgeblendet:
-der Kamera-Knopf (📷) im Spiele-Tab, die Live-Wurf-Leiste in der Tablet-Schnellerfassung, die
+der Kamera-Knopf (📷) im Spiele-Tab, die Spieler-Reihenfolge (aktuelle Spielerin, Warteschlange,
+Team-Wechsel/Weiter-Taste) und die Live-Wurf-Leiste in der Tablet-Schnellerfassung, die
 Wurf-Anzeige in der Live-Ansicht, die Wurf-Performance-Karten (Profil, Jahresranking), die
 Wurf-Kennzahl auf dem Start-Dashboard, die Wurf-Statistiken in Abend-/Jahres-Auswertungen sowie
 die „Schwächster Wurf-Schnitt"-Auszeichnung der Halle der Schande. Strafen, Getränke, Spiele und
-Sieger-Auswahl bleiben unverändert nutzbar.
+Sieger-Auswahl bleiben unverändert nutzbar — die Spieler-Reihenfolge steuert ausschließlich, wen die
+Kamera als nächstes werfend erwartet, und ist ohne aktive Wurf-Erfassung ohne Zweck.
