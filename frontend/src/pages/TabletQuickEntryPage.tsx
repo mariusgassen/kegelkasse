@@ -661,8 +661,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     </div>
                 )}
 
-                {/* Row 2: turn order — current + queue + switch/advance */}
-                {activeGame && turnOrder.length > 0 && (
+                {/* Row 2: turn order — current + queue + switch/advance (camera/throw-tracking feature) */}
+                {throwTracking && activeGame && turnOrder.length > 0 && (
                     <div style={{
                         marginTop: 6,
                         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
@@ -1097,7 +1097,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
                             const isSelected = selectedPlayerIds.includes(p.id)
-                            const isCurrent = currentPlayer?.id === p.id
+                            const isCurrent = throwTracking && currentPlayer?.id === p.id
                             return (
                                 <button
                                     key={p.id}
