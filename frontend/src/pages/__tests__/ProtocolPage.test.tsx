@@ -1062,6 +1062,35 @@ describe('ProtocolPage — player filter chip', () => {
             expect(screen.getByText('Strafe')).toBeInTheDocument()
         })
     })
+
+    it('penalty count in heading reflects the active player filter', async () => {
+        await renderProtocolPage()
+        await waitFor(() => {
+            expect(screen.getByText(/nav\.penalties \(2\)/)).toBeInTheDocument()
+        })
+        const hansiChips = screen.getAllByText('Hansi')
+        fireEvent.click(hansiChips[0])
+        await waitFor(() => {
+            expect(screen.getByText(/nav\.penalties \(1\)/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows no filtered-sum preview when no filter is active', async () => {
+        await renderProtocolPage()
+        await waitFor(() => screen.getByText('action.all'))
+        expect(screen.queryByText(/penalty\.filteredTotal/)).not.toBeInTheDocument()
+    })
+
+    it('shows filtered-sum preview matching the filtered player total', async () => {
+        await renderProtocolPage()
+        await waitFor(() => screen.getAllByText('Admin'))
+        const hansiChips = screen.getAllByText('Hansi')
+        fireEvent.click(hansiChips[0])
+        await waitFor(() => {
+            // Hansi's only entry is a 0.50 € euro-mode penalty
+            expect(screen.getByText(/penalty\.filteredTotal.*0,50/)).toBeInTheDocument()
+        })
+    })
 })
 
 describe('ProtocolPage — game timeline events', () => {

@@ -377,6 +377,27 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const log = filterGame !== null
         ? logByPlayer.filter(l => filterGame === -1 ? l.game_id === null : l.game_id === filterGame)
         : logByPlayer
+    const isFiltered = filterPlayer !== null || filterGame !== null
+
+    // Treasury-style total (grouped by player, guest-capped) but restricted to the filtered log
+    const filteredEuroTotal = (() => {
+        let total = log
+            .filter(l => l.player_id === null)
+            .reduce((s, l) => s + entryEuroValue(l), 0)
+        const byPlayer = new Map<number, number>()
+        for (const l of log.filter(l => l.player_id !== null)) {
+            byPlayer.set(l.player_id!, (byPlayer.get(l.player_id!) ?? 0) + entryEuroValue(l))
+        }
+        for (const [pid, sum] of byPlayer) {
+            const player = players.find(p => p.id === pid)
+            const member = regularMembers.find(m => m.id === player?.regular_member_id)
+            const capped = member?.is_guest && guestPenaltyCap != null
+                ? Math.min(sum, guestPenaltyCap)
+                : sum
+            total += capped
+        }
+        return total
+    })()
 
     // Games that have at least one associated penalty
     const gamesWithPenalties = evening.games.filter(g => evening.penalty_log.some(l => l.game_id === g.id))
@@ -490,8 +511,15 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             )}
 
             {/* ── STRAFEN section heading ── */}
-            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-2">
-                ⚠️ {t('nav.penalties')} ({evening.penalty_log.length})
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
+                    ⚠️ {t('nav.penalties')} ({log.length})
+                </div>
+                {isFiltered && (
+                    <div className="text-xs font-extrabold text-accent-fg">
+                        {t('penalty.filteredTotal')}: {fe(filteredEuroTotal)}
+                    </div>
+                )}
             </div>
 
             {/* Log */}

@@ -182,6 +182,7 @@ export const de = {
     "penalty.absence.result": "Abwesende eingetragen",
     "penalty.absence.none": "Keine Abwesenden gefunden — nichts eingetragen.",
     "penalty.total": "Gesamtstrafen",
+    "penalty.filteredTotal": "Summe (Filter)",
     "penalty.date": "Zeitpunkt (Admin)",
     "game.title": "Spiele",
     "game.add": "Spiel",
