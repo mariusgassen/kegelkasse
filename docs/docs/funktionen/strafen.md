@@ -83,7 +83,9 @@ Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der D
 
 ## Strafenprotokoll filtern
 
-Im Strafenprotokoll können Einträge nach **Spieler** gefiltert werden:
+Im Strafenprotokoll können Einträge nach **Spieler** und/oder **Spiel** gefiltert werden:
 
-- Tippe auf einen **Spieler-Chip** in der Filterliste
-- Nur Strafen des ausgewählten Spielers werden angezeigt
+- Tippe auf einen **Spieler-Chip** bzw. **Spiel-Chip** in der Filterliste
+- Nur passende Strafen werden angezeigt
+- Die Zahl in der Überschrift „⚠️ Strafen (N)" zeigt die Anzahl der **gefilterten** Einträge
+- Sobald ein Filter aktiv ist, erscheint zusätzlich eine **Summen-Vorschau** („Summe (Filter): …") mit dem Gesamtbetrag der gerade sichtbaren Strafen (inkl. Gäste-Deckel)

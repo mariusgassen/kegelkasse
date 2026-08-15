@@ -130,6 +130,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Soft-delete (undo) without data loss
 - Spin wheel for random penalty-type selection
 - Absence penalties for missing regular members; timestamped with the evening's end time (`ended_at`), not the moment the penalty was calculated. Calculating (and re-calculating) reports its outcome: the button shows a loading state, then a toast states how many absentees were entered and the average amount — or says explicitly that nobody was missing and nothing was entered. Member and guest balances are refreshed afterwards, since the calculation moves them
+- Protocol player/game filter chips: the "⚠️ Strafen (N)" heading count and the guest-capped filtered sum preview ("Summe (Filter): …", shown only while a filter is active) both reflect the filtered list, not the evening's full log
 
 ### Games
 
