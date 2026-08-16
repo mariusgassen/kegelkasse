@@ -7,6 +7,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({ useT: () => (key: string) => key }))
 
+const mockNavigate = vi.fn((..._args: unknown[]) => Promise.resolve())
+vi.mock('@/router', () => ({
+    router: { navigate: (...args: unknown[]) => mockNavigate(...args) },
+}))
+
 vi.mock('@/hooks/useEvening.ts', () => ({
     useActiveEvening: vi.fn(() => ({
         evening: null,
@@ -211,24 +216,17 @@ describe('EveningPage — no active evening', () => {
         expect(screen.getByText(/nav\.evening/)).toBeInTheDocument()
     })
 
-    it('shows start evening form', async () => {
+    it('shows a hint to start evenings from the schedule instead of a start form', async () => {
         await renderEveningPage()
-        expect(screen.getByText('evening.start')).toBeInTheDocument()
+        expect(screen.getByText('evening.noActiveHint')).toBeInTheDocument()
+        expect(screen.queryByText('evening.start')).not.toBeInTheDocument()
+        expect(screen.queryByText('evening.startButton')).not.toBeInTheDocument()
     })
 
-    it('shows date label', async () => {
+    it('navigates to the schedule page on click', async () => {
         await renderEveningPage()
-        expect(screen.getByText('evening.date')).toBeInTheDocument()
-    })
-
-    it('shows venue label', async () => {
-        await renderEveningPage()
-        expect(screen.getByText('evening.venue')).toBeInTheDocument()
-    })
-
-    it('shows start action button', async () => {
-        await renderEveningPage()
-        expect(screen.getByText('evening.startButton')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('evening.goToSchedule'))
+        expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/schedule' }))
     })
 })
 
@@ -649,54 +647,6 @@ describe('EveningPage — note display', () => {
         await renderEveningPage()
         // ACTIVE_EVENING has note: 'Testabend'
         expect(screen.getByText('Testabend')).toBeInTheDocument()
-    })
-})
-
-describe('EveningPage — start evening form interaction', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
-        } as any)
-        const { useAppStore } = await import('@/store/app.ts')
-        vi.mocked(useAppStore).mockReturnValue({
-            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
-        } as any)
-        await setupDefaultApiMocks()
-    })
-
-    it('calls api.createEvening on form submit', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.createEvening).mockResolvedValueOnce({ id: 99 } as any)
-        await renderEveningPage()
-        fireEvent.click(screen.getByText('evening.startButton'))
-        await waitFor(() => {
-            expect(api.createEvening).toHaveBeenCalled()
-        })
-    })
-
-    it('shows UnplannedAttendanceSheet after evening created', async () => {
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.createEvening).mockResolvedValueOnce({ id: 99 } as any)
-        await renderEveningPage()
-        fireEvent.click(screen.getByText('evening.startButton'))
-        await waitFor(() => {
-            // After creating evening, UnplannedAttendanceSheet renders as a sheet
-            expect(screen.getByText('evening.attendance')).toBeInTheDocument()
-        })
-    })
-
-    it('shows venue input', async () => {
-        await renderEveningPage()
-        expect(screen.getByPlaceholderText('evening.venuePlaceholder')).toBeInTheDocument()
-    })
-
-    it('updates venue when typed', async () => {
-        await renderEveningPage()
-        const venueInput = screen.getByPlaceholderText('evening.venuePlaceholder')
-        fireEvent.change(venueInput, { target: { value: 'New Venue' } })
-        expect(venueInput).toHaveValue('New Venue')
     })
 })
 
@@ -1418,52 +1368,6 @@ describe('EveningPage — UnplannedAttendanceSheet member interactions', () => {
     })
 })
 
-describe('EveningPage — offline state', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
-        } as any)
-        const { useOnline } = await import('@/hooks/useOnline.ts')
-        vi.mocked(useOnline).mockReturnValue(false)
-        const { useAppStore } = await import('@/store/app.ts')
-        vi.mocked(useAppStore).mockReturnValue({
-            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
-        } as any)
-        await setupDefaultApiMocks()
-    })
-
-    it('shows offline hint on start form when offline', async () => {
-        await renderEveningPage()
-        expect(screen.getByText(/offline\.startHint/)).toBeInTheDocument()
-    })
-})
-
-describe('EveningPage — club settings autofill', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
-        } as any)
-        const { useAppStore } = await import('@/store/app.ts')
-        vi.mocked(useAppStore).mockReturnValue({
-            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
-        } as any)
-        const { api } = await import('@/api/client.ts')
-        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { home_venue: 'Stammtisch Mitte', default_evening_time: '19:30' } } as any)
-        vi.mocked(api.listPins).mockResolvedValue([])
-    })
-
-    it('prefills venue from club home_venue setting', async () => {
-        await renderEveningPage()
-        await waitFor(() => {
-            expect(screen.getByDisplayValue('Stammtisch Mitte')).toBeInTheDocument()
-        })
-    })
-})
-
 describe('EveningPage — member user (non-admin) view', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
@@ -1548,44 +1452,6 @@ describe('EveningPage — confirm remove player cancel', () => {
 })
 
 // ── start form onChange handlers ──────────────────────────────────────────────
-describe('EveningPage — start form input interactions', () => {
-    beforeEach(async () => {
-        vi.clearAllMocks()
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: null, invalidate: vi.fn(), activeEveningId: null, isPending: false,
-        } as any)
-        const { useAppStore } = await import('@/store/app.ts')
-        vi.mocked(useAppStore).mockReturnValue({
-            user: ADMIN_USER, regularMembers: REGULAR_MEMBERS, setActiveEveningId: vi.fn(),
-        } as any)
-        await setupDefaultApiMocks()
-    })
-
-    it('updates date input value when changed', async () => {
-        await renderEveningPage()
-        const dateInput = document.querySelector('input[type="date"]')
-        expect(dateInput).toBeTruthy()
-        fireEvent.change(dateInput!, { target: { value: '2026-05-15' } })
-        expect(dateInput).toHaveValue('2026-05-15')
-    })
-
-    it('updates time input value when changed', async () => {
-        await renderEveningPage()
-        const timeInput = document.querySelector('input[type="time"]')
-        expect(timeInput).toBeTruthy()
-        fireEvent.change(timeInput!, { target: { value: '20:30' } })
-        expect(timeInput).toHaveValue('20:30')
-    })
-
-    it('updates note input value when changed', async () => {
-        await renderEveningPage()
-        const noteInput = screen.getByPlaceholderText('common.optional')
-        fireEvent.change(noteInput, { target: { value: 'Test note' } })
-        expect(noteInput).toHaveValue('Test note')
-    })
-})
-
 // ── edit evening sheet input interactions ────────────────────────────────────
 describe('EveningPage — edit sheet input interactions', () => {
     beforeEach(async () => {

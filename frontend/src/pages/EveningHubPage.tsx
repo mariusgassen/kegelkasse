@@ -73,7 +73,7 @@ export function EveningHubPage() {
         return flashDeepLinkTarget(`item-${target.id}`)
     }, [deepLinkItemId, subTab, evening]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // No active evening — EveningPage owns the full start-evening flow
+    // No active evening — EveningPage shows the "start from schedule" hint
     if (!activeEveningId) {
         return <EveningPage/>
     }

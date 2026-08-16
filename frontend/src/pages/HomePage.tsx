@@ -11,7 +11,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Trophy, ChevronRight} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
-import {useAppStore, isAdmin} from '@/store/app.ts'
+import {useAppStore} from '@/store/app.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {router} from '@/router'
 import {toastError} from '@/utils/error.ts'
@@ -299,21 +299,6 @@ export function HomePage() {
                         <div className="text-sm text-muted">{t('home.eveningLive.sub')}</div>
                     </div>
                     <ChevronRight size={16} strokeWidth={2.5} className="text-accent-fg flex-shrink-0"/>
-                </button>
-            )}
-
-            {/* Start-evening callout (admins only, when nothing is running). The evening nav tab is
-                hidden while no evening is active, so this is the admin's entry to the start form. */}
-            {!activeEveningId && isAdmin(user) && (
-                <button
-                    onClick={() => router.navigate({to: '/evening'}).catch(() => {})}
-                    className="w-full kce-card p-3 flex items-center gap-3 text-left active:scale-[0.99] transition-transform">
-                    <Trophy size={22} strokeWidth={2.2} className="text-muted flex-shrink-0"/>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">{t('home.startEvening.title')}</div>
-                        <div className="text-sm text-muted">{t('home.startEvening.sub')}</div>
-                    </div>
-                    <ChevronRight size={16} strokeWidth={2.5} className="text-muted flex-shrink-0"/>
                 </button>
             )}
 

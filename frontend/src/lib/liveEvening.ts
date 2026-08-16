@@ -104,6 +104,12 @@ export interface EventFeedOptions {
      * club's throw-tracking setting (#78) — a club that records no throws never sees the kind.
      */
     throws?: boolean
+    /**
+     * Translator for the drink-round fallback label (used when the round has no `variety`).
+     * Optional so the function stays callable without an i18n context (e.g. plain unit tests);
+     * omitting it falls back to the German label, matching the feed's pre-i18n behavior.
+     */
+    t?: (key: 'drinks.beer' | 'drinks.shots') => string
 }
 
 /**
@@ -112,7 +118,7 @@ export interface EventFeedOptions {
  * Kegelname convention.
  */
 export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions = {}): LiveEvent[] {
-    const {limit = 30, throws = false} = opts
+    const {limit = 30, throws = false, t} = opts
     if (!evening) return []
     const byId = new Map(evening.players.map(p => [p.id, p]))
     const events: LiveEvent[] = []
@@ -139,7 +145,9 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
             key: `drink-${d.id}`,
             ts: d.client_timestamp,
             icon: d.drink_type === 'shots' ? '🥃' : '🍺',
-            title: d.variety || (d.drink_type === 'shots' ? 'Schnaps' : 'Bier'),
+            title: d.variety || (t
+                ? (d.drink_type === 'shots' ? t('drinks.shots') : t('drinks.beer'))
+                : (d.drink_type === 'shots' ? 'Schnaps' : 'Bier')),
             subtitle: names.length > 0 ? names.join(', ') : null,
             amount: null,
         })

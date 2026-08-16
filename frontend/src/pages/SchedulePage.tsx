@@ -13,11 +13,14 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {buildEventFeed} from '@/lib/liveEvening.ts'
+import {EventTicker} from '@/components/evening/EventTicker.tsx'
 
 const TODAY = todayDateInput()
 
@@ -844,6 +847,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
+    const throwTracking = useThrowTracking()
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -1033,37 +1037,16 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         ))}
                                                     </div>
                                                 )}
-                                                {detail.penalty_log.length > 0 && (() => {
-                                                    const totals = new Map<string, { name: string; amount: number }>()
-                                                    for (const l of detail.penalty_log) {
-                                                        const cur = totals.get(l.player_name) ?? {name: l.player_name, amount: 0}
-                                                        totals.set(l.player_name, {...cur, amount: cur.amount + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0))})
-                                                    }
-                                                    return (
-                                                        <div className="mb-3">
-                                                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
-                                                                ⚠️ {t('penalty.title')}
-                                                            </div>
-                                                            {[...totals.values()].sort((a, b) => b.amount - a.amount).map(({name, amount}) => (
-                                                                <div key={name} className="flex items-center justify-between py-0.5">
-                                                                    <span className="text-xs text-ink">{name}</span>
-                                                                    <span className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )
-                                                })()}
-                                                {detail.drink_rounds.length > 0 && (
+                                                {(detail.penalty_log.length > 0 || detail.drink_rounds.length > 0) && (
                                                     <div className="mb-3">
-                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1">
-                                                            🍺 {t('drinks.title')}
+                                                        <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                            🕒 {t('live.ticker')}
                                                         </div>
-                                                        <div className="text-xs text-muted">
-                                                            {detail.drink_rounds.filter(r => r.drink_type === 'beer').length}× {t('drinks.beer')}
-                                                            {detail.drink_rounds.filter(r => r.drink_type === 'shots').length > 0 && (
-                                                                <> · {detail.drink_rounds.filter(r => r.drink_type === 'shots').length}× {t('drinks.shots')}</>
-                                                            )}
-                                                        </div>
+                                                        {/* Highlights get their own section with photos below, so they're
+                                                            left out here to avoid showing the same entry twice. */}
+                                                        <EventTicker
+                                                            events={buildEventFeed(detail, {limit: Infinity, throws: throwTracking, t})
+                                                                .filter(e => e.kind !== 'highlight')}/>
                                                     </div>
                                                 )}
                                                 {detail.highlights.length > 0 && (

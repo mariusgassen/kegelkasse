@@ -135,6 +135,33 @@ describe('buildEventFeed', () => {
         expect(buildEventFeed(ev)[0].icon).toBe('🥃')
     })
 
+    it('falls back to the German drink label without a translator', () => {
+        const ev = evening({drink_rounds: [
+            drink(1, {drink_type: 'beer', client_timestamp: 1000}),
+            drink(2, {drink_type: 'shots', client_timestamp: 2000}),
+        ]})
+        const [shots, beer] = buildEventFeed(ev) // newest (2000) first
+        expect(shots.title).toBe('Schnaps')
+        expect(beer.title).toBe('Bier')
+    })
+
+    it('uses the given translator for the drink label when provided', () => {
+        const ev = evening({drink_rounds: [
+            drink(1, {drink_type: 'beer', client_timestamp: 1000}),
+            drink(2, {drink_type: 'shots', client_timestamp: 2000}),
+        ]})
+        const t = (key: 'drinks.beer' | 'drinks.shots') => (key === 'drinks.beer' ? 'Beer' : 'Shots')
+        const [shots, beer] = buildEventFeed(ev, {t})
+        expect(shots.title).toBe('Shots')
+        expect(beer.title).toBe('Beer')
+    })
+
+    it('prefers a custom variety over the translated fallback label', () => {
+        const ev = evening({drink_rounds: [drink(1, {drink_type: 'beer', variety: 'Weizen'})]})
+        const t = (key: 'drinks.beer' | 'drinks.shots') => (key === 'drinks.beer' ? 'Beer' : 'Shots')
+        expect(buildEventFeed(ev, {t})[0].title).toBe('Weizen')
+    })
+
     it('caps the feed at the given limit', () => {
         const ev = evening({penalty_log: [penalty(1), penalty(2), penalty(3)]})
         expect(buildEventFeed(ev, {limit: 2})).toHaveLength(2)

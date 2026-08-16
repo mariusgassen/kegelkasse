@@ -133,20 +133,6 @@ describe('HomePage', () => {
         expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({to: '/evening', search: {tab: 'manage'}}))
     })
 
-    it('shows the admin start-evening callout when nothing is active', async () => {
-        storeState.user = {regular_member_id: 7, name: 'Rudi', preferred_locale: 'de', role: 'admin'} as any
-        await renderHome()
-        await waitFor(() => screen.getByText('home.startEvening.title'))
-        fireEvent.click(screen.getByText('home.startEvening.title'))
-        expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({to: '/evening'}))
-    })
-
-    it('does not show the start-evening callout for non-admins', async () => {
-        await renderHome()
-        await waitFor(() => expect(screen.getByText('home.greeting')).toBeInTheDocument())
-        expect(screen.queryByText('home.startEvening.title')).not.toBeInTheDocument()
-    })
-
     it('shows the balance and its state label', async () => {
         api.getMyBalance.mockResolvedValue({regular_member_id: 7, penalty_total: 10, payments_total: 0, balance: -10})
         await renderHome()
