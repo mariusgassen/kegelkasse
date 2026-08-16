@@ -99,6 +99,12 @@ Handy am leichtesten erreicht. Auf breiten Bildschirmen (Desktop oder Tablet im 
 wandert dieselbe Navigation automatisch als **Seitenleiste an den linken Rand**, damit die zusätzliche
 Breite genutzt wird.
 
+Ein Pfeil-Knopf oben in dieser Seitenleiste klappt sie bei Bedarf auf einen schmalen Symbol-Streifen
+zusammen — praktisch bei breiten Tabellen (z. B. in der Kasse), wenn der Inhalt die volle Bildschirmbreite
+gebrauchen kann. Die Symbole und ihre Sprungziele bleiben erreichbar, nur die Beschriftungen daneben
+verschwinden; ein erneuter Klick klappt die Leiste wieder aus. Die Wahl merkt sich die App bis zum nächsten
+Auf- oder Zuklappen.
+
 Die Leiste ist bewusst kurz gehalten: **🏠 Start · 💰 Kasse · 📅 Termine · 🤝 Verein** — für alle
 Mitglieder gleich. Läuft gerade ein Kegelabend, erscheint zusätzlich der **🏆 Abend**-Tab; ist keiner
 aktiv, fällt er weg.

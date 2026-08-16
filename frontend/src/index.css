@@ -275,6 +275,13 @@
             grid-template-columns: 224px minmax(0, 1fr);
             grid-template-rows: auto minmax(0, 1fr);
             grid-template-areas: "nav header" "nav main";
+            transition: grid-template-columns var(--motion-base) var(--ease-standard);
+        }
+
+        /* Collapsed rail — icon-only strip, freeing the content column for full-width layouts
+           (wide tables, master-detail panes). Toggled by the rail's own collapse button. */
+        .app-shell.nav-collapsed {
+            grid-template-columns: 72px minmax(0, 1fr);
         }
 
         /* Cap the readable content beside the rail and centre it in the remaining space, so the
@@ -314,6 +321,54 @@
            (nav at the top, meta at the bottom) rather than items stacked over dead space. */
         .app-nav-footer {
             margin-top: auto;
+        }
+
+        .nav-collapse-btn {
+            width: 100%;
+            min-height: 36px;
+            margin-bottom: 6px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: color var(--motion-fast) var(--ease-standard),
+                        background-color var(--motion-fast) var(--ease-standard);
+        }
+
+        .nav-collapse-btn:hover,
+        .nav-collapse-btn:active {
+            color: var(--accent-fg);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+
+        /* Collapsed rail: icon-only. Labels stay in the DOM (accessible name, no layout jump
+           when re-expanding) but are visually clipped, and the version footer has no room left. */
+        .app-shell.nav-collapsed .nav-btn {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .app-shell.nav-collapsed .nav-btn span {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .app-shell.nav-collapsed .app-nav-footer {
+            display: none;
+        }
+
+        /* Drop the 1040px reading-width cap while collapsed — the whole point of shrinking the
+           rail is to hand the freed space to the content (wide tables, master-detail panes). */
+        .app-shell.nav-collapsed .app-header > header > div,
+        .app-shell.nav-collapsed .app-main {
+            max-width: none;
         }
     }
 

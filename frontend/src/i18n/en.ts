@@ -67,6 +67,8 @@ export const en = {
     "nav.club": "Club",
     "nav.verein": "Club",
     "nav.manage": "Management",
+    "nav.collapse": "Collapse navigation",
+    "nav.expand": "Expand navigation",
     "home.greeting": "Hi, {name} 👋",
     "home.greetingNoName": "Welcome 👋",
     "home.subtitle": "Your overview for today",

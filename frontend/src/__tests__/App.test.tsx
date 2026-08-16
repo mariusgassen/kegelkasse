@@ -680,6 +680,40 @@ describe('App — authenticated interactions', () => {
         expect(shell!.querySelector('main.app-main')).not.toBeNull()
     })
 
+    describe('desktop/tablet side-rail collapse', () => {
+        afterEach(async () => {
+            const { useNavCollapsedStore } = await import('@/store/navCollapsed.ts')
+            useNavCollapsedStore.setState({ collapsed: false })
+        })
+
+        it('rail is expanded by default and can be collapsed for full-width content', async () => {
+            await renderApp()
+            await waitFor(() => screen.getByRole('navigation'))
+            expect(document.querySelector('.app-shell')!.classList.contains('nav-collapsed')).toBe(false)
+
+            const toggle = screen.getByRole('button', { name: 'nav.collapse' })
+            fireEvent.click(toggle)
+
+            await waitFor(() => {
+                expect(document.querySelector('.app-shell')!.classList.contains('nav-collapsed')).toBe(true)
+            })
+            // Accessible name flips so a screen reader / next click knows it now expands.
+            expect(screen.getByRole('button', { name: 'nav.expand' })).toBeInTheDocument()
+        })
+
+        it('clicking the toggle again re-expands the rail', async () => {
+            await renderApp()
+            await waitFor(() => screen.getByRole('navigation'))
+            fireEvent.click(screen.getByRole('button', { name: 'nav.collapse' }))
+            await waitFor(() => screen.getByRole('button', { name: 'nav.expand' }))
+            fireEvent.click(screen.getByRole('button', { name: 'nav.expand' }))
+            await waitFor(() => {
+                expect(document.querySelector('.app-shell')!.classList.contains('nav-collapsed')).toBe(false)
+            })
+            expect(screen.getByRole('button', { name: 'nav.collapse' })).toBeInTheDocument()
+        })
+    })
+
     it('shows club logo img when club has logo_url', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue({

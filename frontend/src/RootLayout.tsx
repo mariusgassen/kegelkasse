@@ -20,6 +20,8 @@ import {
     Settings,
     Bell,
     Search,
+    ChevronsLeft,
+    ChevronsRight,
     type LucideIcon,
 } from 'lucide-react'
 import {useAppStore} from './store/app'
@@ -27,6 +29,7 @@ import {useT} from './i18n'
 import {api} from './api/client'
 import {router} from './router'
 import {usePage} from './hooks/usePage'
+import {useNavCollapsedStore} from './store/navCollapsed'
 import {usePullToRefresh} from './hooks/usePullToRefresh'
 import {PullToRefreshIndicator} from './components/PullToRefreshIndicator'
 import {AppLogoAnimated} from './components/Logo'
@@ -79,6 +82,9 @@ export function RootLayout() {
     const [page, setPage] = usePage<PageId>('evening', [...ROUTE_PAGES])
     const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin'
     const inVerein = VEREIN_PAGES.includes(page)
+    // Side-rail collapse (≥lg only — the bottom bar on mobile ignores this entirely).
+    const navCollapsed = useNavCollapsedStore(s => s.collapsed)
+    const toggleNavCollapsed = useNavCollapsedStore(s => s.toggle)
     const [profileOpen, setProfileOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
@@ -131,7 +137,7 @@ export function RootLayout() {
     }, [])
 
     return (
-        <div className="app-shell">
+        <div className={`app-shell${navCollapsed ? ' nav-collapsed' : ''}`}>
             {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
             <div className="app-header">
                 {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
@@ -251,6 +257,15 @@ export function RootLayout() {
 
             {/* ── Nav — bottom tab bar on mobile, side rail on ≥lg (via .app-nav grid area) ── */}
             <nav className="app-nav">
+                {/* Rail collapse toggle — desktop/tablet only, gives the content column full width
+                    when the rail is in the way (e.g. wide tables, side-by-side layouts). */}
+                <button
+                    type="button"
+                    aria-label={t(navCollapsed ? 'nav.expand' : 'nav.collapse')}
+                    onClick={toggleNavCollapsed}
+                    className="nav-collapse-btn hidden lg:flex items-center justify-center rounded-lg text-muted">
+                    {navCollapsed ? <ChevronsRight size={16} strokeWidth={2}/> : <ChevronsLeft size={16} strokeWidth={2}/>}
+                </button>
                 {PRIMARY_NAV.filter(n =>
                     // The evening tab only appears while an evening is running — no dead tab when
                     // nothing is active. Admins start one from the home dashboard / schedule.

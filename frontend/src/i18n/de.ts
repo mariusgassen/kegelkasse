@@ -67,6 +67,8 @@ export const de = {
     "nav.club": "Verein",
     "nav.verein": "Verein",
     "nav.manage": "Verwaltung",
+    "nav.collapse": "Navigation einklappen",
+    "nav.expand": "Navigation ausklappen",
     "home.greeting": "Hallo, {name} 👋",
     "home.greetingNoName": "Willkommen 👋",
     "home.subtitle": "Dein Überblick für heute",
