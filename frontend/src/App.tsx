@@ -15,6 +15,7 @@ import {AppLogoAnimated} from './components/Logo'
 import {showToast} from './components/ui/Toast'
 import {useActiveEvening} from './hooks/useEvening'
 import {useNotificationStore} from './store/notifications'
+import {useBowlingStore} from './store/bowling'
 import {router} from './router'
 import {WifiOff} from 'lucide-react'
 import {hexToHsl, hslToHex} from './lib/color'
@@ -210,6 +211,12 @@ export default function App() {
             setLocale(user.preferred_locale as Locale)
         }
     }, [user?.preferred_locale])
+
+    // Resets the on-device bowling Easter-egg state (#80) when a different user takes over a
+    // shared device, so a member never inherits another member's "discovered" flag/high score.
+    useEffect(() => {
+        if (user?.id != null) useBowlingStore.getState().syncOwner(user.id)
+    }, [user?.id])
 
     // Apply club theme whenever club data or the user's light/dark/system preference changes;
     // in 'system' mode also react to the OS-level prefers-color-scheme flipping without a reload.
