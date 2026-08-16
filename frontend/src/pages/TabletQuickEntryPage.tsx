@@ -318,9 +318,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             if (throwTracking && newThrows.some(th => th.pins >= 9)) {
                 celebrate('allnine', t('celebration.allnine'))
             }
-            if (throwTracking && audioCallouts && newThrows.some(th => th.pins === 0)) {
-                playSound('buzzer')
-            }
         }
     }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
 

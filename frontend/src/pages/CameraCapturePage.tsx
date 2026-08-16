@@ -18,8 +18,6 @@ import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import {celebrate} from '@/lib/celebrate'
-import {playSound} from '@/lib/soundboard'
-import {useAudioCallouts} from '@/hooks/useClub.ts'
 import type {EveningPlayer, Game} from '@/types.ts'
 import {
     CalibrationData,
@@ -81,7 +79,6 @@ function loadCalibration(): CalibrationData {
 
 export function CameraCapturePage({onClose}: Props) {
     const t = useT()
-    const audioCallouts = useAudioCallouts()
     const {evening, invalidate} = useActiveEvening()
     const user = useAppStore(s => s.user)
 
@@ -312,7 +309,6 @@ export function CameraCapturePage({onClose}: Props) {
                                 player_id: currentPid,
                             }).catch(() => {})
                             if (r.throwPins! >= 9) celebrate('allnine', t('celebration.allnine'))
-                            else if (r.throwPins === 0 && audioCallouts) playSound('buzzer')
                         }
                     } else if (!isKiosk) {
                         // Detecting mode: queue for confirmation (game may or may not be active)
@@ -390,7 +386,6 @@ export function CameraCapturePage({onClose}: Props) {
                     player_id: currentPid,
                 }).catch(() => {}) // silent — local state is the source of truth
                 if (r.throwPins >= 9) celebrate('allnine', t('celebration.allnine'))
-                else if (r.throwPins === 0 && audioCallouts) playSound('buzzer')
             }
         }
         pendingRef.current = null
@@ -495,7 +490,6 @@ export function CameraCapturePage({onClose}: Props) {
                 player_id: effectivePlayerId,
             })
             if (testPins >= 9) celebrate('allnine', t('celebration.allnine'))
-            else if (testPins === 0 && audioCallouts) playSound('buzzer')
             setTestThrowNum(prev => prev + 1)
             advanceKioskTurn(eid, gid)
         } catch (e) {

@@ -2,8 +2,9 @@ import {useEffectsStore} from '@/store/effects'
 import {ensureAudioContext} from '@/lib/audioContext'
 
 /**
- * Configurable audio call-outs (cherry-on-top feature): a fixed 0-pin buzzer plus per-PenaltyType
- * sounds an admin picks from this preset catalog. All synthesized via Web Audio — no audio file
+ * Configurable audio call-outs (cherry-on-top feature): per-PenaltyType sounds an admin picks from
+ * this preset catalog — e.g. assign the buzzer to a "0 pins" penalty type instead of hardcoding it
+ * to a gutter throw. All synthesized via Web Audio — no audio file
  * uploads, no CDN, no storage — same zero-dependency approach as the chimes in `celebrate.ts`
  * (which now shares this module's `ensureAudioContext()` singleton instead of opening its own).
  *
@@ -92,10 +93,14 @@ function noiseBurst(ctx: AudioContext, start: number, duration: number, filterFr
 
 const RENDERERS: Record<SoundPresetKey, (ctx: AudioContext, now: number) => void> = {
     buzzer: (ctx, now) => {
-        // Two close low square oscillators beating against each other — the classic game-show
-        // "wrong answer" buzz — held for half a second then cut.
-        tone(ctx, 110, 'square', now, 0.5, 0.18)
-        tone(ctx, 116, 'square', now, 0.5, 0.18)
+        // Three closely-detuned low sawtooths beating against each other, plus a filtered noise
+        // rasp for grit — the classic game-show "wrong answer" buzz. Sawtooth (not square) carries
+        // more high harmonics for bite, and the preset runs louder than its neighbors on purpose:
+        // it's meant to read as an alarm, not a chime.
+        tone(ctx, 100, 'sawtooth', now, 0.6, 0.32)
+        tone(ctx, 104, 'sawtooth', now, 0.6, 0.32)
+        tone(ctx, 108, 'sawtooth', now, 0.6, 0.28)
+        noiseBurst(ctx, now, 0.6, 350, 0.15)
     },
     bell: (ctx, now) => {
         tone(ctx, 880, 'sine', now, 0.9, 0.22)

@@ -50,9 +50,9 @@ Zwei Momente lösen einen kurzen Konfetti-Effekt inklusive Sound aus: die **Kön
 - Kann in **Profil → Einstellungen → 🎉 Feier-Effekte** komplett deaktiviert werden
 - Respektiert die Systemeinstellung „Bewegung reduzieren" (`prefers-reduced-motion`) — dann bleibt nur der Ton, ohne Konfetti-Animation
 
-Ein Wurf mit **0 Kegeln** löst spiegelbildlich einen 🚨-Buzzer aus (kein Konfetti, nur der Ton) —
-an denselben Erfassungsstellen. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-) für den
-club-weiten Ein-/Ausschalter.
+Ein Wurf mit 0 Kegeln löst keinen eigenen Ton mehr aus — stattdessen wird der 🚨-Buzzer (oder ein
+anderer Sound) einem passenden Strafentyp zugewiesen und spielt automatisch beim Eintragen dieser
+Strafe. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-).
 
 ## Verliererstrafen
 
