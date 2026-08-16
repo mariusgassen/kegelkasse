@@ -158,8 +158,24 @@ describe('LiveEveningView', () => {
             games: [runningGame(1, [{id: 1, throw_num: 1, pins: 9, cumulative: 9, pin_states: [], player_id: 1}])],
         })
         renderView(ev)
-        // Scoreboard + active player still render, but the throw readout is gone.
+        // Scoreboard still renders, but the throw readout is gone.
         expect(screen.getByText('live.running')).toBeInTheDocument()
         expect(screen.queryByText('live.lastThrow')).not.toBeInTheDocument()
+    })
+
+    it('hides the active/next player (active_player_id is camera-only) when throw tracking is disabled', () => {
+        throwTrackingMock.mockReturnValue(false)
+        const ev = evening({
+            players: [
+                {id: 1, name: 'Rudi', nickname: 'Der Rudi', regular_member_id: null, team_id: null, is_king: false},
+                {id: 2, name: 'Toni', nickname: null, regular_member_id: null, team_id: null, is_king: false},
+            ],
+            games: [runningGame(1)],
+        })
+        renderView(ev)
+        expect(screen.getByText('live.running')).toBeInTheDocument()
+        expect(screen.queryByText('live.onTurn')).not.toBeInTheDocument()
+        expect(screen.queryByText('Der Rudi')).not.toBeInTheDocument()
+        expect(screen.queryByText(/live\.next/)).not.toBeInTheDocument()
     })
 })

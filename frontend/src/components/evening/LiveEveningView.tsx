@@ -57,28 +57,30 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                         </span>
                     </div>
 
-                    <div className="flex items-end justify-between gap-3 mt-3">
-                        <div className="min-w-0">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.onTurn')}</div>
-                            <div className="font-display font-bold text-2xl text-ink truncate">
-                                {activePlayer ? (activePlayer.nickname || activePlayer.name) : '—'}
+                    {throwTracking && (
+                        <div className="flex items-end justify-between gap-3 mt-3">
+                            <div className="min-w-0">
+                                <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.onTurn')}</div>
+                                <div className="font-display font-bold text-2xl text-ink truncate">
+                                    {activePlayer ? (activePlayer.nickname || activePlayer.name) : '—'}
+                                </div>
+                                {nextPlayer && (
+                                    <div className="text-sm text-muted mt-0.5 truncate">
+                                        {t('live.next')}: {nextPlayer.nickname || nextPlayer.name}
+                                    </div>
+                                )}
                             </div>
-                            {nextPlayer && (
-                                <div className="text-sm text-muted mt-0.5 truncate">
-                                    {t('live.next')}: {nextPlayer.nickname || nextPlayer.name}
+                            {lastThrow && (
+                                <div className="text-right flex-shrink-0">
+                                    <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
+                                    <div className="font-display font-bold text-3xl text-accent-fg leading-none">{lastThrow.pins}</div>
+                                    {lastThrow.cumulative != null && (
+                                        <div className="text-sm text-muted mt-0.5">Σ {lastThrow.cumulative}</div>
+                                    )}
                                 </div>
                             )}
                         </div>
-                        {throwTracking && lastThrow && (
-                            <div className="text-right flex-shrink-0">
-                                <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
-                                <div className="font-display font-bold text-3xl text-accent-fg leading-none">{lastThrow.pins}</div>
-                                {lastThrow.cumulative != null && (
-                                    <div className="text-sm text-muted mt-0.5">Σ {lastThrow.cumulative}</div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                    )}
                 </div>
             ) : (
                 <button onClick={onGoGames}
