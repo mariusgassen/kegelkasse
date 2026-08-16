@@ -24,7 +24,11 @@ Tippe auf einen Abend, um die vollständige Übersicht zu sehen:
 
 - Alle **Spieler** des Abends
 - Alle **Spiele** mit Ergebnissen
-- Das vollständige **Strafenprotokoll**
+- Das vollständige **Strafenprotokoll** als chronologische Zeitleiste (neueste zuerst), inklusive
+  **▶ Spiel gestartet** / **🏁 Spiel beendet**-Markierungen an der richtigen Stelle im Verlauf —
+  genau wie im Protokoll-Tab des laufenden Abends
+- **Spieler- und Spiel-Filter** über der Zeitleiste, um sie auf eine Person oder ein bestimmtes
+  Spiel einzugrenzen (inkl. „✋ Manuell" für spielunabhängige Strafen)
 - Alle **Getränkerunden**
 - Die **Kassenübersicht** mit Ranking
 

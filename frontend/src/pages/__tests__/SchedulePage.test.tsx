@@ -885,10 +885,13 @@ const CLOSED_EVENING_DETAIL = {
         { id: 2, name: 'Klaus', is_king: false, regular_member_id: 2 },
     ],
     games: [
-        { id: 1, name: 'Eröffnungsspiel', status: 'finished', is_opener: true, winner_name: 'Hans', is_deleted: false, throws: [] },
+        {
+            id: 1, name: 'Eröffnungsspiel', status: 'finished', is_opener: true, winner_name: 'Hans', is_deleted: false, throws: [],
+            started_at: '2025-12-15T20:00:00Z', finished_at: '2025-12-15T20:30:00Z',
+        },
     ],
     penalty_log: [
-        { id: 1, player_name: 'Hans', amount: 2.50, mode: 'euro', unit_amount: null, player_id: 1, is_deleted: false },
+        { id: 1, player_name: 'Hans', amount: 2.50, mode: 'euro', unit_amount: null, player_id: 1, game_id: 1, client_timestamp: 1765829400000, is_deleted: false },
     ],
     drink_rounds: [
         { id: 1, drink_type: 'beer', participant_ids: [1, 2] },
@@ -1136,6 +1139,43 @@ describe('SchedulePage — history detail expansion', () => {
         fireEvent.click(screen.getByText(/Stammlokal/))
         await waitFor(() => {
             expect(screen.getByText('Amazing game!')).toBeInTheDocument()
+        })
+    })
+
+    it('shows game start/finish dividers in the penalty timeline', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => {
+            expect(screen.getByText(/▶ Eröffnungsspiel/)).toBeInTheDocument()
+            expect(screen.getByText(/🏁 Eröffnungsspiel · Hans/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows player and game filter chips and filters the timeline by player', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        // Player filter chip for the non-Hans player (Klaus, who has no penalties) — button,
+        // distinct from the static "👤 Spieler" roster badge that also reads "Klaus"
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Klaus' })).toBeInTheDocument())
+        // Game filter chip for the game that has a penalty attached
+        expect(screen.getByText(/🏆 Eröffnungsspiel/)).toBeInTheDocument()
+        // Selecting the player with no penalties empties the timeline and drops the dividers
+        fireEvent.click(screen.getByRole('button', { name: 'Klaus' }))
+        await waitFor(() => {
+            expect(screen.getByText('penalty.none')).toBeInTheDocument()
+            expect(screen.queryByText(/▶ Eröffnungsspiel/)).not.toBeInTheDocument()
         })
     })
 })

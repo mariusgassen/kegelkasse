@@ -13,7 +13,6 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
-import {useThrowTracking} from '@/hooks/useClub.ts'
 import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
@@ -21,6 +20,8 @@ import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildEventFeed} from '@/lib/liveEvening.ts'
 import {EventTicker} from '@/components/evening/EventTicker.tsx'
+import {buildPenaltyTimeline, gamesWithPenalties, hasManualPenalties} from '@/lib/protocolTimeline.ts'
+import {PenaltyTimeline} from '@/components/evening/PenaltyTimeline.tsx'
 
 const TODAY = todayDateInput()
 
@@ -847,10 +848,18 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
-    const throwTracking = useThrowTracking()
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
+    // Only one card can be expanded at a time, so a single filter pair is enough — reset
+    // whenever the expanded card changes so a filter from a previous evening doesn't linger.
+    const [historyFilterPlayer, setHistoryFilterPlayer] = useState<number | null>(null)
+    const [historyFilterGame, setHistoryFilterGame] = useState<number | null>(null)
+    function toggleExpanded(id: number, isExpanded: boolean) {
+        setExpandedId(isExpanded ? null : id)
+        setHistoryFilterPlayer(null)
+        setHistoryFilterGame(null)
+    }
     const hashVersion = useDeepLinkVersion()
 
     // Parse deep-link ?evening= param and expand + scroll + flash the matching card
@@ -977,7 +986,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                         return (
                             <div key={ev.id} id={`history-evening-${ev.id}`} className="kce-card mb-2 overflow-hidden">
                                 <button className="w-full p-3 flex items-center gap-3 text-left"
-                                        onClick={() => setExpandedId(isExpanded ? null : ev.id)}>
+                                        onClick={() => toggleExpanded(ev.id, isExpanded)}>
                                     <span className="text-base">📅</span>
                                     <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold">{fDate(ev.date)}</div>
@@ -1037,16 +1046,68 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         ))}
                                                     </div>
                                                 )}
-                                                {(detail.penalty_log.length > 0 || detail.drink_rounds.length > 0) && (
+                                                {(detail.penalty_log.length > 0 || detail.games.some(g => g.started_at || g.finished_at)) && (() => {
+                                                    const gamesWithPen = gamesWithPenalties(detail)
+                                                    const manualPenalties = hasManualPenalties(detail)
+                                                    return (
+                                                        <div className="mb-3">
+                                                            <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
+                                                                ⚠️ {t('nav.penalties')}
+                                                            </div>
+                                                            {/* Player filter chips */}
+                                                            {detail.players.length > 1 && (
+                                                                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                                                                    <button className={`chip ${historyFilterPlayer === null ? 'active' : ''}`}
+                                                                            onClick={() => setHistoryFilterPlayer(null)}>
+                                                                        {t('action.all')}
+                                                                    </button>
+                                                                    {detail.players.map(p => (
+                                                                        <button key={p.id}
+                                                                                className={`chip ${historyFilterPlayer === p.id ? 'active' : ''}`}
+                                                                                onClick={() => setHistoryFilterPlayer(historyFilterPlayer === p.id ? null : p.id)}>
+                                                                            {p.is_king ? '👑 ' : ''}{p.name}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {/* Game filter chips */}
+                                                            {gamesWithPen.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                                                    <button className={`chip ${historyFilterGame === null ? 'active' : ''}`}
+                                                                            onClick={() => setHistoryFilterGame(null)}>
+                                                                        {t('action.all')}
+                                                                    </button>
+                                                                    {gamesWithPen.map((g, i) => (
+                                                                        <button key={g.id}
+                                                                                className={`chip ${historyFilterGame === g.id ? 'active' : ''}`}
+                                                                                onClick={() => setHistoryFilterGame(historyFilterGame === g.id ? null : g.id)}>
+                                                                            🏆 {g.name || `${t('game.game')} ${i + 1}`}
+                                                                        </button>
+                                                                    ))}
+                                                                    {manualPenalties && (
+                                                                        <button className={`chip ${historyFilterGame === -1 ? 'active' : ''}`}
+                                                                                onClick={() => setHistoryFilterGame(historyFilterGame === -1 ? null : -1)}>
+                                                                            ✋ {t('penalty.manual')}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <PenaltyTimeline
+                                                                events={buildPenaltyTimeline(detail, {
+                                                                    filterPlayerId: historyFilterPlayer,
+                                                                    filterGameId: historyFilterGame,
+                                                                })}/>
+                                                        </div>
+                                                    )
+                                                })()}
+                                                {detail.drink_rounds.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
-                                                            🕒 {t('live.ticker')}
+                                                            🍺 {t('drinks.title')}
                                                         </div>
-                                                        {/* Highlights get their own section with photos below, so they're
-                                                            left out here to avoid showing the same entry twice. */}
                                                         <EventTicker
-                                                            events={buildEventFeed(detail, {limit: Infinity, throws: throwTracking, t})
-                                                                .filter(e => e.kind !== 'highlight')}/>
+                                                            events={buildEventFeed(detail, {limit: Infinity, t})
+                                                                .filter(e => e.kind === 'drink')}/>
                                                     </div>
                                                 )}
                                                 {detail.highlights.length > 0 && (
