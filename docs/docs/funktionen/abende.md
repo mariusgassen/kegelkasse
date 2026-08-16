@@ -25,8 +25,8 @@ Läuft ein Abend, öffnet die App direkt in den **Live-Modus** — den ersten Re
 im Abend-Bereich. Er fasst das Geschehen des Abends auf einen Blick zusammen und wird über die
 bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
 
-- **Anzeigetafel**: das gerade laufende Spiel, wer am Zug ist und wer als Nächstes wirft, sowie
-  der letzte Wurf.
+- **Anzeigetafel**: das gerade laufende Spiel sowie – nur bei eingeschalteter Wurf-Erfassung –
+  wer am Zug ist, wer als Nächstes wirft, und der letzte Wurf.
 - **Kennzahlen-Zeile**: Straf-Summe des Abends, Anzahl Bier- und Schnapsrunden, beendete Spiele.
 - **Schnellaktionen** (daumengroß): **Strafe** / **Runde** öffnen die Schnellerfassung,
   **Highlight** springt zum Highlights-Reiter, **Spiele** zum Spiele-Reiter.
