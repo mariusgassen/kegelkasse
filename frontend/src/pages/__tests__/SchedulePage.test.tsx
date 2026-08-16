@@ -885,7 +885,7 @@ const CLOSED_EVENING_DETAIL = {
         { id: 2, name: 'Klaus', is_king: false, regular_member_id: 2 },
     ],
     games: [
-        { id: 1, name: 'Eröffnungsspiel', status: 'finished', is_opener: true, winner_name: 'Hans', is_deleted: false },
+        { id: 1, name: 'Eröffnungsspiel', status: 'finished', is_opener: true, winner_name: 'Hans', is_deleted: false, throws: [] },
     ],
     penalty_log: [
         { id: 1, player_name: 'Hans', amount: 2.50, mode: 'euro', unit_amount: null, player_id: 1, is_deleted: false },

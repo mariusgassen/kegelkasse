@@ -11,20 +11,10 @@ import {useT} from '@/i18n'
 import type {Evening} from '@/types.ts'
 import {currentGameState, buildEventFeed, eveningTotals} from '@/lib/liveEvening.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
+import {EventTicker} from './EventTicker.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
-}
-
-/** Compact relative time: "gerade eben", "vor N min", "vor N h", else clock time. */
-function relTime(ts: number, now: number, t: (k: 'live.now') => string): string {
-    const diff = Math.max(0, now - ts)
-    const min = Math.floor(diff / 60000)
-    if (min < 1) return t('live.now')
-    if (min < 60) return `${min} min`
-    const h = Math.floor(min / 60)
-    if (h < 12) return `${h} h`
-    return new Date(ts).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
 }
 
 interface Props {
@@ -38,9 +28,8 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const t = useT()
     const throwTracking = useThrowTracking()
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
-    const feed = buildEventFeed(evening, {throws: throwTracking})
+    const feed = buildEventFeed(evening, {throws: throwTracking, t})
     const totals = eveningTotals(evening)
-    const now = Date.now()
 
     return (
         <div className="page-scroll px-3 py-3 pb-24 space-y-3">
@@ -121,30 +110,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
             {/* ── Event ticker ── */}
             <div>
                 <h2 className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5 px-0.5">{t('live.ticker')}</h2>
-                {feed.length === 0 ? (
-                    <div className="kce-card p-4 text-center text-xs text-muted">{t('live.tickerEmpty')}</div>
-                ) : (
-                    <div className="flex flex-col gap-1.5">
-                        {feed.map(e => (
-                            <div key={e.key} className="kce-card px-3 py-2 flex items-center gap-2.5"
-                                 style={e.kind === 'throw'
-                                     ? {background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))'}
-                                     : undefined}>
-                                <span className="text-lg flex-shrink-0">{e.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-bold text-ink truncate">{e.title}</div>
-                                    {e.kind === 'throw'
-                                        ? <div className="text-sm font-bold text-accent-fg truncate">{t('live.allNine')}</div>
-                                        : e.subtitle && <div className="text-sm text-muted truncate">{e.subtitle}</div>}
-                                </div>
-                                {e.amount != null && e.amount > 0 && (
-                                    <span className="text-sm font-bold text-accent-fg flex-shrink-0">{fe(e.amount)}</span>
-                                )}
-                                <span className="text-xs text-muted flex-shrink-0 w-14 text-right">{relTime(e.ts, now, t)}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <EventTicker events={feed}/>
             </div>
         </div>
     )

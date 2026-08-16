@@ -114,9 +114,10 @@ describe('LiveEveningView', () => {
             drink_rounds: [{id: 1, drink_type: 'beer', variety: null, participant_ids: [1], client_timestamp: 5000}],
         })
         renderView(ev)
-        const cards = screen.getAllByText(/Bier|Pudel/)
+        // With a mocked identity t(), the drink round's fallback label is the raw key.
+        const cards = screen.getAllByText(/drinks\.beer|Pudel/)
         // Drink (newer) appears before penalty (older) in DOM order.
-        expect(cards[0].textContent).toContain('Bier')
+        expect(cards[0].textContent).toContain('drinks.beer')
     })
 
     it('shows the empty ticker state when nothing has happened', () => {

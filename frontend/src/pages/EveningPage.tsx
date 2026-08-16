@@ -1,44 +1,29 @@
-import {useEffect, useState} from 'react'
+import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
+import {router} from '@/router'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
-import {toastError, handleAlreadyActive} from '@/utils/error.ts'
-import {useOnline} from '@/hooks/useOnline.ts'
+import {toastError} from '@/utils/error.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
-import {todayDateInput} from '@/lib/datetime.ts'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 
 export function EveningPage() {
     const t = useT()
     const {evening, invalidate, activeEveningId, isPending} = useActiveEvening()
-    const isOnline = useOnline()
-    const {setActiveEveningId, regularMembers, user} = useAppStore()
+    const {regularMembers, user} = useAppStore()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
         useCloseReopenEvening(evening?.id, invalidate)
-
-    // ── Start evening form ──
-    const [startDate, setStartDate] = useState(todayDateInput)
-    const [startTime, setStartTime] = useState('')
-    const [startVenue, setStartVenue] = useState('')
-    useEffect(() => {
-        if (club?.settings?.home_venue && !startVenue) setStartVenue(club.settings.home_venue)
-        if (club?.settings?.default_evening_time && !startTime) setStartTime(club.settings.default_evening_time)
-    }, [club?.settings?.home_venue, club?.settings?.default_evening_time])
-    const [startNote, setStartNote] = useState('')
-    const [starting, setStarting] = useState(false)
-    // attendance sheet shown after evening is created
-    const [attendanceEveningId, setAttendanceEveningId] = useState<number | null>(null)
 
     // ── Highlights ──
     const [highlightText, setHighlightText] = useState('')
@@ -75,80 +60,19 @@ export function EveningPage() {
     // ── Pins ──
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
 
-    // ── No active evening ──
+    // ── No active evening — evenings are always started from a planned appointment ──
     if (!activeEveningId && !evening) {
         return (
-            <>
             <div className="page-scroll px-3 py-3 pb-24">
                 <div className="sec-heading">🎳 {t('nav.evening')}</div>
                 <div className="kce-card p-5">
-                    <div className="text-sm font-bold text-ink mb-4">{t('evening.start')}</div>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex gap-3">
-                            <div>
-                                <label className="field-label">{t('evening.date')}</label>
-                                <input className="kce-input" type="date" value={startDate}
-                                       style={{width: 'auto'}}
-                                       onChange={e => setStartDate(e.target.value)}/>
-                            </div>
-                            <div>
-                                <label className="field-label">{t('schedule.time')}</label>
-                                <input className="kce-input" type="time" value={startTime}
-                                       style={{width: 'auto'}}
-                                       onChange={e => setStartTime(e.target.value)}/>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('evening.venue')}</label>
-                            <input className="kce-input" value={startVenue}
-                                   onChange={e => setStartVenue(e.target.value)}
-                                   placeholder={t('evening.venuePlaceholder')}/>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('evening.note')}</label>
-                            <input className="kce-input" value={startNote}
-                                   onChange={e => setStartNote(e.target.value)}
-                                   placeholder={t('common.optional')}/>
-                        </div>
-                        {!isOnline && (
-                            <p className="text-xs text-amber-400 mt-1">📵 {t('offline.startHint')}</p>
-                        )}
-                        <button className="btn-primary mt-1" disabled={starting} onClick={async () => {
-                            setStarting(true)
-                            try {
-                                const date = startTime ? `${startDate}T${startTime}` : startDate
-                                const ev = await api.createEvening({
-                                    date,
-                                    venue: startVenue || undefined,
-                                    note: startNote || undefined,
-                                })
-                                setAttendanceEveningId(ev.id)
-                            } catch (e: unknown) {
-                                if (!await handleAlreadyActive(e)) toastError(e)
-                            } finally {
-                                setStarting(false)
-                            }
-                        }}>{t('evening.startButton')}</button>
-                    </div>
+                    <Empty icon="🎳" text={t('evening.noActiveHint')}/>
+                    <button className="btn-primary w-full mt-2"
+                            onClick={() => router.navigate({to: '/schedule'}).catch(() => {})}>
+                        {t('evening.goToSchedule')}
+                    </button>
                 </div>
             </div>
-            {attendanceEveningId !== null && (
-                <UnplannedAttendanceSheet
-                    eveningId={attendanceEveningId}
-                    onDone={() => {
-                        setActiveEveningId(attendanceEveningId)
-                        setAttendanceEveningId(null)
-                        invalidate()
-                    }}
-                    onCancel={() => {
-                        // Evening already created — open it without players
-                        setActiveEveningId(attendanceEveningId)
-                        setAttendanceEveningId(null)
-                        invalidate()
-                    }}
-                />
-            )}
-            </>
         )
     }
 
