@@ -1469,4 +1469,20 @@ describe('ProfileSheet — bowling leaderboard (Easter egg)', () => {
         expect(screen.getByText('Willi')).toBeInTheDocument()
         expect(screen.getByText('21')).toBeInTheDocument()
     })
+
+    it('renders the Ich badge as its own element next to the name, not merged into it', async () => {
+        const { useBowlingStore } = await import('@/store/bowling')
+        const { api } = await import('@/api/client.ts')
+        useBowlingStore.setState({ discovered: true, personalBest: 0 })
+        vi.mocked(api.getBowlingLeaderboard).mockResolvedValue([
+            { rank: 1, player_name: 'Hans', score: 14, date: null, is_me: true },
+        ] as any)
+        await renderProfileSheet()
+        await waitFor(() => {
+            expect(screen.getByTestId('bowling-leaderboard')).toBeInTheDocument()
+        })
+        // The name text node must not have the badge concatenated onto it (e.g. "Hanscommon.me").
+        expect(screen.getByText('Hans')).toBeInTheDocument()
+        expect(screen.getByText('common.me')).toBeInTheDocument()
+    })
 })

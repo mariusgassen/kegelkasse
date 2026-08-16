@@ -370,6 +370,36 @@ describe('App — authenticated', () => {
             expect(screen.getByText('nav.evening')).toBeInTheDocument()
         })
     })
+
+    it('resets a stale bowling Easter-egg discovery when a different user logs in on a shared device', async () => {
+        // A previous member on this device already found the Easter egg and set a personal best.
+        const { useBowlingStore } = await import('@/store/bowling')
+        useBowlingStore.setState({ discovered: true, personalBest: 20, ownerUserId: 999 })
+
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByRole('navigation')).toBeInTheDocument()
+        })
+
+        // mockUser.id (1) differs from the previous owner (999) — the current member never
+        // discovered the game themselves, so their profile must not inherit it.
+        expect(useBowlingStore.getState().discovered).toBe(false)
+        expect(useBowlingStore.getState().personalBest).toBe(0)
+        expect(useBowlingStore.getState().ownerUserId).toBe(1)
+    })
+
+    it('keeps an existing bowling Easter-egg discovery for the same returning user', async () => {
+        const { useBowlingStore } = await import('@/store/bowling')
+        useBowlingStore.setState({ discovered: true, personalBest: 20, ownerUserId: mockUser.id })
+
+        await renderApp()
+        await waitFor(() => {
+            expect(screen.getByRole('navigation')).toBeInTheDocument()
+        })
+
+        expect(useBowlingStore.getState().discovered).toBe(true)
+        expect(useBowlingStore.getState().personalBest).toBe(20)
+    })
 })
 
 describe('App — network error on boot', () => {

@@ -548,8 +548,8 @@ export function ProfileSheet({open, onClose}: Props) {
                                         <div key={`${e.rank}-${e.player_name}`}
                                              className="flex items-center gap-2 text-xs">
                                             <span className="w-5 text-right font-bold text-muted">{e.rank}.</span>
-                                            <span className={`flex-1 truncate ${e.is_me ? 'text-accent-fg font-bold' : 'text-ink'}`}>
-                                                {e.player_name}
+                                            <span className={`flex-1 min-w-0 flex items-center gap-1.5 ${e.is_me ? 'text-accent-fg font-bold' : 'text-ink'}`}>
+                                                <span className="truncate">{e.player_name}</span>
                                                 {e.is_me && <MeBadge/>}
                                             </span>
                                             <span className="font-bold tabular-nums text-ink">{e.score}</span>
