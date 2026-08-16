@@ -36,6 +36,7 @@ vi.mock('@/api/client.ts', () => ({
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
 vi.mock('@/lib/celebrate', () => ({ celebrate: vi.fn() }))
+vi.mock('@/lib/soundboard', () => ({ playSound: vi.fn() }))
 
 vi.mock('@/lib/cameraEngine.ts', () => ({
     readFrame: vi.fn(() => ({
@@ -424,6 +425,20 @@ describe('CameraCapturePage — test throw mode', () => {
         fireEvent.click(screen.getByText(/camera\.testSend/))
         await waitFor(() => {
             expect(celebrate).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+        })
+    })
+
+    it('plays the buzzer when a 0-pin test throw is submitted', async () => {
+        const { playSound } = await import('@/lib/soundboard')
+        await renderCameraCapturePage()
+        fireEvent.click(screen.getByText('Hauptspiel'))
+        await waitFor(() => screen.getByText(/camera\.testMode/))
+        fireEvent.click(screen.getByText(/camera\.testMode/))
+        await waitFor(() => screen.getByText('camera.testModeHint'))
+        fireEvent.change(screen.getByDisplayValue('9'), { target: { value: '0' } })
+        fireEvent.click(screen.getByText(/camera\.testSend/))
+        await waitFor(() => {
+            expect(playSound).toHaveBeenCalledWith('buzzer')
         })
     })
 })

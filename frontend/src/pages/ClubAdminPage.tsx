@@ -19,6 +19,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
+import {SoundPickerButton} from '@/components/ui/SoundPickerButton'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -180,6 +181,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [pinPenalty, setPinPenalty] = useState(club?.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
     const [defaultEveningTime, setDefaultEveningTime] = useState(club?.settings?.default_evening_time || '20:00')
     const [throwTracking, setThrowTracking] = useState(club?.settings?.throw_tracking_enabled !== false)
+    const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
 
     useEffect(() => {
         if (!club) return
@@ -194,6 +196,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setPinPenalty(club.settings?.pin_penalty != null ? String(club.settings.pin_penalty) : '')
         setDefaultEveningTime(club.settings?.default_evening_time || '20:00')
         setThrowTracking(club.settings?.throw_tracking_enabled !== false)
+        setAudioCallouts(club.settings?.audio_callouts_enabled !== false)
     }, [club])
 
     function applyPalette(p: Palette) {
@@ -255,6 +258,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 pin_penalty: pinP,
                 default_evening_time: defaultEveningTime || undefined,
                 throw_tracking_enabled: throwTracking,
+                audio_callouts_enabled: audioCallouts,
             })
             applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
             setGuestPenaltyCap(cap)
@@ -448,6 +452,25 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold text-ink">{t('club.throwTracking.label')}</div>
                         <p className="text-xs text-muted mt-0.5">{t('club.throwTracking.hint')}</p>
+                    </div>
+                </label>
+            </div>
+
+            {/* ── Audio-Ansagen ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.audioCallouts')}</div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <button type="button" role="switch" aria-checked={audioCallouts}
+                            aria-label={t('club.audioCallouts.label')}
+                            onClick={() => setAudioCallouts(v => !v)}
+                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                            style={{background: audioCallouts ? 'var(--accent)' : 'var(--surface-2)'}}>
+                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                              style={{transform: audioCallouts ? 'translateX(20px)' : 'none'}}/>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-ink">{t('club.audioCallouts.label')}</div>
+                        <p className="text-xs text-muted mt-0.5">{t('club.audioCallouts.hint')}</p>
                     </div>
                 </label>
             </div>
@@ -950,18 +973,21 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
     const [icon, setIcon] = useState('⚠️')
     const [name, setName] = useState('')
     const [amount, setAmount] = useState('0.50')
+    const [soundKey, setSoundKey] = useState<string | null>(null)
 
     // edit sheet
     const [editPt, setEditPt] = useState<PenaltyType | null>(null)
     const [editIcon, setEditIcon] = useState('')
     const [editName, setEditName] = useState('')
     const [editAmount, setEditAmount] = useState('')
+    const [editSoundKey, setEditSoundKey] = useState<string | null>(null)
 
     function openEdit(pt: PenaltyType) {
         setEditPt(pt)
         setEditIcon(pt.icon)
         setEditName(pt.name)
         setEditAmount(String(pt.default_amount))
+        setEditSoundKey(pt.sound_key)
     }
 
     return (
@@ -988,10 +1014,11 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 e.preventDefault()
                 if (!name.trim()) return
                 try {
-                    await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99})
+                    await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99, sound_key: soundKey})
                     setIcon('⚠️');
                     setName('');
                     setAmount('0.50');
+                    setSoundKey(null);
                     onChanged()
                 } catch (err) { toastError(err) }
             }}>
@@ -1002,6 +1029,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                            placeholder="Name"/>
                     <input className="kce-input w-20" type="text" inputMode="decimal" value={amount}
                            onChange={e => setAmount(e.target.value)}/>
+                    <SoundPickerButton value={soundKey} onChange={setSoundKey}/>
                 </div>
                 <button type="submit" className="btn-primary w-full btn-sm" disabled={!isOnline}>
                     {isOnline ? `+ ${t('action.add')}` : t('offline.btnLabel')}
@@ -1017,6 +1045,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                                name: editName,
                                default_amount: parseAmount(editAmount),
                                sort_order: editPt.sort_order,
+                               sound_key: editSoundKey,
                            })
                            setEditPt(null)
                            onChanged()
@@ -1033,6 +1062,10 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                             <label className="field-label">Name</label>
                             <input className="kce-input" value={editName}
                                    onChange={e => setEditName(e.target.value)}/>
+                        </div>
+                        <div>
+                            <label className="field-label">{t('sound.pick')}</label>
+                            <SoundPickerButton value={editSoundKey} onChange={setEditSoundKey}/>
                         </div>
                     </div>
                     <div>

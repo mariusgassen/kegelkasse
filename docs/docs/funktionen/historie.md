@@ -28,6 +28,21 @@ Tippe auf einen Abend, um die vollständige Übersicht zu sehen:
 - Alle **Getränkerunden**
 - Die **Kassenübersicht** mit Ranking
 
+## Abend teilen 📤
+
+In der Detailansicht eines abgeschlossenen Abends kann **jedes Mitglied** (nicht nur Admins) einen
+Rückblick als Bild erzeugen und teilen:
+
+1. Tippe auf den Abend, um ihn aufzuklappen
+2. Tippe auf **📤 Abend teilen**
+3. Auf dem Handy öffnet sich der System-Teilen-Dialog (z. B. direkt in die WhatsApp-Gruppe des
+   Vereins); am Desktop wird das Bild stattdessen heruntergeladen
+
+Die Karte zeigt Vereinslogo und -farben sowie **König**, **teuerste Einzelstrafe**,
+**durstigsten Kegler**, die **Kassensumme** des Abends und die Anzahl **beendeter Spiele** — jeweils
+nur, wenn dafür Daten vorliegen. Das Bild wird komplett im Browser gerendert, es gibt dafür keinen
+Server-Aufruf.
+
 ## Abend wiedereröffnen
 
 Falls Korrekturen nötig sind:

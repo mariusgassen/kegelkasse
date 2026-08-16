@@ -126,8 +126,8 @@ const SUPERADMIN_USER = {
 }
 
 const PENALTY_TYPES = [
-    { id: 1, icon: '🍺', name: 'Bier', default_amount: 1.00, sort_order: 1 },
-    { id: 2, icon: '⚠️', name: 'Strafe', default_amount: 0.50, sort_order: 2 },
+    { id: 1, icon: '🍺', name: 'Bier', default_amount: 1.00, sort_order: 1, sound_key: 'bell' },
+    { id: 2, icon: '⚠️', name: 'Strafe', default_amount: 0.50, sort_order: 2, sound_key: null },
 ]
 
 const GAME_TEMPLATES = [
@@ -349,6 +349,21 @@ describe('ClubAdminPage — settings tab', () => {
         })
     })
 
+    it('defaults the audio-callouts switch on and saves it off when toggled', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderClubAdminPage()
+        const toggle = await screen.findByRole('switch', {name: 'club.audioCallouts.label'})
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        fireEvent.click(toggle)
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+        fireEvent.click(screen.getAllByText('action.save')[0])
+        await waitFor(() => {
+            expect(vi.mocked(api.updateClubSettings)).toHaveBeenCalledWith(
+                expect.objectContaining({audio_callouts_enabled: false}),
+            )
+        })
+    })
+
     it('shows the public TV scoreboard link', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue(
@@ -520,6 +535,37 @@ describe('ClubAdminPage — penalties CRUD', () => {
             expect(api.createPenaltyType).toHaveBeenCalledWith(
                 expect.objectContaining({ name: 'Neue Strafe' })
             )
+        })
+    })
+
+    it('includes the picked sound_key when creating a penalty type', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createPenaltyType).mockResolvedValueOnce({ id: 99, icon: '⚠️', name: 'Test', default_amount: 0.50, sort_order: 99, sound_key: 'buzzer' } as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Bier'))
+        fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Null-Strafe' } })
+        // Sound picker is the second "sound.pick"-labelled trigger button (first is inside the edit sheet, not yet open).
+        fireEvent.click(screen.getByLabelText('sound.pick'))
+        fireEvent.click(screen.getByText('sound.preset.buzzer'))
+        const form = document.querySelector('form')!
+        fireEvent.submit(form)
+        await waitFor(() => {
+            expect(api.createPenaltyType).toHaveBeenCalledWith(
+                expect.objectContaining({ name: 'Null-Strafe', sound_key: 'buzzer' })
+            )
+        })
+    })
+
+    it('prefills the sound picker from the existing sound_key and keeps it on save', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updatePenaltyType).mockResolvedValueOnce(undefined as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Bier'))
+        await clickCardAction('action.edit', 0)
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updatePenaltyType).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'Bier', sound_key: 'bell' }))
         })
     })
 

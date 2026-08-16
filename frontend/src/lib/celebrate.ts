@@ -1,5 +1,6 @@
 import {useEffectsStore} from '@/store/effects'
 import {showToast} from '@/components/ui/Toast'
+import {ensureAudioContext} from '@/lib/audioContext'
 
 export type CelebrationKind = 'king' | 'allnine'
 
@@ -10,31 +11,6 @@ const CONFETTI_DURATION_MS = 1400
 interface Particle {
     x: number; y: number; vx: number; vy: number
     rotation: number; vr: number; size: number; color: string
-}
-
-function getAudioCtor(): typeof AudioContext | null {
-    const w = window as any
-    return w.AudioContext || w.webkitAudioContext || null
-}
-
-let audioCtx: AudioContext | null = null
-
-function ensureAudioContext(): AudioContext | null {
-    const Ctor = getAudioCtor()
-    if (!Ctor) return null
-    if (!audioCtx) audioCtx = new Ctor()
-    return audioCtx
-}
-
-// Warm the context up on the very first tap anywhere in the app. celebrate() often runs
-// after an `await api.finishGame(...)`, which is no longer in the same synchronous task as
-// the user's tap — some browsers' autoplay gate rejects audio started that late, so the
-// context is created/resumed here instead, decoupled from any specific trigger.
-if (typeof document !== 'undefined') {
-    document.addEventListener('pointerdown', () => {
-        const ctx = ensureAudioContext()
-        if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
-    }, {once: true})
 }
 
 function playChime(kind: CelebrationKind) {

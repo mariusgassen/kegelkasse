@@ -50,6 +50,10 @@ Zwei Momente lösen einen kurzen Konfetti-Effekt inklusive Sound aus: die **Kön
 - Kann in **Profil → Einstellungen → 🎉 Feier-Effekte** komplett deaktiviert werden
 - Respektiert die Systemeinstellung „Bewegung reduzieren" (`prefers-reduced-motion`) — dann bleibt nur der Ton, ohne Konfetti-Animation
 
+Ein Wurf mit **0 Kegeln** löst spiegelbildlich einen 🚨-Buzzer aus (kein Konfetti, nur der Ton) —
+an denselben Erfassungsstellen. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-) für den
+club-weiten Ein-/Ausschalter.
+
 ## Verliererstrafen
 
 Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des Spiels automatisch Strafeneinträge für alle Nicht-Gewinner erstellt.

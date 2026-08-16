@@ -16,7 +16,8 @@ import {api} from '@/api/client.ts'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
 import {celebrate} from '@/lib/celebrate'
-import {useThrowTracking} from '@/hooks/useClub.ts'
+import {playSound} from '@/lib/soundboard'
+import {useThrowTracking, useAudioCallouts} from '@/hooks/useClub.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
@@ -44,6 +45,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
     const throwTracking = useThrowTracking()
+    const audioCallouts = useAudioCallouts()
 
     // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
@@ -312,8 +314,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         if (len > prev) {
             // One or more new throws — advance by delta
             setCurrentTurnIdx(prevIdx => prevIdx + (len - prev))
-            if (throwTracking && liveThrows.slice(prev, len).some(th => th.pins >= 9)) {
+            const newThrows = liveThrows.slice(prev, len)
+            if (throwTracking && newThrows.some(th => th.pins >= 9)) {
                 celebrate('allnine', t('celebration.allnine'))
+            }
+            if (throwTracking && audioCallouts && newThrows.some(th => th.pins === 0)) {
+                playSound('buzzer')
             }
         }
     }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
@@ -426,6 +432,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 unit_amount: pt.default_amount,
                 client_timestamp: Date.now(),
             })
+            if (audioCallouts) playSound(pt.sound_key)
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})

@@ -6,7 +6,7 @@
  */
 import {useQuery} from '@tanstack/react-query'
 import {api} from '@/api/client'
-import {throwTrackingEnabled} from '@/lib/clubSettings'
+import {throwTrackingEnabled, audioCalloutsEnabled} from '@/lib/clubSettings'
 import type {Club} from '@/types'
 
 export function useClub() {
@@ -20,4 +20,13 @@ export function useClub() {
 export function useThrowTracking(): boolean {
     const {data: club} = useClub()
     return throwTrackingEnabled(club?.settings)
+}
+
+/**
+ * Whether audio call-outs are enabled for the current club (0-pin buzzer + per-PenaltyType sounds).
+ * Defaults to `true` while the club is still loading and for clubs that predate the setting.
+ */
+export function useAudioCallouts(): boolean {
+    const {data: club} = useClub()
+    return audioCalloutsEnabled(club?.settings)
 }

@@ -81,6 +81,18 @@ Tippe auf das **⋮**-Menü der Strafe → **Löschen** (rot) und bestätige im 
 
 Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der Datenbank, wird aber aus der Ansicht entfernt. Dies ermöglicht ein Rückgängigmachen.
 
+## Audio-Ansagen 🔊
+
+Jedem Strafentyp kann in der Vereinsverwaltung optional ein **Sound** zugeordnet werden (Buzzer,
+Glocke, Kasse, Pleiten-Fanfare, Trommelschlag, Gestöhne, Laser) — beim Eintragen dieser Strafe wird
+der Ton auf dem erfassenden Gerät abgespielt.
+
+- Sound-Auswahl beim Anlegen/Bearbeiten eines Strafentyps, mit Anhör-Vorschau je Option
+- Club-weit ein-/ausschaltbar unter **Verein → Einstellungen → Audio-Ansagen** (Standard: an)
+- Zusätzlich vom persönlichen **🎉 Feier-Effekte**-Schalter im Profil abhängig
+- Ein Wurf mit **0 Kegeln** löst unabhängig vom Strafentyp immer den 🚨-Buzzer aus, sofern die
+  Wurf-Erfassung (siehe [Spiele](spiele.md)) und die Audio-Ansagen aktiviert sind
+
 ## Strafenprotokoll filtern
 
 Im Strafenprotokoll können Einträge nach **Spieler** und/oder **Spiel** gefiltert werden:
