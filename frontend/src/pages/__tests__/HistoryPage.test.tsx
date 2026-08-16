@@ -50,6 +50,13 @@ vi.mock('@/components/ui/Sheet.tsx', () => ({
         ) : null,
 }))
 
+const renderRecapCardImage = vi.fn()
+const shareOrDownloadRecapImage = vi.fn()
+vi.mock('@/lib/recapCard', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/recapCard')>('@/lib/recapCard')
+    return { ...actual, renderRecapCardImage: (...args: unknown[]) => renderRecapCardImage(...args), shareOrDownloadRecapImage: (...args: unknown[]) => shareOrDownloadRecapImage(...args) }
+})
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const CLOSED_EVENING = {
@@ -381,6 +388,55 @@ describe('HistoryPage — expanded evening detail', () => {
             // Hansi is_king: true → renders with 👑 prefix (multiple elements may match)
             expect(screen.getAllByText(/👑/).length).toBeGreaterThan(0)
         })
+    })
+
+    it('shows a share-recap button for any member (not admin-gated)', async () => {
+        const { isAdmin } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        await setupWithExpand()
+        await waitFor(() => {
+            expect(screen.getByText(/recap\.share/)).toBeInTheDocument()
+        })
+    })
+
+    it('renders and shares the recap card when the share button is clicked', async () => {
+        const fakeBlob = new Blob(['png'])
+        renderRecapCardImage.mockResolvedValueOnce(fakeBlob)
+        shareOrDownloadRecapImage.mockResolvedValueOnce('shared')
+        await setupWithExpand()
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        await waitFor(() => {
+            expect(renderRecapCardImage).toHaveBeenCalledWith(
+                expect.objectContaining({ kingName: 'Hansi' }),
+                expect.any(Object),
+                expect.objectContaining({ clubName: expect.any(String) }),
+                expect.any(Object),
+            )
+            expect(shareOrDownloadRecapImage).toHaveBeenCalledWith(fakeBlob, expect.stringContaining('2026-01-15'), expect.any(String), expect.any(String))
+        })
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        expect(showToast).toHaveBeenCalledWith('recap.shared')
+    })
+
+    it('shows a downloaded toast when the platform falls back to download', async () => {
+        renderRecapCardImage.mockResolvedValueOnce(new Blob(['png']))
+        shareOrDownloadRecapImage.mockResolvedValueOnce('downloaded')
+        await setupWithExpand()
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        await waitFor(() => expect(showToast).toHaveBeenCalledWith('recap.downloaded'))
+    })
+
+    it('shows a toast error and re-enables the button when rendering fails', async () => {
+        renderRecapCardImage.mockRejectedValueOnce(new Error('canvas boom'))
+        await setupWithExpand()
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        const { toastError } = await import('@/utils/error.ts')
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+        expect(screen.getByText(/recap\.share/)).not.toBeDisabled()
     })
 })
 

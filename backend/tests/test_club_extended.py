@@ -388,6 +388,42 @@ class TestPenaltyTypes:
         resp = client.delete("/api/v1/club/penalty-types/999999", headers=admin_headers)
         assert resp.status_code == 404
 
+    def test_create_with_sound_key(self, client: TestClient, admin_headers: dict):
+        resp = client.post("/api/v1/club/penalty-types", headers=admin_headers,
+                           json={"name": "Null", "icon": "🎳", "default_amount": 1.0, "sort_order": 0,
+                                 "sound_key": "buzzer"})
+        assert resp.status_code == 200
+        assert resp.json()["sound_key"] == "buzzer"
+
+    def test_create_unknown_sound_key_is_dropped(self, client: TestClient, admin_headers: dict):
+        resp = client.post("/api/v1/club/penalty-types", headers=admin_headers,
+                           json={"name": "X", "icon": "⚠️", "default_amount": 1.0, "sort_order": 0,
+                                 "sound_key": "not-a-real-preset"})
+        assert resp.status_code == 200
+        assert resp.json()["sound_key"] is None
+
+    def test_update_sound_key(self, client: TestClient, admin_headers: dict, db: Session, club: Club):
+        pt = PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5)
+        db.add(pt)
+        db.commit()
+        resp = client.put(f"/api/v1/club/penalty-types/{pt.id}", headers=admin_headers,
+                          json={"name": "Old", "icon": "⚠️", "default_amount": 0.5, "sort_order": 0,
+                                "sound_key": "cash_register"})
+        assert resp.status_code == 200
+        assert resp.json()["sound_key"] == "cash_register"
+        db.expire(pt)
+        db.refresh(pt)
+        assert pt.sound_key == "cash_register"
+
+    def test_update_clears_sound_key(self, client: TestClient, admin_headers: dict, db: Session, club: Club):
+        pt = PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5, sound_key="bell")
+        db.add(pt)
+        db.commit()
+        resp = client.put(f"/api/v1/club/penalty-types/{pt.id}", headers=admin_headers,
+                          json={"name": "Old", "icon": "⚠️", "default_amount": 0.5, "sort_order": 0})
+        assert resp.status_code == 200
+        assert resp.json()["sound_key"] is None
+
 
 # ---------------------------------------------------------------------------
 # Game templates

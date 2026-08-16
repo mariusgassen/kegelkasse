@@ -21,7 +21,7 @@ from models.club import Club, ClubSettings, ClubPin
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
-from models.penalty import PenaltyType, PenaltyLog
+from models.penalty import PenaltyType, PenaltyLog, SOUND_PRESET_KEYS
 from models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,10 @@ def _serialize_settings(s: ClubSettings) -> dict:
         # machine can't feed throw data hide it in the UI and stats. Defaults to enabled so
         # existing clubs keep their current behaviour.
         "throw_tracking_enabled": extra.get("throw_tracking_enabled", True),
+        # Audio call-outs (0-pin buzzer + per-PenaltyType sounds) played on the logging device.
+        # Club-level master switch since these play over shared/kiosk speakers, not just one
+        # phone — defaults to enabled so existing clubs keep their current behaviour.
+        "audio_callouts_enabled": extra.get("audio_callouts_enabled", True),
     }
 
 
@@ -96,12 +100,13 @@ class ClubSettingsUpdate(BaseModel):
     pin_penalty: Optional[float] = None   # penalty for not bringing pins to an evening
     default_evening_time: Optional[str] = None  # default start time for scheduled evenings (HH:MM)
     throw_tracking_enabled: Optional[bool] = None  # camera-based pin/throw tracking on/off (#33)
+    audio_callouts_enabled: Optional[bool] = None  # 0-pin buzzer + per-PenaltyType sounds on/off
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
 _SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
-                   "default_evening_time", "throw_tracking_enabled"}
+                   "default_evening_time", "throw_tracking_enabled", "audio_callouts_enabled"}
 
 
 @router.patch("/settings")
@@ -455,12 +460,20 @@ class PenaltyTypeCreate(BaseModel):
     name: str
     default_amount: float = 0.5
     sort_order: int = 0
+    sound_key: Optional[str] = None  # preset audio call-out key, see SOUND_PRESET_KEYS
+
+
+def _clean_sound_key(value: Optional[str]) -> Optional[str]:
+    """Silently drop an unknown preset key rather than 422 — same tolerance as digest_frequency."""
+    return value if value in SOUND_PRESET_KEYS else None
 
 
 @router.post("/penalty-types")
 def create_penalty_type(data: PenaltyTypeCreate, db: Session = Depends(get_db),
                         user: User = Depends(require_club_admin)):
-    pt = PenaltyType(club_id=user.club_id, **data.model_dump())
+    payload = data.model_dump()
+    payload["sound_key"] = _clean_sound_key(payload.get("sound_key"))
+    pt = PenaltyType(club_id=user.club_id, **payload)
     db.add(pt)
     db.commit()
     db.refresh(pt)
@@ -472,8 +485,11 @@ def update_penalty_type(ptid: int, data: PenaltyTypeCreate, db: Session = Depend
                         user: User = Depends(require_club_admin)):
     pt = db.query(PenaltyType).filter(PenaltyType.id == ptid, PenaltyType.club_id == user.club_id).first()
     if not pt: raise HTTPException(404)
-    for k, v in data.model_dump().items(): setattr(pt, k, v)
+    payload = data.model_dump()
+    payload["sound_key"] = _clean_sound_key(payload.get("sound_key"))
+    for k, v in payload.items(): setattr(pt, k, v)
     db.commit()
+    db.refresh(pt)
     return pt
 
 

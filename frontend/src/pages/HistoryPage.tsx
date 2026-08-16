@@ -10,6 +10,10 @@ import {SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {computeEveningRecap, renderRecapCardImage, shareOrDownloadRecapImage} from '@/lib/recapCard'
+import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
+import {useClub} from '@/hooks/useClub.ts'
+import type {Evening, EveningListItem} from '@/types'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -22,6 +26,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
+    const {data: club} = useClub()
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -30,6 +35,7 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
     const [backlogDate, setBacklogDate] = useState(todayDateInput)
     const [backlogVenue, setBacklogVenue] = useState('')
     const [saving, setSaving] = useState(false)
+    const [sharingId, setSharingId] = useState<number | null>(null)
 
     // Fetch expanded evening detail
     const {data: expandedEvening} = useQuery({
@@ -69,6 +75,40 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
             if (expandedId === id) setExpandedId(null)
         } catch (e: unknown) {
             toastError(e)
+        }
+    }
+
+    async function handleShareRecap(ev: EveningListItem, detail: Evening) {
+        const recap = computeEveningRecap(detail)
+        if (!recap) return
+        setSharingId(ev.id)
+        try {
+            const tokens = deriveTokens({
+                primary: club?.settings?.primary_color,
+                secondary: club?.settings?.secondary_color,
+                bg: DEFAULT_DARK_BG,
+            })
+            const dateStr = new Date(detail.date).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})
+            const labels = {
+                title: t('recap.title'),
+                dateLine: [dateStr, detail.venue].filter(Boolean).join(' · '),
+                king: t('recap.king'),
+                topPenalty: t('recap.topPenalty'),
+                topDrinker: t('recap.topDrinker'),
+                total: t('recap.total'),
+                games: t('recap.games'),
+                footer: club?.name ?? 'Kegelkasse',
+            }
+            const blob = await renderRecapCardImage(recap, {
+                canvas: tokens['--canvas'], ink: tokens['--ink'], muted: tokens['--muted'],
+                accent: tokens['--accent'], onAccent: tokens['--on-accent'], line: tokens['--line'],
+            }, {clubName: club?.name ?? 'Kegelkasse', logoUrl: club?.settings?.logo_url ?? null}, labels)
+            const result = await shareOrDownloadRecapImage(blob, `kegelabend-${detail.date.slice(0, 10)}.png`, labels.title, labels.dateLine)
+            showToast(t(result === 'shared' ? 'recap.shared' : 'recap.downloaded'))
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSharingId(null)
         }
     }
 
@@ -300,6 +340,13 @@ export function HistoryPage({onNavigate}: { onNavigate?: () => void } = {}) {
                                                         </div>
                                                     </div>
                                                 )}
+
+                                                {/* Recap card — anyone can share the evening's highlights */}
+                                                <button className="btn-secondary btn-sm w-full mt-2"
+                                                        disabled={sharingId === ev.id}
+                                                        onClick={() => handleShareRecap(ev, detail)}>
+                                                    {sharingId === ev.id ? t('action.loading') : `📤 ${t('recap.share')}`}
+                                                </button>
 
                                                 {/* Admin actions */}
                                                 {isAdmin(user) && (

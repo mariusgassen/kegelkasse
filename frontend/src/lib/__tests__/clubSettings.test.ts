@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest'
-import {throwTrackingEnabled} from '../clubSettings'
+import {throwTrackingEnabled, audioCalloutsEnabled} from '../clubSettings'
 import type {ClubSettings} from '@/types'
 
 const settings = (over: Partial<ClubSettings> = {}): ClubSettings => ({
@@ -24,5 +24,24 @@ describe('throwTrackingEnabled', () => {
 
     it('is disabled only when explicitly false', () => {
         expect(throwTrackingEnabled(settings({throw_tracking_enabled: false}))).toBe(false)
+    })
+})
+
+describe('audioCalloutsEnabled', () => {
+    it('defaults to enabled when the flag is missing (club predates the setting)', () => {
+        expect(audioCalloutsEnabled(settings())).toBe(true)
+    })
+
+    it('defaults to enabled for null/undefined settings', () => {
+        expect(audioCalloutsEnabled(null)).toBe(true)
+        expect(audioCalloutsEnabled(undefined)).toBe(true)
+    })
+
+    it('is enabled when explicitly true', () => {
+        expect(audioCalloutsEnabled(settings({audio_callouts_enabled: true}))).toBe(true)
+    })
+
+    it('is disabled only when explicitly false', () => {
+        expect(audioCalloutsEnabled(settings({audio_callouts_enabled: false}))).toBe(false)
     })
 })

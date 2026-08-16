@@ -12,6 +12,14 @@ class PenaltyMode(str, enum.Enum):
     count = "count"
 
 
+# Synthesized Web Audio presets a penalty type's sound_key may reference (frontend lib/soundboard.ts
+# holds the actual synthesis — this is just the server-side allowlist so a bad value 422s instead of
+# silently no-op'ing client-side).
+SOUND_PRESET_KEYS = (
+    "buzzer", "bell", "cash_register", "sad_trombone", "drum_hit", "crowd_groan", "laser",
+)
+
+
 class PenaltyType(Base):
     """
     Club-level penalty type (e.g. "Late arrival", "Null", "Bank shot").
@@ -25,6 +33,7 @@ class PenaltyType(Base):
     default_amount = Column(Float, default=0.5)
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
+    sound_key = Column(String, nullable=True)  # optional preset audio call-out, played when logged
     club = relationship("Club", back_populates="penalty_types")
 
 

@@ -101,12 +101,13 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 - Club settings: home venue, primary and secondary brand colors, PayPal.me handle, background color, no-show penalty
 - **Regular members (Stammspieler)**: persistent roster with optional nickname; used to link evening players across sessions for stat tracking
-- **Penalty types**: custom icon (emoji), name, default amount, sort order; soft-deleted when removed
+- **Penalty types**: custom icon (emoji), name, default amount, sort order, optional audio call-out (see below); soft-deleted when removed
 - **Game templates**: name, description, winner type (`team` / `individual` / `either`), opener flag, president-game flag, default loser penalty, sort order; soft-deleted when removed
 - **Teams**: reusable team presets that can be loaded when starting an evening
 - **Pins (Vereinsnadeln)**: assign pin holders, evening-alert when a holder is present, one-click penalty entry; pin icons shown inline next to player names
 - **Presidents**: annual Präsidentenspiel (🎯-flag), president history with tab view and history badge; 🎯 badge shown inline next to player name
 - **Vergnügungsausschuss (VGA, Entertainment Committee)**: designate regular members as VGA-members (is_committee flag); committee members can post announcements (with push notification to all) and manage Kegelfahrten (bowling trips); dedicated 🚌 tab for all members; VGA management in the admin Verein tab. Post actions (edit/delete, close/reopen a poll) live behind a **⋮ action menu** on each card — a neutral kebab instead of a tempting bare "×" that reads like a harmless dismiss — with the actual delete labelled + red and still gated by a confirmation sheet. The kebab → action-sheet pattern is a shared `ActionSheet` component (`ActionItem`/`MoreButton`/`CardActionMenu`), also used by the members roster
+- **Audio call-outs**: a club-wide toggle (Verein → Einstellungen → Audio-Ansagen, default on) for two things — a fixed 🚨 buzzer on a 0-pin throw, and an optional synthesized sound (buzzer, bell, cash register, sad trombone, drum hit, crowd groan, laser) picked per penalty type from a preview-able picker next to its icon. All sounds are generated with the Web Audio API (no audio files) and share the same audio context as the celebration chimes. Gated by both the club switch and the personal 🎉 effects toggle
 
 ### Evening management
 
@@ -119,6 +120,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Add players ad-hoc or from the regular-member roster (linking them for stats)
 - **Highlights**: record memorable moments (Schuh geworfen, Kugel gegen die Heizung…) as free-text highlights on the evening
 - **Every row in the evening view carries the same ⋮ action menu** — penalty entries, drink rounds, teams, players, highlights, games and the evening card itself. Edit/delete no longer appear as bare ✏️/✕ icons or as an inline "✓ / ✕" confirm that differed from row to row; each destructive action is a labelled, red entry inside the menu followed by a confirmation sheet, exactly like the schedule and Neuigkeiten rows. Status actions (Start/Beenden, Abend beenden/wiedereröffnen) stay as visible labelled buttons
+- **📤 Shareable recap card**: any member can generate a shareable PNG summary of a closed evening (König, teuerste Strafe, durstigster Kegler, Kasse, Spiele beendet) from the evening's expanded history detail — rendered client-side on a canvas in the club's brand colors with the club logo, no server round-trip. Uses the Web Share API to hand the image straight to WhatsApp/etc. on mobile, falling back to a plain download on desktop
 - Create named teams and assign players to them; reassign or dissolve teams at any time
 - 30-second live polling so all connected users see changes without refresh
 
@@ -146,6 +148,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Admins can retroactively add or correct a game's start/end time (e.g. if starting/finishing was forgotten during the evening) via a dedicated time-edit sheet; correcting a finished game's end time also retimes its existing loser penalties to the new timestamp (in place, without recreating them)
 - No game — individual or team — can be started (nor auto-started right after creation from a template) until the evening has teams set up and every player is assigned to one; both the Games tab and the tablet quick-entry panel block the action and show a toast instead. Teams are configured once per evening, before any games are played, so this applies regardless of the specific game's winner type
 - **🎉 Celebration effects**: a confetti burst + short chime fires when a König is crowned or someone throws Alle Neune (9 pins), across every entry point — the Games tab, tablet quick-entry, and the camera kiosk. Respects `prefers-reduced-motion` (confetti is skipped, the chime still plays) and can be turned off entirely via a personal toggle in the profile settings
+- **🚨 Buzzer on a 0-pin throw**: mirrors the Alle Neune celebration at the same throw-detection sites (tablet quick-entry, camera kiosk) — a synthesized buzzer sound plays for a gutter throw, gated by the club's audio call-outs setting
 - **Camera throw tracking is opt-in per club**: the real-time camera pin/throw detection (feature #33) can be switched off under **Verein → Einstellungen → Wurf-Erfassung** (`throw_tracking_enabled` in club settings, default on). When disabled, every throw surface is hidden — the 📷 camera button, the tablet quick-entry turn-order row (current player, up-next queue, switch-team/advance button — it exists purely to tell the camera who's throwing next) and its live-throw strip, the live-view last-throw readout, throw-performance cards (profile, year ranking), the dashboard throw metric, per-game/-year throw stats, the Kegel-Wrapped throw card, and the Hall of Shame "weakest throw" award — while penalties, drinks, games and winner selection stay fully usable. Intended for clubs whose bowling machine can't feed throw data
 
 ### Drinks

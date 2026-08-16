@@ -43,6 +43,9 @@ vi.mock('@/api/client.ts', () => ({
 
 vi.mock('@/utils/error.ts', () => ({ toastError: vi.fn() }))
 vi.mock('@/components/ui/Toast.tsx', () => ({ showToast: vi.fn() }))
+vi.mock('@/lib/soundboard', () => ({ playSound: vi.fn() }))
+const audioCalloutsMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({ useAudioCallouts: () => audioCalloutsMock() }))
 vi.mock('@/utils/parse.ts', () => ({ parseAmount: (s: string) => parseFloat(s) || 0 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
     Sheet: ({ open, children, title, onClose, onSubmit }: any) =>
@@ -107,8 +110,8 @@ const ADMIN_USER = {
 }
 
 const PENALTY_TYPES = [
-    { id: 1, icon: '🍺', name: 'Bier', default_amount: 1.00, sort_order: 1, mode: 'euro' },
-    { id: 2, icon: '⚠️', name: 'Strafe', default_amount: 0.50, sort_order: 2, mode: 'count' },
+    { id: 1, icon: '🍺', name: 'Bier', default_amount: 1.00, sort_order: 1, mode: 'euro', sound_key: 'bell' },
+    { id: 2, icon: '⚠️', name: 'Strafe', default_amount: 0.50, sort_order: 2, mode: 'count', sound_key: null },
 ]
 
 const PLAYERS = [
@@ -682,6 +685,44 @@ describe('ProtocolPage — penalty sheet player selection', () => {
         await waitFor(() => {
             expect(api.addPenalty).toHaveBeenCalled()
         })
+    })
+
+    it('plays the penalty type sound_key after logging, when audio call-outs are enabled', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { playSound } = await import('@/lib/soundboard')
+        vi.mocked(api.addPenalty).mockResolvedValueOnce({} as any)
+        audioCalloutsMock.mockReturnValue(true)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        fireEvent.click(within(sheet).getAllByText('Admin')[0])
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+        await waitFor(() => expect(screen.getByText('penalty.confirm')).not.toBeDisabled())
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(playSound).toHaveBeenCalledWith('bell')
+        })
+    })
+
+    it('does not play a sound when audio call-outs are disabled', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { playSound } = await import('@/lib/soundboard')
+        vi.mocked(api.addPenalty).mockResolvedValueOnce({} as any)
+        audioCalloutsMock.mockReturnValue(false)
+        await renderProtocolPage()
+        fireEvent.click(screen.getByText(/\+ Strafe/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        const sheet = screen.getByTestId('sheet')
+        fireEvent.click(within(sheet).getAllByText('Admin')[0])
+        fireEvent.click(within(sheet).getAllByText(/Bier/)[0])
+        await waitFor(() => expect(screen.getByText('penalty.confirm')).not.toBeDisabled())
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.addPenalty).toHaveBeenCalled()
+        })
+        expect(playSound).not.toHaveBeenCalled()
+        audioCalloutsMock.mockReturnValue(true)
     })
 })
 

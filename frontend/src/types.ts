@@ -41,6 +41,9 @@ export interface ClubSettings {
     scoreboard_token: string | null
     // Camera-based pin/throw tracking (#33). Defaults to true when the club predates the setting.
     throw_tracking_enabled?: boolean
+    // Audio call-outs (0-pin buzzer + per-PenaltyType sounds). Defaults to true when the club
+    // predates the setting — plays on the logging device, so this is a club-level master switch.
+    audio_callouts_enabled?: boolean
 }
 
 export type RsvpStatus = 'attending' | 'absent'
@@ -196,6 +199,8 @@ export interface PenaltyType {
     name: string
     default_amount: number
     sort_order: number
+    // Optional preset audio call-out (see lib/soundboard.ts), played when this penalty is logged.
+    sound_key: string | null
 }
 
 export interface ClubTeam {

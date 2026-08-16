@@ -16,3 +16,12 @@ import type {ClubSettings} from '@/types'
 export function throwTrackingEnabled(settings?: Pick<ClubSettings, 'throw_tracking_enabled'> | null): boolean {
     return settings?.throw_tracking_enabled !== false
 }
+
+/**
+ * Whether audio call-outs (0-pin buzzer + per-PenaltyType sounds) are enabled for the current club.
+ * Same default-on-unless-explicitly-false convention as `throwTrackingEnabled` — this is a club-level
+ * master switch since call-outs play on a shared/kiosk device, not just one member's phone.
+ */
+export function audioCalloutsEnabled(settings?: Pick<ClubSettings, 'audio_callouts_enabled'> | null): boolean {
+    return settings?.audio_callouts_enabled !== false
+}

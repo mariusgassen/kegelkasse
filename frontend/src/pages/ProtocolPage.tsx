@@ -13,6 +13,8 @@ import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {toDateTimeInput} from '@/lib/datetime.ts'
+import {playSound} from '@/lib/soundboard'
+import {useAudioCallouts} from '@/hooks/useClub.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 import {PinBadges} from '@/components/ui/MemberBadges.tsx'
@@ -73,6 +75,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
     const regularMembers = useAppStore(s => s.regularMembers)
     const guestPenaltyCap = useAppStore(s => s.guestPenaltyCap)
     const user = useAppStore(s => s.user)
+    const audioCallouts = useAudioCallouts()
     const {data: pins = []} = useQuery({queryKey: ['pins'], queryFn: api.listPins, staleTime: 60000})
     const [sheet, setSheet] = useState(false)
     const [tab, setTab] = useState<'quick' | 'custom'>('quick')
@@ -229,6 +232,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 unit_amount: mode === 'count' ? selectedPenaltyType.default_amount : undefined,
                 client_timestamp: Date.now(),
             })
+            if (audioCallouts) playSound(selectedPenaltyType.sound_key)
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})

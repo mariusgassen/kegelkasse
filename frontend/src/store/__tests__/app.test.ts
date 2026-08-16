@@ -78,7 +78,7 @@ describe('useAppStore', () => {
     })
 
     it('setPenaltyTypes stores the list', () => {
-        const types = [{ id: 1, name: 'Test', icon: '⚠️', default_amount: 1.0, sort_order: 0 }]
+        const types = [{ id: 1, name: 'Test', icon: '⚠️', default_amount: 1.0, sort_order: 0, sound_key: null }]
         useAppStore.getState().setPenaltyTypes(types)
         expect(useAppStore.getState().penaltyTypes).toHaveLength(1)
     })
