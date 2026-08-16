@@ -90,8 +90,9 @@ der Ton auf dem erfassenden Gerät abgespielt.
 - Sound-Auswahl beim Anlegen/Bearbeiten eines Strafentyps, mit Anhör-Vorschau je Option
 - Club-weit ein-/ausschaltbar unter **Verein → Einstellungen → Audio-Ansagen** (Standard: an)
 - Zusätzlich vom persönlichen **🎉 Feier-Effekte**-Schalter im Profil abhängig
-- Ein Wurf mit **0 Kegeln** löst unabhängig vom Strafentyp immer den 🚨-Buzzer aus, sofern die
-  Wurf-Erfassung (siehe [Spiele](spiele.md)) und die Audio-Ansagen aktiviert sind
+- Es gibt keinen separaten, fest verdrahteten 0-Kegel-Ton mehr — wer einen Ton für einen Nuller
+  möchte, weist den 🚨-Buzzer dem entsprechenden Strafentyp zu; der spielt dann automatisch beim
+  Eintragen dieser Strafe (auch die 0-Kegel-Situation ist ja immer schon konfigurationsgesteuert)
 
 ## Strafenprotokoll filtern
 

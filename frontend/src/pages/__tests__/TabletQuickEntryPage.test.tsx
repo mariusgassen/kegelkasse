@@ -998,62 +998,6 @@ describe('TabletQuickEntryPage — alle neune celebration', () => {
         expect(celebrate).not.toHaveBeenCalled()
     })
 
-    it('plays the buzzer when a newly-arrived throw has 0 pins', async () => {
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        const { playSound } = await import('@/lib/soundboard')
-        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
-
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
-                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-            ])] } as any,
-            invalidate: vi.fn(),
-        } as any)
-        const { rerender } = await renderTabletQuickEntry()
-
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
-                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-                { id: 2, throw_num: 2, pins: 0, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-            ])] } as any,
-            invalidate: vi.fn(),
-        } as any)
-        rerender(<TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />)
-
-        await waitFor(() => {
-            expect(playSound).toHaveBeenCalledWith('buzzer')
-        })
-    })
-
-    it('does not play the buzzer when audio call-outs are disabled', async () => {
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        const { playSound } = await import('@/lib/soundboard')
-        const { TabletQuickEntryPage } = await import('../TabletQuickEntryPage')
-        audioCalloutsMock.mockReturnValue(false)
-
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
-                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-            ])] } as any,
-            invalidate: vi.fn(),
-        } as any)
-        const { rerender } = await renderTabletQuickEntry()
-
-        vi.mocked(useActiveEvening).mockReturnValue({
-            evening: { ...ACTIVE_EVENING, games: [gameWithThrows([
-                { id: 1, throw_num: 1, pins: 7, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-                { id: 2, throw_num: 2, pins: 0, cumulative: 7, pin_states: Array(9).fill(false), player_id: 10 },
-            ])] } as any,
-            invalidate: vi.fn(),
-        } as any)
-        rerender(<TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />)
-
-        await waitFor(() => {
-            expect(screen.getByText(/🎳 7/)).toBeInTheDocument()
-        })
-        expect(playSound).not.toHaveBeenCalled()
-        audioCalloutsMock.mockReturnValue(true)
-    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
