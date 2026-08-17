@@ -954,7 +954,10 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             })
             const labels = {
                 title: t('recap.title'),
-                dateLine: [fDateLong(detail.date), detail.venue].filter(Boolean).join(' · '),
+                // `detail.date` is a full ISO datetime (backend serializes it via `.isoformat()`),
+                // but fDateLong appends its own 'T00:00:00' assuming a bare date — matches the
+                // existing fDateTimeLong pattern above, which slices for the same reason.
+                dateLine: [fDateLong(detail.date.slice(0, 10)), detail.venue].filter(Boolean).join(' · '),
                 king: t('recap.king'),
                 topPenalty: t('recap.topPenalty'),
                 topDrinker: t('recap.topDrinker'),

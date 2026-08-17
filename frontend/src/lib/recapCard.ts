@@ -47,8 +47,14 @@ export function computeEveningRecap(evening: Evening | null | undefined): Evenin
 
     const king = evening.players.find(p => p.is_king) ?? null
 
+    // Absence entries (`player_id === null`, logged for members who missed the evening entirely)
+    // aren't a fun "highlight" to headline — the whole point of a shareable recap is what actually
+    // happened at the table, and someone who wasn't there didn't have a dramatic moment. Excluding
+    // them also keeps `totalPenaltyEuro` (below) as the one place they still count, which is correct
+    // since they *do* belong in the evening's pot.
     let topPenalty: RecapTopPenalty | null = null
     for (const p of evening.penalty_log) {
+        if (p.player_id == null) continue
         const amount = penaltyEuro(p.unit_amount, p.amount)
         if (!topPenalty || amount > topPenalty.amount) {
             topPenalty = {playerName: p.player_name, icon: p.icon || '⚠️', typeName: p.penalty_type_name, amount}
