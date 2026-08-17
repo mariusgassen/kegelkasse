@@ -37,6 +37,7 @@ import {
     SeasonSnapshot,
     BowlingLeaderboardEntry,
     BowlingSubmitResult,
+    ClubConfigBundle,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -789,6 +790,10 @@ export const api = {
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
     regenerateScoreboardToken: () =>
         request<{ scoreboard_token: string }>('POST', '/club/settings/regenerate-scoreboard-token'),
+    exportClubConfig: () => request<ClubConfigBundle>('GET', '/club/config/export'),
+    importClubConfig: (bundle: ClubConfigBundle) =>
+        request<{ ok: boolean; penalty_types: number; game_templates: number; teams: number; pins: number }>(
+            'POST', '/club/config/import', bundle),
     getReminderSettings: () => request<ReminderSettings>('GET', '/club/reminder-settings'),
     updateReminderSettings: (d: Partial<ReminderSettings>) => request<{ ok: boolean }>('PATCH', '/club/reminder-settings', d),
     getEmailSettings: () => request<EmailSettings>('GET', '/club/email-settings'),

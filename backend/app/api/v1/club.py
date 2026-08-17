@@ -1922,6 +1922,185 @@ def delete_pin(pid: int, db: Session = Depends(get_db),
     db.commit()
 
 
+# ── Club configuration export / import ──
+# Bundles the club's *setup* config — branding, penalty types, game templates, teams, pins — into
+# a portable JSON blob so an admin can seed a second (e.g. test/staging) club with the same setup.
+# Deliberately excludes live/personal data: evenings, games, payments, members, the uploaded logo
+# file, PayPal link, and the iCal/scoreboard secret tokens (per-club secrets that must never be
+# cloned into another club).
+
+_CONFIG_VERSION = 1
+
+
+class ConfigPenaltyType(BaseModel):
+    icon: str = "⚠️"
+    name: str
+    default_amount: float = 0.5
+    sort_order: int = 0
+    sound_key: Optional[str] = None
+
+
+class ConfigGameTemplate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    winner_type: str = "individual"
+    turn_mode: Optional[str] = None
+    is_opener: bool = False
+    is_president_game: bool = False
+    default_loser_penalty: float = 0
+    per_point_penalty: float = 0
+    sort_order: int = 0
+
+
+class ConfigTeam(BaseModel):
+    name: str
+    sort_order: int = 0
+
+
+class ConfigPin(BaseModel):
+    name: str
+    icon: str = "📌"
+
+
+class ConfigSettings(BaseModel):
+    home_venue: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    bg_color: Optional[str] = None
+    guest_penalty_cap: Optional[float] = None
+    no_cancel_fee: Optional[float] = None
+    pin_penalty: Optional[float] = None
+    default_evening_time: Optional[str] = None
+    throw_tracking_enabled: Optional[bool] = None
+    audio_callouts_enabled: Optional[bool] = None
+
+
+class ClubConfigBundle(BaseModel):
+    version: int = _CONFIG_VERSION
+    club_name: Optional[str] = None
+    exported_at: Optional[str] = None
+    settings: ConfigSettings = ConfigSettings()
+    penalty_types: list[ConfigPenaltyType] = []
+    game_templates: list[ConfigGameTemplate] = []
+    teams: list[ConfigTeam] = []
+    pins: list[ConfigPin] = []
+
+
+@router.get("/config/export", response_model=ClubConfigBundle)
+def export_club_config(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin only: export the club's setup configuration as a portable JSON bundle."""
+    club = db.query(Club).filter(Club.id == user.club_id).first()
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    extra = (s.extra or {}) if s else {}
+    penalty_types = db.query(PenaltyType).filter(
+        PenaltyType.club_id == user.club_id, PenaltyType.is_active == True
+    ).order_by(PenaltyType.sort_order).all()
+    game_templates = db.query(GameTemplate).filter(
+        GameTemplate.club_id == user.club_id, GameTemplate.is_active == True
+    ).order_by(GameTemplate.sort_order).all()
+    teams = db.query(ClubTeam).filter(
+        ClubTeam.club_id == user.club_id, ClubTeam.is_active == True
+    ).order_by(ClubTeam.sort_order, ClubTeam.name).all()
+    pins = db.query(ClubPin).filter(ClubPin.club_id == user.club_id).order_by(ClubPin.id).all()
+    return ClubConfigBundle(
+        club_name=club.name if club else None,
+        exported_at=datetime.now(timezone.utc).isoformat(),
+        settings=ConfigSettings(
+            home_venue=s.home_venue if s else None,
+            primary_color=s.primary_color if s else None,
+            secondary_color=s.secondary_color if s else None,
+            bg_color=extra.get("bg_color"),
+            guest_penalty_cap=extra.get("guest_penalty_cap"),
+            no_cancel_fee=extra.get("no_cancel_fee"),
+            pin_penalty=extra.get("pin_penalty"),
+            default_evening_time=extra.get("default_evening_time"),
+            throw_tracking_enabled=extra.get("throw_tracking_enabled", True),
+            audio_callouts_enabled=extra.get("audio_callouts_enabled", True),
+        ),
+        penalty_types=[
+            ConfigPenaltyType(icon=pt.icon, name=pt.name, default_amount=pt.default_amount,
+                               sort_order=pt.sort_order, sound_key=pt.sound_key)
+            for pt in penalty_types
+        ],
+        game_templates=[
+            ConfigGameTemplate(
+                name=gt.name, description=gt.description, winner_type=gt.winner_type,
+                turn_mode=gt.turn_mode, is_opener=gt.is_opener, is_president_game=gt.is_president_game,
+                default_loser_penalty=gt.default_loser_penalty, per_point_penalty=gt.per_point_penalty,
+                sort_order=gt.sort_order,
+            )
+            for gt in game_templates
+        ],
+        teams=[ConfigTeam(name=t.name, sort_order=t.sort_order) for t in teams],
+        pins=[ConfigPin(name=p.name, icon=p.icon) for p in pins],
+    )
+
+
+@router.post("/config/import")
+def import_club_config(data: ClubConfigBundle, db: Session = Depends(get_db),
+                       user: User = Depends(require_club_admin)):
+    """Admin only: replace the club's setup configuration with an imported bundle.
+
+    Destructive by design — meant for seeding a fresh/test club from another club's exported
+    config, not for merging into a live one. Existing penalty types/game templates/teams are
+    soft-deleted (same semantics as their normal delete endpoints) and pins are replaced outright
+    (they carry no history worth keeping). Evenings/games/payments/members are untouched.
+    """
+    if data.version > _CONFIG_VERSION:
+        raise HTTPException(400, "Unsupported config version")
+
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    settings_payload = data.settings.model_dump(exclude_none=True)
+    for field, value in settings_payload.items():
+        if field in _SETTINGS_COLUMNS:
+            setattr(s, field, value)
+        elif field in _SETTINGS_EXTRA:
+            extra = dict(s.extra or {})
+            extra[field] = value
+            s.extra = extra
+
+    db.query(PenaltyType).filter(
+        PenaltyType.club_id == user.club_id, PenaltyType.is_active == True
+    ).update({"is_active": False}, synchronize_session=False)
+    db.query(GameTemplate).filter(
+        GameTemplate.club_id == user.club_id, GameTemplate.is_active == True
+    ).update({"is_active": False}, synchronize_session=False)
+    db.query(ClubTeam).filter(
+        ClubTeam.club_id == user.club_id, ClubTeam.is_active == True
+    ).update({"is_active": False}, synchronize_session=False)
+    db.query(ClubPin).filter(ClubPin.club_id == user.club_id).delete(synchronize_session=False)
+
+    for pt in data.penalty_types:
+        db.add(PenaltyType(
+            club_id=user.club_id, icon=pt.icon, name=pt.name, default_amount=pt.default_amount,
+            sort_order=pt.sort_order, sound_key=_clean_sound_key(pt.sound_key),
+        ))
+    for gt in data.game_templates:
+        wt = gt.winner_type if gt.winner_type in ("team", "individual") else "individual"
+        db.add(GameTemplate(
+            club_id=user.club_id, name=gt.name, description=gt.description,
+            winner_type=WinnerType(wt), turn_mode=gt.turn_mode if wt == "team" else None,
+            is_opener=gt.is_opener, is_president_game=gt.is_president_game,
+            default_loser_penalty=gt.default_loser_penalty, per_point_penalty=gt.per_point_penalty,
+            sort_order=gt.sort_order,
+        ))
+    for t in data.teams:
+        db.add(ClubTeam(club_id=user.club_id, name=t.name, sort_order=t.sort_order))
+    for p in data.pins:
+        db.add(ClubPin(club_id=user.club_id, name=p.name, icon=p.icon or "📌"))
+
+    db.commit()
+    return {
+        "ok": True,
+        "penalty_types": len(data.penalty_types),
+        "game_templates": len(data.game_templates),
+        "teams": len(data.teams),
+        "pins": len(data.pins),
+    }
+
 
 # ── Committee member management ───────────────────────────────────────────────
 

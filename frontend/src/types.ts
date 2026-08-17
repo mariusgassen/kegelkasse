@@ -233,6 +233,62 @@ export interface ClubPin {
     assigned_at: string | null
 }
 
+// Portable club setup bundle (GET/POST /club/config/export|import) — branding, penalty types,
+// game templates, teams and pins, deliberately without members/evenings/payments/logo/secrets.
+export interface ClubConfigSettings {
+    home_venue: string | null
+    primary_color: string | null
+    secondary_color: string | null
+    bg_color: string | null
+    guest_penalty_cap: number | null
+    no_cancel_fee: number | null
+    pin_penalty: number | null
+    default_evening_time: string | null
+    throw_tracking_enabled: boolean | null
+    audio_callouts_enabled: boolean | null
+}
+
+export interface ClubConfigPenaltyType {
+    icon: string
+    name: string
+    default_amount: number
+    sort_order: number
+    sound_key: string | null
+}
+
+export interface ClubConfigGameTemplate {
+    name: string
+    description: string | null
+    winner_type: WinnerType
+    turn_mode: TurnMode | null
+    is_opener: boolean
+    is_president_game: boolean
+    default_loser_penalty: number
+    per_point_penalty: number
+    sort_order: number
+}
+
+export interface ClubConfigTeam {
+    name: string
+    sort_order: number
+}
+
+export interface ClubConfigPin {
+    name: string
+    icon: string
+}
+
+export interface ClubConfigBundle {
+    version: number
+    club_name: string | null
+    exported_at: string | null
+    settings: ClubConfigSettings
+    penalty_types: ClubConfigPenaltyType[]
+    game_templates: ClubConfigGameTemplate[]
+    teams: ClubConfigTeam[]
+    pins: ClubConfigPin[]
+}
+
 export interface EveningPlayer {
     id: number
     name: string

@@ -1116,3 +1116,199 @@ class TestTreasuryPayout:
             "payouts": [{"regular_member_id": payout_member.id, "amount": 5.0}],
         })
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Club configuration export / import
+# ---------------------------------------------------------------------------
+
+class TestExportClubConfig:
+    def test_requires_auth(self, client: TestClient):
+        resp = client.get("/api/v1/club/config/export")
+        assert resp.status_code == 401
+
+    def test_member_cannot_export(self, client: TestClient, auth_headers: dict):
+        resp = client.get("/api/v1/club/config/export", headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_export_empty_club(self, client: TestClient, admin_headers: dict):
+        resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["version"] == 1
+        assert data["penalty_types"] == []
+        assert data["game_templates"] == []
+        assert data["teams"] == []
+        assert data["pins"] == []
+
+    def test_export_includes_setup_data(self, client: TestClient, admin_headers: dict,
+                                         db: Session, club: Club):
+        s = ClubSettings(
+            club_id=club.id, home_venue="Krone", primary_color="#111111",
+            secondary_color="#222222",
+            extra={
+                "bg_color": "#333333", "guest_penalty_cap": 5.0, "no_cancel_fee": 1.5,
+                "pin_penalty": 2.0, "default_evening_time": "20:00",
+                "throw_tracking_enabled": False, "audio_callouts_enabled": False,
+                "paypal_me": "https://paypal.me/test",
+                "ical_token": "secret-ical", "scoreboard_token": "secret-tv",
+            },
+        )
+        db.add(s)
+        db.add(PenaltyType(club_id=club.id, name="Null", icon="🎳", default_amount=1.0,
+                            sort_order=0, sound_key="buzzer"))
+        db.add(GameTemplate(club_id=club.id, name="Große Hausnummer", winner_type="individual",
+                             is_opener=True, default_loser_penalty=1.0, per_point_penalty=0,
+                             sort_order=0))
+        db.add(ClubTeam(club_id=club.id, name="Team A", sort_order=0))
+        db.add(ClubPin(club_id=club.id, name="Vereinsnadel", icon="📌"))
+        db.commit()
+
+        resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["club_name"] == club.name
+        assert data["settings"]["home_venue"] == "Krone"
+        assert data["settings"]["bg_color"] == "#333333"
+        assert data["settings"]["guest_penalty_cap"] == 5.0
+        assert data["settings"]["throw_tracking_enabled"] is False
+        assert "paypal_me" not in data["settings"]
+        assert "ical_token" not in data["settings"]
+        assert "scoreboard_token" not in data["settings"]
+        assert "logo_url" not in data["settings"]
+        assert len(data["penalty_types"]) == 1
+        assert data["penalty_types"][0]["name"] == "Null"
+        assert data["penalty_types"][0]["sound_key"] == "buzzer"
+        assert len(data["game_templates"]) == 1
+        assert data["game_templates"][0]["is_opener"] is True
+        assert len(data["teams"]) == 1
+        assert len(data["pins"]) == 1
+        assert data["pins"][0]["name"] == "Vereinsnadel"
+        assert "holder_regular_member_id" not in data["pins"][0]
+
+    def test_export_omits_inactive_entries(self, client: TestClient, admin_headers: dict,
+                                            db: Session, club: Club):
+        db.add(PenaltyType(club_id=club.id, name="Inactive", icon="⚠️", default_amount=1.0,
+                            is_active=False))
+        db.commit()
+        resp = client.get("/api/v1/club/config/export", headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["penalty_types"] == []
+
+
+class TestImportClubConfig:
+    def _bundle(self, **overrides):
+        base = {
+            "version": 1,
+            "settings": {"home_venue": "Neue Halle", "guest_penalty_cap": 3.0},
+            "penalty_types": [{"icon": "🎳", "name": "Null", "default_amount": 1.0, "sort_order": 0,
+                               "sound_key": "buzzer"}],
+            "game_templates": [{"name": "Fass", "winner_type": "individual",
+                                "default_loser_penalty": 0.5, "per_point_penalty": 0, "sort_order": 0}],
+            "teams": [{"name": "Team A", "sort_order": 0}],
+            "pins": [{"name": "Vereinsnadel", "icon": "📌"}],
+        }
+        base.update(overrides)
+        return base
+
+    def test_requires_auth(self, client: TestClient):
+        resp = client.post("/api/v1/club/config/import", json=self._bundle())
+        assert resp.status_code == 401
+
+    def test_member_cannot_import(self, client: TestClient, auth_headers: dict):
+        resp = client.post("/api/v1/club/config/import", headers=auth_headers, json=self._bundle())
+        assert resp.status_code == 403
+
+    def test_import_creates_setup_data(self, client: TestClient, admin_headers: dict,
+                                        db: Session, club: Club):
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "penalty_types": 1, "game_templates": 1, "teams": 1, "pins": 1}
+
+        pts = db.query(PenaltyType).filter(
+            PenaltyType.club_id == club.id, PenaltyType.is_active == True).all()
+        assert len(pts) == 1
+        assert pts[0].name == "Null"
+        assert pts[0].sound_key == "buzzer"
+
+        gts = db.query(GameTemplate).filter(
+            GameTemplate.club_id == club.id, GameTemplate.is_active == True).all()
+        assert len(gts) == 1
+        assert gts[0].name == "Fass"
+
+        teams = db.query(ClubTeam).filter(
+            ClubTeam.club_id == club.id, ClubTeam.is_active == True).all()
+        assert len(teams) == 1
+
+        pins = db.query(ClubPin).filter(ClubPin.club_id == club.id).all()
+        assert len(pins) == 1
+        assert pins[0].name == "Vereinsnadel"
+
+        s = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+        assert s.home_venue == "Neue Halle"
+        assert (s.extra or {}).get("guest_penalty_cap") == 3.0
+
+    def test_import_replaces_existing_setup_data(self, client: TestClient, admin_headers: dict,
+                                                  db: Session, club: Club):
+        old_pt = PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5)
+        old_gt = GameTemplate(club_id=club.id, name="Old Game", winner_type="individual",
+                              default_loser_penalty=0, per_point_penalty=0)
+        old_team = ClubTeam(club_id=club.id, name="Old Team")
+        old_pin = ClubPin(club_id=club.id, name="Old Pin")
+        db.add_all([old_pt, old_gt, old_team, old_pin])
+        db.commit()
+        old_pt_id, old_gt_id, old_team_id = old_pt.id, old_gt.id, old_team.id
+
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        assert resp.status_code == 200
+
+        db.expire_all()
+        assert db.query(PenaltyType).filter(PenaltyType.id == old_pt_id).first().is_active is False
+        assert db.query(GameTemplate).filter(GameTemplate.id == old_gt_id).first().is_active is False
+        assert db.query(ClubTeam).filter(ClubTeam.id == old_team_id).first().is_active is False
+        assert db.query(ClubPin).filter(
+            ClubPin.club_id == club.id, ClubPin.name == "Old Pin").first() is None
+
+        active_pts = db.query(PenaltyType).filter(
+            PenaltyType.club_id == club.id, PenaltyType.is_active == True).all()
+        assert len(active_pts) == 1
+        assert active_pts[0].name == "Null"
+
+    def test_import_preserves_secret_tokens(self, client: TestClient, admin_headers: dict,
+                                             db: Session, club: Club):
+        s = ClubSettings(club_id=club.id, extra={"ical_token": "keep-me"})
+        db.add(s)
+        db.commit()
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle())
+        assert resp.status_code == 200
+        db.expire_all()
+        s2 = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+        assert s2.extra.get("ical_token") == "keep-me"
+
+    def test_import_rejects_unsupported_version(self, client: TestClient, admin_headers: dict):
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers,
+                           json=self._bundle(version=999))
+        assert resp.status_code == 400
+
+    def test_import_drops_unknown_sound_key(self, client: TestClient, admin_headers: dict,
+                                             db: Session, club: Club):
+        bundle = self._bundle(penalty_types=[{"icon": "⚠️", "name": "X", "default_amount": 1.0,
+                                              "sort_order": 0, "sound_key": "not-real"}])
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=bundle)
+        assert resp.status_code == 200
+        pt = db.query(PenaltyType).filter(
+            PenaltyType.club_id == club.id, PenaltyType.is_active == True).first()
+        assert pt.sound_key is None
+
+    def test_import_empty_bundle_deactivates_everything(self, client: TestClient, admin_headers: dict,
+                                                          db: Session, club: Club):
+        db.add(PenaltyType(club_id=club.id, name="Old", icon="⚠️", default_amount=0.5))
+        db.commit()
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=self._bundle(
+            penalty_types=[], game_templates=[], teams=[], pins=[],
+        ))
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "penalty_types": 0, "game_templates": 0, "teams": 0, "pins": 0}
+        active_pts = db.query(PenaltyType).filter(
+            PenaltyType.club_id == club.id, PenaltyType.is_active == True).all()
+        assert active_pts == []

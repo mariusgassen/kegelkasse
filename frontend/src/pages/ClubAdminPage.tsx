@@ -2,7 +2,8 @@
  * Club admin page — settings, members, penalty types, game templates, invites.
  * Write operations guarded by AdminGuard (admin/superadmin only).
  */
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
+import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
@@ -24,7 +25,7 @@ import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {todayDateInput, toDateInput} from '@/lib/datetime.ts'
-import type {ClubPin, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
+import type {ClubPin, ClubConfigBundle, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
 import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
 
@@ -500,6 +501,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             <ReminderSettingsCard />
             <EmailSettingsCard />
             <BroadcastPushCard />
+            <ClubConfigCard />
         </div>
     )
 }
@@ -578,6 +580,124 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                         </button>
                         <button className="btn-danger flex-1" onClick={regenerate}>
                             {t('scoreboard.regenerate')}
+                        </button>
+                    </div>
+                </Sheet>
+            )}
+        </div>
+    )
+}
+
+
+/**
+ * Portable club setup export/import — for seeding a second (e.g. test/staging) club with the
+ * same penalty types, game templates, teams, pins and base settings. Export is a plain JSON
+ * download; import is destructive (replaces the target club's setup) so it goes through a
+ * confirmation sheet before the request fires.
+ */
+function ClubConfigCard() {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [pendingBundle, setPendingBundle] = useState<ClubConfigBundle | null>(null)
+    const [importing, setImporting] = useState(false)
+
+    async function exportConfig() {
+        try {
+            const bundle = await api.exportClubConfig()
+            const blob = new Blob([JSON.stringify(bundle, null, 2)], {type: 'application/json'})
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            const slug = (bundle.club_name ?? 'club').toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'club'
+            a.download = `kegelkasse_config_${slug}.json`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
+    function onFileSelected(e: ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(String(reader.result)) as ClubConfigBundle
+                if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.penalty_types)) {
+                    throw new Error('invalid')
+                }
+                setPendingBundle(parsed)
+            } catch {
+                showToast(t('club.config.importInvalid'))
+            }
+        }
+        reader.readAsText(file)
+    }
+
+    async function confirmImport() {
+        if (!pendingBundle) return
+        setImporting(true)
+        try {
+            await api.importClubConfig(pendingBundle)
+            await Promise.all([
+                qc.invalidateQueries({queryKey: ['club']}),
+                qc.invalidateQueries({queryKey: ['penalty-types']}),
+                qc.invalidateQueries({queryKey: ['game-templates']}),
+                qc.invalidateQueries({queryKey: ['club-teams']}),
+                qc.invalidateQueries({queryKey: ['pins']}),
+            ])
+            setPendingBundle(null)
+            showToast(t('club.config.importOk'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setImporting(false)
+        }
+    }
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-3">{t('club.config.title')}</div>
+            <p className="text-xs text-muted mb-3">{t('club.config.hint')}</p>
+            <div className="flex gap-2">
+                <button className="btn-secondary flex-1" onClick={exportConfig} disabled={!isOnline}>
+                    {t('club.config.export')}
+                </button>
+                <button className="btn-secondary flex-1" disabled={!isOnline}
+                        onClick={() => fileInputRef.current?.click()}>
+                    {t('club.config.import')}
+                </button>
+                <input ref={fileInputRef} type="file" accept="application/json" className="hidden"
+                       onChange={onFileSelected}/>
+            </div>
+
+            {pendingBundle && (
+                <Sheet open onClose={() => setPendingBundle(null)} title={t('club.config.import')}>
+                    <p className="text-sm text-ink mb-2">{t('club.config.importConfirm')}</p>
+                    {pendingBundle.club_name && (
+                        <p className="text-xs text-muted mb-3">
+                            {t('club.config.importSource').replace('{name}', pendingBundle.club_name)}
+                        </p>
+                    )}
+                    <ul className="text-sm text-ink mb-3 space-y-1">
+                        <li>{t('club.tab.penalties')}: {pendingBundle.penalty_types.length}</li>
+                        <li>{t('club.tab.templates')}: {pendingBundle.game_templates.length}</li>
+                        <li>{t('club.tab.teams')}: {pendingBundle.teams.length}</li>
+                        <li>{t('club.tab.pins')}: {pendingBundle.pins.length}</li>
+                    </ul>
+                    <div className="flex gap-2">
+                        <button className="btn-secondary flex-1" onClick={() => setPendingBundle(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-danger flex-1" onClick={confirmImport} disabled={importing}>
+                            {importing ? t('action.loading') : t('club.config.import')}
                         </button>
                     </div>
                 </Sheet>

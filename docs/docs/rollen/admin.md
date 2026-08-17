@@ -21,6 +21,28 @@ Unter **Verein → Einstellungen** kannst du:
 
 ---
 
+## Konfiguration exportieren / importieren
+
+Unter **Verein → Einstellungen → Konfiguration exportieren/importieren** kannst du die Grundeinrichtung
+des Vereins als JSON-Datei sichern oder in einen anderen Verein übernehmen — praktisch, um z. B. einen
+Test- oder Staging-Verein mit derselben Einrichtung wie der Live-Verein zu starten.
+
+**Enthalten:** Strafenarten, Spielvorlagen, Vereinsteams, Vereinsnadeln sowie die Grundeinstellungen
+(Spiellokal, Vereinsfarben, Gästestrafen-Limit, Sonderstrafen, Standard-Startzeit, Wurf-Erfassung,
+Audio-Ansagen).
+
+**Nicht enthalten:** Mitglieder, Kegelabende, Zahlungen, das hochgeladene Logo, der PayPal.me-Handle
+sowie die geheimen iCal-/TV-Scoreboard-Links — diese sind persönliche bzw. vereinsspezifische Geheimnisse
+und werden nie mit exportiert.
+
+:::danger
+Ein **Import ersetzt** die aktuellen Strafenarten, Spielvorlagen, Teams und Nadeln des Zielvereins
+vollständig durch die importierte Konfiguration. Mitglieder, Kegelabende und Zahlungen bleiben davon
+unberührt. Vor dem Import erscheint ein Bestätigungs-Dialog mit der Anzahl der enthaltenen Einträge.
+:::
+
+---
+
 ## Mitglieder einladen
 
 ### Einladungslink erstellen
