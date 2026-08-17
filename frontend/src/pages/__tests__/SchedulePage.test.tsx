@@ -65,6 +65,14 @@ vi.mock('@/components/ui/Empty.tsx', () => ({
     Empty: ({ text }: any) => <div>{text}</div>,
 }))
 vi.mock('@/components/ui/Toast.tsx', () => ({ showToast: vi.fn() }))
+vi.mock('@/lib/recapCard', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/recapCard')>('@/lib/recapCard')
+    return {
+        ...actual,
+        renderRecapCardImage: vi.fn(),
+        shareOrDownloadRecapImage: vi.fn(),
+    }
+})
 
 // Mock all internal sub-components that would be complex to render
 vi.mock('../SchedulePage', async () => {
@@ -1142,7 +1150,7 @@ describe('SchedulePage — history detail expansion', () => {
         })
     })
 
-    it('shows game start/finish dividers in the penalty timeline', async () => {
+    it('keeps the full timeline collapsed by default, with per-player totals shown instead', async () => {
         const { useEveningList } = await import('@/hooks/useEvening.ts')
         vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
         const { api } = await import('@/api/client.ts')
@@ -1152,12 +1160,16 @@ describe('SchedulePage — history detail expansion', () => {
         await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
         fireEvent.click(screen.getByText(/Stammlokal/))
         await waitFor(() => {
-            expect(screen.getByText(/▶ Eröffnungsspiel/)).toBeInTheDocument()
-            expect(screen.getByText(/🏁 Eröffnungsspiel · Hans/)).toBeInTheDocument()
+            // Compact per-player penalty total is visible without opening the timeline —
+            // scoped to the danger-fg row since the stats header also shows "2,50 €"
+            expect(document.querySelector('.text-danger-fg')?.textContent).toMatch(/2,50/)
         })
+        // The chronological timeline itself is not rendered until the disclosure is opened
+        expect(screen.queryByText(/▶ Eröffnungsspiel/)).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Klaus' })).not.toBeInTheDocument()
     })
 
-    it('shows player and game filter chips and filters the timeline by player', async () => {
+    it('shows game start/finish dividers in the penalty timeline once expanded', async () => {
         const { useEveningList } = await import('@/hooks/useEvening.ts')
         vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
         const { api } = await import('@/api/client.ts')
@@ -1166,6 +1178,25 @@ describe('SchedulePage — history detail expansion', () => {
         await renderSchedulePage()
         await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
         fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => expect(screen.getByText(/history\.fullTimeline/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/history\.fullTimeline/))
+        await waitFor(() => {
+            expect(screen.getByText(/▶ Eröffnungsspiel/)).toBeInTheDocument()
+            expect(screen.getByText(/🏁 Eröffnungsspiel · Hans/)).toBeInTheDocument()
+        })
+    })
+
+    it('shows player and game filter chips and filters the timeline by player once expanded', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => expect(screen.getByText(/history\.fullTimeline/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/history\.fullTimeline/))
         // Player filter chip for the non-Hans player (Klaus, who has no penalties) — button,
         // distinct from the static "👤 Spieler" roster badge that also reads "Klaus"
         await waitFor(() => expect(screen.getByRole('button', { name: 'Klaus' })).toBeInTheDocument())
@@ -1177,6 +1208,106 @@ describe('SchedulePage — history detail expansion', () => {
             expect(screen.getByText('penalty.none')).toBeInTheDocument()
             expect(screen.queryByText(/▶ Eröffnungsspiel/)).not.toBeInTheDocument()
         })
+    })
+
+    it('keeps the itemized drink round list collapsed behind a summary line', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        // Compact count summary visible immediately
+        await waitFor(() => expect(screen.getByText(/1× drinks\.beer/)).toBeInTheDocument())
+        expect(screen.getByText(/1× drinks\.shots/)).toBeInTheDocument()
+        // The disclosure toggle is present but the itemized ticker is not rendered yet
+        expect(screen.getByText(/history\.allRounds/)).toBeInTheDocument()
+        fireEvent.click(screen.getByText(/history\.allRounds/))
+        await waitFor(() => {
+            expect(screen.getAllByText(/drinks\.beer|drinks\.shots/).length).toBeGreaterThan(0)
+        })
+    })
+
+    it('shows a share-recap button right under the summary stats, for any member', async () => {
+        const { isAdmin } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => {
+            expect(screen.getByText(/recap\.share/)).toBeInTheDocument()
+        })
+    })
+
+    it('renders and shares the recap card when the share button is clicked', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+        const { renderRecapCardImage, shareOrDownloadRecapImage } = await import('@/lib/recapCard')
+        const fakeBlob = new Blob(['png'])
+        vi.mocked(renderRecapCardImage).mockResolvedValueOnce(fakeBlob)
+        vi.mocked(shareOrDownloadRecapImage).mockResolvedValueOnce('shared')
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        await waitFor(() => {
+            expect(renderRecapCardImage).toHaveBeenCalledWith(
+                expect.objectContaining({ kingName: 'Hans' }),
+                expect.any(Object),
+                expect.objectContaining({ clubName: expect.any(String) }),
+                expect.any(Object),
+            )
+            expect(shareOrDownloadRecapImage).toHaveBeenCalledWith(fakeBlob, expect.stringContaining('2025-12-15'), expect.any(String), expect.any(String))
+        })
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        expect(showToast).toHaveBeenCalledWith('recap.shared')
+    })
+
+    it('shows a downloaded toast when the platform falls back to download', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+        const { renderRecapCardImage, shareOrDownloadRecapImage } = await import('@/lib/recapCard')
+        vi.mocked(renderRecapCardImage).mockResolvedValueOnce(new Blob(['png']))
+        vi.mocked(shareOrDownloadRecapImage).mockResolvedValueOnce('downloaded')
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        await waitFor(() => expect(showToast).toHaveBeenCalledWith('recap.downloaded'))
+    })
+
+    it('shows a toast error and re-enables the button when rendering fails', async () => {
+        const { useEveningList } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useEveningList).mockReturnValue({ data: [CLOSED_EVENING], isLoading: false } as any)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getEvening).mockResolvedValue(CLOSED_EVENING_DETAIL as any)
+        const { renderRecapCardImage } = await import('@/lib/recapCard')
+        vi.mocked(renderRecapCardImage).mockRejectedValueOnce(new Error('canvas boom'))
+
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/Stammlokal/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText(/Stammlokal/))
+        await waitFor(() => screen.getByText(/recap\.share/))
+        fireEvent.click(screen.getByText(/recap\.share/))
+        const { toastError } = await import('@/utils/error.ts')
+        await waitFor(() => expect(toastError).toHaveBeenCalled())
+        expect(screen.getByText(/recap\.share/)).not.toBeDisabled()
     })
 })
 

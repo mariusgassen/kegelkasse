@@ -265,6 +265,8 @@ export const de = {
     "history.reopen": "Wiedereröffnen",
     "history.archived": "Archiviert",
     "history.deleteConfirm": "Abend wirklich löschen?",
+    "history.fullTimeline": "Vollständiger Verlauf",
+    "history.allRounds": "Alle Runden",
     "recap.share": "Abend teilen",
     "recap.title": "Kegelabend-Rückblick",
     "recap.king": "König",

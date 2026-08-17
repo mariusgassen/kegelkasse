@@ -10,7 +10,8 @@ Die **Historie** archiviert alle abgeschlossenen Abende. Sie ermöglicht einen R
 
 ## Historienansicht
 
-Navigiere zu **Historie** (📚) in der Navigation.
+Navigiere zu **Termine** (📅) in der Navigation — die Historie ist dort der untere Abschnitt der
+Seite, unterhalb der anstehenden Termine.
 
 Die Liste zeigt alle **geschlossenen Abende** mit:
 - Datum
@@ -20,17 +21,26 @@ Die Liste zeigt alle **geschlossenen Abende** mit:
 
 ## Abend-Detailansicht
 
-Tippe auf einen Abend, um die vollständige Übersicht zu sehen:
+Tippe auf einen Abend, um ihn aufzuklappen. Standardmäßig kompakt gehalten, damit ein normaler
+Abend nicht zu einer langen Scroll-Strecke wird:
 
+- Summenzeile (Spieler, Spiele, Kasse)
+- **📤 Abend teilen** — direkt sichtbar, siehe unten
 - Alle **Spieler** des Abends
 - Alle **Spiele** mit Ergebnissen
+- **Strafen-Summe pro Spieler** (wer hat wie viel gezahlt)
+- **Getränke-Anzahl** als eine Zeile („12× Bier · 3× Schnaps")
+- Die vorhandenen **Highlights**
+
+Zwei zusätzliche, eingeklappte Abschnitte („📜 Vollständiger Verlauf" bei den Strafen, „📜 Alle
+Runden" bei den Getränken) öffnen bei Bedarf die vollständige Detailansicht:
+
 - Das vollständige **Strafenprotokoll** als chronologische Zeitleiste (neueste zuerst), inklusive
   **▶ Spiel gestartet** / **🏁 Spiel beendet**-Markierungen an der richtigen Stelle im Verlauf —
   genau wie im Protokoll-Tab des laufenden Abends
 - **Spieler- und Spiel-Filter** über der Zeitleiste, um sie auf eine Person oder ein bestimmtes
   Spiel einzugrenzen (inkl. „✋ Manuell" für spielunabhängige Strafen)
-- Alle **Getränkerunden**
-- Die **Kassenübersicht** mit Ranking
+- Alle **Getränkerunden** einzeln mit Uhrzeit
 
 ## Abend teilen 📤
 
@@ -38,7 +48,7 @@ In der Detailansicht eines abgeschlossenen Abends kann **jedes Mitglied** (nicht
 Rückblick als Bild erzeugen und teilen:
 
 1. Tippe auf den Abend, um ihn aufzuklappen
-2. Tippe auf **📤 Abend teilen**
+2. Tippe auf **📤 Abend teilen** direkt unter der Summenzeile
 3. Auf dem Handy öffnet sich der System-Teilen-Dialog (z. B. direkt in die WhatsApp-Gruppe des
    Vereins); am Desktop wird das Bild stattdessen heruntergeladen
 
