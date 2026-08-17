@@ -13,15 +13,19 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
-import {ClubPin, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
+import {ClubPin, Evening, EveningListItem, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
+import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildEventFeed} from '@/lib/liveEvening.ts'
 import {EventTicker} from '@/components/evening/EventTicker.tsx'
 import {buildPenaltyTimeline, gamesWithPenalties, hasManualPenalties} from '@/lib/protocolTimeline.ts'
 import {PenaltyTimeline} from '@/components/evening/PenaltyTimeline.tsx'
+import {computeEveningRecap, renderRecapCardImage, shareOrDownloadRecapImage} from '@/lib/recapCard'
+import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
+import {useClub} from '@/hooks/useClub.ts'
 
 const TODAY = todayDateInput()
 
@@ -848,6 +852,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     const setActiveEveningId = useAppStore(s => s.setActiveEveningId)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const {data: evenings, isLoading} = useEveningList()
+    const {data: club} = useClub()
 
     const [search, setSearch] = useState('')
     const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -855,6 +860,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
     // whenever the expanded card changes so a filter from a previous evening doesn't linger.
     const [historyFilterPlayer, setHistoryFilterPlayer] = useState<number | null>(null)
     const [historyFilterGame, setHistoryFilterGame] = useState<number | null>(null)
+    const [sharingId, setSharingId] = useState<number | null>(null)
     function toggleExpanded(id: number, isExpanded: boolean) {
         setExpandedId(isExpanded ? null : id)
         setHistoryFilterPlayer(null)
@@ -933,6 +939,39 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             if (!await handleAlreadyActive(e)) toastError(e)
         } finally {
             setSaving(false)
+        }
+    }
+
+    async function handleShareRecap(ev: EveningListItem, detail: Evening) {
+        const recap = computeEveningRecap(detail)
+        if (!recap) return
+        setSharingId(ev.id)
+        try {
+            const tokens = deriveTokens({
+                primary: club?.settings?.primary_color,
+                secondary: club?.settings?.secondary_color,
+                bg: DEFAULT_DARK_BG,
+            })
+            const labels = {
+                title: t('recap.title'),
+                dateLine: [fDateLong(detail.date), detail.venue].filter(Boolean).join(' · '),
+                king: t('recap.king'),
+                topPenalty: t('recap.topPenalty'),
+                topDrinker: t('recap.topDrinker'),
+                total: t('recap.total'),
+                games: t('recap.games'),
+                footer: club?.name ?? 'Kegelkasse',
+            }
+            const blob = await renderRecapCardImage(recap, {
+                canvas: tokens['--canvas'], ink: tokens['--ink'], muted: tokens['--muted'],
+                accent: tokens['--accent'], onAccent: tokens['--on-accent'], line: tokens['--line'],
+            }, {clubName: club?.name ?? 'Kegelkasse', logoUrl: club?.settings?.logo_url ?? null}, labels)
+            const result = await shareOrDownloadRecapImage(blob, `kegelabend-${detail.date.slice(0, 10)}.png`, labels.title, labels.dateLine)
+            showToast(t(result === 'shared' ? 'recap.shared' : 'recap.downloaded'))
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setSharingId(null)
         }
     }
 
@@ -1017,6 +1056,11 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <button className="btn-secondary btn-sm w-full mb-3"
+                                                        disabled={sharingId === ev.id}
+                                                        onClick={() => handleShareRecap(ev, detail)}>
+                                                    {sharingId === ev.id ? t('action.loading') : `📤 ${t('recap.share')}`}
+                                                </button>
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
@@ -1049,54 +1093,78 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 {(detail.penalty_log.length > 0 || detail.games.some(g => g.started_at || g.finished_at)) && (() => {
                                                     const gamesWithPen = gamesWithPenalties(detail)
                                                     const manualPenalties = hasManualPenalties(detail)
+                                                    const totals = new Map<string, { name: string; amount: number }>()
+                                                    for (const l of detail.penalty_log) {
+                                                        const cur = totals.get(l.player_name) ?? {name: l.player_name, amount: 0}
+                                                        totals.set(l.player_name, {
+                                                            ...cur,
+                                                            amount: cur.amount + (l.mode === 'euro' ? l.amount : (l.unit_amount != null ? l.amount * l.unit_amount : 0)),
+                                                        })
+                                                    }
+                                                    const sortedTotals = [...totals.values()].sort((a, b) => b.amount - a.amount)
                                                     return (
                                                         <div className="mb-3">
                                                             <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                                 ⚠️ {t('nav.penalties')}
                                                             </div>
-                                                            {/* Player filter chips */}
-                                                            {detail.players.length > 1 && (
-                                                                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                                                                    <button className={`chip ${historyFilterPlayer === null ? 'active' : ''}`}
-                                                                            onClick={() => setHistoryFilterPlayer(null)}>
-                                                                        {t('action.all')}
-                                                                    </button>
-                                                                    {detail.players.map(p => (
-                                                                        <button key={p.id}
-                                                                                className={`chip ${historyFilterPlayer === p.id ? 'active' : ''}`}
-                                                                                onClick={() => setHistoryFilterPlayer(historyFilterPlayer === p.id ? null : p.id)}>
-                                                                            {p.is_king ? '👑 ' : ''}{p.name}
-                                                                        </button>
+                                                            {/* Compact per-player totals — always visible so the card doesn't need
+                                                                the full timeline open just to see who paid what. */}
+                                                            {sortedTotals.length > 0 && (
+                                                                <div className="mb-1.5">
+                                                                    {sortedTotals.map(({name, amount}) => (
+                                                                        <div key={name} className="flex items-center justify-between py-0.5">
+                                                                            <span className="text-xs text-ink">{name}</span>
+                                                                            <span className="text-xs text-danger-fg font-bold">{fe(amount)}</span>
+                                                                        </div>
                                                                     ))}
                                                                 </div>
                                                             )}
-                                                            {/* Game filter chips */}
-                                                            {gamesWithPen.length > 0 && (
-                                                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                                                    <button className={`chip ${historyFilterGame === null ? 'active' : ''}`}
-                                                                            onClick={() => setHistoryFilterGame(null)}>
-                                                                        {t('action.all')}
-                                                                    </button>
-                                                                    {gamesWithPen.map((g, i) => (
-                                                                        <button key={g.id}
-                                                                                className={`chip ${historyFilterGame === g.id ? 'active' : ''}`}
-                                                                                onClick={() => setHistoryFilterGame(historyFilterGame === g.id ? null : g.id)}>
-                                                                            🏆 {g.name || `${t('game.game')} ${i + 1}`}
+                                                            <ExpandableCard bare headerClassName="py-1"
+                                                                            title={<span className="text-xs font-bold text-accent-fg">📜 {t('history.fullTimeline')}</span>}>
+                                                                {/* Player filter chips */}
+                                                                {detail.players.length > 1 && (
+                                                                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                                                                        <button className={`chip ${historyFilterPlayer === null ? 'active' : ''}`}
+                                                                                onClick={() => setHistoryFilterPlayer(null)}>
+                                                                            {t('action.all')}
                                                                         </button>
-                                                                    ))}
-                                                                    {manualPenalties && (
-                                                                        <button className={`chip ${historyFilterGame === -1 ? 'active' : ''}`}
-                                                                                onClick={() => setHistoryFilterGame(historyFilterGame === -1 ? null : -1)}>
-                                                                            ✋ {t('penalty.manual')}
+                                                                        {detail.players.map(p => (
+                                                                            <button key={p.id}
+                                                                                    className={`chip ${historyFilterPlayer === p.id ? 'active' : ''}`}
+                                                                                    onClick={() => setHistoryFilterPlayer(historyFilterPlayer === p.id ? null : p.id)}>
+                                                                                {p.is_king ? '👑 ' : ''}{p.name}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                {/* Game filter chips */}
+                                                                {gamesWithPen.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                                                        <button className={`chip ${historyFilterGame === null ? 'active' : ''}`}
+                                                                                onClick={() => setHistoryFilterGame(null)}>
+                                                                            {t('action.all')}
                                                                         </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            <PenaltyTimeline
-                                                                events={buildPenaltyTimeline(detail, {
-                                                                    filterPlayerId: historyFilterPlayer,
-                                                                    filterGameId: historyFilterGame,
-                                                                })}/>
+                                                                        {gamesWithPen.map((g, i) => (
+                                                                            <button key={g.id}
+                                                                                    className={`chip ${historyFilterGame === g.id ? 'active' : ''}`}
+                                                                                    onClick={() => setHistoryFilterGame(historyFilterGame === g.id ? null : g.id)}>
+                                                                                🏆 {g.name || `${t('game.game')} ${i + 1}`}
+                                                                            </button>
+                                                                        ))}
+                                                                        {manualPenalties && (
+                                                                            <button className={`chip ${historyFilterGame === -1 ? 'active' : ''}`}
+                                                                                    onClick={() => setHistoryFilterGame(historyFilterGame === -1 ? null : -1)}>
+                                                                                ✋ {t('penalty.manual')}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                <PenaltyTimeline
+                                                                    events={buildPenaltyTimeline(detail, {
+                                                                        filterPlayerId: historyFilterPlayer,
+                                                                        filterGameId: historyFilterGame,
+                                                                    })}/>
+                                                            </ExpandableCard>
                                                         </div>
                                                     )
                                                 })()}
@@ -1105,9 +1173,18 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
                                                             🍺 {t('drinks.title')}
                                                         </div>
-                                                        <EventTicker
-                                                            events={buildEventFeed(detail, {limit: Infinity, t})
-                                                                .filter(e => e.kind === 'drink')}/>
+                                                        <div className="text-xs text-muted mb-1.5">
+                                                            {detail.drink_rounds.filter(r => r.drink_type === 'beer').length}× {t('drinks.beer')}
+                                                            {detail.drink_rounds.filter(r => r.drink_type === 'shots').length > 0 && (
+                                                                <> · {detail.drink_rounds.filter(r => r.drink_type === 'shots').length}× {t('drinks.shots')}</>
+                                                            )}
+                                                        </div>
+                                                        <ExpandableCard bare headerClassName="py-1"
+                                                                        title={<span className="text-xs font-bold text-accent-fg">📜 {t('history.allRounds')}</span>}>
+                                                            <EventTicker
+                                                                events={buildEventFeed(detail, {limit: Infinity, t})
+                                                                    .filter(e => e.kind === 'drink')}/>
+                                                        </ExpandableCard>
                                                     </div>
                                                 )}
                                                 {detail.highlights.length > 0 && (

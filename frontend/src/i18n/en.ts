@@ -265,6 +265,8 @@ export const en = {
     "history.reopen": "Reopen",
     "history.archived": "Archived",
     "history.deleteConfirm": "Really delete this evening?",
+    "history.fullTimeline": "Full timeline",
+    "history.allRounds": "All rounds",
     "recap.share": "Share evening",
     "recap.title": "Kegelabend recap",
     "recap.king": "King",
