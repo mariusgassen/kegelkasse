@@ -887,7 +887,10 @@ const CLOSED_EVENING = {
 }
 
 const CLOSED_EVENING_DETAIL = {
-    id: 20, date: '2025-12-15', venue: 'Stammlokal', is_closed: true, note: null,
+    // Real evening detail payloads carry a full ISO datetime (backend serializes via
+    // `date.isoformat()`), not a bare "YYYY-MM-DD" — deliberately not sliced here so tests
+    // exercise the same shape production sends.
+    id: 20, date: '2025-12-15T20:00:00+00:00', venue: 'Stammlokal', is_closed: true, note: null,
     players: [
         { id: 1, name: 'Hans', is_king: true, regular_member_id: 1 },
         { id: 2, name: 'Klaus', is_king: false, regular_member_id: 2 },
@@ -1266,7 +1269,10 @@ describe('SchedulePage — history detail expansion', () => {
                 expect.objectContaining({ kingName: 'Hans' }),
                 expect.any(Object),
                 expect.objectContaining({ clubName: expect.any(String) }),
-                expect.any(Object),
+                // `detail.date` is a full ISO datetime (real backend shape) — dateLine must format
+                // it into a real date, not "Invalid Date" (regression: fDateLong appended its own
+                // "T00:00:00" onto an already-full ISO string)
+                expect.objectContaining({ dateLine: expect.stringMatching(/15\.12\.2025/) }),
             )
             expect(shareOrDownloadRecapImage).toHaveBeenCalledWith(fakeBlob, expect.stringContaining('2025-12-15'), expect.any(String), expect.any(String))
         })

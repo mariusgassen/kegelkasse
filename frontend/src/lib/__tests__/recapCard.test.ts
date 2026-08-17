@@ -84,14 +84,37 @@ describe('computeEveningRecap', () => {
         expect(computeEveningRecap(baseEvening())!.topPenalty).toBeNull()
     })
 
-    it('sums total penalty euro across mixed euro/count modes', () => {
+    it('excludes absence penalties (player_id null) from topPenalty — a no-show fee is not a fun highlight', () => {
+        const ev = baseEvening({
+            penalty_log: [
+                {id: 1, player_id: null, team_id: null, player_name: 'Klaus', penalty_type_name: 'Abwesenheit', icon: '🏠', amount: 10, mode: 'euro', unit_amount: null, regular_member_id: 3, game_id: null, client_timestamp: 1},
+                {id: 2, player_id: 2, team_id: null, player_name: 'Tina', penalty_type_name: 'Bank', icon: '🎳', amount: 1, mode: 'euro', unit_amount: null, regular_member_id: null, game_id: null, client_timestamp: 2},
+            ],
+        })
+        const top = computeEveningRecap(ev)!.topPenalty!
+        expect(top.playerName).toBe('Tina')
+        expect(top.amount).toBe(1)
+    })
+
+    it('topPenalty is null when only absence penalties were logged', () => {
+        const ev = baseEvening({
+            penalty_log: [
+                {id: 1, player_id: null, team_id: null, player_name: 'Klaus', penalty_type_name: 'Abwesenheit', icon: '🏠', amount: 10, mode: 'euro', unit_amount: null, regular_member_id: 3, game_id: null, client_timestamp: 1},
+            ],
+        })
+        expect(computeEveningRecap(ev)!.topPenalty).toBeNull()
+    })
+
+    it('sums total penalty euro across mixed euro/count modes, including absence entries', () => {
         const ev = baseEvening({
             penalty_log: [
                 {id: 1, player_id: 1, team_id: null, player_name: 'Hans', penalty_type_name: 'A', icon: '🎳', amount: 2, mode: 'euro', unit_amount: null, regular_member_id: null, game_id: null, client_timestamp: 1},
                 {id: 2, player_id: 2, team_id: null, player_name: 'Tina', penalty_type_name: 'B', icon: '🎳', amount: 3, mode: 'count', unit_amount: 0.5, regular_member_id: null, game_id: null, client_timestamp: 2},
+                {id: 3, player_id: null, team_id: null, player_name: 'Klaus', penalty_type_name: 'Abwesenheit', icon: '🏠', amount: 4, mode: 'euro', unit_amount: null, regular_member_id: 3, game_id: null, client_timestamp: 3},
             ],
         })
-        expect(computeEveningRecap(ev)!.totalPenaltyEuro).toBeCloseTo(3.5)
+        // 2 + (3 × 0.5) + 4 = 7.5 — absence entries still count toward the pot, just not the headline
+        expect(computeEveningRecap(ev)!.totalPenaltyEuro).toBeCloseTo(7.5)
     })
 
     it('finds the player with the most drink round participations', () => {
