@@ -1584,6 +1584,36 @@ describe('api.regenerateScoreboardToken', () => {
     })
 })
 
+describe('api.exportClubConfig', () => {
+    it('GETs /club/config/export', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({
+            version: 1, club_name: 'KC', exported_at: '2026-01-01T00:00:00Z',
+            settings: {}, penalty_types: [], game_templates: [], teams: [], pins: [],
+        }))
+        const { api } = await import('../client')
+        await api.exportClubConfig()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/config/export')
+        expect(mockFetch.mock.calls[0][1].method).toBe('GET')
+    })
+})
+
+describe('api.importClubConfig', () => {
+    it('POSTs the bundle to /club/config/import', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true, penalty_types: 1, game_templates: 0, teams: 0, pins: 0 }))
+        const { api } = await import('../client')
+        const bundle = {
+            version: 1, club_name: 'KC', exported_at: null,
+            settings: {}, penalty_types: [{ icon: '⚠️', name: 'X', default_amount: 1, sort_order: 0, sound_key: null }],
+            game_templates: [], teams: [], pins: [],
+        } as any
+        await api.importClubConfig(bundle)
+        const [url, opts] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/club/config/import')
+        expect(opts.method).toBe('POST')
+        expect(JSON.parse(opts.body)).toEqual(bundle)
+    })
+})
+
 describe('api.getScoreboard', () => {
     it('GETs the public scoreboard without an Authorization header', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ club: { name: 'KC' }, evening: null }))

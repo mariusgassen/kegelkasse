@@ -49,6 +49,8 @@ vi.mock('@/api/client.ts', () => ({
         uploadClubLogo: vi.fn(),
         deleteClubLogo: vi.fn(),
         regenerateScoreboardToken: vi.fn(),
+        exportClubConfig: vi.fn(),
+        importClubConfig: vi.fn(),
         updateClubSettings: vi.fn(),
         createPenaltyType: vi.fn(),
         updatePenaltyType: vi.fn(),
@@ -403,6 +405,103 @@ describe('ClubAdminPage — settings tab', () => {
         await waitFor(() => {
             expect(screen.getByText('reminders.title')).toBeInTheDocument()
         })
+    })
+})
+
+describe('ClubAdminPage — config export/import', () => {
+    const CONFIG_BUNDLE = {
+        version: 1, club_name: 'OtherClub', exported_at: null,
+        settings: {},
+        penalty_types: [
+            { icon: '⚠️', name: 'A', default_amount: 1, sort_order: 0, sound_key: null },
+            { icon: '⚠️', name: 'B', default_amount: 1, sort_order: 1, sound_key: null },
+        ],
+        game_templates: [{
+            name: 'X', description: null, winner_type: 'individual', turn_mode: null,
+            is_opener: false, is_president_game: false, default_loser_penalty: 0,
+            per_point_penalty: 0, sort_order: 0,
+        }],
+        teams: [{ name: 'Team', sort_order: 0 }],
+        pins: [],
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('shows the export/import card', async () => {
+        await renderClubAdminPage()
+        expect(await screen.findByText('club.config.title')).toBeInTheDocument()
+    })
+
+    it('downloads a JSON file when exporting', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.exportClubConfig).mockResolvedValue(CONFIG_BUNDLE as any)
+        const clickSpy = vi.fn()
+        const origCreateElement = document.createElement.bind(document)
+        vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+            const el = origCreateElement(tag)
+            if (tag === 'a') el.click = clickSpy
+            return el
+        })
+        vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+
+        await renderClubAdminPage()
+        fireEvent.click(await screen.findByText('club.config.export'))
+        await waitFor(() => expect(vi.mocked(api.exportClubConfig)).toHaveBeenCalled())
+        await waitFor(() => expect(clickSpy).toHaveBeenCalled())
+        vi.unstubAllGlobals()
+    })
+
+    it('shows a confirmation sheet with counts after picking a file, then imports on confirm', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.importClubConfig).mockResolvedValue(
+            { ok: true, penalty_types: 2, game_templates: 1, teams: 1, pins: 0 } as any)
+        await renderClubAdminPage()
+
+        const file = new File([JSON.stringify(CONFIG_BUNDLE)], 'config.json', { type: 'application/json' })
+        const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
+        fireEvent.change(input, { target: { files: [file] } })
+
+        await waitFor(() => expect(screen.getByText('club.config.importConfirm')).toBeInTheDocument())
+        expect(screen.getByText('club.tab.penalties: 2')).toBeInTheDocument()
+        expect(screen.getByText('club.tab.templates: 1')).toBeInTheDocument()
+        expect(screen.getByText('club.tab.teams: 1')).toBeInTheDocument()
+        expect(screen.getByText('club.tab.pins: 0')).toBeInTheDocument()
+
+        const importButtons = screen.getAllByText('club.config.import')
+        fireEvent.click(importButtons[importButtons.length - 1])
+        await waitFor(() => expect(vi.mocked(api.importClubConfig)).toHaveBeenCalledWith(CONFIG_BUNDLE))
+    })
+
+    it('closes the confirmation sheet without importing on cancel', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderClubAdminPage()
+
+        const file = new File([JSON.stringify(CONFIG_BUNDLE)], 'config.json', { type: 'application/json' })
+        const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
+        fireEvent.change(input, { target: { files: [file] } })
+        await waitFor(() => expect(screen.getByText('club.config.importConfirm')).toBeInTheDocument())
+
+        fireEvent.click(screen.getByText('action.cancel'))
+        expect(screen.queryByText('club.config.importConfirm')).not.toBeInTheDocument()
+        expect(vi.mocked(api.importClubConfig)).not.toHaveBeenCalled()
+    })
+
+    it('shows an error toast for an invalid file instead of the confirmation sheet', async () => {
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        await renderClubAdminPage()
+
+        const file = new File(['not json'], 'bad.json', { type: 'application/json' })
+        const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
+        fireEvent.change(input, { target: { files: [file] } })
+
+        await waitFor(() => expect(vi.mocked(showToast)).toHaveBeenCalledWith('club.config.importInvalid'))
+        expect(screen.queryByText('club.config.importConfirm')).not.toBeInTheDocument()
     })
 })
 
