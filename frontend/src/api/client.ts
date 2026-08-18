@@ -438,9 +438,9 @@ export const api = {
 
     // Penalty types
     listPenaltyTypes: () => request<PenaltyType[]>('GET', '/club/penalty-types'),
-    createPenaltyType: (d: { icon: string; name: string; default_amount: number; sort_order: number; sound_key?: string | null }) =>
+    createPenaltyType: (d: { icon: string; name: string; default_amount: number; sound_key?: string | null }) =>
         request<PenaltyType>('POST', '/club/penalty-types', d),
-    updatePenaltyType: (id: number, d: { icon: string; name: string; default_amount: number; sort_order: number; sound_key?: string | null }) =>
+    updatePenaltyType: (id: number, d: { icon: string; name: string; default_amount: number; sound_key?: string | null }) =>
         request<PenaltyType>('PUT', `/club/penalty-types/${id}`, d),
     deletePenaltyType: (id: number) => request<void>('DELETE', `/club/penalty-types/${id}`),
 

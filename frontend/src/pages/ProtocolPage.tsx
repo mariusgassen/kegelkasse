@@ -14,6 +14,8 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {toDateTimeInput} from '@/lib/datetime.ts'
 import {playSound} from '@/lib/soundboard'
+import {sortPenaltyTypes} from '@/lib/penaltyTypes'
+import {PenaltyPickButton} from '@/components/evening/PenaltyPickButton'
 import {useAudioCallouts} from '@/hooks/useClub.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
@@ -266,9 +268,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     icon: customIcon,
                     name: customName,
                     default_amount: customMode === 'count' ? (effectiveUnitAmount ?? 0) : effectiveAmount,
-                    sort_order: 99,
                 })
-                setPenaltyTypes([...penaltyTypes, newPt])
+                setPenaltyTypes(sortPenaltyTypes([...penaltyTypes, newPt]))
                 await qc.invalidateQueries({queryKey: ['penalty-types']})
             }
             invalidate()
@@ -712,14 +713,14 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <div className="field-label">{t('penalty.type')}</div>
                             <div className="flex flex-wrap gap-1.5">
                                 {penaltyTypes.map(pt => (
-                                    <button key={pt.id} type="button"
-                                            className={`chip ${selectedType === pt.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setSelectedType(pt.id);
-                                                setAmount(mode === 'euro' ? String(pt.default_amount) : '')
-                                            }}>
+                                    <PenaltyPickButton key={pt.id} type={pt}
+                                                       className={`chip ${selectedType === pt.id ? 'active' : ''}`}
+                                                       onSelect={() => {
+                                                           setSelectedType(pt.id);
+                                                           setAmount(mode === 'euro' ? String(pt.default_amount) : '')
+                                                       }}>
                                         {pt.icon} {pt.name}
-                                    </button>
+                                    </PenaltyPickButton>
                                 ))}
                             </div>
                         </div>

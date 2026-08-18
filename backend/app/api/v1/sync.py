@@ -3,7 +3,7 @@ import time
 from typing import List, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
@@ -16,13 +16,13 @@ from models.user import User
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 
-class SyncChange(BaseModel):
+class SyncChange(TrimmedModel):
     type: str  # e.g. "add_penalty", "delete_penalty", "add_drink", "delete_drink"
     timestamp: float  # client timestamp — changes applied in order
     data: Any
 
 
-class SyncPayload(BaseModel):
+class SyncPayload(TrimmedModel):
     client_id: str
     last_sync: Optional[float] = None
     changes: List[SyncChange] = []

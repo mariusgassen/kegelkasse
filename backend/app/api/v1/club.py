@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
 
@@ -89,7 +89,7 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
     }
 
 
-class ClubSettingsUpdate(BaseModel):
+class ClubSettingsUpdate(TrimmedModel):
     home_venue: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
@@ -286,7 +286,7 @@ def reactivate_member(member_id: int, db: Session = Depends(get_db),
     return {"ok": True}
 
 
-class LinkRosterRequest(BaseModel):
+class LinkRosterRequest(TrimmedModel):
     regular_member_id: Optional[int] = None
 
 
@@ -327,7 +327,7 @@ def list_regular_members(include_inactive: bool = False, db: Session = Depends(g
     return [_member_dict(m, avatar) for m, avatar in rows]
 
 
-class RegularMemberCreate(BaseModel):
+class RegularMemberCreate(TrimmedModel):
     name: str
     nickname: Optional[str] = None
     is_guest: bool = False
@@ -452,14 +452,14 @@ def create_member_invite(mid: int, db: Session = Depends(get_db),
 def list_penalty_types(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     return db.query(PenaltyType).filter(
         PenaltyType.club_id == user.club_id, PenaltyType.is_active == True
-    ).order_by(PenaltyType.sort_order).all()
+    ).order_by(PenaltyType.default_amount, PenaltyType.name).all()
 
 
-class PenaltyTypeCreate(BaseModel):
+class PenaltyTypeCreate(TrimmedModel):
+    # No sort_order: penalty types are ordered by price, then name (see list_penalty_types).
     icon: str = "⚠️"
     name: str
     default_amount: float = 0.5
-    sort_order: int = 0
     sound_key: Optional[str] = None  # preset audio call-out key, see SOUND_PRESET_KEYS
 
 
@@ -512,7 +512,7 @@ def list_game_templates(db: Session = Depends(get_db), user: User = Depends(requ
     ).order_by(GameTemplate.sort_order).all()
 
 
-class GameTemplateCreate(BaseModel):
+class GameTemplateCreate(TrimmedModel):
     name: str
     description: Optional[str] = None
     winner_type: str = "individual"
@@ -599,7 +599,7 @@ def list_club_teams(db: Session = Depends(get_db), user: User = Depends(require_
     return [_team_dict(t) for t in teams]
 
 
-class ClubTeamUpsert(BaseModel):
+class ClubTeamUpsert(TrimmedModel):
     name: str
     sort_order: int = 0
 
@@ -809,7 +809,7 @@ def list_member_penalties(mid: int, db: Session = Depends(get_db),
     return result
 
 
-class PaymentCreate(BaseModel):
+class PaymentCreate(TrimmedModel):
     regular_member_id: int
     amount: float
     note: Optional[str] = None
@@ -817,7 +817,7 @@ class PaymentCreate(BaseModel):
     idempotency_key: Optional[str] = None
 
 
-class PaymentUpdate(BaseModel):
+class PaymentUpdate(TrimmedModel):
     amount: Optional[float] = None
     note: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
@@ -1149,7 +1149,7 @@ def get_treasury_debt_timeline(db: Session = Depends(get_db), user: User = Depen
 
 # ── Guest cost transfer ──
 
-class GuestCostTransfer(BaseModel):
+class GuestCostTransfer(TrimmedModel):
     guest_id: int
     target_member_id: int
     amount: float
@@ -1218,12 +1218,12 @@ def transfer_guest_costs(data: GuestCostTransfer, db: Session = Depends(get_db),
 
 # ── Treasury payout ──
 
-class PayoutEntry(BaseModel):
+class PayoutEntry(TrimmedModel):
     regular_member_id: int
     amount: float  # positive = amount to pay out to member (reduces their balance)
 
 
-class TreasuryPayout(BaseModel):
+class TreasuryPayout(TrimmedModel):
     payouts: list[PayoutEntry]
     note: Optional[str] = None
 
@@ -1265,14 +1265,14 @@ def create_treasury_payout(data: TreasuryPayout, db: Session = Depends(get_db),
 
 # ── Club expenses ──
 
-class ExpenseCreate(BaseModel):
+class ExpenseCreate(TrimmedModel):
     amount: float
     description: str
     date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
     idempotency_key: Optional[str] = None
 
 
-class ExpenseUpdate(BaseModel):
+class ExpenseUpdate(TrimmedModel):
     amount: Optional[float] = None
     description: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
@@ -1480,7 +1480,7 @@ def list_my_payment_requests(db: Session = Depends(get_db), user: User = Depends
     return [_fmt_request(r, name) for r in requests]
 
 
-class PaymentRequestCreate(BaseModel):
+class PaymentRequestCreate(TrimmedModel):
     amount: float
     note: Optional[str] = None
 
@@ -1613,7 +1613,7 @@ def get_reminder_settings(db: Session = Depends(get_db), user: User = Depends(re
     return result
 
 
-class ReminderSettingsUpdate(BaseModel):
+class ReminderSettingsUpdate(TrimmedModel):
     debt_weekly: Optional[dict] = None
     upcoming_evening: Optional[dict] = None
     rsvp_reminder: Optional[dict] = None
@@ -1673,7 +1673,7 @@ def get_email_settings(db: Session = Depends(get_db), user: User = Depends(requi
     return result
 
 
-class EmailSettingsUpdate(BaseModel):
+class EmailSettingsUpdate(TrimmedModel):
     enabled: Optional[bool] = None
     host: Optional[str] = None
     port: Optional[int] = None
@@ -1715,7 +1715,7 @@ def update_email_settings(data: EmailSettingsUpdate, db: Session = Depends(get_d
     return result
 
 
-class TestEmailRequest(BaseModel):
+class TestEmailRequest(TrimmedModel):
     to: Optional[str] = None
 
 
@@ -1744,7 +1744,7 @@ def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session
     return {"ok": True, "sent_to": to_address}
 
 
-class BroadcastPushRequest(BaseModel):
+class BroadcastPushRequest(TrimmedModel):
     title: str
     body: str
     url: str = "/"
@@ -1849,7 +1849,7 @@ def list_pins(db: Session = Depends(get_db), user: User = Depends(require_club_m
     return [_pin_dict(p) for p in pins]
 
 
-class PinCreate(BaseModel):
+class PinCreate(TrimmedModel):
     name: str
     icon: Optional[str] = "📌"
 
@@ -1868,7 +1868,7 @@ def create_pin(data: PinCreate, db: Session = Depends(get_db),
     return _pin_dict(pin)
 
 
-class PinUpdate(BaseModel):
+class PinUpdate(TrimmedModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     holder_regular_member_id: Optional[int] = None  # None = clear holder
@@ -1932,15 +1932,14 @@ def delete_pin(pid: int, db: Session = Depends(get_db),
 _CONFIG_VERSION = 1
 
 
-class ConfigPenaltyType(BaseModel):
+class ConfigPenaltyType(TrimmedModel):
     icon: str = "⚠️"
     name: str
     default_amount: float = 0.5
-    sort_order: int = 0
     sound_key: Optional[str] = None
 
 
-class ConfigGameTemplate(BaseModel):
+class ConfigGameTemplate(TrimmedModel):
     name: str
     description: Optional[str] = None
     winner_type: str = "individual"
@@ -1952,17 +1951,17 @@ class ConfigGameTemplate(BaseModel):
     sort_order: int = 0
 
 
-class ConfigTeam(BaseModel):
+class ConfigTeam(TrimmedModel):
     name: str
     sort_order: int = 0
 
 
-class ConfigPin(BaseModel):
+class ConfigPin(TrimmedModel):
     name: str
     icon: str = "📌"
 
 
-class ConfigSettings(BaseModel):
+class ConfigSettings(TrimmedModel):
     home_venue: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
@@ -1975,7 +1974,7 @@ class ConfigSettings(BaseModel):
     audio_callouts_enabled: Optional[bool] = None
 
 
-class ClubConfigBundle(BaseModel):
+class ClubConfigBundle(TrimmedModel):
     version: int = _CONFIG_VERSION
     club_name: Optional[str] = None
     exported_at: Optional[str] = None
@@ -1994,7 +1993,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
     extra = (s.extra or {}) if s else {}
     penalty_types = db.query(PenaltyType).filter(
         PenaltyType.club_id == user.club_id, PenaltyType.is_active == True
-    ).order_by(PenaltyType.sort_order).all()
+    ).order_by(PenaltyType.default_amount, PenaltyType.name).all()
     game_templates = db.query(GameTemplate).filter(
         GameTemplate.club_id == user.club_id, GameTemplate.is_active == True
     ).order_by(GameTemplate.sort_order).all()
@@ -2019,7 +2018,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
         ),
         penalty_types=[
             ConfigPenaltyType(icon=pt.icon, name=pt.name, default_amount=pt.default_amount,
-                               sort_order=pt.sort_order, sound_key=pt.sound_key)
+                               sound_key=pt.sound_key)
             for pt in penalty_types
         ],
         game_templates=[
@@ -2076,7 +2075,7 @@ def import_club_config(data: ClubConfigBundle, db: Session = Depends(get_db),
     for pt in data.penalty_types:
         db.add(PenaltyType(
             club_id=user.club_id, icon=pt.icon, name=pt.name, default_amount=pt.default_amount,
-            sort_order=pt.sort_order, sound_key=_clean_sound_key(pt.sound_key),
+            sound_key=_clean_sound_key(pt.sound_key),
         ))
     for gt in data.game_templates:
         wt = gt.winner_type if gt.winner_type in ("team", "individual") else "individual"
@@ -2104,7 +2103,7 @@ def import_club_config(data: ClubConfigBundle, db: Session = Depends(get_db),
 
 # ── Committee member management ───────────────────────────────────────────────
 
-class CommitteeToggle(BaseModel):
+class CommitteeToggle(TrimmedModel):
     is_committee: bool
 
 

@@ -18,6 +18,9 @@ class PenaltyMode(str, enum.Enum):
 SOUND_PRESET_KEYS = (
     "buzzer", "bell", "cash_register", "sad_trombone", "drum_hit", "crowd_groan", "laser",
     "whistle", "air_horn", "applause", "record_scratch", "coin_drop", "boing",
+    "alarm_clock", "ringtone", "bicycle_bell", "fanfare", "typewriter", "slide_down",
+    "chicken", "chalk_squeak", "punch", "ball_clack", "glass_break", "splat",
+    "jackhammer", "lighter", "splash", "trickle", "toilet_flush",
 )
 
 
@@ -33,7 +36,6 @@ class PenaltyType(Base):
     name = Column(String, nullable=False)
     default_amount = Column(Float, default=0.5)
     is_active = Column(Boolean, default=True)
-    sort_order = Column(Integer, default=0)
     sound_key = Column(String, nullable=True)  # optional preset audio call-out, played when logged
     club = relationship("Club", back_populates="penalty_types")
 

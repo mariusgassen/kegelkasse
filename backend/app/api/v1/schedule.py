@@ -6,7 +6,7 @@ from typing import Optional
 from babel.dates import format_datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import Response
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
@@ -85,7 +85,7 @@ def list_scheduled_evenings(
     return [_serialize_scheduled_evening(se, user.regular_member_id, db) for se in items]
 
 
-class ScheduledEveningCreate(BaseModel):
+class ScheduledEveningCreate(TrimmedModel):
     date: str = None
     venue: Optional[str] = None
     note: Optional[str] = None
@@ -124,7 +124,7 @@ def create_scheduled_evening(
     return _serialize_scheduled_evening(se, user.regular_member_id, db)
 
 
-class ScheduledEveningUpdate(BaseModel):
+class ScheduledEveningUpdate(TrimmedModel):
     date: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
@@ -175,7 +175,7 @@ def delete_scheduled_evening(
 
 # ── Guests ────────────────────────────────────────────────────────────────────
 
-class GuestCreate(BaseModel):
+class GuestCreate(TrimmedModel):
     name: str
     regular_member_id: Optional[int] = None
 
@@ -219,7 +219,7 @@ def remove_guest(
 
 # ── Start evening from scheduled ──────────────────────────────────────────────
 
-class StartEveningBody(BaseModel):
+class StartEveningBody(TrimmedModel):
     member_ids: list[int] = []
 
 
@@ -331,7 +331,7 @@ def start_evening(
 
 # ── RSVP ──────────────────────────────────────────────────────────────────────
 
-class RsvpSet(BaseModel):
+class RsvpSet(TrimmedModel):
     status: str  # "attending" | "absent"
 
 

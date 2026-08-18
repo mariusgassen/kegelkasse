@@ -198,7 +198,6 @@ export interface PenaltyType {
     icon: string
     name: string
     default_amount: number
-    sort_order: number
     // Optional preset audio call-out (see lib/soundboard.ts), played when this penalty is logged.
     sound_key: string | null
 }
@@ -252,7 +251,6 @@ export interface ClubConfigPenaltyType {
     icon: string
     name: string
     default_amount: number
-    sort_order: number
     sound_key: string | null
 }
 

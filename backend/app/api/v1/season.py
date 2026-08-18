@@ -5,7 +5,7 @@ from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -191,7 +191,7 @@ def _snapshot_to_dict(snap: SeasonSnapshot, db: Session) -> dict:
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class SeasonCloseRequest(BaseModel):
+class SeasonCloseRequest(TrimmedModel):
     year: int
     notes: Optional[str] = None
     settle_member_ids: Optional[list[int]] = None  # if set, only settle these members' balances

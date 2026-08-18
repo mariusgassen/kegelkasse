@@ -17,6 +17,8 @@ import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast'
 import {celebrate} from '@/lib/celebrate'
 import {playSound} from '@/lib/soundboard'
+import {sortPenaltyTypes} from '@/lib/penaltyTypes'
+import {PenaltyPickButton} from '@/components/evening/PenaltyPickButton'
 import {useThrowTracking, useAudioCallouts} from '@/hooks/useClub.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
@@ -97,10 +99,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             return a.name.localeCompare(b.name)
         }), [players, user?.regular_member_id])
 
-    // Group penalty types by default_amount, sort groups ascending by amount; skip 0€ groups
+    // Group penalty types by default_amount, sort groups ascending by amount; skip 0€ groups.
+    // Within a group, alphabetical — the same order the API returns (price, then name).
     const penaltyGroups = useMemo(() => {
         const map = new Map<number, PenaltyType[]>()
-        const sorted = [...penaltyTypes].sort((a, b) => a.sort_order - b.sort_order)
+        const sorted = sortPenaltyTypes(penaltyTypes)
         for (const pt of sorted) {
             if (pt.default_amount === 0) continue
             const key = pt.default_amount
@@ -1170,19 +1173,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     const isFlashing = flashingPenaltyId === pt.id
                                     const isLoading = loadingPenaltyId === pt.id
                                     return (
-                                        <button
+                                        <PenaltyPickButton
                                             key={pt.id}
-                                            type="button"
+                                            type={pt}
                                             disabled={noSelection || isLoading}
                                             className={`px-4 py-3 rounded-xl border font-bold text-sm
                                                 transition-all active:scale-95
                                                 disabled:opacity-40 disabled:cursor-not-allowed
                                             `}
                                             style={penaltyBtnStyle(isFlashing)}
-                                            onClick={() => logPenalty(pt)}
+                                            onSelect={() => logPenalty(pt)}
                                         >
                                             {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
-                                        </button>
+                                        </PenaltyPickButton>
                                     )
                                 })}
                             </div>

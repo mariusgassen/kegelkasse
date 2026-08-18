@@ -1134,7 +1134,7 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 e.preventDefault()
                 if (!name.trim()) return
                 try {
-                    await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sort_order: 99, sound_key: soundKey})
+                    await api.createPenaltyType({icon, name, default_amount: parseAmount(amount), sound_key: soundKey})
                     setIcon('⚠️');
                     setName('');
                     setAmount('0.50');
@@ -1164,7 +1164,6 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                                icon: editIcon,
                                name: editName,
                                default_amount: parseAmount(editAmount),
-                               sort_order: editPt.sort_order,
                                sound_key: editSoundKey,
                            })
                            setEditPt(null)

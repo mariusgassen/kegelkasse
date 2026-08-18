@@ -16,10 +16,11 @@ from models.club import Club, ClubSettings
 from models.penalty import PenaltyType
 from models.game import GameTemplate, WinnerType
 
+# Penalty types have no sort order — they are listed by amount, then name.
 DEFAULT_PENALTY_TYPES = [
-    ("⏰", "Zu spät", 0.50, 0),
-    ("🚫", "Gosse", 0.10, 1),
-    ("💥", "Bande", 0.50, 2),
+    ("⏰", "Zu spät", 0.50),
+    ("🚫", "Gosse", 0.10),
+    ("💥", "Bande", 0.50),
 ]
 
 DEFAULT_GAME_TEMPLATES = [
@@ -56,9 +57,8 @@ def main():
         db.add(club_settings)
 
         # Default penalty types
-        for icon, name, amount, order in DEFAULT_PENALTY_TYPES:
-            db.add(PenaltyType(club_id=club.id, icon=icon, name=name,
-                               default_amount=amount, sort_order=order))
+        for icon, name, amount in DEFAULT_PENALTY_TYPES:
+            db.add(PenaltyType(club_id=club.id, icon=icon, name=name, default_amount=amount))
 
         # Default game templates
         for name, desc, wtype, is_opener, penalty, order in DEFAULT_GAME_TEMPLATES:

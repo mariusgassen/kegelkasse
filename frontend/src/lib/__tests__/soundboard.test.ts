@@ -1,4 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {readFileSync} from 'node:fs'
+import {resolve} from 'node:path'
 
 class FakeAudioParam {
     value = 0
@@ -150,6 +152,21 @@ describe('soundboard', () => {
                 expect(p.emoji.length).toBeGreaterThan(0)
                 expect(p.labelKey).toBe(`sound.preset.${p.key}`)
             }
+        })
+
+        /**
+         * The catalog lives twice: here, and as the server's allowlist. A key the backend does not
+         * know is silently dropped on save, so an admin would pick a call-out, see it stick in the
+         * form, and find it gone after the next reload — with nothing failing anywhere in between.
+         */
+        it('matches the backend allowlist exactly', async () => {
+            const {SOUND_PRESETS} = await loadSoundboard()
+            const py = readFileSync(resolve(__dirname, '../../../../backend/app/models/penalty.py'), 'utf8')
+            const block = py.match(/SOUND_PRESET_KEYS = \(([\s\S]*?)\)/)
+            expect(block).not.toBeNull()
+            const backendKeys = [...block![1].matchAll(/"([a-z_]+)"/g)].map(m => m[1])
+
+            expect([...backendKeys].sort()).toEqual(SOUND_PRESETS.map(p => p.key).sort())
         })
     })
 

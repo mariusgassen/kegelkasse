@@ -7,7 +7,7 @@ from typing import Optional, List
 from babel.dates import format_datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 from starlette import status
 
@@ -105,7 +105,7 @@ def list_evenings(db: Session = Depends(get_db), user: User = Depends(require_cl
              "season_closed": e.date is not None and e.date.year in closed_years} for e in items]
 
 
-class EveningCreate(BaseModel):
+class EveningCreate(TrimmedModel):
     date: str
     venue: Optional[str] = None
     note: Optional[str] = None
@@ -141,7 +141,7 @@ def get_evening(eid: int, db: Session = Depends(get_db), user: User = Depends(re
     return serialize_evening(get_club_evening(eid, user, db))
 
 
-class EveningUpdate(BaseModel):
+class EveningUpdate(TrimmedModel):
     date: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
@@ -209,7 +209,7 @@ def delete_evening(eid: int, db: Session = Depends(get_db),
 
 # ── Players ──
 
-class PlayerCreate(BaseModel):
+class PlayerCreate(TrimmedModel):
     name: str
     regular_member_id: Optional[int] = None
     team_id: Optional[int] = None
@@ -228,7 +228,7 @@ def add_player(eid: int, data: PlayerCreate, db: Session = Depends(get_db),
     return {"id": p.id, "name": p.name, "team_id": p.team_id}
 
 
-class PlayerUpdate(BaseModel):
+class PlayerUpdate(TrimmedModel):
     name: Optional[str] = None
     team_id: Optional[int] = None
 
@@ -271,7 +271,7 @@ def remove_player(eid: int, pid: int, db: Session = Depends(get_db),
 
 # ── Teams ──
 
-class TeamCreate(BaseModel):
+class TeamCreate(TrimmedModel):
     name: str
     player_ids: List[int] = []
 
@@ -290,7 +290,7 @@ def create_team(eid: int, data: TeamCreate, db: Session = Depends(get_db),
     return {"id": t.id, "name": t.name}
 
 
-class TeamUpdate(BaseModel):
+class TeamUpdate(TrimmedModel):
     name: Optional[str] = None
     player_ids: Optional[List[int]] = None
 
@@ -387,7 +387,7 @@ def shuffle_team_players(eid: int, db: Session = Depends(get_db),
 
 # ── Penalties ──
 
-class PenaltyCreate(BaseModel):
+class PenaltyCreate(TrimmedModel):
     player_ids: Optional[List[int]] = None  # individual players
     team_id: Optional[int] = None  # OR entire team
     penalty_type_name: str
@@ -442,7 +442,7 @@ def add_penalty(eid: int, data: PenaltyCreate, background_tasks: BackgroundTasks
     return [{"id": l.id, "player_name": l.player_name, "amount": l.amount} for l in created]
 
 
-class PenaltyUpdate(BaseModel):
+class PenaltyUpdate(TrimmedModel):
     player_id: Optional[int] = None
     penalty_type_name: Optional[str] = None
     icon: Optional[str] = None
@@ -624,7 +624,7 @@ background_tasks: BackgroundTasks,
     return _do_calculate_absence_penalties(e, background_tasks, db, user.id)
 
 
-class MarkCancelledBody(BaseModel):
+class MarkCancelledBody(TrimmedModel):
     member_ids: List[int] = []
 
 
@@ -679,7 +679,7 @@ def mark_cancelled(eid: int, data: MarkCancelledBody, db: Session = Depends(get_
 
 # ── Games ──
 
-class GameCreate(BaseModel):
+class GameCreate(TrimmedModel):
     name: str
     template_id: Optional[int] = None
     is_opener: bool = False
@@ -721,7 +721,7 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
     return {"id": g.id, "name": g.name}
 
 
-class GameStart(BaseModel):
+class GameStart(TrimmedModel):
     client_timestamp: Optional[int] = None  # ms since epoch; used to preserve the true offline start time
 
 
@@ -748,7 +748,7 @@ def start_game(eid: int, gid: int, data: Optional[GameStart] = None, db: Session
 
 # ── Camera throw log ──
 
-class CameraThrowCreate(BaseModel):
+class CameraThrowCreate(TrimmedModel):
     throw_num: int
     pins: int
     cumulative: Optional[int] = None
@@ -825,7 +825,7 @@ def delete_camera_throw(eid: int, gid: int, tid: int,
     return {"ok": True}
 
 
-class CameraThrowUpdate(BaseModel):
+class CameraThrowUpdate(TrimmedModel):
     pins: int
     cumulative: Optional[int] = None
     pin_states: Optional[list] = None
@@ -852,7 +852,7 @@ def update_camera_throw(eid: int, gid: int, tid: int, data: CameraThrowUpdate,
     return {"ok": True}
 
 
-class ActivePlayerUpdate(BaseModel):
+class ActivePlayerUpdate(TrimmedModel):
     player_id: Optional[int] = None  # None clears the active player
 
 
@@ -872,7 +872,7 @@ def set_active_player(eid: int, gid: int, data: ActivePlayerUpdate,
     return {"ok": True}
 
 
-class GameFinish(BaseModel):
+class GameFinish(TrimmedModel):
     winner_ref: str   # "p:{player_id}" or "t:{team_id}"
     winner_name: str
     scores: dict = {}
@@ -973,7 +973,7 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
     return {"ok": True}
 
 
-class GameUpdate(BaseModel):
+class GameUpdate(TrimmedModel):
     name: Optional[str] = None
     is_opener: Optional[bool] = None
     is_president_game: Optional[bool] = None
@@ -1059,7 +1059,7 @@ def delete_game(eid: int, gid: int, db: Session = Depends(get_db),
 
 # ── Drinks ──
 
-class DrinkCreate(BaseModel):
+class DrinkCreate(TrimmedModel):
     drink_type: str  # "beer" | "shots"
     variety: Optional[str] = None
     participant_ids: List[int]
@@ -1078,7 +1078,7 @@ def add_drink_round(eid: int, data: DrinkCreate, db: Session = Depends(get_db),
     return {"id": r.id, "drink_type": r.drink_type}
 
 
-class DrinkUpdate(BaseModel):
+class DrinkUpdate(TrimmedModel):
     variety: Optional[str] = None
     participant_ids: Optional[List[int]] = None
 
@@ -1107,7 +1107,7 @@ def delete_drink_round(eid: int, rid: int, db: Session = Depends(get_db),
 
 # ── Highlights ──
 
-class HighlightCreate(BaseModel):
+class HighlightCreate(TrimmedModel):
     text: Optional[str] = None
     media_url: Optional[str] = None
 

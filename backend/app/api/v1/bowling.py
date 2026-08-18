@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
@@ -22,11 +22,11 @@ LEADERBOARD_LIMIT = 10
 MAX_GAME_SCORE = 27
 
 
-class ScoreIn(BaseModel):
+class ScoreIn(TrimmedModel):
     score: int
 
 
-class LeaderboardEntry(BaseModel):
+class LeaderboardEntry(TrimmedModel):
     rank: int
     player_name: str
     score: int
@@ -34,7 +34,7 @@ class LeaderboardEntry(BaseModel):
     is_me: bool
 
 
-class SubmitResult(BaseModel):
+class SubmitResult(TrimmedModel):
     leaderboard: list[LeaderboardEntry]
     rank: Optional[int]  # the just-submitted game's leaderboard rank, or None if outside the top N
     is_record: bool  # the submission is the new club #1

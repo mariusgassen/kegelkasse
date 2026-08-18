@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status, BackgroundTasks
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import get_current_user
@@ -25,19 +25,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(TrimmedModel):
     email: str
     password: str
 
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(TrimmedModel):
     token: str
     name: Optional[str] = None
     username: str
     password: str
 
 
-class UpdateLocaleRequest(BaseModel):
+class UpdateLocaleRequest(TrimmedModel):
     locale: str  # "de" | "en"
 
 
@@ -65,7 +65,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     return {"access_token": token, "refresh_token": refresh, "user": _user_dict(user)}
 
 
-class RefreshRequest(BaseModel):
+class RefreshRequest(TrimmedModel):
     refresh_token: str
 
 
@@ -89,7 +89,7 @@ def refresh_session(req: RefreshRequest, request: Request, db: Session = Depends
     }
 
 
-class LogoutRequest(BaseModel):
+class LogoutRequest(TrimmedModel):
     refresh_token: Optional[str] = None
     all_devices: bool = False
 
@@ -129,7 +129,7 @@ def update_locale(req: UpdateLocaleRequest, db: Session = Depends(get_db),
     return {"ok": True}
 
 
-class UpdateAvatarRequest(BaseModel):
+class UpdateAvatarRequest(TrimmedModel):
     avatar: Optional[str] = None  # base64 data URI or null to remove
 
 
@@ -141,7 +141,7 @@ def update_avatar(req: UpdateAvatarRequest, db: Session = Depends(get_db),
     return _user_dict(current_user)
 
 
-class UpdateProfileRequest(BaseModel):
+class UpdateProfileRequest(TrimmedModel):
     name: Optional[str] = None
     username: Optional[str] = None
     email: Optional[str] = None
@@ -202,7 +202,7 @@ def delete_own_account(db: Session = Depends(get_db), current_user: User = Depen
     return {"ok": True}
 
 
-class CreateResetTokenRequest(BaseModel):
+class CreateResetTokenRequest(TrimmedModel):
     user_id: int
 
 
@@ -224,7 +224,7 @@ def create_reset_token(req: CreateResetTokenRequest, db: Session = Depends(get_d
     return {"token": token_val, "reset_url": f"/reset?reset={token_val}", "username": user.username}
 
 
-class ResetPasswordRequest(BaseModel):
+class ResetPasswordRequest(TrimmedModel):
     token: str
     new_password: str
 
@@ -283,7 +283,7 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-class RequestPasswordResetRequest(BaseModel):
+class RequestPasswordResetRequest(TrimmedModel):
     email: str
 
 

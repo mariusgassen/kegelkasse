@@ -85,27 +85,41 @@ Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der D
 
 Jedem Strafentyp kann in der Vereinsverwaltung optional ein **Sound** zugeordnet werden — beim
 Eintragen dieser Strafe wird der Ton auf dem erfassenden Gerät abgespielt. Zur Auswahl stehen
-13 Presets:
+**30 Presets**, gruppiert nach Klangfamilie, sodass für jede Strafe eines Vereins ein eigener,
+unverwechselbarer Ton übrig bleibt:
 
-| Sound | | Sound | |
-|---|---|---|---|
-| ⚽ Schiedsrichterpfiff | Der klassische Pfiff samt rasselnder Erbse | 😩 Gestöhne | Ein Raum, der kollektiv „ohhh" macht |
-| 🚨 Buzzer | Falsche-Antwort-Summen aus der Quizshow | 👏 Applaus | Ironischer Beifall |
-| 📣 Drucklufthorn | Stadion-Tröte | 🥁 Trommelschlag | Kurzer, trockener Schlag |
-| 🔔 Glocke | Angeschlagenes Metall mit langem Nachklang | 💿 Plattenkratzer | Der „ups"-Moment |
-| 💰 Kasse | „Ka-ching" samt Schubladenschlag | 🪀 Boing | Cartoon-Sprungfeder |
-| 🪙 Münze fällt | Eine Münze, die austrudelt | 🔫 Laser | Kurzer Zap |
-| 📉 Pleiten-Fanfare | „Wah-wah-wah-waaah" | | |
+| Familie | Presets |
+|---|---|
+| **Alarme & Signale** | ⚽ Schiedsrichterpfiff · 🚨 Buzzer · 📣 Drucklufthorn · ⏰ Wecker · 📱 Handyklingeln |
+| **Glocken & Klänge** | 🔔 Glocke · 🚲 Fahrradklingel · 🎺 Fanfare · ⌨️ Schreibmaschine |
+| **Geld** | 💰 Kasse · 🪙 Münze fällt |
+| **Komik** | 📉 Pleiten-Fanfare · 🪀 Boing · 🐌 Abwärts-Pfeife · 😩 Gestöhne · 👏 Applaus · 🐔 Huhn · 💿 Plattenkratzer · 🧮 Kreidequietschen |
+| **Schläge & Brüche** | 🥁 Trommelschlag · 👊 Schlag · 🎱 Kugelklacken · 🥂 Glasbruch · 💩 Platsch |
+| **Maschinen** | 🚧 Presslufthammer · 🔥 Feuerzeug · 🔫 Laser |
+| **Wasser** | 💦 Wassertropfen · 🚽 Plätschern · 🚾 Klospülung |
 
 - Sound-Auswahl beim Anlegen/Bearbeiten eines Strafentyps, mit Anhör-Vorschau je Option
+- **Am Abend: Strafe gedrückt halten** — in der Schnellauswahl (Protokoll und Tablet-Schnell&shy;erfassung)
+  spielt ein langer Druck auf eine Strafe deren Ton ab, **ohne** sie einzutragen. Ein kurzer Tipp
+  wählt sie wie gewohnt aus. Strafen ohne Sound (oder bei abgeschalteten Audio-Ansagen) verhalten
+  sich unverändert
 - Club-weit ein-/ausschaltbar unter **Verein → Einstellungen → Audio-Ansagen** (Standard: an)
-- Zusätzlich vom persönlichen **🎉 Feier-Effekte**-Schalter im Profil abhängig
+- Zusätzlich vom persönlichen **🎉 Feier-Effekte**-Schalter im Profil abhängig — die Vorschau per
+  langem Druck folgt denselben zwei Schaltern, damit man auf Halten genau das hört, was beim
+  Eintragen auch im Raum zu hören sein wird
 - Es gibt keinen separaten, fest verdrahteten 0-Kegel-Ton mehr — wer einen Ton für einen Nuller
   möchte, weist den 🚨-Buzzer dem entsprechenden Strafentyp zu; der spielt dann automatisch beim
   Eintragen dieser Strafe (auch die 0-Kegel-Situation ist ja immer schon konfigurationsgesteuert)
 - Alle Töne werden live per Web Audio synthetisiert (keine Audio-Dateien, kein Download) und laufen
   über einen gemeinsamen Bus mit Kompressor und kurzem Hall, damit sie bei **einer** Lautstärke-
   Einstellung des Tablets alle brauchbar laut sind
+
+## Reihenfolge der Strafenarten
+
+Strafenarten sind überall nach **Betrag aufsteigend** und bei gleichem Betrag **alphabetisch**
+sortiert — in der Schnellauswahl, in der Verwaltung und im Konfigurations-Export. Es gibt kein
+manuelles Sortierfeld mehr: Der Preis ist das, wonach am Kegelabend gesucht wird, und der Name
+entscheidet Gleichstände eindeutig.
 
 ## Strafenprotokoll filtern
 

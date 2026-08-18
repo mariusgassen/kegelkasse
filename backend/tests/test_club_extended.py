@@ -355,6 +355,26 @@ class TestPenaltyTypes:
         assert resp.status_code == 200
         assert resp.json()["name"] == "Zu spät"
 
+    def test_list_is_ordered_by_price_then_name(self, client: TestClient, admin_headers: dict):
+        # The old sort_order column was never set by the UI, so the grid came out in insertion
+        # order. Price is what a member scans for at the lane; the name breaks ties.
+        for name, amount in (("Zebra", 1.0), ("Anton", 1.0), ("Billig", 0.1)):
+            client.post("/api/v1/club/penalty-types", headers=admin_headers,
+                        json={"name": name, "icon": "⚠️", "default_amount": amount})
+
+        resp = client.get("/api/v1/club/penalty-types", headers=admin_headers)
+        assert resp.status_code == 200
+        names = [pt["name"] for pt in resp.json() if pt["name"] in ("Zebra", "Anton", "Billig")]
+        assert names == ["Billig", "Anton", "Zebra"]
+
+    def test_create_tolerates_legacy_sort_order_field(self, client: TestClient, admin_headers: dict):
+        # Bundles and clients from before the column was dropped still send it; an extra field
+        # must not 422 a rolling deploy.
+        resp = client.post("/api/v1/club/penalty-types", headers=admin_headers,
+                           json={"name": "Alt", "icon": "⚠️", "default_amount": 1.0, "sort_order": 7})
+        assert resp.status_code == 200
+        assert "sort_order" not in resp.json()
+
     def test_member_cannot_create(self, client: TestClient, auth_headers: dict):
         resp = client.post("/api/v1/club/penalty-types", headers=auth_headers,
                            json={"name": "X", "icon": "⚠️", "default_amount": 1.0, "sort_order": 0})
@@ -1167,7 +1187,7 @@ class TestExportClubConfig:
         )
         db.add(s)
         db.add(PenaltyType(club_id=club.id, name="Null", icon="🎳", default_amount=1.0,
-                            sort_order=0, sound_key="buzzer"))
+                            sound_key="buzzer"))
         db.add(GameTemplate(club_id=club.id, name="Große Hausnummer", winner_type="individual",
                              is_opener=True, default_loser_penalty=1.0, per_point_penalty=0,
                              sort_order=0))
@@ -1310,6 +1330,17 @@ class TestImportClubConfig:
         pt = db.query(PenaltyType).filter(
             PenaltyType.club_id == club.id, PenaltyType.is_active == True).first()
         assert pt.sound_key is None
+
+    def test_import_tolerates_legacy_sort_order_field(self, client: TestClient, admin_headers: dict,
+                                                       db: Session, club: Club):
+        # Bundles exported before 056 carry a per-penalty sort_order; they must still import.
+        bundle = self._bundle(penalty_types=[{"icon": "⚠️", "name": "Alt", "default_amount": 1.0,
+                                              "sort_order": 99, "sound_key": None}])
+        resp = client.post("/api/v1/club/config/import", headers=admin_headers, json=bundle)
+        assert resp.status_code == 200
+        pt = db.query(PenaltyType).filter(
+            PenaltyType.club_id == club.id, PenaltyType.is_active == True).first()
+        assert pt.name == "Alt"
 
     def test_import_empty_bundle_deactivates_everything(self, client: TestClient, admin_headers: dict,
                                                           db: Session, club: Club):
