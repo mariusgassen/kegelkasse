@@ -17,6 +17,7 @@ class PenaltyMode(str, enum.Enum):
 # silently no-op'ing client-side).
 SOUND_PRESET_KEYS = (
     "buzzer", "bell", "cash_register", "sad_trombone", "drum_hit", "crowd_groan", "laser",
+    "whistle", "air_horn", "applause", "record_scratch", "coin_drop", "boing",
 )
 
 

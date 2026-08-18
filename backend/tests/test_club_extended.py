@@ -395,6 +395,17 @@ class TestPenaltyTypes:
         assert resp.status_code == 200
         assert resp.json()["sound_key"] == "buzzer"
 
+    def test_every_catalog_preset_is_accepted(self, client: TestClient, admin_headers: dict):
+        """The allowlist must stay in step with the frontend catalog (lib/soundboard.ts)."""
+        from models.penalty import SOUND_PRESET_KEYS
+
+        for key in SOUND_PRESET_KEYS:
+            resp = client.post("/api/v1/club/penalty-types", headers=admin_headers,
+                               json={"name": f"Test {key}", "icon": "⚠️", "default_amount": 1.0,
+                                     "sort_order": 0, "sound_key": key})
+            assert resp.status_code == 200, key
+            assert resp.json()["sound_key"] == key
+
     def test_create_unknown_sound_key_is_dropped(self, client: TestClient, admin_headers: dict):
         resp = client.post("/api/v1/club/penalty-types", headers=admin_headers,
                            json={"name": "X", "icon": "⚠️", "default_amount": 1.0, "sort_order": 0,

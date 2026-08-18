@@ -83,9 +83,19 @@ Strafen werden **weich gelöscht** (Soft-Delete) — der Eintrag bleibt in der D
 
 ## Audio-Ansagen 🔊
 
-Jedem Strafentyp kann in der Vereinsverwaltung optional ein **Sound** zugeordnet werden (Buzzer,
-Glocke, Kasse, Pleiten-Fanfare, Trommelschlag, Gestöhne, Laser) — beim Eintragen dieser Strafe wird
-der Ton auf dem erfassenden Gerät abgespielt.
+Jedem Strafentyp kann in der Vereinsverwaltung optional ein **Sound** zugeordnet werden — beim
+Eintragen dieser Strafe wird der Ton auf dem erfassenden Gerät abgespielt. Zur Auswahl stehen
+13 Presets:
+
+| Sound | | Sound | |
+|---|---|---|---|
+| ⚽ Schiedsrichterpfiff | Der klassische Pfiff samt rasselnder Erbse | 😩 Gestöhne | Ein Raum, der kollektiv „ohhh" macht |
+| 🚨 Buzzer | Falsche-Antwort-Summen aus der Quizshow | 👏 Applaus | Ironischer Beifall |
+| 📣 Drucklufthorn | Stadion-Tröte | 🥁 Trommelschlag | Kurzer, trockener Schlag |
+| 🔔 Glocke | Angeschlagenes Metall mit langem Nachklang | 💿 Plattenkratzer | Der „ups"-Moment |
+| 💰 Kasse | „Ka-ching" samt Schubladenschlag | 🪀 Boing | Cartoon-Sprungfeder |
+| 🪙 Münze fällt | Eine Münze, die austrudelt | 🔫 Laser | Kurzer Zap |
+| 📉 Pleiten-Fanfare | „Wah-wah-wah-waaah" | | |
 
 - Sound-Auswahl beim Anlegen/Bearbeiten eines Strafentyps, mit Anhör-Vorschau je Option
 - Club-weit ein-/ausschaltbar unter **Verein → Einstellungen → Audio-Ansagen** (Standard: an)
@@ -93,6 +103,9 @@ der Ton auf dem erfassenden Gerät abgespielt.
 - Es gibt keinen separaten, fest verdrahteten 0-Kegel-Ton mehr — wer einen Ton für einen Nuller
   möchte, weist den 🚨-Buzzer dem entsprechenden Strafentyp zu; der spielt dann automatisch beim
   Eintragen dieser Strafe (auch die 0-Kegel-Situation ist ja immer schon konfigurationsgesteuert)
+- Alle Töne werden live per Web Audio synthetisiert (keine Audio-Dateien, kein Download) und laufen
+  über einen gemeinsamen Bus mit Kompressor und kurzem Hall, damit sie bei **einer** Lautstärke-
+  Einstellung des Tablets alle brauchbar laut sind
 
 ## Strafenprotokoll filtern
 
