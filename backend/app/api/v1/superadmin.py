@@ -4,7 +4,7 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_superadmin, get_db
@@ -44,7 +44,7 @@ def list_clubs(db: Session = Depends(get_db), user: User = Depends(require_super
     ]
 
 
-class CreateClubRequest(BaseModel):
+class CreateClubRequest(TrimmedModel):
     name: str
 
 
@@ -67,7 +67,7 @@ def create_club(data: CreateClubRequest, db: Session = Depends(get_db),
     return {"id": club.id, "name": club.name, "slug": club.slug, "member_count": 0, "is_active": False}
 
 
-class UpdateClubRequest(BaseModel):
+class UpdateClubRequest(TrimmedModel):
     name: Optional[str] = None
     slug: Optional[str] = None
 

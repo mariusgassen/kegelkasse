@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_admin, require_club_member
@@ -52,7 +52,7 @@ def get_vapid_key(user: User = Depends(require_club_member)):
     return {"public_key": settings.VAPID_PUBLIC_KEY}
 
 
-class SubscribeRequest(BaseModel):
+class SubscribeRequest(TrimmedModel):
     endpoint: str
     p256dh: str
     auth: str
@@ -147,7 +147,7 @@ def get_push_preferences(db: Session = Depends(get_db), user: User = Depends(req
 _ChannelPref = Union[list[str], str, bool]
 
 
-class PushPreferencesUpdate(BaseModel):
+class PushPreferencesUpdate(TrimmedModel):
     penalties: Optional[_ChannelPref] = None
     evenings: Optional[_ChannelPref] = None
     schedule: Optional[_ChannelPref] = None
@@ -235,7 +235,7 @@ def get_recent_notifications(db: Session = Depends(get_db), user: User = Depends
     ]
 
 
-class MarkReadRequest(BaseModel):
+class MarkReadRequest(TrimmedModel):
     ids: Optional[list[int]] = None  # None = mark all unread as read
 
 

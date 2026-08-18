@@ -291,7 +291,7 @@ describe('api.createPenaltyType', () => {
     it('POSTs to /club/penalty-types', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ id: 1 }))
         const { api } = await import('../client')
-        await api.createPenaltyType({ icon: '🍺', name: 'Bier', default_amount: 1, sort_order: 1 })
+        await api.createPenaltyType({ icon: '🍺', name: 'Bier', default_amount: 1 })
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/penalty-types')
         expect(mockFetch.mock.calls[0][1].method).toBe('POST')
     })
@@ -891,7 +891,7 @@ describe('api.updatePenaltyType', () => {
     it('PUTs /club/penalty-types/{id}', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ id: 1 }))
         const { api } = await import('../client')
-        await api.updatePenaltyType(1, { icon: '🍺', name: 'Bier', default_amount: 2, sort_order: 1 })
+        await api.updatePenaltyType(1, { icon: '🍺', name: 'Bier', default_amount: 2 })
         const [url, opts] = mockFetch.mock.calls[0]
         expect(url).toBe('/api/v1/club/penalty-types/1')
         expect(opts.method).toBe('PUT')
@@ -1603,7 +1603,7 @@ describe('api.importClubConfig', () => {
         const { api } = await import('../client')
         const bundle = {
             version: 1, club_name: 'KC', exported_at: null,
-            settings: {}, penalty_types: [{ icon: '⚠️', name: 'X', default_amount: 1, sort_order: 0, sound_key: null }],
+            settings: {}, penalty_types: [{ icon: '⚠️', name: 'X', default_amount: 1, sound_key: null }],
             game_templates: [], teams: [], pins: [],
         } as any
         await api.importClubConfig(bundle)

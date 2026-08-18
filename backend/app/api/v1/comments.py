@@ -3,7 +3,7 @@ from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
@@ -210,7 +210,7 @@ def list_comments(
     return [_serialize_comment(c, db, user.id) for c in comments]
 
 
-class ReactionToggle(BaseModel):
+class ReactionToggle(TrimmedModel):
     emoji: str
 
 
@@ -305,7 +305,7 @@ def get_item_reactions(
     return _serialize_item_reactions(parent_type, parent_id, db, user.id)
 
 
-class CommentCreate(BaseModel):
+class CommentCreate(TrimmedModel):
     text: Optional[str] = None
     media_url: Optional[str] = None
     parent_comment_id: Optional[int] = None  # for replies (max depth 1)
@@ -404,7 +404,7 @@ def create_comment(
     return _serialize_comment(c, db, user.id)
 
 
-class CommentEdit(BaseModel):
+class CommentEdit(TrimmedModel):
     text: Optional[str] = None
     media_url: Optional[str] = None
 

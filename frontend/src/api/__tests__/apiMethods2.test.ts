@@ -118,9 +118,9 @@ describe('api.switchClub', () => {
 
 describe('api.updatePenaltyType', () => {
     it('PUTs /club/penalty-types/{id}', async () => {
-        mockFetch.mockResolvedValueOnce(jsonOk({ id: 1, icon: '🍺', name: 'Bier', default_amount: 1, sort_order: 0 }))
+        mockFetch.mockResolvedValueOnce(jsonOk({ id: 1, icon: '🍺', name: 'Bier', default_amount: 1 }))
         const { api } = await import('../client')
-        await api.updatePenaltyType(1, { icon: '🍺', name: 'Bier', default_amount: 1, sort_order: 0 })
+        await api.updatePenaltyType(1, { icon: '🍺', name: 'Bier', default_amount: 1 })
         expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/penalty-types/1')
         expect(mockFetch.mock.calls[0][1].method).toBe('PUT')
     })

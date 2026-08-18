@@ -33,6 +33,9 @@ import {ensureAudioContext} from '@/lib/audioContext'
 export type SoundPresetKey =
     | 'buzzer' | 'bell' | 'cash_register' | 'sad_trombone' | 'drum_hit' | 'crowd_groan' | 'laser'
     | 'whistle' | 'air_horn' | 'applause' | 'record_scratch' | 'coin_drop' | 'boing'
+    | 'alarm_clock' | 'ringtone' | 'bicycle_bell' | 'fanfare' | 'typewriter' | 'slide_down'
+    | 'chicken' | 'chalk_squeak' | 'punch' | 'ball_clack' | 'glass_break' | 'splat'
+    | 'jackhammer' | 'lighter' | 'splash' | 'trickle' | 'toilet_flush'
 
 export interface SoundPresetInfo {
     key: SoundPresetKey
@@ -41,19 +44,45 @@ export interface SoundPresetInfo {
 }
 
 export const SOUND_PRESETS: SoundPresetInfo[] = [
+    // Grouped by family rather than alphabetically: the picker is a scroll list of 30 entries, and
+    // an admin looking for "something that sounds like an alarm" scans neighbourhoods, not names.
+    // ── Alarms & signals ──
     {key: 'whistle', emoji: '⚽', labelKey: 'sound.preset.whistle'},
     {key: 'buzzer', emoji: '🚨', labelKey: 'sound.preset.buzzer'},
     {key: 'air_horn', emoji: '📣', labelKey: 'sound.preset.air_horn'},
+    {key: 'alarm_clock', emoji: '⏰', labelKey: 'sound.preset.alarm_clock'},
+    {key: 'ringtone', emoji: '📱', labelKey: 'sound.preset.ringtone'},
+    // ── Bells & chimes ──
     {key: 'bell', emoji: '🔔', labelKey: 'sound.preset.bell'},
+    {key: 'bicycle_bell', emoji: '🚲', labelKey: 'sound.preset.bicycle_bell'},
+    {key: 'fanfare', emoji: '🎺', labelKey: 'sound.preset.fanfare'},
+    {key: 'typewriter', emoji: '⌨️', labelKey: 'sound.preset.typewriter'},
+    // ── Money ──
     {key: 'cash_register', emoji: '💰', labelKey: 'sound.preset.cash_register'},
     {key: 'coin_drop', emoji: '🪙', labelKey: 'sound.preset.coin_drop'},
+    // ── Comedy ──
     {key: 'sad_trombone', emoji: '📉', labelKey: 'sound.preset.sad_trombone'},
+    {key: 'boing', emoji: '🪀', labelKey: 'sound.preset.boing'},
+    {key: 'slide_down', emoji: '🐌', labelKey: 'sound.preset.slide_down'},
     {key: 'crowd_groan', emoji: '😩', labelKey: 'sound.preset.crowd_groan'},
     {key: 'applause', emoji: '👏', labelKey: 'sound.preset.applause'},
-    {key: 'drum_hit', emoji: '🥁', labelKey: 'sound.preset.drum_hit'},
+    {key: 'chicken', emoji: '🐔', labelKey: 'sound.preset.chicken'},
     {key: 'record_scratch', emoji: '💿', labelKey: 'sound.preset.record_scratch'},
-    {key: 'boing', emoji: '🪀', labelKey: 'sound.preset.boing'},
+    {key: 'chalk_squeak', emoji: '🧮', labelKey: 'sound.preset.chalk_squeak'},
+    // ── Impacts ──
+    {key: 'drum_hit', emoji: '🥁', labelKey: 'sound.preset.drum_hit'},
+    {key: 'punch', emoji: '👊', labelKey: 'sound.preset.punch'},
+    {key: 'ball_clack', emoji: '🎱', labelKey: 'sound.preset.ball_clack'},
+    {key: 'glass_break', emoji: '🥂', labelKey: 'sound.preset.glass_break'},
+    {key: 'splat', emoji: '💩', labelKey: 'sound.preset.splat'},
+    // ── Machines ──
+    {key: 'jackhammer', emoji: '🚧', labelKey: 'sound.preset.jackhammer'},
+    {key: 'lighter', emoji: '🔥', labelKey: 'sound.preset.lighter'},
     {key: 'laser', emoji: '🔫', labelKey: 'sound.preset.laser'},
+    // ── Water ──
+    {key: 'splash', emoji: '💦', labelKey: 'sound.preset.splash'},
+    {key: 'trickle', emoji: '🚽', labelKey: 'sound.preset.trickle'},
+    {key: 'toilet_flush', emoji: '🚾', labelKey: 'sound.preset.toilet_flush'},
 ]
 
 const SOUND_PRESET_KEYS = new Set<string>(SOUND_PRESETS.map(p => p.key))
@@ -139,6 +168,23 @@ const PRESET_TRIM: Record<SoundPresetKey, number> = {
     record_scratch: 1.88,
     boing: 1.27,
     laser: 2.19,
+    alarm_clock: 1.3,
+    ringtone: 0.95,
+    bicycle_bell: 1.0,
+    fanfare: 0.68,
+    typewriter: 1.3,
+    slide_down: 1.15,
+    chicken: 1.64,
+    chalk_squeak: 1.15,
+    punch: 1.2,
+    ball_clack: 2.37,
+    glass_break: 1.46,
+    splat: 1.68,
+    jackhammer: 0.75,
+    lighter: 2.40,
+    splash: 1.81,
+    trickle: 1.3,
+    toilet_flush: 0.9,
 }
 
 /**
@@ -592,6 +638,176 @@ const RENDERERS: Record<SoundPresetKey, (ctx: BaseAudioContext, now: number) => 
     laser: (ctx, now) => {
         fm(ctx, 2400, now, {ratio: 1.73, index: 1400, to: 150, type: 'sawtooth', attack: 0.001, decay: 0.26, peak: 0.55})
         noise(ctx, now, {type: 'bandpass', freq: 3500, to: 400, q: 2, attack: 0.001, decay: 0.18, peak: 0.2})
+    },
+
+    /** Alarm clock: a hammer bouncing between two bell shells — the rattle *is* the sound. */
+    alarm_clock: (ctx, now) => {
+        for (let i = 0; i < 26; i++) {
+            const at = now + i * 0.032
+            // Alternating shells: a twin-bell clock never strikes the same cup twice in a row.
+            metal(ctx, i % 2 === 0 ? 1680 : 1890, at, [1, 2.31, 3.44], 0.09, 0.16)
+            noise(ctx, at, {type: 'highpass', freq: 5200, attack: 0.0005, decay: 0.012, peak: 0.09})
+        }
+    },
+
+    /** Mobile marimba ringtone: a rising three-note figure, played twice — phones ring in pairs. */
+    ringtone: (ctx, now) => {
+        const notes = [1046.5, 1318.5, 1568]
+        for (const phrase of [0, 0.62]) {
+            notes.forEach((freq, i) => {
+                fm(ctx, freq, now + phrase + i * 0.13, {ratio: 3.01, index: 420, attack: 0.002, decay: 0.3, peak: 0.34})
+            })
+        }
+    },
+
+    /** Bicycle bell: a small bright dome struck twice — higher and far shorter than the big `bell`. */
+    bicycle_bell: (ctx, now) => {
+        for (const at of [now, now + 0.17]) {
+            metal(ctx, 1560, at, [1, 2.71, 4.13, 5.9], 0.55, 0.3)
+            noise(ctx, at, {type: 'bandpass', freq: 7200, q: 1.6, attack: 0.0005, decay: 0.03, peak: 0.16})
+        }
+    },
+
+    /** Royal fanfare: three brass notes into a held one, voiced through the bell of the horn. */
+    fanfare: (ctx, now) => {
+        const horn = ctx.createBiquadFilter()
+        horn.type = 'bandpass'
+        horn.frequency.value = 1100
+        horn.Q.value = 0.7
+        horn.connect(target(ctx))
+        const notes = [
+            {freq: 523.25, at: 0, len: 0.14},
+            {freq: 659.25, at: 0.15, len: 0.14},
+            {freq: 783.99, at: 0.3, len: 0.14},
+            {freq: 1046.5, at: 0.45, len: 0.55},
+        ]
+        for (const note of notes) {
+            // Brass is a harmonic stack, not one saw: the upper partials are what make it announce.
+            for (const [mult, peak] of [[1, 0.3], [2, 0.14], [3, 0.07]] as const) {
+                tone(ctx, note.freq * mult, now + note.at, {
+                    type: 'sawtooth', attack: 0.012, sustain: note.len * 0.5, decay: note.len * 0.6, peak, out: horn,
+                })
+            }
+        }
+    },
+
+    /** Typewriter: three key strikes and the carriage-return bell — bookkeeping, filed. */
+    typewriter: (ctx, now) => {
+        for (const offset of [0, 0.11, 0.2]) {
+            const at = now + offset
+            // The type bar hitting the platen: a hard click over a small wooden body.
+            noise(ctx, at, {type: 'bandpass', freq: 3200, q: 1.1, attack: 0.0005, decay: 0.035, peak: 0.4})
+            tone(ctx, 320, at, {type: 'square', to: 180, attack: 0.001, decay: 0.05, peak: 0.16})
+        }
+        metal(ctx, 2100, now + 0.34, [1, 2.4, 3.9], 0.45, 0.22)
+    },
+
+    /** Slide whistle, falling: one long glide with the breath tracking it — the sound of losing pace. */
+    slide_down: (ctx, now) => {
+        tone(ctx, 1900, now, {type: 'sine', to: 320, glide: 0.92, attack: 0.02, decay: 0.72, peak: 0.34})
+        noise(ctx, now, {type: 'bandpass', freq: 2100, to: 420, q: 6, attack: 0.02, decay: 0.72, peak: 0.1})
+    },
+
+    /** Chicken: three clipped clucks and a rising squawk, all through one throat. */
+    chicken: (ctx, now) => {
+        const throat = formants(ctx, now, [
+            {freq: 1100, q: 6, gain: 0.6},
+            {freq: 2400, q: 8, gain: 0.3},
+        ], 1.1)
+        // A cluck is a fast pitch *drop* under a buzz — a steady tone reads as a toy horn.
+        for (const [at, freq] of [[0, 780], [0.17, 800], [0.34, 760]] as const) {
+            tone(ctx, freq, now + at, {type: 'sawtooth', to: freq * 0.55, attack: 0.004, decay: 0.09, peak: 0.5, out: throat})
+        }
+        // "…buGAWK": the squawk rises, which is what makes it a bird instead of a horn.
+        const squawk = tone(ctx, 620, now + 0.55, {
+            type: 'sawtooth', to: 1150, glide: 0.35, attack: 0.02, sustain: 0.1, decay: 0.28, peak: 0.55, out: throat,
+        })
+        lfo(ctx, squawk.frequency, now + 0.55, 0.45, 26, 60)
+    },
+
+    /** Chalk squeak: a very high, narrow resonance scraping about. Deliberately unpleasant, briefly. */
+    chalk_squeak: (ctx, now) => {
+        const voice = tone(ctx, 2750, now, {type: 'sawtooth', attack: 0.01, sustain: 0.16, decay: 0.22, peak: 0.16})
+        // Fast, erratic wobble: a scrape never holds a pitch, and a steady one is a test signal.
+        lfo(ctx, voice.frequency, now, 0.5, 17, 190, 'triangle')
+        noise(ctx, now, {type: 'bandpass', freq: 3400, to: 4600, q: 14, attack: 0.01, sustain: 0.16, decay: 0.2, peak: 0.22})
+    },
+
+    /** Body blow: a dull low thud and a slap, with none of the drum's bright snare snap. */
+    punch: (ctx, now) => {
+        tone(ctx, 170, now, {type: 'sine', to: 42, glide: 0.5, attack: 0.001, decay: 0.2, peak: 0.85})
+        noise(ctx, now, {type: 'lowpass', freq: 1100, to: 300, attack: 0.001, decay: 0.11, peak: 0.4})
+    },
+
+    /** Two billiard balls: a pair of very short, very bright clicks with almost no tail. */
+    ball_clack: (ctx, now) => {
+        for (const [at, peak] of [[0, 0.55], [0.045, 0.3]] as const) {
+            noise(ctx, now + at, {type: 'highpass', freq: 4200, attack: 0.0003, decay: 0.018, peak})
+            metal(ctx, 2600, now + at, [1, 1.83, 3.1], 0.05, peak * 0.5)
+        }
+    },
+
+    /** Breaking glass: one bright burst, then shards scattering as tiny high pings. */
+    glass_break: (ctx, now) => {
+        noise(ctx, now, {type: 'highpass', freq: 3000, attack: 0.0005, decay: 0.14, peak: 0.6})
+        metal(ctx, 3100, now, [1, 2.19, 3.62], 0.2, 0.3)
+        for (let i = 0; i < 14; i++) {
+            metal(ctx, 2400 + Math.random() * 2600, now + 0.05 + Math.random() * 0.45, [1, 2.4], 0.05, 0.1)
+        }
+    },
+
+    /** Wet splat: a squelchy pitch collapse under a dull, fast-closing noise burst. */
+    splat: (ctx, now) => {
+        tone(ctx, 260, now, {type: 'triangle', to: 55, glide: 0.4, attack: 0.002, decay: 0.22, peak: 0.5})
+        noise(ctx, now, {type: 'lowpass', freq: 1400, to: 220, q: 3, attack: 0.001, decay: 0.2, peak: 0.45})
+    },
+
+    /** Jackhammer: a burst of distorted impacts — the repetition rate is the whole identity. */
+    jackhammer: (ctx, now) => {
+        const grit = shaper(ctx, 2.8)
+        for (let i = 0; i < 16; i++) {
+            const at = now + i * 0.052
+            tone(ctx, 190, at, {type: 'square', to: 70, attack: 0.001, decay: 0.03, peak: 0.34, out: grit})
+            noise(ctx, at, {type: 'bandpass', freq: 2600, q: 1.1, attack: 0.0005, decay: 0.022, peak: 0.24, out: grit})
+        }
+    },
+
+    /** Lighter: the flint wheel rasping, then the flame catching. */
+    lighter: (ctx, now) => {
+        noise(ctx, now, {type: 'bandpass', freq: 2800, to: 5200, q: 2.2, attack: 0.001, decay: 0.07, peak: 0.45})
+        noise(ctx, now + 0.06, {type: 'lowpass', freq: 600, to: 1600, attack: 0.03, sustain: 0.1, decay: 0.35, peak: 0.22})
+    },
+
+    /** Water drop: the plop is a *rising* cavity resonance — a falling one reads as a bursting bubble. */
+    splash: (ctx, now) => {
+        tone(ctx, 420, now, {type: 'sine', to: 1500, glide: 0.55, attack: 0.001, decay: 0.14, peak: 0.5})
+        noise(ctx, now, {type: 'bandpass', freq: 2600, to: 4200, q: 1.6, attack: 0.001, decay: 0.08, peak: 0.22})
+    },
+
+    /** Trickle: a handful of small, irregular drops over a thin stream of water. */
+    trickle: (ctx, now) => {
+        noise(ctx, now, {type: 'bandpass', freq: 3600, q: 1.4, attack: 0.05, sustain: 0.5, decay: 0.3, peak: 0.12})
+        for (let i = 0; i < 9; i++) {
+            tone(ctx, 700 + Math.random() * 500, now + 0.05 + Math.random() * 0.75, {
+                type: 'sine', to: 1800 + Math.random() * 900, glide: 0.6, attack: 0.001, decay: 0.06, peak: 0.22,
+            })
+        }
+    },
+
+    /** Flush: a wash that rises, gurgles, then drains away down the filter. */
+    toilet_flush: (ctx, now) => {
+        const duration = 1.5
+        const wash = ctx.createBiquadFilter()
+        wash.type = 'bandpass'
+        wash.frequency.setValueAtTime(500, now)
+        wash.frequency.exponentialRampToValueAtTime(1800, now + 0.35)
+        wash.frequency.exponentialRampToValueAtTime(260, now + duration)
+        wash.Q.value = 0.8
+        wash.connect(target(ctx))
+        // The gurgle: the swirl modulates the resonance, it does not merely fade out.
+        lfo(ctx, wash.frequency, now, duration, 7, 260)
+        noise(ctx, now, {type: 'lowpass', freq: 5200, attack: 0.08, sustain: 0.55, decay: duration - 0.63, peak: 0.5, out: wash})
+        tone(ctx, 130, now + 0.5, {type: 'sine', to: 60, attack: 0.05, decay: 0.7, peak: 0.14})
     },
 }
 

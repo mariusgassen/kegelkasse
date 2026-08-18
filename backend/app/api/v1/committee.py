@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from pydantic import BaseModel
+from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_committee_or_admin
@@ -71,7 +71,7 @@ def list_announcements(
     return [_serialize_announcement(a, _creator_name(a.created_by, db)) for a in items]
 
 
-class AnnouncementCreate(BaseModel):
+class AnnouncementCreate(TrimmedModel):
     title: str
     text: Optional[str] = None
     media_url: Optional[str] = None
@@ -141,7 +141,7 @@ def list_trips(
     return [_serialize_trip(t, _creator_name(t.created_by, db)) for t in items]
 
 
-class TripCreate(BaseModel):
+class TripCreate(TrimmedModel):
     date: str
     destination: str
     note: Optional[str] = None
@@ -189,7 +189,7 @@ def create_trip(
     return _serialize_trip(trip, _creator_name(user.id, db))
 
 
-class TripUpdate(BaseModel):
+class TripUpdate(TrimmedModel):
     date: Optional[str] = None
     destination: Optional[str] = None
     note: Optional[str] = None
@@ -305,7 +305,7 @@ def list_polls(
     return result
 
 
-class PollCreate(BaseModel):
+class PollCreate(TrimmedModel):
     title: str
     text: Optional[str] = None
     mode: str = "single"  # 'single' | 'multi'
@@ -343,7 +343,7 @@ def create_poll(
     return _serialize_poll(poll, opts, set(), _creator_name(user.id, db))
 
 
-class PollUpdate(BaseModel):
+class PollUpdate(TrimmedModel):
     is_closed: Optional[bool] = None
 
 
@@ -388,7 +388,7 @@ def delete_poll(
     logger.info("Poll deleted: id=%d club=%d user=%d", pid, user.club_id, user.id)
 
 
-class PollVoteCreate(BaseModel):
+class PollVoteCreate(TrimmedModel):
     option_ids: list[int]
 
 
