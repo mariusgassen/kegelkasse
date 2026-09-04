@@ -46,6 +46,11 @@ omit = [
 line-length = 120
 
 [tool.ruff.lint]
+# Pin the rule surface explicitly (ruff's pre-1.0 default selection isn't stable across
+# versions — 0.16 expanded the unconfigured default from 57 to 415 enabled rules, which
+# would otherwise turn every routine ruff bump into an unreviewed, hundreds-of-findings
+# lint-policy change). E4/E7/E9/F match ruff's previous default, i.e. today's baseline.
+select = ["E4", "E7", "E9", "F"]
 # E701: inline raises are used intentionally throughout the API layer
 # E711/E712: SQLAlchemy filter comparisons (== None, == True, == False) are correct ORM syntax
 # E741: 'l' used for locale in i18n helpers
