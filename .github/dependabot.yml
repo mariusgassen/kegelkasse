@@ -11,6 +11,14 @@ updates:
         dependency-type: "development"
       production-dependencies:
         dependency-type: "production"
+    ignore:
+      # @typescript-eslint (typescript-estree) declares peerDependencies.typescript:
+      # ">=4.8.4 <6.1.0" and crashes against TS7 (the Corsa/native rewrite). Unblocks
+      # when @typescript-eslint ships TS7 support — see CLAUDE.md's known blocking
+      # constraints. Without this, the grouped dev-dependencies bump keeps re-including
+      # an incompatible typescript major version and fails `npm run lint` every week.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
 
   - package-ecosystem: "pip"
     directory: "/backend"
