@@ -7,7 +7,7 @@ import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {ReminderSettings, ReminderTypeSettings, EmailSettings} from '@/types.ts'
+import type {ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -500,6 +500,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
             <ReminderSettingsCard />
             <EmailSettingsCard />
+            <TelegramSettingsCard />
             <BroadcastPushCard />
             <ClubConfigCard />
         </div>
@@ -844,6 +845,105 @@ function EmailSettingsCard() {
                 <button className="btn-secondary flex-shrink-0" onClick={handleTest}
                         disabled={!isOnline || testing || !enabled}>
                     {testing ? '…' : t('email.sendTest')}
+                </button>
+            </div>
+        </div>
+    )
+}
+
+
+function TelegramSettingsCard() {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const {data: saved} = useQuery<TelegramSettings>({
+        queryKey: ['telegram-settings'],
+        queryFn: api.getTelegramSettings,
+        staleTime: 60000,
+    })
+
+    const [enabled, setEnabled] = useState(false)
+    const [botToken, setBotToken] = useState('')
+    const [botUsername, setBotUsername] = useState('')
+    const [tokenSet, setTokenSet] = useState(false)
+    const [webhookRegistered, setWebhookRegistered] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [testing, setTesting] = useState(false)
+
+    useEffect(() => {
+        if (!saved) return
+        setEnabled(saved.enabled)
+        setBotUsername(saved.bot_username || '')
+        setTokenSet(saved.bot_token_set)
+        setWebhookRegistered(saved.webhook_registered)
+    }, [saved])
+
+    async function handleSave() {
+        setSaving(true)
+        try {
+            const payload: Partial<TelegramSettings> & { bot_token?: string } = {enabled}
+            if (botToken) payload.bot_token = botToken
+            const res = await api.updateTelegramSettings(payload)
+            setBotToken('')
+            setBotUsername(res.bot_username)
+            setTokenSet(res.bot_token_set)
+            setWebhookRegistered(res.webhook_registered)
+            qc.invalidateQueries({queryKey: ['telegram-settings']})
+            showToast(t('telegram.saved'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleTest() {
+        setTesting(true)
+        try {
+            await api.testTelegramSettings()
+            showToast(t('telegram.testSent'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setTesting(false)
+        }
+    }
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-2">{t('telegram.title')}</div>
+            <p className="text-xs text-muted mb-3">{t('telegram.hint')}</p>
+
+            <div className="flex items-center justify-between py-1 mb-2">
+                <span className="text-sm font-bold text-ink">{t('telegram.enabled')}</span>
+                <ReminderToggle value={enabled} onChange={setEnabled}/>
+            </div>
+
+            <div className="space-y-3">
+                <div>
+                    <label className="field-label">{t('telegram.botToken')}</label>
+                    <input className="kce-input" type="password" value={botToken} onChange={e => setBotToken(e.target.value)}
+                           placeholder={tokenSet ? t('telegram.botTokenSet') : t('telegram.botTokenPlaceholder')}
+                           autoComplete="off" autoCapitalize="none" autoCorrect="off"/>
+                </div>
+                {botUsername && (
+                    <div>
+                        <label className="field-label">{t('telegram.botUsername')}</label>
+                        <p className="text-sm text-ink">@{botUsername}</p>
+                    </div>
+                )}
+                {enabled && tokenSet && !webhookRegistered && (
+                    <p className="text-sm text-danger-fg">{t('telegram.webhookWarning')}</p>
+                )}
+            </div>
+
+            <div className="flex gap-2 mt-4">
+                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline || saving}>
+                    {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
+                </button>
+                <button className="btn-secondary flex-shrink-0" onClick={handleTest}
+                        disabled={!isOnline || testing || !enabled || !tokenSet}>
+                    {testing ? '…' : t('telegram.sendTest')}
                 </button>
             </div>
         </div>

@@ -83,6 +83,8 @@ vi.mock('@/api/client.ts', () => ({
         testPush: vi.fn(),
         sendDigestNow: vi.fn(),
         getBowlingLeaderboard: vi.fn(),
+        startTelegramLink: vi.fn(),
+        unlinkTelegram: vi.fn(),
     },
     authState: {
         setToken: vi.fn(),
@@ -729,6 +731,99 @@ describe('ProfileSheet — push preferences', () => {
         await waitFor(() => {
             expect(screen.getByText('push.pref.reminder_payments')).toBeInTheDocument()
         })
+    })
+})
+
+describe('ProfileSheet — telegram', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        await setupAsMember()
+        await setupApiMocks()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushPreferences).mockResolvedValue({
+            penalties: ['push'], evenings: ['push'], schedule: ['push'], payments: ['push'],
+            games: ['push'], members: ['push'], comments: ['push'],
+            reminder_debt: [], reminder_schedule: [], reminder_payments: [],
+        } as any)
+    })
+
+    it('hides the telegram card when the club has no bot configured', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({
+            configured: false, email_configured: false, telegram_configured: false, telegram_linked: false,
+        } as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByText('push.pref.penalties')).toBeInTheDocument())
+        expect(screen.queryByText('telegram.title')).not.toBeInTheDocument()
+    })
+
+    it('shows a connect button when configured but not linked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({
+            configured: false, email_configured: false, telegram_configured: true, telegram_linked: false,
+        } as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByText('telegram.title')).toBeInTheDocument())
+        expect(screen.getByText('telegram.connect')).toBeInTheDocument()
+        expect(screen.queryByLabelText('push.channel.telegram')).not.toBeInTheDocument()
+    })
+
+    it('connecting opens the deep link and polls status until linked', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        try {
+            const { api } = await import('@/api/client.ts')
+            const { showToast } = await import('@/components/ui/Toast.tsx')
+            vi.mocked(api.getPushStatus)
+                .mockResolvedValueOnce({
+                    configured: false, email_configured: false, telegram_configured: true, telegram_linked: false,
+                } as any)
+                .mockResolvedValueOnce({
+                    configured: false, email_configured: false, telegram_configured: true, telegram_linked: false,
+                } as any)
+                .mockResolvedValue({
+                    configured: false, email_configured: false, telegram_configured: true, telegram_linked: true,
+                } as any)
+            vi.mocked(api.startTelegramLink).mockResolvedValue({ deep_link: 'https://t.me/mybot?start=abc', expires_in: 600 } as any)
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+            await renderProfileSheet({ tab: 'settings' })
+            await waitFor(() => expect(screen.getByText('telegram.connect')).toBeInTheDocument())
+            fireEvent.click(screen.getByText('telegram.connect'))
+            await waitFor(() => expect(api.startTelegramLink).toHaveBeenCalled())
+            expect(openSpy).toHaveBeenCalledWith('https://t.me/mybot?start=abc', '_blank')
+
+            await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+            await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+
+            await waitFor(() => expect(screen.getByText('telegram.connected')).toBeInTheDocument())
+            expect(showToast).toHaveBeenCalledWith('telegram.linked')
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it('shows the disconnect button once linked and calls unlinkTelegram', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({
+            configured: false, email_configured: false, telegram_configured: true, telegram_linked: true,
+        } as any)
+        vi.mocked(api.unlinkTelegram).mockResolvedValue(undefined as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByText('telegram.connected')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('telegram.disconnect'))
+        await waitFor(() => expect(api.unlinkTelegram).toHaveBeenCalled())
+        await waitFor(() => expect(screen.getByText('telegram.connect')).toBeInTheDocument())
+    })
+
+    it('offers the telegram channel toggle once configured and linked', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getPushStatus).mockResolvedValue({
+            configured: false, email_configured: false, telegram_configured: true, telegram_linked: true,
+        } as any)
+        await renderProfileSheet({ tab: 'settings' })
+        await waitFor(() => expect(screen.getByText('push.pref.penalties')).toBeInTheDocument())
+        const row = screen.getByText('push.pref.penalties').closest('div')!
+        expect(row.querySelector('button[aria-label="push.channel.telegram"]')).toBeInTheDocument()
     })
 })
 

@@ -1546,6 +1546,45 @@ describe('email settings', () => {
     })
 })
 
+describe('telegram settings', () => {
+    it('GETs /club/telegram-settings', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({}))
+        const { api } = await import('../client')
+        await api.getTelegramSettings()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/telegram-settings')
+        expect(mockFetch.mock.calls[0][1].method).toBe('GET')
+    })
+    it('PATCHes /club/telegram-settings', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({}))
+        const { api } = await import('../client')
+        await api.updateTelegramSettings({ enabled: true, bot_token: '123:ABC' })
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/telegram-settings')
+        expect(mockFetch.mock.calls[0][1].method).toBe('PATCH')
+        expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({ enabled: true, bot_token: '123:ABC' })
+    })
+    it('POSTs /club/telegram-settings/test', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ok: true }))
+        const { api } = await import('../client')
+        await api.testTelegramSettings()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/club/telegram-settings/test')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    })
+    it('POSTs /push/telegram/link-start', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ deep_link: 'https://t.me/bot?start=abc', expires_in: 600 }))
+        const { api } = await import('../client')
+        await api.startTelegramLink()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/push/telegram/link-start')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    })
+    it('DELETEs /push/telegram/link', async () => {
+        mockFetch.mockResolvedValueOnce(noContent())
+        const { api } = await import('../client')
+        await api.unlinkTelegram()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/push/telegram/link')
+        expect(mockFetch.mock.calls[0][1].method).toBe('DELETE')
+    })
+})
+
 describe('api.markNotificationsRead', () => {
     it('POSTs to /push/notifications/read with ids', async () => {
         mockFetch.mockResolvedValueOnce(noContent())

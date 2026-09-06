@@ -1,5 +1,6 @@
 """Web Push subscription endpoints."""
 import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 
@@ -11,9 +12,11 @@ from api.deps import require_club_admin, require_club_member
 from core.config import settings
 from core.database import get_db
 from models.push import NotificationLog, PushSubscription
-from models.user import User
+from models.user import User, TelegramLinkCode
 
 from core.push import resolve_channels
+
+TELEGRAM_LINK_CODE_EXPIRE_MINUTES = 10
 
 _CATEGORY_KEYS = (
     "penalties", "evenings", "schedule", "payments", "games", "members", "comments",
@@ -95,13 +98,49 @@ def unsubscribe(endpoint: Optional[str] = None, db: Session = Depends(get_db),
 @router.get("/status")
 def status(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     from core.email import get_club_email_config
+    from core.telegram import get_club_telegram_config
     count = db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count()
     email_configured = bool(get_club_email_config(user.club)) if user.club else False
+    telegram_configured = bool(get_club_telegram_config(user.club)) if user.club else False
     return {
         "subscribed": count > 0,
         "configured": bool(settings.VAPID_PUBLIC_KEY),
         "email_configured": email_configured,
+        "telegram_configured": telegram_configured,
+        "telegram_linked": bool(user.telegram_chat_id),
     }
+
+
+@router.post("/telegram/link-start")
+def start_telegram_link(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Mint a one-time code and return the Telegram deep link to complete the connection.
+
+    Tapping Start on that link makes Telegram deliver the user's Chat ID to our
+    webhook (api/v1/telegram.py), which resolves the code back to this user —
+    no manual Chat ID lookup needed.
+    """
+    from core.telegram import get_club_telegram_config
+    cfg = get_club_telegram_config(user.club)
+    if not cfg:
+        raise HTTPException(400, "Telegram ist für diesen Verein nicht konfiguriert.")
+    code = secrets.token_urlsafe(9)
+    db.add(TelegramLinkCode(
+        user_id=user.id,
+        code=code,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=TELEGRAM_LINK_CODE_EXPIRE_MINUTES),
+    ))
+    db.commit()
+    return {
+        "deep_link": f"https://t.me/{cfg['bot_username']}?start={code}",
+        "expires_in": TELEGRAM_LINK_CODE_EXPIRE_MINUTES * 60,
+    }
+
+
+@router.delete("/telegram/link", status_code=204)
+def unlink_telegram(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Disconnect the user's Telegram chat (they can re-link at any time)."""
+    user.telegram_chat_id = None
+    db.commit()
 
 
 @router.post("/test")

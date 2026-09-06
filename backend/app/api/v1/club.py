@@ -1744,6 +1744,108 @@ def test_email_settings(data: TestEmailRequest = TestEmailRequest(), db: Session
     return {"ok": True, "sent_to": to_address}
 
 
+# ── Telegram bot settings — per club ──
+
+_TELEGRAM_DEFAULTS = {"enabled": False, "bot_username": ""}
+
+
+@router.get("/telegram-settings")
+def get_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: return the club's Telegram bot config. The token is never returned (only whether it is set)."""
+    from core.config import settings as app_settings
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    saved = ((s.extra or {}).get("telegram") or {}) if s else {}
+    result = dict(_TELEGRAM_DEFAULTS)
+    for key in _TELEGRAM_DEFAULTS:
+        if key in saved:
+            result[key] = saved[key]
+    result["bot_token_set"] = bool(saved.get("bot_token"))
+    result["webhook_registered"] = bool(app_settings.APP_BASE_URL)
+    return result
+
+
+class TelegramSettingsUpdate(TrimmedModel):
+    enabled: Optional[bool] = None
+    bot_token: Optional[str] = None  # None = keep existing; non-empty string = replace + re-validate
+
+
+@router.patch("/telegram-settings")
+def update_telegram_settings(data: TelegramSettingsUpdate, db: Session = Depends(get_db),
+                             user: User = Depends(require_club_admin)):
+    """Admin: update the club's Telegram bot. A new token is validated (and its username fetched)
+    via Telegram's getMe before being saved; the webhook is (de)registered to match `enabled`."""
+    from core.config import settings as app_settings
+    from core.crypto import encrypt_secret, decrypt_secret
+    from core.telegram import delete_webhook, get_bot_info, set_webhook
+
+    # Validate a new token *before* touching the session — a rejected token must
+    # leave no half-added ClubSettings row behind for a later, unrelated commit to pick up.
+    bot_info = None
+    if data.bot_token:
+        try:
+            bot_info = get_bot_info(data.bot_token)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(400, f"Bot-Token ungültig — Telegram konnte den Bot nicht bestätigen: {exc}")
+
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    extra = dict(s.extra or {})
+    cfg = dict(extra.get("telegram", {}))
+
+    if bot_info is not None:
+        cfg["bot_token"] = encrypt_secret(data.bot_token)
+        cfg["bot_username"] = bot_info.get("username") or ""
+        cfg.setdefault("webhook_secret", uuid.uuid4().hex)
+    if data.enabled is not None:
+        cfg["enabled"] = data.enabled
+    extra["telegram"] = cfg
+    s.extra = extra
+    db.commit()
+
+    # Best-effort webhook (de)registration — never blocks saving the settings themselves.
+    if cfg.get("enabled") and cfg.get("bot_token") and app_settings.APP_BASE_URL:
+        try:
+            webhook_url = f"{app_settings.APP_BASE_URL.rstrip('/')}/api/v1/telegram/webhook/{user.club_id}/{cfg['webhook_secret']}"
+            set_webhook(decrypt_secret(cfg["bot_token"]), webhook_url)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Telegram setWebhook failed for club %s: %s", user.club_id, exc)
+    elif not cfg.get("enabled") and cfg.get("bot_token"):
+        try:
+            delete_webhook(decrypt_secret(cfg["bot_token"]))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Telegram deleteWebhook failed for club %s: %s", user.club_id, exc)
+
+    result = dict(_TELEGRAM_DEFAULTS)
+    for key in _TELEGRAM_DEFAULTS:
+        if key in cfg:
+            result[key] = cfg[key]
+    result["bot_token_set"] = bool(cfg.get("bot_token"))
+    result["webhook_registered"] = bool(app_settings.APP_BASE_URL)
+    return result
+
+
+@router.post("/telegram-settings/test")
+def test_telegram_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: send a test message to the admin's own linked Telegram chat."""
+    from core.telegram import get_club_telegram_config, send_telegram_message
+    from core.crypto import decrypt_secret
+    cfg = get_club_telegram_config(user.club)
+    if not cfg:
+        raise HTTPException(400, "Telegram-Versand ist nicht konfiguriert oder deaktiviert.")
+    if not user.telegram_chat_id:
+        raise HTTPException(400, "Verbinde zuerst dein eigenes Telegram-Konto im Profil (Einstellungen → Telegram).")
+    try:
+        send_telegram_message(decrypt_secret(cfg["bot_token"]), user.telegram_chat_id,
+                              "Kegelkasse 🎳 — Test-Nachricht. Telegram-Versand funktioniert!")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Test Telegram message failed for club %s: %s", user.club_id, exc)
+        raise HTTPException(400, f"Telegram-Nachricht konnte nicht gesendet werden: {exc}")
+    logger.info("Test Telegram message sent for club %s", user.club_id)
+    return {"ok": True}
+
+
 class BroadcastPushRequest(TrimmedModel):
     title: str
     body: str

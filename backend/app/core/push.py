@@ -82,11 +82,11 @@ def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str,
 
 # The concrete delivery channels a category can fan out to. A category's
 # preference is a *subset* of these (possibly empty = off).
-CHANNELS = ("push", "email")
+CHANNELS = ("push", "email", "telegram")
 
 
 def resolve_channels(value, default: tuple[str, ...] = ("push",)) -> list[str]:
-    """Normalize any stored preference value to a list of channels (subset of push/email).
+    """Normalize any stored preference value to a list of channels (subset of ``CHANNELS``).
 
     A user can enable several channels for one category at once (e.g. both push
     and email). The stored/wire representation is therefore a list of channels;
@@ -141,6 +141,20 @@ def _club_email_config(db: Session, club_id: int | None, cache: dict) -> dict | 
     return cfg
 
 
+def _club_telegram_config(db: Session, club_id: int | None, cache: dict) -> dict | None:
+    """Resolve (and cache) the Telegram bot config for a club id within one dispatch call."""
+    if club_id is None:
+        return None
+    if club_id in cache:
+        return cache[club_id]
+    from core.telegram import get_club_telegram_config
+    from models.club import Club
+    club = db.query(Club).filter(Club.id == club_id).first()
+    cfg = get_club_telegram_config(club) if club else None
+    cache[club_id] = cfg
+    return cfg
+
+
 def _log_notification(db: Session, user_id: int, title: str, body: str, url: str) -> None:
     """Persist a notification to the server-side log (best-effort, never raises)."""
     try:
@@ -153,13 +167,14 @@ def _log_notification(db: Session, user_id: int, title: str, body: str, url: str
 
 def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
                 category: str = '', extra: dict | None = None,
-                email_cache: dict | None = None) -> bool:
+                email_cache: dict | None = None, telegram_cache: dict | None = None) -> bool:
     """Deliver one notification to one user, honouring their per-category channels.
 
     A category may have several channels enabled at once:
-    - no channels → nothing (no log, no delivery)
-    - 'push'      → Web Push (if configured)
-    - 'email'     → email via the user's club SMTP (if configured)
+    - no channels  → nothing (no log, no delivery)
+    - 'push'       → Web Push (if configured)
+    - 'email'      → email via the user's club SMTP (if configured)
+    - 'telegram'   → Telegram via the user's club bot (if configured and linked)
 
     The in-app bell is always fed (a log row) whenever at least one channel is on.
     Returns True if the notification was logged/delivered (any channel on).
@@ -175,6 +190,11 @@ def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
         if cfg:
             send_notification_email(cfg, user.email, title, body, url,
                                     theme=email_theme(user.club), locale=user.preferred_locale)
+    if "telegram" in channels and user.telegram_chat_id:
+        from core.telegram import send_telegram_notification
+        cfg = _club_telegram_config(db, user.club_id, telegram_cache if telegram_cache is not None else {})
+        if cfg:
+            send_telegram_notification(cfg, user.telegram_chat_id, title, body, url)
     if "push" in channels and settings.VAPID_PRIVATE_KEY:
         for sub in db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all():
             _send_one(db, sub, title, body, url, extra=extra)
@@ -183,11 +203,13 @@ def notify_user(db: Session, user: User, title: str, body: str, url: str = '/',
 
 def push_to_regular_member(db: Session, regular_member_id: int, title: str, body: str,
                             url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Notify every user linked to a regular member (push or email per their preference)."""
+    """Notify every user linked to a regular member (push/email/telegram per their preference)."""
     users = db.query(User).filter(User.regular_member_id == regular_member_id, User.is_active == True).all()
     email_cache: dict = {}
+    telegram_cache: dict = {}
     for user in users:
-        notify_user(db, user, title, body, url, category=category, extra=extra, email_cache=email_cache)
+        notify_user(db, user, title, body, url, category=category, extra=extra,
+                   email_cache=email_cache, telegram_cache=telegram_cache)
 
 
 def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
@@ -216,9 +238,10 @@ def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
 
 def push_to_club(db: Session, club_id: int, title: str, body: str,
                  url: str = '/', category: str = '', extra: dict | None = None) -> None:
-    """Notify every member of a club — Web Push (parallelised) or email, per preference."""
+    """Notify every member of a club — Web Push (parallelised), email or Telegram, per preference."""
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
     email_cache: dict = {}
+    telegram_cache: dict = {}
     subs = []
     for user in users:
         channels = _user_channels(user, category)
@@ -232,6 +255,11 @@ def push_to_club(db: Session, club_id: int, title: str, body: str,
             if cfg:
                 send_notification_email(cfg, user.email, title, body, url,
                                         theme=email_theme(user.club), locale=user.preferred_locale)
+        if "telegram" in channels and user.telegram_chat_id:
+            from core.telegram import send_telegram_notification
+            cfg = _club_telegram_config(db, user.club_id, telegram_cache)
+            if cfg:
+                send_telegram_notification(cfg, user.telegram_chat_id, title, body, url)
         if "push" in channels and settings.VAPID_PRIVATE_KEY:
             subs.extend(db.query(PushSubscription).filter(PushSubscription.user_id == user.id).all())
     if not subs:

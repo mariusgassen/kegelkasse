@@ -6,16 +6,17 @@ sidebar_label: Push-Benachrichtigungen
 
 # Push-Benachrichtigungen
 
-Kegelkasse kann Benachrichtigungen **als Web-Push** (auch bei geschlossener App) **oder per E-Mail** senden. So verpasst kein Mitglied eine Strafe oder eine wichtige Vereinsnachricht.
+Kegelkasse kann Benachrichtigungen **als Web-Push** (auch bei geschlossener App), **per E-Mail** oder **per Telegram** senden. So verpasst kein Mitglied eine Strafe oder eine wichtige Vereinsnachricht.
 
-## Zustellwege pro Benachrichtigung: Push und/oder E-Mail
+## Zustellwege pro Benachrichtigung: Push, E-Mail und/oder Telegram
 
-Jede Benachrichtigungsart lässt sich im Profil (**⚙️ Einstellungen → Benachrichtigungseinstellungen**) einzeln steuern. **Push und E-Mail sind unabhängige Schalter** — beide können gleichzeitig aktiv sein:
+Jede Benachrichtigungsart lässt sich im Profil (**⚙️ Einstellungen → Benachrichtigungseinstellungen**) einzeln steuern. **Push, E-Mail und Telegram sind unabhängige Schalter** — beliebig viele können gleichzeitig aktiv sein:
 
 - **🔔 Push** — Web-Push auf die abonnierten Geräte
 - **✉️ E-Mail** — Versand an die hinterlegte E-Mail-Adresse (nur wählbar, wenn der Verein einen E-Mail-Server konfiguriert hat)
+- **📨 Telegram** — Versand über den Vereins-Bot (nur wählbar, wenn der Verein einen Bot konfiguriert hat **und** dieses Mitglied sein eigenes Telegram-Konto verbunden hat)
 
-Sind **beide** aktiv, wird dieselbe Benachrichtigung sowohl als Push als auch als E-Mail zugestellt. Sind **beide aus**, gibt es keine Zustellung (die Benachrichtigung erscheint dann auch nicht in der Glocke). Ist mindestens ein Weg aktiv, wird die Benachrichtigung zusätzlich in der **In-App-Glocke** protokolliert. Dieselbe Wahl gilt auch für die automatischen Erinnerungen (Schulden, Termine, RSVP …).
+Sind **mehrere** Wege aktiv, wird dieselbe Benachrichtigung über jeden davon zugestellt. Sind **alle aus**, gibt es keine Zustellung (die Benachrichtigung erscheint dann auch nicht in der Glocke). Ist mindestens ein Weg aktiv, wird die Benachrichtigung zusätzlich in der **In-App-Glocke** protokolliert. Dieselbe Wahl gilt auch für die automatischen Erinnerungen (Schulden, Termine, RSVP …).
 
 ## Benachrichtigungen aktivieren
 
@@ -50,10 +51,10 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 
 ## Einstellungen im Profil
 
-Im Profil-Tab **⚙️ Einstellungen** kann jede Benachrichtigung per **🔔 Push und/oder ✉️ E-Mail** zugestellt werden (beide Schalter unabhängig, beides gleichzeitig möglich):
+Im Profil-Tab **⚙️ Einstellungen** kann jede Benachrichtigung per **🔔 Push, ✉️ E-Mail und/oder 📨 Telegram** zugestellt werden (alle Schalter unabhängig, beliebige Kombination möglich):
 
-- **Strafen, Abend-Events, Kegeltermine, Zahlungen, Spielergebnisse, Neue Mitglieder** — Push/E-Mail je einzeln
-- **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen (Push und/oder E-Mail)
+- **Strafen, Abend-Events, Kegeltermine, Zahlungen, Spielergebnisse, Neue Mitglieder** — Push/E-Mail/Telegram je einzeln
+- **Schulden-Erinnerungen** — automatische Schulden-Benachrichtigungen (Push, E-Mail und/oder Telegram)
 - **Termin-Erinnerungen** — automatische Terminbenachrichtigungen; dazu individuell einstellbar: wie viele Tage vorher erinnert werden soll
 - **Zahlungsanfragen (Admin)** — Nudges für ausstehende Anfragen (nur für Admins sichtbar)
 - **Kommentare & Reaktionen** — Benachrichtigungen zu Antworten und Reaktionen auf Ankündigungen, Kegelfahrten und Highlights
@@ -107,6 +108,27 @@ Die Einstellungen werden **pro Verein** gespeichert (in den Vereinseinstellungen
 
 Alle E-Mails (Einzel-Benachrichtigungen wie Zusammenfassungen) werden im **Vereins-Design** gerendert: Kopfzeile in der Vereins-Grundfarbe mit Vereinslogo (falls hinterlegt, sonst der Anfangsbuchstabe) als **runder Avatar** neben dem Vereinsnamen, und Buttons in der Markenfarbe. Der Text erscheint in der **Sprache des Empfängers** (Deutsch/Englisch), passend zur Profil-Einstellung. Ein echter Absender-Avatar im Postfach selbst (wie bei Kontakten mit Foto) lässt sich aus einer transaktionalen App-Mail heraus nicht setzen — das erfordert eine Gravatar-Registrierung oder BIMI-DNS-Einträge auf Domain-Ebene, außerhalb der Vereinskonfiguration; der runde Avatar im Mail-Header ist die nächstmögliche Annäherung.
 
+## Telegram *(Admin, pro Verein)*
+
+Jeder Verein kann seinen **eigenen** Telegram-Bot anbinden, damit Mitglieder Benachrichtigungen zusätzlich per Telegram erhalten. Ein Verein-Bot ist in wenigen Minuten und kostenlos eingerichtet:
+
+1. In Telegram nach **@BotFather** suchen und einen Chat starten
+2. `/newbot` senden und den Anweisungen folgen (Name + eindeutiger Username, muss auf `bot` enden)
+3. Den erhaltenen **Token** kopieren
+4. Im **Einstellungen-Tab** unter **📨 Telegram** den Token einfügen, **Telegram-Versand aktiv** einschalten, speichern
+
+Beim Speichern prüft Kegelkasse den Token über die Telegram-API (bestätigt den Bot und liest dessen Username automatisch aus — keine manuelle Eingabe nötig) und registriert automatisch einen **Webhook**, über den Telegram eingehende Nachrichten zustellt. Dafür muss die serverweite `APP_BASE_URL` gesetzt sein (siehe Konfiguration unten) — fehlt sie, zeigt die Karte einen Warnhinweis, und der Webhook kann nicht registriert werden, bis sie gesetzt ist.
+
+### Das eigene Telegram-Konto verbinden *(jedes Mitglied)*
+
+Ein Chat-ID wird nie manuell gesucht — die Verbindung läuft über einen Ein-Tap-Link:
+
+1. Im Profil (**⚙️ Einstellungen**) erscheint eine **📨 Telegram**-Karte, sobald der Verein einen Bot konfiguriert hat
+2. Auf **Mit Telegram verbinden** tippen — Telegram öffnet sich mit einem vorausgefüllten Chat zum Vereins-Bot
+3. Auf **Start** tippen — die App erkennt die Verbindung innerhalb weniger Sekunden automatisch (kein Neuladen nötig) und die Karte zeigt **✅ Verbunden**
+
+Über **Verbindung trennen** lässt sich die Verknüpfung jederzeit wieder aufheben. Ein Admin kann mit **Test-Nachricht** prüfen, ob der Versand funktioniert — vorausgesetzt, das eigene Konto ist bereits verbunden.
+
 ## E-Mail-Zusammenfassung *(pro Mitglied)*
 
 Jedes Mitglied kann im **Einstellungen-Tab** des Profils unter **E-Mail-Zusammenfassung** eine persönliche Zusammenfassung abonnieren. Die Häufigkeit ist frei wählbar:
@@ -150,10 +172,10 @@ VAPID_CLAIM_EMAIL=admin@example.com
 
 Fehlen diese Variablen, werden alle Push-Aktionen stillschweigend übersprungen — die App funktioniert weiterhin normal.
 
-Für **absolute Links in E-Mails** (Buttons in Benachrichtigungs-Mails) kann optional die öffentliche App-URL gesetzt werden:
+Für **absolute Links in E-Mails** (Buttons in Benachrichtigungs-Mails) sowie für den **Telegram-Webhook** (siehe oben) muss die öffentliche App-URL gesetzt werden:
 
 ```
 APP_BASE_URL=https://kegelkasse.example.com
 ```
 
-Fehlt sie, werden E-Mails ohne Aktions-Link versendet (der Text bleibt vollständig).
+Fehlt sie, werden E-Mails ohne Aktions-Link versendet (der Text bleibt vollständig) und der Telegram-Webhook kann nicht registriert werden — ein Verein-Bot lässt sich dann speichern, empfängt aber keine `/start`-Verbindungen.
