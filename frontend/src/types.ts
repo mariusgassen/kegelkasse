@@ -69,7 +69,7 @@ export interface ScheduledEvening {
 
 // A concrete delivery channel. A category can enable several at once
 // (e.g. both push and email); an empty list means the category is off.
-export type NotificationChannel = 'push' | 'email'
+export type NotificationChannel = 'push' | 'email' | 'telegram'
 export type ChannelPref = NotificationChannel[]
 
 export interface PushPreferences {
@@ -100,6 +100,13 @@ export interface EmailSettings {
     use_ssl: boolean
     base_url: string
     password_set: boolean
+}
+
+export interface TelegramSettings {
+    enabled: boolean
+    bot_username: string
+    bot_token_set: boolean
+    webhook_registered: boolean
 }
 
 export interface ReminderTypeSettings {

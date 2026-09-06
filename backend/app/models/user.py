@@ -28,6 +28,7 @@ class User(Base):
     preferred_locale = Column(String, default="de")
     push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}
     last_digest_at = Column(DateTime(timezone=True), nullable=True)  # last personalized email digest sent
+    telegram_chat_id = Column(String, nullable=True)  # set once the user links their Telegram via /telegram/link-start
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="members")
@@ -51,6 +52,22 @@ class PasswordResetToken(Base):
     token = Column(String, unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)  # null for self-service resets
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class TelegramLinkCode(Base):
+    """One-time code for the Telegram deep-link handshake (see api/v1/telegram.py).
+
+    A member requests a code, opens ``t.me/<bot>?start=<code>`` in Telegram, and
+    the bot's webhook resolves the code back to this row to learn the user's
+    ``chat_id`` — the code is the only thing that ever crosses that boundary.
+    """
+    __tablename__ = "telegram_link_code"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    code = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True), nullable=True)
 

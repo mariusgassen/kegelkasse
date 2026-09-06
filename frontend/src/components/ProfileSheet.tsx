@@ -25,14 +25,17 @@ function fe(v: number) {
 }
 
 /**
- * Independent per-channel toggles: push and/or email can each be on at once.
+ * Independent per-channel toggles: push, email and/or Telegram can each be on at once.
  * An empty selection means the category is off. The email toggle is only offered
- * when the club has configured an SMTP server.
+ * when the club has configured an SMTP server; the Telegram toggle only when the
+ * club has a bot configured *and* this user has linked their own chat (a toggle is
+ * meaningless before that).
  */
-function ChannelToggles({value, onChange, emailEnabled, disabled}: {
+function ChannelToggles({value, onChange, emailEnabled, telegramEnabled, disabled}: {
     value: ChannelPref
     onChange: (v: ChannelPref) => void
     emailEnabled?: boolean
+    telegramEnabled?: boolean
     disabled?: boolean
 }) {
     const t = useT()
@@ -40,6 +43,7 @@ function ChannelToggles({value, onChange, emailEnabled, disabled}: {
         {c: 'push', icon: '🔔', label: t('push.channel.push')},
     ]
     if (emailEnabled) options.push({c: 'email', icon: '✉️', label: t('push.channel.email')})
+    if (telegramEnabled) options.push({c: 'telegram', icon: '📨', label: t('push.channel.telegram')})
     // Coerce defensively: a missing/legacy value should render as "nothing selected"
     // rather than crash on .includes (arrays only).
     const selected: NotificationChannel[] = Array.isArray(value) ? value : []
@@ -151,12 +155,26 @@ export function ProfileSheet({open, onClose}: Props) {
     const [pushSubscribed, setPushSubscribed] = useState(false)
     const [pushConfigured, setPushConfigured] = useState(false)
     const [emailConfigured, setEmailConfigured] = useState(false)
+    const [telegramConfigured, setTelegramConfigured] = useState(false)
+    const [telegramLinked, setTelegramLinked] = useState(false)
+    const [telegramConnecting, setTelegramConnecting] = useState(false)
+    const telegramPollRef = useRef<number | null>(null)
     const pushSupported = typeof window !== 'undefined' && 'PushManager' in window && 'serviceWorker' in navigator
     const {canInstall, isIos, isStandalone, promptInstall} = usePwaInstall()
     const [installHowToOpen, setInstallHowToOpen] = useState(false)
     const [pushPrefs, setPushPrefs] = useState<PushPreferences | null>(null)
 
-    // Check push status when sheet opens (subscription state needs push support; config/email don't)
+    function loadStatus() {
+        return api.getPushStatus().then(s => {
+            setPushConfigured(s.configured)
+            setEmailConfigured(s.email_configured)
+            setTelegramConfigured(s.telegram_configured)
+            setTelegramLinked(s.telegram_linked)
+            return s
+        }).catch(() => null)
+    }
+
+    // Check push status when sheet opens (subscription state needs push support; config/email/telegram don't)
     useEffect(() => {
         if (!open) return
         if (pushSupported) {
@@ -164,11 +182,58 @@ export function ProfileSheet({open, onClose}: Props) {
                 reg.pushManager.getSubscription()
             ).then(sub => setPushSubscribed(!!sub)).catch(() => {})
         }
-        api.getPushStatus().then(s => {
-            setPushConfigured(s.configured)
-            setEmailConfigured(s.email_configured)
-        }).catch(() => {})
+        loadStatus()
     }, [open, pushSupported])
+
+    // Stop polling for a completed Telegram link when the sheet closes or unmounts.
+    useEffect(() => {
+        if (open) return
+        if (telegramPollRef.current) {
+            clearTimeout(telegramPollRef.current)
+            telegramPollRef.current = null
+        }
+        setTelegramConnecting(false)
+    }, [open])
+    useEffect(() => () => {
+        if (telegramPollRef.current) clearTimeout(telegramPollRef.current)
+    }, [])
+
+    async function handleTelegramConnect() {
+        setTelegramConnecting(true)
+        try {
+            const {deep_link} = await api.startTelegramLink()
+            window.open(deep_link, '_blank')
+            let tries = 0
+            const MAX_TRIES = 40 // ~2 minutes at 3s polling
+            const poll = async () => {
+                tries++
+                const s = await loadStatus()
+                if (s?.telegram_linked) {
+                    setTelegramConnecting(false)
+                    showToast(t('telegram.linked'))
+                    return
+                }
+                if (tries >= MAX_TRIES) {
+                    setTelegramConnecting(false)
+                    return
+                }
+                telegramPollRef.current = window.setTimeout(poll, 3000)
+            }
+            telegramPollRef.current = window.setTimeout(poll, 3000)
+        } catch (e) {
+            setTelegramConnecting(false)
+            toastError(e)
+        }
+    }
+
+    async function handleTelegramDisconnect() {
+        try {
+            await api.unlinkTelegram()
+            setTelegramLinked(false)
+        } catch (e) {
+            toastError(e)
+        }
+    }
 
     // Load push preferences whenever the sheet opens (independent of subscription status)
     useEffect(() => {
@@ -737,6 +802,26 @@ export function ProfileSheet({open, onClose}: Props) {
                         </div>
                     ) : null)}
 
+                    {/* Telegram — only shown once the club has a bot configured */}
+                    {telegramConfigured && (
+                        <div className="kce-card p-4 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('telegram.title')}</span>
+                                {telegramLinked ? (
+                                    <div className="text-xs text-positive-fg mt-0.5">{t('telegram.connected')}</div>
+                                ) : telegramConnecting ? (
+                                    <div className="text-xs text-muted mt-0.5">{t('telegram.linkHint')}</div>
+                                ) : null}
+                            </div>
+                            <button
+                                onClick={telegramLinked ? handleTelegramDisconnect : handleTelegramConnect}
+                                disabled={telegramConnecting}
+                                className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${telegramLinked ? 'bg-surface-2 text-muted' : 'bg-accent text-on-accent'}`}>
+                                {telegramConnecting ? t('telegram.connecting') : telegramLinked ? t('telegram.disconnect') : t('telegram.connect')}
+                            </button>
+                        </div>
+                    )}
+
                     {/* Push notification preferences — shown whenever prefs loaded, not just when subscribed */}
                     {pushPrefs && (
                         <div className="kce-card p-4 space-y-2">
@@ -747,12 +832,12 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-ink">{t('push.pref.committee')}</span>
-                                <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} disabled />
+                                <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} disabled />
                             </div>
                             {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-ink">{t(`push.pref.${key}` as any)}</span>
-                                    <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} />
+                                    <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />
                                 </div>
                             ))}
 
@@ -763,13 +848,13 @@ export function ProfileSheet({open, onClose}: Props) {
                             {/* reminder_debt */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-ink">{t('push.pref.reminder_debt')}</span>
-                                <ChannelToggles value={pushPrefs.reminder_debt as ChannelPref} onChange={c => setPushChannels('reminder_debt', c)} emailEnabled={emailConfigured} />
+                                <ChannelToggles value={pushPrefs.reminder_debt as ChannelPref} onChange={c => setPushChannels('reminder_debt', c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />
                             </div>
 
                             {/* reminder_schedule + per-user days_before */}
                             <div className="flex items-center justify-between py-0.5">
                                 <span className="text-xs text-ink">{t('push.pref.reminder_schedule')}</span>
-                                <ChannelToggles value={pushPrefs.reminder_schedule as ChannelPref} onChange={c => setPushChannels('reminder_schedule', c)} emailEnabled={emailConfigured} />
+                                <ChannelToggles value={pushPrefs.reminder_schedule as ChannelPref} onChange={c => setPushChannels('reminder_schedule', c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />
                             </div>
                             {(pushPrefs.reminder_schedule?.length ?? 0) > 0 && (
                                 <div className="flex items-center justify-between py-0.5 pl-2">
@@ -799,7 +884,7 @@ export function ProfileSheet({open, onClose}: Props) {
                             {isAdmin(user) && (
                                 <div className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-ink">{t('push.pref.reminder_payments')}</span>
-                                    <ChannelToggles value={pushPrefs.reminder_payments as ChannelPref} onChange={c => setPushChannels('reminder_payments', c)} emailEnabled={emailConfigured} />
+                                    <ChannelToggles value={pushPrefs.reminder_payments as ChannelPref} onChange={c => setPushChannels('reminder_payments', c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />
                                 </div>
                             )}
 

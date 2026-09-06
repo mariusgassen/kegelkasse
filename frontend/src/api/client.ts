@@ -21,6 +21,7 @@ import {
     PenaltyType,
     PushPreferences,
     EmailSettings,
+    TelegramSettings,
     RegularMember,
     ReminderSettings,
     RsvpEntry,
@@ -772,7 +773,7 @@ export const api = {
 
     // Push notifications
     getVapidPublicKey: () => request<{ public_key: string }>('GET', '/push/vapid-key'),
-    getPushStatus: () => request<{ subscribed: boolean; configured: boolean; email_configured: boolean }>('GET', '/push/status'),
+    getPushStatus: () => request<{ subscribed: boolean; configured: boolean; email_configured: boolean; telegram_configured: boolean; telegram_linked: boolean }>('GET', '/push/status'),
     subscribeToPush: (d: { endpoint: string; p256dh: string; auth: string }) =>
         request<{ ok: boolean }>('POST', '/push/subscribe', d),
     unsubscribeFromPush: (endpoint?: string) =>
@@ -799,6 +800,11 @@ export const api = {
     getEmailSettings: () => request<EmailSettings>('GET', '/club/email-settings'),
     updateEmailSettings: (d: Partial<EmailSettings> & { password?: string }) => request<EmailSettings>('PATCH', '/club/email-settings', d),
     testEmailSettings: (to?: string) => request<{ ok: boolean; sent_to: string }>('POST', '/club/email-settings/test', to ? { to } : {}),
+    getTelegramSettings: () => request<TelegramSettings>('GET', '/club/telegram-settings'),
+    updateTelegramSettings: (d: Partial<TelegramSettings> & { bot_token?: string }) => request<TelegramSettings>('PATCH', '/club/telegram-settings', d),
+    testTelegramSettings: () => request<{ ok: boolean }>('POST', '/club/telegram-settings/test', {}),
+    startTelegramLink: () => request<{ deep_link: string; expires_in: number }>('POST', '/push/telegram/link-start', {}),
+    unlinkTelegram: () => request<void>('DELETE', '/push/telegram/link'),
     broadcastPush: (d: { title: string; body: string; url?: string }) => request<{ ok: boolean }>('POST', '/club/broadcast-push', d),
     triggerReminders: () => request<{ ok: boolean }>('POST', '/push/trigger-reminders'),
 

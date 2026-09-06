@@ -44,6 +44,9 @@ vi.mock('@/api/client.ts', () => ({
         getEmailSettings: vi.fn(),
         updateEmailSettings: vi.fn(),
         testEmailSettings: vi.fn(),
+        getTelegramSettings: vi.fn(),
+        updateTelegramSettings: vi.fn(),
+        testTelegramSettings: vi.fn(),
         triggerReminders: vi.fn(),
         broadcastPush: vi.fn(),
         uploadClubLogo: vi.fn(),
@@ -181,6 +184,9 @@ async function setupDefaultApiMocks() {
     vi.mocked(api.getEmailSettings).mockResolvedValue({
         enabled: false, host: '', port: 587, username: '', from_address: '',
         from_name: '', use_tls: true, use_ssl: false, password_set: false,
+    } as any)
+    vi.mocked(api.getTelegramSettings).mockResolvedValue({
+        enabled: false, bot_username: '', bot_token_set: false, webhook_registered: true,
     } as any)
     vi.mocked(api.listClubTeams).mockResolvedValue([])
     vi.mocked(api.listPins).mockResolvedValue([])
@@ -1147,6 +1153,72 @@ describe('ClubAdminPage — email settings', () => {
         await waitFor(() => expect(screen.getByText('email.sendTest')).toBeInTheDocument())
         fireEvent.click(screen.getByText('email.sendTest'))
         await waitFor(() => expect(api.testEmailSettings).toHaveBeenCalled())
+        expect(showToast).toHaveBeenCalled()
+    })
+})
+
+describe('ClubAdminPage — telegram settings', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('renders the telegram settings card', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('telegram.title')).toBeInTheDocument())
+        expect(screen.getByText('telegram.botToken')).toBeInTheDocument()
+    })
+
+    it('prefills the saved bot username', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getTelegramSettings).mockResolvedValue({
+            enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: true,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('@my_club_bot')).toBeInTheDocument())
+        expect(screen.getByPlaceholderText('telegram.botTokenSet')).toBeInTheDocument()
+    })
+
+    it('shows a warning when the webhook cannot be registered', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getTelegramSettings).mockResolvedValue({
+            enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: false,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('telegram.webhookWarning')).toBeInTheDocument())
+    })
+
+    it('saves the bot token', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateTelegramSettings).mockResolvedValue({
+            enabled: true, bot_username: 'new_bot', bot_token_set: true, webhook_registered: true,
+        } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('telegram.title')).toBeInTheDocument())
+        const tokenInput = screen.getByPlaceholderText('telegram.botTokenPlaceholder')
+        fireEvent.change(tokenInput, { target: { value: '123:ABC' } })
+        const card = screen.getByText('telegram.title').closest('.kce-card')!
+        const saveBtn = Array.from(card.querySelectorAll('button')).find(b => b.textContent === 'action.save')!
+        fireEvent.click(saveBtn)
+        await waitFor(() => expect(api.updateTelegramSettings).toHaveBeenCalled())
+        const payload = vi.mocked(api.updateTelegramSettings).mock.calls[0][0]
+        expect(payload.bot_token).toBe('123:ABC')
+    })
+
+    it('sends a test message', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.getTelegramSettings).mockResolvedValue({
+            enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: true,
+        } as any)
+        vi.mocked(api.testTelegramSettings).mockResolvedValue({ ok: true } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByText('telegram.sendTest')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('telegram.sendTest'))
+        await waitFor(() => expect(api.testTelegramSettings).toHaveBeenCalled())
         expect(showToast).toHaveBeenCalled()
     })
 })

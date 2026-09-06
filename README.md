@@ -205,7 +205,8 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### Push & email notifications & reminders
 
-- **Per-category delivery channels: push and/or email** — every notification (including the automated reminders) can be delivered as Web Push, as an email, as **both at once**, or turned off; push and email are independent toggles per member, per category, in the profile settings tab
+- **Per-category delivery channels: push, email and/or Telegram** — every notification (including the automated reminders) can be delivered as Web Push, as an email, as a Telegram message, any combination at once, or turned off; push, email and Telegram are independent toggles per member, per category, in the profile settings tab
+- **Per-club Telegram bot**: each club connects its own bot (created for free via Telegram's `@BotFather`) in the club settings — the bot token is validated and its username auto-fetched via the Telegram Bot API, and a webhook is registered automatically (needs `APP_BASE_URL`, see below). A member links their own chat via a one-tap deep link (`t.me/<bot>?start=<code>`) — Telegram itself delivers the resulting Chat ID to the webhook, so nobody ever looks one up manually; the profile polls for the completed link and flips to "connected" automatically. The Telegram channel is only offered once both the club has a bot configured and that member has linked their own chat
 - Web Push via VAPID — works on Android Chrome, Safari, and desktop browsers
 - **Per-club email server (SMTP)**: admins configure host/port/credentials/from-address/TLS in the club settings (stored per club, password encrypted at rest via Fernet), with a "send test email" button; the email channel is only offered to members once their club has email enabled. An optional **custom domain** field overrides the server-wide `APP_BASE_URL` for that club's email links — e.g. a club running the app behind its own CNAME'd domain gets links pointing at its own domain instead of the shared default
 - **Club-themed, localized emails**: every notification email is rendered with the club's brand color (header band, buttons, accents), in the recipient's own language (de/en), with the club logo (or an initial) shown as a circular avatar next to the club name — the closest equivalent to a "sender avatar" achievable from message content (a real inbox-level sender avatar needs Gravatar/BIMI, outside the app's control)
@@ -214,7 +215,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
 - Members subscribe/unsubscribe push per device from their profile
 - Announcements are always delivered (push) and cannot be disabled
-- Falls back silently to the in-app bell when neither VAPID nor a club email server is configured
+- Falls back silently to the in-app bell when neither VAPID, a club email server, nor a club Telegram bot is configured
 - **Automated reminders** (scheduled daily at 09:00 via APScheduler):
   - Weekly debt reminder — push to members with outstanding balance above a configurable threshold (configurable weekday)
   - Upcoming evening — push N days before each scheduled event; each user sets their own preferred lead time (default from club settings)
