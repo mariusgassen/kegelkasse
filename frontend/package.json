@@ -15,8 +15,8 @@
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.32",
     "@testing-library/dom": "^10.4.1",
-    "emoji-picker-react": "^4.19.4",
-    "lucide-react": "^1.39.0",
+    "emoji-picker-react": "^4.20.1",
+    "lucide-react": "^1.41.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zustand": "^5.0.15"
