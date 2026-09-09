@@ -1353,6 +1353,7 @@ export const de = {
     "media.attach": "Bild anhängen",
     "media.remove": "Bild entfernen",
     "media.captionHint": "Optional: Bildunterschrift hinzufügen",
+    "media.viewFullscreen": "Bild in voller Größe anzeigen",
 
     "season.tab": "Saisonabschluss",
     "season.title": "Saisonabschluss",

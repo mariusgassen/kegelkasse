@@ -11,6 +11,7 @@ import {useT} from '@/i18n'
 import {toastError} from '@/utils/error'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton'
 import {ReactionPill} from '@/components/ui/ReactionPill'
+import {ZoomableImage} from '@/components/ui/ZoomableImage'
 import type {Comment} from '@/types'
 
 const PICKER_W = 300
@@ -254,9 +255,8 @@ function CommentItem({
                             ) : (
                                 <>
                                     {comment.media_url && (
-                                        <img
+                                        <ZoomableImage
                                             src={comment.media_url}
-                                            alt=""
                                             className="mt-1.5 rounded-xl max-h-48 max-w-full object-contain"
                                         />
                                     )}

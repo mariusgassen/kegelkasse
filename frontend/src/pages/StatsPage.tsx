@@ -14,6 +14,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Avatar} from '@/components/ui/Avatar.tsx'
 import {StatTile} from '@/components/ui/StatTile.tsx'
 import {MemberBadges, MeBadge} from '@/components/ui/MemberBadges.tsx'
+import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry} from '@/types.ts'
 import type {CorrelationStats, EveningCorrelation} from '@/types.ts'
 import {computeHallOfShame, type ShameEntry} from '@/lib/stats'
@@ -1484,7 +1485,7 @@ export function StatsPage() {
                                                     <span className="text-base flex-shrink-0">✨</span>
                                                     <div className="flex-1 min-w-0">
                                                         {h.media_url && (
-                                                            <img src={h.media_url} alt=""
+                                                            <ZoomableImage src={h.media_url}
                                                                  className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                         )}
                                                         {h.text && <div className="text-sm mt-1">{h.text}</div>}

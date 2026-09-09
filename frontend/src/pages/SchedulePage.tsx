@@ -18,6 +18,7 @@ import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
+import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildEventFeed} from '@/lib/liveEvening.ts'
 import {EventTicker} from '@/components/evening/EventTicker.tsx'
@@ -1201,7 +1202,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                                     <span className="flex-shrink-0 text-xs mt-0.5">✨</span>
                                                                     <div className="flex-1 min-w-0">
                                                                         {h.media_url && (
-                                                                            <img src={h.media_url} alt=""
+                                                                            <ZoomableImage src={h.media_url}
                                                                                  className="rounded max-h-32 max-w-full object-contain border border-line/40 mb-1"/>
                                                                         )}
                                                                         {h.text && <span className="text-xs text-ink">{h.text}</span>}
