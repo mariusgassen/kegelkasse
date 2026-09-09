@@ -14,6 +14,7 @@ import {toastError} from '@/utils/error.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
+import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 
@@ -431,7 +432,7 @@ export function EveningPage() {
                                 <div className="flex-1 min-w-0">
                                     {h.text && <div className="text-sm">{h.text}</div>}
                                     {h.media_url && (
-                                        <img src={h.media_url} alt="" className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
+                                        <ZoomableImage src={h.media_url} className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                     )}
                                 </div>
                                 {!evening.is_closed && (

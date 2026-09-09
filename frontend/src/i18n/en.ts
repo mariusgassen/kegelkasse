@@ -1353,6 +1353,7 @@ export const en = {
     "media.attach": "Attach image",
     "media.remove": "Remove image",
     "media.captionHint": "Optional: add a caption",
+    "media.viewFullscreen": "View image fullscreen",
 
     "season.tab": "Season Close",
     "season.title": "Season Closing",

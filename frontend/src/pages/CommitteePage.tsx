@@ -20,6 +20,7 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
+import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 
@@ -164,9 +165,8 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-ink text-sm leading-snug">{a.title}</p>
                                 {a.media_url && (
-                                    <img
+                                    <ZoomableImage
                                         src={a.media_url}
-                                        alt=""
                                         className="mt-2 rounded max-h-64 max-w-full object-contain border border-line/40"
                                     />
                                 )}

@@ -18,6 +18,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
+import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import {ProtocolPage} from './ProtocolPage'
 import {GamesPage} from './GamesPage'
 import {EveningPage} from './EveningPage'
@@ -246,7 +247,7 @@ export function EveningHubPage() {
                                                 <span className="text-base flex-shrink-0">✨</span>
                                                 <div className="flex-1 min-w-0">
                                                     {h.media_url && (
-                                                        <img src={h.media_url} alt=""
+                                                        <ZoomableImage src={h.media_url}
                                                              className="mt-1 rounded max-h-64 max-w-full object-contain border border-line/40"/>
                                                     )}
                                                     {h.text && <div className="text-sm mt-1">{h.text}</div>}
