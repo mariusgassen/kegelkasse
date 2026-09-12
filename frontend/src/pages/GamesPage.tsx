@@ -202,15 +202,19 @@ export function GamesPage() {
             setConfirmFinishGame(runningGame)
             return
         }
-        // Teams are set up as the first step of configuring an evening — no game can start without them
-        if (teams.length === 0) {
-            showToast(t('game.teamsRequired'), 'error')
-            return
-        }
-        // Block starting until every player is assigned to a team
-        if (unassignedPlayers.length > 0) {
-            showToast(t('team.cannotStartUnassigned'), 'error')
-            return
+        // Teams are only required for team-mode games — an individual game must be
+        // startable even on an evening that never set up teams.
+        const game = games.find(g => g.id === gid)
+        if (game?.winner_type === 'team') {
+            if (teams.length === 0) {
+                showToast(t('game.teamsRequired'), 'error')
+                return
+            }
+            // Block starting until every player is assigned to a team
+            if (unassignedPlayers.length > 0) {
+                showToast(t('team.cannotStartUnassigned'), 'error')
+                return
+            }
         }
         try {
             await api.startGame(evening!.id, gid)
@@ -399,7 +403,7 @@ export function GamesPage() {
                         {game.status === 'open' && (
                             <p className="text-xs text-muted mb-2">{t('game.status.open')}</p>
                         )}
-                        {game.status === 'open' && teams.length === 0 && (
+                        {game.status === 'open' && game.winner_type === 'team' && teams.length === 0 && (
                             <p className="text-xs mb-2" style={{color: 'var(--danger-fg)'}}>⚠️ {t('game.teamsRequired')}</p>
                         )}
 

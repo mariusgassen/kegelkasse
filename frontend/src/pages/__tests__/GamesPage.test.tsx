@@ -554,17 +554,17 @@ describe('GamesPage — start game', () => {
 })
 
 describe('GamesPage — start game blocked without teams', () => {
-    // Deliberately winner_type: 'individual' — the teams-required guard applies to every
-    // game, not just team-mode ones, since teams are set up once for the whole evening.
-    const OPEN_INDIVIDUAL_GAME = {
-        ...OPEN_GAME, id: 4, name: 'Warmup 2', winner_type: 'individual', turn_mode: null,
+    // Teams are only required for team-mode games — an individual game must stay
+    // startable even on an evening that never set up teams.
+    const OPEN_TEAM_GAME = {
+        ...OPEN_GAME, id: 4, name: 'Warmup 2', winner_type: 'team', turn_mode: 'alternating',
     }
 
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        // No teams at all — no game (individual or team) must be startable
-        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_INDIVIDUAL_GAME] }
+        // No teams at all — a team-mode game must not be startable
+        const eveningWithOpenTeamGame = { ...ACTIVE_EVENING, teams: [], games: [OPEN_TEAM_GAME] }
         vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningWithOpenTeamGame as any, invalidate: vi.fn() } as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(false)
@@ -590,11 +590,44 @@ describe('GamesPage — start game blocked without teams', () => {
     })
 })
 
-describe('GamesPage — start game blocked when players unassigned', () => {
-    // Deliberately winner_type: 'individual' — the unassigned-players guard applies to
-    // every game too, not just team-mode ones.
+describe('GamesPage — individual game starts without teams', () => {
+    // An evening that never configures teams (no team-mode games at all) must still be
+    // able to start its individual games — the teams-required guard must not block it.
     const OPEN_INDIVIDUAL_GAME = {
-        ...OPEN_GAME, id: 5, name: 'Warmup 3', winner_type: 'individual', turn_mode: null,
+        ...OPEN_GAME, id: 6, name: 'Warmup', winner_type: 'individual', turn_mode: null,
+    }
+
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const eveningNoTeams = { ...ACTIVE_EVENING, teams: [], games: [OPEN_INDIVIDUAL_GAME] }
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningNoTeams as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, gameTemplates: [], regularMembers: [] }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue({} as any)
+    })
+
+    it('shows no teams-required warning', async () => {
+        await renderGamesPage()
+        expect(screen.queryByText(/game\.teamsRequired/)).not.toBeInTheDocument()
+    })
+
+    it('calls api.startGame when start button clicked', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderGamesPage()
+        fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(api.startGame).toHaveBeenCalledWith(ACTIVE_EVENING.id, 6)
+        })
+    })
+})
+
+describe('GamesPage — start game blocked when players unassigned', () => {
+    // Team-mode game — the unassigned-players guard only applies to team games.
+    const OPEN_TEAM_GAME = {
+        ...OPEN_GAME, id: 5, name: 'Warmup 3', winner_type: 'team', turn_mode: 'alternating',
     }
 
     beforeEach(async () => {
@@ -604,7 +637,7 @@ describe('GamesPage — start game blocked when players unassigned', () => {
             ...ACTIVE_EVENING,
             teams: [{ id: 1, name: 'Team A' }],
             players: [{ ...PLAYERS[0], team_id: null }, { ...PLAYERS[1], team_id: null }],
-            games: [OPEN_INDIVIDUAL_GAME],
+            games: [OPEN_TEAM_GAME],
         }
         vi.mocked(useActiveEvening).mockReturnValue({ evening: eveningWithUnassigned as any, invalidate: vi.fn() } as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')

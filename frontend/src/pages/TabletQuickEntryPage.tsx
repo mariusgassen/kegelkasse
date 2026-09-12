@@ -339,13 +339,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     async function handleStartGame() {
         if (!activeGame || activeGame.status !== 'open' || !evening) return
-        if (teams.length === 0) {
-            showToast(t('game.teamsRequired'), 'error')
-            return
-        }
-        if (unassignedPlayers.length > 0) {
-            showToast(t('team.cannotStartUnassigned'), 'error')
-            return
+        // Teams are only required for team-mode games — an individual game must be
+        // startable even on an evening that never set up teams.
+        if (activeGame.winner_type === 'team') {
+            if (teams.length === 0) {
+                showToast(t('game.teamsRequired'), 'error')
+                return
+            }
+            if (unassignedPlayers.length > 0) {
+                showToast(t('team.cannotStartUnassigned'), 'error')
+                return
+            }
         }
         try {
             await api.startGame(evening.id, activeGame.id)
@@ -368,9 +372,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 per_point_penalty: tmpl.per_point_penalty,
                 client_timestamp: Date.now(),
             })
-            if (teams.length === 0) {
+            if (tmpl.winner_type === 'team' && teams.length === 0) {
                 showToast(t('game.teamsRequired'), 'error')
-            } else if (unassignedPlayers.length > 0) {
+            } else if (tmpl.winner_type === 'team' && unassignedPlayers.length > 0) {
                 showToast(t('team.cannotStartUnassigned'), 'error')
             } else {
                 await api.startGame(eveningId, game.id)
@@ -640,8 +644,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     )}
                 </div>
 
-                {/* Teams required warning — every game needs teams set up on the evening first */}
-                {activeGame && teams.length === 0 && (
+                {/* Teams required warning — only team-mode games need teams set up first */}
+                {activeGame && activeGame.winner_type === 'team' && teams.length === 0 && (
                     <div style={{
                         marginTop: 6, padding: '4px 8px',
                         background: 'rgba(239,68,68,0.1)',
@@ -654,7 +658,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Unassigned-players warning — teams exist but not all players are on one */}
-                {activeGame && teams.length > 0 && unassignedPlayers.length > 0 && (
+                {activeGame && activeGame.winner_type === 'team' && teams.length > 0 && unassignedPlayers.length > 0 && (
                     <div style={{
                         marginTop: 6, padding: '4px 8px',
                         background: 'var(--accent-tint)',
