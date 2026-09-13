@@ -344,6 +344,18 @@ describe('SchedulePage — upcoming card details', () => {
             expect(api.setRsvp).toHaveBeenCalledWith(1, 'absent')
         })
     })
+
+    it('shows the start button for a non-admin member too — a kegelabend must not depend on an admin being present', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        await renderSchedulePage()
+        await waitFor(() => {
+            expect(screen.getByText('schedule.start')).toBeInTheDocument()
+        })
+    })
 })
 
 describe('SchedulePage — admin card features', () => {

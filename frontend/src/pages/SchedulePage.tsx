@@ -578,39 +578,38 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                 </div>
             )}
 
-            {/* Start button (admin, only on/after date) */}
-            {isAdminUser && (
-                <div className="mt-2.5 pt-2.5 border-t border-surface-2">
-                    {isAlreadyStarted ? (
+            {/* Start button (any club member, only on/after date — a kegelabend
+                shouldn't be blocked from starting just because no admin is present) */}
+            <div className="mt-2.5 pt-2.5 border-t border-surface-2">
+                {isAlreadyStarted ? (
+                    <button
+                        className="btn-primary w-full text-sm"
+                        onClick={() => onNavigate?.()}>
+                        🎳 {t('evening.active')}
+                    </button>
+                ) : activeEveningId !== null ? (
+                    <>
                         <button
-                            className="btn-primary w-full text-sm"
-                            onClick={() => onNavigate?.()}>
-                            🎳 {t('evening.active')}
+                            className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
+                            disabled>
+                            {t('schedule.start')}
                         </button>
-                    ) : activeEveningId !== null ? (
-                        <>
-                            <button
-                                className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
-                                disabled>
-                                {t('schedule.start')}
-                            </button>
-                            <p className="text-xs text-muted text-center mt-1">{t('evening.alreadyActive')}</p>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
-                                disabled={!canStart}
-                                onClick={() => canStart && setStartSheet(true)}>
-                                {t('schedule.start')}
-                            </button>
-                            {!canStart && (
-                                <p className="text-xs text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
-                            )}
-                        </>
-                    )}
-                </div>
-            )}
+                        <p className="text-xs text-muted text-center mt-1">{t('evening.alreadyActive')}</p>
+                    </>
+                ) : (
+                    <>
+                        <button
+                            className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
+                            disabled={!canStart}
+                            onClick={() => canStart && setStartSheet(true)}>
+                            {t('schedule.start')}
+                        </button>
+                        {!canStart && (
+                            <p className="text-xs text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
+                        )}
+                    </>
+                )}
+            </div>
 
             {startSheet && (
                 <StartEveningSheet

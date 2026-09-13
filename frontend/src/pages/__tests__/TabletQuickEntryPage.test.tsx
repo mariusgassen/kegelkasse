@@ -1310,6 +1310,57 @@ describe('TabletQuickEntryPage — start game', () => {
     })
 })
 
+describe('TabletQuickEntryPage — game start/finish is not admin-gated', () => {
+    // Backend (require_club_member) and GamesPage.tsx both let any club member
+    // start/finish games — Quick Entry must not be stricter than that.
+    const OPEN_GAME = {
+        id: 3, name: 'Eröffnungsspiel', status: 'open', is_opener: true,
+        sort_order: 1, winner_ref: null, scores: {}, loser_penalty: 0,
+        per_point_penalty: 0, winner_type: 'individual', turn_mode: 'alternating',
+        started_at: null, finished_at: null,
+        note: '', is_deleted: false, game_players: [], throws: [], active_player_id: null,
+    }
+    const RUNNING_GAME = {
+        ...OPEN_GAME, id: 4, status: 'running', started_at: '2026-01-10T20:30:00',
+    }
+
+    async function setUpAsMember(games: any[]) {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: { ...ACTIVE_EVENING, games } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: { ...ADMIN_USER, role: 'member' }, penaltyTypes: PENALTY_TYPES, gameTemplates: [], regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.startGame).mockResolvedValue(undefined as any)
+        vi.mocked(api.setActivePlayer).mockResolvedValue(undefined as any)
+    }
+
+    it('shows the start button for a non-admin member with an open game', async () => {
+        await setUpAsMember([OPEN_GAME])
+        await renderTabletQuickEntry()
+        expect(screen.getByText(/game\.start/)).toBeInTheDocument()
+    })
+
+    it('shows the finish game button for a non-admin member with a running game', async () => {
+        await setUpAsMember([RUNNING_GAME])
+        await renderTabletQuickEntry()
+        expect(screen.getByText(/quickEntry\.finishGame/)).toBeInTheDocument()
+    })
+
+    it('shows the new-game button for a non-admin member with no active game', async () => {
+        await setUpAsMember([])
+        await renderTabletQuickEntry()
+        expect(screen.getByText(/quickEntry\.newGame/)).toBeInTheDocument()
+    })
+})
+
 describe('TabletQuickEntryPage — start game blocked without teams', () => {
     // Deliberately winner_type: 'individual' — the teams-required guard applies to every
     // game, not just team-mode ones, since teams are set up once for the whole evening.

@@ -229,7 +229,7 @@ def start_evening(
     data: StartEveningBody,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
+    user: User = Depends(require_club_member),
 ):
     """Create an actual Evening from a ScheduledEvening, importing specified members and all planned guests."""
     se = _get_se(sid, user.club_id, db)
