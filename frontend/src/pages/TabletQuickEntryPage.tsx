@@ -616,19 +616,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </span>
                             )}
                             <div style={{flex: 1, minWidth: 0}}/>
-                            {activeGame.status === 'open' && isAdmin(user) && (
+                            {activeGame.status === 'open' && (
                                 <button type="button" className="btn-primary btn-xs" onClick={handleStartGame}>
                                     ▶ {t('game.start')}
                                 </button>
                             )}
-                            {activeGame.status === 'running' && isAdmin(user) && (
+                            {activeGame.status === 'running' && (
                                 <button type="button" className="btn-secondary btn-xs"
                                         onClick={() => setFinishGameOpen(f => !f)}>
                                     🏁 {t('quickEntry.finishGame')}
                                 </button>
                             )}
                         </>
-                    ) : isAdmin(user) ? (
+                    ) : (
                         <>
                             <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
                             <div style={{flex: 1, minWidth: 0}}/>
@@ -639,8 +639,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </button>
                             )}
                         </>
-                    ) : (
-                        <span className="font-bold text-accent-fg text-sm flex-1">⚡ {t('quickEntry.title')}</span>
                     )}
                 </div>
 
@@ -898,7 +896,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Drawer: finish game panel */}
-                {finishGameOpen && isAdmin(user) && activeGame && (
+                {finishGameOpen && activeGame && (
                     <div style={{
                         marginTop: 6,
                         padding: '10px 12px',
@@ -1026,7 +1024,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
 
                 {/* Drawer: new-game template picker */}
-                {showNewGame && isAdmin(user) && !activeGame && (
+                {showNewGame && !activeGame && (
                     <div style={{marginTop: 6}}>
                         <div className="field-label mb-1">{t('club.gameTemplates')}</div>
                         <div style={{display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6}}>
