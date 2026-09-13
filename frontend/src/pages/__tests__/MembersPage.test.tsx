@@ -452,7 +452,24 @@ describe('MembersPage — unlinked roster member', () => {
         })
     })
 
-    it('calls api.deactivateRegularMember when the deactivate action is confirmed', async () => {
+    it('calls api.deactivateRegularMember with today prefilled as the date', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        const { todayDateInput } = await import('@/lib/datetime.ts')
+        vi.mocked(api.deactivateRegularMember).mockResolvedValueOnce({ id: 4 } as any)
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.action.deactivateRoster'))
+        await waitFor(() => screen.getByText('member.deactivateConfirm'))
+        const dateInput = screen.getByLabelText('member.deactivateDateLabel') as HTMLInputElement
+        expect(dateInput.value).toBe(todayDateInput())
+        fireEvent.click(screen.getByText(/member\.action\.deactivateRoster/))
+        await waitFor(() => {
+            expect(api.deactivateRegularMember).toHaveBeenCalledWith(4, todayDateInput())
+        })
+    })
+
+    it('backdates the deactivation when the date is changed to the past', async () => {
         await setupWithUnlinked()
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.deactivateRegularMember).mockResolvedValueOnce({ id: 4 } as any)
@@ -460,9 +477,11 @@ describe('MembersPage — unlinked roster member', () => {
         const actionSheet = await openRowActions('Klauschen')
         fireEvent.click(within(actionSheet).getByText('member.action.deactivateRoster'))
         await waitFor(() => screen.getByText('member.deactivateConfirm'))
+        const dateInput = screen.getByLabelText('member.deactivateDateLabel') as HTMLInputElement
+        fireEvent.change(dateInput, { target: { value: '2025-01-15' } })
         fireEvent.click(screen.getByText(/member\.action\.deactivateRoster/))
         await waitFor(() => {
-            expect(api.deactivateRegularMember).toHaveBeenCalledWith(4)
+            expect(api.deactivateRegularMember).toHaveBeenCalledWith(4, '2025-01-15')
         })
     })
 })

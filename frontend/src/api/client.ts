@@ -436,7 +436,9 @@ export const api = {
         request<RegularMember>('PUT', `/club/regular-members/${id}`, d),
     deleteRegularMember: (id: number) => request<void>('DELETE', `/club/regular-members/${id}`),
     reactivateRegularMember: (id: number) => request<void>('PATCH', `/club/regular-members/${id}/reactivate`),
-    deactivateRegularMember: (id: number) => request<RegularMember>('PATCH', `/club/regular-members/${id}/deactivate`),
+    deactivateRegularMember: (id: number, deactivatedAt?: string | null) =>
+        request<RegularMember>('PATCH', `/club/regular-members/${id}/deactivate`,
+            deactivatedAt ? {deactivated_at: deactivatedAt} : undefined),
     purgePenaltiesSinceDeactivation: (id: number) =>
         request<{ ok: boolean; removed: number }>('POST', `/club/regular-members/${id}/purge-penalties-since-deactivation`),
 
