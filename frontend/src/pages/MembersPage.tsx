@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useT} from '@/i18n'
@@ -24,6 +24,7 @@ type MemberAction = SheetAction
 export function MembersPage() {
     const t = useT()
     const isOnline = useOnline()
+    const qc = useQueryClient()
     const {regularMembers, setRegularMembers, user} = useAppStore()
     const {evening, invalidate: invalidateEvening} = useActiveEvening()
     const admin = isAdmin(user)
@@ -37,6 +38,9 @@ export function MembersPage() {
     const [removePenaltyTotal, setRemovePenaltyTotal] = useState<number | null>(null)
     const [promoteConfirm, setPromoteConfirm] = useState<RegularMember | null>(null)
     const [promoteEntryFee, setPromoteEntryFee] = useState('')
+    const [deactivateConfirm, setDeactivateConfirm] = useState<RegularMember | null>(null)
+    const [purgeConfirm, setPurgeConfirm] = useState<RegularMember | null>(null)
+    const [purging, setPurging] = useState(false)
     const [search, setSearch] = useState(() => {
         const v = getHashParams().get('memberName') ?? ''
         if (v) clearHashParams()
@@ -246,6 +250,42 @@ export function MembersPage() {
             setPromoteConfirm(null)
         } catch (e: unknown) {
             toastError(e)
+        }
+    }
+
+    async function deactivate(m: RegularMember) {
+        try {
+            await api.deactivateRegularMember(m.id)
+            await refetchRoster()
+            showToast(t('member.deactivated'))
+            setDeactivateConfirm(null)
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }
+
+    async function undoDeactivate(m: RegularMember) {
+        try {
+            await api.reactivateRegularMember(m.id)
+            await refetchRoster()
+            showToast(t('member.reactivated'))
+        } catch (e: unknown) {
+            toastError(e)
+        }
+    }
+
+    async function purgePenalties(m: RegularMember) {
+        setPurging(true)
+        try {
+            const res = await api.purgePenaltiesSinceDeactivation(m.id)
+            showToast(res.removed > 0 ? t('member.purgePenaltiesResult').replace('{n}', String(res.removed)) : t('member.purgePenaltiesNone'))
+            setPurgeConfirm(null)
+            qc.invalidateQueries({queryKey: ['member-balances']})
+            qc.invalidateQueries({queryKey: ['guest-balances']})
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setPurging(false)
         }
     }
 
@@ -467,21 +507,28 @@ export function MembersPage() {
                 : unlinkedRoster.map(m => {
                     const inEvening = alreadyInEvening.has(m.id)
                     const displayName = m.nickname || m.name
+                    const deactivated = !!m.deactivated_at
 
                     const actions: MemberAction[] = []
-                    if (evening && !evening.is_closed) actions.push({
+                    if (evening && !evening.is_closed && !deactivated) actions.push({
                         icon: inEvening ? '✓' : '+',
                         label: inEvening ? t('member.action.inEvening') : t('member.addToEvening'),
                         disabled: inEvening,
                         onClick: () => addToEvening(m),
                     })
                     if (admin) {
-                        actions.push({icon: '📨', label: t('member.action.createInvite'), disabled: !isOnline, onClick: () => openInvite(m)})
+                        if (!deactivated) actions.push({icon: '📨', label: t('member.action.createInvite'), disabled: !isOnline, onClick: () => openInvite(m)})
                         actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
                         actions.push({
                             icon: '⇄', label: t('member.action.merge'),
                             onClick: () => { setMergeDiscard(m); setMergeSheet(true) },
                         })
+                        if (deactivated) {
+                            actions.push({icon: '↩️', label: t('member.action.undoDeactivate'), onClick: () => undoDeactivate(m)})
+                            actions.push({icon: '🧹', label: t('member.action.purgePenalties'), onClick: () => setPurgeConfirm(m)})
+                        } else {
+                            actions.push({icon: '⏸️', label: t('member.action.deactivateRoster'), onClick: () => setDeactivateConfirm(m)})
+                        }
                         actions.push({icon: '⬇️', label: t('member.removeFromClub'), danger: true, onClick: () => openRemoveConfirm(m)})
                     }
                     const hasActions = actions.length > 0
@@ -492,10 +539,14 @@ export function MembersPage() {
                             className="mb-2"
                             name={displayName}
                             avatar={m.avatar}
+                            avatarVariant={deactivated ? 'muted' : undefined}
                             isMe={m.id === user?.regular_member_id}
                             pins={pins}
                             memberId={m.id}
                             subtitle={m.nickname ? m.name : undefined}
+                            meta={deactivated
+                                ? `${t('member.deactivatedSince')} ${new Date(m.deactivated_at!).toLocaleDateString('de-DE')}`
+                                : undefined}
                             trailing={inEvening
                                 ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
@@ -627,6 +678,52 @@ export function MembersPage() {
                         <button className="btn-primary btn-sm flex-1"
                                 onClick={() => promoteConfirm && promote(promoteConfirm)}>
                             ⬆️ {t('member.reactivateRoster')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* Confirm deactivate roster member sheet */}
+            <Sheet open={!!deactivateConfirm} onClose={() => setDeactivateConfirm(null)}
+                   title={t('member.deactivateConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-muted">{t('member.deactivateConfirmHint')}</p>
+                    {deactivateConfirm && (
+                        <div className="kce-card p-3 flex items-center gap-3">
+                            <Avatar name={deactivateConfirm.nickname || deactivateConfirm.name} size="sm" variant="muted"/>
+                            <div className="font-bold text-sm">{deactivateConfirm.nickname || deactivateConfirm.name}</div>
+                        </div>
+                    )}
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setDeactivateConfirm(null)}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-primary btn-sm flex-1"
+                                onClick={() => deactivateConfirm && deactivate(deactivateConfirm)}>
+                            ⏸️ {t('member.action.deactivateRoster')}
+                        </button>
+                    </div>
+                </div>
+            </Sheet>
+
+            {/* Confirm purge-penalties-since-deactivation sheet */}
+            <Sheet open={!!purgeConfirm} onClose={() => setPurgeConfirm(null)}
+                   title={t('member.purgePenaltiesConfirm')}>
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-muted">{t('member.purgePenaltiesConfirmHint')}</p>
+                    {purgeConfirm && (
+                        <div className="kce-card p-3 flex items-center gap-3">
+                            <Avatar name={purgeConfirm.nickname || purgeConfirm.name} size="sm" variant="muted"/>
+                            <div className="font-bold text-sm">{purgeConfirm.nickname || purgeConfirm.name}</div>
+                        </div>
+                    )}
+                    <div className="flex gap-2">
+                        <button className="btn-secondary btn-sm flex-1" onClick={() => setPurgeConfirm(null)} disabled={purging}>
+                            {t('action.cancel')}
+                        </button>
+                        <button className="btn-primary btn-sm flex-1" disabled={purging}
+                                onClick={() => purgeConfirm && purgePenalties(purgeConfirm)}>
+                            🧹 {t('member.action.purgePenalties')}
                         </button>
                     </div>
                 </div>

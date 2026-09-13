@@ -424,6 +424,21 @@ class TestSendRsvpReminders:
         assert result == 0
         mock_push.assert_not_called()
 
+    def test_skips_deactivated_members(self, db: Session, club: Club, user: User):
+        member = _make_member(db, club, "Deactivated")
+        member.deactivated_at = datetime.now(timezone.utc)
+        db.commit()
+        days_before = 3
+        _make_scheduled_evening(db, club, user, days_from_now=days_before)
+
+        settings = {"rsvp_reminder": {"enabled": True, "days_before": days_before}}
+        today = date.today()
+        with patch("core.reminders.push_to_regular_member") as mock_push:
+            result = send_rsvp_reminders(db, club, settings, today)
+        # member has left — no RSVP nudge for a future evening they won't attend
+        assert result == 0
+        mock_push.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # send_debt_day_of_reminders

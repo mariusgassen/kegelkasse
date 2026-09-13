@@ -426,6 +426,7 @@ def list_rsvps(
         RegularMember.club_id == user.club_id,
         RegularMember.is_active == True,
         RegularMember.is_guest == False,
+        RegularMember.deactivated_at.is_(None),
     ).all()
     rsvp_map = {r.regular_member_id: r.status for r in se.rsvps}
     return [
@@ -452,6 +453,7 @@ def send_reminder(
         RegularMember.club_id == user.club_id,
         RegularMember.is_active == True,
         RegularMember.is_guest == False,
+        RegularMember.deactivated_at.is_(None),
         ~RegularMember.id.in_(responded_ids),
     ).all()
     se_date_str = se.scheduled_at.astimezone(UTC).strftime('%d.%m.%Y')
