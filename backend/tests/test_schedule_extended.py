@@ -346,14 +346,15 @@ class TestStartEveningFromSchedule:
                            headers=admin_headers)
         assert resp.status_code == 404
 
-    def test_start_requires_admin(
+    def test_start_allows_regular_member(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening):
-        """Lines 228-322: member role gets 403."""
+        """Starting an evening only requires club membership, not admin — so
+        a kegelabend isn't blocked when no admin is present."""
         resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/start",
                            json={"member_ids": []},
                            headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_start_with_absent_rsvps_creates_absence_penalties(
             self, client: TestClient, admin_headers: dict,
