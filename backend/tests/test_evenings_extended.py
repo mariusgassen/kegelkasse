@@ -973,6 +973,30 @@ class TestAbsencePenaltiesExtended:
         db.delete(m)
         db.commit()
 
+    def test_excludes_deactivated_member(self, client, admin_headers, db, evening, club):
+        from datetime import datetime, timezone
+        from models.evening import RegularMember
+        m = RegularMember(club_id=club.id, name="Ausgetreten", is_active=True,
+                          deactivated_at=datetime.now(timezone.utc))
+        db.add(m)
+        db.commit()
+        db.refresh(m)
+        resp = client.post(
+            f"/api/v1/evening/{evening.id}/absence-penalties",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        from models.penalty import PenaltyLog
+        logged = db.query(PenaltyLog).filter(
+            PenaltyLog.evening_id == evening.id,
+            PenaltyLog.regular_member_id == m.id,
+        ).first()
+        assert logged is None
+        # cleanup
+        db.query(PenaltyLog).filter(PenaltyLog.evening_id == evening.id).delete(synchronize_session=False)
+        db.delete(m)
+        db.commit()
+
     def test_requires_admin(self, client, auth_headers, evening):
         resp = client.post(
             f"/api/v1/evening/{evening.id}/absence-penalties",

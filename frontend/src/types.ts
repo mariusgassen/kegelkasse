@@ -161,6 +161,7 @@ export interface RegularMember {
     is_active: boolean
     is_committee: boolean
     avatar: string | null
+    deactivated_at: string | null
 }
 
 export interface ClubAnnouncement {

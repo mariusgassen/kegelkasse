@@ -563,6 +563,7 @@ def _do_calculate_absence_penalties(
         RegularMember.club_id == e.club_id,
         RegularMember.is_active == True,
         RegularMember.is_guest == False,
+        RegularMember.deactivated_at.is_(None),
         ~RegularMember.id.in_(present_regular_ids),
     ).all()
 

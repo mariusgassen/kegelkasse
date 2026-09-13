@@ -48,6 +48,8 @@ vi.mock('@/api/client.ts', () => ({
         deactivateMember: vi.fn(),
         reactivateMember: vi.fn(),
         reactivateRegularMember: vi.fn(),
+        deactivateRegularMember: vi.fn(),
+        purgePenaltiesSinceDeactivation: vi.fn(),
         createInvite: vi.fn(),
         getMemberBalances: vi.fn().mockResolvedValue([]),
         getGuestBalances: vi.fn().mockResolvedValue([]),
@@ -95,7 +97,13 @@ const REGULAR_MEMBERS = [
 // An unlinked member (not tied to any app user)
 const MEMBERS_WITH_UNLINKED = [
     ...REGULAR_MEMBERS,
-    { id: 4, name: 'Unlinked Klaus', nickname: 'Klauschen', is_guest: false, is_active: true },
+    { id: 4, name: 'Unlinked Klaus', nickname: 'Klauschen', is_guest: false, is_active: true, deactivated_at: null },
+]
+
+// An unlinked member who has already left (deactivated)
+const MEMBERS_WITH_DEACTIVATED = [
+    ...REGULAR_MEMBERS,
+    { id: 4, name: 'Unlinked Klaus', nickname: 'Klauschen', is_guest: false, is_active: true, deactivated_at: '2026-01-01T00:00:00+00:00' },
 ]
 
 const APP_USERS = [
@@ -441,6 +449,85 @@ describe('MembersPage — unlinked roster member', () => {
         fireEvent.click(screen.getByText('member.removeFromClub'))
         await waitFor(() => {
             expect(api.deleteRegularMember).toHaveBeenCalledWith(4)
+        })
+    })
+
+    it('calls api.deactivateRegularMember when the deactivate action is confirmed', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deactivateRegularMember).mockResolvedValueOnce({ id: 4 } as any)
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.action.deactivateRoster'))
+        await waitFor(() => screen.getByText('member.deactivateConfirm'))
+        fireEvent.click(screen.getByText(/member\.action\.deactivateRoster/))
+        await waitFor(() => {
+            expect(api.deactivateRegularMember).toHaveBeenCalledWith(4)
+        })
+    })
+})
+
+describe('MembersPage — deactivated roster member', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function setupWithDeactivated() {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: MEMBERS_WITH_DEACTIVATED,
+            setRegularMembers: vi.fn(),
+        } as any)
+    }
+
+    it('shows the deactivated-since meta line', async () => {
+        await setupWithDeactivated()
+        await renderMembersPage()
+        await waitFor(() => {
+            expect(screen.getByText(/member\.deactivatedSince/)).toBeInTheDocument()
+        })
+    })
+
+    it('offers reactivate and purge-penalties instead of deactivate/invite', async () => {
+        await setupWithDeactivated()
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        expect(within(actionSheet).getByText('member.action.undoDeactivate')).toBeInTheDocument()
+        expect(within(actionSheet).getByText('member.action.purgePenalties')).toBeInTheDocument()
+        expect(within(actionSheet).queryByText('member.action.deactivateRoster')).not.toBeInTheDocument()
+        expect(within(actionSheet).queryByText('member.action.createInvite')).not.toBeInTheDocument()
+    })
+
+    it('calls api.reactivateRegularMember directly (no confirmation sheet) on undo-deactivate', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.reactivateRegularMember).mockResolvedValueOnce(undefined as any)
+        await setupWithDeactivated()
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.action.undoDeactivate'))
+        await waitFor(() => {
+            expect(api.reactivateRegularMember).toHaveBeenCalledWith(4)
+        })
+    })
+
+    it('calls api.purgePenaltiesSinceDeactivation and toasts the removed count on confirm', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { showToast } = await import('@/components/ui/Toast.tsx')
+        vi.mocked(api.purgePenaltiesSinceDeactivation).mockResolvedValueOnce({ ok: true, removed: 3 })
+        await setupWithDeactivated()
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.action.purgePenalties'))
+        await waitFor(() => screen.getByText('member.purgePenaltiesConfirm'))
+        fireEvent.click(screen.getByText(/member\.action\.purgePenalties/))
+        await waitFor(() => {
+            expect(api.purgePenaltiesSinceDeactivation).toHaveBeenCalledWith(4)
+            expect(showToast).toHaveBeenCalledWith('member.purgePenaltiesResult')
         })
     })
 })

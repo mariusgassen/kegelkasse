@@ -84,7 +84,7 @@ describe('useAppStore', () => {
     })
 
     it('setRegularMembers stores the list', () => {
-        const members = [{ id: 1, name: 'Hans', nickname: null, is_guest: false, is_active: true, is_committee: false, avatar: null }]
+        const members = [{ id: 1, name: 'Hans', nickname: null, is_guest: false, is_active: true, is_committee: false, avatar: null, deactivated_at: null }]
         useAppStore.getState().setRegularMembers(members)
         expect(useAppStore.getState().regularMembers).toHaveLength(1)
     })

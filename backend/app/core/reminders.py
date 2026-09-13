@@ -212,7 +212,8 @@ def send_rsvp_reminders(db: Session, club: Club, settings: dict, today: date) ->
     target_evening_ids = [e.id for e in evenings if e.scheduled_at.date() == target_date]
 
     members = db.query(RegularMember).filter(
-        RegularMember.club_id == club.id, RegularMember.is_active == True, RegularMember.is_guest == False
+        RegularMember.club_id == club.id, RegularMember.is_active == True, RegularMember.is_guest == False,
+        RegularMember.deactivated_at.is_(None),
     ).all()
 
     sent = 0

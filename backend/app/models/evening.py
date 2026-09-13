@@ -27,6 +27,7 @@ class RegularMember(Base):
     user_id = Column(Integer, ForeignKey("user.id"), nullable=True)  # linked user account
     is_active = Column(Boolean, default=True)
     is_committee = Column(Boolean, default=False)  # Vergnügungsausschuss member
+    deactivated_at = Column(DateTime(timezone=True), nullable=True)  # left the club — excluded from future evenings
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     club = relationship("Club", back_populates="regular_members")
 

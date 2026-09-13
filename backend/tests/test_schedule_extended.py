@@ -502,6 +502,18 @@ class TestSendReminder:
         # (unless there are other members)
         assert resp.json()["reminded_count"] == 0
 
+    def test_send_reminder_excludes_deactivated_member(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, regular_member: RegularMember, db: Session):
+        """Deactivated members are treated as departed — no RSVP nudge."""
+        from datetime import datetime, timezone
+        regular_member.deactivated_at = datetime.now(timezone.utc)
+        db.commit()
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/remind",
+                           headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["reminded_count"] == 0
+
     def test_send_reminder_requires_admin(
             self, client: TestClient, auth_headers: dict,
             scheduled_evening: ScheduledEvening):

@@ -1075,6 +1075,175 @@ class TestReactivateRegularMember:
                             headers=admin_headers)
         assert resp.status_code == 404
 
+    def test_clears_deactivation_marker(self, client: TestClient, admin_headers: dict,
+                                         regular_member: RegularMember, db: Session):
+        from datetime import datetime, timezone
+        regular_member.deactivated_at = datetime.now(timezone.utc)
+        db.commit()
+
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/reactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(regular_member)
+        assert regular_member.deactivated_at is None
+
+
+# ---------------------------------------------------------------------------
+# PATCH /club/regular-members/{mid}/deactivate
+# ---------------------------------------------------------------------------
+
+class TestDeactivateRegularMember:
+    def test_admin_deactivates(self, client: TestClient, admin_headers: dict,
+                               regular_member: RegularMember, db: Session):
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["deactivated_at"] is not None
+        db.refresh(regular_member)
+        assert regular_member.deactivated_at is not None
+        # Unlike removal, roster/guest state is untouched — balance stays visible until settled
+        assert regular_member.is_guest is False
+        assert regular_member.is_active is True
+
+    def test_locks_linked_user_and_revokes_refresh_tokens(self, client: TestClient, admin_headers: dict,
+                                                            regular_member: RegularMember, db: Session, club: Club):
+        from core.refresh import issue_refresh_token
+        from models.user import RefreshToken
+        linked_user = User(
+            email="linked_deactivate_ext@test.de",
+            name="Linked Deactivate",
+            hashed_password="x",
+            role=UserRole.member,
+            club_id=club.id,
+            is_active=True,
+            regular_member_id=regular_member.id,
+        )
+        db.add(linked_user)
+        db.commit()
+        db.refresh(linked_user)
+        raw_token = issue_refresh_token(db, linked_user)
+
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(linked_user)
+        assert linked_user.is_active is False
+        from core.refresh import hash_refresh_token
+        token_row = db.query(RefreshToken).filter(
+            RefreshToken.token_hash == hash_refresh_token(raw_token)).first()
+        assert token_row.revoked_at is not None
+
+    def test_member_cannot_deactivate(self, client: TestClient, auth_headers: dict,
+                                       regular_member: RegularMember):
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_404_unknown_member(self, client: TestClient, admin_headers: dict):
+        resp = client.patch("/api/v1/club/regular-members/999999/deactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 404
+
+    def test_400_guest_cannot_be_deactivated(self, client: TestClient, admin_headers: dict,
+                                              regular_member: RegularMember, db: Session):
+        regular_member.is_guest = True
+        db.commit()
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_400_already_deactivated(self, client: TestClient, admin_headers: dict,
+                                      regular_member: RegularMember, db: Session):
+        from datetime import datetime, timezone
+        regular_member.deactivated_at = datetime.now(timezone.utc)
+        db.commit()
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers)
+        assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /club/regular-members/{mid}/purge-penalties-since-deactivation
+# ---------------------------------------------------------------------------
+
+class TestPurgePenaltiesSinceDeactivation:
+    def test_400_not_deactivated(self, client: TestClient, admin_headers: dict,
+                                  regular_member: RegularMember):
+        resp = client.post(
+            f"/api/v1/club/regular-members/{regular_member.id}/purge-penalties-since-deactivation",
+            headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_404_unknown_member(self, client: TestClient, admin_headers: dict):
+        resp = client.post(
+            "/api/v1/club/regular-members/999999/purge-penalties-since-deactivation",
+            headers=admin_headers)
+        assert resp.status_code == 404
+
+    def test_member_cannot_purge(self, client: TestClient, auth_headers: dict,
+                                  regular_member: RegularMember, db: Session):
+        from datetime import datetime, timezone
+        regular_member.deactivated_at = datetime.now(timezone.utc)
+        db.commit()
+        resp = client.post(
+            f"/api/v1/club/regular-members/{regular_member.id}/purge-penalties-since-deactivation",
+            headers=auth_headers)
+        assert resp.status_code == 403
+
+    def test_removes_penalties_after_deactivation_only(self, client: TestClient, admin_headers: dict,
+                                                         regular_member: RegularMember, db: Session, club: Club):
+        from datetime import datetime, timezone, timedelta
+        from models.penalty import PenaltyLog
+
+        deactivated_at = datetime.now(timezone.utc)
+        regular_member.deactivated_at = deactivated_at
+        db.commit()
+
+        before = Evening(club_id=club.id, date=deactivated_at - timedelta(days=10))
+        after = Evening(club_id=club.id, date=deactivated_at + timedelta(days=5))
+        db.add_all([before, after])
+        db.commit()
+        db.refresh(before)
+        db.refresh(after)
+
+        before_player = EveningPlayer(evening_id=before.id, name=regular_member.name,
+                                      regular_member_id=regular_member.id)
+        after_player = EveningPlayer(evening_id=after.id, name=regular_member.name,
+                                     regular_member_id=regular_member.id)
+        db.add_all([before_player, after_player])
+        db.commit()
+        db.refresh(before_player)
+        db.refresh(after_player)
+
+        kept = PenaltyLog(evening_id=before.id, player_id=before_player.id, player_name=regular_member.name,
+                          penalty_type_name="Zu spät", icon="⚠️", amount=1.0, client_timestamp=0)
+        removed_player_penalty = PenaltyLog(evening_id=after.id, player_id=after_player.id, player_name=regular_member.name,
+                                            penalty_type_name="Zu spät", icon="⚠️", amount=1.0, client_timestamp=0)
+        removed_absence = PenaltyLog(evening_id=after.id, player_id=None, regular_member_id=regular_member.id,
+                                     player_name=regular_member.name, penalty_type_name="Abwesenheit",
+                                     icon="🏠", amount=2.0, client_timestamp=0)
+        db.add_all([kept, removed_player_penalty, removed_absence])
+        db.commit()
+
+        resp = client.post(
+            f"/api/v1/club/regular-members/{regular_member.id}/purge-penalties-since-deactivation",
+            headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["removed"] == 2
+
+        db.refresh(kept)
+        db.refresh(removed_player_penalty)
+        db.refresh(removed_absence)
+        assert kept.is_deleted is False
+        assert removed_player_penalty.is_deleted is True
+        assert removed_absence.is_deleted is True
+
+        # Calling again finds nothing left to remove
+        resp2 = client.post(
+            f"/api/v1/club/regular-members/{regular_member.id}/purge-penalties-since-deactivation",
+            headers=admin_headers)
+        assert resp2.json()["removed"] == 0
+
 
 # ---------------------------------------------------------------------------
 # POST /club/treasury-payout

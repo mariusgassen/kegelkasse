@@ -312,7 +312,8 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
 def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
     return {"id": m.id, "name": m.name, "nickname": m.nickname,
             "is_guest": m.is_guest, "is_active": m.is_active,
-            "is_committee": m.is_committee, "avatar": avatar}
+            "is_committee": m.is_committee, "avatar": avatar,
+            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None}
 
 
 @router.get("/regular-members")
@@ -356,6 +357,65 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
     return _member_dict(m)
 
 
+@router.patch("/regular-members/{mid}/deactivate")
+def deactivate_regular_member(mid: int, db: Session = Depends(get_db),
+                              user: User = Depends(require_club_admin)):
+    """Admin only: mark a regular member as having left, ahead of the final removal decision.
+
+    Excludes them from future-evening logic (absence penalties, RSVP prompts/reminders) and
+    locks their login, but — unlike `delete_regular_member` — leaves `is_guest`/`is_active`
+    untouched, so their balance stays visible in the treasury until settled. Reversible via
+    the existing reactivate endpoint.
+    """
+    m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not m: raise HTTPException(404)
+    if m.is_guest:
+        raise HTTPException(400, "Gäste sind bereits von künftigen Abenden ausgeschlossen")
+    if m.deactivated_at:
+        raise HTTPException(400, "Mitglied ist bereits deaktiviert")
+    m.deactivated_at = datetime.now(timezone.utc)
+    linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
+    if linked_user:
+        linked_user.is_active = False
+    db.commit()
+    db.refresh(m)
+    if linked_user:
+        from core.refresh import revoke_all_for_user
+        revoke_all_for_user(db, linked_user.id)
+    logger.info("Regular member deactivated: member=%d by admin=%d", mid, user.id)
+    return _member_dict(m)
+
+
+@router.post("/regular-members/{mid}/purge-penalties-since-deactivation")
+def purge_penalties_since_deactivation(mid: int, db: Session = Depends(get_db),
+                                       user: User = Depends(require_club_admin)):
+    """Admin only: soft-delete penalties logged for evenings after this member's deactivation
+    date — cleans up entries mistakenly booked for someone who had already left, before the
+    final removal from the roster.
+    """
+    m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
+    if not m: raise HTTPException(404)
+    if not m.deactivated_at:
+        raise HTTPException(400, "Mitglied ist nicht deaktiviert")
+    rows = (
+        db.query(PenaltyLog)
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .outerjoin(EveningPlayer, EveningPlayer.id == PenaltyLog.player_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            Evening.date > m.deactivated_at,
+            PenaltyLog.is_deleted == False,
+            or_(EveningPlayer.regular_member_id == mid, PenaltyLog.regular_member_id == mid),
+        )
+        .all()
+    )
+    for row in rows:
+        row.is_deleted = True
+    db.commit()
+    logger.info("Purged %d penalt(y/ies) since deactivation: member=%d by admin=%d", len(rows), mid, user.id)
+    return {"ok": True, "removed": len(rows)}
+
+
 @router.delete("/regular-members/{mid}")
 def delete_regular_member(mid: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_admin)):
@@ -384,11 +444,13 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
 @router.patch("/regular-members/{mid}/reactivate")
 def reactivate_regular_member(mid: int, db: Session = Depends(get_db),
                                user: User = Depends(require_club_admin)):
-    """Admin only: promote a guest back to regular member and restore their linked user account."""
+    """Admin only: promote a guest back to regular member, or undo a deactivation — either way
+    restores their linked user account and clears any deactivation marker."""
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
     m.is_guest = False
     m.is_active = True
+    m.deactivated_at = None
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:
         linked_user.is_active = True
