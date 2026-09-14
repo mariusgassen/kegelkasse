@@ -678,7 +678,7 @@ describe('EveningPage — add player sheet content', () => {
         })
     })
 
-    it('hides a deactivated member from the add player sheet', async () => {
+    it('hides a deactivated member from the regular-member section of the add player sheet', async () => {
         const { useAppStore } = await import('@/store/app.ts')
         vi.mocked(useAppStore).mockReturnValue({
             user: ADMIN_USER,
@@ -687,11 +687,25 @@ describe('EveningPage — add player sheet content', () => {
         } as any)
         await renderEveningPage()
         fireEvent.click(screen.getByText(/player\.add/))
-        // Klaus (the only otherwise-available member) is deactivated, so the whole
+        // Klaus (the only otherwise-available member) is deactivated, so the
         // "stamm" section — including its heading — is empty and doesn't render
         await waitFor(() => screen.getByPlaceholderText('player.guestPlaceholder'))
-        expect(screen.queryByText('Klauschen')).not.toBeInTheDocument()
         expect(screen.queryByText('member.title')).not.toBeInTheDocument()
+    })
+
+    it('shows a deactivated member as a known guest in the add player sheet', async () => {
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER,
+            regularMembers: [...REGULAR_MEMBERS, { ...EXTRA_MEMBER, deactivated_at: '2026-01-01T00:00:00+00:00' }],
+            setActiveEveningId: vi.fn(),
+        } as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        await waitFor(() => {
+            expect(screen.getByText('player.knownGuests')).toBeInTheDocument()
+            expect(screen.getByText('Klauschen')).toBeInTheDocument()
+        })
     })
 
     it('shows warning when no teams exist in add player sheet', async () => {
@@ -772,7 +786,7 @@ describe('EveningPage — UnplannedAttendanceSheet', () => {
         })
     })
 
-    it('hides a deactivated member from the attendance checklist', async () => {
+    it('hides a deactivated member from the attendance checklist but shows them as a known guest', async () => {
         const { useAppStore } = await import('@/store/app.ts')
         vi.mocked(useAppStore).mockReturnValue({
             user: ADMIN_USER,
@@ -783,7 +797,9 @@ describe('EveningPage — UnplannedAttendanceSheet', () => {
             setActiveEveningId: vi.fn(),
         } as any)
         await renderAttendanceSheet()
-        expect(screen.queryByText('Klauschen')).not.toBeInTheDocument()
+        // Not in the attendance checklist (☑/☐ toggles), but offered as a known guest chip
+        expect(screen.getByText(/player\.knownGuests/)).toBeInTheDocument()
+        expect(screen.getByText('Klauschen')).toBeInTheDocument()
     })
 })
 

@@ -1856,6 +1856,34 @@ describe('SchedulePage — AddGuestForm submit flow', () => {
         })
     })
 
+    it('shows a deactivated member as a known guest chip', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            regularMembers: [
+                {
+                    id: 11, name: 'Klaus', nickname: 'Klauschen', is_guest: false, is_active: true,
+                    is_committee: false, avatar: null, deactivated_at: '2026-01-01T00:00:00+00:00',
+                },
+            ],
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([TODAY_SE] as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByText(/schedule\.addGuest/))
+        fireEvent.click(screen.getByText(/schedule\.addGuest/))
+        await waitFor(() => {
+            expect(screen.getByText('player.knownGuests')).toBeInTheDocument()
+            expect(screen.getByText('Klauschen')).toBeInTheDocument()
+        })
+    })
+
     it('clicking known guest chip sets name input value', async () => {
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
