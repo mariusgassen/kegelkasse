@@ -678,6 +678,22 @@ describe('EveningPage — add player sheet content', () => {
         })
     })
 
+    it('hides a deactivated member from the add player sheet', async () => {
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER,
+            regularMembers: [...REGULAR_MEMBERS, { ...EXTRA_MEMBER, deactivated_at: '2026-01-01T00:00:00+00:00' }],
+            setActiveEveningId: vi.fn(),
+        } as any)
+        await renderEveningPage()
+        fireEvent.click(screen.getByText(/player\.add/))
+        // Klaus (the only otherwise-available member) is deactivated, so the whole
+        // "stamm" section — including its heading — is empty and doesn't render
+        await waitFor(() => screen.getByPlaceholderText('player.guestPlaceholder'))
+        expect(screen.queryByText('Klauschen')).not.toBeInTheDocument()
+        expect(screen.queryByText('member.title')).not.toBeInTheDocument()
+    })
+
     it('shows warning when no teams exist in add player sheet', async () => {
         await renderEveningPage()
         fireEvent.click(screen.getByText(/player\.add/))
@@ -754,6 +770,20 @@ describe('EveningPage — UnplannedAttendanceSheet', () => {
         await waitFor(() => {
             expect(api.addPlayer).toHaveBeenCalled()
         })
+    })
+
+    it('hides a deactivated member from the attendance checklist', async () => {
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockReturnValue({
+            user: ADMIN_USER,
+            regularMembers: [...REGULAR_MEMBERS, {
+                id: 3, name: 'Klaus', nickname: 'Klauschen', is_guest: false, is_active: true,
+                is_committee: false, avatar: null, deactivated_at: '2026-01-01T00:00:00+00:00',
+            }],
+            setActiveEveningId: vi.fn(),
+        } as any)
+        await renderAttendanceSheet()
+        expect(screen.queryByText('Klauschen')).not.toBeInTheDocument()
     })
 })
 

@@ -204,7 +204,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
     const pinPenalty = club?.settings?.pin_penalty ?? 0
 
     const activeMembers = regularMembers.filter(
-        (m: RegularMember) => !m.is_guest && m.is_active,
+        (m: RegularMember) => !m.is_guest && m.is_active && !m.deactivated_at,
     )
     const absentIds = new Set(rsvps.filter(r => r.status === 'absent').map(r => r.regular_member_id))
 
