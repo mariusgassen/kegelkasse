@@ -94,7 +94,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
 }) {
     const t = useT()
     const regularMembers = useAppStore(s => s.regularMembers)
-    const knownGuests = regularMembers.filter(m => m.is_guest)
+    const knownGuests = regularMembers.filter(m => m.is_guest || m.deactivated_at)
     // Filter out guests already in the scheduled evening
     const alreadyAdded = new Set(se.guests.map(g => g.regular_member_id).filter(Boolean))
     const availableKnownGuests = knownGuests.filter(m => !alreadyAdded.has(m.id))

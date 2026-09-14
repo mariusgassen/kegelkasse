@@ -563,7 +563,7 @@ export function EveningPage() {
                     )}
                     {(() => {
                         const stamm = regularMembers.filter(rm => !rm.is_guest && !rm.deactivated_at && !players.some(p => p.regular_member_id === rm.id))
-                        const guests = regularMembers.filter(rm => rm.is_guest && !players.some(p => p.regular_member_id === rm.id))
+                        const guests = regularMembers.filter(rm => (rm.is_guest || rm.deactivated_at) && !players.some(p => p.regular_member_id === rm.id))
                         const toggle = (id: number) => setSelectedMemberIds(prev => {
                             const next = new Set(prev);
                             next.has(id) ? next.delete(id) : next.add(id);
@@ -696,7 +696,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const pinPenalty = club?.settings?.pin_penalty ?? 0
     const activeMembers = regularMembers.filter((m: RegularMember) => !m.is_guest && m.is_active && !m.deactivated_at)
-    const knownGuests = regularMembers.filter((m: RegularMember) => m.is_guest)
+    const knownGuests = regularMembers.filter((m: RegularMember) => m.is_guest || m.deactivated_at)
     const myId = user?.regular_member_id
 
     const [checkedIds, setCheckedIds] = useState<Set<number>>(
