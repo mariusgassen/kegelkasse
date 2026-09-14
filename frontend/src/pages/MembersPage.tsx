@@ -17,6 +17,7 @@ import {toastError} from '@/utils/error.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {parseAmount} from '@/utils/parse.ts'
+import {todayDateInput} from '@/lib/datetime.ts'
 import type {RegularMember} from '@/types.ts'
 
 type MemberAction = SheetAction
@@ -39,6 +40,7 @@ export function MembersPage() {
     const [promoteConfirm, setPromoteConfirm] = useState<RegularMember | null>(null)
     const [promoteEntryFee, setPromoteEntryFee] = useState('')
     const [deactivateConfirm, setDeactivateConfirm] = useState<RegularMember | null>(null)
+    const [deactivateDate, setDeactivateDate] = useState('')
     const [purgeConfirm, setPurgeConfirm] = useState<RegularMember | null>(null)
     const [purging, setPurging] = useState(false)
     const [search, setSearch] = useState(() => {
@@ -253,9 +255,14 @@ export function MembersPage() {
         }
     }
 
+    function openDeactivateConfirm(m: RegularMember) {
+        setDeactivateConfirm(m)
+        setDeactivateDate(todayDateInput())
+    }
+
     async function deactivate(m: RegularMember) {
         try {
-            await api.deactivateRegularMember(m.id)
+            await api.deactivateRegularMember(m.id, deactivateDate || undefined)
             await refetchRoster()
             showToast(t('member.deactivated'))
             setDeactivateConfirm(null)
@@ -527,7 +534,7 @@ export function MembersPage() {
                             actions.push({icon: '↩️', label: t('member.action.undoDeactivate'), onClick: () => undoDeactivate(m)})
                             actions.push({icon: '🧹', label: t('member.action.purgePenalties'), onClick: () => setPurgeConfirm(m)})
                         } else {
-                            actions.push({icon: '⏸️', label: t('member.action.deactivateRoster'), onClick: () => setDeactivateConfirm(m)})
+                            actions.push({icon: '⏸️', label: t('member.action.deactivateRoster'), onClick: () => openDeactivateConfirm(m)})
                         }
                         actions.push({icon: '⬇️', label: t('member.removeFromClub'), danger: true, onClick: () => openRemoveConfirm(m)})
                     }
@@ -694,6 +701,17 @@ export function MembersPage() {
                             <div className="font-bold text-sm">{deactivateConfirm.nickname || deactivateConfirm.name}</div>
                         </div>
                     )}
+                    <div>
+                        <label className="field-label" htmlFor="deactivate-date">{t('member.deactivateDateLabel')}</label>
+                        <p className="text-xs text-muted mb-1.5">{t('member.deactivateDateHint')}</p>
+                        <input
+                            id="deactivate-date"
+                            className="kce-input w-full"
+                            type="date"
+                            value={deactivateDate}
+                            onChange={e => setDeactivateDate(e.target.value)}
+                        />
+                    </div>
                     <div className="flex gap-2">
                         <button className="btn-secondary btn-sm flex-1" onClick={() => setDeactivateConfirm(null)}>
                             {t('action.cancel')}

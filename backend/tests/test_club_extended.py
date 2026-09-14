@@ -1133,6 +1133,22 @@ class TestDeactivateRegularMember:
             RefreshToken.token_hash == hash_refresh_token(raw_token)).first()
         assert token_row.revoked_at is not None
 
+    def test_backdates_to_given_date(self, client: TestClient, admin_headers: dict,
+                                      regular_member: RegularMember, db: Session):
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers, json={"deactivated_at": "2025-01-15"})
+        assert resp.status_code == 200
+        db.refresh(regular_member)
+        assert regular_member.deactivated_at.date().isoformat() == "2025-01-15"
+
+    def test_400_invalid_date_format(self, client: TestClient, admin_headers: dict,
+                                      regular_member: RegularMember, db: Session):
+        resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",
+                            headers=admin_headers, json={"deactivated_at": "not-a-date"})
+        assert resp.status_code == 400
+        db.refresh(regular_member)
+        assert regular_member.deactivated_at is None
+
     def test_member_cannot_deactivate(self, client: TestClient, auth_headers: dict,
                                        regular_member: RegularMember):
         resp = client.patch(f"/api/v1/club/regular-members/{regular_member.id}/deactivate",

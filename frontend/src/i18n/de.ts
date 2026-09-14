@@ -682,6 +682,8 @@ export const de = {
     "member.reactivated": "Mitglied reaktiviert",
     "member.deactivateConfirm": "Mitglied deaktivieren?",
     "member.deactivateConfirmHint": "Das Mitglied gilt ab sofort als ausgetreten: keine Abwesenheitsstrafen mehr, keine Termin-Erinnerungen, Login gesperrt. Strafen und Kassenstand bleiben bis zur endgültigen Entfernung sichtbar — jederzeit reversibel.",
+    "member.deactivateDateLabel": "Deaktiviert seit",
+    "member.deactivateDateHint": "Das eigentliche Austrittsdatum — auch in der Vergangenheit möglich. Abende danach werden vom Ausschluss erfasst.",
     "member.deactivatedSince": "Deaktiviert seit",
     "member.purgePenaltiesConfirm": "Strafen seit Austritt entfernen?",
     "member.purgePenaltiesConfirmHint": "Entfernt alle Strafen, die für Abende nach der Deaktivierung dieses Mitglieds gebucht wurden — z. B. wenn nach dem eigentlichen Austritt versehentlich noch welche eingetragen wurden.",

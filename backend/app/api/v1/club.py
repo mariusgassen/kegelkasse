@@ -357,8 +357,13 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
     return _member_dict(m)
 
 
+class DeactivateRegularMemberBody(TrimmedModel):
+    deactivated_at: Optional[str] = None  # ISO date/datetime string — lets an admin backdate to the real departure date
+
+
 @router.patch("/regular-members/{mid}/deactivate")
-def deactivate_regular_member(mid: int, db: Session = Depends(get_db),
+def deactivate_regular_member(mid: int, data: Optional[DeactivateRegularMemberBody] = None,
+                              db: Session = Depends(get_db),
                               user: User = Depends(require_club_admin)):
     """Admin only: mark a regular member as having left, ahead of the final removal decision.
 
@@ -366,6 +371,10 @@ def deactivate_regular_member(mid: int, db: Session = Depends(get_db),
     locks their login, but — unlike `delete_regular_member` — leaves `is_guest`/`is_active`
     untouched, so their balance stays visible in the treasury until settled. Reversible via
     the existing reactivate endpoint.
+
+    `deactivated_at` defaults to now, but can be backdated to when the member actually left —
+    `purge_penalties_since_deactivation` and the future-evening exclusions below key off this
+    date, so backdating it retroactively covers evenings between the real departure and today.
     """
     m = db.query(RegularMember).filter(RegularMember.id == mid, RegularMember.club_id == user.club_id).first()
     if not m: raise HTTPException(404)
@@ -373,7 +382,15 @@ def deactivate_regular_member(mid: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Gäste sind bereits von künftigen Abenden ausgeschlossen")
     if m.deactivated_at:
         raise HTTPException(400, "Mitglied ist bereits deaktiviert")
-    m.deactivated_at = datetime.now(timezone.utc)
+    deactivated_at = datetime.now(timezone.utc)
+    if data and data.deactivated_at:
+        try:
+            deactivated_at = datetime.fromisoformat(data.deactivated_at)
+        except ValueError:
+            raise HTTPException(400, "Ungültiges Datum")
+        if deactivated_at.tzinfo is None:
+            deactivated_at = deactivated_at.replace(tzinfo=timezone.utc)
+    m.deactivated_at = deactivated_at
     linked_user = db.query(User).filter(User.regular_member_id == mid, User.club_id == user.club_id).first()
     if linked_user:
         linked_user.is_active = False

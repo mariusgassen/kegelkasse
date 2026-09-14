@@ -878,6 +878,34 @@ describe('SchedulePage — StartEveningSheet', () => {
             expect(screen.getByText(/schedule\.start/)).toBeInTheDocument()
         })
     })
+
+    it('hides a deactivated member from the attendance list', async () => {
+        vi.clearAllMocks()
+        const { StartEveningSheet } = await import('../SchedulePage')
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            regularMembers: [...REGULAR_MEMBERS, {
+                id: 3, name: 'Klaus', nickname: 'Klauschen', is_guest: false, is_active: true,
+                is_committee: false, avatar: null, deactivated_at: '2026-01-01T00:00:00+00:00',
+            }],
+            setActiveEveningId: vi.fn(), activeEveningId: null,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listPins).mockResolvedValue([])
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([])
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(
+            <QueryClientProvider client={qc}>
+                <StartEveningSheet se={TODAY_SCHEDULE_ITEM as any} onClose={vi.fn()} onStarted={vi.fn()} />
+            </QueryClientProvider>,
+        )
+        await waitFor(() => {
+            expect(screen.getAllByText(/Admin|Hansi/).length).toBeGreaterThan(0)
+        })
+        expect(screen.queryByText('Klauschen')).not.toBeInTheDocument()
+    })
 })
 
 // ── Fixtures for new tests ─────────────────────────────────────────────────────

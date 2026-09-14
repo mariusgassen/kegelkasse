@@ -682,6 +682,8 @@ export const en = {
     "member.reactivated": "Member reactivated",
     "member.deactivateConfirm": "Deactivate member?",
     "member.deactivateConfirmHint": "The member is treated as having left, effective immediately: no more absence penalties, no schedule reminders, login locked. Penalties and their treasury balance stay visible until final removal — reversible at any time.",
+    "member.deactivateDateLabel": "Deactivated since",
+    "member.deactivateDateHint": "The actual date they left — can be in the past. Evenings after this date are covered by the exclusion.",
     "member.deactivatedSince": "Deactivated since",
     "member.purgePenaltiesConfirm": "Remove penalties since departure?",
     "member.purgePenaltiesConfirmHint": "Removes any penalties booked for evenings after this member was deactivated — e.g. if some were mistakenly logged after they had actually left.",
