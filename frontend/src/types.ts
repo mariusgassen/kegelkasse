@@ -68,7 +68,29 @@ export interface ScheduledEvening {
     my_rsvp: RsvpStatus | null
     guests: ScheduledEveningGuest[]
     evening_id: number | null  // linked Evening id if already started
+    // Public "Gastkegeln anfragen" link on the club website for this evening
+    guest_requests_enabled: boolean
 }
+
+export type GuestRequestStatus = 'pending' | 'approved' | 'rejected'
+
+// Request from a non-member (via the club website) to join an evening as a guest
+export interface GuestRequest {
+    id: number
+    name: string
+    email: string
+    message: string | null
+    status: GuestRequestStatus
+    created_at: string | null
+    decided_at: string | null
+    scheduled_evening_id: number
+    scheduled_at: string | null  // YYYY-MM-DDTHH:MM, club wall-clock time like ScheduledEvening
+    venue: string | null
+    evening_cancelled: boolean
+}
+
+// Decision response: guest_notified is false when the club has no mail server or sending failed
+export type GuestRequestDecision = GuestRequest & { guest_notified: boolean }
 
 // A concrete delivery channel. A category can enable several at once
 // (e.g. both push and email); an empty list means the category is off.
@@ -86,6 +108,7 @@ export interface PushPreferences {
     reminder_debt: ChannelPref
     reminder_schedule: ChannelPref
     reminder_payments: ChannelPref
+    guest_requests: ChannelPref
     reminder_schedule_days?: number
     digest_frequency?: DigestFrequency
 }

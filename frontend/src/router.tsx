@@ -58,7 +58,7 @@ const indexRoute = createRoute({
 export type HomeSearch = Record<string, string | number | undefined>
 export interface EveningSearch { tab?: 'penalties' | 'games' | 'highlights' | 'manage'; item?: number; comment?: number }
 export interface TreasurySearch { tab?: 'overview' | 'analysis' | 'accounts' | 'bookings'; member?: number; memberName?: string; rid?: number; q?: string }
-export interface ScheduleSearch { evening?: number; event?: number }
+export interface ScheduleSearch { evening?: number; event?: number; requests?: number }
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
 export interface MembersSearch { memberName?: string }

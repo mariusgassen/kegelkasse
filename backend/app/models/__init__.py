@@ -7,7 +7,7 @@ from models.payment import MemberPayment  # noqa: F401
 from models.penalty import PenaltyType, PenaltyLog  # noqa: F401
 from models.comment import Comment, CommentReaction  # noqa: F401
 from models.push import PushSubscription  # noqa: F401
-from models.schedule import ScheduledEvening, MemberRsvp  # noqa: F401
+from models.schedule import ScheduledEvening, MemberRsvp, GuestRequest  # noqa: F401
 from models.user import User, InviteToken  # noqa: F401
 from models.season import SeasonSnapshot  # noqa: F401
 from models.bowling import BowlingScore  # noqa: F401

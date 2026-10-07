@@ -106,6 +106,19 @@ Die Antwort ist JSON mit den kommenden, nicht abgesagten Terminen (`?limit=` 1�
 Öffentlich sind **Datum, Uhrzeit, Ort, Notiz und die Anzahl der Anmeldungen** — Namen und einzelne Zu-/Absagen bleiben privat. Notizen eines Termins sind damit für alle sichtbar. Solange die Einstellung aus ist, antwortet die Adresse genauso wie für einen unbekannten Verein (404). Die Antwort darf von jeder Website direkt im Browser abgerufen werden (CORS) und wird 5 Minuten gecacht.
 :::
 
+## Gastanfragen
+
+Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegler** zu einem Termin kommen dürfen. Jeder Termin hat dort einen Link „Gastkegeln anfragen“, der auf eine eigene Seite pro Termin führt (z. B. `https://www.kc-eichhorn.de/gastkegeln/36` — gut als Link für Instagram geeignet). Der Gast gibt **Name, E-Mail und optional eine Nachricht** an.
+
+- **Benachrichtigung:** Für jede neue Anfrage bekommen alle Mitglieder eine Benachrichtigung mit Link zur Übersicht. Die Kategorie „Gastanfragen“ ist standardmäßig **per E-Mail** aktiv und lässt sich im Profil wie jede andere Benachrichtigung umstellen oder abschalten. E-Mails gehen nur raus, wenn der Verein einen [E-Mail-Server](push.md#e-mail-server-admin-pro-verein) eingerichtet hat.
+- **Übersicht:** Oben auf der Seite 📅 **Termine** erscheint der Bereich 🙋 **Gastanfragen**, sobald die erste Anfrage eingegangen ist — offene Anfragen mit Name, Termin, E-Mail und Nachricht, erledigte eingeklappt darunter.
+- **Entscheiden:** **Jedes Mitglied** kann eine Anfrage annehmen oder ablehnen (mit Bestätigung). **Annehmen** trägt den Gast automatisch als Gast beim Termin ein. In beiden Fällen bekommt der Gast eine E-Mail. Konnte sie nicht verschickt werden (kein Mailserver eingerichtet), sagt die App das — dann bitte direkt an die angezeigte Adresse schreiben.
+- **Pro Termin abschaltbar *(Admin)*:** Im Termin-Formular „Gastanfragen erlauben“ ausschalten, dann verschwindet der Link auf der Homepage.
+
+:::info
+Gastanfragen setzen voraus, dass die [öffentlichen Termine](#öffentliche-termine-z-b-für-die-vereins-homepage-admin) freigeschaltet sind. Gegen Spam ist das Formular durch ein unsichtbares Fangfeld, eine Begrenzung pro Absender und E-Mail-Adresse und eine Duplikat-Erkennung geschützt. An die eingegebene Adresse geht erst nach einer Entscheidung eine Mail.
+:::
+
 ## Termin bearbeiten & löschen *(Admin)*
 
 Tippe auf das Bearbeiten-Symbol neben einem Termin, um Datum, Lokal oder Notiz zu ändern, oder lösche den Termin endgültig.

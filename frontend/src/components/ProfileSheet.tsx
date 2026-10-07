@@ -834,7 +834,7 @@ export function ProfileSheet({open, onClose}: Props) {
                                 <span className="text-xs text-ink">{t('push.pref.committee')}</span>
                                 <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} disabled />
                             </div>
-                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments'] as (keyof PushPreferences)[]).map(key => (
+                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments', 'guest_requests'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-ink">{t(`push.pref.${key}` as any)}</span>
                                     <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />

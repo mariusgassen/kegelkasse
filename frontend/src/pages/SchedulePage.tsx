@@ -27,6 +27,7 @@ import {PenaltyTimeline} from '@/components/evening/PenaltyTimeline.tsx'
 import {computeEveningRecap, renderRecapCardImage, shareOrDownloadRecapImage} from '@/lib/recapCard'
 import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
 import {useClub} from '@/hooks/useClub.ts'
+import {GuestRequestsSection} from '@/components/schedule/GuestRequestsSection.tsx'
 
 const TODAY = todayDateInput()
 
@@ -638,13 +639,15 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
     const [datetime, setDatetime] = useState(initialDatetime)
     const [venue, setVenue] = useState(initial?.venue ?? defaultVenue)
     const [note, setNote] = useState(initial?.note ?? '')
+    const [guestRequests, setGuestRequests] = useState(initial?.guest_requests_enabled ?? true)
     const [saving, setSaving] = useState(false)
 
     async function handleSubmit() {
         if (!datetime) return
         setSaving(true)
         try {
-            const payload = {date: datetime, venue: venue || undefined, note: note || undefined}
+            const payload = {date: datetime, venue: venue || undefined, note: note || undefined,
+                             guest_requests_enabled: guestRequests}
             if (initial) await api.updateScheduledEvening(initial.id, payload)
             else await api.createScheduledEvening(payload)
             onSaved()
@@ -674,6 +677,20 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <button type="button" role="switch" aria-checked={guestRequests}
+                            aria-label={t('schedule.guestRequestsEnabled')}
+                            onClick={() => setGuestRequests(v => !v)}
+                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                            style={{background: guestRequests ? 'var(--accent)' : 'var(--surface-2)'}}>
+                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                              style={{transform: guestRequests ? 'translateX(20px)' : 'none'}}/>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-ink">{t('schedule.guestRequestsEnabled')}</div>
+                        <p className="text-xs text-muted mt-0.5">{t('schedule.guestRequestsHint')}</p>
+                    </div>
+                </label>
                 <button type="submit" className="btn-primary w-full" disabled={saving || !datetime}>{t('action.save')}</button>
             </div>
         </Sheet>
@@ -1369,6 +1386,9 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
+
+            {/* ── Guest requests from the club website (hidden until the first one arrives) ── */}
+            <GuestRequestsSection/>
 
             {/* ── Upcoming ── */}
             <div className="flex items-center justify-between mb-0">

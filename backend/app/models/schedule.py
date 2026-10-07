@@ -7,6 +7,12 @@ from sqlalchemy.sql import func
 from core.database import Base
 
 
+class GuestRequestStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class RsvpStatus(str, enum.Enum):
     attending = "attending"
     absent = "absent"
@@ -23,6 +29,8 @@ class ScheduledEvening(Base):
     created_by = Column(Integer, ForeignKey("user.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_deleted = Column(Boolean, nullable=False, default=False)
+    # Shows the public "Gastkegeln anfragen" link for this evening (migration 060).
+    guest_requests_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     rsvps = relationship("MemberRsvp", back_populates="scheduled_evening", cascade="all, delete-orphan")
     guests = relationship("ScheduledEveningGuest", back_populates="scheduled_evening", cascade="all, delete-orphan")
 
@@ -49,3 +57,24 @@ class ScheduledEveningGuest(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     scheduled_evening = relationship("ScheduledEvening", back_populates="guests")
+
+
+class GuestRequest(Base):
+    """Request from an interested non-member to join a scheduled evening as a guest.
+
+    Submitted through the public API; decided by any club member. Approval creates a
+    ScheduledEveningGuest (``guest_id``), so the guest shows up in the evening's guest list.
+    """
+    __tablename__ = "guest_request"
+    id = Column(Integer, primary_key=True, index=True)
+    club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False)
+    scheduled_evening_id = Column(Integer, ForeignKey("scheduled_evening.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    message = Column(Text, nullable=True)
+    status = Column(String, nullable=False, default=GuestRequestStatus.pending.value, server_default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    decided_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    guest_id = Column(Integer, ForeignKey("scheduled_evening_guest.id", ondelete="SET NULL"), nullable=True)
+    scheduled_evening = relationship("ScheduledEvening")

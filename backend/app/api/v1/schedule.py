@@ -59,6 +59,7 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
         "my_rsvp": my_rsvp,
         "guests": [_serialize_guest(g) for g in se.guests],
         "evening_id": linked_evening_id,
+        "guest_requests_enabled": bool(se.guest_requests_enabled),
     }
 
 
@@ -90,6 +91,7 @@ class ScheduledEveningCreate(TrimmedModel):
     date: str = None
     venue: Optional[str] = None
     note: Optional[str] = None
+    guest_requests_enabled: bool = True  # public "Gastkegeln anfragen" link for this evening
 
 
 @router.post("/")
@@ -106,6 +108,7 @@ def create_scheduled_evening(
         scheduled_at=scheduled_at,
         venue=data.venue,
         note=data.note,
+        guest_requests_enabled=data.guest_requests_enabled,
     )
     db.add(se)
     db.commit()
@@ -129,6 +132,7 @@ class ScheduledEveningUpdate(TrimmedModel):
     date: Optional[str] = None
     venue: Optional[str] = None
     note: Optional[str] = None
+    guest_requests_enabled: Optional[bool] = None
 
 
 @router.patch("/{sid}")
