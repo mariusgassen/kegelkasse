@@ -1,6 +1,6 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
 import logging
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from babel.dates import format_datetime
@@ -10,6 +10,7 @@ from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
+from core.clubtime import wall_to_utc
 from api.v1.evenings import _parse_date, _do_calculate_absence_penalties
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club
@@ -470,6 +471,12 @@ def send_reminder(
 
 # ── iCal export ───────────────────────────────────────────────────────────────
 
+# UTC "form #2" date-time (RFC 5545 §3.3.5). The trailing Z matters: without it the value is a
+# *floating* time that calendar apps read as their own local time, shifting every evening by the
+# viewer's UTC offset (1–2 h in Germany).
+_ICAL_UTC = '%Y%m%dT%H%M%SZ'
+
+
 def _ical_escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
@@ -523,15 +530,16 @@ def export_ical(token: str, db: Session = Depends(get_db)):
         _ical_fold(f"X-WR-CALNAME:Kegeltermine – {club.name}"),
     ]
 
-    for se in evenings:
-        sa_utc = se.scheduled_at.astimezone(UTC)
-        start_h = sa_utc.hour
-        start_m = sa_utc.minute
-        end_h = (start_h + 3) % 24
+    # RFC 5545: DTSTAMP is required on every VEVENT; it's the time the feed was generated.
+    dtstamp = datetime.now(UTC).strftime(_ICAL_UTC)
 
-        date_compact = sa_utc.strftime('%Y%m%d')
-        start_str = f"{date_compact}T{start_h:02d}{start_m:02d}00"
-        end_str = f"{date_compact}T{end_h:02d}{start_m:02d}00"
+    for se in evenings:
+        # The stored value is the club's wall-clock time, not a UTC instant (see core/clubtime.py).
+        sa_utc = wall_to_utc(se.scheduled_at)
+        start_str = sa_utc.strftime(_ICAL_UTC)
+        # timedelta rather than (hour + 3) % 24, which put the end *before* the start (same date,
+        # earlier hour) for any evening starting late enough to cross midnight.
+        end_str = (sa_utc + timedelta(hours=3)).strftime(_ICAL_UTC)
 
         summary_parts = ["Kegelabend"]
         if se.venue:
@@ -540,6 +548,7 @@ def export_ical(token: str, db: Session = Depends(get_db)):
 
         lines.append("BEGIN:VEVENT\r\n")
         lines.append(f"UID:kegelkasse-{se.id}@kegelkasse\r\n")
+        lines.append(f"DTSTAMP:{dtstamp}\r\n")
         lines.append(f"DTSTART:{start_str}\r\n")
         lines.append(f"DTEND:{end_str}\r\n")
         lines.append(_ical_fold(f"SUMMARY:{_ical_escape(summary)}"))
