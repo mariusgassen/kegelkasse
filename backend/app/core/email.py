@@ -219,7 +219,8 @@ def send_club_email(cfg: dict, to_address: str, subject: str,
 def send_notification_email(cfg: dict, to_address: str, title: str, body: str, url: str = "/",
                             theme: dict | None = None, locale: str | None = None) -> bool:
     """Send a notification email; absorb and log any failure. Returns True on success."""
-    if not to_address:
+    # Placeholder accounts (members without an own login) have no deliverable address.
+    if not to_address or to_address.endswith("@kegelkasse.internal"):
         return False
     try:
         text, html = build_email_bodies(title, body, url, theme=theme, locale=locale)

@@ -48,6 +48,7 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 | **Schulden am Kegeltag** (automatisch) | Mitglieder mit offenem Betrag |
 | **Ausstehende Zahlungsanfragen** (automatisch) | Admins |
 | **Broadcast** | Alle Mitglieder (Admin-Versand) |
+| **Neue Gastanfrage** (über die Vereins-Homepage) | Alle Mitglieder — Kategorie „Gastanfragen", standardmäßig **per E-Mail** statt Push |
 
 ## Einstellungen im Profil
 

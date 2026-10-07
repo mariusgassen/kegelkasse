@@ -89,7 +89,7 @@ class TestPublicSchedule:
         _settings(db, club, True)
         _evening(db, club, 3)
         evening = client.get(URL).json()["evenings"][0]
-        assert set(evening) == {"id", "scheduled_at", "venue", "note", "attendees"}
+        assert set(evening) == {"id", "scheduled_at", "venue", "note", "attendees", "guest_requests_enabled"}
         assert evening["scheduled_at"].endswith("Z")
         assert evening["venue"] == "Kegelstube"
         assert evening["note"] == "Geheime Notiz"

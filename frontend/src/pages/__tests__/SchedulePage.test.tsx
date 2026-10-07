@@ -21,6 +21,7 @@ vi.mock('@/api/client.ts', () => ({
     api: {
         getClub: vi.fn(),
         listScheduledEvenings: vi.fn(),
+        listGuestRequests: vi.fn().mockResolvedValue([]),
         deleteScheduledEvening: vi.fn(),
         listRsvps: vi.fn(),
         setRsvp: vi.fn(),
@@ -2195,6 +2196,23 @@ describe('SchedulePage — ScheduleEditSheet submit creates schedule', () => {
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.createScheduledEvening).toHaveBeenCalledWith(
             expect.objectContaining({ venue: 'New Venue', note: 'Test note' })
+        ))
+    })
+
+    it('allows guest requests by default and saves the switch when turned off', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([])
+        vi.mocked(api.listPins).mockResolvedValue([])
+        vi.mocked(api.createScheduledEvening).mockResolvedValue({} as any)
+        await renderSchedulePage()
+        fireEvent.click(await screen.findByText(/schedule\.add/))
+        const toggle = await screen.findByRole('switch', { name: 'schedule.guestRequestsEnabled' })
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        fireEvent.click(toggle)
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createScheduledEvening).toHaveBeenCalledWith(
+            expect.objectContaining({ guest_requests_enabled: false })
         ))
     })
 

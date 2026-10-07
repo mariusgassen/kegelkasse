@@ -39,6 +39,8 @@ import {
     BowlingLeaderboardEntry,
     BowlingSubmitResult,
     ClubConfigBundle,
+    GuestRequest,
+    GuestRequestDecision,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -682,9 +684,9 @@ export const api = {
 
     // Schedule (planned evenings & RSVP)
     listScheduledEvenings: () => request<ScheduledEvening[]>('GET', '/schedule/'),
-    createScheduledEvening: (d: { date: string; venue?: string; note?: string }) =>
+    createScheduledEvening: (d: { date: string; venue?: string; note?: string; guest_requests_enabled?: boolean }) =>
         request<ScheduledEvening>('POST', '/schedule/', d),
-    updateScheduledEvening: (sid: number, d: { date?: string; venue?: string; note?: string }) =>
+    updateScheduledEvening: (sid: number, d: { date?: string; venue?: string; note?: string; guest_requests_enabled?: boolean }) =>
         request<ScheduledEvening>('PATCH', `/schedule/${sid}`, d),
     deleteScheduledEvening: (sid: number) => request<void>('DELETE', `/schedule/${sid}`),
     setRsvp: (sid: number, status: RsvpStatus) =>
@@ -698,6 +700,13 @@ export const api = {
         request<ScheduledEveningGuest>('POST', `/schedule/${sid}/guests`, d),
     removeScheduledGuest: (sid: number, gid: number) =>
         request<void>('DELETE', `/schedule/${sid}/guests/${gid}`),
+
+    // Guest requests (from the club website) — any member decides
+    listGuestRequests: () => request<GuestRequest[]>('GET', '/guest-requests/'),
+    approveGuestRequest: (rid: number) =>
+        request<GuestRequestDecision>('POST', `/guest-requests/${rid}/approve`),
+    rejectGuestRequest: (rid: number) =>
+        request<GuestRequestDecision>('POST', `/guest-requests/${rid}/reject`),
     startEveningFromSchedule: (sid: number, d: { member_ids: number[] }) =>
         request<{ id: number; date: string; venue: string | null }>('POST', `/schedule/${sid}/start`, d),
 

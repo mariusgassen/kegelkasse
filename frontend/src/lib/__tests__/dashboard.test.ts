@@ -21,6 +21,7 @@ function se(id: number, scheduled_at: string, evening_id: number | null = null):
         my_rsvp: null,
         guests: [],
         evening_id,
+        guest_requests_enabled: true,
     }
 }
 

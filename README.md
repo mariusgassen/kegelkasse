@@ -168,6 +168,7 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - Add known guests to planned evenings
 - Start a real evening directly from a scheduled entry, optionally importing all attending members as players
 - Absence penalties auto-calculated on evening start for members with explicit RSVP cancellation
+- **Guest requests**: interested people request to join an evening as a guest from the club website (`POST /api/v1/public/clubs/<slug>/schedule/<id>/guest-requests` — name, email, optional message; honeypot, per-IP/per-email rate limits, duplicate detection). Every member is notified (new category „Gastanfragen", email by default) and any member can approve or decline in the 🙋 Gastanfragen section on the Termine page; approving adds the guest to the evening, both decisions mail the requester. Admins can switch requests off per evening
 - **Public schedule API**: opt-in per club (Verein → Einstellungen → Öffentliche Termine, default off) — `GET /api/v1/public/clubs/<slug>/schedule` returns upcoming, non-cancelled evenings as JSON without authentication, e.g. to embed the dates on the club's website. Exposes start time, venue, note and attendance *counts* (members not declined + planned guests) — never names or individual RSVPs; a club that hasn't opted in answers 404 like an unknown slug; CORS-open and cacheable for 5 minutes
 - **iCal export**: subscribe to all planned evenings in Apple Calendar, Google Calendar, or Outlook via a secret per-club token (webcal://); configurable default time
 

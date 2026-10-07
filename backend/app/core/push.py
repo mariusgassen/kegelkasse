@@ -84,6 +84,15 @@ def _send_one_raising(db: Session, sub: PushSubscription, title: str, body: str,
 # preference is a *subset* of these (possibly empty = off).
 CHANNELS = ("push", "email", "telegram")
 
+# Default channels per notification category when the user never chose any. Everything is
+# push by default; guest requests reach members by email, since most of them have no push
+# subscription and a request is worthless if nobody sees it before the evening.
+CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",)}
+
+
+def category_default(category: str) -> tuple[str, ...]:
+    return CATEGORY_DEFAULTS.get(category, ("push",))
+
 
 def resolve_channels(value, default: tuple[str, ...] = ("push",)) -> list[str]:
     """Normalize any stored preference value to a list of channels (subset of ``CHANNELS``).
@@ -114,8 +123,9 @@ def resolve_channels(value, default: tuple[str, ...] = ("push",)) -> list[str]:
     return list(default)
 
 
-def _user_channels(user: User, category: str, default: tuple[str, ...] = ("push",)) -> list[str]:
+def _user_channels(user: User, category: str, default: tuple[str, ...] | None = None) -> list[str]:
     """Return the enabled delivery channels (subset of push/email) for a category."""
+    default = default if default is not None else category_default(category)
     if not category:
         return list(default)
     prefs = user.push_preferences or {}

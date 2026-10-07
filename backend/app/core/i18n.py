@@ -63,6 +63,35 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "email.button.open": {"de": "Öffnen", "en": "Open"},
     "email.footer": {"de": "Kegelkasse 🎳", "en": "Kegelkasse 🎳"},
+    # Guest requests — mails to the (non-member) requester. Guests have no locale, so these
+    # are always sent in German; the English entries only keep the table complete.
+    "guest_request.approved.subject": {
+        "de": "Du bist dabei: Gastkegeln am {date}",
+        "en": "You're in: guest bowling on {date}",
+    },
+    "guest_request.approved.body": {
+        "de": "Hallo {name},\n\nschön, dass du mitkegeln möchtest! Deine Anfrage für {when} wurde "
+              "angenommen — wir freuen uns auf dich.{venue}\n\nViele Grüße\n{club}",
+        "en": "Hi {name},\n\ngreat that you'd like to join! Your request for {when} has been "
+              "accepted — we're looking forward to seeing you.{venue}\n\nBest regards\n{club}",
+    },
+    "guest_request.rejected.subject": {
+        "de": "Deine Anfrage zum Gastkegeln am {date}",
+        "en": "Your guest bowling request for {date}",
+    },
+    "guest_request.rejected.body": {
+        "de": "Hallo {name},\n\ndanke für dein Interesse! Für {when} können wir deine Anfrage leider "
+              "nicht annehmen. Schau gern bei einem unserer nächsten Termine wieder vorbei.\n\n"
+              "Viele Grüße\n{club}",
+        "en": "Hi {name},\n\nthanks for your interest! Unfortunately we can't accept your request for "
+              "{when}. Feel free to try one of our next dates.\n\nBest regards\n{club}",
+    },
+    "guest_request.venue": {"de": "\n\nOrt: {venue}", "en": "\n\nVenue: {venue}"},
+    "guest_request.notify.title": {"de": "🙋 Neue Gastanfrage", "en": "🙋 New guest request"},
+    "guest_request.notify.body": {
+        "de": "{name} möchte am {date} als Gast mitkegeln.",
+        "en": "{name} would like to join on {date} as a guest.",
+    },
     "auth.reset.email.subject": {
         "de": "Passwort zurücksetzen",
         "en": "Reset your password",
