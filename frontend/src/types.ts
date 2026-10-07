@@ -44,6 +44,9 @@ export interface ClubSettings {
     // Audio call-outs (0-pin buzzer + per-PenaltyType sounds). Defaults to true when the club
     // predates the setting — plays on the logging device, so this is a club-level master switch.
     audio_callouts_enabled?: boolean
+    // Unauthenticated read-only schedule at /api/v1/public/clubs/<slug>/schedule (e.g. for the
+    // club's website). Opt-in — defaults to false.
+    public_schedule_enabled?: boolean
 }
 
 export type RsvpStatus = 'attending' | 'absent'

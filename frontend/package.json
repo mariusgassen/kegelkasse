@@ -1,7 +1,7 @@
 {
   "name": "kegelkasse-frontend",
   "private": true,
-  "version": "1.60.3",
+  "version": "1.61.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
