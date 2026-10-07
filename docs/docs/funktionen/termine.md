@@ -82,6 +82,30 @@ Der Link enthält einen geheimen Token — er ist nur für dich bestimmt. Teile 
 Admins können die Standard-Uhrzeit für Termine in den Einstellungen festlegen. Termine ohne individuelle Uhrzeit verwenden diese als Startzeit im Kalender.
 :::
 
+## Öffentliche Termine (z. B. für die Vereins-Homepage) *(Admin)*
+
+Unter **Verein → Einstellungen → Öffentliche Termine** kann ein Admin die kommenden Termine ohne Login abrufbar machen. Die Einstellung ist standardmäßig **aus**. Ist sie aktiv, zeigt die Karte die Adresse an:
+
+```
+https://<deine-instanz>/api/v1/public/clubs/<vereins-kürzel>/schedule
+```
+
+Die Antwort ist JSON mit den kommenden, nicht abgesagten Terminen (`?limit=` 1–100, Standard 20):
+
+```json
+{"club": "KC Beispiel", "evenings": [{
+  "id": 42, "scheduled_at": "2026-11-14T19:00:00Z",
+  "venue": "Altes Schalthaus", "note": "Weihnachtskegeln",
+  "attendees": {"members": 9, "guests": 2, "total": 11}
+}]}
+```
+
+`scheduled_at` ist der echte Zeitpunkt in UTC (eingegeben 20:00 Uhr deutscher Zeit → `19:00:00Z` im Winter). `attendees` zählt wie die App: alle aktiven Mitglieder, die nicht abgesagt haben, plus geplante Gäste.
+
+:::info
+Öffentlich sind **Datum, Uhrzeit, Ort, Notiz und die Anzahl der Anmeldungen** — Namen und einzelne Zu-/Absagen bleiben privat. Notizen eines Termins sind damit für alle sichtbar. Solange die Einstellung aus ist, antwortet die Adresse genauso wie für einen unbekannten Verein (404). Die Antwort darf von jeder Website direkt im Browser abgerufen werden (CORS) und wird 5 Minuten gecacht.
+:::
+
 ## Termin bearbeiten & löschen *(Admin)*
 
 Tippe auf das Bearbeiten-Symbol neben einem Termin, um Datum, Lokal oder Notiz zu ändern, oder lösche den Termin endgültig.

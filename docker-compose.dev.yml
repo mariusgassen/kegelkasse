@@ -6,7 +6,9 @@ services:
       dockerfile: Dockerfile.dev
     ports: ["8000:8000"]
     environment:
-      DATABASE_URL: postgresql://kegelkasse:changeme@db:5432/kegelkasse
+      DATABASE_URL: postgresql://kegelkasse:kegelkassepw@db:5432/kegelkasse
+      # Same as docker/entrypoint.sh: the app imports its modules as top-level packages (core, api, …)
+      PYTHONPATH: /app/app
       SECRET_KEY: dev-secret-not-for-production-min-32-chars-ok
       ENVIRONMENT: development
       FIRST_SUPERADMIN_EMAIL: admin@kegelkasse.de
@@ -18,7 +20,6 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-      - ./frontend/src:/app/static
       - ./backend/docs_static:/app/docs_static:ro
       - club_uploads_dev:/app/uploads
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

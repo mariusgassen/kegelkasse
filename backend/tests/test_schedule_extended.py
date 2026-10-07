@@ -605,3 +605,38 @@ class TestIcalFeedExtended:
         assert resp.status_code == 200
         assert "DESCRIPTION:" in resp.text
         assert "Wichtiger Hinweis" in resp.text
+
+    def _vevent_props(self, body: str) -> dict:
+        lines = body.split("\r\n")
+        start = lines.index("BEGIN:VEVENT")
+        end = lines.index("END:VEVENT", start)
+        return dict(line.split(":", 1) for line in lines[start + 1:end])
+
+    @pytest.mark.parametrize("stored, start, end", [
+        # Stored values are the wall-clock time the admin typed (20:00), in the UTC slot; the feed
+        # must emit the real instant. Without the Z suffix the value would be a floating time.
+        (datetime(2026, 11, 14, 20, 0, tzinfo=UTC), "20261114T190000Z", "20261114T220000Z"),  # CET
+        (datetime(2026, 7, 11, 20, 0, tzinfo=UTC), "20260711T180000Z", "20260711T210000Z"),   # CEST
+    ])
+    def test_ical_times_are_utc_instants_of_club_wall_clock(
+            self, client: TestClient, db: Session, club: Club, admin_user: User, stored, start, end):
+        se = ScheduledEvening(club_id=club.id, scheduled_at=stored, created_by=admin_user.id)
+        db.add(se)
+        db.commit()
+        token = self._setup_token(db, club)
+        props = self._vevent_props(client.get(f"/api/v1/schedule/ical/{token}.ics").text)
+        assert props["DTSTART"] == start
+        assert props["DTEND"] == end
+        assert props["DTSTAMP"].endswith("Z") and len(props["DTSTAMP"]) == 16
+
+    def test_ical_end_rolls_over_midnight(
+            self, client: TestClient, db: Session, club: Club, admin_user: User):
+        """A late start must end on the next day, not earlier on the same day."""
+        se = ScheduledEvening(club_id=club.id, scheduled_at=datetime(2026, 12, 31, 23, 30, tzinfo=UTC),
+                              created_by=admin_user.id)
+        db.add(se)
+        db.commit()
+        token = self._setup_token(db, club)
+        props = self._vevent_props(client.get(f"/api/v1/schedule/ical/{token}.ics").text)
+        assert props["DTSTART"] == "20261231T223000Z"
+        assert props["DTEND"] == "20270101T013000Z"

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # When empty, a key is derived from SECRET_KEY (so encryption still works
     # out of the box, but rotating SECRET_KEY would then invalidate secrets).
     SECRETS_ENCRYPTION_KEY: str = ""
+    # Time zone in which members enter evening times. The app stores those wall-clock times in the
+    # UTC slot of its timestamp columns (20:00 entered → 20:00+00:00); outputs that hand times to
+    # other software (iCal feed, public schedule API) use this zone to turn them into real instants.
+    CLUB_TIMEZONE: str = "Europe/Berlin"
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

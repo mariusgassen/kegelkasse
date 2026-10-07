@@ -183,6 +183,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [defaultEveningTime, setDefaultEveningTime] = useState(club?.settings?.default_evening_time || '20:00')
     const [throwTracking, setThrowTracking] = useState(club?.settings?.throw_tracking_enabled !== false)
     const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
+    const [publicSchedule, setPublicSchedule] = useState(club?.settings?.public_schedule_enabled === true)
 
     useEffect(() => {
         if (!club) return
@@ -198,6 +199,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setDefaultEveningTime(club.settings?.default_evening_time || '20:00')
         setThrowTracking(club.settings?.throw_tracking_enabled !== false)
         setAudioCallouts(club.settings?.audio_callouts_enabled !== false)
+        setPublicSchedule(club.settings?.public_schedule_enabled === true)
     }, [club])
 
     function applyPalette(p: Palette) {
@@ -260,6 +262,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 default_evening_time: defaultEveningTime || undefined,
                 throw_tracking_enabled: throwTracking,
                 audio_callouts_enabled: audioCallouts,
+                public_schedule_enabled: publicSchedule,
             })
             applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
             setGuestPenaltyCap(cap)
@@ -474,6 +477,30 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         <p className="text-xs text-muted mt-0.5">{t('club.audioCallouts.hint')}</p>
                     </div>
                 </label>
+            </div>
+
+            {/* ── Öffentliche Termine ── */}
+            <div className="kce-card p-4">
+                <div className="sec-heading mb-3">{t('club.settings.publicSchedule')}</div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <button type="button" role="switch" aria-checked={publicSchedule}
+                            aria-label={t('club.publicSchedule.label')}
+                            onClick={() => setPublicSchedule(v => !v)}
+                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                            style={{background: publicSchedule ? 'var(--accent)' : 'var(--surface-2)'}}>
+                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                              style={{transform: publicSchedule ? 'translateX(20px)' : 'none'}}/>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-ink">{t('club.publicSchedule.label')}</div>
+                        <p className="text-xs text-muted mt-0.5">{t('club.publicSchedule.hint')}</p>
+                    </div>
+                </label>
+                {publicSchedule && club?.slug && (
+                    <div className="bg-surface-2 rounded-lg p-2.5 mt-3 text-sm font-mono text-ink break-all select-all">
+                        {`${window.location.origin}/api/v1/public/clubs/${club.slug}/schedule`}
+                    </div>
+                )}
             </div>
 
             {/* ── TV-Scoreboard ── */}

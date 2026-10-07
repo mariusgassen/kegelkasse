@@ -372,6 +372,30 @@ describe('ClubAdminPage — settings tab', () => {
         })
     })
 
+    it('defaults the public-schedule switch off and saves it on when toggled', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderClubAdminPage()
+        const toggle = await screen.findByRole('switch', {name: 'club.publicSchedule.label'})
+        expect(toggle).toHaveAttribute('aria-checked', 'false')
+        fireEvent.click(toggle)
+        expect(toggle).toHaveAttribute('aria-checked', 'true')
+        fireEvent.click(screen.getAllByText('action.save')[0])
+        await waitFor(() => {
+            expect(vi.mocked(api.updateClubSettings)).toHaveBeenCalledWith(
+                expect.objectContaining({public_schedule_enabled: true}),
+            )
+        })
+    })
+
+    it('shows the public schedule URL when enabled', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue(
+            { id: 1, name: 'TestClub', slug: 'kce', settings: { public_schedule_enabled: true } } as any)
+        await renderClubAdminPage()
+        expect(await screen.findByText(`${window.location.origin}/api/v1/public/clubs/kce/schedule`))
+            .toBeInTheDocument()
+    })
+
     it('shows the public TV scoreboard link', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue(

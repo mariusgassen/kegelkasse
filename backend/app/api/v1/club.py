@@ -54,6 +54,9 @@ def _serialize_settings(s: ClubSettings) -> dict:
         # Club-level master switch since these play over shared/kiosk speakers, not just one
         # phone — defaults to enabled so existing clubs keep their current behaviour.
         "audio_callouts_enabled": extra.get("audio_callouts_enabled", True),
+        # Unauthenticated read-only schedule at /public/clubs/{slug}/schedule, e.g. for the club's
+        # website. Opt-in: the endpoint has no secret, so it stays dark until an admin enables it.
+        "public_schedule_enabled": extra.get("public_schedule_enabled", False),
     }
 
 
@@ -101,12 +104,14 @@ class ClubSettingsUpdate(TrimmedModel):
     default_evening_time: Optional[str] = None  # default start time for scheduled evenings (HH:MM)
     throw_tracking_enabled: Optional[bool] = None  # camera-based pin/throw tracking on/off (#33)
     audio_callouts_enabled: Optional[bool] = None  # 0-pin buzzer + per-PenaltyType sounds on/off
+    public_schedule_enabled: Optional[bool] = None  # unauthenticated /public schedule endpoint on/off
     name: Optional[str] = None  # club name rename
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
 _SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
-                   "default_evening_time", "throw_tracking_enabled", "audio_callouts_enabled"}
+                   "default_evening_time", "throw_tracking_enabled", "audio_callouts_enabled",
+                   "public_schedule_enabled"}
 
 
 @router.patch("/settings")
