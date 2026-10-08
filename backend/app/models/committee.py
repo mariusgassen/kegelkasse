@@ -24,6 +24,8 @@ class ClubTrip(Base):
     id = Column(Integer, primary_key=True)
     club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False)
     date = Column(DateTime(timezone=True), nullable=False)
+    # Last day of a multi-day trip (migration 062); null = single-day trip.
+    end_date = Column(DateTime(timezone=True), nullable=True)
     destination = Column(String, nullable=False)
     note = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)

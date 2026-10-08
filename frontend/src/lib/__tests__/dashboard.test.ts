@@ -60,7 +60,7 @@ describe('recentCommunity', () => {
         id, title, text, media_url: null, created_by_name: null, created_at,
     })
     const trip = (id: number, destination: string, created_at: string | null, note: string | null = null): ClubTrip => ({
-        id, date: '2026-09-01T10:00', destination, note, created_by_name: null, created_at,
+        id, date: '2026-09-01T10:00', end_date: null, destination, note, created_by_name: null, created_at,
     })
 
     it('merges announcements and trips newest-first', () => {

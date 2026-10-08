@@ -1,20 +1,24 @@
 """Scheduled evenings and RSVP management — plan future bowling sessions in advance."""
 import logging
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from babel.dates import format_datetime
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import Response
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
-from core.clubtime import wall_to_utc
+from core.clubtime import wall_to_utc, wall_now
 from api.v1.evenings import _parse_date, _do_calculate_absence_penalties
 from core.database import get_db
+from core.email import email_theme
+from core.i18n import t as tr
 from core.push import push_to_regular_member, push_to_club
 from models.club import Club, ClubSettings
+from models.committee import ClubTrip
 from models.evening import RegularMember, Evening, EveningPlayer
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.season import SeasonSnapshot
@@ -486,52 +490,181 @@ def _ical_escape(s: str) -> str:
 
 
 def _ical_fold(line: str) -> str:
-    """Fold long lines per RFC 5545 (max 75 octets, continuation with CRLF + space)."""
-    encoded = line.encode("utf-8")
-    if len(encoded) <= 75:
+    """Fold long lines per RFC 5545 (max 75 octets, continuation with CRLF + space).
+
+    Folds between characters, never inside a multi-byte one: slicing the encoded bytes at a fixed
+    offset can cut an umlaut or emoji in half, which is invalid UTF-8 (and raised on decode).
+    """
+    if len(line.encode("utf-8")) <= 75:
         return line + "\r\n"
-    result = b""
-    while len(encoded) > 75:
-        result += encoded[:75] + b"\r\n "
-        encoded = encoded[75:]
-    result += encoded + b"\r\n"
-    return result.decode("utf-8")
+    chunks: list[str] = []
+    current = ""
+    limit = 75  # the first line has no leading space; continuation lines lose one octet to it
+    for ch in line:
+        if len((current + ch).encode("utf-8")) > limit:
+            chunks.append(current)
+            current, limit = ch, 74
+        else:
+            current += ch
+    chunks.append(current)
+    return "\r\n ".join(chunks) + "\r\n"
+
+
+@router.get("/ical-token")
+def get_ical_token(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """The caller's personal calendar-feed token, created on first use."""
+    if not user.ical_token:
+        user.ical_token = secrets.token_urlsafe(24)
+        db.commit()
+    return {"ical_token": user.ical_token}
+
+
+@router.post("/ical-token/regenerate")
+def regenerate_my_ical_token(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Rotate only the caller's feed token (invalidates just their old link)."""
+    user.ical_token = secrets.token_urlsafe(24)
+    db.commit()
+    return {"ical_token": user.ical_token}
+
+
+def _rsvp_by_evening(db: Session, member_id: int | None) -> dict[int, str]:
+    if not member_id:
+        return {}
+    rows = db.query(MemberRsvp).filter(MemberRsvp.regular_member_id == member_id).all()
+    return {r.scheduled_evening_id: r.status for r in rows}
+
+
+def _app_base_url(club: Club, request: Request) -> str:
+    """Where the app lives, for deep links inside calendar entries.
+
+    Prefers the club's own domain / APP_BASE_URL (the same source the emails use); otherwise the
+    host the calendar client reached us on, forced to https unless it is a local dev host.
+    """
+    configured = email_theme(club).get("base_url")
+    if configured:
+        return configured.rstrip("/")
+    host = request.url.netloc
+    local = host.startswith(("localhost", "127.", "0.0.0.0"))
+    return f"{'http' if local else 'https'}://{host}"
+
+
+def _display_names(members) -> list[str]:
+    return sorted((m.nickname or m.name for m in members), key=str.casefold)
+
+
+def _attendee_lines(se: ScheduledEvening, roster: list[RegularMember], locale: str | None) -> list[str]:
+    """Who is coming, same opt-out model as the in-app RSVP sheet: every active roster member
+    attends unless they declined; planned guests come on top (a guest entry that points at a
+    roster member is not listed twice)."""
+    absent_ids = {r.regular_member_id for r in se.rsvps if r.status == RsvpStatus.absent}
+    roster_ids = {m.id for m in roster}
+    attending = _display_names(m for m in roster if m.id not in absent_ids)
+    absent = _display_names(m for m in roster if m.id in absent_ids)
+    guests = sorted((g.name for g in se.guests if g.regular_member_id not in roster_ids), key=str.casefold)
+    out = []
+    for key, names in (("ical.attendees", attending), ("ical.absentees", absent), ("ical.guests", guests)):
+        if names:
+            out.append(tr(locale, key, n=len(names), names=", ".join(names)))
+    return out
+
+
+def _utc_day(dt: datetime):
+    return (dt.astimezone(UTC) if dt.tzinfo else dt).date()
+
+
+def _trip_events(db: Session, club: Club, locale: str | None, app_url: str | None, dtstamp: str) -> list[str]:
+    """Kegelfahrten as all-day events (multi-day when the trip has an end date).
+
+    iCal all-day ``DTEND`` is exclusive, so it is the day *after* the last day of the trip.
+    Deleted trips stay in the feed as CANCELLED so entries already synced to a calendar vanish.
+    """
+    out: list[str] = []
+    trips = db.query(ClubTrip).filter(ClubTrip.club_id == club.id).order_by(ClubTrip.date).all()
+    for trip in trips:
+        first = _utc_day(trip.date)
+        last = max(first, _utc_day(trip.end_date)) if trip.end_date else first
+        url = f"{app_url}/committee?tab=trips&item={trip.id}" if app_url else None
+        summary = f"🚌 {tr(locale, 'ical.trip')} · {trip.destination}"
+        details = [trip.note] if trip.note else []
+        if url and not trip.is_deleted:
+            details.append(tr(locale, "ical.open", url=url))
+        out.append("BEGIN:VEVENT\r\n")
+        out.append(f"UID:kegelkasse-trip-{trip.id}@kegelkasse\r\n")
+        out.append(f"DTSTAMP:{dtstamp}\r\n")
+        out.append(f"DTSTART;VALUE=DATE:{first.strftime('%Y%m%d')}\r\n")
+        out.append(f"DTEND;VALUE=DATE:{(last + timedelta(days=1)).strftime('%Y%m%d')}\r\n")
+        out.append(_ical_fold(f"SUMMARY:{_ical_escape(summary)}"))
+        if trip.is_deleted:
+            out.append("STATUS:CANCELLED\r\n")
+        elif url:
+            out.append(_ical_fold(f"URL:{url}"))
+        if details:
+            description = "\n\n".join(details)
+            out.append(_ical_fold(f"DESCRIPTION:{_ical_escape(description)}"))
+        out.append("END:VEVENT\r\n")
+    return out
 
 
 @router.get("/ical/{token}.ics", include_in_schema=False)
-def export_ical(token: str, db: Session = Depends(get_db)):
-    """Public iCal feed — authenticated by secret token stored in club_settings.extra."""
+def export_ical(token: str, request: Request, db: Session = Depends(get_db)):
+    """Public iCal feed, authenticated by a secret token in the URL.
+
+    A personal token (``user.ical_token``) additionally marks each event with that member's RSVP.
+    The legacy club-wide token (``club_settings.extra``) still works but cannot know who is
+    subscribing, so it serves the plain, unpersonalized feed.
+    """
     import json
 
-    # Find club by ical_token
-    rows = db.query(ClubSettings).all()
-    club_settings = None
-    for s in rows:
-        extra = s.extra or {}
-        if isinstance(extra, str):
-            extra = json.loads(extra)
-        if extra.get("ical_token") == token:
-            club_settings = s
-            break
+    subscriber = db.query(User).filter(User.ical_token == token, User.is_active.is_(True)).first()
+    club_id = None
+    if subscriber and subscriber.club_id:
+        club_id = subscriber.club_id
+    else:
+        subscriber = None
+        for s in db.query(ClubSettings).all():
+            extra = s.extra or {}
+            if isinstance(extra, str):
+                extra = json.loads(extra)
+            if extra.get("ical_token") == token:
+                club_id = s.club_id
+                break
 
-    if not club_settings:
+    if club_id is None:
         raise HTTPException(404, "Invalid token")
 
-    club = db.query(Club).filter(Club.id == club_settings.club_id).first()
+    club = db.query(Club).filter(Club.id == club_id).first()
     if not club:
         raise HTTPException(404, "Club not found")
+
+    locale = subscriber.preferred_locale if subscriber else None
+    personal = subscriber is not None and subscriber.regular_member_id is not None
+    rsvps = _rsvp_by_evening(db, subscriber.regular_member_id) if personal else {}
 
     evenings = db.query(ScheduledEvening).filter(
         ScheduledEvening.club_id == club.id,
     ).order_by(ScheduledEvening.scheduled_at).all()
 
+    # Names and the app link go only into personal feeds: the legacy club-wide token is a shared
+    # secret that has been passed around, so it stays at event basics.
+    roster = db.query(RegularMember).filter(
+        RegularMember.club_id == club.id,
+        RegularMember.is_active.is_(True),
+        RegularMember.is_guest.is_(False),
+        RegularMember.deactivated_at.is_(None),
+    ).all() if subscriber else []
+    app_url = _app_base_url(club, request) if subscriber else None
+
+    now_wall = wall_now()
     lines: list[str] = [
         "BEGIN:VCALENDAR\r\n",
         "VERSION:2.0\r\n",
         "PRODID:-//Kegelkasse//Kegeltermine//DE\r\n",
         "CALSCALE:GREGORIAN\r\n",
         "METHOD:PUBLISH\r\n",
-        _ical_fold(f"X-WR-CALNAME:Kegeltermine – {club.name}"),
+        _ical_fold(f"X-WR-CALNAME:{_ical_escape(tr(locale, 'ical.calname', club=club.name))}"),
+        # Hint for clients that honour it; RSVP changes should show up within the hour.
+        "REFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n",
+        "X-PUBLISHED-TTL:PT1H\r\n",
     ]
 
     # RFC 5545: DTSTAMP is required on every VEVENT; it's the time the feed was generated.
@@ -545,10 +678,20 @@ def export_ical(token: str, db: Session = Depends(get_db)):
         # earlier hour) for any evening starting late enough to cross midnight.
         end_str = (sa_utc + timedelta(hours=3)).strftime(_ICAL_UTC)
 
-        summary_parts = ["Kegelabend"]
+        summary_parts = [tr(locale, "ical.event")]
         if se.venue:
             summary_parts.append(se.venue)
         summary = " · ".join(summary_parts)
+
+        rsvp = rsvps.get(se.id) if personal else None
+        if personal:
+            if rsvp == RsvpStatus.attending:
+                status_key, mark = "ical.rsvp.attending", "CONFIRMED"
+            elif rsvp == RsvpStatus.absent:
+                # Declined: cancel the event in this member's calendar so it disappears from it.
+                status_key, mark = "ical.rsvp.absent", "CANCELLED"
+            else:
+                status_key, mark = "ical.rsvp.none", "TENTATIVE"
 
         lines.append("BEGIN:VEVENT\r\n")
         lines.append(f"UID:kegelkasse-{se.id}@kegelkasse\r\n")
@@ -556,13 +699,35 @@ def export_ical(token: str, db: Session = Depends(get_db)):
         lines.append(f"DTSTART:{start_str}\r\n")
         lines.append(f"DTEND:{end_str}\r\n")
         lines.append(_ical_fold(f"SUMMARY:{_ical_escape(summary)}"))
+        details: list[str] = []
+        event_url = f"{app_url}/schedule?evening={se.id}" if app_url else None
         if se.is_deleted:
             lines.append("STATUS:CANCELLED\r\n")
+        elif personal:
+            lines.append(f"STATUS:{mark}\r\n")
+            details.append(tr(locale, "ical.rsvp.label", status=tr(locale, status_key)))
+        if se.note:
+            details.append(se.note)
+        if subscriber and not se.is_deleted:
+            people = _attendee_lines(se, roster, locale)
+            if people:
+                details.append("\n".join(people))
+        if event_url and not se.is_deleted:
+            details.append(tr(locale, "ical.open", url=event_url))
+            lines.append(_ical_fold(f"URL:{event_url}"))
+            # Opens the app's own Zu-/Absage sheet (needs the member's normal login; the sheet
+            # asks for an explicit tap, so a link previewer can never change an answer).
+            if personal and se.scheduled_at.replace(tzinfo=UTC) >= now_wall:
+                details.append(tr(locale, "ical.rsvp.link", url=f"{app_url}/schedule?rsvp={se.id}"))
+        description = "\n\n".join(details)
         if se.venue:
             lines.append(_ical_fold(f"LOCATION:{_ical_escape(se.venue)}"))
-        if se.note:
-            lines.append(_ical_fold(f"DESCRIPTION:{_ical_escape(se.note)}"))
+        if description:
+            lines.append(_ical_fold(f"DESCRIPTION:{_ical_escape(description)}"))
         lines.append("END:VEVENT\r\n")
+
+    if subscriber:
+        lines.extend(_trip_events(db, club, locale, app_url, dtstamp))
 
     lines.append("END:VCALENDAR\r\n")
 

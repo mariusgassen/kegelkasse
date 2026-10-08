@@ -21,6 +21,8 @@ vi.mock('@/api/client.ts', () => ({
     api: {
         getClub: vi.fn(),
         listScheduledEvenings: vi.fn(),
+        getIcalToken: vi.fn().mockResolvedValue({ical_token: 'abc123'}),
+        regenerateMyIcalToken: vi.fn(),
         listGuestRequests: vi.fn().mockResolvedValue([]),
         deleteScheduledEvening: vi.fn(),
         listRsvps: vi.fn(),
@@ -52,13 +54,14 @@ vi.mock('@/utils/hashParams.ts', () => ({
     clearHashParams: vi.fn(),
 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
-    Sheet: ({ open, children, title, onClose, onSubmit }: any) =>
+    Sheet: ({ open, children, title, onClose, onSubmit, overlays }: any) =>
         open ? (
             <div data-testid="sheet">
                 <div>{title}</div>
                 <button onClick={onClose}>close-sheet</button>
                 {onSubmit && <button onClick={onSubmit}>submit-sheet</button>}
                 {children}
+                {overlays}
             </div>
         ) : null,
 }))
@@ -558,7 +561,7 @@ describe('SchedulePage — iCal subscribe', () => {
         }))
     })
 
-    it('shows iCal button when icalToken present', async () => {
+    it('shows the subscribe button', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue({
             id: 1, name: 'TestClub', settings: { ical_token: 'abc123' },
@@ -568,7 +571,7 @@ describe('SchedulePage — iCal subscribe', () => {
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
         await waitFor(() => {
-            expect(screen.getByLabelText('schedule.subscribeCalendar')).toBeInTheDocument()
+            expect(screen.getByRole('button', {name: 'schedule.subscribeCalendar'})).toBeInTheDocument()
         })
     })
 
@@ -581,10 +584,10 @@ describe('SchedulePage — iCal subscribe', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
         await waitFor(() => {
-            expect(screen.getByText('schedule.subscribeCalendar')).toBeInTheDocument()
+            expect(screen.getAllByText('schedule.subscribeCalendar').length).toBeGreaterThan(1)
         })
     })
 })
@@ -1559,6 +1562,46 @@ describe('SchedulePage — RsvpQuickSheet deeplink', () => {
         })
     })
 
+    async function setupRsvpLink(params: string, admin: boolean) {
+        const hashParamsMod = await import('@/utils/hashParams.ts')
+        vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams(params))
+        const { isAdmin } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(admin)
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue(UPCOMING_SCHEDULE as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        return hashParamsMod
+    }
+
+    it('?rsvp=ID opens the own Zu-/Absage sheet for a member and clears the param', async () => {
+        const hashParamsMod = await setupRsvpLink('rsvp=1', false)
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument())
+        expect(hashParamsMod.clearHashParams).toHaveBeenCalled()
+    })
+
+    it('?rsvp=ID opens the own sheet even for an admin (who gets the roster sheet for ?event=ID)', async () => {
+        await setupRsvpLink('rsvp=1', true)
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText('schedule.rsvpQuickTitle')).toBeInTheDocument())
+    })
+
+    it('?event=ID keeps opening the roster-wide sheet for an admin', async () => {
+        await setupRsvpLink('event=1', true)
+        await renderSchedulePage()
+        await waitFor(() => expect(screen.getByText(/^schedule\.rsvpTitle/)).toBeInTheDocument())
+        expect(screen.queryByText('schedule.rsvpQuickTitle')).not.toBeInTheDocument()
+    })
+
+    it('?rsvp=ID for an unknown evening opens nothing', async () => {
+        const hashParamsMod = await setupRsvpLink('rsvp=999', false)
+        await renderSchedulePage()
+        await waitFor(() => expect(hashParamsMod.clearHashParams).toHaveBeenCalled())
+        expect(screen.queryByText('schedule.rsvpQuickTitle')).not.toBeInTheDocument()
+    })
+
     it('RsvpQuickSheet shows attending and absent buttons', async () => {
         const hashParamsMod = await import('@/utils/hashParams.ts')
         vi.mocked(hashParamsMod.getHashParams).mockReturnValue(new URLSearchParams('event=1'))
@@ -1781,21 +1824,43 @@ describe('SchedulePage — iCal sheet copy button', () => {
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
         await waitFor(() => screen.getByText(/schedule\.icalCopy/))
         expect(screen.getByText(/schedule\.icalCopy/)).toBeInTheDocument()
     })
 
-    it('shows webcal URL in iCal sheet', async () => {
+    it('rotates the personal link after confirmation and shows the new one', async () => {
         const { api } = await import('@/api/client.ts')
-        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: { ical_token: 'mytoken' } } as any)
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getIcalToken).mockResolvedValue({ ical_token: 'oldtok' })
+        vi.mocked(api.regenerateMyIcalToken).mockResolvedValue({ ical_token: 'newtok' })
         vi.mocked(api.listScheduledEvenings).mockResolvedValue([] as any)
         vi.mocked(api.listRsvps).mockResolvedValue([] as any)
         vi.mocked(api.listPins).mockResolvedValue([] as any)
         await renderSchedulePage()
-        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        await waitFor(() => screen.getByText(/oldtok/))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.icalRegenerate'}))
+        // Nothing happens until the destructive action is confirmed
+        expect(api.regenerateMyIcalToken).not.toHaveBeenCalled()
+        fireEvent.click(screen.getAllByRole('button', {name: 'schedule.icalRegenerate'}).slice(-1)[0])
+        await waitFor(() => screen.getByText(/newtok/))
+        expect(api.regenerateMyIcalToken).toHaveBeenCalledTimes(1)
+        expect(screen.queryByText(/oldtok/)).toBeNull()
+    })
+
+    it('shows webcal URL in iCal sheet', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.getIcalToken).mockResolvedValue({ ical_token: 'mytoken' })
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([] as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
         await waitFor(() => screen.getByText(/mytoken/))
         expect(screen.getByText(/mytoken/)).toBeInTheDocument()
     })
@@ -2388,8 +2453,8 @@ describe('SchedulePage — IcalSheet onClose', () => {
     it('closes IcalSheet when close-sheet button clicked', async () => {
         const { SchedulePage } = await import('../SchedulePage')
         render(<SchedulePage />, { wrapper: makeWrapper() })
-        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('close-sheet'))
         await waitFor(() => expect(screen.queryByTestId('sheet')).toBeNull())
@@ -2419,8 +2484,8 @@ describe('SchedulePage — IcalSheet copy (already have basic tests)', () => {
         const writeText = vi.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
         await renderSchedulePage()
-        await waitFor(() => screen.getByLabelText('schedule.subscribeCalendar'))
-        fireEvent.click(screen.getByLabelText('schedule.subscribeCalendar'))
+        await waitFor(() => screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
+        fireEvent.click(screen.getByRole('button', {name: 'schedule.subscribeCalendar'}))
         await waitFor(() => screen.getByTestId('sheet'))
         const copyBtns = screen.getAllByRole('button')
         const copyBtn = copyBtns.find(b => b.textContent?.includes('schedule.copyLink'))

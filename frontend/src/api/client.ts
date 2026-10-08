@@ -802,6 +802,8 @@ export const api = {
     markNotificationsRead: (ids?: number[]) =>
         request<void>('POST', '/push/notifications/read', ids ? {ids} : {}),
     remindDebtors: () => request<{ reminded_count: number }>('POST', '/club/remind-debtors'),
+    getIcalToken: () => request<{ ical_token: string }>('GET', '/schedule/ical-token'),
+    regenerateMyIcalToken: () => request<{ ical_token: string }>('POST', '/schedule/ical-token/regenerate'),
     regenerateIcalToken: () => request<{ ical_token: string }>('POST', '/club/settings/regenerate-ical-token'),
     regenerateScoreboardToken: () =>
         request<{ scoreboard_token: string }>('POST', '/club/settings/regenerate-scoreboard-token'),
@@ -827,8 +829,8 @@ export const api = {
     createAnnouncement: (d: { title: string; text?: string; media_url?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
     deleteAnnouncement: (id: number) => request<void>('DELETE', `/committee/announcements/${id}`),
     listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
-    createTrip: (d: { date: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),
-    updateTrip: (id: number, d: { date?: string; destination?: string; note?: string }) => request<ClubTrip>('PATCH', `/committee/trips/${id}`, d),
+    createTrip: (d: { date: string; end_date?: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),
+    updateTrip: (id: number, d: { date?: string; end_date?: string; destination?: string; note?: string }) => request<ClubTrip>('PATCH', `/committee/trips/${id}`, d),
     deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),
     setCommitteeMember: (memberId: number, isCommittee: boolean) =>
         request<{ id: number; is_committee: boolean }>('PATCH', `/club/members/${memberId}/committee`, {is_committee: isCommittee}),

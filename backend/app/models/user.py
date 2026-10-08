@@ -28,6 +28,7 @@ class User(Base):
     preferred_locale = Column(String, default="de")
     push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}
     last_digest_at = Column(DateTime(timezone=True), nullable=True)  # last personalized email digest sent
+    ical_token = Column(String, unique=True, index=True, nullable=True)  # personal calendar-feed secret (migration 061)
     telegram_chat_id = Column(String, nullable=True)  # set once the user links their Telegram via /telegram/link-start
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

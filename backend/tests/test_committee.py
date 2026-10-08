@@ -219,6 +219,65 @@ class TestCreateTrip:
         assert resp.status_code == 400
 
 
+class TestTripEndDate:
+    def test_create_with_end_date(self, client: TestClient, admin_headers):
+        resp = client.post("/api/v1/committee/trips", json={
+            "date": "2025-09-15", "end_date": "2025-09-17", "destination": "Prag",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["end_date"] == "2025-09-17T00:00"
+
+    def test_end_date_defaults_to_null(self, client: TestClient, admin_headers):
+        resp = client.post("/api/v1/committee/trips", json={
+            "date": "2025-09-15", "destination": "Wien",
+        }, headers=admin_headers)
+        assert resp.json()["end_date"] is None
+
+    def test_same_day_end_date_is_allowed(self, client: TestClient, admin_headers):
+        resp = client.post("/api/v1/committee/trips", json={
+            "date": "2025-09-15T10:00", "end_date": "2025-09-15", "destination": "Bonn",
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+
+    def test_end_before_start_is_rejected(self, client: TestClient, db, club, admin_headers):
+        resp = client.post("/api/v1/committee/trips", json={
+            "date": "2025-09-15", "end_date": "2025-09-14", "destination": "Nope",
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+        assert db.query(ClubTrip).filter(ClubTrip.club_id == club.id).count() == 0
+
+    def test_invalid_end_date_format_returns_400(self, client: TestClient, admin_headers):
+        resp = client.post("/api/v1/committee/trips", json={
+            "date": "2025-09-15", "end_date": "garbage", "destination": "Nope",
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_patch_sets_and_clears_end_date(self, client: TestClient, db, club, admin_user, admin_headers):
+        trip = TestUpdateTrip()._create_trip(db, club, admin_user)
+        url = f"/api/v1/committee/trips/{trip.id}"
+        resp = client.patch(url, json={"end_date": "2025-08-12"}, headers=admin_headers)
+        assert resp.json()["end_date"] == "2025-08-12T00:00"
+        resp = client.patch(url, json={"end_date": ""}, headers=admin_headers)
+        assert resp.status_code == 200 and resp.json()["end_date"] is None
+
+    def test_patch_rejects_range_that_would_end_before_start(self, client: TestClient, db, club, admin_user,
+                                                             admin_headers):
+        trip = TestUpdateTrip()._create_trip(db, club, admin_user)  # starts 2025-08-10
+        url = f"/api/v1/committee/trips/{trip.id}"
+        client.patch(url, json={"end_date": "2025-08-12"}, headers=admin_headers)
+        # moving the start past the existing end must fail and leave the trip untouched
+        resp = client.patch(url, json={"date": "2025-08-20"}, headers=admin_headers)
+        assert resp.status_code == 400
+        db.expire_all()
+        assert db.query(ClubTrip).get(trip.id).date.date().isoformat() == "2025-08-10"
+
+    def test_listing_includes_end_date(self, client: TestClient, db, club, admin_user, admin_headers):
+        trip = TestUpdateTrip()._create_trip(db, club, admin_user)
+        client.patch(f"/api/v1/committee/trips/{trip.id}", json={"end_date": "2025-08-11"}, headers=admin_headers)
+        listed = client.get("/api/v1/committee/trips", headers=admin_headers).json()
+        assert listed[0]["end_date"] == "2025-08-11T00:00"
+
+
 # ---------------------------------------------------------------------------
 # PATCH /api/v1/committee/trips/{tid}
 # ---------------------------------------------------------------------------
