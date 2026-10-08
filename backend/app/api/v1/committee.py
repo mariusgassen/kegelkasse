@@ -30,11 +30,19 @@ def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str]) ->
     }
 
 
+def _utc_str(dt: Optional[datetime]) -> Optional[str]:
+    if dt is None:
+        return None
+    dt_utc = dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
+    return dt_utc.strftime('%Y-%m-%dT%H:%M')
+
+
 def _serialize_trip(t: ClubTrip, creator_name: Optional[str]) -> dict:
     dt_utc = t.date.astimezone(UTC) if t.date.tzinfo else t.date.replace(tzinfo=UTC)
     return {
         "id": t.id,
         "date": dt_utc.strftime('%Y-%m-%dT%H:%M'),
+        "end_date": _utc_str(t.end_date),
         "destination": t.destination,
         "note": t.note,
         "created_by_name": creator_name,
@@ -143,6 +151,7 @@ def list_trips(
 
 class TripCreate(TrimmedModel):
     date: str
+    end_date: Optional[str] = None
     destination: str
     note: Optional[str] = None
 
@@ -157,6 +166,11 @@ def _parse_trip_date(date_str: str) -> datetime:
     raise HTTPException(400, "Invalid date format — use YYYY-MM-DDTHH:MM or YYYY-MM-DD")
 
 
+def _check_trip_range(start: datetime, end: Optional[datetime]) -> None:
+    if end is not None and end.date() < start.date():
+        raise HTTPException(400, "end_date must not be before date")
+
+
 @router.post("/trips")
 def create_trip(
     data: TripCreate,
@@ -165,9 +179,12 @@ def create_trip(
     user: User = Depends(require_committee_or_admin),
 ):
     dt = _parse_trip_date(data.date)
+    end_dt = _parse_trip_date(data.end_date) if data.end_date else None
+    _check_trip_range(dt, end_dt)
     trip = ClubTrip(
         club_id=user.club_id,
         date=dt,
+        end_date=end_dt,
         destination=data.destination.strip(),
         note=data.note.strip() if data.note else None,
         created_by=user.id,
@@ -176,13 +193,16 @@ def create_trip(
     db.commit()
     db.refresh(trip)
     logger.info("Trip created: id=%d club=%d user=%d destination=%r", trip.id, user.club_id, user.id, trip.destination)
-    date_str = dt.strftime('%d.%m.%Y')
+    if end_dt and end_dt.date() != dt.date():
+        when = f"vom {dt.strftime('%d.%m.')} bis {end_dt.strftime('%d.%m.%Y')}"
+    else:
+        when = f"am {dt.strftime('%d.%m.%Y')}"
     background_tasks.add_task(
         push_to_club,
         db,
         user.club_id,
         "🚌 Neue Kegelfahrt",
-        f"Kegelfahrt am {date_str} nach {data.destination.strip()}",
+        f"Kegelfahrt {when} nach {data.destination.strip()}",
         f"/#committee:trips?item={trip.id}",
         category="committee",
     )
@@ -191,6 +211,7 @@ def create_trip(
 
 class TripUpdate(TrimmedModel):
     date: Optional[str] = None
+    end_date: Optional[str] = None  # '' clears it
     destination: Optional[str] = None
     note: Optional[str] = None
 
@@ -209,8 +230,17 @@ def update_trip(
     ).first()
     if not trip:
         raise HTTPException(404, "Trip not found")
+    # Validate the resulting range before touching the object (a rejected PATCH must not dirty the session)
+    new_start = _parse_trip_date(data.date) if data.date is not None else trip.date
+    if data.end_date is None:
+        new_end = trip.end_date
+    else:
+        new_end = _parse_trip_date(data.end_date) if data.end_date else None
+    _check_trip_range(new_start, new_end)
     if data.date is not None:
-        trip.date = _parse_trip_date(data.date)
+        trip.date = new_start
+    if data.end_date is not None:
+        trip.end_date = new_end
     if data.destination is not None:
         trip.destination = data.destination.strip()
     if data.note is not None:

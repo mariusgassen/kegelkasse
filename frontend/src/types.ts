@@ -202,6 +202,7 @@ export interface ClubAnnouncement {
 export interface ClubTrip {
     id: number
     date: string  // YYYY-MM-DDTHH:MM (UTC)
+    end_date: string | null  // last day of a multi-day trip, same format
     destination: string
     note: string | null
     created_by_name: string | null

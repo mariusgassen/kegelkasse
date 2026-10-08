@@ -68,15 +68,34 @@ Mit **Zusagen importieren** entfällt das manuelle Hinzufügen der Spieler — a
 
 ## iCal-Kalender abonnieren
 
-Alle geplanten Termine können als **iCal-Feed** in externe Kalender-Apps importiert werden (Apple Kalender, Google Calendar, Outlook).
+Alle geplanten Termine können als **iCal-Feed** in externe Kalender-Apps importiert werden (Apple Kalender, Google Calendar, Outlook). Der Feed ist **persönlich**: Jeder Termin zeigt deine eigene Zu- oder Absage.
 
-1. Tippe oben rechts auf das Kalender-Symbol 📆
-2. Kopiere den angezeigten Link
-3. Füge ihn in deiner Kalender-App als neuen Kalender ein (Abonnieren / Subscribe)
+1. Tippe oben rechts auf **Kalender abonnieren**
+2. Wähle deine Kalender-App: **In Apple Kalender oder App öffnen**, **Zu Google Kalender hinzufügen** oder **Zu Outlook hinzufügen** — oder kopiere den Link und füge ihn manuell als neuen Kalender ein
+
+| Deine Antwort | Im Kalender |
+|---|---|
+| Zugesagt | Termin normal sichtbar, Status „bestätigt" |
+| Noch keine Antwort | Termin sichtbar, Status „vorläufig" |
+| Abgesagt | Termin wird in deinem Kalender **abgesagt** und ausgeblendet |
+
+Zusätzlich steht in der **Beschreibung** jedes Termins direkt im Kalender:
+
+- **Deine Antwort** (Zugesagt / Abgesagt / Noch keine Antwort)
+- die **Notiz** zum Termin, falls es eine gibt
+- eine **Übersicht, wer kommt**: *Dabei*, *Abgesagt* und *Gäste* mit Namen und Anzahl (wie in der App gilt: wer nicht abgesagt hat, ist dabei)
+- ein **Direktlink zum Termin in der App**; in Kalender-Apps, die das unterstützen, ist der Termin außerdem selbst mit der App verlinkt
+- ein Link **„Zu-/Absagen"** (nur bei kommenden Terminen): er öffnet die App direkt auf dem Zu-/Absage-Fenster. Du musst dafür im Browser bzw. in der App angemeldet sein — der Link enthält bewusst keinen Zugangsschlüssel. Erst dein Tipp ändert die Antwort
+
+**Kegelfahrten** aus dem Vergnügungsausschuss erscheinen als ganztägige Termine (mehrtägig, wenn die Fahrt ein Enddatum hat), mit Notiz und Link zur Fahrt in der App.
+
+Sagst du später doch zu, erscheint der Termin wieder. Die Namensübersicht und der Link sind nur in deinem persönlichen Link enthalten, nicht in älteren Vereins-Links. Kalender-Apps holen den Feed in eigenen Abständen ab (Google oft nur alle paar Stunden) — eine geänderte Antwort erscheint deshalb nicht sofort.
 
 :::info
-Der Link enthält einen geheimen Token — er ist nur für dich bestimmt. Teile ihn nicht öffentlich. Über **„Im Kalender öffnen"** wird die App-Auswahl direkt gestartet.
+Der Link gehört nur dir (er enthält einen geheimen Token) — teile ihn nicht. Ist ein Mitglied deaktiviert, hört sein Link auf zu funktionieren. Bereits abonnierte Vereins-Links aus früheren Versionen funktionieren weiter, zeigen aber keine Zu-/Absagen.
 :::
+
+Ist dein Link in falsche Hände geraten, tippe im Abo-Fenster auf **Neuen Link erzeugen**. Der bisherige Link wird sofort ungültig (nur deiner — die Links der anderen Mitglieder bleiben unberührt). Abonniere den Kalender danach mit dem neuen Link erneut und lösche den alten Kalender in deiner App.
 
 :::tip
 Admins können die Standard-Uhrzeit für Termine in den Einstellungen festlegen. Termine ohne individuelle Uhrzeit verwenden diese als Startzeit im Kalender.

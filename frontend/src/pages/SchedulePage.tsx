@@ -699,10 +699,29 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
 
 
 // ── iCal subscribe sheet ───────────────────────────────────────────────────────
-function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName: string; onClose: () => void }) {
+function IcalSheet({clubName, onClose}: { clubName: string; onClose: () => void }) {
     const t = useT()
     const [copied, setCopied] = useState(false)
-    const url = `webcal://${window.location.host}/api/v1/schedule/ical/${icalToken}.ics`
+    // Personal token: the feed marks each event with *this* member's RSVP
+    const {data: tokenData, isLoading} = useQuery({queryKey: ['ical-token'], queryFn: api.getIcalToken, staleTime: Infinity})
+    const icalToken = tokenData?.ical_token
+    const qc = useQueryClient()
+    const [confirmRegen, setConfirmRegen] = useState(false)
+    const path = `${window.location.host}/api/v1/schedule/ical/${icalToken}.ics`
+    const url = `webcal://${path}`
+    const outlookUrl = `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(`https://${path}`)}&name=${encodeURIComponent(clubName)}`
+    const googleUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(url)}`
+
+    async function regenerate() {
+        try {
+            const fresh = await api.regenerateMyIcalToken()
+            qc.setQueryData(['ical-token'], fresh)
+            setConfirmRegen(false)
+            showToast(t('schedule.icalRegenerated'))
+        } catch (e) {
+            toastError(e)
+        }
+    }
 
     async function copy() {
         try {
@@ -715,21 +734,51 @@ function IcalSheet({icalToken, clubName, onClose}: { icalToken: string; clubName
     }
 
     return (
-        <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}>
+        <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}
+               overlays={confirmRegen && (
+                   <Sheet open onClose={() => setConfirmRegen(false)} title={t('schedule.icalRegenerate')}>
+                       <p className="text-sm text-ink mb-3">{t('schedule.icalRegenerateConfirm')}</p>
+                       <div className="flex gap-2">
+                           <button className="btn-secondary flex-1" onClick={() => setConfirmRegen(false)}>
+                               {t('action.cancel')}
+                           </button>
+                           <button className="btn-danger flex-1" onClick={regenerate}>
+                               {t('schedule.icalRegenerate')}
+                           </button>
+                       </div>
+                   </Sheet>
+               )}>
             <div className="space-y-3">
-                <p className="text-xs text-muted">{t('schedule.icalHint')}</p>
-                <div className="bg-surface-2 rounded-lg p-2.5 text-sm font-mono text-ink break-all select-all">
-                    {url}
-                </div>
-                <div className="flex gap-2">
-                    <a href={url} className="flex-1 btn-primary text-center text-sm">
-                        {t('schedule.openInCalendar')}
-                    </a>
-                    <button className="btn-secondary btn-sm flex-shrink-0" onClick={copy}>
-                        {copied ? '✓' : t('schedule.icalCopy')}
+                <p className="text-sm text-muted">{t('schedule.icalHint').replace('{club}', clubName)}</p>
+                {isLoading || !icalToken ? <SkeletonRows rows={4}/> : (
+                    <>
+                        <div className="bg-surface-2 rounded-lg p-2.5 text-sm font-mono text-ink break-all select-all">
+                        {url}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <button className="btn-secondary text-sm" onClick={copy}>
+                            {copied ? '✓' : t('schedule.icalCopy')}
+                        </button>
+                        <a href={url} className="btn-secondary text-center text-sm">
+                            {t('schedule.openInCalendar')}
+                        </a>
+                        <a href={googleUrl} target="_blank" rel="noopener noreferrer"
+                           className="btn-secondary text-center text-sm">
+                            {t('schedule.addToGoogle')}
+                        </a>
+                        <a href={outlookUrl} target="_blank" rel="noopener noreferrer"
+                           className="btn-secondary text-center text-sm">
+                            {t('schedule.addToOutlook')}
+                        </a>
+                    </div>
+                    </>
+                )}
+                <p className="text-xs text-muted text-center">{t('schedule.icalFooter')}</p>
+                {!isLoading && icalToken && (
+                    <button className="btn-secondary btn-sm w-full" onClick={() => setConfirmRegen(true)}>
+                        {t('schedule.icalRegenerate')}
                     </button>
-                </div>
-                <p className="text-xs text-muted text-center">{t('schedule.icalFor')} {clubName}</p>
+                )}
             </div>
         </Sheet>
     )
@@ -1325,7 +1374,6 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const defaultVenue = club?.settings?.home_venue ?? ''
     const defaultTime = club?.settings?.default_evening_time ?? '20:00'
-    const icalToken = club?.settings?.ical_token ?? null
 
     const {data: schedules, isLoading} = useQuery<ScheduledEvening[]>({
         queryKey: ['schedule'],
@@ -1346,12 +1394,15 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
         if (!schedules) return
         const params = getHashParams()
         const eventId = params.get('event')
-        if (!eventId) return
+        // ?rsvp=ID (links in calendar entries): always the member's *own* Zu-/Absage sheet, even for
+        // admins, who get the roster-wide sheet for ?event=ID.
+        const rsvpId = params.get('rsvp')
+        if (!eventId && !rsvpId) return
         clearHashParams()
-        const se = schedules.find(s => s.id === parseInt(eventId, 10))
+        const se = schedules.find(s => s.id === parseInt((rsvpId ?? eventId) as string, 10))
         if (!se) return
-        if (isAdminUser) setRsvpSheet(se)
-        else setRsvpQuickSheet(se)
+        if (rsvpId || !isAdminUser) setRsvpQuickSheet(se)
+        else setRsvpSheet(se)
     }, [schedules, isAdminUser, hashVersion])
 
     function invalidate() {
@@ -1394,13 +1445,11 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
             <div className="flex items-center justify-between mb-0">
                 <div className="sec-heading flex-1">📅 {t('schedule.upcoming')}</div>
                 <div className="flex items-center gap-1.5 ml-2 mb-3 flex-shrink-0">
-                    {icalToken && (
-                        <button className="btn-secondary btn-xs"
-                                aria-label={t('schedule.subscribeCalendar')}
-                                onClick={() => setIcalSheet(true)}>
-                            <CalendarPlus size={14} strokeWidth={2} aria-hidden="true"/>
-                        </button>
-                    )}
+                    <button className="btn-secondary btn-xs inline-flex items-center gap-1"
+                            onClick={() => setIcalSheet(true)}>
+                        <CalendarPlus size={14} strokeWidth={2} aria-hidden="true"/>
+                        {t('schedule.subscribeCalendar')}
+                    </button>
                     {isAdminUser && (
                         <button className="btn-secondary btn-xs"
                                 onClick={() => setEditSheet('new')}>
@@ -1467,8 +1516,8 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
                     onUpdate={invalidate}
                 />
             )}
-            {icalSheet && club && icalToken && (
-                <IcalSheet icalToken={icalToken} clubName={club.name} onClose={() => setIcalSheet(false)}/>
+            {icalSheet && club && (
+                <IcalSheet clubName={club.name} onClose={() => setIcalSheet(false)}/>
             )}
             {confirmDeleteId !== null && (
                 <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('schedule.deleteConfirm')}>

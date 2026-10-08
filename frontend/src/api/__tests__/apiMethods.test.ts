@@ -1603,6 +1603,24 @@ describe('api.markNotificationsRead', () => {
     })
 })
 
+describe('api.getIcalToken / regenerateMyIcalToken', () => {
+    it('GETs the personal token', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ical_token: 'tok' }))
+        const { api } = await import('../client')
+        await api.getIcalToken()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/schedule/ical-token')
+        expect(mockFetch.mock.calls[0][1].method).toBe('GET')
+    })
+
+    it('POSTs to rotate only the personal token', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({ ical_token: 'new' }))
+        const { api } = await import('../client')
+        await api.regenerateMyIcalToken()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/schedule/ical-token/regenerate')
+        expect(mockFetch.mock.calls[0][1].method).toBe('POST')
+    })
+})
+
 describe('api.regenerateIcalToken', () => {
     it('POSTs to /club/settings/regenerate-ical-token', async () => {
         mockFetch.mockResolvedValueOnce(jsonOk({ ical_token: 'new-tok' }))

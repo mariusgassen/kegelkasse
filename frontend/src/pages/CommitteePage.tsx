@@ -23,13 +23,7 @@ import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
-
-function fDate(isoStr: string) {
-    const date = isoStr.length > 10 ? isoStr.slice(0, 10) : isoStr
-    return new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
-        weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
-    })
-}
+import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
 
 function fDateTime(isoStr: string) {
     return new Date(isoStr).toLocaleString('de-DE', {
@@ -279,6 +273,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     const [openCommentTripId, setOpenCommentTripId] = useState<number | null>(null)
     const [highlightCommentId, setHighlightCommentId] = useState<number | null>(null)
     const [date, setDate] = useState(todayStr())
+    const [endDate, setEndDate] = useState('')
     const [destination, setDestination] = useState('')
     const [note, setNote] = useState('')
     const [saving, setSaving] = useState(false)
@@ -297,12 +292,14 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     function openEdit(trip: ClubTrip) {
         setEditTrip(trip)
         setDate(trip.date.slice(0, 10))
+        setEndDate(trip.end_date ? trip.end_date.slice(0, 10) : '')
         setDestination(trip.destination)
         setNote(trip.note || '')
     }
 
     function resetForm() {
         setDate(todayStr())
+        setEndDate('')
         setDestination('')
         setNote('')
         setEditTrip(null)
@@ -313,7 +310,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         if (!destination.trim()) return
         setSaving(true)
         try {
-            await api.createTrip({date, destination: destination.trim(), note: note.trim() || undefined})
+            await api.createTrip({date, end_date: endDate || undefined, destination: destination.trim(), note: note.trim() || undefined})
             await qc.invalidateQueries({queryKey: ['committee-trips']})
             resetForm()
             showToast('✓ Kegelfahrt eingetragen')
@@ -328,7 +325,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         if (!editTrip || !destination.trim()) return
         setSaving(true)
         try {
-            await api.updateTrip(editTrip.id, {date, destination: destination.trim(), note: note.trim() || undefined})
+            await api.updateTrip(editTrip.id, {date, end_date: endDate, destination: destination.trim(), note: note.trim() || undefined})
             await qc.invalidateQueries({queryKey: ['committee-trips']})
             resetForm()
             showToast(t('club.savedOk'))
@@ -355,8 +352,9 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         ? (trips as ClubTrip[]).filter(tr =>
             tr.destination.toLowerCase().includes(tq) || (tr.note ?? '').toLowerCase().includes(tq))
         : trips as ClubTrip[]
-    const upcoming = filteredTrips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') >= now)
-    const past = filteredTrips.filter((tr: ClubTrip) => new Date(tr.date + 'Z') < now)
+    // A running multi-day trip stays "upcoming" until its last day is over
+    const upcoming = filteredTrips.filter((tr: ClubTrip) => !isTripPast(tr.date, tr.end_date, now))
+    const past = filteredTrips.filter((tr: ClubTrip) => isTripPast(tr.date, tr.end_date, now))
 
     return (
         <div>
@@ -419,8 +417,8 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
             {addOpen && (
                 <Sheet open onClose={resetForm} title={t('committee.trip.new')} onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
-                        <TripFormFields date={date} destination={destination} note={note}
-                                        onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                        <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
+                                        onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
                         <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
                         </button>
@@ -432,8 +430,8 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
             {editTrip && (
                 <Sheet open onClose={resetForm} title={t('committee.trip.edit')} onSubmit={handleUpdate}>
                     <div className="flex flex-col gap-3">
-                        <TripFormFields date={date} destination={destination} note={note}
-                                        onDate={setDate} onDestination={setDestination} onNote={setNote}/>
+                        <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
+                                        onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
                         <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
                         </button>
@@ -457,11 +455,13 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     )
 }
 
-function TripFormFields({date, destination, note, onDate, onDestination, onNote}: {
+function TripFormFields({date, endDate, destination, note, onDate, onEndDate, onDestination, onNote}: {
     date: string
+    endDate: string
     destination: string
     note: string
     onDate: (v: string) => void
+    onEndDate: (v: string) => void
     onDestination: (v: string) => void
     onNote: (v: string) => void
 }) {
@@ -471,6 +471,13 @@ function TripFormFields({date, destination, note, onDate, onDestination, onNote}
             <div>
                 <label className="field-label">{t('committee.trip.date')}</label>
                 <input type="date" className="kce-input" value={date} onChange={e => onDate(e.target.value)}/>
+            </div>
+            <div>
+                <label className="field-label">{t('committee.trip.endDate')}</label>
+                <input type="date" className="kce-input" value={endDate} min={date}
+                       aria-label={t('committee.trip.endDate')}
+                       onChange={e => onEndDate(e.target.value)}/>
+                <p className="text-xs text-muted mt-1">{t('committee.trip.endDateHint')}</p>
             </div>
             <div>
                 <label className="field-label">{t('committee.trip.destination')}</label>
@@ -517,7 +524,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
                         <span className="text-lg">🚌</span>
                         <p className="font-bold text-ink text-sm leading-snug">{trip.destination}</p>
                     </div>
-                    <p className="text-xs text-accent-fg font-bold">{fDate(trip.date)}</p>
+                    <p className="text-xs text-accent-fg font-bold">{formatTripRange(trip.date, trip.end_date)}</p>
                     {trip.note && (
                         <p className="text-muted text-xs mt-1 whitespace-pre-wrap">{trip.note}</p>
                     )}

@@ -29,6 +29,8 @@ Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspiel
 ## Kegelfahrten
 
 - VGA-Mitglieder und Admins können Kegelfahrten mit Datum, Ziel und optionaler Notiz eintragen
+- Für mehrtägige Fahrten gibt es ein optionales **Enddatum** — die Karte zeigt dann den ganzen Zeitraum, und die Fahrt gilt bis zu ihrem letzten Tag als „kommend"
+- Kegelfahrten erscheinen außerdem als ganztägige Termine in deinem persönlichen Kalender-Abo (siehe [Termine](termine.md))
 - Beim Eintragen einer Fahrt erhalten alle Clubmitglieder eine **Push-Notification**
 - Kommende Fahrten erscheinen oben, vergangene darunter
 - Bestehende Fahrten können bearbeitet und gelöscht werden

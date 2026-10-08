@@ -786,6 +786,65 @@ describe('CommitteePage — trip details', () => {
         await waitFor(() => expect(screen.getByText('action.edit')).toBeInTheDocument())
     })
 
+    it('sends the optional end date when creating a trip', async () => {
+        await setupAsAdmin()
+        await setupWithTrips()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createTrip).mockResolvedValueOnce({ id: 99 } as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.trip\.add/))
+        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.change(screen.getByPlaceholderText('committee.trip.destinationPlaceholder'), { target: { value: 'Prag' } })
+        fireEvent.change(screen.getByLabelText('committee.trip.endDate'), { target: { value: '2099-01-03' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createTrip).toHaveBeenCalledWith(expect.objectContaining({ destination: 'Prag', end_date: '2099-01-03' }))
+        })
+    })
+
+    it('omits end_date on create when the field is left empty', async () => {
+        await setupAsAdmin()
+        await setupWithTrips()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createTrip).mockResolvedValueOnce({ id: 99 } as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText(/committee\.trip\.add/))
+        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.change(screen.getByPlaceholderText('committee.trip.destinationPlaceholder'), { target: { value: 'Bonn' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createTrip).toHaveBeenCalled())
+        expect(vi.mocked(api.createTrip).mock.calls[0][0].end_date).toBeUndefined()
+    })
+
+    it('prefills the end date when editing and sends an empty string to clear it', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([{ ...TRIPS[0], end_date: '2026-04-17T00:00' }] as any)
+        vi.mocked(api.updateTrip).mockResolvedValueOnce({ id: 1 } as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        await clickCardAction('action.edit')
+        const endInput = await waitFor(() => screen.getByLabelText('committee.trip.endDate')) as HTMLInputElement
+        expect(endInput.value).toBe('2026-04-17')
+        fireEvent.change(endInput, { target: { value: '' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateTrip).toHaveBeenCalledWith(1, expect.objectContaining({ end_date: '' }))
+        })
+    })
+
+    it('shows the whole range on a multi-day trip card', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([{ ...TRIPS[0], end_date: '2026-04-17T00:00' }] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('München'))
+        expect(screen.getByText(/15\.04\.2026.*–.*17\.04\.2026/)).toBeInTheDocument()
+    })
+
     it('opens edit trip sheet when the edit action is picked', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')

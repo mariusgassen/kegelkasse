@@ -23,6 +23,18 @@ _MONTHS: dict[str, tuple[str, ...]] = {
 }
 
 _STRINGS: dict[str, dict[str, str]] = {
+    "ical.rsvp.attending": {"de": "Zugesagt", "en": "Attending"},
+    "ical.rsvp.absent": {"de": "Abgesagt", "en": "Declined"},
+    "ical.rsvp.none": {"de": "Noch keine Antwort", "en": "No answer yet"},
+    "ical.rsvp.label": {"de": "Deine Antwort: {status}", "en": "Your answer: {status}"},
+    "ical.attendees": {"de": "Dabei ({n}): {names}", "en": "Attending ({n}): {names}"},
+    "ical.absentees": {"de": "Abgesagt ({n}): {names}", "en": "Declined ({n}): {names}"},
+    "ical.guests": {"de": "Gäste ({n}): {names}", "en": "Guests ({n}): {names}"},
+    "ical.open": {"de": "In der App öffnen: {url}", "en": "Open in the app: {url}"},
+    "ical.rsvp.link": {"de": "Zu-/Absagen: {url}", "en": "RSVP: {url}"},
+    "ical.trip": {"de": "Kegelfahrt", "en": "Bowling trip"},
+    "ical.event": {"de": "Kegelabend", "en": "Bowling evening"},
+    "ical.calname": {"de": "Kegeltermine – {club}", "en": "Bowling events – {club}"},
     "digest.subject": {
         "de": "Deine Kegelkasse-Zusammenfassung",
         "en": "Your Kegelkasse digest",
