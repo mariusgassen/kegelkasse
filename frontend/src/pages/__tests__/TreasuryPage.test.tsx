@@ -1600,6 +1600,24 @@ describe('TreasuryPage — booking sheet member picker', () => {
             expect(api.createMemberPayment).toHaveBeenCalled()
         })
     })
+
+    it('offers "book as club expense" for member deposits and sends the flag', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.createMemberPayment).mockResolvedValueOnce({ id: 201, amount: 30, note: 'Bahn', created_at: null, date: null } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect(screen.queryByText('treasury.booking.asExpense')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText('Hansi'))
+        fireEvent.click(screen.getByLabelText(/treasury\.booking\.asExpense/))
+        fireEvent.change(screen.getAllByPlaceholderText('0,00')[0], { target: { value: '30,00' } })
+        fireEvent.change(screen.getByPlaceholderText('treasury.payment.notePlaceholder'), { target: { value: 'Bahn' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.createMemberPayment).toHaveBeenCalledWith(expect.objectContaining({ amount: 30, note: 'Bahn', as_club_expense: true }))
+        })
+    })
 })
 
 // ── additional coverage: booking sheet date input (line 1058) ──────────────────

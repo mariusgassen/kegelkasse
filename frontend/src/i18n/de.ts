@@ -607,6 +607,8 @@ export const de = {
     "treasury.booking.edit": "Buchung bearbeiten",
     "treasury.booking.edited": "Bearbeitet",
     "treasury.booking.for": "Für",
+    "treasury.booking.asExpense": "Als Vereinsausgabe verbuchen",
+    "treasury.booking.asExpenseHint": "Mitglied hat etwas für den Verein ausgelegt (z. B. Bahn): Gutschrift auf dem Konto und gleichzeitig eine verknüpfte Vereinsausgabe. Beschreibung ist Pflicht.",
     "treasury.booking.club": "Verein",
     "treasury.booking.income": "Einnahme",
     "treasury.booking.expense": "Ausgabe",

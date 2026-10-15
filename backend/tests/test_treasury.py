@@ -209,6 +209,56 @@ class TestCreateMemberPayment:
         ).count() == 1
 
 
+class TestPaymentAsClubExpense:
+    URL = "/api/v1/club/member-payments"
+
+    def _create(self, client, member, headers, **kw):
+        body = {"regular_member_id": member.id, "amount": 30, "note": "Bahn", **kw}
+        return client.post(self.URL, json=body, headers=headers)
+
+    def test_creates_linked_expense(self, client, db, club, regular_member, admin_headers):
+        resp = self._create(client, regular_member, admin_headers, as_club_expense=True)
+        assert resp.status_code == 201
+        pay = db.query(MemberPayment).filter(MemberPayment.id == resp.json()["id"]).one()
+        exp = db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one()
+        assert pay.transfer_group_id and pay.transfer_group_id == exp.transfer_group_id
+        assert exp.amount == 30 and exp.description == "Bahn"
+
+    def test_plain_deposit_creates_no_expense(self, client, db, club, regular_member, admin_headers):
+        assert self._create(client, regular_member, admin_headers).status_code == 201
+        assert db.query(ClubExpense).filter(ClubExpense.club_id == club.id).count() == 0
+
+    def test_requires_positive_amount_and_note(self, client, regular_member, admin_headers):
+        assert self._create(client, regular_member, admin_headers, as_club_expense=True, amount=-5).status_code == 400
+        assert self._create(client, regular_member, admin_headers, as_club_expense=True, note="").status_code == 400
+
+    def test_edit_payment_syncs_expense(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, as_club_expense=True).json()["id"]
+        r = client.patch(f"{self.URL}/{pid}", json={"amount": 25}, headers=admin_headers)
+        assert r.status_code == 200
+        assert db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one().amount == 25
+
+    def test_edit_expense_syncs_payment(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, as_club_expense=True).json()["id"]
+        eid = db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one().id
+        assert client.patch(f"/api/v1/club/expenses/{eid}", json={"amount": 20}, headers=admin_headers).status_code == 200
+        db.expire_all()
+        assert db.query(MemberPayment).filter(MemberPayment.id == pid).one().amount == 20
+
+    def test_delete_payment_deletes_expense(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, as_club_expense=True).json()["id"]
+        assert client.delete(f"{self.URL}/{pid}", headers=admin_headers).status_code == 204
+        db.expire_all()
+        assert db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one().is_deleted is True
+
+    def test_delete_expense_deletes_payment(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, as_club_expense=True).json()["id"]
+        eid = db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one().id
+        assert client.delete(f"/api/v1/club/expenses/{eid}", headers=admin_headers).status_code == 204
+        db.expire_all()
+        assert db.query(MemberPayment).filter(MemberPayment.id == pid).one().is_deleted is True
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/club/member-payments/{mid} — list payments for a member
 # ---------------------------------------------------------------------------

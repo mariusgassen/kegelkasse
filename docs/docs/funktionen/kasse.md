@@ -190,6 +190,10 @@ Mit dem **Suchfeld** lassen sich Buchungen nach Name, Notiz oder Beschreibung fi
 
 Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und ein Datum (zum Nachtragen vergangener Buchungen).
 
+### Auslage für den Verein (verknüpfte Buchung)
+
+Hat ein Mitglied etwas für den Verein bezahlt (z. B. die Bahn), wähle bei **+ Buchung** das Mitglied, Richtung **Einzahlung** und aktiviere **Als Vereinsausgabe verbuchen** (Beschreibung ist dann Pflicht). Es entstehen zwei **verknüpfte** Buchungen: die Gutschrift auf dem Mitgliedskonto und eine gleich hohe Vereinsausgabe — der Kassenstand bleibt dadurch korrekt. Normale Einzahlungen (Schulden begleichen) bleiben unberührt, solange die Option aus ist. Betrag und Datum werden beim Bearbeiten, Stornieren beim Löschen auf beiden Buchungen mitgeführt.
+
 ### Buchung bearbeiten oder stornieren
 
 Admins können jede Buchung nachträglich korrigieren oder entfernen:
