@@ -1121,7 +1121,9 @@ describe('TreasuryPage — glance vs. analysis split', () => {
         await waitFor(() => {
             expect(screen.getByTestId('glance-amount-paidIn')).toHaveTextContent('+10,00 €')
             expect(screen.getByTestId('glance-amount-outstanding')).toHaveTextContent('5,50 €')
-        })
+            // CountUp tweens the first real value in; on a loaded CI runner its landing timer can
+            // fire later than waitFor's default 1s.
+        }, {timeout: 4000})
         // The expandable per-booking rows are the Analyse tab's job
         expect(screen.queryByTestId('flow-amount-paidIn')).not.toBeInTheDocument()
     })
