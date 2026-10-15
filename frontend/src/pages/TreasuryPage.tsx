@@ -413,6 +413,7 @@ export function TreasuryPage() {
     const [bookingAmount, setBookingAmount] = useState('')
     const [bookingNote, setBookingNote] = useState('')
     const [bookingDate, setBookingDate] = useState(todayDateInput)
+    const [bookingAsExpense, setBookingAsExpense] = useState(false)
     const [savingBooking, setSavingBooking] = useState(false)
 
     function openBookingSheet() {
@@ -421,6 +422,7 @@ export function TreasuryPage() {
         setBookingAmount('')
         setBookingNote('')
         setBookingDate(todayDateInput())
+        setBookingAsExpense(false)
         setBookingSheet(true)
     }
 
@@ -447,12 +449,15 @@ export function TreasuryPage() {
                 refetchExpenses()
             } else {
                 const amount = bookingDirection === 'in' ? abs : -abs
+                const asExpense = bookingAsExpense && bookingDirection === 'in'
                 await api.createMemberPayment({
                     regular_member_id: bookingTarget,
                     amount,
                     note: bookingNote || undefined,
                     date: bookingDate || undefined,
+                    as_club_expense: asExpense || undefined,
                 })
+                if (asExpense) refetchExpenses()
                 refetchBalances()
                 refetchGuestBalances()
                 qc.invalidateQueries({queryKey: ['member-payments', bookingTarget]})
@@ -533,7 +538,9 @@ export function TreasuryPage() {
     ] as const
 
     const isClubBooking = bookingTarget === 'club'
-    const bookingValid = parseAmount(bookingAmount) > 0 && (isClubBooking ? bookingNote.trim().length > 0 : true)
+    const showAsExpense = !isClubBooking && bookingDirection === 'in'
+    const bookingValid = parseAmount(bookingAmount) > 0
+        && (isClubBooking || (showAsExpense && bookingAsExpense) ? bookingNote.trim().length > 0 : true)
     const editValid = parseAmount(editAmount) > 0 && (editTarget?.kind === 'expense' ? editNote.trim().length > 0 : true)
 
     return (
@@ -1558,6 +1565,18 @@ export function TreasuryPage() {
                                onChange={e => setBookingNote(e.target.value)}
                                placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
                     </div>
+
+                    {/* Member paid a club cost out of pocket → also book a linked club expense */}
+                    {showAsExpense && (
+                        <label className="flex items-start gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" className="mt-1" checked={bookingAsExpense}
+                                   onChange={e => setBookingAsExpense(e.target.checked)}/>
+                            <span>
+                                <span className="font-bold">{t('treasury.booking.asExpense')}</span>
+                                <span className="block text-xs text-muted">{t('treasury.booking.asExpenseHint')}</span>
+                            </span>
+                        </label>
+                    )}
 
                     {/* Date override */}
                     <div>

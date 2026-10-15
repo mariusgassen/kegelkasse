@@ -899,12 +899,32 @@ class PaymentCreate(TrimmedModel):
     note: Optional[str] = None
     date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
     idempotency_key: Optional[str] = None
+    # Member paid a club cost out of pocket (e.g. lane rental): also book a linked club expense
+    as_club_expense: bool = False
 
 
 class PaymentUpdate(TrimmedModel):
     amount: Optional[float] = None
     note: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
+
+
+def _linked_expense(db: Session, club_id: int, group_id: Optional[str]) -> Optional[ClubExpense]:
+    if not group_id:
+        return None
+    return db.query(ClubExpense).filter(
+        ClubExpense.club_id == club_id, ClubExpense.transfer_group_id == group_id,
+        ClubExpense.is_deleted == False,
+    ).first()
+
+
+def _linked_payment(db: Session, club_id: int, group_id: Optional[str]) -> Optional[MemberPayment]:
+    if not group_id:
+        return None
+    return db.query(MemberPayment).filter(
+        MemberPayment.club_id == club_id, MemberPayment.transfer_group_id == group_id,
+        MemberPayment.is_deleted == False,
+    ).first()
 
 
 def _payment_dict(p: MemberPayment) -> dict:
@@ -937,6 +957,13 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
             parsed_date = date_type.fromisoformat(data.date)
         except ValueError:
             raise HTTPException(400, "Ungültiges Datum")
+    group_id = None
+    if data.as_club_expense:
+        if data.amount < 0:
+            raise HTTPException(400, "Auslagen müssen ein positiver Betrag sein")
+        if not data.note:
+            raise HTTPException(400, "Beschreibung erforderlich")
+        group_id = str(uuid.uuid4())
     payment = MemberPayment(
         club_id=user.club_id,
         regular_member_id=data.regular_member_id,
@@ -945,8 +972,15 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         created_by=user.id,
         date=parsed_date,
         idempotency_key=data.idempotency_key,
+        transfer_group_id=group_id,
     )
     db.add(payment)
+    if group_id:
+        # Paired club expense keeps the treasury correct: the member is credited, the club paid the bill.
+        db.add(ClubExpense(
+            club_id=user.club_id, amount=data.amount, description=data.note,
+            created_by=user.id, date=parsed_date, transfer_group_id=group_id,
+        ))
     db.commit()
     db.refresh(payment)
     logger.info("member payment created: id=%s member=%s amount=%.2f by user=%s",
@@ -983,6 +1017,12 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
                 raise HTTPException(400, "Ungültiges Datum")
     p.updated_at = datetime.now(timezone.utc)
     p.updated_by = user.id
+    twin = _linked_expense(db, user.club_id, p.transfer_group_id)
+    if twin:
+        twin.amount = p.amount
+        twin.date = p.date
+        twin.updated_at = p.updated_at
+        twin.updated_by = user.id
     db.commit()
     db.refresh(p)
     logger.info("member payment updated: id=%s member=%s amount=%.2f→%.2f by user=%s",
@@ -1009,6 +1049,12 @@ def delete_member_payment(pid: int, background_tasks: BackgroundTasks, reason: O
     p.deleted_at = datetime.now(timezone.utc)
     p.deleted_by = user.id
     p.delete_reason = reason
+    twin = _linked_expense(db, user.club_id, p.transfer_group_id)
+    if twin:
+        twin.is_deleted = True
+        twin.deleted_at = p.deleted_at
+        twin.deleted_by = user.id
+        twin.delete_reason = reason
     db.commit()
     logger.info("member payment deleted: id=%s member=%s amount=%.2f by user=%s reason=%s",
                 p.id, p.regular_member_id, p.amount, user.id, reason)
@@ -1368,6 +1414,7 @@ def _serialize_expense(e: ClubExpense) -> dict:
         "created_at": e.created_at.isoformat() if e.created_at else None,
         "updated_at": e.updated_at.isoformat() if e.updated_at else None,
         "date": e.date.isoformat() if e.date else None,
+        "linked_payment": bool(e.transfer_group_id),
     }
 
 
@@ -1443,6 +1490,12 @@ def update_expense(eid: int, data: ExpenseUpdate, db: Session = Depends(get_db),
                 raise HTTPException(400, "Ungültiges Datum")
     expense.updated_at = datetime.now(timezone.utc)
     expense.updated_by = user.id
+    twin = _linked_payment(db, user.club_id, expense.transfer_group_id)
+    if twin:
+        twin.amount = expense.amount
+        twin.date = expense.date
+        twin.updated_at = expense.updated_at
+        twin.updated_by = user.id
     db.commit()
     db.refresh(expense)
     logger.info("club expense updated: id=%s amount=%.2f→%.2f by user=%s",
@@ -1462,6 +1515,12 @@ def delete_expense(eid: int, reason: Optional[str] = None, db: Session = Depends
     expense.deleted_at = datetime.now(timezone.utc)
     expense.deleted_by = user.id
     expense.delete_reason = reason
+    twin = _linked_payment(db, user.club_id, expense.transfer_group_id)
+    if twin:
+        twin.is_deleted = True
+        twin.deleted_at = expense.deleted_at
+        twin.deleted_by = user.id
+        twin.delete_reason = reason
     db.commit()
     logger.info("club expense deleted: id=%s amount=%.2f by user=%s reason=%s",
                 expense.id, expense.amount, user.id, reason)

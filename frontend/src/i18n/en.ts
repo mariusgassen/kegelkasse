@@ -607,6 +607,8 @@ export const en = {
     "treasury.booking.edit": "Edit booking",
     "treasury.booking.edited": "Edited",
     "treasury.booking.for": "For",
+    "treasury.booking.asExpense": "Book as club expense",
+    "treasury.booking.asExpenseHint": "Member paid for the club (e.g. lane rental): credits the account and creates a linked club expense at the same time. Description is required.",
     "treasury.booking.club": "Club",
     "treasury.booking.income": "Income",
     "treasury.booking.expense": "Expense",

@@ -627,7 +627,7 @@ export const api = {
         id: number; regular_member_id: number; member_name: string;
         amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
     }[]>('GET', '/club/member-payments'),
-    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string }) =>
+    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string; as_club_expense?: boolean }) =>
         request<{
             id: number;
             amount: number;
