@@ -43,7 +43,7 @@ export default defineConfig({
             // We register the SW ourselves (useSwUpdate hook) to show an "update available" prompt
             // instead of silently reloading mid-evening.
             injectRegister: false,
-            includeAssets: ['icon.svg'],
+            includeAssets: ['icon.svg', 'icons/*.png'],
             manifest: {
                 name: 'Kegelkasse',
                 short_name: 'Kegelkasse',
@@ -64,7 +64,11 @@ export default defineConfig({
                 // @ts-expect-error — not yet in vite-plugin-pwa's ManifestOptions type
                 capture_links: 'existing-client-navigate',
                 icons: [
-                    {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable'},
+                    // Firefox for Android ignores SVG-only manifests and shows no icon — it needs PNGs.
+                    {src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any'},
+                    {src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any'},
+                    {src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable'},
+                    {src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any'},
                 ],
             },
             injectManifest: {
