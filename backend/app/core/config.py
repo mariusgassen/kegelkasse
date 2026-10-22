@@ -43,4 +43,10 @@ class Settings(BaseSettings):
     BACKUP_RETAIN_FULL: int = 7          # number of full backup sets to retain
     PGB_MGMT_URL: str = "http://db:8089"
 
+    @property
+    def sync_database_url(self) -> str:
+        # SQLAlchemy 2.1 maps a bare ``postgresql://`` to psycopg 3; we ship psycopg2.
+        return self.DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+
 settings = Settings()
