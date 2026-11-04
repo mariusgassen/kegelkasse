@@ -11,3 +11,4 @@ from models.schedule import ScheduledEvening, MemberRsvp, GuestRequest  # noqa: 
 from models.user import User, InviteToken  # noqa: F401
 from models.season import SeasonSnapshot  # noqa: F401
 from models.bowling import BowlingScore  # noqa: F401
+from models.audit import TreasuryAudit, TreasuryAuditSignature  # noqa: F401
