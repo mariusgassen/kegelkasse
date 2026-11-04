@@ -11,6 +11,7 @@ import {CountUp} from '@/components/ui/CountUp'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
+import {TreasuryAudit} from '@/components/treasury/TreasuryAudit.tsx'
 import {TreasuryAnalysis} from '@/components/treasury/TreasuryAnalysis.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -85,7 +86,7 @@ export function TreasuryPage() {
 
     // Übersicht is the glance level (one card per core question); Analyse is the drill-in
     // destination that owns the player filter, the itemized money flow and the history graph.
-    const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'accounts' | 'bookings'>('overview', ['overview', 'analysis', 'accounts', 'bookings'])
+    const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'accounts' | 'bookings' | 'audit'>('overview', ['overview', 'analysis', 'accounts', 'bookings', 'audit'])
     const [showExportSheet, setShowExportSheet] = useState(false)
 
     // Club data (for PayPal handle)
@@ -546,6 +547,7 @@ export function TreasuryPage() {
         {id: 'analysis', label: t('treasury.tab.analysis')},
         {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : '')},
         {id: 'bookings', label: t('treasury.tab.bookings')},
+        {id: 'audit', label: t('treasury.tab.audit')},
     ] as const
 
     const isClubBooking = bookingTarget === 'club'
@@ -920,6 +922,7 @@ export function TreasuryPage() {
 
             {/* ── Analyse ── */}
             {tab === 'analysis' && <TreasuryAnalysis/>}
+            {tab === 'audit' && <TreasuryAudit/>}
 
             {/* ── Konten ── */}
             {tab === 'accounts' && (

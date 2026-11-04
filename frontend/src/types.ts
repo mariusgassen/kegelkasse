@@ -186,6 +186,7 @@ export interface RegularMember {
     is_guest: boolean
     is_active: boolean
     is_committee: boolean
+    is_auditor?: boolean
     avatar: string | null
     deactivated_at: string | null
 }
@@ -645,4 +646,82 @@ export interface BowlingSubmitResult {
     leaderboard: BowlingLeaderboardEntry[]
     rank: number | null
     is_record: boolean
+}
+
+// ── Kassenprüfung (treasury audit) ──
+export type TreasuryAuditStatus = 'open' | 'approved' | 'objection'
+
+export interface TreasuryAuditBooking {
+    kind: 'payment' | 'expense'
+    id: number
+    date: string | null
+    /** Cash effect: positive = money in, negative = money out. */
+    amount: number
+    label: string | null
+    note: string | null
+    created_by: string | null
+    updated_at?: string
+    updated_by?: string | null
+    cancelled?: boolean
+    deleted_at?: string
+    deleted_by?: string | null
+    reason?: string | null
+}
+
+export interface TreasuryAuditBalance {
+    regular_member_id: number | null
+    name: string
+    nickname: string | null
+    penalty_total: number
+    payments_total: number
+    balance: number
+    is_guest: boolean
+}
+
+export interface TreasuryAuditSummary {
+    opening_cash: number
+    deposits: number
+    payouts: number
+    expenses: number
+    other_income: number
+    closing_cash: number
+    booking_count: number
+    outstanding_total: number
+    credit_total: number
+}
+
+export interface TreasuryAuditSnapshot extends TreasuryAuditSummary {
+    bookings: TreasuryAuditBooking[]
+    edited: TreasuryAuditBooking[]
+    cancelled: TreasuryAuditBooking[]
+    balances: TreasuryAuditBalance[]
+}
+
+export interface TreasuryAuditSignature {
+    id: number
+    signer_name: string
+    approved: boolean
+    note: string | null
+    signed_at: string | null
+    is_me: boolean
+}
+
+export interface TreasuryAudit {
+    id: number
+    title: string | null
+    period_start: string
+    period_end: string
+    created_at: string | null
+    created_by_name: string | null
+    status: TreasuryAuditStatus
+    signed_by_me: boolean
+    signatures: TreasuryAuditSignature[]
+    summary: TreasuryAuditSummary & { edited_count: number; cancelled_count: number }
+    snapshot?: TreasuryAuditSnapshot
+}
+
+export interface TreasuryAuditList {
+    can_create: boolean
+    can_sign: boolean
+    audits: TreasuryAudit[]
 }
