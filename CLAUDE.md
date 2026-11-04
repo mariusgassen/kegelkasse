@@ -183,7 +183,11 @@ service worker + IndexedDB for offline support.
   immediately run `cd backend && poetry lock` to regenerate `poetry.lock` and commit both files together.
 - **Dependency freshness:** Always keep dependencies at their latest compatible versions. When Dependabot opens PRs,
   handle them promptly — merge safe patch/minor bumps directly, and perform major-version migrations immediately rather
-  than deferring them. Do not let major-version upgrades accumulate. Known blocking constraints (document them inline):
+  than deferring them. Do not let major-version upgrades accumulate.
+  `dependabot-autopilot.yml` runs every 30 min: squash-merges green patch/minor Dependabot PRs, lets Claude attempt
+  one CI fix on red ones (`autopilot:fix-attempted` → `autopilot:needs-human`), labels green majors `autopilot:major`
+  for manual review; add `autopilot:skip` to opt a PR out.
+  Known blocking constraints (document them inline):
   - `eslint-plugin-react-hooks@7.x` caps ESLint at `^9` → unblocks when a new release adds `^10` support.
   - `typescript` capped at `^6.x` → `@typescript-eslint` (`typescript-estree`) declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"` and crashes (`Cannot read properties of undefined (reading 'Cjs')`) against TypeScript 7 (the Corsa/native rewrite); unblocks when `@typescript-eslint` ships TS7 support.
 - **Design consistency:** Apply the established design system everywhere and immediately — tabs, sheets, top-level
