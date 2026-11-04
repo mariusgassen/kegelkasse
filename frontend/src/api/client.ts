@@ -41,6 +41,9 @@ import {
     ClubConfigBundle,
     GuestRequest,
     GuestRequestDecision,
+    TreasuryAudit,
+    TreasuryAuditList,
+    TreasuryAuditSnapshot,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -840,6 +843,21 @@ export const api = {
     deletePoll: (id: number) => request<void>('DELETE', `/committee/polls/${id}`),
     castVote: (pollId: number, optionIds: number[]) => request<void>('POST', `/committee/polls/${pollId}/vote`, { option_ids: optionIds }),
     retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
+
+    // Kassenprüfung (treasury audit)
+    listTreasuryAudits: () => request<TreasuryAuditList>('GET', '/treasury-audits/'),
+    previewTreasuryAudit: (periodStart: string, periodEnd: string) =>
+        request<TreasuryAuditSnapshot>('GET', `/treasury-audits/preview?period_start=${periodStart}&period_end=${periodEnd}`),
+    getTreasuryAudit: (id: number) => request<TreasuryAudit>('GET', `/treasury-audits/${id}`),
+    createTreasuryAudit: (d: { period_start: string; period_end: string; title?: string }) =>
+        request<TreasuryAudit>('POST', '/treasury-audits/', d),
+    signTreasuryAudit: (id: number, d: { approved: boolean; note?: string }) =>
+        request<TreasuryAudit>('POST', `/treasury-audits/${id}/sign`, d),
+    withdrawTreasuryAuditSignature: (id: number) => request<void>('DELETE', `/treasury-audits/${id}/sign`),
+    deleteTreasuryAudit: (id: number) => request<void>('DELETE', `/treasury-audits/${id}`),
+    listAuditors: () => request<{ id: number; name: string; nickname: string | null }[]>('GET', '/treasury-audits/auditors'),
+    setAuditor: (memberId: number, isAuditor: boolean) =>
+        request<{ id: number; is_auditor: boolean }>('PATCH', `/treasury-audits/auditors/${memberId}`, {is_auditor: isAuditor}),
 
     // Season closing workflow (admin only)
     listSeasonAvailableYears: () => request<number[]>('GET', '/season/available-years'),
