@@ -1,0 +1,147 @@
+---
+name: Dependabot Autopilot
+
+# Merges green Dependabot PRs (patch/minor) and lets Claude try to fix red ones.
+# Decision logic: .github/scripts/dependabot_autopilot.py
+#
+# Runs on a schedule rather than on Dependabot's pull_request events on purpose:
+# Dependabot-triggered runs get a read-only token and no Actions secrets, while
+# scheduled runs execute in the repo's own context.
+#
+# Required secrets (Settings -> Secrets and variables -> Actions):
+#   AUTOFIX_TOKEN      fine-grained PAT, this repo only: Contents, Pull requests,
+#                      Issues and Workflows = read/write. Needed because pushes and
+#                      merges made with GITHUB_TOKEN don't trigger CI / push workflows,
+#                      and GITHUB_TOKEN can't merge PRs that touch .github/workflows.
+#   ANTHROPIC_API_KEY  for the Claude fix job.
+# Optional variable: AUTOPILOT_MERGE_MAJOR=true also auto-merges green major bumps.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print decisions, change nothing"
+        type: boolean
+        default: false
+
+concurrency:
+  group: dependabot-autopilot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    outputs:
+      fix_matrix: ${{ steps.triage.outputs.fix_matrix }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Merge green PRs, collect red ones
+        id: triage
+        env:
+          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          AUTO_MERGE_MAJOR: ${{ vars.AUTOPILOT_MERGE_MAJOR || 'false' }}
+        run: python3 .github/scripts/dependabot_autopilot.py
+
+  fix:
+    needs: triage
+    if: needs.triage.outputs.fix_matrix != '[]' && needs.triage.outputs.fix_matrix != '' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        pr: ${{ fromJson(needs.triage.outputs.fix_matrix) }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Mark fix attempt
+        # Labelled up front so an overlapping run never fixes the same PR twice,
+        # and the next red run hands the PR to a human instead of looping.
+        run: gh pr edit ${{ matrix.pr.number }} --add-label autopilot:fix-attempted
+
+      - name: Check out PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.pr.branch }}
+          token: ${{ secrets.AUTOFIX_TOKEN }}
+          fetch-depth: 0
+
+      - name: Bail out if the branch moved
+        run: test "$(git rev-parse HEAD)" = "${{ matrix.pr.sha }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install Poetry and backend deps
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/poetry" -C backend install --no-root --with test || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps || true
+
+      - name: Configure git
+        run: |
+          git config user.name "dependabot-autopilot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Let Claude fix CI
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.AUTOFIX_TOKEN }}
+          claude_args: >-
+            --max-turns 80
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+          prompt: |
+            You are on branch `${{ matrix.pr.branch }}` of ${{ github.repository }},
+            the head of Dependabot PR #${{ matrix.pr.number }}: "${{ matrix.pr.title }}".
+            Its CI is failing. Make CI pass with the smallest correct change.
+
+            1. Read CLAUDE.md (conventions, known blocking dependency constraints).
+            2. Find the failures: `gh pr checks ${{ matrix.pr.number }}`, then
+               `gh run view <run-id> --log-failed` for each failed run.
+            3. Fix the root cause in our code so it works with the new dependency
+               versions (API migrations, type errors, lint, lockfile issues).
+               If backend/pyproject.toml changes, run `cd backend && poetry lock`.
+            4. Re-run only the failing check locally (e.g. `cd frontend && npm run lint`,
+               `npm run build`, `npx vitest run <file>`, `cd backend && poetry run pytest <file>`,
+               `poetry run ruff check .`) and confirm it passes.
+            5. Commit with a clear message and `git push origin HEAD`.
+
+            Rules:
+            - Never skip, delete, or weaken tests or lint rules to get green.
+            - If one bump is genuinely incompatible and can't reasonably be migrated,
+              revert just that package to its previous version (manifest + lockfile),
+              and say so in the commit message.
+            - Don't touch unrelated code, don't bump versions in frontend/package.json,
+              don't edit .github/workflows.
+            - If you can't fix it, push nothing and explain why in your final message.
+
+      - name: Report on the PR
+        if: always()
+        run: |
+          gh pr comment ${{ matrix.pr.number }} --body "Dependabot autopilot: Claude attempted a CI fix ([run log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})). If CI turns green, the PR merges on the next autopilot run; if it stays red, it gets \`autopilot:needs-human\`."
