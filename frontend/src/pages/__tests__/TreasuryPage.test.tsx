@@ -128,6 +128,7 @@ async function setupDefaultMocks() {
     vi.mocked(api.getExpenses).mockResolvedValue([] as any)
     vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
     vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    vi.mocked(api.getMemberPenalties).mockResolvedValue([] as any)
 }
 
 async function setupWithData() {
@@ -140,6 +141,7 @@ async function setupWithData() {
     vi.mocked(api.getExpenses).mockResolvedValue(EXPENSES as any)
     vi.mocked(api.getAllPayments).mockResolvedValue(PAYMENTS as any)
     vi.mocked(api.getMemberPayments).mockResolvedValue([] as any)
+    vi.mocked(api.getMemberPenalties).mockResolvedValue([] as any)
 }
 
 async function setupAsAdmin() {
@@ -999,6 +1001,30 @@ describe('TreasuryPage — member payment delete', () => {
         await waitFor(() => {
             expect(screen.getByText('Bareinzahlung')).toBeInTheDocument()
         })
+    })
+
+    it('shows one summed penalty line per evening alongside payments', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 50, amount: 5.00, note: 'Bareinzahlung', created_at: '2026-01-10T12:00:00', updated_at: null, date: null },
+        ] as any)
+        vi.mocked(api.getMemberPenalties).mockResolvedValue([
+            { id: 1, amount: 1.00, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 7, evening_date: '2026-01-05T20:00:00', is_absence: false, created_at: '2026-01-05T20:30:00' },
+            { id: 2, amount: 2.50, icon: '🎳', penalty_type_name: 'Kranz', evening_id: 7, evening_date: '2026-01-05T20:00:00', is_absence: false, created_at: '2026-01-05T21:00:00' },
+            { id: 3, amount: 2.00, icon: '🚪', penalty_type_name: 'Abwesend', evening_id: 8, evening_date: '2026-01-19T20:00:00', is_absence: true, created_at: '2026-01-19T23:00:00' },
+        ] as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getAllByTestId('statement-evening')).toHaveLength(2))
+        const rows = screen.getAllByTestId('statement-evening')
+        // newest first: absence evening (19.01.), then the played evening (05.01.)
+        expect(rows[0].textContent).toContain('treasury.statement.absence')
+        expect(rows[0].textContent).toContain('-2,00')
+        expect(rows[1].textContent).toContain('treasury.statement.evening')
+        expect(rows[1].textContent).toContain('-3,50')
+        expect(screen.queryByText('Pudel')).not.toBeInTheDocument()
+        expect(screen.getByText('Bareinzahlung')).toBeInTheDocument()
     })
 })
 

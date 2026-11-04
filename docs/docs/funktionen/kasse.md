@@ -163,6 +163,15 @@ Der **Konten**-Tab zeigt den aktuellen Saldo jedes Mitglieds.
 
 Admins können hier Zahlungen erfassen — siehe [Admin → Mitgliedskonten & Zahlungen](/rollen/admin#mitgliedskonten--zahlungen).
 
+### Buchungshistorie eines Kontos
+
+Ein Antippen der Zeile klappt die **Buchungshistorie** des Kontos auf — alle Beträge, die das Konto bewegt haben, neueste zuerst:
+
+- **Einzahlungen und Auszahlungen** einzeln, mit Notiz und Datum (Admins können sie dort bearbeiten oder stornieren)
+- **Strafen pro Kegelabend** als eine Zeile mit der **Summe** der Strafen dieses Abends und deren Anzahl (🎳 Kegelabend · 4 Strafen) — nicht jede Strafe einzeln. Abende, an denen nur eine Abwesenheitsstrafe angefallen ist, erscheinen als 🚪 Abwesenheit.
+
+Bei Gästen zählt pro Abend der gedeckelte Betrag, der tatsächlich im Saldo landet.
+
 :::info Guthaben ist kein „freies" Kassengeld
 Hat ein Mitglied Guthaben (mehr eingezahlt als Strafen), zählt dieser Betrag zwar zum Kassenstand (es ist reales, eingezahltes Geld), ist der Kasse aber im übertragenen Sinn „geschuldet" — er wird automatisch mit künftigen Strafen verrechnet (bzw. bei Austritt ausgezahlt). Es ist also kein frei verfügbares Vereinsgeld.
 :::

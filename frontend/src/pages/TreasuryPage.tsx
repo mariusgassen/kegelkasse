@@ -20,6 +20,7 @@ import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {buildAccountStatement} from '@/lib/accountStatement.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -173,6 +174,16 @@ export function TreasuryPage() {
         enabled: !!expandedMember,
         staleTime: 1000 * 30,
     })
+    const {data: memberPenalties = []} = useQuery({
+        queryKey: ['member-penalties', expandedMember],
+        queryFn: () => expandedMember ? api.getMemberPenalties(expandedMember) : null,
+        enabled: !!expandedMember,
+        staleTime: 1000 * 30,
+    })
+    const accountStatement = buildAccountStatement(
+        (memberPayments ?? []) as MemberPayment[],
+        memberPenalties ?? [],
+    )
 
     // Payment sheet (for members and guests)
     const [reportingMyPayment, setReportingMyPayment] = useState(false)
@@ -1072,11 +1083,23 @@ export function TreasuryPage() {
                                         <div className="border-t border-line px-3 pb-3 pt-2">
                                             <div
                                                 className="text-xs font-bold text-muted mb-2">{t('treasury.payment.history')}</div>
-                                            {(memberPayments as MemberPayment[]).length === 0
+                                            {accountStatement.length === 0
                                                 ?
                                                 <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
-                                                : (memberPayments as MemberPayment[]).map(p => (
-                                                    <div key={p.id} className="flex items-center gap-2 mb-1.5 text-xs">
+                                                : accountStatement.map(entry => entry.kind === 'evening' ? (
+                                                    <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs"
+                                                         data-testid="statement-evening">
+                                                        <span className="font-bold flex-shrink-0 w-20 text-danger-fg">
+                                                            {fe(-entry.total)}
+                                                        </span>
+                                                        <span className="text-muted truncate flex-1">
+                                                            {entry.absenceOnly ? '🚪' : '🎳'} {entry.absenceOnly ? t('treasury.statement.absence') : t('treasury.statement.evening')}
+                                                            {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
+                                                        </span>
+                                                        <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
+                                                    </div>
+                                                ) : (() => { const p = entry.payment; return (
+                                                    <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs">
                                                         <span
                                                             className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                             {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
@@ -1096,7 +1119,7 @@ export function TreasuryPage() {
                                                                     onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</button>
                                                         )}
                                                     </div>
-                                                ))
+                                                )})())
                                             }
                                             {/* PayPal payment option for own account */}
                                             {isMe && myDebtAmount > 0 && paypalHandle && (
