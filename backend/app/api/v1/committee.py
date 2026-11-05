@@ -1,10 +1,12 @@
 """Vergnügungsausschuss (Entertainment Committee) — trips and announcements."""
 import logging
-from datetime import UTC, datetime
+import uuid
+from datetime import UTC, date as date_type, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from core.schemas import TrimmedModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_committee_or_admin
@@ -12,6 +14,7 @@ from core.database import get_db
 from core.push import push_to_club
 from models.committee import ClubAnnouncement, ClubTrip, ClubPoll, PollOption, PollVote
 from models.evening import RegularMember
+from models.payment import ClubExpense, MemberPayment
 from models.user import User
 
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ def _utc_str(dt: Optional[datetime]) -> Optional[str]:
     return dt_utc.strftime('%Y-%m-%dT%H:%M')
 
 
-def _serialize_trip(t: ClubTrip, creator_name: Optional[str]) -> dict:
+def _serialize_trip(t: ClubTrip, creator_name: Optional[str], expenses: tuple[int, float] = (0, 0.0)) -> dict:
     dt_utc = t.date.astimezone(UTC) if t.date.tzinfo else t.date.replace(tzinfo=UTC)
     return {
         "id": t.id,
@@ -47,7 +50,18 @@ def _serialize_trip(t: ClubTrip, creator_name: Optional[str]) -> dict:
         "note": t.note,
         "created_by_name": creator_name,
         "created_at": t.created_at.isoformat() if t.created_at else None,
+        "expense_count": expenses[0],
+        "expense_total": round(expenses[1], 2),
     }
+
+
+def _trip_expense_rollup(db: Session, club_id: int) -> dict[int, tuple[int, float]]:
+    """Count and sum of the club expenses booked against each trip."""
+    rows = db.query(ClubExpense.trip_id, func.count(ClubExpense.id), func.sum(ClubExpense.amount)).filter(
+        ClubExpense.club_id == club_id, ClubExpense.trip_id.isnot(None),
+        ClubExpense.is_deleted == False,  # noqa: E712
+    ).group_by(ClubExpense.trip_id).all()
+    return {tid: (count, total or 0.0) for tid, count, total in rows}
 
 
 def _creator_name(user_id: Optional[int], db: Session) -> Optional[str]:
@@ -146,7 +160,105 @@ def list_trips(
         ClubTrip.club_id == user.club_id,
         ClubTrip.is_deleted == False,
     ).order_by(ClubTrip.date).all()
-    return [_serialize_trip(t, _creator_name(t.created_by, db)) for t in items]
+    rollup = _trip_expense_rollup(db, user.club_id)
+    return [_serialize_trip(t, _creator_name(t.created_by, db), rollup.get(t.id, (0, 0.0))) for t in items]
+
+
+def _expense_day(e: ClubExpense) -> Optional[str]:
+    if e.date:
+        return e.date.isoformat()
+    return e.created_at.date().isoformat() if e.created_at else None
+
+
+@router.get("/trips/{tid}/expenses")
+def list_trip_expenses(tid: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """Club expenses booked against this trip, newest first, with who laid the money out."""
+    trip = db.query(ClubTrip).filter(
+        ClubTrip.id == tid, ClubTrip.club_id == user.club_id, ClubTrip.is_deleted == False,  # noqa: E712
+    ).first()
+    if not trip:
+        raise HTTPException(404, "Trip not found")
+    expenses = db.query(ClubExpense).filter(
+        ClubExpense.club_id == user.club_id, ClubExpense.trip_id == tid,
+        ClubExpense.is_deleted == False,  # noqa: E712
+    ).all()
+    expenses.sort(key=lambda e: (_expense_day(e) or "", e.id), reverse=True)
+    groups = [e.transfer_group_id for e in expenses if e.transfer_group_id]
+    payers: dict[str, str] = {}
+    if groups:
+        rows = db.query(MemberPayment.transfer_group_id, RegularMember.id, RegularMember.nickname, RegularMember.name).join(
+            RegularMember, RegularMember.id == MemberPayment.regular_member_id,
+        ).filter(
+            MemberPayment.club_id == user.club_id, MemberPayment.transfer_group_id.in_(groups),
+            MemberPayment.is_deleted == False,  # noqa: E712
+        ).all()
+        payers = {g: (mid, nick or name) for g, mid, nick, name in rows}
+    by_payer: dict[int, dict] = {}
+    for e in expenses:
+        mid, name = payers.get(e.transfer_group_id, (None, None)) if e.transfer_group_id else (None, None)
+        if mid is not None:
+            row = by_payer.setdefault(mid, {"member_id": mid, "name": name, "total": 0.0})
+            row["total"] = round(row["total"] + e.amount, 2)
+    return {
+        "trip_id": tid,
+        "total": round(sum(e.amount for e in expenses), 2),
+        # Out-of-pocket outlays per person; expenses the club paid directly have no payer
+        "by_payer": sorted(by_payer.values(), key=lambda r: (-r["total"], r["name"])),
+        "expenses": [{
+            "id": e.id, "description": e.description, "amount": e.amount,
+            "date": _expense_day(e),
+            "paid_by_member_id": payers[e.transfer_group_id][0] if e.transfer_group_id in payers else None,
+            "paid_by_name": payers[e.transfer_group_id][1] if e.transfer_group_id in payers else None,
+        } for e in expenses],
+    }
+
+
+class TripExpenseCreate(TrimmedModel):
+    paid_by_member_id: int
+    amount: float
+    description: str
+    date: Optional[str] = None  # ISO date YYYY-MM-DD
+
+
+@router.post("/trips/{tid}/expenses", status_code=201)
+def add_trip_expense(tid: int, data: TripExpenseCreate, db: Session = Depends(get_db),
+                     user: User = Depends(require_committee_or_admin)):
+    """Book what a member laid out for the trip: a deposit for them plus the linked club expense.
+
+    The same pair the Kasse creates for "Als Vereinsausgabe verbuchen" — the member is credited,
+    the club paid the bill — tagged with this trip.
+    """
+    trip = db.query(ClubTrip).filter(
+        ClubTrip.id == tid, ClubTrip.club_id == user.club_id, ClubTrip.is_deleted == False,  # noqa: E712
+    ).first()
+    if not trip:
+        raise HTTPException(404, "Trip not found")
+    if not (0 < data.amount <= 100_000) or not data.description:
+        raise HTTPException(400, "Betrag und Beschreibung erforderlich")
+    member = db.query(RegularMember).filter(
+        RegularMember.id == data.paid_by_member_id, RegularMember.club_id == user.club_id,
+    ).first()
+    if not member:
+        raise HTTPException(400, "Unbekanntes Mitglied")
+    booked = None
+    if data.date:
+        try:
+            booked = date_type.fromisoformat(data.date[:10])
+        except ValueError:
+            raise HTTPException(400, "Ungültiges Datum")
+    group_id = str(uuid.uuid4())
+    amount = round(data.amount, 2)
+    db.add(MemberPayment(
+        club_id=user.club_id, regular_member_id=member.id, amount=amount, note=data.description,
+        created_by=user.id, date=booked, transfer_group_id=group_id,
+    ))
+    db.add(ClubExpense(
+        club_id=user.club_id, amount=amount, description=data.description, created_by=user.id,
+        date=booked, transfer_group_id=group_id, trip_id=trip.id,
+    ))
+    db.commit()
+    logger.info("Trip %d: expense %.2f paid by member=%d booked by user=%d", trip.id, amount, member.id, user.id)
+    return list_trip_expenses(tid, db, user)
 
 
 class TripCreate(TrimmedModel):
@@ -247,7 +359,8 @@ def update_trip(
         trip.note = data.note.strip() or None
     db.commit()
     db.refresh(trip)
-    return _serialize_trip(trip, _creator_name(trip.created_by, db))
+    return _serialize_trip(trip, _creator_name(trip.created_by, db),
+                           _trip_expense_rollup(db, user.club_id).get(trip.id, (0, 0.0)))
 
 
 @router.delete("/trips/{tid}", status_code=204)

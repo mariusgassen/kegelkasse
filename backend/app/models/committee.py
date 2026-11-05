@@ -1,5 +1,5 @@
 """Vergnügungsausschuss (Entertainment Committee) models."""
-from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Float, ForeignKey, JSON, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.sql import func
 
 from core.database import Base
@@ -65,33 +65,3 @@ class PollVote(Base):
     user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (UniqueConstraint("poll_id", "option_id", "user_id", name="uq_poll_vote"),)
-
-
-class TripParticipant(Base):
-    """A member (or guest) who joins a Kegelfahrt and shares its costs (migration 065)."""
-    __tablename__ = "trip_participant"
-    __table_args__ = (UniqueConstraint("trip_id", "regular_member_id", name="uq_trip_participant"),)
-    id = Column(Integer, primary_key=True)
-    trip_id = Column(Integer, ForeignKey("club_trip.id", ondelete="CASCADE"), nullable=False, index=True)
-    regular_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="CASCADE"), nullable=False)
-
-
-class TripExpense(Base):
-    """One entry in a trip's cash box.
-
-    kind='expense': paid_by laid out `amount` for split_member_ids (null = all participants).
-    kind='transfer': paid_by handed `amount` to to_member_id (an advance or a settle-up payment).
-    """
-    __tablename__ = "trip_expense"
-    id = Column(Integer, primary_key=True)
-    trip_id = Column(Integer, ForeignKey("club_trip.id", ondelete="CASCADE"), nullable=False, index=True)
-    kind = Column(String, nullable=False, default="expense")
-    description = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
-    paid_by_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="CASCADE"), nullable=False)
-    to_member_id = Column(Integer, ForeignKey("regular_member.id", ondelete="CASCADE"), nullable=True)
-    split_member_ids = Column(JSON, nullable=True)
-    date = Column(Date, nullable=True)
-    created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    is_deleted = Column(Boolean, default=False, nullable=False)

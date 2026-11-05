@@ -22,6 +22,7 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement} from '@/lib/accountStatement.ts'
+import type {ClubTrip} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -48,6 +49,7 @@ type MemberPayment = {
 
 type Expense = {
     id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null
+    trip_id?: number | null
 }
 
 // Unified booking entry for the Buchungen tab
@@ -59,6 +61,26 @@ type BookingEntry =
 type EditTarget =
     | { kind: 'payment'; id: number; memberId: number; label: string }
     | { kind: 'expense'; id: number }
+
+// Optional Kegelfahrt a club expense paid for — the trip card sums what is linked here.
+function TripPicker({trips, value, onChange}: {
+    trips: ClubTrip[]; value: number | null; onChange: (v: number | null) => void
+}) {
+    const t = useT()
+    if (trips.length === 0 && value == null) return null
+    return (
+        <div>
+            <label className="field-label" htmlFor="booking-trip">{t('treasury.booking.trip')}</label>
+            <select id="booking-trip" className="kce-input" value={value ?? ''}
+                    onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}>
+                <option value="">{t('treasury.booking.noTrip')}</option>
+                {trips.map(tr => (
+                    <option key={tr.id} value={tr.id}>🚌 {tr.destination} · {tr.date.slice(0, 10).split('-').reverse().join('.')}</option>
+                ))}
+            </select>
+        </div>
+    )
+}
 
 // Thin progress bar: how much of the accrued penalties is already paid.
 // Makes the "Strafen vs. Bezahlt" relation tangible at a glance.
@@ -119,6 +141,12 @@ export function TreasuryPage() {
     })
 
     // Expenses — loaded for bookings tab + overview
+    const {data: trips = []} = useQuery({
+        queryKey: ['committee-trips'],
+        queryFn: api.listTrips,
+        staleTime: 1000 * 60,
+    })
+    const tripName = (id: number | null | undefined) => (trips as ClubTrip[]).find(tr => tr.id === id)?.destination
     const {data: expenses = [], refetch: refetchExpenses} = useQuery({
         queryKey: ['club-expenses'],
         queryFn: api.getExpenses,
@@ -331,6 +359,7 @@ export function TreasuryPage() {
     const [editAmount, setEditAmount] = useState('')
     const [editNote, setEditNote] = useState('')
     const [editDate, setEditDate] = useState('')
+    const [editTrip, setEditTrip] = useState<number | null>(null)
     const [savingEdit, setSavingEdit] = useState(false)
 
     function openEditPayment(p: { id: number; amount: number; note: string | null; created_at: string | null; date: string | null }, memberId: number, label: string) {
@@ -348,6 +377,7 @@ export function TreasuryPage() {
         setEditAmount(Math.abs(e.amount).toFixed(2))
         setEditNote(e.description)
         setEditDate(e.date ?? (e.created_at ? e.created_at.slice(0, 10) : ''))
+        setEditTrip(e.trip_id ?? null)
     }
 
     async function submitEdit() {
@@ -366,8 +396,10 @@ export function TreasuryPage() {
             } else {
                 if (!editNote.trim()) return
                 const amount = editDirection === 'out' ? abs : -abs
-                await api.updateExpense(editTarget.id, {amount, description: editNote.trim(), date: editDate})
+                await api.updateExpense(editTarget.id, {amount, description: editNote.trim(), date: editDate, trip_id: editTrip})
                 refetchExpenses()
+                qc.invalidateQueries({queryKey: ['committee-trips']})
+                qc.invalidateQueries({queryKey: ['trip-expenses']})
                 refetchBalances()
                 refetchGuestBalances()
             }
@@ -426,6 +458,7 @@ export function TreasuryPage() {
     const [bookingNote, setBookingNote] = useState('')
     const [bookingDate, setBookingDate] = useState(todayDateInput)
     const [bookingAsExpense, setBookingAsExpense] = useState(false)
+    const [bookingTrip, setBookingTrip] = useState<number | null>(null)
     const [savingBooking, setSavingBooking] = useState(false)
 
     function openBookingSheet() {
@@ -435,6 +468,7 @@ export function TreasuryPage() {
         setBookingNote('')
         setBookingDate(todayDateInput())
         setBookingAsExpense(false)
+        setBookingTrip(null)
         setBookingSheet(true)
     }
 
@@ -457,6 +491,7 @@ export function TreasuryPage() {
                     amount,
                     description: bookingNote.trim(),
                     date: bookingDate || undefined,
+                    trip_id: bookingTrip ?? undefined,
                 })
                 refetchExpenses()
             } else {
@@ -468,12 +503,17 @@ export function TreasuryPage() {
                     note: bookingNote || undefined,
                     date: bookingDate || undefined,
                     as_club_expense: asExpense || undefined,
+                    trip_id: asExpense && bookingTrip != null ? bookingTrip : undefined,
                 })
                 if (asExpense) refetchExpenses()
                 refetchBalances()
                 refetchGuestBalances()
                 qc.invalidateQueries({queryKey: ['member-payments', bookingTarget]})
                 qc.invalidateQueries({queryKey: ['all-payments']})
+            }
+            if (bookingTrip != null) {
+                qc.invalidateQueries({queryKey: ['committee-trips']})
+                qc.invalidateQueries({queryKey: ['trip-expenses']})
             }
             setBookingSheet(false)
         } catch (e: unknown) {
@@ -1320,6 +1360,9 @@ export function TreasuryPage() {
                                                 {e.description}
                                                 <span className="text-xs text-muted font-bold border border-line rounded px-1">{t('treasury.booking.club')}</span>
                                             </div>
+                                            {e.trip_id != null && tripName(e.trip_id) && (
+                                                <div className="text-xs text-muted truncate">🚌 {tripName(e.trip_id)}</div>
+                                            )}
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             <div className={`font-bold text-sm ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
@@ -1441,6 +1484,10 @@ export function TreasuryPage() {
                         <input type="date" className="kce-input" value={editDate}
                                onChange={e => setEditDate(e.target.value)}/>
                     </div>
+
+                    {editTarget?.kind === 'expense' && (
+                        <TripPicker trips={trips as ClubTrip[]} value={editTrip} onChange={setEditTrip}/>
+                    )}
 
                     <button type="submit" className="btn-primary w-full"
                             disabled={savingEdit || !editValid}>
@@ -1602,6 +1649,10 @@ export function TreasuryPage() {
                                 <span className="block text-xs text-muted">{t('treasury.booking.asExpenseHint')}</span>
                             </span>
                         </label>
+                    )}
+
+                    {(isClubBooking || (showAsExpense && bookingAsExpense)) && (
+                        <TripPicker trips={trips as ClubTrip[]} value={bookingTrip} onChange={setBookingTrip}/>
                     )}
 
                     {/* Date override */}

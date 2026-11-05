@@ -68,3 +68,4 @@ class ClubExpense(Base):
     delete_reason = Column(String, nullable=True)
     idempotency_key = Column(String, nullable=True, unique=True)  # client-generated, prevents double-submit
     transfer_group_id = Column(String, nullable=True, index=True)  # links the expense to the member deposit that covers it
+    trip_id = Column(Integer, ForeignKey("club_trip.id", ondelete="SET NULL"), nullable=True, index=True)  # Kegelfahrt this paid for

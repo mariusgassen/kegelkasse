@@ -25,6 +25,7 @@ vi.mock('@/api/client.ts', () => ({
         getMemberBalances: vi.fn(),
         getGuestBalances: vi.fn(),
         getExpenses: vi.fn(),
+        listTrips: vi.fn().mockResolvedValue([]),
         getAllPayments: vi.fn(),
         getMemberPayments: vi.fn(),
         getMemberPenalties: vi.fn(),
@@ -880,7 +881,7 @@ describe('TreasuryPage — bookings edit', () => {
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
             expect(api.updateExpense).toHaveBeenCalledWith(1, {
-                amount: 25, description: 'Getränke', date: '2026-01-10',
+                amount: 25, description: 'Getränke', date: '2026-01-10', trip_id: null,
             })
         })
     })
@@ -927,6 +928,21 @@ describe('TreasuryPage — expense submit', () => {
         vi.mocked(useHashTab).mockReturnValue(['bookings', vi.fn()] as any)
         await setupAsAdmin()
         await setupDefaultMocks()
+    })
+
+    it('links a club expense to the chosen Kegelfahrt', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listTrips).mockResolvedValue([{ id: 3, date: '2026-09-01T00:00', end_date: null, destination: 'Winterberg' }] as any)
+        vi.mocked(api.createExpense).mockResolvedValueOnce({ id: 101 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/treasury\.booking\.add/))
+        fireEvent.click(screen.getByText(/treasury\.booking\.add/))
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.change(screen.getAllByPlaceholderText('0,00')[0], { target: { value: '90' } })
+        fireEvent.change(screen.getByPlaceholderText(/treasury\.expense\.descPlaceholder/), { target: { value: 'Bus' } })
+        fireEvent.change(await screen.findByLabelText('treasury.booking.trip'), { target: { value: '3' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 90, trip_id: 3 })))
     })
 
     it('calls api.createExpense on expense form submit', async () => {

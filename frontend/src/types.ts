@@ -208,6 +208,19 @@ export interface ClubTrip {
     note: string | null
     created_by_name: string | null
     created_at: string | null
+    expense_count?: number  // club expenses booked against this trip
+    expense_total?: number
+}
+
+export interface TripExpenses {
+    trip_id: number
+    total: number
+    /** What each person laid out of their own pocket; club-paid expenses have no payer and are only in `total`. */
+    by_payer: { member_id: number; name: string; total: number }[]
+    expenses: {
+        id: number; description: string; amount: number; date: string | null
+        paid_by_member_id: number | null; paid_by_name: string | null
+    }[]
 }
 
 export interface PollOption {
@@ -724,44 +737,4 @@ export interface TreasuryAuditList {
     can_create: boolean
     can_sign: boolean
     audits: TreasuryAudit[]
-}
-
-// ── Kegelfahrt-Kasse (trip cash box) ──
-export interface TripCashMember {
-    id: number
-    name: string
-    nickname: string | null
-    is_guest: boolean
-}
-
-export interface TripCashExpense {
-    id: number
-    kind: 'expense' | 'transfer'
-    description: string
-    amount: number
-    paid_by_member_id: number
-    to_member_id: number | null
-    /** null = split across all participants. */
-    split_member_ids: number[] | null
-    date: string | null
-    created_by_name: string | null
-    can_delete: boolean
-}
-
-export interface TripCashBalance extends TripCashMember {
-    paid: number
-    share: number
-    /** Positive = gets money back, negative = owes. */
-    balance: number
-}
-
-export interface TripCash {
-    trip_id: number
-    can_manage: boolean
-    can_add: boolean
-    total: number
-    participants: TripCashMember[]
-    expenses: TripCashExpense[]
-    balances: TripCashBalance[]
-    settlements: { from_member_id: number; to_member_id: number; amount: number }[]
 }
