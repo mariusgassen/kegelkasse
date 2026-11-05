@@ -35,6 +35,18 @@ Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspiel
 - Kommende Fahrten erscheinen oben, vergangene darunter
 - Bestehende Fahrten können bearbeitet und gelöscht werden
 
+## Fahrtkasse (💶 Kasse)
+
+Jede Kegelfahrt hat eine eigene Kasse für die Kosten der Mitfahrer — getrennt von der Vereinskasse, denn das ist das Geld der Reisenden.
+
+- **Mitfahrer** trägt der VGA oder ein Admin über die Karte **Mitfahrer** ein (auch Gäste). Wer bereits Einträge hat, kann nicht mehr entfernt werden.
+- Jeder Mitfahrer (sowie VGA/Admins) kann **Einträge** anlegen:
+    - **🧾 Ausgabe** — jemand hat für die Gruppe bezahlt (Bus, Hotel, eine Runde). Standardmäßig wird auf alle Mitfahrer aufgeteilt, per Antippen lässt sich die Aufteilung auf einzelne beschränken.
+    - **💸 Geld übergeben** — jemand hat einem anderen Geld gegeben, z. B. eine Anzahlung an den VGA oder ein Ausgleich.
+- Die Kasse zeigt für jeden, was er **bezahlt** hat, seinen **Anteil** und den Saldo — und darunter **So wird ausgeglichen**: die wenigsten Überweisungen, mit denen alle quitt sind. **Bezahlt** bucht einen Ausgleich mit einem Tipp.
+- Gerechnet wird in Cent: ein Betrag, der sich nicht glatt teilen lässt (10 € auf 3), verteilt die übrigen Cent auf einzelne Mitfahrer, sodass die Summe immer exakt stimmt.
+- Löschen darf, wer den Eintrag angelegt hat, sowie VGA und Admins.
+
 ## Beiträge bearbeiten & löschen
 
 Aktionen wie **Bearbeiten** und **Löschen** liegen bei Ankündigungen, Kegelfahrten und
