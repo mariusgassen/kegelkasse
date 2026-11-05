@@ -1808,6 +1808,9 @@ describe('api.sync', () => {
 describe('api AI methods', () => {
     const cases: [string, (api: any) => Promise<unknown>, string, string, unknown?][] = [
         ['getAiStatus', a => a.getAiStatus(), '/api/v1/ai/status', 'GET'],
+        ['getAiSettings', a => a.getAiSettings(), '/api/v1/ai/settings', 'GET'],
+        ['updateAiSettings', a => a.updateAiSettings({recaps: false, calls_per_hour: 10}), '/api/v1/ai/settings', 'PATCH',
+            {recaps: false, calls_per_hour: 10}],
         ['aiRecapEvening', a => a.aiRecapEvening(4), '/api/v1/ai/recap/evening/4', 'POST'],
         ['aiRecapSeason', a => a.aiRecapSeason(2026), '/api/v1/ai/recap/season/2026', 'POST'],
         ['aiSuggestPenaltyTypes', a => a.aiSuggestPenaltyTypes(), '/api/v1/ai/suggest/penalty-types', 'POST'],

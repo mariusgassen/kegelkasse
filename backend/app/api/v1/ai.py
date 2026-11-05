@@ -24,9 +24,11 @@ from api.deps import require_club_admin, require_club_member
 from api.v1.audit import _is_admin, _is_auditor
 from api.v1.stats import _penalty_euro
 from core.ai import AIUnavailable, ai_enabled, generate_json
+from core.config import settings
 from core.database import get_db
 from core.ratelimit import SlidingWindowLimiter
 from core.schemas import TrimmedModel
+from models.club import ClubSettings
 from models.evening import Evening, RegularMember
 from models.payment import ClubExpense, MemberPayment
 from models.penalty import PenaltyLog, PenaltyType
@@ -35,9 +37,37 @@ from models.user import User
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 # Cost guard: generous for a club's real use, tight enough that a stuck client or a
-# curious member can't run up the bill. Per process, like the other limiters.
+# curious member can't run up the bill. Per process, like the other limiters. Admins can
+# change it per club in the AI settings, within MAX_CALLS_PER_HOUR.
 AI_CALLS_PER_HOUR = 30
+MAX_CALLS_PER_HOUR = 200
 _limiter = SlidingWindowLimiter(window_seconds=3600)
+
+# Models an admin can pick. The API key itself only ever lives in ANTHROPIC_API_KEY.
+AI_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")
+FEATURES = ("recaps", "suggestions", "booking_review")
+
+
+def _model_choices() -> list[str]:
+    env = settings.ANTHROPIC_MODEL
+    return list(AI_MODELS) if env in AI_MODELS else [env, *AI_MODELS]
+
+
+def get_ai_config(db: Session, club_id: int) -> dict:
+    """The club's AI settings (``ClubSettings.extra["ai"]``) merged over the defaults."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == club_id).first()
+    saved = ((s.extra or {}).get("ai") or {}) if s else {}
+    cfg = {f: True for f in FEATURES}
+    cfg["model"] = settings.ANTHROPIC_MODEL
+    cfg["calls_per_hour"] = AI_CALLS_PER_HOUR
+    for f in FEATURES:
+        if isinstance(saved.get(f), bool):
+            cfg[f] = saved[f]
+    if saved.get("model") in _model_choices():
+        cfg["model"] = saved["model"]
+    if isinstance(saved.get("calls_per_hour"), int):
+        cfg["calls_per_hour"] = max(1, min(MAX_CALLS_PER_HOUR, saved["calls_per_hour"]))
+    return cfg
 
 SYSTEM_PROMPT = (
     "Du bist der gut gelaunte Schriftführer eines deutschen Kegelclubs (9-Kegel, Stammtisch). "
@@ -47,11 +77,17 @@ SYSTEM_PROMPT = (
 )
 
 
-def _require_ai(user: User) -> None:
+def _require_ai(db: Session, user: User, feature: str) -> dict:
+    """Gate one AI call: key set, feature switched on for the club, under its hourly limit.
+    Returns the club's AI config so the caller uses the chosen model."""
     if not ai_enabled():
         raise HTTPException(status_code=503, detail="ai_disabled")
-    if _limiter.hit(f"club:{user.club_id}", AI_CALLS_PER_HOUR):
+    cfg = get_ai_config(db, user.club_id)
+    if not cfg[feature]:
+        raise HTTPException(status_code=403, detail="ai_feature_disabled")
+    if _limiter.hit(f"club:{user.club_id}", cfg["calls_per_hour"]):
         raise HTTPException(status_code=429, detail="ai_rate_limited")
+    return cfg
 
 
 def _run(*args, **kwargs) -> dict:
@@ -73,8 +109,49 @@ def _alias(member: RegularMember | None, fallback: str | None) -> str:
 
 
 @router.get("/status")
-def ai_status(user: User = Depends(require_club_member)):
-    return {"enabled": ai_enabled()}
+def ai_status(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+    """What the app may show. ``enabled`` is the key; each feature also needs its switch."""
+    enabled = ai_enabled()
+    cfg = get_ai_config(db, user.club_id)
+    return {"enabled": enabled, **{f: enabled and cfg[f] for f in FEATURES}}
+
+
+def _settings_out(cfg: dict) -> dict:
+    return {**cfg, "key_configured": ai_enabled(), "models": _model_choices(),
+            "max_calls_per_hour": MAX_CALLS_PER_HOUR}
+
+
+@router.get("/settings")
+def get_ai_settings(db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+    """Admin: the club's AI settings. The API key is never stored or returned, only whether it is set."""
+    return _settings_out(get_ai_config(db, user.club_id))
+
+
+class AiSettingsUpdate(TrimmedModel):
+    recaps: Optional[bool] = None
+    suggestions: Optional[bool] = None
+    booking_review: Optional[bool] = None
+    model: Optional[str] = None
+    calls_per_hour: Optional[int] = None
+
+
+@router.patch("/settings")
+def update_ai_settings(data: AiSettingsUpdate, db: Session = Depends(get_db),
+                       user: User = Depends(require_club_admin)):
+    payload = data.model_dump(exclude_unset=True, exclude_none=True)
+    if "model" in payload and payload["model"] not in _model_choices():
+        raise HTTPException(status_code=400, detail="Unknown model")
+    if "calls_per_hour" in payload and not 1 <= payload["calls_per_hour"] <= MAX_CALLS_PER_HOUR:
+        raise HTTPException(status_code=400, detail=f"calls_per_hour must be 1-{MAX_CALLS_PER_HOUR}")
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
+    if not s:
+        s = ClubSettings(club_id=user.club_id)
+        db.add(s)
+    extra = dict(s.extra or {})
+    extra["ai"] = {**(extra.get("ai") or {}), **payload}
+    s.extra = extra
+    db.commit()
+    return _settings_out(get_ai_config(db, user.club_id))
 
 
 # ---------------------------------------------------------------------------
@@ -151,9 +228,9 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
     e = db.query(Evening).filter(Evening.id == evening_id, Evening.club_id == user.club_id).first()
     if not e:
         raise HTTPException(status_code=404, detail="Evening not found")
-    _require_ai(user)
+    cfg = _require_ai(db, user, "recaps")
     return _run(
-        SYSTEM_PROMPT, _evening_facts(e), _RECAP_SCHEMA,
+        SYSTEM_PROMPT, _evening_facts(e), _RECAP_SCHEMA, model=cfg["model"],
         task=("Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
               "Nenne den König, die Spielsieger, wer am meisten in die Kasse gezahlt hat und das "
               "Highlight des Abends. Maximal etwa 150 Wörter."),
@@ -233,9 +310,9 @@ def recap_season(year: int, db: Session = Depends(get_db), user: User = Depends(
     facts = _season_facts(db, user.club_id, year)
     if facts is None:
         raise HTTPException(status_code=404, detail="No evenings in this season")
-    _require_ai(user)
+    cfg = _require_ai(db, user, "recaps")
     return _run(
-        SYSTEM_PROMPT, facts, _RECAP_SCHEMA,
+        SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
         task=("Schreib einen lustigen Saison-Rückblick für den Vereins-Feed, wie eine Rede beim "
               "Jahresabschluss: Wer war am treuesten, wer hat die Kasse gefüttert, wer hat am meisten "
               "gewonnen, wer war am durstigsten, wer war König und Präsident. Vergib 3-4 augenzwinkernde "
@@ -299,9 +376,9 @@ def suggest_penalty_types(db: Session = Depends(get_db), user: User = Depends(re
             for c in sorted(custom.values(), key=lambda c: -c["anzahl"])[:30]
         ],
     }
-    _require_ai(user)
+    cfg = _require_ai(db, user, "suggestions")
     result = _run(
-        SYSTEM_PROMPT, facts, _PENALTY_SCHEMA, effort="low",
+        SYSTEM_PROMPT, facts, _PENALTY_SCHEMA, effort="low", model=cfg["model"],
         task=("Schlag 3 bis 5 neue Strafenarten für den Katalog vor. Bevorzuge freie Strafen, die oft "
               "von Hand eingetragen wurden, aber noch nicht im Katalog stehen (nimm dann deren Namen und "
               "üblichen Betrag). Ergänze sonst klassische Kegelstrafen, die fehlen. Keine Dubletten zum "
@@ -390,9 +467,9 @@ def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User =
         "haeufigste_strafen": [{"art": t, "anzahl": n} for t, n in types.most_common(5)],
         "vergebene_kegelnamen": taken,
     }
-    _require_ai(user)
+    cfg = _require_ai(db, user, "suggestions")
     result = _run(
-        SYSTEM_PROMPT, facts, _NICK_SCHEMA, effort="low",
+        SYSTEM_PROMPT, facts, _NICK_SCHEMA, effort="low", model=cfg["model"],
         task=("Schlag genau 3 Kegelnamen (Spitznamen) für dieses Mitglied vor, gern mit Wortspiel auf "
               "den Vornamen oder passend zu Statistik und häufigsten Strafen. Kurz (max. 20 Zeichen), "
               "liebevoll-frech, nicht beleidigend, nicht schon vergeben."),
@@ -537,10 +614,11 @@ def booking_review(data: BookingReviewRequest, db: Session = Depends(get_db),
     flags = _detect_flags(rows, today)
     result = {"start": start.isoformat(), "end": end.isoformat(), "booking_count": len(rows),
               "flags": flags, "summary": None, "ai": False}
-    if not flags or not data.explain or not ai_enabled():
+    if not flags or not data.explain or not ai_enabled() \
+            or not get_ai_config(db, user.club_id)["booking_review"]:
         return result
 
-    _require_ai(user)
+    cfg = _require_ai(db, user, "booking_review")
     payments = [abs(r["amount"]) for r in rows if r["kind"] == "payment"]
     expenses = [abs(r["amount"]) for r in rows if r["kind"] == "expense"]
     facts = {
@@ -553,7 +631,7 @@ def booking_review(data: BookingReviewRequest, db: Session = Depends(get_db),
     }
     try:
         review = generate_json(
-            _REVIEW_SYSTEM, facts, _REVIEW_SCHEMA, effort="low",
+            _REVIEW_SYSTEM, facts, _REVIEW_SCHEMA, effort="low", model=cfg["model"],
             task=("Bewerte jede automatisch gefundene Auffälligkeit für die Kassenprüfung: Wie wichtig ist "
                   "sie (high/medium/low) und was sollten die Prüfer nachfragen? Fasse danach in 2-3 Sätzen "
                   "zusammen. Gib für jede id genau eine Notiz zurück."),

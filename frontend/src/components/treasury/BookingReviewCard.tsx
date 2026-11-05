@@ -63,7 +63,7 @@ function FlagRow({flag}: { flag: BookingFlag }) {
  */
 export function BookingReviewCard({initialStart, initialEnd}: { initialStart?: string; initialEnd?: string } = {}) {
     const t = useT()
-    const aiEnabled = useAiEnabled()
+    const aiEnabled = useAiEnabled('booking_review')
     const online = useOnline()
     const year = new Date().getFullYear()
     const [start, setStart] = useState(initialStart?.slice(0, 10) ?? `${year}-01-01`)

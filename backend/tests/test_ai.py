@@ -16,7 +16,7 @@ import core.ai as core_ai
 from api.v1 import ai as ai_api
 from core.config import settings
 from core.security import create_access_token, get_password_hash
-from models.club import Club
+from models.club import Club, ClubSettings
 from models.drink import DrinkRound
 from models.evening import Evening, EveningHighlight, EveningPlayer, RegularMember
 from models.game import Game
@@ -41,6 +41,7 @@ def cleanup(db: Session, club: Club):
     db.query(ClubExpense).filter(ClubExpense.club_id == club.id).delete(synchronize_session=False)
     db.query(PenaltyType).filter(PenaltyType.club_id == club.id).delete(synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
+    db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.commit()
 
 
@@ -115,11 +116,13 @@ def evening(db: Session, club: Club):
 
 def test_status_disabled_without_key(client, auth_headers, monkeypatch):
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
-    assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {"enabled": False}
+    assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {
+        "enabled": False, "recaps": False, "suggestions": False, "booking_review": False}
 
 
 def test_status_enabled_with_key(client, auth_headers, claude):
-    assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {"enabled": True}
+    assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {
+        "enabled": True, "recaps": True, "suggestions": True, "booking_review": True}
 
 
 def test_status_requires_auth(client):
@@ -352,3 +355,57 @@ def test_booking_review_allowed_for_auditor(client, db, club, monkeypatch):
     assert r.status_code == 200
     db.delete(u)
     db.commit()
+
+
+# --- settings ---------------------------------------------------------------
+
+def test_settings_defaults_never_expose_key(client, admin_headers, claude):
+    r = client.get("/api/v1/ai/settings", headers=admin_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["recaps"] and body["suggestions"] and body["booking_review"]
+    assert body["model"] == settings.ANTHROPIC_MODEL
+    assert body["calls_per_hour"] == ai_api.AI_CALLS_PER_HOUR
+    assert body["key_configured"] is True
+    assert "test-key" not in r.text
+
+
+def test_settings_admin_only(client, auth_headers):
+    assert client.get("/api/v1/ai/settings", headers=auth_headers).status_code == 403
+    assert client.patch("/api/v1/ai/settings", json={"recaps": False}, headers=auth_headers).status_code == 403
+
+
+def test_settings_validation(client, admin_headers):
+    assert client.patch("/api/v1/ai/settings", json={"model": "gpt-4"}, headers=admin_headers).status_code == 400
+    assert client.patch("/api/v1/ai/settings", json={"calls_per_hour": 0}, headers=admin_headers).status_code == 400
+    assert client.patch("/api/v1/ai/settings", json={"calls_per_hour": 9999},
+                        headers=admin_headers).status_code == 400
+
+
+def test_disabled_feature_is_blocked_and_hidden(client, admin_headers, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    r = client.patch("/api/v1/ai/settings", json={"recaps": False}, headers=admin_headers)
+    assert r.json()["recaps"] is False
+    assert client.get("/api/v1/ai/status", headers=auth_headers).json()["recaps"] is False
+    r = client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    assert r.status_code == 403
+    assert r.json()["detail"] == "ai_feature_disabled"
+    assert claude.calls == []
+
+
+def test_chosen_model_and_limit_are_used(client, admin_headers, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    client.patch("/api/v1/ai/settings", json={"model": "claude-haiku-5-5", "calls_per_hour": 1},
+                 headers=admin_headers)
+    assert client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers).status_code == 200
+    assert claude.calls[-1]["model"] == "claude-haiku-5-5"
+    assert client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers).status_code == 429
+
+
+def test_booking_review_ai_switch_off_keeps_rule_flags(client, admin_headers, bookings, claude):
+    client.patch("/api/v1/ai/settings", json={"booking_review": False}, headers=admin_headers)
+    r = client.post("/api/v1/ai/booking-review", json={"start": "2026-01-01", "end": "2026-12-31"},
+                    headers=admin_headers)
+    assert r.status_code == 200
+    assert r.json()["ai"] is False and r.json()["flags"]
+    assert claude.calls == []

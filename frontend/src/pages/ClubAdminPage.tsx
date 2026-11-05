@@ -8,7 +8,7 @@ import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
+import type {AiSettings, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -529,6 +529,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             <ReminderSettingsCard />
             <EmailSettingsCard />
             <TelegramSettingsCard />
+            <AiSettingsCard />
             <BroadcastPushCard />
             <ClubConfigCard />
         </div>
@@ -979,9 +980,117 @@ function TelegramSettingsCard() {
 }
 
 
-function ReminderToggle({value, onChange}: { value: boolean; onChange: (v: boolean) => void }) {
+/** "claude-opus-5-5" → "Claude Opus 5.5"; unknown ids are shown as they are. */
+function modelLabel(id: string): string {
+    const m = /^claude-(opus|sonnet|haiku|fable)-(\d+)(?:-(\d+))?$/.exec(id)
+    if (!m) return id
+    return `Claude ${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ''}`
+}
+
+/**
+ * Per-club AI settings (#99): which features show, the model and an hourly cap. The API key is
+ * server-only (ANTHROPIC_API_KEY); this card only says whether it is set.
+ */
+function AiSettingsCard() {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const {data: saved} = useQuery<AiSettings>({
+        queryKey: ['ai-settings'],
+        queryFn: api.getAiSettings,
+        staleTime: 60000,
+    })
+    const [form, setForm] = useState<AiSettings | null>(null)
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        if (saved) setForm(saved)
+    }, [saved])
+
+    if (!form) return null
+    const set = (patch: Partial<AiSettings>) => setForm(f => f ? {...f, ...patch} : f)
+    const limitOk = Number.isInteger(form.calls_per_hour) && form.calls_per_hour >= 1
+        && form.calls_per_hour <= form.max_calls_per_hour
+
+    async function handleSave() {
+        if (!form) return
+        setSaving(true)
+        try {
+            const res = await api.updateAiSettings({
+                recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review,
+                model: form.model, calls_per_hour: form.calls_per_hour,
+            })
+            setForm(res)
+            qc.setQueryData(['ai-settings'], res)
+            await qc.invalidateQueries({queryKey: ['ai-status']})
+            showToast(t('ai.settings.saved'))
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const toggles: { key: 'recaps' | 'suggestions' | 'booking_review'; label: string; hint?: string }[] = [
+        {key: 'recaps', label: t('ai.settings.recaps')},
+        {key: 'suggestions', label: t('ai.settings.suggestions')},
+        {key: 'booking_review', label: t('ai.settings.bookingReview'), hint: t('ai.settings.bookingReviewHint')},
+    ]
+
+    return (
+        <div className="kce-card p-4" data-testid="ai-settings">
+            <div className="sec-heading mb-2">{t('ai.settings.title')}</div>
+            <p className="text-xs text-muted mb-3">{t('ai.settings.hint')}</p>
+            {!form.key_configured && (
+                <p className="text-sm text-danger-fg mb-3" data-testid="ai-settings-no-key">{t('ai.settings.noKey')}</p>
+            )}
+
+            <div className="space-y-2">
+                {toggles.map(({key, label, hint}) => (
+                    <div key={key} className="flex items-start justify-between gap-3 py-1">
+                        <div>
+                            <span className="text-sm font-bold text-ink">{label}</span>
+                            {hint && <p className="text-xs text-muted">{hint}</p>}
+                        </div>
+                        <ReminderToggle value={form[key]} onChange={v => set({[key]: v})} label={label}/>
+                    </div>
+                ))}
+            </div>
+
+            <div className="space-y-3 mt-3">
+                <div>
+                    <label className="field-label" htmlFor="ai-model">{t('ai.settings.model')}</label>
+                    <select id="ai-model" className="kce-input" value={form.model}
+                            onChange={e => set({model: e.target.value})}>
+                        {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
+                    </select>
+                    <p className="text-xs text-muted mt-1">{t('ai.settings.modelHint')}</p>
+                </div>
+                <div>
+                    <label className="field-label" htmlFor="ai-limit">{t('ai.settings.limit')}</label>
+                    <input id="ai-limit" className="kce-input" type="number" inputMode="numeric" min={1}
+                           max={form.max_calls_per_hour} value={Number.isNaN(form.calls_per_hour) ? '' : form.calls_per_hour}
+                           onChange={e => set({calls_per_hour: parseInt(e.target.value, 10)})}/>
+                    <p className="text-xs text-muted mt-1">
+                        {t('ai.settings.limitHint').replace('{max}', String(form.max_calls_per_hour))}
+                    </p>
+                </div>
+            </div>
+
+            <button className="btn-primary w-full mt-4" onClick={handleSave}
+                    disabled={!isOnline || saving || !limitOk} data-testid="ai-settings-save">
+                {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
+            </button>
+        </div>
+    )
+}
+
+
+function ReminderToggle({value, onChange, label}: { value: boolean; onChange: (v: boolean) => void; label?: string }) {
     return (
         <button
+            type="button"
+            aria-label={label}
             onClick={() => onChange(!value)}
             className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-accent' : 'bg-surface-2'].join(' ')}
             aria-pressed={value}

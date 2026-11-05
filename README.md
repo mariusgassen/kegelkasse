@@ -199,7 +199,9 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 
 ### AI features (optional, Claude)
 
-Hidden unless the server has `ANTHROPIC_API_KEY` set (model via `ANTHROPIC_MODEL`, default `claude-opus-5-5`; 30 AI calls per club per hour).
+Hidden unless the server has `ANTHROPIC_API_KEY` set (default model via `ANTHROPIC_MODEL`, `claude-opus-5-5`). The key stays in the environment and is never stored or shown in the app.
+
+- **AI settings** (Verein → Einstellungen, admin-only): switch recaps, suggestions and the booking check's AI explanations on or off per club, pick the model (Opus/Sonnet/Haiku) and set the hourly AI-call cap (default 30, max 200)
 
 - **AI recaps**: a funny Stammtisch-style German recap of a closed evening (Historie) or a whole season (Statistik → Jahr), editable in a sheet and postable to the news feed by committee members and admins
 - **Penalty-type suggestions**: new catalog entries derived from penalties the club keeps typing in by hand; tapping one prefills the add form

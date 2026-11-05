@@ -67,6 +67,13 @@ describe('AiRecapButton', () => {
         expect(screen.queryByTestId('ai-recap-button')).toBeNull()
     })
 
+    it('renders nothing when the club switched recaps off', async () => {
+        vi.mocked(api.getAiStatus).mockResolvedValue({enabled: true, recaps: false, suggestions: true})
+        wrap(<AiRecapButton target={{kind: 'evening', eveningId: 3}}/>)
+        await waitFor(() => expect(api.getAiStatus).toHaveBeenCalled())
+        expect(screen.queryByTestId('ai-recap-button')).toBeNull()
+    })
+
     it('generates an evening recap, lets it be edited and posts it', async () => {
         vi.mocked(api.aiRecapEvening).mockResolvedValue({title: '👑 Abend', text: 'Lustig'})
         vi.mocked(api.createAnnouncement).mockResolvedValue({} as any)

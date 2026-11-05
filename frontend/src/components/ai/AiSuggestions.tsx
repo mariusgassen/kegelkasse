@@ -27,7 +27,7 @@ function fe(v: number) {
  */
 export function PenaltySuggestions({onPick}: { onPick: (s: AiPenaltySuggestion) => void }) {
     const t = useT()
-    const enabled = useAiEnabled()
+    const enabled = useAiEnabled('suggestions')
     const online = useOnline()
     const [loading, setLoading] = useState(false)
     const [list, setList] = useState<AiPenaltySuggestion[] | null>(null)
@@ -83,7 +83,7 @@ export function PenaltySuggestions({onPick}: { onPick: (s: AiPenaltySuggestion) 
  */
 export function NicknameSuggestions({memberId, onPick}: { memberId: number; onPick: (nickname: string) => void }) {
     const t = useT()
-    const enabled = useAiEnabled()
+    const enabled = useAiEnabled('suggestions')
     const online = useOnline()
     const [loading, setLoading] = useState(false)
     const [list, setList] = useState<AiNicknameSuggestion[]>([])

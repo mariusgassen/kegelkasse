@@ -47,6 +47,8 @@ vi.mock('@/api/client.ts', () => ({
         getTelegramSettings: vi.fn(),
         updateTelegramSettings: vi.fn(),
         testTelegramSettings: vi.fn(),
+        getAiSettings: vi.fn(),
+        updateAiSettings: vi.fn(),
         triggerReminders: vi.fn(),
         broadcastPush: vi.fn(),
         uploadClubLogo: vi.fn(),
@@ -174,6 +176,12 @@ async function renderClubAdminPage() {
     return render(<ClubAdminPage />, { wrapper: makeWrapper() })
 }
 
+const AI_SETTINGS = {
+    recaps: true, suggestions: true, booking_review: true, model: 'claude-opus-5-5', calls_per_hour: 30,
+    key_configured: true, models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
+    max_calls_per_hour: 200,
+}
+
 async function setupDefaultApiMocks() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
@@ -188,6 +196,7 @@ async function setupDefaultApiMocks() {
     vi.mocked(api.getTelegramSettings).mockResolvedValue({
         enabled: false, bot_username: '', bot_token_set: false, webhook_registered: true,
     } as any)
+    vi.mocked(api.getAiSettings).mockResolvedValue(AI_SETTINGS as any)
     vi.mocked(api.listClubTeams).mockResolvedValue([])
     vi.mocked(api.listPins).mockResolvedValue([])
     vi.mocked(api.listAllClubs).mockResolvedValue([])
@@ -2109,5 +2118,53 @@ describe('ClubAdminPage — backup download button', () => {
         await waitFor(() => {
             expect(toastError).toHaveBeenCalled()
         })
+    })
+})
+
+
+describe('ClubAdminPage — AI settings', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('shows feature switches, model choice and limit without any key field', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
+        const card = screen.getByTestId('ai-settings')
+        expect(card.querySelector('input[type="password"]')).toBeNull()
+        expect(screen.getByRole('option', { name: 'Claude Haiku 5.5' })).toBeInTheDocument()
+        expect(screen.queryByTestId('ai-settings-no-key')).not.toBeInTheDocument()
+    })
+
+    it('warns when the server has no key', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getAiSettings).mockResolvedValue({ ...AI_SETTINGS, key_configured: false } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByTestId('ai-settings-no-key')).toBeInTheDocument())
+    })
+
+    it('saves switched-off features, model and limit', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateAiSettings).mockResolvedValue({ ...AI_SETTINGS, recaps: false } as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
+        fireEvent.click(screen.getByRole('button', { name: 'ai.settings.recaps' }))
+        fireEvent.change(screen.getByLabelText('ai.settings.model'), { target: { value: 'claude-haiku-5-5' } })
+        fireEvent.change(screen.getByLabelText('ai.settings.limit'), { target: { value: '12' } })
+        fireEvent.click(screen.getByTestId('ai-settings-save'))
+        await waitFor(() => expect(api.updateAiSettings).toHaveBeenCalledWith({
+            recaps: false, suggestions: true, booking_review: true, model: 'claude-haiku-5-5', calls_per_hour: 12,
+        }))
+    })
+
+    it('blocks saving an out-of-range limit', async () => {
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
+        fireEvent.change(screen.getByLabelText('ai.settings.limit'), { target: { value: '0' } })
+        expect(screen.getByTestId('ai-settings-save')).toBeDisabled()
     })
 })
