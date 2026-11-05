@@ -1,3 +1,31 @@
 {
-  "releases": []
+  "releases": [
+    {
+      "version": "1.70.0",
+      "date": "2026-11-05",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "0922fda",
+              "sha": "0922fda",
+              "text": {
+                "en": "announce new releases once with a banner linking to What's new",
+                "de": "neue Versionen werden einmalig mit einem Banner angekündigt, der zu „Neuigkeiten“ führt"
+              }
+            },
+            {
+              "key": "5332573",
+              "sha": "5332573",
+              "text": {
+                "en": "show release notes in the app as \"What's new\" and enforce conventional PR titles",
+                "de": "Versionshinweise werden in der App als „Neuigkeiten“ angezeigt und PR-Titel müssen dem Conventional-Format folgen"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
