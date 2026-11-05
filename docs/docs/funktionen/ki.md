@@ -17,8 +17,21 @@ Den Schlüssel als Umgebungsvariable setzen und den Container neu starten:
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Optional wählt `ANTHROPIC_MODEL` ein anderes Modell (Standard: `claude-opus-5-5`). Pro Verein sind
-höchstens 30 KI-Anfragen pro Stunde möglich, damit die Kosten im Rahmen bleiben.
+`ANTHROPIC_MODEL` legt das Standardmodell fest (Standard: `claude-opus-5-5`).
+
+## Einstellungen im Verein
+
+Unter **Verein → Einstellungen → ✨ KI-Funktionen** stellen Admins ein:
+
+- **Rückblicke** und **Vorschläge** einzeln an oder aus. Ausgeschaltete Funktionen verschwinden
+  für alle Mitglieder.
+- **KI-Erklärungen im Buchungs-Check** an oder aus. Die regelbasierte Prüfung läuft immer.
+- das **Modell** (Claude Opus, Sonnet oder Haiku). Opus schreibt am besten, Haiku ist am günstigsten.
+- die **maximale Anzahl KI-Anfragen pro Stunde** für den ganzen Verein (Standard 30, höchstens 200),
+  damit die Kosten im Rahmen bleiben.
+
+Der API-Schlüssel selbst steht nur in der Umgebungsvariable. Er wird nie in der Datenbank gespeichert
+und in der App nicht angezeigt. Die Karte zeigt nur, ob er gesetzt ist.
 
 ## ✨ KI-Rückblick
 

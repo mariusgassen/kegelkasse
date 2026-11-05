@@ -47,11 +47,13 @@ def _create_message(**kwargs):
 
 
 def generate_json(system: str, data: dict, schema: dict, *, task: str,
-                  effort: str = "medium", max_tokens: int = 8000) -> dict[str, Any]:
+                  effort: str = "medium", max_tokens: int = 8000,
+                  model: str | None = None) -> dict[str, Any]:
     """Ask Claude for a JSON object matching ``schema``.
 
     ``task`` is the instruction for this one request, ``data`` the facts it works from
     (serialised as JSON so names and numbers can't be confused with instructions).
+    ``model`` is the club's choice from its AI settings; ``ANTHROPIC_MODEL`` otherwise.
     """
     if not ai_enabled():
         raise AIUnavailable("AI is not configured")
@@ -63,7 +65,7 @@ def generate_json(system: str, data: dict, schema: dict, *, task: str,
     )
     try:
         response = _create_message(
-            model=settings.ANTHROPIC_MODEL,
+            model=model or settings.ANTHROPIC_MODEL,
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user_content}],

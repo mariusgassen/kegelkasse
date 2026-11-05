@@ -778,6 +778,18 @@ export interface BookingFlag {
     ai_note: string | null
 }
 
+export type AiFeature = 'recaps' | 'suggestions' | 'booking_review'
+
+export type AiStatus = { enabled: boolean } & Partial<Record<AiFeature, boolean>>
+
+export interface AiSettings extends Record<AiFeature, boolean> {
+    model: string
+    calls_per_hour: number
+    key_configured: boolean
+    models: string[]
+    max_calls_per_hour: number
+}
+
 export interface BookingReview {
     start: string
     end: string

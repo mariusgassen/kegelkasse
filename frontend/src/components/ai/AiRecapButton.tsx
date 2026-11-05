@@ -20,7 +20,7 @@ type Target = { kind: 'evening'; eveningId: number } | { kind: 'season'; year: n
  */
 export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { target: Target; className?: string }) {
     const t = useT()
-    const enabled = useAiEnabled()
+    const enabled = useAiEnabled('recaps')
     const online = useOnline()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
