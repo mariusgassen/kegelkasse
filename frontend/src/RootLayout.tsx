@@ -37,6 +37,7 @@ import {ToastContainer} from './components/ui/Toast'
 import {OfflineBanner} from './components/ui/OfflineBanner'
 import {InstallPrompt} from './components/InstallPrompt'
 import {UpdatePrompt} from './components/UpdatePrompt'
+import {WhatsNewNotice} from './components/WhatsNewNotice'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
@@ -145,6 +146,7 @@ export function RootLayout() {
                 <OfflineBanner/>
                 <InstallPrompt/>
                 <UpdatePrompt/>
+                <WhatsNewNotice/>
 
                 {/* ── Header ── */}
                 <header style={{
