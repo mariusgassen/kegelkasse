@@ -42,6 +42,8 @@ Die Kosten einer Kegelfahrt zahlt die **Vereinskasse** — dafür gibt es keine 
 - Beim Anlegen oder Bearbeiten einer **Vereinsausgabe** in der Kasse (Tab **Buchungen**, „+ Buchung") gibt es das optionale Feld **Kegelfahrt**. Das gilt auch, wenn ein Mitglied etwas ausgelegt hat („Als Vereinsausgabe verbuchen") — dann steht die Fahrt an der verknüpften Ausgabe.
 - Auf der Karte der Fahrt erscheint **💶 Vereinsausgaben · Summe (Anzahl)**. Antippen zeigt die einzelnen Ausgaben mit Datum und — bei Auslagen — wer das Geld vorgestreckt hat.
 - Direkt an der Fahrt trägt der VGA (oder ein Admin) über **＋ Ausgabe eintragen** ein, wer was ausgelegt hat: Bezahlt von, Beschreibung, Betrag, Datum. Das bucht automatisch eine Vereinsausgabe, verknüpft mit der Fahrt, und schreibt dem Mitglied den Betrag auf seinem Konto gut — dieselbe Doppelbuchung wie „Als Vereinsausgabe verbuchen" in der Kasse.
+- Über das **⋮**-Menü je Ausgabe lässt sich ein Eintrag **bearbeiten** (Zahler, Betrag, Beschreibung, Datum) oder **löschen**; die Gutschrift des Mitglieds wird dabei mitgeändert bzw. mitstorniert.
+- In der Kasse steht die Fahrt-Auswahl hinter einem kleinen Link **Kegelfahrt zuordnen** (wird nur einmal im Jahr gebraucht).
 - Aufgeklappt zeigt die Karte neben der Gesamtsumme **Ausgelegt von** mit der Summe je Person; direkt aus der Vereinskasse bezahlte Ausgaben stehen nur in der Gesamtsumme.
 - Stornierte Ausgaben zählen nicht mit. Wird eine Fahrt gelöscht, bleiben die Ausgaben in der Kasse bestehen.
 

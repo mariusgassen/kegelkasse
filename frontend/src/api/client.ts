@@ -837,6 +837,10 @@ export const api = {
     getTripExpenses: (tid: number) => request<TripExpenses>('GET', `/committee/trips/${tid}/expenses`),
     addTripExpense: (tid: number, d: { paid_by_member_id: number; amount: number; description: string; date?: string }) =>
         request<TripExpenses>('POST', `/committee/trips/${tid}/expenses`, d),
+    updateTripExpense: (tid: number, eid: number, d: { paid_by_member_id?: number; amount?: number; description?: string; date?: string }) =>
+        request<TripExpenses>('PATCH', `/committee/trips/${tid}/expenses/${eid}`, d),
+    deleteTripExpense: (tid: number, eid: number) =>
+        request<TripExpenses>('DELETE', `/committee/trips/${tid}/expenses/${eid}`),
     createTrip: (d: { date: string; end_date?: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),
     updateTrip: (id: number, d: { date?: string; end_date?: string; destination?: string; note?: string }) => request<ClubTrip>('PATCH', `/committee/trips/${id}`, d),
     deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),

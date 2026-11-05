@@ -261,6 +261,85 @@ def add_trip_expense(tid: int, data: TripExpenseCreate, db: Session = Depends(ge
     return list_trip_expenses(tid, db, user)
 
 
+class TripExpenseUpdate(TrimmedModel):
+    paid_by_member_id: Optional[int] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    date: Optional[str] = None  # ISO date, "" clears
+
+
+def _trip_expense_pair(db: Session, user: User, tid: int, eid: int):
+    """The trip's club expense plus its linked member credit (None for expenses the club paid directly)."""
+    expense = db.query(ClubExpense).filter(
+        ClubExpense.id == eid, ClubExpense.club_id == user.club_id, ClubExpense.trip_id == tid,
+        ClubExpense.is_deleted == False,  # noqa: E712
+    ).first()
+    if not expense:
+        raise HTTPException(404, "Expense not found")
+    twin = None
+    if expense.transfer_group_id:
+        twin = db.query(MemberPayment).filter(
+            MemberPayment.club_id == user.club_id, MemberPayment.transfer_group_id == expense.transfer_group_id,
+            MemberPayment.is_deleted == False,  # noqa: E712
+        ).first()
+    return expense, twin
+
+
+@router.patch("/trips/{tid}/expenses/{eid}")
+def update_trip_expense(tid: int, eid: int, data: TripExpenseUpdate, db: Session = Depends(get_db),
+                        user: User = Depends(require_committee_or_admin)):
+    """Edit a trip expense; the payer's linked credit follows amount, description, date and payer."""
+    expense, twin = _trip_expense_pair(db, user, tid, eid)
+    if data.amount is not None:
+        if not (0 < data.amount <= 100_000):
+            raise HTTPException(400, "Ungültiger Betrag")
+        expense.amount = round(data.amount, 2)
+    if data.description is not None:
+        if not data.description:
+            raise HTTPException(400, "Beschreibung darf nicht leer sein")
+        expense.description = data.description
+    if data.date is not None:
+        if data.date == "":
+            expense.date = None
+        else:
+            try:
+                expense.date = date_type.fromisoformat(data.date[:10])
+            except ValueError:
+                raise HTTPException(400, "Ungültiges Datum")
+    if data.paid_by_member_id is not None:
+        if not twin:
+            raise HTTPException(400, "Ausgabe wurde direkt aus der Kasse bezahlt")
+        member = db.query(RegularMember).filter(
+            RegularMember.id == data.paid_by_member_id, RegularMember.club_id == user.club_id,
+        ).first()
+        if not member:
+            raise HTTPException(400, "Unbekanntes Mitglied")
+        twin.regular_member_id = member.id
+    now = datetime.now(UTC)
+    expense.updated_at, expense.updated_by = now, user.id
+    if twin:
+        twin.amount, twin.note, twin.date = expense.amount, expense.description, expense.date
+        twin.updated_at, twin.updated_by = now, user.id
+    db.commit()
+    logger.info("Trip %d: expense %d edited by user=%d", tid, eid, user.id)
+    return list_trip_expenses(tid, db, user)
+
+
+@router.delete("/trips/{tid}/expenses/{eid}")
+def delete_trip_expense(tid: int, eid: int, db: Session = Depends(get_db),
+                        user: User = Depends(require_committee_or_admin)):
+    """Cancel a trip expense (soft delete) together with the payer's linked credit."""
+    expense, twin = _trip_expense_pair(db, user, tid, eid)
+    now = datetime.now(UTC)
+    for row in (expense, twin):
+        if row:
+            row.is_deleted, row.deleted_at, row.deleted_by = True, now, user.id
+            row.delete_reason = "Kegelfahrt-Ausgabe gelöscht"
+    db.commit()
+    logger.info("Trip %d: expense %d deleted by user=%d", tid, eid, user.id)
+    return list_trip_expenses(tid, db, user)
+
+
 class TripCreate(TrimmedModel):
     date: str
     end_date: Optional[str] = None

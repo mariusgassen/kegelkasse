@@ -4,12 +4,13 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
-import type {ClubTrip} from '@/types.ts'
+import type {ClubTrip, TripExpenses as TripExpensesData} from '@/types.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -22,33 +23,44 @@ function fDate(iso: string | null) {
 }
 
 /** Who laid out what for this trip. Saving books the payer's outlay as a club expense linked to the trip. */
-function AddExpenseSheet({trip, open, onClose}: { trip: ClubTrip; open: boolean; onClose: () => void }) {
+type TripExpenseRow = TripExpensesData['expenses'][number]
+
+const INVALIDATE = ['trip-expenses', 'committee-trips', 'club-expenses', 'member-balances', 'guest-balances', 'all-payments']
+
+/** Add an outlay, or edit one when `expense` is given. */
+function AddExpenseSheet({trip, open, onClose, expense}: {
+    trip: ClubTrip; open: boolean; onClose: () => void; expense?: TripExpenseRow
+}) {
     const t = useT()
     const qc = useQueryClient()
     const user = useAppStore(s => s.user)
     const members = useAppStore(s => s.regularMembers)
     const candidates = members.filter(m => m.is_active && !m.deactivated_at)
         .sort((a, b) => Number(b.id === user?.regular_member_id) - Number(a.id === user?.regular_member_id))
-    const [payer, setPayer] = useState<number | null>(user?.regular_member_id ?? null)
-    const [description, setDescription] = useState('')
-    const [amount, setAmount] = useState('')
-    const [day, setDay] = useState(todayDateInput())
+    const [payer, setPayer] = useState<number | null>(expense ? expense.paid_by_member_id : user?.regular_member_id ?? null)
+    const [description, setDescription] = useState(expense?.description ?? '')
+    const [amount, setAmount] = useState(expense ? String(expense.amount).replace('.', ',') : '')
+    const [day, setDay] = useState(expense ? (expense.date ?? '') : todayDateInput())
     const [saving, setSaving] = useState(false)
-    const valid = payer != null && parseAmount(amount) > 0 && description.trim().length > 0
+    const needsPayer = !expense || expense.paid_by_member_id != null
+    const valid = (payer != null || !needsPayer) && parseAmount(amount) > 0 && description.trim().length > 0
 
     async function submit() {
-        if (!valid || payer == null) return
+        if (!valid) return
         setSaving(true)
         try {
-            await api.addTripExpense(trip.id, {
-                paid_by_member_id: payer, amount: parseAmount(amount), description: description.trim(), date: day || undefined,
-            })
-            // The booking also credits the payer's account and adds a club expense
-            for (const key of ['trip-expenses', 'committee-trips', 'club-expenses', 'member-balances', 'guest-balances', 'all-payments']) {
-                qc.invalidateQueries({queryKey: [key]})
+            if (expense) {
+                await api.updateTripExpense(trip.id, expense.id, {
+                    ...(needsPayer && payer != null ? {paid_by_member_id: payer} : {}),
+                    amount: parseAmount(amount), description: description.trim(), date: day,
+                })
+            } else {
+                await api.addTripExpense(trip.id, {
+                    paid_by_member_id: payer as number, amount: parseAmount(amount), description: description.trim(), date: day || undefined,
+                })
             }
-            setDescription('')
-            setAmount('')
+            // The booking also credits the payer's account and adds a club expense
+            for (const key of INVALIDATE) qc.invalidateQueries({queryKey: [key]})
             onClose()
         } catch (e: unknown) {
             toastError(e)
@@ -58,9 +70,9 @@ function AddExpenseSheet({trip, open, onClose}: { trip: ClubTrip; open: boolean;
     }
 
     return (
-        <Sheet open={open} onClose={onClose} title={`💶 ${t('trip.expenses.add')}`} onSubmit={submit}>
+        <Sheet open={open} onClose={onClose} title={`💶 ${t(expense ? 'trip.expenses.edit' : 'trip.expenses.add')}`} onSubmit={submit}>
             <div className="flex flex-col gap-3">
-                <div>
+                {needsPayer && <div>
                     <label className="field-label">{t('trip.expenses.paidByLabel')}</label>
                     <div className="flex gap-2 flex-wrap" data-testid="trip-expense-payer">
                         {candidates.map(m => (
@@ -71,7 +83,7 @@ function AddExpenseSheet({trip, open, onClose}: { trip: ClubTrip; open: boolean;
                             </button>
                         ))}
                     </div>
-                </div>
+                </div>}
                 <div>
                     <label className="field-label" htmlFor="trip-exp-desc">{t('treasury.expense.description')}</label>
                     <input id="trip-exp-desc" className="kce-input" value={description} autoFocus
@@ -91,11 +103,38 @@ function AddExpenseSheet({trip, open, onClose}: { trip: ClubTrip; open: boolean;
                     <input id="trip-exp-date" type="date" className="kce-input" value={day}
                            onChange={e => setDay(e.target.value)}/>
                 </div>
-                <p className="text-xs text-muted">{t('trip.expenses.addHint')}</p>
+                {!expense && <p className="text-xs text-muted">{t('trip.expenses.addHint')}</p>}
                 <button type="submit" className="btn-primary w-full" disabled={saving || !valid}>
                     ✓ {t('action.save')}
                 </button>
             </div>
+        </Sheet>
+    )
+}
+
+function DeleteExpenseSheet({trip, expense, onClose}: { trip: ClubTrip; expense: TripExpenseRow; onClose: () => void }) {
+    const t = useT()
+    const qc = useQueryClient()
+    const [busy, setBusy] = useState(false)
+    async function remove() {
+        setBusy(true)
+        try {
+            await api.deleteTripExpense(trip.id, expense.id)
+            for (const key of INVALIDATE) qc.invalidateQueries({queryKey: [key]})
+            onClose()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
+    return (
+        <Sheet open onClose={onClose} title={`🗑️ ${t('action.delete')}`}>
+            <p className="text-sm text-ink mb-3">{t('trip.expenses.deleteConfirm')}</p>
+            <p className="text-sm font-bold mb-4">{expense.description} · {fe(expense.amount)}</p>
+            <button type="button" className="btn-danger w-full" disabled={busy} onClick={remove}>
+                {t('action.delete')}
+            </button>
         </Sheet>
     )
 }
@@ -108,6 +147,8 @@ export function TripExpenses({trip, canWrite = false}: { trip: ClubTrip; canWrit
     const t = useT()
     const [open, setOpen] = useState(false)
     const [adding, setAdding] = useState(false)
+    const [editing, setEditing] = useState<TripExpenseRow | null>(null)
+    const [deleting, setDeleting] = useState<TripExpenseRow | null>(null)
     const hasExpenses = !!trip.expense_count
     const {data, isLoading} = useQuery({
         queryKey: ['trip-expenses', trip.id],
@@ -150,7 +191,15 @@ export function TripExpenses({trip, canWrite = false}: { trip: ClubTrip; canWrit
                                                 {fDate(e.date)}{e.paid_by_name && ` · ${t('trip.expenses.paidBy')} ${e.paid_by_name}`}
                                             </span>
                                         </span>
-                                        <span className="font-bold flex-shrink-0">{fe(e.amount)}</span>
+                                        <span className="flex items-center gap-1 flex-shrink-0">
+                                            <span className="font-bold">{fe(e.amount)}</span>
+                                            {canWrite && (
+                                                <CardActionMenu title={e.description} actions={[
+                                                    {icon: '✏️', label: t('action.edit'), onClick: () => setEditing(e)},
+                                                    {icon: '🗑️', label: t('action.delete'), danger: true, onClick: () => setDeleting(e)},
+                                                ]}/>
+                                            )}
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
@@ -167,6 +216,8 @@ export function TripExpenses({trip, canWrite = false}: { trip: ClubTrip; canWrit
                     {adding && <AddExpenseSheet trip={trip} open onClose={() => setAdding(false)}/>}
                 </>
             )}
+            {canWrite && editing && <AddExpenseSheet trip={trip} open expense={editing} onClose={() => setEditing(null)}/>}
+            {canWrite && deleting && <DeleteExpenseSheet trip={trip} expense={deleting} onClose={() => setDeleting(null)}/>}
         </div>
     )
 }
