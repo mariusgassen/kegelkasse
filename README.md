@@ -69,7 +69,7 @@ so the **PR title is the commit message** and must follow [Conventional Commits]
 
 release-please keeps a `chore: release X.Y.Z` PR open with the version bump and [`CHANGELOG.md`](CHANGELOG.md);
 merging it tags `vX.Y.Z` and publishes a GitHub release. The same PR also gets
-`frontend/src/whatsNew/releases.json`, the changelog in English and German, which the app shows as **Was ist neu**
+`frontend/src/whatsNew/releases.json`, the changelog in English and German, which the app shows as **Was ist neu** A one-time banner announces each new release.
 (Profil → Einstellungen). Every push to `main` still deploys via Coolify.
 
 ### Database backups
