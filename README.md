@@ -56,11 +56,21 @@ docker compose exec app python -m app.scripts.create_admin
 
 ### Releases
 
-Versioning is automated with [release-please](https://github.com/googleapis/release-please): PR titles follow
-[Conventional Commits](https://www.conventionalcommits.org/) (`feat:` → minor, `fix:`/`perf:`/`deps:` → patch,
-`feat!:` → major). release-please keeps a `chore: release X.Y.Z` PR open with the version bump and
-[`CHANGELOG.md`](CHANGELOG.md); merging it tags `vX.Y.Z` and publishes a GitHub release. Every push to `main` still
-deploys via Coolify.
+Versioning is automated with [release-please](https://github.com/googleapis/release-please). PRs are squash-merged,
+so the **PR title is the commit message** and must follow [Conventional Commits](https://www.conventionalcommits.org/)
+(`<type>(<scope>): <summary>`); the `PR title` check enforces this.
+
+| Type | Effect | Changelog section |
+|---|---|---|
+| `feat` | minor release (`1.2.0` → `1.3.0`) | Features |
+| `fix`, `perf`, `deps`, `revert` | patch release (`1.2.0` → `1.2.1`) | Bug Fixes, Performance, Dependencies, Reverts |
+| `docs`, `refactor`, `test`, `ci`, `build`, `chore` | no release | hidden |
+| `feat!:` / `BREAKING CHANGE:` footer | major release (`1.2.0` → `2.0.0`) | Features |
+
+release-please keeps a `chore: release X.Y.Z` PR open with the version bump and [`CHANGELOG.md`](CHANGELOG.md);
+merging it tags `vX.Y.Z` and publishes a GitHub release. The same PR also gets
+`frontend/src/whatsNew/releases.json`, the changelog in English and German, which the app shows as **Was ist neu**
+(Profil → Einstellungen). Every push to `main` still deploys via Coolify.
 
 ### Database backups
 

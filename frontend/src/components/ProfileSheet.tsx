@@ -13,6 +13,9 @@ import {toastError} from '@/utils/error'
 import {PushPreferences, NotificationChannel, ChannelPref, DigestFrequency} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
 import {throwTrackingEnabled} from '@/lib/clubSettings'
+import {WhatsNewSheet, ALL_RELEASES} from '@/components/WhatsNewSheet'
+import {hasUnseen} from '@/lib/changelog'
+import {useWhatsNewStore} from '@/store/whatsNew'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
 import {AchievementShelf} from '@/components/AchievementShelf'
 import {WrappedDeck} from '@/components/WrappedDeck'
@@ -131,6 +134,8 @@ interface Props {
 export function ProfileSheet({open, onClose}: Props) {
     const t = useT()
     const {locale, setLocale} = useI18n()
+    const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+    const lastSeenVersion = useWhatsNewStore(s => s.lastSeen)
     const {theme, setTheme} = useThemeStore()
     const {effectsEnabled, setEffectsEnabled} = useEffectsStore()
     const bowlingDiscovered = useBowlingStore(s => s.discovered)
@@ -440,6 +445,7 @@ export function ProfileSheet({open, onClose}: Props) {
                    </div>
                }
                overlays={<>
+                   <WhatsNewSheet open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)}/>
                    <InstallHowToSheet open={installHowToOpen} onClose={() => setInstallHowToOpen(false)}/>
                    {myWrapped && (
                        <WrappedDeck open={wrappedOpen} onClose={() => setWrappedOpen(false)} stats={myWrapped}/>
@@ -963,6 +969,17 @@ export function ProfileSheet({open, onClose}: Props) {
 
                     <button className="btn-primary w-full" disabled={saving} onClick={save}>
                         {saving ? t('action.saving') : t('action.save')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setWhatsNewOpen(true)}
+                        className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
+                    >
+                        <span>{t('profile.whatsNew')}</span>
+                        {hasUnseen(ALL_RELEASES, lastSeenVersion) && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-tint-fg"
+                                  data-testid="whats-new-badge">{t('whatsNew.new')}</span>
+                        )}
                     </button>
                     <a
                         href="/docs/index.html"
