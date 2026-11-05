@@ -43,6 +43,7 @@ import {
     GuestRequestDecision,
     TreasuryAudit,
     TreasuryAuditList,
+    TripCash,
     TreasuryAuditSnapshot,
 } from '@/types';
 
@@ -843,6 +844,17 @@ export const api = {
     deletePoll: (id: number) => request<void>('DELETE', `/committee/polls/${id}`),
     castVote: (pollId: number, optionIds: number[]) => request<void>('POST', `/committee/polls/${pollId}/vote`, { option_ids: optionIds }),
     retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
+
+    // Kegelfahrt-Kasse (trip cash box)
+    getTripCash: (tripId: number) => request<TripCash>('GET', `/committee/trips/${tripId}/cash`),
+    setTripParticipants: (tripId: number, memberIds: number[]) =>
+        request<TripCash>('PUT', `/committee/trips/${tripId}/cash/participants`, {member_ids: memberIds}),
+    addTripExpense: (tripId: number, d: {
+        kind: 'expense' | 'transfer'; description: string; amount: number; paid_by_member_id: number;
+        to_member_id?: number; split_member_ids?: number[]; date?: string
+    }) => request<TripCash>('POST', `/committee/trips/${tripId}/cash/expenses`, d),
+    deleteTripExpense: (tripId: number, expenseId: number) =>
+        request<TripCash>('DELETE', `/committee/trips/${tripId}/cash/expenses/${expenseId}`),
 
     // Kassenprüfung (treasury audit)
     listTreasuryAudits: () => request<TreasuryAuditList>('GET', '/treasury-audits/'),

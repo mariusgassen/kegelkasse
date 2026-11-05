@@ -21,6 +21,7 @@ import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
+import {TripCashSheet} from '@/components/committee/TripCashSheet.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
@@ -516,6 +517,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
     onDelete: () => void
 }) {
     const t = useT()
+    const [cashOpen, setCashOpen] = useState(false)
     return (
         <div id={`item-${trip.id}`} className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-2">
@@ -542,6 +544,11 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
                     />
                 )}
             </div>
+            <button type="button" className="btn-secondary btn-sm mt-2" data-testid={`trip-cash-open-${trip.id}`}
+                    onClick={() => setCashOpen(true)}>
+                💶 {t('tripCash.open')}
+            </button>
+            <TripCashSheet trip={trip} open={cashOpen} onClose={() => setCashOpen(false)}/>
             <ItemReactionBar
                 parentType="trip" parentId={trip.id}
                 commentOpen={commentOpen}
