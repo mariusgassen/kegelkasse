@@ -940,6 +940,7 @@ describe('TreasuryPage — expense submit', () => {
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.change(screen.getAllByPlaceholderText('0,00')[0], { target: { value: '90' } })
         fireEvent.change(screen.getByPlaceholderText(/treasury\.expense\.descPlaceholder/), { target: { value: 'Bus' } })
+        fireEvent.click(await screen.findByTestId('booking-trip-link'))
         fireEvent.change(await screen.findByLabelText('treasury.booking.trip'), { target: { value: '3' } })
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.createExpense).toHaveBeenCalledWith(expect.objectContaining({ amount: 90, trip_id: 3 })))

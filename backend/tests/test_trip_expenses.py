@@ -209,3 +209,51 @@ class TestAddTripExpense:
         assert client.post(self._url(trip), json={**ok, "date": "nope"}, headers=admin).status_code == 400
         assert client.post("/api/v1/committee/trips/999999/expenses", json=ok, headers=admin).status_code == 404
         assert client.post(self._url(trip), json=ok).status_code == 401
+
+
+class TestEditDeleteTripExpense:
+    def _url(self, trip, eid=""):
+        return f"/api/v1/committee/trips/{trip.id}/expenses" + (f"/{eid}" if eid else "")
+
+    def _book(self, client, admin, trip, bernd):
+        return client.post(self._url(trip), json={
+            "paid_by_member_id": bernd.id, "amount": 40, "description": "Tanken"}, headers=admin).json()["expenses"][0]["id"]
+
+    def test_edit_keeps_credit_in_sync(self, client, db, club, admin, bernd, member, trip):
+        eid = self._book(client, admin, trip, bernd)
+        carla = RegularMember(club_id=club.id, name="Carla", is_active=True)
+        db.add(carla)
+        db.commit()
+        r = client.patch(self._url(trip, eid), json={
+            "amount": 55.5, "description": "Diesel", "date": "2026-09-02", "paid_by_member_id": carla.id}, headers=admin)
+        assert r.status_code == 200
+        assert r.json()["total"] == 55.5 and r.json()["by_payer"][0]["name"] == "Carla"
+        db.expire_all()
+        exp = db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one()
+        pay = db.query(MemberPayment).filter(MemberPayment.club_id == club.id).one()
+        assert (pay.amount, pay.note, pay.regular_member_id) == (55.5, "Diesel", carla.id)
+        assert exp.description == "Diesel" and str(pay.date) == str(exp.date) == "2026-09-02"
+
+    def test_delete_cancels_both_rows(self, client, db, club, admin, bernd, trip):
+        eid = self._book(client, admin, trip, bernd)
+        r = client.delete(self._url(trip, eid), headers=admin)
+        assert r.status_code == 200 and r.json()["total"] == 0 and r.json()["expenses"] == []
+        db.expire_all()
+        assert db.query(ClubExpense).one().is_deleted and db.query(MemberPayment).one().is_deleted
+        assert client.delete(self._url(trip, eid), headers=admin).status_code == 404
+
+    def test_direct_expense_cannot_get_payer(self, client, admin, bernd, trip):
+        eid = _expense(client, admin, amount=10, trip_id=trip.id).json()["id"]
+        assert client.patch(self._url(trip, eid), json={"paid_by_member_id": bernd.id}, headers=admin).status_code == 400
+        assert client.patch(self._url(trip, eid), json={"amount": 12}, headers=admin).json()["total"] == 12
+
+    def test_guards_and_validation(self, client, admin, member, bernd, trip):
+        eid = self._book(client, admin, trip, bernd)
+        assert client.patch(self._url(trip, eid), json={"amount": 5}, headers=member).status_code == 403
+        assert client.delete(self._url(trip, eid), headers=member).status_code == 403
+        assert client.patch(self._url(trip, eid)).status_code in (401, 403)
+        assert client.patch(self._url(trip, eid), json={"amount": 0}, headers=admin).status_code == 400
+        assert client.patch(self._url(trip, eid), json={"description": "  "}, headers=admin).status_code == 400
+        assert client.patch(self._url(trip, eid), json={"date": "nope"}, headers=admin).status_code == 400
+        assert client.patch(self._url(trip, eid), json={"paid_by_member_id": 999999}, headers=admin).status_code == 400
+        assert client.patch(self._url(trip, 999999), json={"amount": 5}, headers=admin).status_code == 404

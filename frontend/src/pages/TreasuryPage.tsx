@@ -67,7 +67,17 @@ function TripPicker({trips, value, onChange}: {
     trips: ClubTrip[]; value: number | null; onChange: (v: number | null) => void
 }) {
     const t = useT()
+    // Used about once a year, so it stays a small link until someone asks for it
+    const [open, setOpen] = useState(false)
     if (trips.length === 0 && value == null) return null
+    if (!open && value == null) {
+        return (
+            <button type="button" className="text-xs text-muted underline self-start" data-testid="booking-trip-link"
+                    onClick={() => setOpen(true)}>
+                🚌 {t('treasury.booking.assignTrip')}
+            </button>
+        )
+    }
     return (
         <div>
             <label className="field-label" htmlFor="booking-trip">{t('treasury.booking.trip')}</label>

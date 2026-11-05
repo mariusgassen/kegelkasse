@@ -14,7 +14,7 @@ const storeState: any = {
 }
 vi.mock('@/store/app.ts', () => ({ useAppStore: vi.fn((sel: any) => sel(storeState)) }))
 vi.mock('@/components/ui/Toast.tsx', () => ({ showToast: vi.fn() }))
-vi.mock('@/api/client.ts', () => ({ api: { getTripExpenses: vi.fn(), addTripExpense: vi.fn() } }))
+vi.mock('@/api/client.ts', () => ({ api: { getTripExpenses: vi.fn(), addTripExpense: vi.fn(), updateTripExpense: vi.fn(), deleteTripExpense: vi.fn() } }))
 
 const TRIP = { id: 3, date: '2026-09-01T00:00', end_date: null, destination: 'Winterberg', note: null,
     created_by_name: null, created_at: null, expense_count: 2, expense_total: 140 }
@@ -71,5 +71,31 @@ describe('TripExpenses', () => {
         await waitFor(() => expect(api.addTripExpense).toHaveBeenCalledWith(3, expect.objectContaining({
             paid_by_member_id: 2, amount: 300.5, description: 'Hotel',
         })))
+    })
+
+    it('edits an outlay from its menu, keeping the payer', async () => {
+        const api = await setup(TRIP, true)
+        vi.mocked(api.updateTripExpense).mockResolvedValue(DATA)
+        fireEvent.click(screen.getAllByRole('button')[0])
+        await screen.findByText('Tanken')
+        fireEvent.click(screen.getAllByLabelText('action.more')[0])
+        fireEvent.click(await screen.findByText('action.edit'))
+        fireEvent.change(await screen.findByLabelText('treasury.payment.amount'), { target: { value: '45' } })
+        fireEvent.click(screen.getByText(/action.save/))
+        await waitFor(() => expect(api.updateTripExpense).toHaveBeenCalledWith(3, 1, expect.objectContaining({
+            paid_by_member_id: 2, amount: 45, description: 'Tanken',
+        })))
+    })
+
+    it('deletes an outlay only after confirming', async () => {
+        const api = await setup(TRIP, true)
+        vi.mocked(api.deleteTripExpense).mockResolvedValue(DATA)
+        fireEvent.click(screen.getAllByRole('button')[0])
+        await screen.findByText('Tanken')
+        fireEvent.click(screen.getAllByLabelText('action.more')[0])
+        fireEvent.click(await screen.findByText('action.delete'))
+        expect(api.deleteTripExpense).not.toHaveBeenCalled()
+        fireEvent.click(await screen.findByText('trip.expenses.deleteConfirm').then(() => screen.getAllByText('action.delete').slice(-1)[0]))
+        await waitFor(() => expect(api.deleteTripExpense).toHaveBeenCalledWith(3, 1))
     })
 })
