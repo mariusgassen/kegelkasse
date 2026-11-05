@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react'
+import {AiRecapButton} from '@/components/ai/AiRecapButton.tsx'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {CalendarPlus, X} from 'lucide-react'
 import {useT} from '@/i18n'
@@ -1130,6 +1131,8 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         onClick={() => handleShareRecap(ev, detail)}>
                                                     {sharingId === ev.id ? t('action.loading') : `📤 ${t('recap.share')}`}
                                                 </button>
+                                                <AiRecapButton target={{kind: 'evening', eveningId: ev.id}}
+                                                               className="btn-secondary btn-sm w-full mb-3"/>
                                                 {detail.players.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">

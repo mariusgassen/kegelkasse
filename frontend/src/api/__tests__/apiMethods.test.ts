@@ -1802,3 +1802,28 @@ describe('api.sync', () => {
         expect(opts.method).toBe('POST')
     })
 })
+
+// ── AI (optional Claude features) ─────────────────────────────────────────────
+
+describe('api AI methods', () => {
+    const cases: [string, (api: any) => Promise<unknown>, string, string, unknown?][] = [
+        ['getAiStatus', a => a.getAiStatus(), '/api/v1/ai/status', 'GET'],
+        ['aiRecapEvening', a => a.aiRecapEvening(4), '/api/v1/ai/recap/evening/4', 'POST'],
+        ['aiRecapSeason', a => a.aiRecapSeason(2026), '/api/v1/ai/recap/season/2026', 'POST'],
+        ['aiSuggestPenaltyTypes', a => a.aiSuggestPenaltyTypes(), '/api/v1/ai/suggest/penalty-types', 'POST'],
+        ['aiSuggestNickname', a => a.aiSuggestNickname(7), '/api/v1/ai/suggest/nickname/7', 'POST'],
+        ['aiBookingReview', a => a.aiBookingReview({start: '2026-01-01', end: '2026-12-31', explain: true}),
+            '/api/v1/ai/booking-review', 'POST', {start: '2026-01-01', end: '2026-12-31', explain: true}],
+    ]
+    for (const [name, call, path, method, body] of cases) {
+        it(`${name} → ${method} ${path}`, async () => {
+            mockFetch.mockResolvedValueOnce(jsonOk({}))
+            const {api} = await import('../client')
+            await call(api)
+            const [url, opts] = mockFetch.mock.calls[0]
+            expect(url).toBe(path)
+            expect(opts.method).toBe(method)
+            if (body) expect(JSON.parse(opts.body)).toEqual(body)
+        })
+    }
+})

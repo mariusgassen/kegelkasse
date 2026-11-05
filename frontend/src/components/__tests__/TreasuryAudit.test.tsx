@@ -33,6 +33,8 @@ vi.mock('@/api/client.ts', () => ({
         withdrawTreasuryAuditSignature: vi.fn(),
         deleteTreasuryAudit: vi.fn(),
         setAuditor: vi.fn(),
+        getAiStatus: vi.fn().mockResolvedValue({ enabled: false }),
+        aiBookingReview: vi.fn(),
     },
 }))
 
@@ -95,6 +97,17 @@ describe('TreasuryAudit', () => {
         expect(within(screen.getByTestId('audit-auditors')).getByText('Bernie')).toBeInTheDocument()
         expect(screen.queryByTestId('audit-manage')).not.toBeInTheDocument()
         expect(screen.queryByTestId('audit-new')).not.toBeInTheDocument()
+    })
+
+    it('offers the booking check to whoever can create audits', async () => {
+        await setup(AUDITOR, { can_create: true })
+        expect(await screen.findByTestId('booking-review')).toBeInTheDocument()
+    })
+
+    it('hides the booking check from plain members', async () => {
+        await setup(AUDITOR)
+        await screen.findByText('audit.empty')
+        expect(screen.queryByTestId('booking-review')).not.toBeInTheDocument()
     })
 
     it('lets an admin appoint auditors (guests excluded)', async () => {
