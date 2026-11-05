@@ -2,6 +2,7 @@
  * Club admin page — settings, members, penalty types, game templates, invites.
  * Write operations guarded by AdminGuard (admin/superadmin only).
  */
+import {PenaltySuggestions} from '@/components/ai/AiSuggestions.tsx'
 import {useEffect, useRef, useState} from 'react'
 import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
@@ -1281,6 +1282,11 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 <button type="submit" className="btn-primary w-full btn-sm" disabled={!isOnline}>
                     {isOnline ? `+ ${t('action.add')}` : t('offline.btnLabel')}
                 </button>
+                <PenaltySuggestions onPick={sg => {
+                    setIcon(sg.icon)
+                    setName(sg.name)
+                    setAmount(sg.amount.toFixed(2))
+                }}/>
             </form>
 
             <Sheet open={!!editPt} onClose={() => setEditPt(null)} title={t('club.penalty.editLabel')}

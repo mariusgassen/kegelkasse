@@ -738,3 +738,51 @@ export interface TreasuryAuditList {
     can_sign: boolean
     audits: TreasuryAudit[]
 }
+
+// ── Optional Claude-powered features ──────────────────────────────────────────
+export interface AiRecap {
+    title: string
+    text: string
+}
+
+export interface AiPenaltySuggestion {
+    icon: string
+    name: string
+    amount: number
+    reason: string
+}
+
+export interface AiNicknameSuggestion {
+    nickname: string
+    reason: string
+}
+
+export type BookingFlagKind = 'duplicate' | 'unusual_amount' | 'payout_without_note' | 'future_date' | 'edited'
+export type BookingFlagSeverity = 'high' | 'medium' | 'low'
+
+export interface BookingFlagRef {
+    kind: 'payment' | 'expense'
+    id: number
+    date: string
+    amount: number
+    label: string | null
+    note: string | null
+}
+
+export interface BookingFlag {
+    id: number
+    kind: BookingFlagKind
+    severity: BookingFlagSeverity
+    bookings: BookingFlagRef[]
+    detail: { days_apart?: number; median?: number; factor?: number }
+    ai_note: string | null
+}
+
+export interface BookingReview {
+    start: string
+    end: string
+    booking_count: number
+    flags: BookingFlag[]
+    summary: string | null
+    ai: boolean
+}

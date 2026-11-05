@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useState} from 'react'
+import {AiRecapButton} from '@/components/ai/AiRecapButton.tsx'
 import {useEveningList} from '../hooks/useEvening'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useQuery} from '@tanstack/react-query'
@@ -1668,6 +1669,7 @@ export function StatsPage() {
                         <StatTile size="lg" value={fe(yearStats.total_penalties)} label={t('member.totalPenalties')}/>
                         <StatTile size="lg" value={`🍺 ${yearStats.total_beers}`} label={t('drinks.beer')}/>
                     </div>
+                    <AiRecapButton target={{kind: 'season', year}} className="btn-secondary btn-sm w-full mb-4"/>
 
                     <YearEveningsBarChart evenings={yearStats.evenings ?? []} t={t}/>
 

@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # UTC slot of its timestamp columns (20:00 entered → 20:00+00:00); outputs that hand times to
     # other software (iCal feed, public schedule API) use this zone to turn them into real instants.
     CLUB_TIMEZONE: str = "Europe/Berlin"
+    # Claude API (Anthropic) — optional; the AI features (recaps, suggestions, booking review)
+    # are hidden when left empty. ANTHROPIC_MODEL overrides the default model.
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-opus-5-5"
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'funktionen/push',
         'funktionen/darstellung',
         'funktionen/tv-scoreboard',
+        'funktionen/ki',
         'funktionen/easter-egg',
       ],
     },

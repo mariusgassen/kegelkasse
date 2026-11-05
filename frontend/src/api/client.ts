@@ -45,6 +45,10 @@ import {
     TreasuryAudit,
     TreasuryAuditList,
     TreasuryAuditSnapshot,
+    AiRecap,
+    AiPenaltySuggestion,
+    AiNicknameSuggestion,
+    BookingReview,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -833,6 +837,13 @@ export const api = {
     listAnnouncements: () => request<ClubAnnouncement[]>('GET', '/committee/announcements'),
     createAnnouncement: (d: { title: string; text?: string; media_url?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
     deleteAnnouncement: (id: number) => request<void>('DELETE', `/committee/announcements/${id}`),
+    // Optional Claude-powered features (hidden when the server has no ANTHROPIC_API_KEY)
+    getAiStatus: () => request<{ enabled: boolean }>('GET', '/ai/status'),
+    aiRecapEvening: (eveningId: number) => request<AiRecap>('POST', `/ai/recap/evening/${eveningId}`),
+    aiRecapSeason: (year: number) => request<AiRecap>('POST', `/ai/recap/season/${year}`),
+    aiSuggestPenaltyTypes: () => request<{ suggestions: AiPenaltySuggestion[] }>('POST', '/ai/suggest/penalty-types'),
+    aiSuggestNickname: (memberId: number) => request<{ suggestions: AiNicknameSuggestion[] }>('POST', `/ai/suggest/nickname/${memberId}`),
+    aiBookingReview: (d: { start?: string; end?: string; explain?: boolean }) => request<BookingReview>('POST', '/ai/booking-review', d),
     listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
     getTripExpenses: (tid: number) => request<TripExpenses>('GET', `/committee/trips/${tid}/expenses`),
     addTripExpense: (tid: number, d: { paid_by_member_id: number; amount: number; description: string; date?: string }) =>

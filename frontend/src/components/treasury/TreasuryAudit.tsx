@@ -8,6 +8,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {StatTile} from '@/components/ui/StatTile.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
+import {BookingReviewCard} from '@/components/treasury/BookingReviewCard.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -196,6 +197,10 @@ function AuditDetailSheet({auditId, canSign, onClose}: {auditId: number | null; 
                             <span className="font-bold text-positive-fg">{fe(snap.credit_total)}</span>
                         </div>
                     </div>
+
+                    {(admin || canSign) && (
+                        <BookingReviewCard initialStart={audit.period_start} initialEnd={audit.period_end}/>
+                    )}
 
                     <ExpandableCard title={<span className="text-sm font-bold">📒 {t('audit.bookings')} ({snap.bookings.length})</span>}
                                     data-testid="audit-bookings">
@@ -480,6 +485,8 @@ export function TreasuryAudit() {
                     + {t('audit.new')}
                 </button>
             )}
+
+            {data?.can_create && <BookingReviewCard/>}
 
             {isLoading && !data ? <SkeletonRows rows={3}/> : audits.length === 0 ? (
                 <p className="text-sm text-muted text-center py-4" data-testid="audit-empty">{t('audit.empty')}</p>

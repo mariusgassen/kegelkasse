@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {NicknameSuggestions} from '@/components/ai/AiSuggestions.tsx'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -871,6 +872,7 @@ export function MembersPage() {
                         <label className="field-label">{t('member.nickname')}</label>
                         <input className="kce-input" value={nickname} onChange={e => setNickname(e.target.value)}
                                placeholder="z.B. Kapitän, Aufschläger…"/>
+                        {editing && <NicknameSuggestions memberId={editing.id} onPick={setNickname}/>}
                     </div>
                     <button type="submit" className="btn-primary w-full" disabled={saving || !name.trim()}>
                         {t('action.save')}

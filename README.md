@@ -197,6 +197,16 @@ Superadmins can list, trigger, download, and delete backups in the app under **V
 - **Guests are never deletable**: known guests permanently remain part of the club history (their evening participation and stats persist), so the roster shows no delete action for them and the API rejects guest deletion (400). Removing a regular member instead degrades them to guest status — a reversible, non-destructive change, reflected by a subtle (⬇️, secondary-styled) button rather than a destructive ✕
 - **Deactivate a member ahead of removal**: a lighter, reversible step before the guest-conversion above, for a member who has left but whose removal terms (entry fee/payout) aren't settled yet. "⏸️ Deaktivieren" locks their login and excludes them from future evenings — no more auto-booked absence penalties, no schedule RSVP prompts/reminders, and they no longer appear in the roster picker used to start an evening, backlog an unplanned one, or add a player mid-evening — while their treasury balance stays visible and untouched until settled. The deactivation date defaults to today but can be backdated to when the member actually left, so evenings in between are covered by the exclusion too. A deactivated member still shows up in the "known guests" picker at all three of those spots, so they can keep attending as a guest without being reactivated. "↩️ Reaktivieren" undoes it. A "🧹 Remove penalties since departure" action soft-deletes any penalties mistakenly logged for evenings after the deactivation date, in case some were booked before the member was actually marked as departed
 
+### AI features (optional, Claude)
+
+Hidden unless the server has `ANTHROPIC_API_KEY` set (model via `ANTHROPIC_MODEL`, default `claude-opus-5-5`; 30 AI calls per club per hour).
+
+- **AI recaps**: a funny Stammtisch-style German recap of a closed evening (Historie) or a whole season (Statistik → Jahr), editable in a sheet and postable to the news feed by committee members and admins
+- **Penalty-type suggestions**: new catalog entries derived from penalties the club keeps typing in by hand; tapping one prefills the add form
+- **Kegelname suggestions**: three nickname ideas per member from their stats and first name, in the member edit sheet
+- **Booking check (Kassenprüfung assist)**: rule-based pre-audit over a period (likely duplicates, unusual amounts, payouts without a note, future dates, edited bookings) in the Kasse → Prüfung tab for admins and auditors (prefilled with the period inside an audit); works without a key, and with one Claude adds a note per finding plus a summary
+- **Privacy**: only Kegelnamen (or first names) are sent, never e-mails or balances; the booking check sends only the flagged bookings
+
 ### Statistics
 
 - "Abend" / "Jahr" / "📊 Labor" tab split — per-evening analysis and the yearly rollup stay glance-level, while every deep analysis lives behind a deliberately entered lab tab instead of padding both other tabs
