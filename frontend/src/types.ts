@@ -725,3 +725,43 @@ export interface TreasuryAuditList {
     can_sign: boolean
     audits: TreasuryAudit[]
 }
+
+// ── Kegelfahrt-Kasse (trip cash box) ──
+export interface TripCashMember {
+    id: number
+    name: string
+    nickname: string | null
+    is_guest: boolean
+}
+
+export interface TripCashExpense {
+    id: number
+    kind: 'expense' | 'transfer'
+    description: string
+    amount: number
+    paid_by_member_id: number
+    to_member_id: number | null
+    /** null = split across all participants. */
+    split_member_ids: number[] | null
+    date: string | null
+    created_by_name: string | null
+    can_delete: boolean
+}
+
+export interface TripCashBalance extends TripCashMember {
+    paid: number
+    share: number
+    /** Positive = gets money back, negative = owes. */
+    balance: number
+}
+
+export interface TripCash {
+    trip_id: number
+    can_manage: boolean
+    can_add: boolean
+    total: number
+    participants: TripCashMember[]
+    expenses: TripCashExpense[]
+    balances: TripCashBalance[]
+    settlements: { from_member_id: number; to_member_id: number; amount: number }[]
+}
