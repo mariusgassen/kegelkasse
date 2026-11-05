@@ -35,17 +35,15 @@ Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspiel
 - Kommende Fahrten erscheinen oben, vergangene darunter
 - Bestehende Fahrten können bearbeitet und gelöscht werden
 
-## Fahrtkasse (💶 Kasse)
+## Ausgaben der Fahrt (💶)
 
-Jede Kegelfahrt hat eine eigene Kasse für die Kosten der Mitfahrer — getrennt von der Vereinskasse, denn das ist das Geld der Reisenden.
+Die Kosten einer Kegelfahrt zahlt die **Vereinskasse** — dafür gibt es keine eigene Kasse. Damit trotzdem sichtbar ist, was für eine Fahrt bezahlt wurde, lässt sich eine Vereinsausgabe mit der Fahrt verknüpfen:
 
-- **Mitfahrer** trägt der VGA oder ein Admin über die Karte **Mitfahrer** ein (auch Gäste). Wer bereits Einträge hat, kann nicht mehr entfernt werden.
-- Jeder Mitfahrer (sowie VGA/Admins) kann **Einträge** anlegen:
-    - **🧾 Ausgabe** — jemand hat für die Gruppe bezahlt (Bus, Hotel, eine Runde). Standardmäßig wird auf alle Mitfahrer aufgeteilt, per Antippen lässt sich die Aufteilung auf einzelne beschränken.
-    - **💸 Geld übergeben** — jemand hat einem anderen Geld gegeben, z. B. eine Anzahlung an den VGA oder ein Ausgleich.
-- Die Kasse zeigt für jeden, was er **bezahlt** hat, seinen **Anteil** und den Saldo — und darunter **So wird ausgeglichen**: die wenigsten Überweisungen, mit denen alle quitt sind. **Bezahlt** bucht einen Ausgleich mit einem Tipp.
-- Gerechnet wird in Cent: ein Betrag, der sich nicht glatt teilen lässt (10 € auf 3), verteilt die übrigen Cent auf einzelne Mitfahrer, sodass die Summe immer exakt stimmt.
-- Löschen darf, wer den Eintrag angelegt hat, sowie VGA und Admins.
+- Beim Anlegen oder Bearbeiten einer **Vereinsausgabe** in der Kasse (Tab **Buchungen**, „+ Buchung") gibt es das optionale Feld **Kegelfahrt**. Das gilt auch, wenn ein Mitglied etwas ausgelegt hat („Als Vereinsausgabe verbuchen") — dann steht die Fahrt an der verknüpften Ausgabe.
+- Auf der Karte der Fahrt erscheint **💶 Vereinsausgaben · Summe (Anzahl)**. Antippen zeigt die einzelnen Ausgaben mit Datum und — bei Auslagen — wer das Geld vorgestreckt hat.
+- Direkt an der Fahrt trägt der VGA (oder ein Admin) über **＋ Ausgabe eintragen** ein, wer was ausgelegt hat: Bezahlt von, Beschreibung, Betrag, Datum. Das bucht automatisch eine Vereinsausgabe, verknüpft mit der Fahrt, und schreibt dem Mitglied den Betrag auf seinem Konto gut — dieselbe Doppelbuchung wie „Als Vereinsausgabe verbuchen" in der Kasse.
+- Aufgeklappt zeigt die Karte neben der Gesamtsumme **Ausgelegt von** mit der Summe je Person; direkt aus der Vereinskasse bezahlte Ausgaben stehen nur in der Gesamtsumme.
+- Stornierte Ausgaben zählen nicht mit. Wird eine Fahrt gelöscht, bleiben die Ausgaben in der Kasse bestehen.
 
 ## Beiträge bearbeiten & löschen
 

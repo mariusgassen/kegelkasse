@@ -11,6 +11,7 @@ import {
     ClubTeam,
     ClubPin,
     ClubTrip,
+    TripExpenses,
     DrinkRound,
     Evening,
     EveningHighlight,
@@ -43,7 +44,6 @@ import {
     GuestRequestDecision,
     TreasuryAudit,
     TreasuryAuditList,
-    TripCash,
     TreasuryAuditSnapshot,
 } from '@/types';
 
@@ -631,7 +631,7 @@ export const api = {
         id: number; regular_member_id: number; member_name: string;
         amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
     }[]>('GET', '/club/member-payments'),
-    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string; as_club_expense?: boolean }) =>
+    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string; as_club_expense?: boolean; trip_id?: number }) =>
         request<{
             id: number;
             amount: number;
@@ -658,12 +658,13 @@ export const api = {
     // Club expenses
     getExpenses: () => request<{
         id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null
+        trip_id?: number | null
     }[]>('GET', '/club/expenses'),
-    createExpense: (d: { amount: number; description: string; date?: string }) =>
-        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null }>(
+    createExpense: (d: { amount: number; description: string; date?: string; trip_id?: number }) =>
+        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null; trip_id?: number | null }>(
             'POST', '/club/expenses', {...d, idempotency_key: newIdempotencyKey()}),
-    updateExpense: (eid: number, d: { amount?: number; description?: string; date?: string }) =>
-        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null }>(
+    updateExpense: (eid: number, d: { amount?: number; description?: string; date?: string; trip_id?: number | null }) =>
+        request<{ id: number; amount: number; description: string; created_at: string | null; updated_at: string | null; date: string | null; trip_id?: number | null }>(
             'PATCH', `/club/expenses/${eid}`, d),
     deleteExpense: (eid: number, reason?: string) =>
         request<void>('DELETE', `/club/expenses/${eid}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
@@ -833,6 +834,9 @@ export const api = {
     createAnnouncement: (d: { title: string; text?: string; media_url?: string }) => request<ClubAnnouncement>('POST', '/committee/announcements', d),
     deleteAnnouncement: (id: number) => request<void>('DELETE', `/committee/announcements/${id}`),
     listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
+    getTripExpenses: (tid: number) => request<TripExpenses>('GET', `/committee/trips/${tid}/expenses`),
+    addTripExpense: (tid: number, d: { paid_by_member_id: number; amount: number; description: string; date?: string }) =>
+        request<TripExpenses>('POST', `/committee/trips/${tid}/expenses`, d),
     createTrip: (d: { date: string; end_date?: string; destination: string; note?: string }) => request<ClubTrip>('POST', '/committee/trips', d),
     updateTrip: (id: number, d: { date?: string; end_date?: string; destination?: string; note?: string }) => request<ClubTrip>('PATCH', `/committee/trips/${id}`, d),
     deleteTrip: (id: number) => request<void>('DELETE', `/committee/trips/${id}`),
@@ -844,17 +848,6 @@ export const api = {
     deletePoll: (id: number) => request<void>('DELETE', `/committee/polls/${id}`),
     castVote: (pollId: number, optionIds: number[]) => request<void>('POST', `/committee/polls/${pollId}/vote`, { option_ids: optionIds }),
     retractVote: (pollId: number) => request<void>('DELETE', `/committee/polls/${pollId}/vote`),
-
-    // Kegelfahrt-Kasse (trip cash box)
-    getTripCash: (tripId: number) => request<TripCash>('GET', `/committee/trips/${tripId}/cash`),
-    setTripParticipants: (tripId: number, memberIds: number[]) =>
-        request<TripCash>('PUT', `/committee/trips/${tripId}/cash/participants`, {member_ids: memberIds}),
-    addTripExpense: (tripId: number, d: {
-        kind: 'expense' | 'transfer'; description: string; amount: number; paid_by_member_id: number;
-        to_member_id?: number; split_member_ids?: number[]; date?: string
-    }) => request<TripCash>('POST', `/committee/trips/${tripId}/cash/expenses`, d),
-    deleteTripExpense: (tripId: number, expenseId: number) =>
-        request<TripCash>('DELETE', `/committee/trips/${tripId}/cash/expenses/${expenseId}`),
 
     // Kassenprüfung (treasury audit)
     listTreasuryAudits: () => request<TreasuryAuditList>('GET', '/treasury-audits/'),

@@ -18,6 +18,7 @@ from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
 from models.club import Club, ClubSettings, ClubPin
+from models.committee import ClubTrip
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
@@ -901,12 +902,25 @@ class PaymentCreate(TrimmedModel):
     idempotency_key: Optional[str] = None
     # Member paid a club cost out of pocket (e.g. lane rental): also book a linked club expense
     as_club_expense: bool = False
+    trip_id: Optional[int] = None  # Kegelfahrt the expense paid for (only with as_club_expense)
 
 
 class PaymentUpdate(TrimmedModel):
     amount: Optional[float] = None
     note: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
+
+
+def _check_trip(db: Session, club_id: int, trip_id: Optional[int]) -> Optional[int]:
+    """Return trip_id if it names a live trip of this club; 400 otherwise."""
+    if trip_id is None:
+        return None
+    found = db.query(ClubTrip.id).filter(
+        ClubTrip.id == trip_id, ClubTrip.club_id == club_id, ClubTrip.is_deleted == False,  # noqa: E712
+    ).first()
+    if not found:
+        raise HTTPException(400, "Unbekannte Kegelfahrt")
+    return trip_id
 
 
 def _linked_expense(db: Session, club_id: int, group_id: Optional[str]) -> Optional[ClubExpense]:
@@ -964,6 +978,9 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         if not data.note:
             raise HTTPException(400, "Beschreibung erforderlich")
         group_id = str(uuid.uuid4())
+    elif data.trip_id is not None:
+        raise HTTPException(400, "Kegelfahrt nur bei Vereinsausgaben")
+    trip_id = _check_trip(db, user.club_id, data.trip_id)
     payment = MemberPayment(
         club_id=user.club_id,
         regular_member_id=data.regular_member_id,
@@ -979,7 +996,7 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         # Paired club expense keeps the treasury correct: the member is credited, the club paid the bill.
         db.add(ClubExpense(
             club_id=user.club_id, amount=data.amount, description=data.note,
-            created_by=user.id, date=parsed_date, transfer_group_id=group_id,
+            created_by=user.id, date=parsed_date, transfer_group_id=group_id, trip_id=trip_id,
         ))
     db.commit()
     db.refresh(payment)
@@ -1400,12 +1417,14 @@ class ExpenseCreate(TrimmedModel):
     description: str
     date: Optional[str] = None  # ISO date string YYYY-MM-DD for backdating
     idempotency_key: Optional[str] = None
+    trip_id: Optional[int] = None  # Kegelfahrt this expense paid for
 
 
 class ExpenseUpdate(TrimmedModel):
     amount: Optional[float] = None
     description: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
+    trip_id: Optional[int] = None  # sent as null clears the link; omitted leaves it
 
 
 def _serialize_expense(e: ClubExpense) -> dict:
@@ -1415,6 +1434,7 @@ def _serialize_expense(e: ClubExpense) -> dict:
         "updated_at": e.updated_at.isoformat() if e.updated_at else None,
         "date": e.date.isoformat() if e.date else None,
         "linked_payment": bool(e.transfer_group_id),
+        "trip_id": e.trip_id,
     }
 
 
@@ -1455,6 +1475,7 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db),
         created_by=user.id,
         date=parsed_date,
         idempotency_key=data.idempotency_key,
+        trip_id=_check_trip(db, user.club_id, data.trip_id),
     )
     db.add(expense)
     db.commit()
@@ -1488,6 +1509,8 @@ def update_expense(eid: int, data: ExpenseUpdate, db: Session = Depends(get_db),
                 expense.date = date_type.fromisoformat(data.date)
             except ValueError:
                 raise HTTPException(400, "Ungültiges Datum")
+    if "trip_id" in data.model_fields_set:
+        expense.trip_id = _check_trip(db, user.club_id, data.trip_id)
     expense.updated_at = datetime.now(timezone.utc)
     expense.updated_by = user.id
     twin = _linked_payment(db, user.club_id, expense.transfer_group_id)
