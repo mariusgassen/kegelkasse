@@ -159,11 +159,17 @@ service worker + IndexedDB for offline support.
 - **Docs & README & CLAUDE.md:** Whenever a user-facing feature is added or changed, update the relevant page(s) in
   `docs/docs/`, the feature catalog in `README.md`, **and** the Feature Roadmap table in `CLAUDE.md` (status, notes).
   Keep all three in sync with the implementation. Do this **before committing** — never skip it, even for small changes.
-- **Versioning:** A single semantic version (`MAJOR.MINOR.PATCH`) for the whole app lives in `frontend/package.json`
-  (field `"version"`). It is injected at build time as `__APP_VERSION__` via `vite.config.ts` and displayed in the
-  ProfileSheet footer. Bump the version in `package.json` with every release or significant feature:
-  `MAJOR` for breaking changes, `MINOR` for new features, `PATCH` for bug-fixes. Never edit the displayed version
-  elsewhere — always update `frontend/package.json` as the single source of truth.
+- **Versioning & releases (release-please):** One semantic version for the whole app, managed by
+  `release-please` (`.github/workflows/release-please.yml`, config in `release-please-config.json`, current version in
+  `.release-please-manifest.json`). **Never bump a version by hand.** On every push to `main` release-please updates
+  an open `chore: release X.Y.Z` PR that bumps `frontend/package.json` (injected as `__APP_VERSION__` via
+  `vite.config.ts`, shown in the ProfileSheet footer), `frontend/package-lock.json`, `backend/pyproject.toml` (served
+  by `/health` and the API docs) and `version.txt`, and writes `CHANGELOG.md`; merging that PR tags `vX.Y.Z` and
+  publishes a GitHub release. The bump comes from **Conventional Commits** — and since PRs are squash-merged, the
+  **PR title is the commit**, so it must be conventional: `feat: …` → MINOR, `fix: …` / `perf: …` / `deps: …` →
+  PATCH, `feat!: …` or a `BREAKING CHANGE:` footer → MAJOR; `docs`/`refactor`/`test`/`ci`/`build`/`chore` don't
+  release. Don't write "Version → x.y.z" into roadmap notes anymore — the changelog is the record. Deploys are
+  unaffected: Coolify still deploys every push to `main`.
 - **Linting & build:** CI (`frontend-build.yml`, `backend-build.yml`) already runs `npm run lint`, `npm run build`,
   and `poetry run ruff check .` on every push and PR, and these pipelines finish in just a few minutes. Default to
   letting CI be the gate for **every** change, not just small ones: skip running the full local lint/build/test

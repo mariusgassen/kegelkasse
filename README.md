@@ -54,6 +54,14 @@ docker compose exec app python -m app.scripts.create_admin
 3. Set env vars (see `.env.example`)
 4. Deploy — migrations + admin seed run automatically
 
+### Releases
+
+Versioning is automated with [release-please](https://github.com/googleapis/release-please): PR titles follow
+[Conventional Commits](https://www.conventionalcommits.org/) (`feat:` → minor, `fix:`/`perf:`/`deps:` → patch,
+`feat!:` → major). release-please keeps a `chore: release X.Y.Z` PR open with the version bump and
+[`CHANGELOG.md`](CHANGELOG.md); merging it tags `vX.Y.Z` and publishes a GitHub release. Every push to `main` still
+deploys via Coolify.
+
 ### Database backups
 
 Automatic backups run on a configurable cron schedule (default: daily at 02:00 UTC) via APScheduler inside the app container. Backups are stored in a Docker volume (`backup_data`) mounted at `/backups`.

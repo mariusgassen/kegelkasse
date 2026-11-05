@@ -1,0 +1,42 @@
+---
+name: Release Please
+
+# Maintains a release PR on `main` from Conventional Commits (feat → minor,
+# fix/perf/deps → patch, `!`/BREAKING CHANGE → major). The PR bumps the single app
+# version (manifest + frontend/package.json + package-lock.json + backend/pyproject.toml)
+# and updates CHANGELOG.md. Merging it tags `vX.Y.Z` and publishes a GitHub release.
+#
+# Deploys are unchanged: Coolify still deploys every push to `main` (including the
+# merged release PR); this workflow only versions and documents what shipped.
+#
+# Uses AUTOFIX_TOKEN (see dependabot-autopilot.yml): a PR opened with GITHUB_TOKEN
+# would not trigger CI, so the required checks on the release PR would never report.
+# The PAT needs Contents, Pull requests and Issues (labels) = read/write.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.AUTOFIX_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Summary
+        if: steps.release.outputs.release_created
+        run: echo "Released ${{ steps.release.outputs.tag_name }}" >> "$GITHUB_STEP_SUMMARY"
