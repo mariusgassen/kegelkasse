@@ -6,6 +6,11 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    commit-message:
+      # Conventional prefix so release-please picks bumps up: production deps land
+      # under "Dependencies" (patch release), dev deps stay out of the changelog.
+      prefix: "deps"
+      prefix-development: "chore"
     groups:
       dev-dependencies:
         dependency-type: "development"
@@ -26,6 +31,11 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    commit-message:
+      # Conventional prefix so release-please picks bumps up: production deps land
+      # under "Dependencies" (patch release), dev deps stay out of the changelog.
+      prefix: "deps"
+      prefix-development: "chore"
     groups:
       dev-dependencies:
         dependency-type: "development"
@@ -38,3 +48,5 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "ci"
