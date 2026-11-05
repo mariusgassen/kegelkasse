@@ -29,6 +29,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@v5
         id: release
@@ -40,3 +43,37 @@ jobs:
       - name: Summary
         if: steps.release.outputs.release_created
         run: echo "Released ${{ steps.release.outputs.tag_name }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # The in-app "Was ist neu" sheet reads frontend/src/whatsNew/releases.json (CHANGELOG.md
+  # is outside the frontend's Docker build context). Regenerate it on the release PR,
+  # translating new entries to German with Claude, so it ships with the release.
+  # release-please rebuilds its branch on every run, so this re-applies each time.
+  release-notes:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+          token: ${{ secrets.AUTOFIX_TOKEN }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Generate bilingual release notes
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node --experimental-strip-types frontend/scripts/release-notes.mjs
+
+      - name: Commit to the release PR
+        run: |
+          if git diff --quiet -- frontend/src/whatsNew/releases.json; then
+            echo "Release notes unchanged"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/whatsNew/releases.json
+          git commit -m "chore: update in-app release notes"
+          git push

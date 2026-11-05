@@ -1,0 +1,35 @@
+name: PR title
+
+# PRs are squash-merged, so the PR title becomes the commit on main and drives
+# release-please (version bump + changelog + the in-app "What's new"). This check
+# keeps every title a Conventional Commit. See README → Releases for the types.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Lint PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            deps
+            revert
+            docs
+            refactor
+            test
+            ci
+            build
+            chore
+          requireScope: false
