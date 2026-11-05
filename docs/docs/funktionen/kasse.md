@@ -214,6 +214,20 @@ Bearbeiten ist auch in der Zahlungs-Historie eines Mitgliedskontos (Tab **Konten
 
 ---
 
+## Kassenprüfung (🔍 Prüfung)
+
+Im Tab **Prüfung** prüfen die Kassenprüfer die Kasse und zeichnen sie ab.
+
+1. Ein Admin benennt unter **Kassenprüfer festlegen** ein oder mehrere Mitglieder als Kassenprüfer (Gäste nicht).
+2. Der Kassenwart (Admin) oder ein Kassenprüfer legt eine **Neue Prüfung** für einen Zeitraum an. Eine Vorschau zeigt vorab Anfangs- und Endbestand.
+3. Beim Anlegen werden die Zahlen **eingefroren**: Anfangsbestand, Einzahlungen, Auszahlungen, Ausgaben, sonstige Einnahmen, Endbestand, alle Buchungen des Zeitraums, nachträglich bearbeitete und stornierte Buchungen sowie die Kontostände. Spätere Änderungen an Buchungen ändern die Prüfung nicht — unterschrieben ist, was geprüft wurde. Die übrigen Kassenprüfer bekommen eine Benachrichtigung.
+4. Jeder Kassenprüfer **bestätigt** die Kasse oder meldet einen **Einwand** (mit Pflicht-Begründung). Die Admins werden benachrichtigt. Eine Unterschrift lässt sich zurückziehen, z. B. nachdem eine Frage geklärt wurde.
+5. Status: **Offen** (noch keine Unterschrift), **Bestätigt** (nur Bestätigungen), **Einwand** (mindestens ein Einwand).
+
+Alle Mitglieder können die Prüfungen einsehen. Löschen kann ein Admin eine Prüfung nur, solange noch niemand unterschrieben hat.
+
+---
+
 ## Bezahllink (PayPal)
 
 Falls der Vereinsadmin einen PayPal.me-Link hinterlegt hat, können Mitglieder direkt aus dem **Profil** ihre Schulden per PayPal begleichen:
