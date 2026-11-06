@@ -108,7 +108,7 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                             <textarea id="ai-recap-text" className="kce-input" rows={10} value={text}
                                       onChange={e => setText(e.target.value)}/>
                         ) : (
-                            <div id="ai-recap-text" className="kce-card text-sm" data-testid="ai-recap-preview">
+                            <div id="ai-recap-text" className="kce-card text-sm p-4 leading-relaxed" data-testid="ai-recap-preview">
                                 <Markdown text={text}/>
                             </div>
                         )}

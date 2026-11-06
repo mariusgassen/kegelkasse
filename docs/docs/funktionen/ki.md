@@ -37,6 +37,10 @@ und in der App nicht angezeigt. Die Karte zeigt nur, ob er gesetzt ist.
 
 - **Abend:** In der Historie (📅 Termine → aufgeklappter Abend) schreibt „KI-Rückblick“ einen
   lustigen Stammtisch-Bericht über König, Spielsieger, Strafen, Getränke und Highlights.
+  Die KI kennt die Teams des Abends (Team-Siege werden mit den Mitgliedern genannt) und die
+  Vereinshistorie: Nummer des Abends im Jahr, Vergleich zum Schnitt und Strafen-Rekord, Königstitel
+  und Anwesenheitsserien sowie fehlende Stammmitglieder. Was nicht erfasst wurde (z. B. kein
+  Highlight), erwähnt sie nicht und erfindet nichts dazu.
 - **Saison:** Im Statistik-Tab „Jahr“ fasst „KI-Saisonrückblick“ das ganze Jahr zusammen und vergibt
   augenzwinkernde Titel.
 

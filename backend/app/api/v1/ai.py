@@ -193,13 +193,23 @@ def _evening_facts(e: Evening) -> dict:
             if pid in name:
                 (beers if r.drink_type == "beer" else shots)[name[pid]] += 1
 
+    team_members: dict = defaultdict(list)
+    for p in e.players:
+        if p.team_id is not None:
+            team_members[p.team_id].append(name[p.id])
+    teams = [{"team": t.name, "mitglieder": sorted(team_members.get(t.id, []))} for t in e.teams]
+
     games = []
     for g in sorted((g for g in e.games if not g.is_deleted), key=lambda g: g.sort_order or 0):
-        winner = None
+        winner: object = None
         if g.winner_ref and g.winner_ref.startswith("p:"):
             winner = name.get(int(g.winner_ref[2:]))
+        elif g.winner_ref and g.winner_ref.startswith("t:"):
+            tid = int(g.winner_ref[2:])
+            tname = next((t.name for t in e.teams if t.id == tid), g.winner_name)
+            winner = {"team": tname, "mitglieder": sorted(team_members.get(tid, []))}
         elif g.winner_ref:
-            winner = g.winner_name  # team names are not personal data
+            winner = g.winner_name
         games.append({"spiel": g.name, "sieger": winner, "eroeffnungsspiel": bool(g.is_opener),
                       "status": g.status})
 
@@ -207,6 +217,7 @@ def _evening_facts(e: Evening) -> dict:
         "datum": e.date.date().isoformat() if e.date else None,
         "lokal": e.venue,
         "spieler": sorted(name.values()),
+        "teams": teams,
         "koenig": next((name[p.id] for p in e.players if p.is_king), None),
         "spiele": games,
         "strafen_gesamt_euro": round(sum(_penalty_euro(l) for l in logs), 2),
@@ -219,8 +230,64 @@ def _evening_facts(e: Evening) -> dict:
                             "euro": round(_penalty_euro(top), 2)} if top else None,
         "bierrunden_pro_spieler": dict(beers.most_common()),
         "schnapsrunden_pro_spieler": dict(shots.most_common()),
-        "highlights": [h.text for h in e.highlights if h.text][:10],
+        "highlights": [h.text for h in e.highlights if h.text][:10] or "KEINE ERFASST",
     }
+
+
+def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
+    """Club history around this evening: season position, records, streaks. Aliases only."""
+    if not e.date:
+        return None
+    earlier = db.query(Evening).filter(
+        Evening.club_id == e.club_id, Evening.id != e.id, Evening.date < e.date,
+        Evening.date >= e.date - timedelta(days=730),
+    ).order_by(Evening.date.desc()).all()
+    if not earlier:
+        return None
+
+    def total(ev: Evening) -> float:
+        return sum(_penalty_euro(l) for l in ev.penalty_log if not l.is_deleted)
+
+    def present(ev: Evening) -> set:
+        return {p.regular_member_id for p in ev.players if p.regular_member_id}
+
+    totals = [(ev, total(ev)) for ev in earlier]
+    this_total = facts["strafen_gesamt_euro"]
+    avg = sum(t for _, t in totals) / len(totals)
+    rec_ev, rec = max(totals, key=lambda x: x[1])
+    out: dict = {
+        "abend_nr_im_jahr": sum(1 for ev in earlier if ev.date.year == e.date.year) + 1,
+        "durchschnitt_strafen_frueherer_abende_euro": round(avg, 2),
+        "rekord_abend_strafen_euro": {"datum": rec_ev.date.date().isoformat(), "euro": round(rec, 2),
+                                      "dieser_abend_ist_neuer_rekord": this_total > rec},
+    }
+    last_king = next((_alias(p.regular_member, p.name) for p in earlier[0].players if p.is_king), None)
+    if last_king:
+        out["koenig_letzter_abend"] = last_king
+    king = next((p for p in e.players if p.is_king and p.regular_member_id), None)
+    if king:
+        n = sum(1 for ev in earlier if ev.date.year == e.date.year
+                and any(p.is_king and p.regular_member_id == king.regular_member_id for p in ev.players))
+        out["koenig_titel_zuvor_dieses_jahr"] = n
+    streaks = []
+    for p in e.players:
+        if not p.regular_member_id:
+            continue
+        run = 0
+        for ev in earlier:
+            if p.regular_member_id not in present(ev):
+                break
+            run += 1
+        if run >= 2:
+            streaks.append({"name": _alias(p.regular_member, p.name), "abende_in_folge_inkl_diesem": run + 1})
+    if streaks:
+        out["anwesenheitsserien"] = sorted(streaks, key=lambda x: -x["abende_in_folge_inkl_diesem"])[:5]
+    absent = {m.id: m for m in db.query(RegularMember).filter(
+        RegularMember.club_id == e.club_id, RegularMember.is_active == True,  # noqa: E712
+        RegularMember.is_guest == False, RegularMember.deactivated_at.is_(None)).all()}  # noqa: E712
+    missing = [_alias(m, m.name) for mid, m in absent.items() if mid not in present(e)]
+    out["fehlende_stammmitglieder"] = sorted(missing)[:15]
+    return out
 
 
 @router.post("/recap/evening/{evening_id}")
@@ -229,11 +296,20 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
     if not e:
         raise HTTPException(status_code=404, detail="Evening not found")
     cfg = _require_ai(db, user, "recaps")
+    facts = _evening_facts(e)
+    history = _history_facts(db, e, facts)
+    if history:
+        facts["historie"] = history
     return _run(
-        SYSTEM_PROMPT, _evening_facts(e), _RECAP_SCHEMA, model=cfg["model"],
+        SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
         task=("Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
-              "Nenne den König, die Spielsieger, wer am meisten in die Kasse gezahlt hat und das "
-              "Highlight des Abends. Maximal etwa 150 Wörter."),
+              "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
+              "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
+              "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
+              "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
+              "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
+              "und mache auch nichts anderes dazu. Fehlt eine Angabe, lass sie weg statt zu raten. "
+              "Maximal etwa 150 Wörter."),
     )
 
 
