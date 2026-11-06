@@ -8,8 +8,8 @@ vi.mock('@/api/client.ts', () => ({api: {getAiStatus: vi.fn(), aiAsk: vi.fn()}})
 vi.mock('@/hooks/useOnline.ts', () => ({useOnline: () => true}))
 vi.mock('@/components/ui/Toast.tsx', () => ({showToast: vi.fn()}))
 vi.mock('@/utils/error.ts', () => ({toastError: vi.fn()}))
-const follow = vi.fn(() => true)
-vi.mock('@/lib/aiLinks.ts', () => ({followAiLink: (l: unknown) => follow(l as never)}))
+const follow = vi.fn((_link: unknown) => true)
+vi.mock('@/lib/aiLinks.ts', () => ({followAiLink: (l: unknown) => follow(l)}))
 
 import {api} from '@/api/client.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
