@@ -35,8 +35,19 @@ def _serialize_guest(g: ScheduledEveningGuest) -> dict:
 
 
 def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Optional[int], db=None) -> dict:
-    attending = [r for r in se.rsvps if r.status == RsvpStatus.attending]
-    absent = [r for r in se.rsvps if r.status == RsvpStatus.absent]
+    rsvps = se.rsvps
+    if db is not None and rsvps:
+        # RSVPs of members who left, became guests or were deactivated no longer count — the RSVP
+        # sheet (list_rsvps) lists only current members, so the counts must agree with it.
+        current = {m_id for (m_id,) in db.query(RegularMember.id).filter(
+            RegularMember.id.in_([r.regular_member_id for r in rsvps]),
+            RegularMember.is_active == True,
+            RegularMember.is_guest == False,
+            RegularMember.deactivated_at.is_(None),
+        )}
+        rsvps = [r for r in rsvps if r.regular_member_id in current]
+    attending = [r for r in rsvps if r.status == RsvpStatus.attending]
+    absent = [r for r in rsvps if r.status == RsvpStatus.absent]
     my_rsvp = None
     if my_regular_member_id:
         for r in se.rsvps:

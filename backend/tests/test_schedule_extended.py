@@ -472,6 +472,24 @@ class TestRemoveRsvpExtended:
 # POST /api/v1/schedule/{sid}/remind — send reminder
 # ---------------------------------------------------------------------------
 
+class TestAttendingCountIgnoresFormerMembers:
+    def test_deactivated_member_rsvp_not_counted(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, regular_member: RegularMember, db: Session):
+        """attending_count agrees with the RSVP sheet: RSVPs of deactivated members don't count."""
+        client.post(f"/api/v1/schedule/{scheduled_evening.id}/rsvp/member/{regular_member.id}",
+                    json={"status": "attending"}, headers=admin_headers)
+
+        def count() -> int:
+            evenings = client.get("/api/v1/schedule/", headers=admin_headers).json()
+            return next(e for e in evenings if e["id"] == scheduled_evening.id)["attending_count"]
+
+        assert count() == 1
+        regular_member.deactivated_at = datetime.now(UTC)
+        db.commit()
+        assert count() == 0
+
+
 class TestSendReminder:
     def test_send_reminder_returns_count(
             self, client: TestClient, admin_headers: dict,
