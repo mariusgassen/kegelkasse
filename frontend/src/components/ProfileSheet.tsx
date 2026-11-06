@@ -12,6 +12,7 @@ import {showToast} from '@/components/ui/Toast'
 import {toastError} from '@/utils/error'
 import {PushPreferences, NotificationChannel, ChannelPref, DigestFrequency} from '@/types'
 import {usePwaInstall} from '@/hooks/usePwaInstall'
+import {currentExternalHref} from '@/lib/externalLink'
 import {throwTrackingEnabled} from '@/lib/clubSettings'
 import {WhatsNewSheet, ALL_RELEASES} from '@/components/WhatsNewSheet'
 import {hasUnseen} from '@/lib/changelog'
@@ -987,7 +988,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         )}
                     </button>
                     <a
-                        href="/docs/index.html"
+                        href={currentExternalHref('/docs/index.html', isStandalone)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
@@ -996,7 +997,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         <span className="text-muted text-xs">↗</span>
                     </a>
                     <a
-                        href="/api/docs"
+                        href={currentExternalHref('/api/docs', isStandalone)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
