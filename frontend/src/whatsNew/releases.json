@@ -1,6 +1,122 @@
 {
   "releases": [
     {
+      "version": "1.72.0",
+      "date": "2026-11-06",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "2b0c586",
+              "pr": 540,
+              "sha": "2b0c586",
+              "text": {
+                "en": "add Zeugwart inventory for stickers, pins, shirts and more",
+                "de": "Zeugwart-Inventar für Sticker, Anstecknadeln, Shirts und mehr hinzugefügt"
+              }
+            },
+            {
+              "key": "625282f",
+              "scope": "ai",
+              "pr": 532,
+              "sha": "625282f",
+              "text": {
+                "en": "ask the search questions about the club and the app",
+                "de": "Stelle der Suche Fragen zum Verein und zur App"
+              }
+            },
+            {
+              "key": "29f725a",
+              "pr": 529,
+              "sha": "29f725a",
+              "text": {
+                "en": "club logo as app icon for all members",
+                "de": "Vereinslogo als App-Symbol für alle Mitglieder"
+              }
+            },
+            {
+              "key": "2d0b452",
+              "pr": 539,
+              "sha": "2d0b452",
+              "text": {
+                "en": "sticker wall with feed and world map",
+                "de": "Stickerwand mit Feed und Weltkarte"
+              }
+            },
+            {
+              "key": "626e6f2",
+              "pr": 524,
+              "sha": "626e6f2",
+              "text": {
+                "en": "store photos, logos and avatars in Garage (S3)",
+                "de": "Fotos, Logos und Avatare werden in Garage (S3) gespeichert"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "de1c267",
+              "pr": 528,
+              "sha": "de1c267",
+              "text": {
+                "en": "do not expose Garage ports",
+                "de": "Garage-Ports werden nicht mehr nach außen freigegeben"
+              }
+            },
+            {
+              "key": "a566237",
+              "pr": 535,
+              "sha": "a566237",
+              "text": {
+                "en": "keep real names out of AI Kegelname suggestions",
+                "de": "Echte Namen tauchen nicht mehr in KI-Vorschlägen für den Kegelnamen auf"
+              }
+            },
+            {
+              "key": "3ab794d",
+              "pr": 538,
+              "sha": "3ab794d",
+              "text": {
+                "en": "keep search query and AI answer when reopening search after following a link",
+                "de": "Suchanfrage und KI-Antwort bleiben erhalten, wenn du die Suche nach einem Link erneut öffnest"
+              }
+            },
+            {
+              "key": "d4ab5a2",
+              "pr": 531,
+              "sha": "d4ab5a2",
+              "text": {
+                "en": "media migration script runs from the container shell, Garage gets a healthcheck",
+                "de": "Das Medien-Migrationsskript läuft über die Container-Shell, Garage bekommt einen Healthcheck"
+              }
+            },
+            {
+              "key": "8e9ac15",
+              "pr": 530,
+              "sha": "8e9ac15",
+              "text": {
+                "en": "open docs and API docs in the browser from the installed app",
+                "de": "Dokumentation und API-Dokumentation öffnen sich in der installierten App im Browser"
+              }
+            },
+            {
+              "key": "974d19c",
+              "pr": 536,
+              "sha": "974d19c",
+              "text": {
+                "en": "tuck guest requests for past evenings into a collapsed card",
+                "de": "Gast-Anfragen für vergangene Abende stehen jetzt in einer eingeklappten Karte"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.71.0",
       "date": "2026-11-06",
       "sections": [
