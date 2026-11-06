@@ -8,7 +8,7 @@ import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {AiSettings, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
+import type {AiSettings, AppIconVariant, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -227,6 +227,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         try {
             await api.uploadClubLogo(file)
             await qc.invalidateQueries({queryKey: ['club']})
+            qc.invalidateQueries({queryKey: ['app-icon-settings']})
             showToast(t('club.savedOk'))
         } catch (e) {
             toastError(e)
@@ -239,6 +240,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         try {
             await api.deleteClubLogo()
             await qc.invalidateQueries({queryKey: ['club']})
+            qc.invalidateQueries({queryKey: ['app-icon-settings']})
             showToast(t('club.savedOk'))
         } catch (e) {
             toastError(e)
@@ -266,6 +268,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 public_schedule_enabled: publicSchedule,
             })
             applyClubTheme({settings: {primary_color: color1, secondary_color: color2, bg_color: bgColor}})
+            // the icon variants are derived from the palette (#102)
+            qc.invalidateQueries({queryKey: ['app-icon-settings']})
             setGuestPenaltyCap(cap)
             onSaved()
         } catch (e) {
@@ -407,6 +411,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
             </div>
 
+            {/* ── App-Icon ── */}
+            <AppIconCard/>
+
             {/* ── Sonderstrafen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.specialPenalties')}</div>
@@ -532,6 +539,78 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             <AiSettingsCard />
             <BroadcastPushCard />
             <ClubConfigCard />
+        </div>
+    )
+}
+
+
+/**
+ * Club-branded install icon (#102). The previews are rendered by the server — the same PNGs the
+ * members' devices get — so what the admin picks is exactly what lands on the home screen.
+ * Changes save immediately: there is nothing else on the card to batch them with.
+ */
+function AppIconCard() {
+    const t = useT()
+    const isOnline = useOnline()
+    const qc = useQueryClient()
+    const {data} = useQuery({queryKey: ['app-icon-settings'], queryFn: api.getAppIconSettings, staleTime: 60000})
+    const mutation = useMutation({
+        mutationFn: (d: {enabled?: boolean; variant?: AppIconVariant}) => api.updateAppIconSettings(d),
+        onSuccess: (res) => {
+            qc.setQueryData(['app-icon-settings'], res)
+            qc.invalidateQueries({queryKey: ['club']})
+            showToast(t('club.savedOk'))
+        },
+        onError: (e) => toastError(e),
+    })
+    const busy = !isOnline || mutation.isPending || !data
+    const enabled = data?.enabled ?? false
+
+    return (
+        <div className="kce-card p-4">
+            <div className="sec-heading mb-3">{t('appIcon.title')}</div>
+            <label className="flex items-center gap-3 cursor-pointer">
+                <button type="button" role="switch" aria-checked={enabled}
+                        aria-label={t('appIcon.enable')} disabled={busy}
+                        onClick={() => mutation.mutate({enabled: !enabled})}
+                        className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
+                        style={{background: enabled ? 'var(--accent)' : 'var(--surface-2)'}}>
+                    <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                          style={{transform: enabled ? 'translateX(20px)' : 'none'}}/>
+                </button>
+                <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-ink">{t('appIcon.enable')}</div>
+                    <p className="text-xs text-muted mt-0.5">{t('appIcon.hint')}</p>
+                </div>
+            </label>
+
+            {data && (
+                <>
+                    <label className="field-label mt-4 mb-2">{t('appIcon.variant')}</label>
+                    <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label={t('appIcon.variant')}>
+                        {data.variants.map(v => {
+                            const active = v.variant === data.variant
+                            return (
+                                <button key={v.variant} type="button" role="radio" aria-checked={active}
+                                        disabled={busy}
+                                        onClick={() => !active && mutation.mutate({variant: v.variant})}
+                                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${active ? 'border-accent bg-accent-tint' : 'border-line'}`}>
+                                    <img src={v.preview} alt="" width={56} height={56}
+                                         className="w-14 h-14 rounded-[22%] shadow"/>
+                                    <span className={`text-xs ${active ? 'font-bold text-ink' : 'text-muted'}`}>
+                                        {t(`appIcon.variant.${v.variant}`)}
+                                    </span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                    {!data.has_logo && <p className="text-xs text-muted mt-2">{t('appIcon.noLogo')}</p>}
+                    {data.has_logo && !data.logo_renderable && (
+                        <p className="text-xs text-danger-fg mt-2">{t('appIcon.svgLogo')}</p>
+                    )}
+                    <p className="text-xs text-muted mt-3">{t('appIcon.platforms')}</p>
+                </>
+            )}
         </div>
     )
 }

@@ -47,6 +47,29 @@ export interface ClubSettings {
     // Unauthenticated read-only schedule at /api/v1/public/clubs/<slug>/schedule (e.g. for the
     // club's website). Opt-in — defaults to false.
     public_schedule_enabled?: boolean
+    // Club-branded PWA icon (#102). URLs are null unless an admin switched it on.
+    app_icon?: AppIconLinks
+}
+
+export type AppIconVariant = 'dark' | 'light' | 'primary' | 'secondary'
+
+/** What every member's app needs to swap the install icon to the club's (#102). */
+export interface AppIconLinks {
+    enabled: boolean
+    variant: AppIconVariant
+    manifest_url: string | null
+    apple_touch_icon_url: string | null
+    icon_url: string | null
+}
+
+/** Admin view of the app-icon setting, with a rendered preview per palette variant. */
+export interface AppIconSettings {
+    enabled: boolean
+    variant: AppIconVariant
+    has_logo: boolean
+    // false for an SVG/unreadable logo — the icon then shows the club's initials instead
+    logo_renderable: boolean
+    variants: {variant: AppIconVariant; background: string; preview: string}[]
 }
 
 export type RsvpStatus = 'attending' | 'absent'

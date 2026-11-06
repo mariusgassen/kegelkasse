@@ -48,6 +48,8 @@ vi.mock('@/api/client.ts', () => ({
         updateTelegramSettings: vi.fn(),
         testTelegramSettings: vi.fn(),
         getAiSettings: vi.fn(),
+        getAppIconSettings: vi.fn(),
+        updateAppIconSettings: vi.fn(),
         updateAiSettings: vi.fn(),
         triggerReminders: vi.fn(),
         broadcastPush: vi.fn(),
@@ -182,6 +184,13 @@ const AI_SETTINGS = {
     max_calls_per_hour: 200,
 }
 
+const APP_ICON_SETTINGS = {
+    enabled: false, variant: 'dark', has_logo: true, logo_renderable: true,
+    variants: ['dark', 'light', 'primary', 'secondary'].map(v => ({
+        variant: v, background: '#000000', preview: `data:image/png;base64,${v}`,
+    })),
+}
+
 async function setupDefaultApiMocks() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
@@ -197,6 +206,7 @@ async function setupDefaultApiMocks() {
         enabled: false, bot_username: '', bot_token_set: false, webhook_registered: true,
     } as any)
     vi.mocked(api.getAiSettings).mockResolvedValue(AI_SETTINGS as any)
+    vi.mocked(api.getAppIconSettings).mockResolvedValue(APP_ICON_SETTINGS as any)
     vi.mocked(api.listClubTeams).mockResolvedValue([])
     vi.mocked(api.listPins).mockResolvedValue([])
     vi.mocked(api.listAllClubs).mockResolvedValue([])
@@ -2169,5 +2179,51 @@ describe('ClubAdminPage — AI settings', () => {
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         fireEvent.change(screen.getByLabelText('ai.settings.limit'), { target: { value: '0' } })
         expect(screen.getByTestId('ai-settings-save')).toBeDisabled()
+    })
+})
+
+
+describe('ClubAdminPage — app icon', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue(['settings', vi.fn()] as any)
+        await setupDefaultApiMocks()
+        await setupAsAdmin()
+    })
+
+    it('shows a server-rendered preview per variant with the current one selected', async () => {
+        await renderClubAdminPage()
+        const group = await screen.findByRole('radiogroup', { name: 'appIcon.variant' })
+        const radios = group.querySelectorAll('[role="radio"]')
+        expect(radios).toHaveLength(4)
+        expect(screen.getByRole('radio', { name: 'appIcon.variant.dark' })).toHaveAttribute('aria-checked', 'true')
+        expect(group.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,dark')
+    })
+
+    it('enables the club icon for everyone', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateAppIconSettings).mockResolvedValue({ ...APP_ICON_SETTINGS, enabled: true } as any)
+        await renderClubAdminPage()
+        const toggle = await screen.findByRole('switch', { name: 'appIcon.enable' })
+        await waitFor(() => expect(toggle).not.toBeDisabled())
+        fireEvent.click(toggle)
+        await waitFor(() => expect(api.updateAppIconSettings).toHaveBeenCalledWith({ enabled: true }))
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    })
+
+    it('picks another variant', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateAppIconSettings).mockResolvedValue({ ...APP_ICON_SETTINGS, variant: 'light' } as any)
+        await renderClubAdminPage()
+        fireEvent.click(await screen.findByRole('radio', { name: 'appIcon.variant.light' }))
+        await waitFor(() => expect(api.updateAppIconSettings).toHaveBeenCalledWith({ variant: 'light' }))
+    })
+
+    it('explains that an SVG logo falls back to initials', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getAppIconSettings).mockResolvedValue({ ...APP_ICON_SETTINGS, logo_renderable: false } as any)
+        await renderClubAdminPage()
+        expect(await screen.findByText('appIcon.svgLogo')).toBeInTheDocument()
     })
 })
