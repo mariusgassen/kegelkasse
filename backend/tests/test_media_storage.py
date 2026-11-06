@@ -248,6 +248,7 @@ class TestMigration:
         r = mig.Report()
         mig.verify(db, storage, r)
         assert r.ok, r.missing
+        assert r.checked == 3  # logo, comment photo, migrated avatar
 
         # Rollback restores the data URI
         r = mig.Report()
