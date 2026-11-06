@@ -10,9 +10,11 @@ interface Props {
     /** Current media URL (if any) — shows thumbnail and remove button. */
     value: string | null
     onRemove: () => void
+    /** Called with the chosen file before it is uploaded (e.g. to read EXIF from the original). */
+    onFile?: (file: File) => void
 }
 
-export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
+export function MediaUploadButton({onUploaded, value, onRemove, onFile}: Props) {
     const t = useT()
     const inputRef = useRef<HTMLInputElement>(null)
     const [uploading, setUploading] = useState(false)
@@ -20,6 +22,7 @@ export function MediaUploadButton({onUploaded, value, onRemove}: Props) {
     async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
         if (!file) return
+        onFile?.(file)
         setUploading(true)
         try {
             const url = await uploadMedia(file)

@@ -43,6 +43,7 @@ const sidebars: SidebarsConfig = {
         'funktionen/darstellung',
         'funktionen/tv-scoreboard',
         'funktionen/app-icon',
+        'funktionen/sticker-wand',
         'funktionen/ki',
         'funktionen/easter-egg',
       ],
