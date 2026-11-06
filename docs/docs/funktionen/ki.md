@@ -54,6 +54,8 @@ dem Knopf **✨ KI fragen** antwortet Claude kurz.
 Die Antwort stammt von einer KI und kann Fehler enthalten. Die Dokumentation erreichst du außerdem
 jederzeit über den Link unten in der Suche und im Profil.
 
+Suchbegriff und Antwort bleiben erhalten, auch wenn du einem Link folgst: Öffnest du die Suche erneut, steht dort noch alles, sodass du bei einer mehrstufigen Anleitung Schritt für Schritt zurückkehren kannst (bis zum Neuladen der App).
+
 ## ✨ KI-Rückblick
 
 - **Abend:** In der Historie (📅 Termine → aufgeklappter Abend) schreibt „KI-Rückblick“ einen
