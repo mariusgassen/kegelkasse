@@ -18,6 +18,7 @@ import {WhatsNewSheet, ALL_RELEASES} from '@/components/WhatsNewSheet'
 import {hasUnseen} from '@/lib/changelog'
 import {useWhatsNewStore} from '@/store/whatsNew'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
+import {subscribeThisDevice} from '@/lib/pushSubscribe'
 import {AchievementShelf} from '@/components/AchievementShelf'
 import {WrappedDeck} from '@/components/WrappedDeck'
 import {Sheet} from '@/components/ui/Sheet'
@@ -406,23 +407,10 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                 setPushSubscribed(false)
                 showToast('Benachrichtigungen deaktiviert')
             } else {
-                const permission = await Notification.requestPermission()
-                if (permission !== 'granted') {
+                if (await subscribeThisDevice() !== 'granted') {
                     showToast('Benachrichtigungen wurden nicht erlaubt')
                     return
                 }
-                const { public_key } = await api.getVapidPublicKey()
-                const padding = '='.repeat((4 - public_key.length % 4) % 4)
-                const base64 = (public_key + padding).replace(/-/g, '+').replace(/_/g, '/')
-                const raw = atob(base64)
-                const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
-                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
-                const subJson = sub.toJSON()
-                await api.subscribeToPush({
-                    endpoint: subJson.endpoint!,
-                    p256dh: subJson.keys!.p256dh,
-                    auth: subJson.keys!.auth,
-                })
                 setPushSubscribed(true)
                 showToast('Benachrichtigungen aktiviert')
             }
