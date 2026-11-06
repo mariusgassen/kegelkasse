@@ -18,6 +18,7 @@ import {WhatsNewSheet, ALL_RELEASES} from '@/components/WhatsNewSheet'
 import {hasUnseen} from '@/lib/changelog'
 import {useWhatsNewStore} from '@/store/whatsNew'
 import {InstallHowToSheet} from '@/components/InstallPrompt'
+import {subscribeThisDevice} from '@/lib/pushSubscribe'
 import {AchievementShelf} from '@/components/AchievementShelf'
 import {WrappedDeck} from '@/components/WrappedDeck'
 import {Sheet} from '@/components/ui/Sheet'
@@ -406,23 +407,10 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                 setPushSubscribed(false)
                 showToast('Benachrichtigungen deaktiviert')
             } else {
-                const permission = await Notification.requestPermission()
-                if (permission !== 'granted') {
+                if (await subscribeThisDevice() !== 'granted') {
                     showToast('Benachrichtigungen wurden nicht erlaubt')
                     return
                 }
-                const { public_key } = await api.getVapidPublicKey()
-                const padding = '='.repeat((4 - public_key.length % 4) % 4)
-                const base64 = (public_key + padding).replace(/-/g, '+').replace(/_/g, '/')
-                const raw = atob(base64)
-                const key = Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
-                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
-                const subJson = sub.toJSON()
-                await api.subscribeToPush({
-                    endpoint: subJson.endpoint!,
-                    p256dh: subJson.keys!.p256dh,
-                    auth: subJson.keys!.auth,
-                })
                 setPushSubscribed(true)
                 showToast('Benachrichtigungen aktiviert')
             }
@@ -846,7 +834,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                 <span className="text-xs text-ink">{t('push.pref.committee')}</span>
                                 <ChannelToggles value={['push']} onChange={() => {}} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} disabled />
                             </div>
-                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments', 'guest_requests', 'app_updates'] as (keyof PushPreferences)[]).map(key => (
+                            {(['penalties', 'evenings', 'schedule', 'payments', 'games', 'members', 'comments', 'guest_requests', 'stickers', 'app_updates'] as (keyof PushPreferences)[]).map(key => (
                                 <div key={key} className="flex items-center justify-between py-0.5">
                                     <span className="text-xs text-ink">{t(`push.pref.${key}` as any)}</span>
                                     <ChannelToggles value={pushPrefs[key] as ChannelPref} onChange={c => setPushChannels(key, c)} emailEnabled={emailConfigured} telegramEnabled={telegramConfigured && telegramLinked} />

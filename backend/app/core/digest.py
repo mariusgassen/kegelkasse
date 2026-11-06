@@ -213,7 +213,9 @@ def build_digest(db: Session, user: User, since: datetime | None, now: datetime,
     # Community news: new comments + reactions on club items since the window start.
     community = _community_news(db, club_id, window_start, locale)
 
-    has_content = bool(evenings or penalties or bookings or community)
+    stickers = _new_stickers(db, club_id, user.id, window_start)
+
+    has_content = bool(evenings or penalties or bookings or community or stickers)
     if not has_content:
         return None
 
@@ -227,8 +229,37 @@ def build_digest(db: Session, user: User, since: datetime | None, now: datetime,
         "penalties": penalties,
         "bookings": bookings,
         "community": community,
+        "stickers": stickers,
         "has_content": has_content,
     }
+
+
+def _new_stickers(db: Session, club_id: int, user_id: int, since: datetime) -> list[dict]:
+    """Stickers other members posted since ``since`` — place plus who put it up, linked to the post."""
+    from models.sticker import Sticker
+    rows = (
+        db.query(Sticker)
+        .filter(Sticker.club_id == club_id, Sticker.is_deleted == False,  # noqa: E712
+                Sticker.created_by != user_id, Sticker.created_at >= since)
+        .order_by(Sticker.created_at.desc())
+        .limit(MAX_ROWS)
+        .all()
+    )
+    if not rows:
+        return []
+    users = {u.id: u for u in db.query(User).filter(User.id.in_({r.created_by for r in rows})).all()}
+    rm_ids = {u.regular_member_id for u in users.values() if u.regular_member_id}
+    members = {m.id: m for m in db.query(RegularMember).filter(RegularMember.id.in_(rm_ids)).all()} if rm_ids else {}
+
+    def author(uid: int) -> str:
+        u = users.get(uid)
+        if u is None:
+            return ""
+        rm = members.get(u.regular_member_id) if u.regular_member_id else None
+        return (rm.nickname or rm.name) if rm else u.name
+
+    return [{"label": f"🏷️ {r.place_name}", "value": author(r.created_by), "url": f"/#stickers?item={r.id}"}
+            for r in rows]
 
 
 _THREAD_ICON = {"announcement": "📣", "trip": "🚌", "highlight": "✨", "sticker": "🏷️"}
@@ -347,7 +378,7 @@ def _empty_preview(db: Session, user: User, now: datetime) -> dict | None:
         "member_name": member.nickname or member.name,
         "since": _aware(user.last_digest_at),
         "balance": account,
-        "evenings": [], "penalties": [], "bookings": [], "community": [],
+        "evenings": [], "penalties": [], "bookings": [], "community": [], "stickers": [],
         "has_content": False,
     }
 

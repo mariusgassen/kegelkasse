@@ -25,6 +25,7 @@ from models.evening import Evening, EveningHighlight, EveningPlayer, RegularMemb
 from models.payment import MemberPayment
 from models.penalty import PenaltyLog
 from models.push import NotificationLog
+from models.sticker import Sticker
 from models.user import User
 
 
@@ -43,6 +44,7 @@ def cleanup_digest(db: Session, club: Club):
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.query(NotificationLog).delete(synchronize_session=False)
+    db.query(Sticker).delete(synchronize_session=False)
     db.query(Comment).delete(synchronize_session=False)
     db.query(ItemReaction).delete(synchronize_session=False)
     db.query(ClubAnnouncement).filter(ClubAnnouncement.club_id == club.id).delete(synchronize_session=False)
@@ -338,6 +340,56 @@ def test_build_digest_includes_threaded_community_news(db: Session, club: Club, 
     assert data is not None
     assert len(data["community"]) == 1
     assert data["community"][0]["label"] == "📣 Sommerfest"
+
+
+def test_build_digest_lists_new_stickers_of_other_members(db: Session, club: Club, user: User, member: RegularMember):
+    from core.security import get_password_hash
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    since = now - timedelta(days=7)
+    inside = now - timedelta(days=1)
+    other = User(email="poster@test.de", name="Poster", hashed_password=get_password_hash("x"),
+                 club_id=club.id, is_active=True)
+    db.add(other)
+    db.commit()
+    try:
+        def add(**kw):
+            base = dict(club_id=club.id, created_by=other.id, media_url="/uploads/media/x.jpg",
+                        place_name="Rom", latitude=41.9, longitude=12.5, created_at=inside)
+            base.update(kw)
+            db.add(Sticker(**base))
+        add()
+        add(place_name="Alt", created_at=since - timedelta(days=1))   # before the window
+        add(place_name="Weg", is_deleted=True)                         # soft-deleted
+        add(place_name="Eigener", created_by=user.id)                  # own post
+        db.commit()
+
+        data = build_digest(db, user, since, now)
+        assert data is not None
+        assert [x["label"] for x in data["stickers"]] == ["🏷️ Rom"]
+        assert data["stickers"][0]["value"] == "Poster"
+        assert data["stickers"][0]["url"].startswith("/#stickers?item=")
+    finally:
+        db.query(Sticker).delete(synchronize_session=False)
+        db.delete(other)
+        db.commit()
+
+
+def test_stickers_alone_make_a_digest_and_render(db: Session, club: Club, user: User, member: RegularMember):
+    from core.security import get_password_hash
+    now = datetime(2026, 6, 10, 8, 0, tzinfo=timezone.utc)
+    other = User(email="p2@test.de", name="P2", hashed_password=get_password_hash("x"), club_id=club.id, is_active=True)
+    db.add(other)
+    db.commit()
+    db.add(Sticker(club_id=club.id, created_by=other.id, media_url="/uploads/media/x.jpg", place_name="Lissabon",
+                   latitude=38.7, longitude=-9.1, created_at=now - timedelta(hours=3)))
+    db.commit()
+    data = build_digest(db, user, now - timedelta(days=1), now)
+    assert data is not None and data["has_content"]
+    with patch("core.email.settings.APP_BASE_URL", "https://app.example.com"):
+        _, text, html = build_digest_email(email_theme(None), data, "de")
+    assert "Neue Sticker" in html
+    assert "Lissabon" in text
+    assert "https://app.example.com/#stickers?item=" in html
 
 
 # ---------------------------------------------------------------------------

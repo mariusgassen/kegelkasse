@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {parseExifGps} from '../exifGps'
+import {parseExif, parseExifGps} from '../exifGps'
 
 /** Build a JPEG with an Exif APP1 holding only a GPS IFD. */
 function jpegWithGps(opts: {
@@ -78,5 +78,63 @@ describe('parseExifGps', () => {
         expect(parseExifGps(new Uint8Array([1, 2, 3, 4, 5]).buffer)).toBeNull()
         expect(parseExifGps(jpegWithGps({}).slice(0, 40))).toBeNull()
         expect(parseExifGps(jpegWithGps({den: 0}))).toBeNull()
+    })
+})
+
+/** A JPEG whose IFD0 carries DateTime (0x0132) and, optionally, an Exif sub-IFD with DateTimeOriginal. */
+function jpegWithDates(opts: { dateTime?: string; original?: string }): ArrayBuffer {
+    const buf = new ArrayBuffer(220)
+    const v = new DataView(buf)
+    let p = 0
+    v.setUint16(p, 0xffd8); p += 2
+    v.setUint16(p, 0xffe1); p += 2
+    v.setUint16(p, 200); p += 2
+    v.setUint32(p, 0x45786966); p += 4
+    v.setUint16(p, 0); p += 2
+    const t = p
+    v.setUint16(t, 0x4d4d); v.setUint16(t + 2, 42); v.setUint32(t + 4, 8)
+    const entries = (opts.dateTime ? 1 : 0) + (opts.original ? 1 : 0)
+    v.setUint16(t + 8, entries)
+    let o = t + 10
+    const text = (at: number, str: string) => [...str].forEach((c, i) => v.setUint8(t + at + i, c.charCodeAt(0)))
+    if (opts.original) {
+        v.setUint16(o, 0x8769); v.setUint16(o + 2, 4); v.setUint32(o + 4, 1); v.setUint32(o + 8, 50); o += 12
+        v.setUint16(t + 50, 1)
+        v.setUint16(t + 52, 0x9003); v.setUint16(t + 54, 2); v.setUint32(t + 56, 20); v.setUint32(t + 60, 130)
+        text(130, opts.original + '\0')
+    }
+    if (opts.dateTime) {
+        v.setUint16(o, 0x0132); v.setUint16(o + 2, 2); v.setUint32(o + 4, 20); v.setUint32(o + 8, 100)
+        text(100, opts.dateTime + '\0')
+    }
+    return buf
+}
+
+describe('parseExif dates', () => {
+    it('reads DateTimeOriginal as a YYYY-MM-DD day', () => {
+        expect(parseExif(jpegWithDates({original: '2024:08:15 14:03:22'})).takenOn).toBe('2024-08-15')
+    })
+
+    it('prefers DateTimeOriginal over the file DateTime', () => {
+        const r = parseExif(jpegWithDates({original: '2024:08:15 14:03:22', dateTime: '2025:01:02 10:00:00'}))
+        expect(r.takenOn).toBe('2024-08-15')
+    })
+
+    it('falls back to DateTime in IFD0', () => {
+        expect(parseExif(jpegWithDates({dateTime: '2023:12:24 18:00:00'})).takenOn).toBe('2023-12-24')
+    })
+
+    it('ignores the zero placeholder date', () => {
+        expect(parseExif(jpegWithDates({dateTime: '0000:00:00 00:00:00'})).takenOn).toBeNull()
+    })
+
+    it('returns no date for a photo without one, and still reads the GPS', () => {
+        const r = parseExif(jpegWithGps({}))
+        expect(r.takenOn).toBeNull()
+        expect(r.gps!.latitude).toBeCloseTo(38.7, 5)
+    })
+
+    it('never throws on garbage', () => {
+        expect(parseExif(new ArrayBuffer(3))).toEqual({gps: null, takenOn: null})
     })
 })

@@ -40,6 +40,7 @@ import {OfflineBanner} from './components/ui/OfflineBanner'
 import {InstallPrompt} from './components/InstallPrompt'
 import {UpdatePrompt} from './components/UpdatePrompt'
 import {WhatsNewNotice} from './components/WhatsNewNotice'
+import {NotificationPrompt} from './components/NotificationPrompt'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
@@ -312,6 +313,7 @@ export function RootLayout() {
             </nav>
 
             <ToastContainer/>
+            <NotificationPrompt/>
             <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>

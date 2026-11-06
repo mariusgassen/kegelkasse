@@ -55,6 +55,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     "digest.section.evenings": {"de": "Kegelabende", "en": "Bowling evenings"},
     "digest.section.penalties": {"de": "Deine Strafen", "en": "Your penalties"},
     "digest.section.bookings": {"de": "Deine Buchungen", "en": "Your bookings"},
+    "digest.section.stickers": {"de": "Neue Sticker", "en": "New stickers"},
     "digest.section.community": {"de": "Neues aus dem Verein", "en": "Club news"},
     "digest.balance.balance": {"de": "Kontostand", "en": "Balance"},
     "digest.balance.penalties": {"de": "Strafen gesamt", "en": "Total penalties"},
@@ -78,8 +79,8 @@ _STRINGS: dict[str, dict[str, str]] = {
     # Release announcement push (opt-in category "app_updates").
     "release.push.title": {"de": "Neue Version {version}", "en": "New version {version}"},
     "release.push.body": {
-        "de": "Kegelkasse {version} ist da. Tippe hier, um sie sofort zu laden.",
-        "en": "Kegelkasse {version} is out. Tap to load it right away.",
+        "de": "Kegelkasse {version} ist da. Tippe hier zum Öffnen – sieht die App noch alt aus, tippe oben auf „Aktualisieren“.",
+        "en": "Kegelkasse {version} is out. Tap to open it – if the app still looks old, tap “Update” at the top.",
     },
     # Guest requests — mails to the (non-member) requester. Guests have no locale, so these
     # are always sent in German; the English entries only keep the table complete.
