@@ -232,12 +232,24 @@ def test_search_switch_and_status(client, admin_headers, auth_headers, claude):
     assert claude.calls == []
 
 
-def test_ask_uses_club_model_and_limit(client, admin_headers, auth_headers, claude):
-    client.patch("/api/v1/ai/settings", json={"model": "claude-haiku-5-5", "calls_per_hour": 1},
-                 headers=admin_headers)
+def test_ask_defaults_to_haiku_and_ignores_general_model(client, admin_headers, auth_headers, claude):
+    client.patch("/api/v1/ai/settings", json={"model": "claude-opus-5-5"}, headers=admin_headers)
     assert _ask(client, auth_headers).status_code == 200
     assert claude.calls[-1]["model"] == "claude-haiku-5-5"
+
+
+def test_ask_uses_configured_search_model_and_limit(client, admin_headers, auth_headers, claude):
+    r = client.patch("/api/v1/ai/settings", json={"search_model": "claude-sonnet-5-5", "calls_per_hour": 1},
+                     headers=admin_headers)
+    assert r.json()["search_model"] == "claude-sonnet-5-5"
+    assert _ask(client, auth_headers).status_code == 200
+    assert claude.calls[-1]["model"] == "claude-sonnet-5-5"
     assert _ask(client, auth_headers).status_code == 429
+
+
+def test_unknown_search_model_rejected(client, admin_headers):
+    r = client.patch("/api/v1/ai/settings", json={"search_model": "gpt-4"}, headers=admin_headers)
+    assert r.status_code == 400
 
 
 def test_answer_language_follows_user_locale(client, db, user, auth_headers, claude):

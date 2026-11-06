@@ -177,7 +177,7 @@ async function renderClubAdminPage() {
 }
 
 const AI_SETTINGS = {
-    recaps: true, suggestions: true, booking_review: true, model: 'claude-opus-5-5', calls_per_hour: 30,
+    recaps: true, suggestions: true, booking_review: true, model: 'claude-opus-5-5', search_model: 'claude-haiku-5-5', calls_per_hour: 30,
     key_configured: true, models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
     max_calls_per_hour: 200,
 }
@@ -2136,7 +2136,8 @@ describe('ClubAdminPage — AI settings', () => {
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         const card = screen.getByTestId('ai-settings')
         expect(card.querySelector('input[type="password"]')).toBeNull()
-        expect(screen.getByRole('option', { name: 'Claude Haiku 5.5' })).toBeInTheDocument()
+        expect(screen.getAllByRole('option', { name: 'Claude Haiku 5.5' })).toHaveLength(2)
+        expect(screen.getByLabelText('ai.settings.searchModel')).toHaveValue('claude-haiku-5-5')
         expect(screen.queryByTestId('ai-settings-no-key')).not.toBeInTheDocument()
     })
 
@@ -2154,10 +2155,12 @@ describe('ClubAdminPage — AI settings', () => {
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         fireEvent.click(screen.getByRole('button', { name: 'ai.settings.recaps' }))
         fireEvent.change(screen.getByLabelText('ai.settings.model'), { target: { value: 'claude-haiku-5-5' } })
+        fireEvent.change(screen.getByLabelText('ai.settings.searchModel'), { target: { value: 'claude-sonnet-5-5' } })
         fireEvent.change(screen.getByLabelText('ai.settings.limit'), { target: { value: '12' } })
         fireEvent.click(screen.getByTestId('ai-settings-save'))
         await waitFor(() => expect(api.updateAiSettings).toHaveBeenCalledWith({
-            recaps: false, suggestions: true, booking_review: true, model: 'claude-haiku-5-5', calls_per_hour: 12,
+            recaps: false, suggestions: true, booking_review: true, model: 'claude-haiku-5-5',
+            search_model: 'claude-sonnet-5-5', calls_per_hour: 12,
         }))
     })
 

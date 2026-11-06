@@ -843,7 +843,7 @@ export const api = {
     // Optional Claude-powered features (hidden when the server has no ANTHROPIC_API_KEY)
     getAiStatus: () => request<AiStatus>('GET', '/ai/status'),
     getAiSettings: () => request<AiSettings>('GET', '/ai/settings'),
-    updateAiSettings: (d: Partial<Pick<AiSettings, 'recaps' | 'suggestions' | 'booking_review' | 'search' | 'model' | 'calls_per_hour'>>) =>
+    updateAiSettings: (d: Partial<Pick<AiSettings, 'recaps' | 'suggestions' | 'booking_review' | 'search' | 'model' | 'search_model' | 'calls_per_hour'>>) =>
         request<AiSettings>('PATCH', '/ai/settings', d),
     aiRecapEvening: (eveningId: number) => request<AiRecap>('POST', `/ai/recap/evening/${eveningId}`),
     aiRecapSeason: (year: number) => request<AiRecap>('POST', `/ai/recap/season/${year}`),

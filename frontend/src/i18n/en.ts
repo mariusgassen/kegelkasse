@@ -1559,6 +1559,8 @@ export const en = {
     "ai.search.disclaimer": "AI answer, may contain mistakes.",
     "ai.settings.model": "Model",
     "ai.settings.modelHint": "Opus writes best, Sonnet is balanced, Haiku is cheapest.",
+    "ai.settings.searchModel": "Search model",
+    "ai.settings.searchModelHint": "Search answers short questions from a prepared snapshot – Haiku is usually enough and cheapest.",
     "ai.settings.limit": "Max. AI requests per hour",
     "ai.settings.limitHint": "Applies to the whole club, at most {max}.",
     "ai.settings.saved": "AI settings saved",

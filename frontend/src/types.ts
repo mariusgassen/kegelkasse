@@ -797,6 +797,7 @@ export type AiStatus = { enabled: boolean } & Partial<Record<AiFeature, boolean>
 
 export interface AiSettings extends Record<AiFeature, boolean> {
     model: string
+    search_model: string
     calls_per_hour: number
     key_configured: boolean
     models: string[]

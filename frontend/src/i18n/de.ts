@@ -1559,6 +1559,8 @@ export const de = {
     "ai.search.disclaimer": "KI-Antwort, kann Fehler enthalten.",
     "ai.settings.model": "Modell",
     "ai.settings.modelHint": "Opus schreibt am besten, Sonnet ist ausgewogen, Haiku am günstigsten.",
+    "ai.settings.searchModel": "Modell für die Suche",
+    "ai.settings.searchModelHint": "Die Suche beantwortet kurze Fragen aus einem fertigen Auszug – Haiku reicht meist und ist am günstigsten.",
     "ai.settings.limit": "Max. KI-Anfragen pro Stunde",
     "ai.settings.limitHint": "Gilt für den ganzen Verein, höchstens {max}.",
     "ai.settings.saved": "KI-Einstellungen gespeichert",

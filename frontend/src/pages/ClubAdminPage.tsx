@@ -1018,7 +1018,7 @@ function AiSettingsCard() {
         try {
             const res = await api.updateAiSettings({
                 recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review, search: form.search,
-                model: form.model, calls_per_hour: form.calls_per_hour,
+                model: form.model, search_model: form.search_model, calls_per_hour: form.calls_per_hour,
             })
             setForm(res)
             qc.setQueryData(['ai-settings'], res)
@@ -1066,6 +1066,14 @@ function AiSettingsCard() {
                         {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
                     </select>
                     <p className="text-xs text-muted mt-1">{t('ai.settings.modelHint')}</p>
+                </div>
+                <div>
+                    <label className="field-label" htmlFor="ai-search-model">{t('ai.settings.searchModel')}</label>
+                    <select id="ai-search-model" className="kce-input" value={form.search_model}
+                            onChange={e => set({search_model: e.target.value})}>
+                        {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
+                    </select>
+                    <p className="text-xs text-muted mt-1">{t('ai.settings.searchModelHint')}</p>
                 </div>
                 <div>
                     <label className="field-label" htmlFor="ai-limit">{t('ai.settings.limit')}</label>

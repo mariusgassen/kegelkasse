@@ -27,6 +27,7 @@ Unter **Verein → Einstellungen → ✨ KI-Funktionen** stellen Admins ein:
   für alle Mitglieder.
 - **KI-Erklärungen im Buchungs-Check** an oder aus. Die regelbasierte Prüfung läuft immer.
 - das **Modell** (Claude Opus, Sonnet oder Haiku). Opus schreibt am besten, Haiku ist am günstigsten.
+- das **Modell für die Suche** getrennt davon (Standard: Haiku – die Suche beantwortet kurze Fragen aus einem fertigen Auszug, dafür genügt das günstigste Modell).
 - die **maximale Anzahl KI-Anfragen pro Stunde** für den ganzen Verein (Standard 30, höchstens 200),
   damit die Kosten im Rahmen bleiben.
 

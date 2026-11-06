@@ -330,7 +330,7 @@ def ask(data: AskRequest, db: Session = Depends(get_db), user: User = Depends(re
             for k, t in targets.items()
         ],
     }
-    result = _run(SYSTEM_PROMPT, payload, _ANSWER_SCHEMA, task=_TASK, model=cfg["model"],
+    result = _run(SYSTEM_PROMPT, payload, _ANSWER_SCHEMA, task=_TASK, model=cfg["search_model"],
                   effort="low", max_tokens=2000)
     answer, links = validate_links(str(result.get("answer", "")).strip(), targets, ids, user)
     return {
