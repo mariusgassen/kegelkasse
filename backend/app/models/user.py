@@ -23,7 +23,9 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.member)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=True)
     regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=True)
-    avatar = Column(Text, nullable=True)
+    avatar = Column(Text, nullable=True)  # /uploads/avatars/<key> URL (legacy rows: base64 data URI)
+    # Original data URI kept by scripts/migrate_media_to_s3.py until the copy is verified (migration 067)
+    avatar_legacy = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     preferred_locale = Column(String, default="de")
     push_preferences = Column(JSON, nullable=True)  # {penalties, evenings, schedule, payments, games, members}

@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     # are hidden when left empty. ANTHROPIC_MODEL overrides the default model.
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-opus-5-5"
+    # Media storage (photos, logos, avatars). "local" = the uploads volume, "s3" = an
+    # S3-compatible bucket such as Garage. Files are always served by the app at /uploads/<key>,
+    # so stored URLs stay valid when switching. Credentials come from env only.
+    MEDIA_STORAGE: str = "local"
+    UPLOADS_DIR: str = "/app/uploads"
+    MEDIA_S3_ENDPOINT_URL: str = ""          # e.g. http://garage:3900
+    MEDIA_S3_REGION: str = "garage"          # Garage's default s3_region
+    MEDIA_S3_BUCKET: str = ""
+    MEDIA_S3_ACCESS_KEY_ID: str = ""
+    MEDIA_S3_SECRET_ACCESS_KEY: str = ""
+    MEDIA_S3_FORCE_PATH_STYLE: bool = True   # Garage needs path-style unless root_domain is set
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

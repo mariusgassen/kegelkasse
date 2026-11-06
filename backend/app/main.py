@@ -106,13 +106,8 @@ docs_static_dir = os.path.join(os.path.dirname(__file__), "..", "docs_static")
 if os.path.exists(docs_static_dir):
     app.mount("/docs", StaticFiles(directory=docs_static_dir, html=True), name="docs")
 
-# Serve uploaded files (club logos, etc.)
-uploads_dir = "/app/uploads"
-try:
-    os.makedirs(uploads_dir, exist_ok=True)
-    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
-except (PermissionError, OSError):
-    pass  # uploads dir not available (e.g., in CI / test environment)
+# Serve uploaded files (photos, club logos, avatars) from the local volume or the S3 bucket
+app.include_router(uploads.serve_router)
 
 # Serve React PWA
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")

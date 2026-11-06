@@ -6,7 +6,6 @@ Tests for club management endpoints:
   DELETE /club/logo            — remove club logo (admin)
 """
 import io
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -200,15 +199,11 @@ class TestUploadClubLogo:
         )
 
     def test_admin_can_upload_png(self, client: TestClient, admin_headers: dict, club_with_settings: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
-
-        with patch("api.v1.club._UPLOAD_DIR", upload_dir):
-            resp = client.post(
-                "/api/v1/club/logo",
-                headers=admin_headers,
-                files={"file": ("logo.png", io.BytesIO(self._make_png_bytes()), "image/png")},
-            )
+        resp = client.post(
+            "/api/v1/club/logo",
+            headers=admin_headers,
+            files={"file": ("logo.png", io.BytesIO(self._make_png_bytes()), "image/png")},
+        )
 
         assert resp.status_code == 200
         data = resp.json()
@@ -217,15 +212,11 @@ class TestUploadClubLogo:
         assert data["logo_url"].endswith(".png")
 
     def test_logo_url_persisted_in_settings(self, client: TestClient, admin_headers: dict, club_with_settings: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
-
-        with patch("api.v1.club._UPLOAD_DIR", upload_dir):
-            client.post(
-                "/api/v1/club/logo",
-                headers=admin_headers,
-                files={"file": ("logo.png", io.BytesIO(self._make_png_bytes()), "image/png")},
-            )
+        client.post(
+            "/api/v1/club/logo",
+            headers=admin_headers,
+            files={"file": ("logo.png", io.BytesIO(self._make_png_bytes()), "image/png")},
+        )
 
         verify = client.get("/api/v1/club/", headers=admin_headers)
         logo_url = verify.json()["settings"]["logo_url"]
@@ -250,45 +241,34 @@ class TestUploadClubLogo:
         assert resp.status_code == 403
 
     def test_rejects_oversized_file(self, client: TestClient, admin_headers: dict, club_with_settings: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
-
         # 6 MB of data (> 5 MB limit)
         big_data = b"x" * (6 * 1024 * 1024)
-        with patch("api.v1.club._UPLOAD_DIR", upload_dir):
-            resp = client.post(
-                "/api/v1/club/logo",
-                headers=admin_headers,
-                files={"file": ("big.png", io.BytesIO(big_data), "image/png")},
-            )
+        resp = client.post(
+            "/api/v1/club/logo",
+            headers=admin_headers,
+            files={"file": ("big.png", io.BytesIO(big_data), "image/png")},
+        )
 
         assert resp.status_code == 413
 
     def test_accepts_webp(self, client: TestClient, admin_headers: dict, club_with_settings: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
-
-        with patch("api.v1.club._UPLOAD_DIR", upload_dir):
-            resp = client.post(
-                "/api/v1/club/logo",
-                headers=admin_headers,
-                files={"file": ("logo.webp", io.BytesIO(b"RIFF....WEBPVP8 "), "image/webp")},
-            )
+        resp = client.post(
+            "/api/v1/club/logo",
+            headers=admin_headers,
+            files={"file": ("logo.webp", io.BytesIO(b"RIFF....WEBPVP8 "), "image/webp")},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["logo_url"].endswith(".webp")
 
     def test_accepts_svg(self, client: TestClient, admin_headers: dict, club_with_settings: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
         svg = b'<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'
 
-        with patch("api.v1.club._UPLOAD_DIR", upload_dir):
-            resp = client.post(
-                "/api/v1/club/logo",
-                headers=admin_headers,
-                files={"file": ("logo.svg", io.BytesIO(svg), "image/svg+xml")},
-            )
+        resp = client.post(
+            "/api/v1/club/logo",
+            headers=admin_headers,
+            files={"file": ("logo.svg", io.BytesIO(svg), "image/svg+xml")},
+        )
 
         assert resp.status_code == 200
         assert resp.json()["logo_url"].endswith(".svg")
@@ -300,9 +280,6 @@ class TestUploadClubLogo:
 
 class TestDeleteClubLogo:
     def test_admin_can_delete_logo(self, client: TestClient, admin_headers: dict, db: Session, club: Club, tmp_path):
-        upload_dir = tmp_path / "logos"
-        upload_dir.mkdir()
-
         # Set up settings with a logo_url
         s = ClubSettings(club_id=club.id, logo_url="/uploads/logos/test_logo.png", extra={"ical_token": "tok"})
         db.add(s)
