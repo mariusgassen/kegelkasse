@@ -18,7 +18,7 @@ from core.config import settings
 from core.security import create_access_token, get_password_hash
 from models.club import Club, ClubSettings
 from models.drink import DrinkRound
-from models.evening import Evening, EveningHighlight, EveningPlayer, RegularMember
+from models.evening import Evening, EveningHighlight, EveningPlayer, RegularMember, Team
 from models.game import Game
 from models.payment import ClubExpense, MemberPayment
 from models.penalty import PenaltyLog, PenaltyType
@@ -190,6 +190,55 @@ def test_evening_recap_sends_only_aliases(client, auth_headers, evening, claude)
     assert "Gans" not in data              # guests by first name only
     assert "Alle Neune im dritten Wurf" in data
     assert "Große Hausnummer" in data
+
+
+def test_evening_recap_resolves_team_winner_to_members(client, auth_headers, db, evening, claude):
+    t = Team(evening_id=evening.id, name="Fenster")
+    db.add(t)
+    db.flush()
+    for p in evening.players:
+        if p.regular_member_id:
+            p.team_id = t.id
+    db.add(Game(evening_id=evening.id, name="Fässer", winner_ref=f"t:{t.id}", winner_name="Fenster",
+                status="finished", client_timestamp=9))
+    db.commit()
+    claude.payload = {"title": "t", "text": "x"}
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    facts = json.loads(claude.data.split("<daten>\n")[1].split("</daten>")[0])
+    assert facts["teams"] == [{"team": "Fenster", "mitglieder": ["Pudelkönig", "Tina"]}]
+    game = next(g for g in facts["spiele"] if g["spiel"] == "Fässer")
+    assert game["sieger"] == {"team": "Fenster", "mitglieder": ["Pudelkönig", "Tina"]}
+
+
+def test_evening_recap_states_empty_highlights(client, auth_headers, db, evening, claude):
+    db.query(EveningHighlight).filter(EveningHighlight.evening_id == evening.id).delete()
+    db.commit()
+    claude.payload = {"title": "t", "text": "x"}
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    assert "KEINE ERFASST" in claude.data
+    assert "gab es kein Highlight" in claude.data
+
+
+def test_evening_recap_includes_history(client, auth_headers, db, club, evening, claude):
+    prev = Evening(club_id=club.id, date=datetime(2026, 3, 3, 20, tzinfo=timezone.utc), is_closed=True)
+    db.add(prev)
+    db.flush()
+    rm = db.query(RegularMember).filter(RegularMember.club_id == club.id, RegularMember.nickname == "Pudelkönig").first()
+    pp = EveningPlayer(evening_id=prev.id, regular_member_id=rm.id, name=rm.name, is_king=True)
+    db.add(pp)
+    db.flush()
+    db.add(PenaltyLog(evening_id=prev.id, player_id=pp.id, player_name=rm.name, penalty_type_name="Pudel",
+                      amount=40.0, client_timestamp=1))
+    db.commit()
+    claude.payload = {"title": "t", "text": "x"}
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    facts = json.loads(claude.data.split("<daten>\n")[1].split("</daten>")[0])
+    h = facts["historie"]
+    assert h["abend_nr_im_jahr"] == 2
+    assert h["rekord_abend_strafen_euro"]["euro"] == 40.0
+    assert h["koenig_letzter_abend"] == "Pudelkönig"
+    assert h["koenig_titel_zuvor_dieses_jahr"] == 1
+    assert "Mustermann" not in claude.data
 
 
 def test_evening_recap_other_club_404(client, auth_headers, db, claude):
