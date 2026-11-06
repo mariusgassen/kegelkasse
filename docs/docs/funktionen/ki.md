@@ -39,7 +39,9 @@ und in der App nicht angezeigt. Die Karte zeigt nur, ob er gesetzt ist.
   lustigen Stammtisch-Bericht über König, Spielsieger, Strafen, Getränke und Highlights.
   Die KI kennt die Teams des Abends (Team-Siege werden mit den Mitgliedern genannt) und die
   Vereinshistorie: Nummer des Abends im Jahr, Vergleich zum Schnitt und Strafen-Rekord, Königstitel
-  und Anwesenheitsserien sowie fehlende Stammmitglieder. Was nicht erfasst wurde (z. B. kein
+  und Anwesenheitsserien sowie fehlende Stammmitglieder. Gäste (auch ausgetretene Mitglieder) sind
+  als solche markiert und werden nicht als Mitglieder behandelt. Auch bekannt sind Erstbesuche,
+  Rückkehrer nach längerer Pause (ab 3 verpassten Abenden) und das Präsidentenspiel. Was nicht erfasst wurde (z. B. kein
   Highlight), erwähnt sie nicht und erfindet nichts dazu.
 - **Saison:** Im Statistik-Tab „Jahr“ fasst „KI-Saisonrückblick“ das ganze Jahr zusammen und vergibt
   augenzwinkernde Titel.
