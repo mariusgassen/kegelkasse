@@ -1,6 +1,36 @@
 {
   "releases": [
     {
+      "version": "1.71.0",
+      "date": "2026-11-06",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "8dbb539",
+              "pr": 521,
+              "sha": "8dbb539",
+              "text": {
+                "en": "KI-Rückblick erkennt Gäste",
+                "de": "KI-Rückblick erkennt Gäste"
+              }
+            },
+            {
+              "key": "9c5e130",
+              "scope": "push",
+              "pr": 522,
+              "sha": "9c5e130",
+              "text": {
+                "en": "optional notification when a new app version is out",
+                "de": "Optionale Benachrichtigung, wenn eine neue App-Version erscheint"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.70.1",
       "date": "2026-11-06",
       "sections": [

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.71.0](https://github.com/mariusgassen/kegelkasse/compare/v1.70.1...v1.71.0) (2026-11-06)
+
+
+### Features
+
+* KI-Rückblick erkennt Gäste ([#521](https://github.com/mariusgassen/kegelkasse/issues/521)) ([8dbb539](https://github.com/mariusgassen/kegelkasse/commit/8dbb53963466f8d0cbcfbcdf27b6ecc6d9a9e70f))
+* **push:** optional notification when a new app version is out ([#522](https://github.com/mariusgassen/kegelkasse/issues/522)) ([9c5e130](https://github.com/mariusgassen/kegelkasse/commit/9c5e130f1c32f97a28362bc7170fd9a72199e466))
+
 ## [1.70.1](https://github.com/mariusgassen/kegelkasse/compare/v1.70.0...v1.70.1) (2026-11-06)
 
 
