@@ -17,8 +17,8 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {SkeletonCard} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
-import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
-import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
+import {PhotoPicker, type Photo} from '@/components/stickers/PhotoPicker.tsx'
+import {PhotoGallery} from '@/components/stickers/PhotoGallery.tsx'
 import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -53,7 +53,7 @@ function StickerForm({sticker, onClose, onSaved}: {
 }) {
     const t = useT()
     const online = useOnline()
-    const [media, setMedia] = useState<string | null>(sticker?.media_url ?? null)
+    const [photos, setPhotos] = useState<Photo[]>(sticker?.media_urls.map(url => ({url})) ?? [])
     const [place, setPlace] = useState(sticker?.place_name ?? '')
     const [caption, setCaption] = useState(sticker?.caption ?? '')
     const [day, setDay] = useState(sticker?.stuck_on ?? '')
@@ -67,6 +67,8 @@ function StickerForm({sticker, onClose, onSaved}: {
     // never overwrite what the member typed in the meantime.
     const placeRef = useRef(place)
     placeRef.current = place
+    const posRef = useRef(pos)
+    posRef.current = pos
 
     async function prefillPlace(p: LatLng) {
         const label = await reverseGeocode(p.latitude, p.longitude, locale)
@@ -74,19 +76,22 @@ function StickerForm({sticker, onClose, onSaved}: {
     }
 
     function setPin(p: LatLng, photo: boolean) {
+        posRef.current = p
         setPos(p)
         setFromPhoto(photo)
         void prefillPlace(p)
     }
 
-    async function handleFile(file: File) {
+    async function handleFiles(files: File[]) {
         // Everything is only a suggestion: it fills empty fields and never replaces a pin, place or
-        // date the member has already set.
-        const meta = await readFileExif(file).catch(() => null)
-        if (!meta) return
-        if (meta.takenOn && meta.takenOn <= todayDateInput()) setDay(cur => cur || meta.takenOn!)
-        if (meta.gps && !pos) setPin(meta.gps, true)
-        else if (meta.gps) void prefillPlace(meta.gps)
+        // date the member has already set. The first photo that knows something wins.
+        for (const file of files) {
+            const meta = await readFileExif(file).catch(() => null)
+            if (!meta) continue
+            if (meta.takenOn && meta.takenOn <= todayDateInput()) setDay(cur => cur || meta.takenOn!)
+            if (meta.gps && !posRef.current) setPin(meta.gps, true)
+            else if (meta.gps) void prefillPlace(meta.gps)
+        }
     }
 
     function useMyLocation() {
@@ -98,14 +103,14 @@ function StickerForm({sticker, onClose, onSaved}: {
         )
     }
 
-    const canSave = !!media && !!place.trim() && !!pos && !saving
+    const canSave = photos.length > 0 && !!place.trim() && !!pos && !saving
 
     async function save() {
-        if (!media || !pos) { showToast(t('stickers.form.needLocation'), 'error'); return }
+        if (!photos.length || !pos) { showToast(t('stickers.form.needLocation'), 'error'); return }
         setSaving(true)
         try {
             const body = {
-                media_url: media, place_name: place.trim(), latitude: pos.latitude, longitude: pos.longitude,
+                media_urls: photos.map(p => p.url), place_name: place.trim(), latitude: pos.latitude, longitude: pos.longitude,
                 caption: caption.trim(), stuck_on: day,
             }
             if (sticker) await api.updateSticker(sticker.id, body)
@@ -123,13 +128,8 @@ function StickerForm({sticker, onClose, onSaved}: {
         <Sheet open onClose={onClose} onSubmit={save}
                title={t(sticker ? 'stickers.form.edit' : 'stickers.form.new')}>
             <div className="flex flex-col gap-3">
-                <div>
-                    <label className="field-label">{t('stickers.form.photo')} *</label>
-                    {!media && <p className="text-sm text-muted mb-2">{t('stickers.form.photoRequired')}</p>}
-                    <MediaUploadButton value={media} onUploaded={setMedia} onRemove={() => setMedia(null)}
-                                       onFile={handleFile}/>
-                </div>
-                {media && (<>
+                <PhotoPicker photos={photos} onChange={setPhotos} onFiles={handleFiles}/>
+                {photos.length > 0 && (<>
                     <div>
                         <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
                         <input id="sticker-place" className="kce-input" value={place} maxLength={120}
@@ -137,37 +137,42 @@ function StickerForm({sticker, onClose, onSaved}: {
                     </div>
                     <div>
                         <label className="field-label">{t('stickers.form.location')}</label>
-                        <p className="text-sm text-muted mb-2">
-                            {!pos ? t('stickers.form.locationHint') : fromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-sm flex items-center gap-1 ${pos ? 'text-ink' : 'text-muted'}`}>
+                                <MapPin size={16} aria-hidden="true"/>
+                                {!pos ? t('stickers.form.locationHint') : fromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
+                            </span>
+                            {pos && !showMap && (
+                                <button type="button" className="btn-secondary btn-xs" onClick={() => setShowMap(true)}>
+                                    {t('stickers.form.adjustPin')}
+                                </button>
+                            )}
+                            <button type="button" className="btn-secondary btn-xs" onClick={useMyLocation}>
+                                {t('stickers.form.useMyLocation')}
+                            </button>
+                        </div>
                         {/* The map is only needed when the photo carried no position, or to fine-tune it:
                             keeping it folded keeps the dialog short instead of a long scrolling form. */}
-                        {(showMap || !pos) ? (
-                            <MapBox online={online}>
-                                <StickerMap picked={pos} onPick={p => setPin(p, false)}
-                                            attribution={t('stickers.map.attribution')}
-                                            className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
-                            </MapBox>
-                        ) : (
-                            <button type="button" className="btn-secondary btn-xs" onClick={() => setShowMap(true)}>
-                                {t('stickers.form.adjustPin')}
-                            </button>
+                        {(showMap || !pos) && (
+                            <div className="mt-2">
+                                <MapBox online={online}>
+                                    <StickerMap picked={pos} onPick={p => setPin(p, false)}
+                                                attribution={t('stickers.map.attribution')}
+                                                className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
+                                </MapBox>
+                            </div>
                         )}
-                        <button type="button" className="btn-secondary btn-xs mt-2 flex items-center gap-1"
-                                onClick={useMyLocation}>
-                            <MapPin size={16} aria-hidden="true"/> {t('stickers.form.useMyLocation')}
-                        </button>
                     </div>
                     <div>
                         <label className="field-label" htmlFor="sticker-day">{t('stickers.form.date')}</label>
                         <input id="sticker-day" type="date" className="kce-input" value={day} max={todayDateInput()}
                                onChange={e => setDay(e.target.value)}/>
                     </div>
-                <div>
-                    <label className="field-label" htmlFor="sticker-caption">{t('stickers.form.caption')}</label>
-                    <textarea id="sticker-caption" className="kce-input resize-none" rows={3} maxLength={1000}
-                              value={caption} onChange={e => setCaption(e.target.value)}/>
-                </div>
+                    <div>
+                        <label className="field-label" htmlFor="sticker-caption">{t('stickers.form.caption')}</label>
+                        <textarea id="sticker-caption" className="kce-input resize-none" rows={2} maxLength={1000}
+                                  value={caption} onChange={e => setCaption(e.target.value)}/>
+                    </div>
                 </>)}
                 <button type="submit" className="btn-primary w-full" disabled={!canSave}>
                     {saving ? t('action.saving') : t('action.save')}
@@ -284,8 +289,7 @@ export function StickersPage() {
                                         />
                                     )}
                                 </div>
-                                <ZoomableImage src={s.media_url}
-                                               className="mt-2 rounded max-h-96 max-w-full object-contain border border-line/40"/>
+                                <PhotoGallery urls={s.media_urls}/>
                                 {s.caption && <p className="text-sm text-ink mt-2 whitespace-pre-wrap">{s.caption}</p>}
                                 <ItemReactionBar
                                     parentType="sticker" parentId={s.id}

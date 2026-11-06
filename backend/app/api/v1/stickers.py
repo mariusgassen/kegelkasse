@@ -22,6 +22,7 @@ router = APIRouter(prefix="/stickers", tags=["stickers"])
 
 PLACE_MAX = 120
 CAPTION_MAX = 1000
+MAX_PHOTOS = 10
 
 
 def _author_names(user_ids: set[int], db: Session) -> dict[int, str]:
@@ -46,6 +47,7 @@ def _serialize(s: Sticker, names: dict[int, str], user: User) -> dict:
     return {
         "id": s.id,
         "media_url": s.media_url,
+        "media_urls": [s.media_url, *(s.extra_media or [])],
         "place_name": s.place_name,
         "latitude": s.latitude,
         "longitude": s.longitude,
@@ -63,6 +65,16 @@ def _check_media(url: str, club_id: int) -> str:
     if not key or not key.startswith(f"media/media_{club_id}_"):
         raise HTTPException(400, "Invalid photo")
     return url
+
+
+def _photos(data_url: Optional[str], data_urls: Optional[list[str]], club_id: int) -> list[str]:
+    """The validated photo list of a request: ``media_urls`` wins, a lone ``media_url`` still works."""
+    urls = data_urls if data_urls else ([data_url] if data_url else [])
+    if not urls:
+        raise HTTPException(400, "A photo is required")
+    if len(urls) > MAX_PHOTOS:
+        raise HTTPException(400, f"At most {MAX_PHOTOS} photos")
+    return [_check_media(u, club_id) for u in dict.fromkeys(urls)]
 
 
 def _parse_day(value: Optional[str]) -> Optional[date_type]:
@@ -93,7 +105,8 @@ def _get_own_club_sticker(sid: int, user: User, db: Session) -> Sticker:
 
 
 class StickerCreate(TrimmedModel):
-    media_url: str
+    media_url: Optional[str] = None
+    media_urls: Optional[list[str]] = None
     place_name: str = Field(max_length=PLACE_MAX)
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
@@ -103,6 +116,7 @@ class StickerCreate(TrimmedModel):
 
 class StickerUpdate(TrimmedModel):
     media_url: Optional[str] = None
+    media_urls: Optional[list[str]] = None
     place_name: Optional[str] = Field(default=None, max_length=PLACE_MAX)
     latitude: Optional[float] = Field(default=None, ge=-90, le=90)
     longitude: Optional[float] = Field(default=None, ge=-180, le=180)
@@ -125,10 +139,12 @@ def list_stickers(db: Session = Depends(get_db), user: User = Depends(require_cl
 @router.post("/")
 def create_sticker(data: StickerCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
                    user: User = Depends(require_club_member)):
+    photos = _photos(data.media_url, data.media_urls, user.club_id)
     s = Sticker(
         club_id=user.club_id,
         created_by=user.id,
-        media_url=_check_media(data.media_url, user.club_id),
+        media_url=photos[0],
+        extra_media=photos[1:] or None,
         place_name=_clean_place(data.place_name),
         latitude=data.latitude,
         longitude=data.longitude,
@@ -158,8 +174,10 @@ def update_sticker(sid: int, data: StickerUpdate, db: Session = Depends(get_db),
     fields = data.model_dump(exclude_unset=True)
     # Validate everything before touching the ORM object, so a rejected request leaves no dirty state.
     updates: dict = {}
-    if "media_url" in fields and fields["media_url"] is not None:
-        updates["media_url"] = _check_media(fields["media_url"], user.club_id)
+    if fields.get("media_urls") or fields.get("media_url"):
+        photos = _photos(fields.get("media_url"), fields.get("media_urls"), user.club_id)
+        updates["media_url"] = photos[0]
+        updates["extra_media"] = photos[1:] or None
     if "place_name" in fields and fields["place_name"] is not None:
         updates["place_name"] = _clean_place(fields["place_name"])
     if ("latitude" in fields) != ("longitude" in fields):

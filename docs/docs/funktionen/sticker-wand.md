@@ -10,10 +10,12 @@ Wir kleben auf Reisen Sticker. Auf der **Sticker-Wand** (Verein → 🏷️ Stic
 
 ## Sticker posten
 
-Tippe auf **+ Sticker posten**. Zuerst kommt das **Foto** (Pflicht, ohne Foto kein Sticker). Danach werden die übrigen Felder – wenn das Foto die Daten enthält – automatisch vorbelegt:
+Tippe auf **+ Sticker posten**. Zuerst kommt das **Foto** (Pflicht, ohne Foto kein Sticker): Die große Fläche öffnet die Fotomediathek deines Geräts, dort kannst du **mehrere Fotos auf einmal** auswählen (bis zu 10). Danach siehst du das gewählte Foto groß, darunter eine nummerierte Leiste aller Fotos. Mit **Bearbeiten** drehst du ein Foto, schneidest es zu (Original, 1:1, 4:3, 3:4, 16:9), zoomst und verschiebst den Ausschnitt per Ziehen; **Entfernen** nimmt es wieder heraus. Das erste Foto ist das Titelbild.
+
+Danach werden die übrigen Felder – wenn die Fotos die Daten enthalten – automatisch vorbelegt:
 
 - **Ort** (Pflicht), z. B. „Lissabon, Portugal": aus der GPS-Position des Fotos als „Stadt, Land" ermittelt (über OpenStreetMap). Du kannst ihn jederzeit ändern; was du selbst getippt hast, wird nie überschrieben.
-- **Position auf der Karte** (Pflicht): aus den GPS-Daten des Fotos (JPEG von der Kamera). Sie bleibt eingeklappt – mit **Pin auf der Karte anpassen** korrigierst du sie, oder du tippst auf **Meinen Standort verwenden**. Hat das Foto keine Position, erscheint die Karte gleich; ein Tipp setzt den Pin und füllt den Ort, falls er noch leer ist.
+- **Position auf der Karte** (Pflicht): aus den GPS-Daten des ersten Fotos, das eine hat. Die Karte bleibt eingeklappt – mit **Pin auf der Karte anpassen** korrigierst du die Position, oder du tippst auf **Meinen Standort verwenden**. Hat kein Foto eine Position, erscheint die Karte gleich; ein Tipp setzt den Pin und füllt den Ort, falls er noch leer ist.
 - **Geklebt am** (optional): das Aufnahmedatum des Fotos.
 - **Beschreibung** (optional).
 
@@ -21,8 +23,8 @@ Bearbeiten und Löschen können der Autor und Admins über das ⋮-Menü der Kar
 
 ## Feed und Karte
 
-- **Feed**: neueste zuerst (nach dem Tag, an dem der Sticker geklebt wurde). Fotos öffnen per Tipp im Vollbild; ❤️ und Kommentare funktionieren wie bei Neuigkeiten.
-- **Karte**: ein Pin pro Ort, mehrere Sticker nahe beieinander werden mit einer Zahl zusammengefasst. Ein Tipp auf den Pin zeigt den Ort, **Beitrag ansehen** springt zum neuesten Post dort.
+- **Feed**: neueste zuerst (nach dem Tag, an dem der Sticker geklebt wurde). Fotos öffnen per Tipp im Vollbild; mehrere Fotos eines Beitrags wischst du durch und sie sind mit 1/3, 2/3 … nummeriert; ❤️ und Kommentare funktionieren wie bei Neuigkeiten.
+- **Karte**: die Pins sind Fotos (das neueste am Ort); gibt es dort mehrere Fotos – auch von mehreren Stickern nahe beieinander –, zeigt eine Zahl am Pin, wie viele. Ein Tipp öffnet den Ort mit nummerierten Vorschaubildern, **Beitrag ansehen** springt zum neuesten Post dort.
 
 ## Benachrichtigungen und Zusammenfassung
 

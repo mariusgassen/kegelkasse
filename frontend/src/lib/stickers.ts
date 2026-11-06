@@ -23,3 +23,8 @@ export function groupByPlace(stickers: Sticker[]): PlaceGroup[] {
 export function placeCount(stickers: Sticker[]): number {
     return groupByPlace(stickers).length
 }
+
+/** Every photo at a pin, newest post first, each post's photos in order. */
+export function groupPhotos(g: PlaceGroup): string[] {
+    return g.stickers.flatMap(s => s.media_urls)
+}
