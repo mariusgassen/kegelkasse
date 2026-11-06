@@ -307,13 +307,25 @@ def test_nickname_suggestions(client, admin_headers, db, club, evening, claude):
     rm = db.query(RegularMember).filter(RegularMember.name == "Tina Beispiel").first()
     claude.payload = {"suggestions": [
         {"nickname": "Pudelkönig", "reason": "vergeben"},
-        {"nickname": "Handy-Tina", "reason": "Handystrafe"},
+        {"nickname": "Handy-Tina", "reason": "generisch"},
+        {"nickname": "Beispiel Boss", "reason": "Nachname"},
         {"nickname": "Tinamite", "reason": "Wortspiel"},
     ]}
-    r = client.post(f"/api/v1/ai/suggest/nickname/{rm.id}", headers=admin_headers)
+    r = client.post(f"/api/v1/ai/suggest/nickname/{rm.id}", headers=admin_headers,
+                    json={"hint": "etwas mit Angeln"})
     assert r.status_code == 200
-    assert [s["nickname"] for s in r.json()["suggestions"]] == ["Handy-Tina", "Tinamite"]
-    assert '"vorname": "Tina"' in claude.data and "Beispiel" not in claude.data
+    # taken names and the "X-Name" / full-name patterns are dropped; a name fragment is fine
+    assert [s["nickname"] for s in r.json()["suggestions"]] == ["Tinamite"]
+    assert "etwas mit Angeln" in claude.data
+    assert "Beispiel" not in claude.data  # last name never sent
+
+
+def test_nickname_suggestions_without_body(client, admin_headers, db, club, evening, claude):
+    rm = db.query(RegularMember).filter(RegularMember.name == "Tina Beispiel").first()
+    claude.payload = {"suggestions": [{"nickname": "Tinamite", "reason": "x"}]}
+    assert client.post(f"/api/v1/ai/suggest/nickname/{rm.id}", headers=admin_headers).status_code == 200
+    # The prompt text mentions the key, so check for the JSON key in the data block.
+    assert '"wunsch_des_anfragenden":' not in claude.data
 
 
 def test_nickname_unknown_member_404(client, admin_headers, claude):

@@ -1535,6 +1535,7 @@ export const de = {
     "ai.button.recap": "KI-Rückblick",
     "ai.button.seasonRecap": "KI-Saisonrückblick",
     "ai.button.suggest": "KI-Vorschläge",
+    "ai.nickname.hintPlaceholder": "Wunsch (optional), z. B. „etwas mit Angeln“",
     "ai.button.suggestNickname": "Kegelname vorschlagen",
     "ai.generating": "Claude schreibt…",
     "ai.regenerate": "Neu schreiben",
