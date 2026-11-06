@@ -324,7 +324,8 @@ def test_nickname_suggestions_without_body(client, admin_headers, db, club, even
     rm = db.query(RegularMember).filter(RegularMember.name == "Tina Beispiel").first()
     claude.payload = {"suggestions": [{"nickname": "Tinamite", "reason": "x"}]}
     assert client.post(f"/api/v1/ai/suggest/nickname/{rm.id}", headers=admin_headers).status_code == 200
-    assert "wunsch_des_anfragenden" not in claude.data
+    # The prompt text mentions the key, so check for the JSON key in the data block.
+    assert '"wunsch_des_anfragenden":' not in claude.data
 
 
 def test_nickname_unknown_member_404(client, admin_headers, claude):
