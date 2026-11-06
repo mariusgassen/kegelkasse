@@ -21,6 +21,7 @@ TELEGRAM_LINK_CODE_EXPIRE_MINUTES = 10
 _CATEGORY_KEYS = (
     "penalties", "evenings", "schedule", "payments", "games", "members", "comments",
     "reminder_debt", "reminder_schedule", "reminder_payments", "guest_requests",
+    "app_updates",
 )
 # Default channels per category: ['push'] (preserves prior always-on behaviour), except where
 # core.push.CATEGORY_DEFAULTS says otherwise (guest requests → email).
@@ -199,6 +200,7 @@ class PushPreferencesUpdate(TrimmedModel):
     reminder_schedule: Optional[_ChannelPref] = None
     reminder_payments: Optional[_ChannelPref] = None
     guest_requests: Optional[_ChannelPref] = None
+    app_updates: Optional[_ChannelPref] = None
     reminder_schedule_days: Optional[int] = None  # per-user days_before for upcoming evening
     digest_frequency: Optional[str] = None  # 'off'|'daily'|'weekly'|'monthly' email digest cadence
 

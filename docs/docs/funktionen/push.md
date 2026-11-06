@@ -49,6 +49,7 @@ Push-Benachrichtigungen sind gerätegebunden. Wer auf mehreren Geräten empfange
 | **Ausstehende Zahlungsanfragen** (automatisch) | Admins |
 | **Broadcast** | Alle Mitglieder (Admin-Versand) |
 | **Neue Gastanfrage** (über die Vereins-Homepage) | Alle Mitglieder — Kategorie „Gastanfragen", standardmäßig **per E-Mail** statt Push |
+| **Neue App-Version** (nur bei einem Release, nicht bei jeder Änderung) | Mitglieder, die die Kategorie „Neue App-Versionen" eingeschaltet haben — standardmäßig **aus**. Ein Tipp auf die Push-Nachricht lädt die neue Version sofort, ohne auf den „Aktualisieren"-Hinweis zu warten |
 
 ## Einstellungen im Profil
 

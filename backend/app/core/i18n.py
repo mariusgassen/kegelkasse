@@ -75,6 +75,12 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "email.button.open": {"de": "Öffnen", "en": "Open"},
     "email.footer": {"de": "Kegelkasse 🎳", "en": "Kegelkasse 🎳"},
+    # Release announcement push (opt-in category "app_updates").
+    "release.push.title": {"de": "Neue Version {version}", "en": "New version {version}"},
+    "release.push.body": {
+        "de": "Kegelkasse {version} ist da. Tippe hier, um sie sofort zu laden.",
+        "en": "Kegelkasse {version} is out. Tap to load it right away.",
+    },
     # Guest requests — mails to the (non-member) requester. Guests have no locale, so these
     # are always sent in German; the English entries only keep the table complete.
     "guest_request.approved.subject": {

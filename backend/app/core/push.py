@@ -86,8 +86,9 @@ CHANNELS = ("push", "email", "telegram")
 
 # Default channels per notification category when the user never chose any. Everything is
 # push by default; guest requests reach members by email, since most of them have no push
-# subscription and a request is worthless if nobody sees it before the evening.
-CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",)}
+# subscription and a request is worthless if nobody sees it before the evening. Release
+# announcements are opt-in: off until a member turns them on.
+CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",), "app_updates": ()}
 
 
 def category_default(category: str) -> tuple[str, ...]:

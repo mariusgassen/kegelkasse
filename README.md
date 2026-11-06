@@ -252,6 +252,7 @@ Hidden unless the server has `ANTHROPIC_API_KEY` set (default model via `ANTHROP
 - Notifications sent for: penalty added, absence penalty, game loser penalty, evening closed, payment confirmed/rejected, schedule reminders
 - Members subscribe/unsubscribe push per device from their profile
 - Announcements are always delivered (push) and cannot be disabled
+- **New-release push (opt-in, default off)**: members who turn on "New app versions" get one notification per release. The deployed server announces it itself, about two minutes after it starts with a newer version than the last one announced (`RELEASE_ANNOUNCE_DELAY_SECONDS`, default 120), so the push only arrives once the new version is live; ordinary merges, restarts and rollbacks stay silent. Tapping it opens the app, makes the service worker fetch and activate the new version, and reloads into it, without waiting for the "Update available" banner
 - Falls back silently to the in-app bell when neither VAPID, a club email server, nor a club Telegram bot is configured
 - **Automated reminders** (scheduled daily at 09:00 via APScheduler):
   - Weekly debt reminder — push to members with outstanding balance above a configurable threshold (configurable weekday)
