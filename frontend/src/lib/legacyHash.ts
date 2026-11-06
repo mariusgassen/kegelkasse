@@ -25,6 +25,7 @@ export const ROUTE_PAGES = [
     'club',
     'members',
     'stickers',
+    'zeugwart',
 ] as const
 
 export type RoutePage = (typeof ROUTE_PAGES)[number]

@@ -317,7 +317,8 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
 def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
     return {"id": m.id, "name": m.name, "nickname": m.nickname,
             "is_guest": m.is_guest, "is_active": m.is_active,
-            "is_committee": m.is_committee, "is_auditor": bool(m.is_auditor), "avatar": avatar,
+            "is_committee": m.is_committee, "is_auditor": bool(m.is_auditor),
+            "is_zeugwart": bool(m.is_zeugwart), "avatar": avatar,
             "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None}
 
 

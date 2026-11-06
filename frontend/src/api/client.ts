@@ -48,6 +48,9 @@ import {
     GuestRequestDecision,
     TreasuryAudit,
     TreasuryAuditList,
+    InventoryItem,
+    InventoryList,
+    InventoryMovement,
     TreasuryAuditSnapshot,
     AiRecap,
     AiPenaltySuggestion,
@@ -898,6 +901,20 @@ export const api = {
     listAuditors: () => request<{ id: number; name: string; nickname: string | null }[]>('GET', '/treasury-audits/auditors'),
     setAuditor: (memberId: number, isAuditor: boolean) =>
         request<{ id: number; is_auditor: boolean }>('PATCH', `/treasury-audits/auditors/${memberId}`, {is_auditor: isAuditor}),
+
+    // Zeugwart inventory
+    listInventory: () => request<InventoryList>('GET', '/inventory/'),
+    createInventoryItem: (d: { name: string; icon?: string; stock?: number; target?: number; note?: string }) =>
+        request<InventoryItem>('POST', '/inventory/', d),
+    updateInventoryItem: (id: number, d: { name?: string; icon?: string | null; target?: number; note?: string | null }) =>
+        request<InventoryItem>('PATCH', `/inventory/${id}`, d),
+    deleteInventoryItem: (id: number) => request<void>('DELETE', `/inventory/${id}`),
+    addInventoryMovement: (id: number, d: { delta?: number; count?: number; note?: string }) =>
+        request<InventoryItem>('POST', `/inventory/${id}/movements`, d),
+    listInventoryMovements: (id: number) => request<InventoryMovement[]>('GET', `/inventory/${id}/movements`),
+    listZeugwarte: () => request<{ id: number; name: string; nickname: string | null }[]>('GET', '/inventory/keepers'),
+    setZeugwart: (memberId: number, isZeugwart: boolean) =>
+        request<{ id: number; is_zeugwart: boolean }>('PATCH', `/inventory/keepers/${memberId}`, {is_zeugwart: isZeugwart}),
 
     // Season closing workflow (admin only)
     listSeasonAvailableYears: () => request<number[]>('GET', '/season/available-years'),
