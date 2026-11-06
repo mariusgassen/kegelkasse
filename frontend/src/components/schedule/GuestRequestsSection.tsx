@@ -10,6 +10,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {flashDeepLinkTarget, useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
+import {nowDateTimeInput} from '@/lib/datetime.ts'
 import type {GuestRequest} from '@/types.ts'
 
 export const GUEST_REQUESTS_ANCHOR = 'guest-requests'
@@ -94,7 +95,12 @@ export function GuestRequestsSection() {
         return flashDeepLinkTarget(GUEST_REQUESTS_ANCHOR)
     }, [hashVersion, loaded])
 
-    const pending = requests.filter(r => r.status === 'pending')
+    // Requests for an evening that already took place are stale: still decidable, but tucked away.
+    const now = nowDateTimeInput()
+    const isStale = (r: GuestRequest) => !!r.scheduled_at && r.scheduled_at.slice(0, 16) < now
+    const open = requests.filter(r => r.status === 'pending')
+    const pending = open.filter(r => !isStale(r))
+    const stale = open.filter(isStale)
     const decided = requests.filter(r => r.status !== 'pending')
 
     async function confirm() {
@@ -138,6 +144,17 @@ export function GuestRequestsSection() {
             {pending.length === 0
                 ? <p className="text-sm text-muted mb-2">{t('guestRequests.nonePending')}</p>
                 : pending.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
+
+            {stale.length > 0 && (
+                <ExpandableCard
+                    title={<span className="text-xs font-bold text-muted">
+                        {t('guestRequests.stale')} ({stale.length})
+                    </span>}>
+                    <div className="px-3 pt-1">
+                        {stale.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
+                    </div>
+                </ExpandableCard>
+            )}
 
             {decided.length > 0 && (
                 <ExpandableCard

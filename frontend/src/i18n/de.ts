@@ -1178,6 +1178,7 @@ export const de = {
     "guestRequests.title": "Gastanfragen",
     "guestRequests.pendingCount": "{n} offene Anfragen",
     "guestRequests.nonePending": "Keine offenen Anfragen.",
+    "guestRequests.stale": "Anfragen zu vergangenen Terminen",
     "guestRequests.decided": "Erledigte Anfragen",
     "guestRequests.approve": "Annehmen",
     "guestRequests.reject": "Ablehnen",

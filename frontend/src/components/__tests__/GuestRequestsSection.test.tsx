@@ -137,6 +137,17 @@ describe('GuestRequestsSection', () => {
         expect(screen.getByText('guestRequests.status.approved')).toBeInTheDocument()
     })
 
+    it('tucks pending requests for past evenings into a collapsed card', async () => {
+        vi.mocked(api.listGuestRequests).mockResolvedValue([
+            request({ id: 3, name: 'Alt Gast', scheduled_at: '2020-01-10T20:00' }),
+        ])
+        renderSection()
+        expect(await screen.findByText('guestRequests.nonePending')).toBeInTheDocument()
+        expect(screen.queryByText('Alt Gast')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText(/guestRequests\.stale/))
+        expect(screen.getByText('Alt Gast')).toBeInTheDocument()
+    })
+
     it('scrolls to the section for the ?requests deep link from the notification', async () => {
         hashParams.value = new URLSearchParams('requests=1')
         vi.mocked(api.listGuestRequests).mockResolvedValue([request()])
