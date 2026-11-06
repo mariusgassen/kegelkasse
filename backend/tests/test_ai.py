@@ -308,12 +308,16 @@ def test_nickname_suggestions(client, admin_headers, db, club, evening, claude):
     claude.payload = {"suggestions": [
         {"nickname": "Pudelkönig", "reason": "vergeben"},
         {"nickname": "Handy-Tina", "reason": "Handystrafe"},
-        {"nickname": "Tinamite", "reason": "Wortspiel"},
+        {"nickname": "Strafen-Bernd", "reason": "teuer"},
+        {"nickname": "Beispiel-Boss", "reason": "Nachname"},
     ]}
     r = client.post(f"/api/v1/ai/suggest/nickname/{rm.id}", headers=admin_headers)
     assert r.status_code == 200
-    assert [s["nickname"] for s in r.json()["suggestions"]] == ["Handy-Tina", "Tinamite"]
-    assert '"vorname": "Tina"' in claude.data and "Beispiel" not in claude.data
+    # suggestions containing the real first/last name are dropped
+    assert [s["nickname"] for s in r.json()["suggestions"]] == ["Strafen-Bernd"]
+    # the real name never reaches the model
+    assert "Tina" not in claude.data and "Beispiel" not in claude.data
+    assert "mitglied_seit" in claude.data
 
 
 def test_nickname_unknown_member_404(client, admin_headers, claude):

@@ -14,6 +14,7 @@
 Privacy: only what a feature needs leaves the server. Members appear by Kegelname (or
 first name when they have none), guests by first name; no e-mails, no account balances.
 """
+import re
 import statistics
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
@@ -573,8 +574,11 @@ def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User =
     stats["schnitt_pro_wurf"] = round(pins / wuerfe, 1) if wuerfe else None
     stats["strafen_euro"] = round(stats["strafen_euro"], 2)
     facts = {
-        "vorname": _first_name(member.name),
+        # Never send the real name: the Kegelname must not be derived from it.
         "aktueller_kegelname": member.nickname,
+        "mitglied_seit": member.created_at.year if member.created_at else None,
+        "rollen": [r for r, on in (("Vergnügungsausschuss", member.is_committee),
+                                   ("Kassenprüfer", member.is_auditor)) if on],
         "statistik": stats,
         "haeufigste_strafen": [{"art": t, "anzahl": n} for t, n in types.most_common(5)],
         "vergebene_kegelnamen": taken,
@@ -582,14 +586,18 @@ def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User =
     cfg = _require_ai(db, user, "suggestions")
     result = _run(
         SYSTEM_PROMPT, facts, _NICK_SCHEMA, effort="low", model=cfg["model"],
-        task=("Schlag genau 3 Kegelnamen (Spitznamen) für dieses Mitglied vor, gern mit Wortspiel auf "
-              "den Vornamen oder passend zu Statistik und häufigsten Strafen. Kurz (max. 20 Zeichen), "
-              "liebevoll-frech, nicht beleidigend, nicht schon vergeben."),
+        task=("Schlag genau 3 Kegelnamen (Spitznamen) für dieses Mitglied vor, passend zu Statistik, "
+              "häufigsten Strafen, Rollen und Vereinszugehörigkeit. Der echte Name ist bewusst nicht "
+              "bekannt; verwende keinen Vor- oder Nachnamen und keine Wortspiele darauf. Kurz (max. "
+              "20 Zeichen), liebevoll-frech, nicht beleidigend, nicht schon vergeben."),
     )
     taken_lower = {t.lower() for t in taken}
+    real_parts = [w.lower() for w in re.split(r"[\s\-]+", member.name or "") if len(w) >= 3]
     clean = []
     for s in result.get("suggestions", []):
         n = str(s.get("nickname", "")).strip()[:30]
+        if any(w in n.lower() for w in real_parts):
+            continue  # defence in depth: never suggest the real name
         if n and n.lower() not in taken_lower and n.lower() not in {c["nickname"].lower() for c in clean}:
             clean.append({"nickname": n, "reason": str(s.get("reason", ""))[:300]})
     return {"suggestions": clean[:3]}
