@@ -70,8 +70,8 @@ function PendingCard({req, onDecide}: {req: GuestRequest; onDecide: (d: Decision
 }
 
 /**
- * Guest requests from the club website: pending ones up front with approve/reject, decided ones
- * collapsed below. Any member may decide; both decisions mail the requester, so each goes through
+ * Guest requests from the club website: pending ones up front with approve/reject; decided and expired
+ * ones only as a small collapsed line (no heading when nothing is open). Any member may decide; both decisions mail the requester, so each goes through
  * a confirmation sheet. Renders nothing until the club has received its first request.
  */
 export function GuestRequestsSection() {
@@ -95,13 +95,14 @@ export function GuestRequestsSection() {
         return flashDeepLinkTarget(GUEST_REQUESTS_ANCHOR)
     }, [hashVersion, loaded])
 
-    // Requests for an evening that already took place are stale: still decidable, but tucked away.
+    // A request for an evening that already took place can no longer be approved: it is not an open
+    // request any more, so it only shows up (as "expired") in the small archive line below.
     const now = nowDateTimeInput()
     const isStale = (r: GuestRequest) => !!r.scheduled_at && r.scheduled_at.slice(0, 16) < now
-    const open = requests.filter(r => r.status === 'pending')
-    const pending = open.filter(r => !isStale(r))
-    const stale = open.filter(isStale)
-    const decided = requests.filter(r => r.status !== 'pending')
+    const pending = requests.filter(r => r.status === 'pending' && !isStale(r))
+    const archive = requests
+        .filter(r => r.status !== 'pending' || isStale(r))
+        .map(r => ({req: r, status: r.status === 'pending' ? 'expired' as const : r.status}))
 
     async function confirm() {
         if (!decision) return
@@ -131,47 +132,35 @@ export function GuestRequestsSection() {
 
     return (
         <div id={GUEST_REQUESTS_ANCHOR} className="mb-4">
-            <div className="sec-heading flex items-center gap-2">
-                🙋 {t('guestRequests.title')}
-                {pending.length > 0 && (
+            {pending.length > 0 && (
+                <div className="sec-heading flex items-center gap-2">
+                    🙋 {t('guestRequests.title')}
                     <span className="px-1.5 py-0.5 rounded-full bg-accent text-on-accent text-xs font-bold"
                           aria-label={t('guestRequests.pendingCount').replace('{n}', String(pending.length))}>
                         {pending.length}
                     </span>
-                )}
-            </div>
-
-            {pending.length === 0
-                ? <p className="text-sm text-muted mb-2">{t('guestRequests.nonePending')}</p>
-                : pending.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
-
-            {stale.length > 0 && (
-                <ExpandableCard
-                    title={<span className="text-xs font-bold text-muted">
-                        {t('guestRequests.stale')} ({stale.length})
-                    </span>}>
-                    <div className="px-3 pt-1">
-                        {stale.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
-                    </div>
-                </ExpandableCard>
+                </div>
             )}
 
-            {decided.length > 0 && (
+            {pending.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
+
+            {archive.length > 0 && (
                 <ExpandableCard
                     title={<span className="text-xs font-bold text-muted">
-                        {t('guestRequests.decided')} ({decided.length})
+                        {t('guestRequests.decided')} ({archive.length})
                     </span>}>
                     <div className="px-3 pb-3 space-y-1.5">
-                        {decided.map(r => (
+                        {archive.map(({req: r, status}) => (
                             <div key={r.id} className="flex items-center gap-2 text-sm" data-testid="guest-request-decided">
                                 <span className="flex-1 min-w-0 truncate text-ink">
                                     {r.name} <span className="text-muted text-xs">· {formatEvening(r.scheduled_at)}</span>
                                 </span>
                                 <span className={[
                                     'text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0',
-                                    r.status === 'approved' ? 'bg-positive/15 text-positive-fg' : 'bg-danger/15 text-danger-fg',
+                                    status === 'approved' ? 'bg-positive/15 text-positive-fg'
+                                        : status === 'rejected' ? 'bg-danger/15 text-danger-fg' : 'bg-surface-2 text-muted',
                                 ].join(' ')}>
-                                    {t(r.status === 'approved' ? 'guestRequests.status.approved' : 'guestRequests.status.rejected')}
+                                    {t(`guestRequests.status.${status}`)}
                                 </span>
                             </div>
                         ))}

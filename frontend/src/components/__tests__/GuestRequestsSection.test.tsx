@@ -130,22 +130,24 @@ describe('GuestRequestsSection', () => {
             request({ id: 2, name: 'Bernd', status: 'approved', decided_at: '2026-10-02T10:00:00Z' }),
         ])
         renderSection()
-        expect(await screen.findByText('guestRequests.nonePending')).toBeInTheDocument()
-        expect(screen.queryByTestId('guest-request-decided')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByText(/guestRequests\.decided/))
+        fireEvent.click(await screen.findByText(/guestRequests\.decided/))
+        // Nothing open: no heading and no big panel, just the small collapsed line.
+        expect(screen.queryByText(/guestRequests\.title/)).not.toBeInTheDocument()
         expect(screen.getByTestId('guest-request-decided')).toHaveTextContent('Bernd')
         expect(screen.getByText('guestRequests.status.approved')).toBeInTheDocument()
     })
 
-    it('tucks pending requests for past evenings into a collapsed card', async () => {
+    it('lists requests for past evenings as expired, without approve/reject', async () => {
         vi.mocked(api.listGuestRequests).mockResolvedValue([
             request({ id: 3, name: 'Alt Gast', scheduled_at: '2020-01-10T20:00' }),
         ])
         renderSection()
-        expect(await screen.findByText('guestRequests.nonePending')).toBeInTheDocument()
+        expect(await screen.findByText(/guestRequests\.decided/)).toBeInTheDocument()
         expect(screen.queryByText('Alt Gast')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByText(/guestRequests\.stale/))
-        expect(screen.getByText('Alt Gast')).toBeInTheDocument()
+        fireEvent.click(screen.getByText(/guestRequests\.decided/))
+        expect(screen.getByTestId('guest-request-decided')).toHaveTextContent('Alt Gast')
+        expect(screen.getByText('guestRequests.status.expired')).toBeInTheDocument()
+        expect(screen.queryByText(/guestRequests\.approve/)).not.toBeInTheDocument()
     })
 
     it('scrolls to the section for the ?requests deep link from the notification', async () => {
