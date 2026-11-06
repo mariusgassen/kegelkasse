@@ -5,6 +5,8 @@ import {persistTokenForSW} from '@/lib/tokenStore'
 import type {ScoreboardData} from '@/lib/scoreboard'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {
+    AppIconSettings,
+    AppIconVariant,
     Club,
     ClubAnnouncement,
     ClubSettings,
@@ -383,6 +385,9 @@ export const api = {
         return res.json()
     },
     deleteClubLogo: () => request<void>('DELETE', '/club/logo'),
+    getAppIconSettings: () => request<AppIconSettings>('GET', '/club/app-icon'),
+    updateAppIconSettings: (d: {enabled?: boolean; variant?: AppIconVariant}) =>
+        request<AppIconSettings>('PATCH', '/club/app-icon', d),
     updateClubSettings: (d: Partial<ClubSettings> & {
         name?: string;
         guest_penalty_cap?: number | null;

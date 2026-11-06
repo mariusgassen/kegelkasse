@@ -20,6 +20,7 @@ import {router} from './router'
 import {WifiOff} from 'lucide-react'
 import {hexToHsl, hslToHex} from './lib/color'
 import {DEFAULT_DARK_BG, deriveTokens} from './lib/tokens'
+import {applyAppIcon} from './lib/appIcon'
 
 export {hexToHsl, hslToHex}
 
@@ -149,6 +150,11 @@ export default function App() {
 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
 
+    // Club-branded install icon (#102) — follows the club setting whenever the club is refetched.
+    useEffect(() => {
+        if (club) applyAppIcon(club.settings?.app_icon)
+    }, [club])
+
     // Boot — verify token, load club data
     const {refetch: retryBoot} = useQuery({
         queryKey: ['boot', locale],
@@ -171,6 +177,7 @@ export default function App() {
                 setGameTemplates(gt)
                 setGuestPenaltyCap(club.settings?.guest_penalty_cap ?? null)
                 applyTheme(club, useThemeStore.getState().theme)
+                applyAppIcon(club.settings?.app_icon)
                 // Validate persisted activeEveningId and auto-select if needed
                 const evenings = await api.listEvenings()
                 const open = evenings.filter((e: any) => !e.is_closed)

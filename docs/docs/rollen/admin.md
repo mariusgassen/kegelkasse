@@ -18,6 +18,7 @@ Unter **Verein → Einstellungen** kannst du:
 - **Spiellokal** (Standardveranstaltungsort) eintragen
 - **Vereinsfarben** (Primär- und Sekundärfarbe) anpassen
 - **Gästestrafen-Limit** setzen (maximaler Strafenbetrag für Gastspieler)
+- das **Vereinslogo als App-Icon** für alle Mitglieder einschalten, mit Hintergrund aus der Vereinsfarbpalette ([App-Icon](../funktionen/app-icon))
 
 ---
 

@@ -14,6 +14,7 @@ from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
+from api.v1.app_icon import serialize_app_icon
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
 from core.storage import get_storage, key_from_url, url_for_key
@@ -87,9 +88,12 @@ def get_club(db: Session = Depends(get_db), user: User = Depends(require_club_me
     s = club.settings
     if s:
         _ensure_public_tokens(s, db)
+    settings = _serialize_settings(s) if s else {}
+    # Club-branded app icon (#102): URLs for the manifest / apple-touch-icon while it's switched on.
+    settings["app_icon"] = serialize_app_icon(s, club.name)
     return {
         "id": club.id, "name": club.name, "slug": club.slug,
-        "settings": _serialize_settings(s) if s else {}
+        "settings": settings,
     }
 
 
