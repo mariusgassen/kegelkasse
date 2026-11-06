@@ -1,3 +1,4 @@
+import {useSearchStore} from '@/store/search.ts'
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import {render, screen, fireEvent, waitFor, act} from '@testing-library/react'
 import React from 'react'
@@ -70,6 +71,7 @@ async function renderSearch(open = true) {
 
 describe('GlobalSearch', () => {
     beforeEach(() => {
+        useSearchStore.getState().reset()
         vi.clearAllMocks()
         mockLocale = 'de'
     })
@@ -182,7 +184,7 @@ describe('GlobalSearch', () => {
         expect(mockNavigate).toHaveBeenCalledWith({to: '/schedule', search: {evening: 10}})
     })
 
-    it('resets the query when reopened', async () => {
+    it('keeps the query when reopened so a result can be revisited', async () => {
         const {rerender} = await renderSearch(true)
         fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'hasi'}})
         expect(screen.getAllByText('Hasi').length).toBeGreaterThan(0)
@@ -203,6 +205,6 @@ describe('GlobalSearch', () => {
                 </QueryClientProvider>
             )
         })
-        expect((screen.getByPlaceholderText('search.placeholder') as HTMLInputElement).value).toBe('')
+        expect((screen.getByPlaceholderText('search.placeholder') as HTMLInputElement).value).toBe('hasi')
     })
 })

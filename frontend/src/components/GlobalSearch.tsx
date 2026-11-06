@@ -1,3 +1,4 @@
+import {useSearchStore} from '@/store/search.ts'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {Sheet} from '@/components/ui/Sheet'
@@ -37,7 +38,8 @@ export function GlobalSearch({open, onClose}: Props) {
     const t = useT()
     const {locale} = useI18n()
     const regularMembers = useAppStore(s => s.regularMembers)
-    const [query, setQuery] = useState('')
+    const query = useSearchStore(s => s.query)
+    const setQuery = useSearchStore(s => s.setQuery)
     const [askSignal, setAskSignal] = useState(0)
     const inputRef = useRef<HTMLInputElement>(null)
 
@@ -47,15 +49,17 @@ export function GlobalSearch({open, onClose}: Props) {
     const {data: payments = []} = useQuery({queryKey: ['member-payments'], queryFn: api.getAllPayments, enabled: open, staleTime: 60000})
     const {data: expenses = []} = useQuery({queryKey: ['club-expenses'], queryFn: api.getExpenses, enabled: open, staleTime: 60000})
 
-    // Reset the query on every open and grab focus. No setTimeout here on purpose — mobile
+    // Keep the previous query (and AI answer) across opens — following a result closes the sheet and
+    // the member must be able to come back to it. Select the text so typing starts a new search.
+    // Grab focus. No setTimeout here on purpose — mobile
     // browsers only auto-open the virtual keyboard for a focus() call still inside the same
     // task as the user's tap; a deferred focus (even a few ms later) often gets ignored. Sheet's
     // own open-focus effect (on the panel div) runs first because it's the child component —
     // effects flush child-before-parent within one commit — so this call reliably wins last.
     useEffect(() => {
         if (!open) return
-        setQuery('')
         inputRef.current?.focus()
+        inputRef.current?.select()
     }, [open])
 
     const groups: { key: GroupKey; label: string; results: SearchResult[] }[] = useMemo(() => ([

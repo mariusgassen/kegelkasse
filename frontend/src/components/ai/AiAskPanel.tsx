@@ -9,7 +9,8 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {aiErrorKey} from '@/lib/aiErrors.ts'
 import {followAiLink} from '@/lib/aiLinks.ts'
-import type {AiAnswer, AiLink} from '@/types.ts'
+import {useSearchStore} from '@/store/search.ts'
+import type {AiLink} from '@/types.ts'
 
 interface Props {
     question: string
@@ -31,8 +32,9 @@ export function AiAskPanel({question, askSignal = 0, onNavigate}: Props) {
     const t = useT()
     const enabled = useAiEnabled('search')
     const online = useOnline()
-    const [answer, setAnswer] = useState<AiAnswer | null>(null)
-    const [asked, setAsked] = useState('')
+    const answer = useSearchStore(s => s.answer)
+    const asked = useSearchStore(s => s.asked)
+    const setAnswer = useSearchStore(s => s.setAnswer)
     const [loading, setLoading] = useState(false)
     const q = question.trim()
 
@@ -41,8 +43,7 @@ export function AiAskPanel({question, askSignal = 0, onNavigate}: Props) {
         setLoading(true)
         try {
             const r = await api.aiAsk(q)
-            setAnswer(r)
-            setAsked(q)
+            setAnswer(r, q)
         } catch (e) {
             const key = aiErrorKey(e)
             if (key) showToast(t(key), 'error')

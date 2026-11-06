@@ -14,6 +14,7 @@ vi.mock('@/lib/aiLinks.ts', () => ({followAiLink: (l: unknown) => follow(l)}))
 import {api} from '@/api/client.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {AiAskPanel} from '../ai/AiAskPanel'
+import {useSearchStore} from '@/store/search.ts'
 
 const ANSWER = {
     answer: 'Geh zu [Kasse → Konten](app:treasury.accounts) oder lies [die Doku](docs:funktionen/kasse).',
@@ -34,6 +35,7 @@ function renderPanel(props: Partial<React.ComponentProps<typeof AiAskPanel>> = {
 }
 
 beforeEach(() => {
+    useSearchStore.getState().reset()
     vi.clearAllMocks()
     vi.mocked(api.getAiStatus).mockResolvedValue({enabled: true, search: true})
     vi.mocked(api.aiAsk).mockResolvedValue(ANSWER as never)
@@ -57,6 +59,16 @@ describe('AiAskPanel', () => {
         expect(screen.getByRole('link', {name: /Kasse → Übersicht/})).toHaveAttribute('href', '/docs/funktionen/kasse#übersicht')
         // Same question already answered → no second ask button.
         expect(screen.queryByTestId('ai-ask-button')).toBeNull()
+    })
+
+    it('shows the previous answer again after the panel remounts', async () => {
+        const first = renderPanel()
+        fireEvent.click(await screen.findByTestId('ai-ask-button'))
+        await screen.findByTestId('ai-answer')
+        first.unmount()
+        renderPanel()
+        expect(await screen.findByTestId('ai-answer')).toBeInTheDocument()
+        expect(api.aiAsk).toHaveBeenCalledTimes(1)
     })
 
     it('does not close the sheet for docs links', async () => {
