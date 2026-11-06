@@ -16,7 +16,7 @@ export function DocsViewer() {
             {url && (
                 <iframe
                     src={url}
-                    title={t('docs.title')}
+                    aria-label={t('docs.title')}
                     className="w-full rounded-xl border border-line bg-white"
                     style={{height: 'calc(100dvh - 10rem)'}}
                     data-testid="docs-frame"
