@@ -217,7 +217,7 @@ def _evening_facts(e: Evening) -> dict:
         elif g.winner_ref:
             winner = g.winner_name
         games.append({"spiel": g.name, "sieger": winner, "eroeffnungsspiel": bool(g.is_opener),
-                      "status": g.status})
+                      "praesidentenspiel": bool(g.is_president_game), "status": g.status})
 
     return {
         "datum": e.date.date().isoformat() if e.date else None,
@@ -289,6 +289,20 @@ def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
             streaks.append({"name": _alias(p.regular_member, p.name), "abende_in_folge_inkl_diesem": run + 1})
     if streaks:
         out["anwesenheitsserien"] = sorted(streaks, key=lambda x: -x["abende_in_folge_inkl_diesem"])[:5]
+    first_timers, returners = [], []
+    for p in e.players:
+        if not p.regular_member_id:
+            continue
+        idx = next((i for i, ev in enumerate(earlier) if p.regular_member_id in present(ev)), None)
+        who = {"name": _alias(p.regular_member, p.name), "gast": _is_guest(p)}
+        if idx is None:
+            first_timers.append(who)
+        elif idx >= 3:
+            returners.append({**who, "abende_pausiert": idx})
+    if first_timers:
+        out["erstmals_dabei_seit_2_jahren"] = first_timers
+    if returners:
+        out["wieder_dabei_nach_pause"] = sorted(returners, key=lambda x: -x["abende_pausiert"])[:5]
     absent = {m.id: m for m in db.query(RegularMember).filter(
         RegularMember.club_id == e.club_id, RegularMember.is_active == True,  # noqa: E712
         RegularMember.is_guest == False, RegularMember.deactivated_at.is_(None)).all()}  # noqa: E712
@@ -313,6 +327,8 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
               "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
               "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
               "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste ruhig, aber behandle sie nicht als Mitglieder (keine Stammgast-Aussagen). "
+              "Beim Präsidentenspiel entscheidet der Sieger, wer Präsident wird. Erstmals Dabeigewesene "
+              "und Rückkehrer nach längerer Pause darfst du kurz begrüßen. "
               "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
               "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
               "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
