@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.72.0](https://github.com/mariusgassen/kegelkasse/compare/v1.71.0...v1.72.0) (2026-11-06)
+
+
+### Features
+
+* add Zeugwart inventory for stickers, pins, shirts and more ([#540](https://github.com/mariusgassen/kegelkasse/issues/540)) ([2b0c586](https://github.com/mariusgassen/kegelkasse/commit/2b0c586bd4d5ab4db892cbf915baefcfe1cbc1d6))
+* **ai:** ask the search questions about the club and the app ([#532](https://github.com/mariusgassen/kegelkasse/issues/532)) ([625282f](https://github.com/mariusgassen/kegelkasse/commit/625282f78485a4275e1cb8fb94c2902af7e23691))
+* club logo as app icon for all members ([#529](https://github.com/mariusgassen/kegelkasse/issues/529)) ([29f725a](https://github.com/mariusgassen/kegelkasse/commit/29f725ae64119812fb5bfb4d1e118efc6a798d0f))
+* sticker wall with feed and world map ([#539](https://github.com/mariusgassen/kegelkasse/issues/539)) ([2d0b452](https://github.com/mariusgassen/kegelkasse/commit/2d0b452460f11311ddfdee3d09f3da36fa628cb9))
+* store photos, logos and avatars in Garage (S3) ([#524](https://github.com/mariusgassen/kegelkasse/issues/524)) ([626e6f2](https://github.com/mariusgassen/kegelkasse/commit/626e6f24acf54dd979d3f0c00d2bee81896b8884))
+
+
+### Bug Fixes
+
+* do not expose Garage ports ([#528](https://github.com/mariusgassen/kegelkasse/issues/528)) ([de1c267](https://github.com/mariusgassen/kegelkasse/commit/de1c26785e473d15eee8f9442c08b918f0ade07c))
+* keep real names out of AI Kegelname suggestions ([#535](https://github.com/mariusgassen/kegelkasse/issues/535)) ([a566237](https://github.com/mariusgassen/kegelkasse/commit/a566237154f98c93437f856fbf4fe924febfe6c4))
+* keep search query and AI answer when reopening search after following a link ([#538](https://github.com/mariusgassen/kegelkasse/issues/538)) ([3ab794d](https://github.com/mariusgassen/kegelkasse/commit/3ab794da4dac068e503875d5518b1882ea108fec))
+* media migration script runs from the container shell, Garage gets a healthcheck ([#531](https://github.com/mariusgassen/kegelkasse/issues/531)) ([d4ab5a2](https://github.com/mariusgassen/kegelkasse/commit/d4ab5a20f29d64d28e557913952a5f78c5157d70))
+* open docs and API docs in the browser from the installed app ([#530](https://github.com/mariusgassen/kegelkasse/issues/530)) ([8e9ac15](https://github.com/mariusgassen/kegelkasse/commit/8e9ac15218f7da750ad5e7c22aa1a01bccf721f3))
+* tuck guest requests for past evenings into a collapsed card ([#536](https://github.com/mariusgassen/kegelkasse/issues/536)) ([974d19c](https://github.com/mariusgassen/kegelkasse/commit/974d19c3d9a52ebe421037d8c3be41ea2b6dbd2c))
+
 ## [1.71.0](https://github.com/mariusgassen/kegelkasse/compare/v1.70.1...v1.71.0) (2026-11-06)
 
 
