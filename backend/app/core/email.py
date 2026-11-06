@@ -350,6 +350,7 @@ def build_digest_email(theme: dict, data: dict, locale: str | None) -> tuple[str
     for key, items in (("evenings", data.get("evenings") or []),
                        ("penalties", data.get("penalties") or []),
                        ("bookings", data.get("bookings") or []),
+                       ("stickers", data.get("stickers") or []),
                        ("community", data.get("community") or [])):
         if not items:
             continue

@@ -133,6 +133,7 @@ export interface PushPreferences {
     reminder_payments: ChannelPref
     guest_requests: ChannelPref
     app_updates: ChannelPref
+    stickers: ChannelPref
     reminder_schedule_days?: number
     digest_frequency?: DigestFrequency
 }

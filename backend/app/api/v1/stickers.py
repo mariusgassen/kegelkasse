@@ -3,12 +3,13 @@ import logging
 from datetime import UTC, date as date_type, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import Field
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
 from core.database import get_db
+from core.push import push_to_club
 from core.schemas import TrimmedModel
 from core.storage import key_from_url
 from models.evening import RegularMember
@@ -122,7 +123,8 @@ def list_stickers(db: Session = Depends(get_db), user: User = Depends(require_cl
 
 
 @router.post("/")
-def create_sticker(data: StickerCreate, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+def create_sticker(data: StickerCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
+                   user: User = Depends(require_club_member)):
     s = Sticker(
         club_id=user.club_id,
         created_by=user.id,
@@ -137,7 +139,14 @@ def create_sticker(data: StickerCreate, db: Session = Depends(get_db), user: Use
     db.commit()
     db.refresh(s)
     logger.info("Sticker created: id=%d club=%d user=%d place=%r", s.id, user.club_id, user.id, s.place_name)
-    return _serialize(s, _author_names({user.id}, db), user)
+    author = _author_names({user.id}, db)
+    # Opt-in category (off by default); the poster does not need to hear about their own post.
+    background_tasks.add_task(
+        push_to_club, db, user.club_id, "🏷️ Neuer Sticker",
+        f"{author.get(user.id, user.name)} hat einen Sticker in {s.place_name} gepostet",
+        f"/#stickers?item={s.id}", category="stickers", exclude_user_id=user.id,
+    )
+    return _serialize(s, author, user)
 
 
 @router.patch("/{sid}")

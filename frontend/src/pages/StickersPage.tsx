@@ -3,7 +3,7 @@
  * holidays together with where they are; the feed lists the posts, the map shows every place
  * the club has left a sticker.
  */
-import {lazy, Suspense, useEffect, useState} from 'react'
+import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {MapPin} from 'lucide-react'
 import {useHashTab} from '@/hooks/usePage.ts'
@@ -23,7 +23,8 @@ import {CommentThread} from '@/components/ui/CommentThread.tsx'
 import {ItemReactionBar} from '@/components/ui/ItemReactionBar.tsx'
 import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
-import {readFileGps} from '@/lib/exifGps.ts'
+import {readFileExif} from '@/lib/exifGps.ts'
+import {reverseGeocode} from '@/lib/geocode.ts'
 import {placeCount} from '@/lib/stickers.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import type {Sticker} from '@/types.ts'
@@ -59,21 +60,39 @@ function StickerForm({sticker, onClose, onSaved}: {
     const [pos, setPos] = useState<LatLng | null>(
         sticker ? {latitude: sticker.latitude, longitude: sticker.longitude} : null)
     const [fromPhoto, setFromPhoto] = useState(false)
+    const [showMap, setShowMap] = useState(false)
     const [saving, setSaving] = useState(false)
+    const locale = useI18n(st => st.locale)
+    // The latest typed place, readable from async prefill callbacks: a lookup that finishes late must
+    // never overwrite what the member typed in the meantime.
+    const placeRef = useRef(place)
+    placeRef.current = place
+
+    async function prefillPlace(p: LatLng) {
+        const label = await reverseGeocode(p.latitude, p.longitude, locale)
+        if (label && !placeRef.current.trim()) setPlace(label)
+    }
+
+    function setPin(p: LatLng, photo: boolean) {
+        setPos(p)
+        setFromPhoto(photo)
+        void prefillPlace(p)
+    }
 
     async function handleFile(file: File) {
-        // Only fills the pin if the member has not placed one themselves yet.
-        const gps = await readFileGps(file).catch(() => null)
-        if (gps) {
-            setPos(cur => cur ?? gps)
-            setFromPhoto(true)
-        }
+        // Everything is only a suggestion: it fills empty fields and never replaces a pin, place or
+        // date the member has already set.
+        const meta = await readFileExif(file).catch(() => null)
+        if (!meta) return
+        if (meta.takenOn && meta.takenOn <= todayDateInput()) setDay(cur => cur || meta.takenOn!)
+        if (meta.gps && !pos) setPin(meta.gps, true)
+        else if (meta.gps) void prefillPlace(meta.gps)
     }
 
     function useMyLocation() {
         if (!navigator.geolocation) { showToast(t('stickers.form.locationDenied'), 'error'); return }
         navigator.geolocation.getCurrentPosition(
-            p => { setPos({latitude: p.coords.latitude, longitude: p.coords.longitude}); setFromPhoto(false) },
+            p => setPin({latitude: p.coords.latitude, longitude: p.coords.longitude}, false),
             () => showToast(t('stickers.form.locationDenied'), 'error'),
             {enableHighAccuracy: true, timeout: 10000},
         )
@@ -105,40 +124,51 @@ function StickerForm({sticker, onClose, onSaved}: {
                title={t(sticker ? 'stickers.form.edit' : 'stickers.form.new')}>
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="field-label">{t('stickers.form.photo')}</label>
+                    <label className="field-label">{t('stickers.form.photo')} *</label>
+                    {!media && <p className="text-sm text-muted mb-2">{t('stickers.form.photoRequired')}</p>}
                     <MediaUploadButton value={media} onUploaded={setMedia} onRemove={() => setMedia(null)}
                                        onFile={handleFile}/>
                 </div>
-                <div>
-                    <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
-                    <input id="sticker-place" className="kce-input" value={place} maxLength={120}
-                           onChange={e => setPlace(e.target.value)} placeholder={t('stickers.form.placeHint')}/>
-                </div>
-                <div>
-                    <label className="field-label">{t('stickers.form.location')}</label>
-                    <p className="text-sm text-muted mb-2">
-                        {fromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.locationHint')}
-                    </p>
-                    <MapBox online={online}>
-                        <StickerMap picked={pos} onPick={p => { setPos(p); setFromPhoto(false) }}
-                                    attribution={t('stickers.map.attribution')}
-                                    className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
-                    </MapBox>
-                    <button type="button" className="btn-secondary btn-xs mt-2 flex items-center gap-1"
-                            onClick={useMyLocation}>
-                        <MapPin size={16} aria-hidden="true"/> {t('stickers.form.useMyLocation')}
-                    </button>
-                </div>
-                <div>
-                    <label className="field-label" htmlFor="sticker-day">{t('stickers.form.date')}</label>
-                    <input id="sticker-day" type="date" className="kce-input" value={day} max={todayDateInput()}
-                           onChange={e => setDay(e.target.value)}/>
-                </div>
+                {media && (<>
+                    <div>
+                        <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
+                        <input id="sticker-place" className="kce-input" value={place} maxLength={120}
+                               onChange={e => setPlace(e.target.value)} placeholder={t('stickers.form.placeHint')}/>
+                    </div>
+                    <div>
+                        <label className="field-label">{t('stickers.form.location')}</label>
+                        <p className="text-sm text-muted mb-2">
+                            {!pos ? t('stickers.form.locationHint') : fromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
+                        </p>
+                        {/* The map is only needed when the photo carried no position, or to fine-tune it:
+                            keeping it folded keeps the dialog short instead of a long scrolling form. */}
+                        {(showMap || !pos) ? (
+                            <MapBox online={online}>
+                                <StickerMap picked={pos} onPick={p => setPin(p, false)}
+                                            attribution={t('stickers.map.attribution')}
+                                            className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
+                            </MapBox>
+                        ) : (
+                            <button type="button" className="btn-secondary btn-xs" onClick={() => setShowMap(true)}>
+                                {t('stickers.form.adjustPin')}
+                            </button>
+                        )}
+                        <button type="button" className="btn-secondary btn-xs mt-2 flex items-center gap-1"
+                                onClick={useMyLocation}>
+                            <MapPin size={16} aria-hidden="true"/> {t('stickers.form.useMyLocation')}
+                        </button>
+                    </div>
+                    <div>
+                        <label className="field-label" htmlFor="sticker-day">{t('stickers.form.date')}</label>
+                        <input id="sticker-day" type="date" className="kce-input" value={day} max={todayDateInput()}
+                               onChange={e => setDay(e.target.value)}/>
+                    </div>
                 <div>
                     <label className="field-label" htmlFor="sticker-caption">{t('stickers.form.caption')}</label>
                     <textarea id="sticker-caption" className="kce-input resize-none" rows={3} maxLength={1000}
                               value={caption} onChange={e => setCaption(e.target.value)}/>
                 </div>
+                </>)}
                 <button type="submit" className="btn-primary w-full" disabled={!canSave}>
                     {saving ? t('action.saving') : t('action.save')}
                 </button>

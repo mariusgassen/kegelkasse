@@ -1,5 +1,6 @@
 """Tests for the sticker wall: /stickers CRUD and its comment/reaction parent type."""
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -152,3 +153,27 @@ def test_comments_on_sticker(client: TestClient, auth_headers, club: Club):
     assert len(client.get(f"/api/v1/comments/sticker/{sid}", headers=auth_headers).json()) == 1
     r = client.post(f"/api/v1/comments/item-reaction/sticker/{sid}", json={"emoji": "❤️"}, headers=auth_headers)
     assert r.status_code == 200, r.text
+
+
+def test_create_notifies_opt_in_category_without_author(client: TestClient, auth_headers, club: Club, user: User):
+    with patch("api.v1.stickers.push_to_club") as notify:
+        r = client.post(URL, json=_body(club, place_name="Rom"), headers=auth_headers)
+    assert r.status_code == 200
+    args, kwargs = notify.call_args
+    assert args[1] == club.id
+    assert "Rom" in args[3]
+    assert args[4] == f"/#stickers?item={r.json()['id']}"
+    assert kwargs["category"] == "stickers"
+    assert kwargs["exclude_user_id"] == user.id
+
+
+def test_stickers_notifications_default_off():
+    from core.push import category_default
+    assert category_default("stickers") == ()
+
+
+def test_stickers_preference_round_trips(client: TestClient, auth_headers):
+    r = client.patch("/api/v1/push/preferences", json={"stickers": ["push"]}, headers=auth_headers)
+    assert r.status_code == 200
+    prefs = client.get("/api/v1/push/preferences", headers=auth_headers).json()
+    assert prefs["stickers"] == ["push"]

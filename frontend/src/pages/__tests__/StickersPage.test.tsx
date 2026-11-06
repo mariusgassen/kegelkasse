@@ -30,7 +30,10 @@ vi.mock('@/components/ui/CommentThread.tsx', () => ({CommentThread: () => null})
 vi.mock('@/components/ui/ItemReactionBar.tsx', () => ({ItemReactionBar: () => null}))
 vi.mock('@/components/ui/ZoomableImage.tsx', () => ({ZoomableImage: ({src}: any) => <img src={src} alt=""/>}))
 vi.mock('@/components/ui/Toast.tsx', () => ({showToast: vi.fn()}))
-vi.mock('@/lib/exifGps.ts', () => ({readFileGps: vi.fn(async () => ({latitude: 38.7, longitude: -9.1}))}))
+vi.mock('@/lib/exifGps.ts', () => ({
+    readFileExif: vi.fn(async () => ({gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'})),
+}))
+vi.mock('@/lib/geocode.ts', () => ({reverseGeocode: vi.fn(async () => 'Lissabon, Portugal')}))
 vi.mock('@/components/ui/MediaUploadButton.tsx', () => ({
     MediaUploadButton: ({onUploaded, onFile}: any) => (
         <button onClick={() => { onFile?.(new File(['x'], 'a.jpg', {type: 'image/jpeg'})); onUploaded('/uploads/media/media_1_a.jpg') }}>
@@ -55,6 +58,8 @@ vi.mock('@/components/stickers/StickerMap.tsx', () => ({
 
 import {StickersPage} from '../StickersPage'
 import {api} from '@/api/client.ts'
+import {readFileExif} from '@/lib/exifGps.ts'
+import {reverseGeocode} from '@/lib/geocode.ts'
 
 const S = (over: Partial<Sticker> = {}): Sticker => ({
     id: 1, media_url: '/uploads/media/media_1_a.jpg', place_name: 'Lisbon', latitude: 38.7, longitude: -9.1,
@@ -120,38 +125,82 @@ describe('StickersPage', () => {
         expect(mockSetTab).toHaveBeenCalledWith('map')
     })
 
-    it('posts a sticker with the pin taken from the photo', async () => {
+    it('only asks for the photo until one is chosen', async () => {
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByText(/stickers.add/))
+        expect(screen.getByText('stickers.form.photoRequired')).toBeInTheDocument()
+        expect(screen.queryByLabelText('stickers.form.place')).not.toBeInTheDocument()
+        expect(screen.getByText('action.save')).toBeDisabled()
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByLabelText('stickers.form.place'))
+    })
+
+    it('prefills place, pin and date from the photo and posts them', async () => {
         vi.mocked(api.createSticker).mockResolvedValue(S())
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
         fireEvent.click(screen.getByText(/stickers.add/))
-        expect(screen.getByText('submit-sheet')).toBeInTheDocument()
         fireEvent.click(screen.getByText('upload-photo'))
-        await waitFor(() => expect(screen.getByTestId('sticker-map').dataset.picked).toBe('38.7'))
-        fireEvent.change(screen.getByLabelText('stickers.form.place'), {target: {value: 'Porto'}})
+        await waitFor(() => expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Lissabon, Portugal'))
+        expect(screen.getByLabelText('stickers.form.date')).toHaveValue('2024-08-15')
+        expect(screen.getByText('stickers.form.fromPhoto')).toBeInTheDocument()
+        // With a pin from the photo the map stays folded until the member wants to adjust it.
+        expect(screen.queryByTestId('sticker-map')).not.toBeInTheDocument()
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.createSticker).toHaveBeenCalledWith(expect.objectContaining({
-            media_url: '/uploads/media/media_1_a.jpg', place_name: 'Porto', latitude: 38.7, longitude: -9.1,
+            media_url: '/uploads/media/media_1_a.jpg', place_name: 'Lissabon, Portugal',
+            latitude: 38.7, longitude: -9.1, stuck_on: '2024-08-15',
         })))
         // The list is reloaded after saving
         await waitFor(() => expect(vi.mocked(api.listStickers).mock.calls.length).toBeGreaterThan(1))
     })
 
-    it('keeps saving disabled until photo, place and pin are all set', async () => {
+    it('shows the map straight away when the photo has no position', async () => {
+        vi.mocked(readFileExif).mockResolvedValueOnce({gps: null, takenOn: null})
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
         fireEvent.click(screen.getByText(/stickers.add/))
-        const save = () => screen.getByText('action.save')
-        expect(save()).toBeDisabled()
-        fireEvent.change(screen.getByLabelText('stickers.form.place'), {target: {value: 'X'}})
-        expect(save()).toBeDisabled() // no photo, no pin
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByTestId('sticker-map'))
+        expect(screen.getByLabelText('stickers.form.place')).toHaveValue('')
+        expect(screen.getByText('action.save')).toBeDisabled() // no place, no pin
+        fireEvent.click(screen.getByText('drop-pin'))
+        // Dropping a pin looks the place up too, since the field is still empty.
+        await waitFor(() => expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Lissabon, Portugal'))
+        expect(reverseGeocode).toHaveBeenCalledWith(10, 20, 'de')
+        await waitFor(() => expect(screen.getByText('action.save')).not.toBeDisabled())
+    })
+
+    it('never overwrites a typed place or a chosen date with the photo data', async () => {
+        vi.mocked(reverseGeocode).mockImplementationOnce(() => new Promise(r => setTimeout(() => r('Lissabon, Portugal'), 20)))
+        vi.mocked(readFileExif).mockResolvedValueOnce({gps: null, takenOn: null})
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByTestId('sticker-map'))
+        fireEvent.click(screen.getByText('drop-pin')) // starts the slow lookup
+        fireEvent.change(screen.getByLabelText('stickers.form.place'), {target: {value: 'Porto'}})
+        fireEvent.change(screen.getByLabelText('stickers.form.date'), {target: {value: '2020-01-01'}})
+        await new Promise(r => setTimeout(r, 40))
+        expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Porto')
+        expect(screen.getByLabelText('stickers.form.date')).toHaveValue('2020-01-01')
+    })
+
+    it('lets the member adjust the pin on the map afterwards, and a dropped pin wins', async () => {
+        vi.mocked(api.createSticker).mockResolvedValue(S())
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByText('stickers.form.adjustPin'))
+        fireEvent.click(screen.getByText('stickers.form.adjustPin'))
+        expect(screen.getByTestId('sticker-map').dataset.picked).toBe('38.7')
         fireEvent.click(screen.getByText('drop-pin'))
         await waitFor(() => expect(screen.getByTestId('sticker-map').dataset.picked).toBe('10'))
-        expect(save()).toBeDisabled() // still no photo
-        fireEvent.click(screen.getByText('upload-photo'))
-        await waitFor(() => expect(save()).not.toBeDisabled())
-        // A manually dropped pin wins over the position read from the photo.
-        expect(screen.getByTestId('sticker-map').dataset.picked).toBe('10')
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createSticker).toHaveBeenCalledWith(expect.objectContaining({latitude: 10, longitude: 20})))
     })
 
     it('edits an existing sticker', async () => {
