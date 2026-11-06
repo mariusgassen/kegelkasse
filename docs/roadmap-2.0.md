@@ -22,23 +22,17 @@ Mögliche Reihenfolge: Start und Navigation, Kasse, Abend (Live), Termine und Ve
 
 ## Ideen und Stand
 
+Bereits umgesetzte Punkte (u. a. KI-Suche, Release-Push, Vereinslogo als App-Icon, Kassenprüfung, Kegelfahrt-Ausgaben, Sticker-Wand, Zeugwart-Inventar) stehen hier nicht mehr; die Historie steht in CLAUDE.md und im Changelog.
+
 | Idee | Stand | Notiz |
 |---|---|---|
 | In-App-Feedback und Ideen | geplant | Kleiner erster PR nach Review dieser Roadmap, siehe unten |
-| KI-Suche (Fragen zu Verein und App) | umgesetzt | #103 |
-| Push bei neuen Versionen | umgesetzt | #101, vom Server beim Start gesendet |
-| Vereinslogo als App-Icon | umgesetzt | #104, dynamisches Icon pro Verein |
-| Kassenprüfung | umgesetzt | #97 |
-| Kegelfahrt-Ausgaben | umgesetzt | #98 |
-| Was ist neu in der App | umgesetzt | #100 |
 | Desktop-Master-Detail | offen | #75 |
 | Onboarding, App-Shortcuts, Sprach-Schnellerfassung | offen | #76 |
 | Admin-Audit-Log | Idee | Wer hat welche Buchung, Strafe oder Einstellung geändert; Teile über `updated_by`/`deleted_by` vorhanden |
 | Königs-Tippspiel | Idee | Vor dem Eröffnungsspiel auf den König tippen, Punkte in Wrapped und Auszeichnungen |
 | Geburtstage und Jubiläen | Idee | Erinnerung, Banner, optionale Geburtstagsrunde |
 | Bank-Import (CSV/CAMT) | Idee | Aufwendig, nur falls der Bedarf klar ist |
-| Sticker-Wand | Idee, noch nicht beschrieben | Marius ergänzt die Details |
-| Zeugwart-Inventar | Idee, noch nicht beschrieben | Marius ergänzt die Details |
 | Beitragsautomatik, Abendkosten teilen | verworfen | Kein Anwendungsfall im Verein |
 | Telegram-Gruppenposting | verworfen | Verein nutzt WhatsApp |
 
