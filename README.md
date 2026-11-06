@@ -311,7 +311,7 @@ Hidden unless the server has `ANTHROPIC_API_KEY` set (default model via `ANTHROP
 - Offline banner visible when network is unavailable
 - Installable on mobile home screen
 - Auto install-suggestion banner (native prompt on Chromium; iOS "Add to Home Screen" how-to sheet); also available in Profile
-- Update-available banner — a new service-worker version waits for explicit confirmation ("Aktualisieren") instead of silently reloading the app mid-evening
+- Update-available banner — a new service-worker version waits for explicit confirmation ("Aktualisieren") instead of silently reloading the app mid-evening. The installed app checks for new versions hourly and whenever it returns to the foreground; a version found right after launch is applied immediately
 - Manifest orientation set to `any` (not locked to portrait) so the landscape kiosk pages (Tablet Schnellerfassung, Kamera-Wurf-Erkennung) aren't fought by the OS
 
 ### UI / UX
