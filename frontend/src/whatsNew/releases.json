@@ -1,6 +1,58 @@
 {
   "releases": [
     {
+      "version": "1.70.1",
+      "date": "2026-11-06",
+      "sections": [
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "d1d06e3",
+              "scope": "ai",
+              "pr": 520,
+              "sha": "d1d06e3",
+              "text": {
+                "en": "give evening recaps teams and club history and stop invented highlights",
+                "de": "Abendrückblicke kennen jetzt Teams und die Geschichte des Clubs, erfundene Highlights gibt es nicht mehr"
+              }
+            },
+            {
+              "key": "fc72708",
+              "scope": "ai",
+              "pr": 519,
+              "sha": "fc72708",
+              "text": {
+                "en": "show AI recaps and news posts with Markdown formatting",
+                "de": "KI-Rückblicke und Neuigkeiten werden mit Markdown-Formatierung angezeigt"
+              }
+            }
+          ]
+        },
+        {
+          "type": "deps",
+          "items": [
+            {
+              "key": "bd227d5",
+              "pr": 516,
+              "sha": "bd227d5",
+              "text": {
+                "en": "bump python-multipart"
+              }
+            },
+            {
+              "key": "226de31",
+              "pr": 514,
+              "sha": "226de31",
+              "text": {
+                "en": "bump the production-dependencies group across 1 directory with 2 updates"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.70.0",
       "date": "2026-11-05",
       "sections": [
