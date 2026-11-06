@@ -89,6 +89,42 @@ AWS_SECRET_ACCESS_KEY=...
 
 Superadmins can list, trigger, download, and delete backups in the app under **Verein → 💾 Backups**.
 
+### Media storage (Garage / S3)
+
+Uploaded photos (highlights, announcements, comments), club logos and profile pictures go through one storage
+layer (`backend/app/core/storage.py`). `MEDIA_STORAGE=local` (default) writes to the `club_uploads` volume;
+`MEDIA_STORAGE=s3` writes to an S3-compatible bucket. The app always serves files itself at `/uploads/<key>`, so
+URLs stored in the database never change, and in S3 mode it falls back to the volume for files not yet copied.
+
+`docker-compose.yml` ships a single-node [Garage](https://garagehq.deuxfleurs.fr/) service (`docker/garage`).
+One-time setup:
+
+1. Set `GARAGE_RPC_SECRET` (`openssl rand -hex 32`) and `GARAGE_ADMIN_TOKEN` (`openssl rand -base64 32`) in
+   Coolify and deploy.
+2. In the `garage` container:
+   ```sh
+   /garage status                                   # note the node ID
+   /garage layout assign -z dc1 -c 20G <node-id>
+   /garage layout apply --version 1
+   /garage bucket create kegelkasse-media
+   /garage key create kegelkasse-app                # prints key ID + secret
+   /garage bucket allow --read --write --owner kegelkasse-media --key kegelkasse-app
+   ```
+3. Set `MEDIA_S3_BUCKET=kegelkasse-media`, `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY`
+   (endpoint defaults to `http://garage:3900`, region `garage`) and `MEDIA_STORAGE=s3`, then redeploy.
+   New uploads now go to Garage; existing files keep loading from the volume.
+4. Copy existing media (in the `app` container, `cd /app && export PYTHONPATH=/app/app`):
+   ```sh
+   python -m app.scripts.migrate_media_to_s3 --dry-run
+   python -m app.scripts.migrate_media_to_s3            # resumable, safe to re-run
+   python -m app.scripts.migrate_media_to_s3 --verify   # every DB reference must be in the bucket
+   ```
+   Volume files are copied, never removed. Profile pictures (base64 in `user.avatar`) are written to the bucket,
+   read back and compared, then the row points to `/uploads/avatars/…`; the original stays in `user.avatar_legacy`.
+   `--rollback-avatars` restores it.
+5. Once `--verify` passes and the app looks right: `--purge-legacy-avatars`. The `club_uploads` volume can be
+   dropped later; keep it until you're sure.
+
 ## Roles
 
 | Role       | Access                                   |

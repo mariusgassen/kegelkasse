@@ -186,7 +186,39 @@ class TestUpdateAvatar:
         resp = client.patch("/api/v1/auth/avatar", json={"avatar": avatar_data}, headers=auth_headers)
         assert resp.status_code == 200
         db.refresh(user)
-        assert user.avatar == avatar_data
+        # Stored as a file, not as base64 in the row
+        assert user.avatar.startswith(f"/uploads/avatars/avatar_{user.id}_")
+        assert user.avatar.endswith(".png")
+        assert resp.json()["avatar"] == user.avatar
+        served = client.get(user.avatar)
+        assert served.status_code == 200
+        assert served.content == b"\x89PNG\r\n\x1a\n"
+        assert served.headers["content-type"] == "image/png"
+
+    def test_replacing_avatar_deletes_old_file(self, client: TestClient, db, user, auth_headers, media_storage):
+        client.patch("/api/v1/auth/avatar", json={"avatar": "data:image/png;base64,iVBORw0KGgo="},
+                     headers=auth_headers)
+        db.refresh(user)
+        old_key = user.avatar.removeprefix("/uploads/")
+        client.patch("/api/v1/auth/avatar", json={"avatar": "data:image/gif;base64,R0lGODlh"},
+                     headers=auth_headers)
+        db.refresh(user)
+        assert user.avatar.endswith(".gif")
+        assert media_storage.size(old_key) is None
+
+    def test_rejects_non_image_and_foreign_urls(self, client: TestClient, db, user, auth_headers):
+        for bad in ("data:text/html;base64,PGgxPg==", "https://evil.example/x.png", "/uploads/media/media_1_x.jpg"):
+            resp = client.patch("/api/v1/auth/avatar", json={"avatar": bad}, headers=auth_headers)
+            assert resp.status_code == 400, bad
+
+    def test_resending_current_url_is_noop(self, client: TestClient, db, user, auth_headers, media_storage):
+        client.patch("/api/v1/auth/avatar", json={"avatar": "data:image/png;base64,iVBORw0KGgo="},
+                     headers=auth_headers)
+        db.refresh(user)
+        url = user.avatar
+        resp = client.patch("/api/v1/auth/avatar", json={"avatar": url}, headers=auth_headers)
+        assert resp.status_code == 200
+        assert media_storage.size(url.removeprefix("/uploads/")) is not None
 
     def test_clear_avatar(self, client: TestClient, db, user, auth_headers):
         user.avatar = "some_data"

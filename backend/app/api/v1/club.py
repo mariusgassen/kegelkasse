@@ -6,7 +6,6 @@ Read operations available to all club members.
 import logging
 import uuid
 from datetime import date as date_type, datetime, timezone
-from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
@@ -17,6 +16,7 @@ from sqlalchemy.orm import Session
 from api.deps import require_club_member, require_club_admin
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
+from core.storage import get_storage, key_from_url, url_for_key
 from models.club import Club, ClubSettings, ClubPin
 from models.committee import ClubTrip
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
@@ -169,7 +169,6 @@ def regenerate_scoreboard_token(db: Session = Depends(get_db), user: User = Depe
     return {"scoreboard_token": extra["scoreboard_token"]}
 
 
-_UPLOAD_DIR = Path("/app/uploads/logos")
 _ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"}
 _MAX_LOGO_SIZE = 5 * 1024 * 1024  # 5 MB
 
@@ -195,26 +194,23 @@ async def upload_club_logo(
         "image/gif": "gif", "image/svg+xml": "svg",
     }
     ext = _ext_map[file.content_type]
-    filename = f"club_{user.club_id}_{uuid.uuid4().hex}.{ext}"
-
-    _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _UPLOAD_DIR / filename
-    dest.write_bytes(data)
+    key = f"logos/club_{user.club_id}_{uuid.uuid4().hex}.{ext}"
+    storage = get_storage()
+    storage.put(key, data, file.content_type)
 
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
 
-    # Delete old logo file if it was a locally uploaded one
-    if s.logo_url and s.logo_url.startswith("/uploads/logos/"):
-        old_path = Path("/app") / s.logo_url.lstrip("/")
-        if old_path.exists():
-            old_path.unlink(missing_ok=True)
+    # Delete the old logo if it was an uploaded one
+    old_key = key_from_url(s.logo_url)
+    if old_key:
+        storage.delete(old_key)
 
-    s.logo_url = f"/uploads/logos/{filename}"
+    s.logo_url = url_for_key(key)
     db.commit()
-    logger.info("Logo uploaded: club=%d filename=%s", user.club_id, filename)
+    logger.info("Logo uploaded: club=%d key=%s", user.club_id, key)
     return {"logo_url": s.logo_url}
 
 
@@ -224,10 +220,9 @@ def delete_club_logo(db: Session = Depends(get_db), user: User = Depends(require
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
         raise HTTPException(404)
-    if s.logo_url and s.logo_url.startswith("/uploads/logos/"):
-        old_path = Path("/app") / s.logo_url.lstrip("/")
-        if old_path.exists():
-            old_path.unlink(missing_ok=True)
+    old_key = key_from_url(s.logo_url)
+    if old_key:
+        get_storage().delete(old_key)
     s.logo_url = None
     db.commit()
     logger.info("Logo deleted: club=%d user=%d", user.club_id, user.id)

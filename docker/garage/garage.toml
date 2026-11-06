@@ -1,0 +1,20 @@
+# Single-node Garage for Kegelkasse media. Secrets are NOT in this file:
+#   GARAGE_RPC_SECRET   (openssl rand -hex 32)  — required
+#   GARAGE_ADMIN_TOKEN  (openssl rand -base64 32) — admin API on :3903
+# One-time cluster/bucket setup: see README → Media storage
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "lmdb"
+metadata_auto_snapshot_interval = "6h"
+
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+
+[admin]
+api_bind_addr = "[::]:3903"

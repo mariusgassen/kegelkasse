@@ -145,3 +145,14 @@ def subscription(db, user):
         db.commit()
     except Exception:
         db.rollback()
+
+
+@pytest.fixture(autouse=True)
+def media_storage(tmp_path):
+    """Every test writes uploads to its own temp dir instead of /app/uploads."""
+    from core.storage import LocalStorage, set_storage
+
+    storage = LocalStorage(tmp_path / "uploads")
+    set_storage(storage)
+    yield storage
+    set_storage(None)

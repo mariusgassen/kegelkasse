@@ -1,8 +1,6 @@
 """Tests for the media upload endpoint (POST /api/v1/uploads/media)."""
 import io
 import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
 
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
@@ -42,16 +40,11 @@ def _fake_gif() -> bytes:
 
 class TestUploadMedia:
     def test_upload_jpeg_returns_url(self, client, member_headers):
-        with patch("api.v1.uploads._UPLOAD_DIR") as mock_dir:
-            mock_path = MagicMock(spec=Path)
-            mock_dir.__truediv__ = lambda self, name: mock_path
-            mock_dir.mkdir = MagicMock()
-
-            resp = client.post(
-                "/api/v1/uploads/media",
-                headers=member_headers,
-                files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
-            )
+        resp = client.post(
+            "/api/v1/uploads/media",
+            headers=member_headers,
+            files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "url" in data
@@ -59,44 +52,29 @@ class TestUploadMedia:
         assert data["url"].endswith(".jpg")
 
     def test_upload_png_returns_url(self, client, member_headers):
-        with patch("api.v1.uploads._UPLOAD_DIR") as mock_dir:
-            mock_path = MagicMock(spec=Path)
-            mock_dir.__truediv__ = lambda self, name: mock_path
-            mock_dir.mkdir = MagicMock()
-
-            resp = client.post(
-                "/api/v1/uploads/media",
-                headers=member_headers,
-                files={"file": ("image.png", io.BytesIO(b"\x89PNG\r\n"), "image/png")},
-            )
+        resp = client.post(
+            "/api/v1/uploads/media",
+            headers=member_headers,
+            files={"file": ("image.png", io.BytesIO(b"\x89PNG\r\n"), "image/png")},
+        )
         assert resp.status_code == 200
         assert resp.json()["url"].endswith(".png")
 
     def test_upload_gif_returns_url(self, client, member_headers):
-        with patch("api.v1.uploads._UPLOAD_DIR") as mock_dir:
-            mock_path = MagicMock(spec=Path)
-            mock_dir.__truediv__ = lambda self, name: mock_path
-            mock_dir.mkdir = MagicMock()
-
-            resp = client.post(
-                "/api/v1/uploads/media",
-                headers=member_headers,
-                files={"file": ("anim.gif", io.BytesIO(_fake_gif()), "image/gif")},
-            )
+        resp = client.post(
+            "/api/v1/uploads/media",
+            headers=member_headers,
+            files={"file": ("anim.gif", io.BytesIO(_fake_gif()), "image/gif")},
+        )
         assert resp.status_code == 200
         assert resp.json()["url"].endswith(".gif")
 
     def test_upload_webp_returns_url(self, client, member_headers):
-        with patch("api.v1.uploads._UPLOAD_DIR") as mock_dir:
-            mock_path = MagicMock(spec=Path)
-            mock_dir.__truediv__ = lambda self, name: mock_path
-            mock_dir.mkdir = MagicMock()
-
-            resp = client.post(
-                "/api/v1/uploads/media",
-                headers=member_headers,
-                files={"file": ("img.webp", io.BytesIO(b"RIFF\x00\x00\x00\x00WEBP"), "image/webp")},
-            )
+        resp = client.post(
+            "/api/v1/uploads/media",
+            headers=member_headers,
+            files={"file": ("img.webp", io.BytesIO(b"RIFF\x00\x00\x00\x00WEBP"), "image/webp")},
+        )
         assert resp.status_code == 200
         assert resp.json()["url"].endswith(".webp")
 
@@ -126,16 +104,11 @@ class TestUploadMedia:
         assert resp.status_code == 401
 
     def test_url_includes_club_id(self, client, member_headers, member_user):
-        with patch("api.v1.uploads._UPLOAD_DIR") as mock_dir:
-            mock_path = MagicMock(spec=Path)
-            mock_dir.__truediv__ = lambda self, name: mock_path
-            mock_dir.mkdir = MagicMock()
-
-            resp = client.post(
-                "/api/v1/uploads/media",
-                headers=member_headers,
-                files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
-            )
+        resp = client.post(
+            "/api/v1/uploads/media",
+            headers=member_headers,
+            files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
+        )
         assert resp.status_code == 200
         url = resp.json()["url"]
         assert f"media_{member_user.club_id}_" in url

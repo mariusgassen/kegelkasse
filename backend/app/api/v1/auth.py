@@ -19,6 +19,8 @@ from core.refresh import (
     rotate_refresh_token,
 )
 from core.security import verify_password, get_password_hash, create_access_token
+from core.avatars import InvalidAvatar, is_data_uri, store_avatar
+from core.storage import get_storage, key_from_url
 from models.user import User, UserRole, InviteToken, PasswordResetToken
 
 logger = logging.getLogger(__name__)
@@ -130,14 +132,28 @@ def update_locale(req: UpdateLocaleRequest, db: Session = Depends(get_db),
 
 
 class UpdateAvatarRequest(TrimmedModel):
-    avatar: Optional[str] = None  # base64 data URI or null to remove
+    avatar: Optional[str] = None  # base64 data URI (stored as a file) or null to remove
 
 
 @router.patch("/avatar")
 def update_avatar(req: UpdateAvatarRequest, db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    current_user.avatar = req.avatar
+    new_avatar = req.avatar or None
+    if is_data_uri(new_avatar):
+        try:
+            new_avatar = store_avatar(current_user.id, new_avatar)
+        except InvalidAvatar as exc:
+            raise HTTPException(400, str(exc))
+    elif new_avatar is not None and new_avatar != current_user.avatar:
+        raise HTTPException(400, "Unsupported avatar format")
+    old_key = key_from_url(current_user.avatar)
+    if old_key and not old_key.startswith(f"avatars/avatar_{current_user.id}_"):
+        old_key = None  # only ever delete this user's own avatar objects
+    current_user.avatar = new_avatar
+    current_user.avatar_legacy = None  # a fresh choice supersedes any pre-migration copy
     db.commit()
+    if old_key and old_key != key_from_url(new_avatar):
+        get_storage().delete(old_key)
     return _user_dict(current_user)
 
 
