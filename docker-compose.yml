@@ -87,6 +87,13 @@ services:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
     restart: unless-stopped
+    healthcheck:
+      # The image has no shell or curl; `garage status` asks the node over RPC and fails if it is down.
+      test: ["CMD", "/garage", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres_data:

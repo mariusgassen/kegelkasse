@@ -1,13 +1,13 @@
 """
 Move existing media into the S3 bucket (Garage or any S3-compatible store).
 
-Run inside the app container, after the MEDIA_S3_* variables are set and MEDIA_STORAGE=s3 is deployed:
+Run inside the app container from /app, after the MEDIA_S3_* variables are set and MEDIA_STORAGE=s3 is deployed:
 
-    python -m app.scripts.migrate_media_to_s3              # copy files + avatars
-    python -m app.scripts.migrate_media_to_s3 --dry-run    # only report what would happen
-    python -m app.scripts.migrate_media_to_s3 --verify     # check every DB reference is in the bucket
-    python -m app.scripts.migrate_media_to_s3 --purge-legacy-avatars   # after --verify passes
-    python -m app.scripts.migrate_media_to_s3 --rollback-avatars       # undo the avatar step
+    python scripts/migrate_media_to_s3.py              # copy files + avatars
+    python scripts/migrate_media_to_s3.py --dry-run    # only report what would happen
+    python scripts/migrate_media_to_s3.py --verify     # check every DB reference is in the bucket
+    python scripts/migrate_media_to_s3.py --purge-legacy-avatars   # after --verify passes
+    python scripts/migrate_media_to_s3.py --rollback-avatars       # undo the avatar step
 
 Safe to interrupt and run again:
 - Files on the uploads volume are copied under the same key; a key already in the bucket with the
@@ -25,7 +25,8 @@ import os
 import sys
 from dataclasses import dataclass, field
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+# The app packages (``core``, ``models``) live in app/, next to this scripts/ folder.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app"))
 
 from core.avatars import InvalidAvatar, avatar_key, decode_data_uri  # noqa: E402
 from core.config import settings  # noqa: E402
