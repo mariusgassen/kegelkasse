@@ -257,3 +257,23 @@ def test_answer_language_follows_user_locale(client, db, user, auth_headers, cla
     db.commit()
     _ask(client, auth_headers)
     assert claude.data["sprache"] == "en"
+
+
+def test_sticker_links_are_validated(db, client, auth_headers, club, claude):
+    from models.sticker import Sticker
+    st = Sticker(club_id=club.id, media_url="/uploads/media/x.jpg", place_name="Lissabon",
+                 latitude=38.7, longitude=-9.1)
+    db.add(st)
+    db.commit()
+    try:
+        claude.payload = {"answer": f"[Sticker](app:sticker:{st.id}) [Karte](app:stickers.map) [Falsch](app:sticker:999999)"}
+        r = _ask(client, auth_headers)
+        assert r.status_code == 200, r.text
+        assert claude.data["sticker"][0]["ort"] == "Lissabon"
+        links = {l["href"]: l for l in r.json()["links"]}
+        assert links[f"app:sticker:{st.id}"]["search"] == {"tab": "feed", "item": st.id}
+        assert links["app:stickers.map"]["to"] == "/stickers"
+        assert "app:sticker:999999" not in links
+    finally:
+        db.query(Sticker).filter(Sticker.club_id == club.id).delete()
+        db.commit()
