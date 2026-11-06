@@ -1,7 +1,7 @@
 """
 Move existing media into the S3 bucket (Garage or any S3-compatible store).
 
-Run inside the app container, after the MEDIA_S3_* variables are set and MEDIA_STORAGE=s3 is deployed:
+Run inside the app container from /app, after the MEDIA_S3_* variables are set and MEDIA_STORAGE=s3 is deployed:
 
     python -m app.scripts.migrate_media_to_s3              # copy files + avatars
     python -m app.scripts.migrate_media_to_s3 --dry-run    # only report what would happen
@@ -25,7 +25,8 @@ import os
 import sys
 from dataclasses import dataclass, field
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+# Make ``core``/``models`` importable however the script is started (python -m scripts.…, a file path).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.avatars import InvalidAvatar, avatar_key, decode_data_uri  # noqa: E402
 from core.config import settings  # noqa: E402

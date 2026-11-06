@@ -113,7 +113,7 @@ One-time setup:
 3. Set `MEDIA_S3_BUCKET=kegelkasse-media`, `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY`
    (endpoint defaults to `http://garage:3900`, region `garage`) and `MEDIA_STORAGE=s3`, then redeploy.
    New uploads now go to Garage; existing files keep loading from the volume.
-4. Copy existing media (in the `app` container, `cd /app && export PYTHONPATH=/app/app`):
+4. Copy existing media (in the `app` container, from `/app`):
    ```sh
    python -m app.scripts.migrate_media_to_s3 --dry-run
    python -m app.scripts.migrate_media_to_s3            # resumable, safe to re-run
