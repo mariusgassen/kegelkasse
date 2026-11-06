@@ -1,5 +1,8 @@
 """Media storage backends, the /uploads serving route, and the S3 migration script."""
+import importlib.util
 import io
+import sys
+from pathlib import Path
 
 import pytest
 from botocore.exceptions import ClientError
@@ -9,7 +12,13 @@ from models.club import ClubSettings
 from models.comment import Comment
 from core.security import create_access_token, get_password_hash
 from models.user import User, UserRole
-from scripts import migrate_media_to_s3 as mig
+
+# backend/scripts/ is not a package (like gen_vapid.py), so load the script by path.
+_spec = importlib.util.spec_from_file_location(
+    "migrate_media_to_s3", Path(__file__).resolve().parents[1] / "scripts" / "migrate_media_to_s3.py")
+mig = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = mig  # dataclasses look the module up by name
+_spec.loader.exec_module(mig)
 
 
 class FakeBody:
