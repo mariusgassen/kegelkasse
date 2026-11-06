@@ -13,6 +13,8 @@ import {
     ClubTeam,
     ClubPin,
     ClubTrip,
+    Sticker,
+    StickerInput,
     TripExpenses,
     DrinkRound,
     Evening,
@@ -747,9 +749,9 @@ export const api = {
         request<void>('DELETE', `/evening/${eid}/highlights/${hid}`),
 
     // Comments
-    listComments: (parentType: 'highlight' | 'announcement' | 'trip', parentId: number) =>
+    listComments: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number) =>
         request<Comment[]>('GET', `/comments/${parentType}/${parentId}`),
-    addComment: (parentType: 'highlight' | 'announcement' | 'trip', parentId: number, text: string, mediaUrl?: string, parentCommentId?: number) =>
+    addComment: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number, text: string, mediaUrl?: string, parentCommentId?: number) =>
         request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text: text || null, media_url: mediaUrl || null, parent_comment_id: parentCommentId ?? null}),
     editComment: (commentId: number, text: string | null, mediaUrl?: string | null) =>
         request<Comment>('PATCH', `/comments/${commentId}`, {text: text || null, media_url: mediaUrl || null}),
@@ -757,9 +759,9 @@ export const api = {
         request<void>('DELETE', `/comments/${commentId}`),
     toggleReaction: (commentId: number, emoji: string) =>
         request<{action: 'added' | 'removed'}>('POST', `/comments/${commentId}/reactions`, {emoji}),
-    toggleItemReaction: (parentType: 'highlight' | 'announcement' | 'trip', parentId: number, emoji: string) =>
+    toggleItemReaction: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number, emoji: string) =>
         request<{action: 'added' | 'removed'; reactions: ItemReaction[]}>('POST', `/comments/item-reaction/${parentType}/${parentId}`, {emoji}),
-    getItemReactions: (parentType: 'highlight' | 'announcement' | 'trip', parentId: number) =>
+    getItemReactions: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number) =>
         request<ItemReaction[]>('GET', `/comments/item-reactions/${parentType}/${parentId}`),
 
     // Stats
@@ -840,6 +842,12 @@ export const api = {
     unlinkTelegram: () => request<void>('DELETE', '/push/telegram/link'),
     broadcastPush: (d: { title: string; body: string; url?: string }) => request<{ ok: boolean }>('POST', '/club/broadcast-push', d),
     triggerReminders: () => request<{ ok: boolean }>('POST', '/push/trigger-reminders'),
+
+    // Sticker wall
+    listStickers: () => request<Sticker[]>('GET', '/stickers/'),
+    createSticker: (d: StickerInput) => request<Sticker>('POST', '/stickers/', d),
+    updateSticker: (id: number, d: Partial<StickerInput>) => request<Sticker>('PATCH', `/stickers/${id}`, d),
+    deleteSticker: (id: number) => request<void>('DELETE', `/stickers/${id}`),
 
     // Committee (Vergnügungsausschuss)
     listAnnouncements: () => request<ClubAnnouncement[]>('GET', '/committee/announcements'),

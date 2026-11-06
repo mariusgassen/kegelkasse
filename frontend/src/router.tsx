@@ -62,6 +62,7 @@ export interface ScheduleSearch { evening?: number; event?: number; rsvp?: numbe
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
 export interface MembersSearch { memberName?: string }
+export interface StickersSearch { tab?: 'feed' | 'map'; item?: number; comment?: number }
 export interface StatsSearch { tab?: 'evening' | 'year' | 'lab' }
 
 const passThrough = <T,>(s: Record<string, unknown>): T => s as T
@@ -90,6 +91,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute('committee', () => import('./pages/CommitteePage'), 'CommitteePage', passThrough<CommitteeSearch>),
     pageRoute('stats', () => import('./pages/StatsPage'), 'StatsPage', passThrough<StatsSearch>),
     pageRoute('club', () => import('./pages/ClubAdminPage'), 'ClubAdminPage', passThrough<ClubSearch>),
+    pageRoute('stickers', () => import('./pages/StickersPage'), 'StickersPage', passThrough<StickersSearch>),
     pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
 ])
 

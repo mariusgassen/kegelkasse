@@ -87,7 +87,7 @@ function ReactionPicker({onPick}: {onPick: (emoji: string) => void}) {
 }
 
 interface Props {
-    parentType: 'highlight' | 'announcement' | 'trip'
+    parentType: 'highlight' | 'announcement' | 'trip' | 'sticker'
     parentId: number
     /** When provided, a 💬 (N) button is shown in the same row */
     commentOpen?: boolean

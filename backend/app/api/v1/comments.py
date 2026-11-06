@@ -14,15 +14,17 @@ from models.committee import ClubAnnouncement, ClubTrip
 from models.evening import EveningHighlight, Evening
 from models.user import User, UserRole
 from models.evening import RegularMember
+from models.sticker import Sticker
 
 router = APIRouter(prefix="/comments", tags=["comments"])
 
-VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip'}
+VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip', 'sticker'}
 
 _TYPE_LABEL_DE = {
     'highlight': 'Highlight',
     'announcement': 'Ankündigung',
     'trip': 'Kegelfahrt',
+    'sticker': 'Sticker',
 }
 
 
@@ -66,6 +68,9 @@ def _parent_title(parent_type: str, parent_id: int, db: Session) -> str:
     if parent_type == 'trip':
         tr = db.query(ClubTrip).filter(ClubTrip.id == parent_id).first()
         return tr.destination if tr else ''
+    if parent_type == 'sticker':
+        st = db.query(Sticker).filter(Sticker.id == parent_id).first()
+        return st.place_name if st else ''
     return ''
 
 
@@ -145,6 +150,9 @@ def _parent_creator_user_id(parent_type: str, parent_id: int, db: Session) -> Op
     if parent_type == 'trip':
         tr = db.query(ClubTrip).filter(ClubTrip.id == parent_id).first()
         return tr.created_by if tr else None
+    if parent_type == 'sticker':
+        st = db.query(Sticker).filter(Sticker.id == parent_id).first()
+        return st.created_by if st else None
     return None
 
 
@@ -173,6 +181,14 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
         ).first()
         if not tr:
             raise HTTPException(404, "Trip not found")
+    elif parent_type == 'sticker':
+        st = db.query(Sticker).filter(
+            Sticker.id == parent_id,
+            Sticker.club_id == user.club_id,
+            Sticker.is_deleted == False,  # noqa: E712
+        ).first()
+        if not st:
+            raise HTTPException(404, "Sticker not found")
 
 
 def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = None) -> str:
@@ -181,6 +197,8 @@ def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = No
         base = f'/#committee:announcements?item={parent_id}'
     elif parent_type == 'trip':
         base = f'/#committee:trips?item={parent_id}'
+    elif parent_type == 'sticker':
+        base = f'/#stickers?item={parent_id}'
     else:  # highlight
         base = f'/#evening:highlights?item={parent_id}'
     if comment_id:

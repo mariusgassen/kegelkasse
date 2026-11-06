@@ -224,6 +224,28 @@ export interface ClubAnnouncement {
     created_at: string | null
 }
 
+export interface Sticker {
+    id: number
+    media_url: string
+    place_name: string
+    latitude: number
+    longitude: number
+    caption: string | null
+    stuck_on: string | null
+    created_by_name: string | null
+    created_at: string | null
+    can_edit: boolean
+}
+
+export interface StickerInput {
+    media_url: string
+    place_name: string
+    latitude: number
+    longitude: number
+    caption?: string
+    stuck_on?: string
+}
+
 export interface ClubTrip {
     id: number
     date: string  // YYYY-MM-DDTHH:MM (UTC)

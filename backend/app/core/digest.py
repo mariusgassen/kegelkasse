@@ -231,7 +231,7 @@ def build_digest(db: Session, user: User, since: datetime | None, now: datetime,
     }
 
 
-_THREAD_ICON = {"announcement": "📣", "trip": "🚌", "highlight": "✨"}
+_THREAD_ICON = {"announcement": "📣", "trip": "🚌", "highlight": "✨", "sticker": "🏷️"}
 
 
 def _community_news(db: Session, club_id: int, since: datetime, locale: str | None) -> list[dict]:
