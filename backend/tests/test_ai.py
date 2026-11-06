@@ -219,6 +219,17 @@ def test_evening_recap_states_empty_highlights(client, auth_headers, db, evening
     assert "gab es kein Highlight" in claude.data
 
 
+def test_evening_recap_marks_guests(client, auth_headers, db, evening, claude):
+    tina = db.query(RegularMember).filter(RegularMember.name == "Tina Beispiel").first()
+    tina.is_guest = True
+    db.commit()
+    claude.payload = {"title": "t", "text": "x"}
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    facts = json.loads(claude.data.split("<daten>\n")[1].split("</daten>")[0])
+    assert facts["gaeste"] == ["Gast", "Tina"]  # "Gast" = fixture player without roster link
+    assert "Pudelkönig" in facts["spieler"]
+
+
 def test_evening_recap_includes_history(client, auth_headers, db, club, evening, claude):
     prev = Evening(club_id=club.id, date=datetime(2026, 3, 3, 20, tzinfo=timezone.utc), is_closed=True)
     db.add(prev)

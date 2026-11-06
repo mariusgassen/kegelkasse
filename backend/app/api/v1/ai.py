@@ -169,6 +169,12 @@ _RECAP_SCHEMA = {
 }
 
 
+def _is_guest(p) -> bool:
+    """Played as a guest: flagged guest, or a deactivated (left) member, or not linked to the roster."""
+    rm = p.regular_member
+    return rm is None or bool(rm.is_guest) or rm.deactivated_at is not None
+
+
 def _evening_facts(e: Evening) -> dict:
     players = {p.id: p for p in e.players}
     name = {pid: _alias(p.regular_member, p.name) for pid, p in players.items()}
@@ -217,6 +223,7 @@ def _evening_facts(e: Evening) -> dict:
         "datum": e.date.date().isoformat() if e.date else None,
         "lokal": e.venue,
         "spieler": sorted(name.values()),
+        "gaeste": sorted(name[p.id] for p in e.players if _is_guest(p)),
         "teams": teams,
         "koenig": next((name[p.id] for p in e.players if p.is_king), None),
         "spiele": games,
@@ -305,6 +312,7 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
         task=("Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
               "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
               "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
+              "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste ruhig, aber behandle sie nicht als Mitglieder (keine Stammgast-Aussagen). "
               "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
               "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
               "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
