@@ -40,6 +40,7 @@ class Report:
     avatars_moved: int = 0
     avatars_restored: int = 0
     legacy_purged: int = 0
+    checked: int = 0
     missing: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -118,6 +119,7 @@ def verify(db, s3: S3Storage, report: Report) -> None:
     from models.user import User
 
     for label, key in _referenced_keys(db):
+        report.checked += 1
         if s3.size(key) is None:
             report.missing.append(f"{label}: {key}")
     left = db.query(User).filter(User.avatar.like("data:%")).count()
@@ -194,7 +196,7 @@ def main(argv=None) -> int:
     for line in report.errors:
         print(f"ERROR    {line}")
     if args.verify and report.ok:
-        print("OK — every referenced file is in the bucket.")
+        print(f"OK — all {report.checked} files referenced in the database are in the bucket.")
     return 0 if report.ok else 1
 
 
