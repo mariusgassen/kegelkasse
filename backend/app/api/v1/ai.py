@@ -4,6 +4,8 @@
   returned for review; posting it uses the normal announcement endpoint.
 - Suggestions: new penalty types from the club's own penalty history, Kegelname ideas
   for a member from their stats.
+- Search (``api/v1/ai_search.py``): answer a member's question about the club or the app,
+  grounded in club data they can see and the indexed docs, with clickable in-app links.
 - Booking review: rule-based pre-checks over the treasury bookings of a period (likely
   duplicates, unusual amounts, payouts without a note, future dates). They work without a
   key; with one, Claude explains and ranks the flags for the Kassenprüfer. Admins and
@@ -45,7 +47,11 @@ _limiter = SlidingWindowLimiter(window_seconds=3600)
 
 # Models an admin can pick. The API key itself only ever lives in ANTHROPIC_API_KEY.
 AI_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")
-FEATURES = ("recaps", "suggestions", "booking_review")
+FEATURES = ("recaps", "suggestions", "booking_review", "search")
+
+
+# The search answers short questions from a prepared snapshot: the cheapest model is enough.
+SEARCH_MODEL = "claude-haiku-5-5"
 
 
 def _model_choices() -> list[str]:
@@ -59,12 +65,15 @@ def get_ai_config(db: Session, club_id: int) -> dict:
     saved = ((s.extra or {}).get("ai") or {}) if s else {}
     cfg = {f: True for f in FEATURES}
     cfg["model"] = settings.ANTHROPIC_MODEL
+    cfg["search_model"] = SEARCH_MODEL
     cfg["calls_per_hour"] = AI_CALLS_PER_HOUR
     for f in FEATURES:
         if isinstance(saved.get(f), bool):
             cfg[f] = saved[f]
     if saved.get("model") in _model_choices():
         cfg["model"] = saved["model"]
+    if saved.get("search_model") in _model_choices():
+        cfg["search_model"] = saved["search_model"]
     if isinstance(saved.get("calls_per_hour"), int):
         cfg["calls_per_hour"] = max(1, min(MAX_CALLS_PER_HOUR, saved["calls_per_hour"]))
     return cfg
@@ -131,7 +140,9 @@ class AiSettingsUpdate(TrimmedModel):
     recaps: Optional[bool] = None
     suggestions: Optional[bool] = None
     booking_review: Optional[bool] = None
+    search: Optional[bool] = None
     model: Optional[str] = None
+    search_model: Optional[str] = None
     calls_per_hour: Optional[int] = None
 
 
@@ -139,8 +150,9 @@ class AiSettingsUpdate(TrimmedModel):
 def update_ai_settings(data: AiSettingsUpdate, db: Session = Depends(get_db),
                        user: User = Depends(require_club_admin)):
     payload = data.model_dump(exclude_unset=True, exclude_none=True)
-    if "model" in payload and payload["model"] not in _model_choices():
-        raise HTTPException(status_code=400, detail="Unknown model")
+    for key in ("model", "search_model"):
+        if key in payload and payload[key] not in _model_choices():
+            raise HTTPException(status_code=400, detail="Unknown model")
     if "calls_per_hour" in payload and not 1 <= payload["calls_per_hour"] <= MAX_CALLS_PER_HOUR:
         raise HTTPException(status_code=400, detail=f"calls_per_hour must be 1-{MAX_CALLS_PER_HOUR}")
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()

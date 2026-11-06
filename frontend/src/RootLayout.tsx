@@ -44,6 +44,7 @@ import {GlobalSearch} from './components/GlobalSearch'
 import {BowlingGame} from './components/BowlingGame'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHash'
+import {OPEN_PROFILE_EVENT, type OpenProfileDetail} from './lib/aiLinks'
 
 declare const __APP_VERSION__: string
 // Guarded so it can't throw in environments where the build-time define isn't applied (tests).
@@ -87,6 +88,7 @@ export function RootLayout() {
     const navCollapsed = useNavCollapsedStore(s => s.collapsed)
     const toggleNavCollapsed = useNavCollapsedStore(s => s.toggle)
     const [profileOpen, setProfileOpen] = useState(false)
+    const [profileTab, setProfileTab] = useState<OpenProfileDetail['tab']>(undefined)
     const [notifOpen, setNotifOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
     // Easter egg — 5 quick taps on the logo/title opens the hidden mini bowling game.
@@ -122,6 +124,16 @@ export function RootLayout() {
         }
         document.addEventListener('keydown', handler)
         return () => document.removeEventListener('keydown', handler)
+    }, [])
+
+    // AI search answers can link to the profile sheet (an overlay, not a route).
+    useEffect(() => {
+        const onOpen = (e: Event) => {
+            setProfileTab((e as CustomEvent<OpenProfileDetail>).detail?.tab)
+            setProfileOpen(true)
+        }
+        window.addEventListener(OPEN_PROFILE_EVENT, onOpen)
+        return () => window.removeEventListener(OPEN_PROFILE_EVENT, onOpen)
     }, [])
 
     // Legacy hash deep links (push notifications, global search, in-app links) still set
@@ -296,7 +308,7 @@ export function RootLayout() {
             </nav>
 
             <ToastContainer/>
-            <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)}/>
+            <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
             {bowlingOpen && <BowlingGame onClose={() => setBowlingOpen(false)}/>}

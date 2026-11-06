@@ -5,6 +5,8 @@ import {useT, useI18n} from '@/i18n'
 import {useAppStore} from '@/store/app'
 import {api} from '@/api/client'
 import {router} from '@/router'
+import {AiAskPanel} from '@/components/ai/AiAskPanel.tsx'
+import {BookOpen} from 'lucide-react'
 import {
     searchMembers,
     searchAccounts,
@@ -36,6 +38,7 @@ export function GlobalSearch({open, onClose}: Props) {
     const {locale} = useI18n()
     const regularMembers = useAppStore(s => s.regularMembers)
     const [query, setQuery] = useState('')
+    const [askSignal, setAskSignal] = useState(0)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const {data: evenings = []} = useQuery({queryKey: ['evenings'], queryFn: api.listEvenings, enabled: open, staleTime: 60000})
@@ -81,9 +84,11 @@ export function GlobalSearch({open, onClose}: Props) {
                 type="search"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') setAskSignal(n => n + 1) }}
                 placeholder={t('search.placeholder')}
             />
             <div className="flex flex-col gap-3 mt-3 max-h-[60vh] overflow-y-auto">
+                <AiAskPanel question={query} askSignal={askSignal} onNavigate={onClose}/>
                 {hasQuery && totalResults === 0 && (
                     <p className="text-xs text-muted text-center py-4">{t('search.noResults')}</p>
                 )}
@@ -110,6 +115,10 @@ export function GlobalSearch({open, onClose}: Props) {
                     </div>
                 ))}
             </div>
+            <a href="/docs/" target="_blank" rel="noopener"
+               className="mt-3 text-xs text-muted flex items-center justify-center gap-1" data-testid="search-docs-link">
+                <BookOpen size={14} aria-hidden/> {t('search.docs')}
+            </a>
         </Sheet>
     )
 }

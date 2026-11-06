@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     MEDIA_S3_ACCESS_KEY_ID: str = ""
     MEDIA_S3_SECRET_ACCESS_KEY: str = ""
     MEDIA_S3_FORCE_PATH_STYLE: bool = True   # Garage needs path-style unless root_domain is set
+    # Markdown sources of the docs, indexed for the AI search. Empty = auto-detect
+    # (/app/docs_src in the image, ../docs/docs in a checkout).
+    DOCS_SOURCE_DIR: str = ""
     # Logging — configurable level for monitoring (DEBUG, INFO, WARNING, ERROR)
     LOG_LEVEL: str = "INFO"
     # pgbackrest — scheduled backup cron expression + management API URL

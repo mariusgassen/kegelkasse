@@ -79,6 +79,11 @@ describe('GlobalSearch', () => {
         expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
     })
 
+    it('links to the documentation', async () => {
+        await renderSearch()
+        expect(screen.getByTestId('search-docs-link')).toHaveAttribute('href', '/docs/')
+    })
+
     it('shows no results/groups before typing a query', async () => {
         await renderSearch(true)
         expect(screen.queryByText('search.noResults')).not.toBeInTheDocument()

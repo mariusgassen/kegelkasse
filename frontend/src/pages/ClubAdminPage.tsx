@@ -1017,8 +1017,8 @@ function AiSettingsCard() {
         setSaving(true)
         try {
             const res = await api.updateAiSettings({
-                recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review,
-                model: form.model, calls_per_hour: form.calls_per_hour,
+                recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review, search: form.search,
+                model: form.model, search_model: form.search_model, calls_per_hour: form.calls_per_hour,
             })
             setForm(res)
             qc.setQueryData(['ai-settings'], res)
@@ -1031,7 +1031,8 @@ function AiSettingsCard() {
         }
     }
 
-    const toggles: { key: 'recaps' | 'suggestions' | 'booking_review'; label: string; hint?: string }[] = [
+    const toggles: { key: 'recaps' | 'suggestions' | 'booking_review' | 'search'; label: string; hint?: string }[] = [
+        {key: 'search', label: t('ai.settings.search'), hint: t('ai.settings.searchHint')},
         {key: 'recaps', label: t('ai.settings.recaps')},
         {key: 'suggestions', label: t('ai.settings.suggestions')},
         {key: 'booking_review', label: t('ai.settings.bookingReview'), hint: t('ai.settings.bookingReviewHint')},
@@ -1065,6 +1066,14 @@ function AiSettingsCard() {
                         {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
                     </select>
                     <p className="text-xs text-muted mt-1">{t('ai.settings.modelHint')}</p>
+                </div>
+                <div>
+                    <label className="field-label" htmlFor="ai-search-model">{t('ai.settings.searchModel')}</label>
+                    <select id="ai-search-model" className="kce-input" value={form.search_model}
+                            onChange={e => set({search_model: e.target.value})}>
+                        {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
+                    </select>
+                    <p className="text-xs text-muted mt-1">{t('ai.settings.searchModelHint')}</p>
                 </div>
                 <div>
                     <label className="field-label" htmlFor="ai-limit">{t('ai.settings.limit')}</label>

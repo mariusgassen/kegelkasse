@@ -23,15 +23,36 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 Unter **Verein → Einstellungen → ✨ KI-Funktionen** stellen Admins ein:
 
-- **Rückblicke** und **Vorschläge** einzeln an oder aus. Ausgeschaltete Funktionen verschwinden
+- **KI-Suche**, **Rückblicke** und **Vorschläge** einzeln an oder aus. Ausgeschaltete Funktionen verschwinden
   für alle Mitglieder.
 - **KI-Erklärungen im Buchungs-Check** an oder aus. Die regelbasierte Prüfung läuft immer.
 - das **Modell** (Claude Opus, Sonnet oder Haiku). Opus schreibt am besten, Haiku ist am günstigsten.
+- das **Modell für die Suche** getrennt davon (Standard: Haiku – die Suche beantwortet kurze Fragen aus einem fertigen Auszug, dafür genügt das günstigste Modell).
 - die **maximale Anzahl KI-Anfragen pro Stunde** für den ganzen Verein (Standard 30, höchstens 200),
   damit die Kosten im Rahmen bleiben.
 
 Der API-Schlüssel selbst steht nur in der Umgebungsvariable. Er wird nie in der Datenbank gespeichert
 und in der App nicht angezeigt. Die Karte zeigt nur, ob er gesetzt ist.
+
+## ✨ KI-Suche: Fragen an die Kegelkasse
+
+In der Suche (🔍 oben oder Strg/Cmd+K) kannst du eine Frage eintippen, z. B. *„Wann ist der nächste
+Termin?“*, *„Was kostet ein Pudel?“* oder *„Wie aktiviere ich Benachrichtigungen?“*. Mit **Enter** oder
+dem Knopf **✨ KI fragen** antwortet Claude kurz.
+
+- Fragen zum **Verein** beantwortet sie aus den Daten, die du in der App ohnehin sehen kannst: kommende
+  Termine (mit deiner Zu-/Absage), die letzten Abende mit König und Spielsiegern, Strafenkatalog,
+  Spielvorlagen, Neuigkeiten, Kegelfahrten, Abstimmungen und die Mitgliederliste (nach Kegelname).
+- Fragen zur **Bedienung** beantwortet sie aus dieser Dokumentation. Unter der Antwort stehen die
+  passenden Doku-Abschnitte zum Nachlesen.
+- **Anweisungen sind anklickbar:** „Geh zu **Kasse → Konten**“ ist ein Knopf, der dich direkt dorthin
+  bringt (auch zu einem bestimmten Termin, einer Ankündigung oder ins Profil). Doku-Verweise öffnen die
+  Dokumentation in einem neuen Tab. Admin-Seiten werden nur Admins angeboten.
+- **Keine Beträge einzelner Personen:** Kontostände, Schulden oder Strafensummen pro Mitglied nennt die
+  Suche nie. Fragst du danach, bekommst du einen Link zu deinem Konto in der Kasse.
+
+Die Antwort stammt von einer KI und kann Fehler enthalten. Die Dokumentation erreichst du außerdem
+jederzeit über den Link unten in der Suche und im Profil.
 
 ## ✨ KI-Rückblick
 
@@ -79,5 +100,7 @@ An Claude geht nur, was die jeweilige Funktion braucht:
 
 - Mitglieder erscheinen mit **Kegelname**, sonst nur mit **Vorname**; Gäste nur mit Vorname.
 - Keine E-Mail-Adressen, keine Kontostände.
+- Bei der KI-Suche gehen nur Daten raus, die das fragende Mitglied selbst sehen kann, und keine
+  Geldbeträge einzelner Personen.
 - Beim Buchungs-Check gehen **nur die auffälligen Buchungen** raus (Kegelname/Beschreibung, Betrag,
   Datum, Notiz) plus die Mediane des Zeitraums, nicht das ganze Kassenbuch.

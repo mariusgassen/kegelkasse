@@ -51,6 +51,7 @@ import {
     BookingReview,
     AiStatus,
     AiSettings,
+    AiAnswer,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -842,12 +843,13 @@ export const api = {
     // Optional Claude-powered features (hidden when the server has no ANTHROPIC_API_KEY)
     getAiStatus: () => request<AiStatus>('GET', '/ai/status'),
     getAiSettings: () => request<AiSettings>('GET', '/ai/settings'),
-    updateAiSettings: (d: Partial<Pick<AiSettings, 'recaps' | 'suggestions' | 'booking_review' | 'model' | 'calls_per_hour'>>) =>
+    updateAiSettings: (d: Partial<Pick<AiSettings, 'recaps' | 'suggestions' | 'booking_review' | 'search' | 'model' | 'search_model' | 'calls_per_hour'>>) =>
         request<AiSettings>('PATCH', '/ai/settings', d),
     aiRecapEvening: (eveningId: number) => request<AiRecap>('POST', `/ai/recap/evening/${eveningId}`),
     aiRecapSeason: (year: number) => request<AiRecap>('POST', `/ai/recap/season/${year}`),
     aiSuggestPenaltyTypes: () => request<{ suggestions: AiPenaltySuggestion[] }>('POST', '/ai/suggest/penalty-types'),
     aiSuggestNickname: (memberId: number) => request<{ suggestions: AiNicknameSuggestion[] }>('POST', `/ai/suggest/nickname/${memberId}`),
+    aiAsk: (question: string) => request<AiAnswer>('POST', '/ai/ask', {question}),
     aiBookingReview: (d: { start?: string; end?: string; explain?: boolean }) => request<BookingReview>('POST', '/ai/booking-review', d),
     listTrips: () => request<ClubTrip[]>('GET', '/committee/trips'),
     getTripExpenses: (tid: number) => request<TripExpenses>('GET', `/committee/trips/${tid}/expenses`),
