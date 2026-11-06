@@ -82,7 +82,7 @@ services:
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-}
-    expose: ["3900", "3903"]
+    # expose: ["3900", "3903"]
     volumes:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
