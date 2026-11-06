@@ -1,3 +1,4 @@
+import {useDocsViewer} from '@/store/docsViewer'
 import {useSearchStore} from '@/store/search.ts'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
@@ -119,10 +120,10 @@ export function GlobalSearch({open, onClose}: Props) {
                     </div>
                 ))}
             </div>
-            <a href="/docs/" target="_blank" rel="noopener"
-               className="mt-3 text-xs text-muted flex items-center justify-center gap-1" data-testid="search-docs-link">
+            <button type="button" onClick={() => useDocsViewer.getState().open('/docs/')}
+                    className="mt-3 w-full text-xs text-muted flex items-center justify-center gap-1" data-testid="search-docs-link">
                 <BookOpen size={14} aria-hidden/> {t('search.docs')}
-            </a>
+            </button>
         </Sheet>
     )
 }

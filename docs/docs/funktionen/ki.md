@@ -47,7 +47,7 @@ dem Knopf **✨ KI fragen** antwortet Claude kurz.
   passenden Doku-Abschnitte zum Nachlesen.
 - **Anweisungen sind anklickbar:** „Geh zu **Kasse → Konten**“ ist ein Knopf, der dich direkt dorthin
   bringt (auch zu einem bestimmten Termin, einer Ankündigung oder ins Profil). Doku-Verweise öffnen die
-  Dokumentation in einem neuen Tab. Admin-Seiten werden nur Admins angeboten.
+  Dokumentation direkt in der App (über der Suche, nach dem Schließen bist du wieder dort). Admin-Seiten werden nur Admins angeboten.
 - **Keine Beträge einzelner Personen:** Kontostände, Schulden oder Strafensummen pro Mitglied nennt die
   Suche nie. Fragst du danach, bekommst du einen Link zu deinem Konto in der Kasse.
 

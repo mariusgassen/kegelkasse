@@ -1,4 +1,5 @@
 import {useSearchStore} from '@/store/search.ts'
+import {useDocsViewer} from '@/store/docsViewer'
 import {describe, it, expect, vi, beforeEach} from 'vitest'
 import {render, screen, fireEvent, waitFor, act} from '@testing-library/react'
 import React from 'react'
@@ -81,9 +82,10 @@ describe('GlobalSearch', () => {
         expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
     })
 
-    it('links to the documentation', async () => {
+    it('opens the documentation in the in-app viewer', async () => {
         await renderSearch()
-        expect(screen.getByTestId('search-docs-link')).toHaveAttribute('href', '/docs/')
+        fireEvent.click(screen.getByTestId('search-docs-link'))
+        expect(useDocsViewer.getState().url).toBe('/docs/')
     })
 
     it('shows no results/groups before typing a query', async () => {
