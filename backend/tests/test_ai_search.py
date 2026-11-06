@@ -269,7 +269,7 @@ def test_sticker_links_are_validated(db, client, auth_headers, club, claude):
         claude.payload = {"answer": f"[Sticker](app:sticker:{st.id}) [Karte](app:stickers.map) [Falsch](app:sticker:999999)"}
         r = _ask(client, auth_headers)
         assert r.status_code == 200, r.text
-        assert claude.data["sticker"][0]["ort"] == "Lissabon"
+        assert claude.data["vereinsdaten"]["sticker"][0]["ort"] == "Lissabon"
         links = {l["href"]: l for l in r.json()["links"]}
         assert links[f"app:sticker:{st.id}"]["search"] == {"tab": "feed", "item": st.id}
         assert links["app:stickers.map"]["to"] == "/stickers"
