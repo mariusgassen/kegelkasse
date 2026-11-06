@@ -1532,6 +1532,8 @@ export const en = {
     "ai.recap.title": "AI recap",
     "ai.recap.hint": "Written by Claude. Please read and edit it before posting.",
     "ai.recap.headline": "Headline",
+    "ai.recap.preview": "Preview",
+    "ai.recap.edit": "Edit",
     "ai.recap.text": "Text",
     "ai.suggest.title": "Penalty suggestions",
     "ai.suggest.hint": "Based on penalties you typed in by hand. Tap one to copy it into the form.",

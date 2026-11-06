@@ -6,6 +6,7 @@ import {useT} from '@/i18n'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useAiEnabled} from '@/hooks/useAiEnabled.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -33,6 +34,7 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
     const [posting, setPosting] = useState(false)
     const [title, setTitle] = useState('')
     const [text, setText] = useState('')
+    const [editing, setEditing] = useState(false)
 
     if (!enabled) return null
 
@@ -44,6 +46,7 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                 : await api.aiRecapSeason(target.year)
             setTitle(r.title)
             setText(r.text)
+            setEditing(false)
             setOpen(true)
         } catch (e) {
             const key = aiErrorKey(e)
@@ -94,9 +97,21 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                                onChange={e => setTitle(e.target.value)}/>
                     </div>
                     <div>
-                        <label className="field-label" htmlFor="ai-recap-text">{t('ai.recap.text')}</label>
-                        <textarea id="ai-recap-text" className="kce-input" rows={10} value={text}
-                                  onChange={e => setText(e.target.value)}/>
+                        <div className="flex items-center justify-between">
+                            <label className="field-label" htmlFor="ai-recap-text">{t('ai.recap.text')}</label>
+                            <button type="button" className="text-xs text-accent-fg font-semibold"
+                                    onClick={() => setEditing(e => !e)} data-testid="ai-recap-edit-toggle">
+                                {editing ? t('ai.recap.preview') : t('ai.recap.edit')}
+                            </button>
+                        </div>
+                        {editing ? (
+                            <textarea id="ai-recap-text" className="kce-input" rows={10} value={text}
+                                      onChange={e => setText(e.target.value)}/>
+                        ) : (
+                            <div id="ai-recap-text" className="kce-card text-sm" data-testid="ai-recap-preview">
+                                <Markdown text={text}/>
+                            </div>
+                        )}
                     </div>
                     <div className="flex gap-2">
                         <button type="button" className="btn-secondary btn-sm flex-1" onClick={copy}>

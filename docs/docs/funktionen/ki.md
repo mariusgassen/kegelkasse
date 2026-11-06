@@ -42,7 +42,8 @@ und in der App nicht angezeigt. Die Karte zeigt nur, ob er gesetzt ist.
 
 Der Text erscheint in einem Fenster, in dem du ihn anpassen, kopieren oder neu schreiben lassen
 kannst. Mitglieder des Vergnügungsausschusses und Admins können ihn direkt als **Neuigkeit** posten.
-Nichts wird ohne deinen Klick veröffentlicht.
+Nichts wird ohne deinen Klick veröffentlicht. Der Text wird als Vorschau mit Formatierung (Fett, Kursiv, Listen,
+Überschriften) angezeigt; über „Bearbeiten“ änderst du den Markdown-Rohtext. Neuigkeiten rendern denselben Markdown.
 
 ## ✨ Vorschläge
 

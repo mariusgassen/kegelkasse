@@ -81,6 +81,8 @@ describe('AiRecapButton', () => {
         fireEvent.click(await screen.findByTestId('ai-recap-button'))
         expect(await screen.findByDisplayValue('👑 Abend')).toBeTruthy()
         expect(api.aiRecapEvening).toHaveBeenCalledWith(3)
+        expect(screen.getByTestId('ai-recap-preview')).toBeInTheDocument()
+        fireEvent.click(screen.getByTestId('ai-recap-edit-toggle'))
         fireEvent.change(screen.getByLabelText('ai.recap.text'), {target: {value: 'Noch lustiger'}})
         fireEvent.click(screen.getByTestId('ai-recap-post'))
         await waitFor(() => expect(api.createAnnouncement).toHaveBeenCalledWith({title: '👑 Abend', text: 'Noch lustiger'}))
