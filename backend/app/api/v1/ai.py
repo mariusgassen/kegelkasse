@@ -534,8 +534,13 @@ _NICK_SCHEMA = {
 }
 
 
+class NicknameRequest(TrimmedModel):
+    hint: Optional[str] = None  # optional steer from the requester ("something with fishing")
+
+
 @router.post("/suggest/nickname/{member_id}")
-def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User = Depends(require_club_admin)):
+def suggest_nickname(member_id: int, data: Optional[NicknameRequest] = None, db: Session = Depends(get_db),
+                     user: User = Depends(require_club_admin)):
     member = db.query(RegularMember).filter(RegularMember.id == member_id,
                                             RegularMember.club_id == user.club_id).first()
     if not member:
@@ -574,7 +579,7 @@ def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User =
     stats["schnitt_pro_wurf"] = round(pins / wuerfe, 1) if wuerfe else None
     stats["strafen_euro"] = round(stats["strafen_euro"], 2)
     facts = {
-        # Never send the real name: the Kegelname must not be derived from it.
+        "vorname": _first_name(member.name),
         "aktueller_kegelname": member.nickname,
         "mitglied_seit": member.created_at.year if member.created_at else None,
         "rollen": [r for r, on in (("Vergnügungsausschuss", member.is_committee),
@@ -583,21 +588,29 @@ def suggest_nickname(member_id: int, db: Session = Depends(get_db), user: User =
         "haeufigste_strafen": [{"art": t, "anzahl": n} for t, n in types.most_common(5)],
         "vergebene_kegelnamen": taken,
     }
+    hint = ((data.hint if data else None) or "").strip()[:200]
+    if hint:
+        facts["wunsch_des_anfragenden"] = hint
     cfg = _require_ai(db, user, "suggestions")
     result = _run(
         SYSTEM_PROMPT, facts, _NICK_SCHEMA, effort="low", model=cfg["model"],
         task=("Schlag genau 3 Kegelnamen (Spitznamen) für dieses Mitglied vor, passend zu Statistik, "
-              "häufigsten Strafen, Rollen und Vereinszugehörigkeit. Der echte Name ist bewusst nicht "
-              "bekannt; verwende keinen Vor- oder Nachnamen und keine Wortspiele darauf. Kurz (max. "
-              "20 Zeichen), liebevoll-frech, nicht beleidigend, nicht schon vergeben."),
+              "häufigsten Strafen, Rollen und Vereinszugehörigkeit. Ein Anklang an den Vornamen als "
+              "leises Wortspiel ist erlaubt, aber nie der ganze Name und nie das Schema "
+              "'Adjektiv/Strafe-Vorname' (z. B. 'Handy-Tina'): es soll ein eigenständiger, "
+              "authentischer Name sein, kein generischer. Falls 'wunsch_des_anfragenden' gesetzt ist, "
+              "orientiere dich daran. Kurz (max. 20 Zeichen), liebevoll-frech, nicht beleidigend, "
+              "nicht schon vergeben."),
     )
     taken_lower = {t.lower() for t in taken}
-    real_parts = [w.lower() for w in re.split(r"[\s\-]+", member.name or "") if len(w) >= 3]
+    real_parts = {w.lower() for w in re.split(r"[\s\-]+", member.name or "") if len(w) >= 3}
     clean = []
     for s in result.get("suggestions", []):
         n = str(s.get("nickname", "")).strip()[:30]
-        if any(w in n.lower() for w in real_parts):
-            continue  # defence in depth: never suggest the real name
+        # Fragments of the name as soft wordplay are fine; the full name, or the generic
+        # "<something>-<Name>" pattern, is not.
+        if {w for w in re.split(r"[\s\-]+", n.lower()) if w} & real_parts:
+            continue
         if n and n.lower() not in taken_lower and n.lower() not in {c["nickname"].lower() for c in clean}:
             clean.append({"nickname": n, "reason": str(s.get("reason", ""))[:300]})
     return {"suggestions": clean[:3]}

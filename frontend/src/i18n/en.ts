@@ -1535,6 +1535,7 @@ export const en = {
     "ai.button.recap": "AI recap",
     "ai.button.seasonRecap": "AI season recap",
     "ai.button.suggest": "AI suggestions",
+    "ai.nickname.hintPlaceholder": "Wish (optional), e.g. “something with fishing”",
     "ai.button.suggestNickname": "Suggest a Kegelname",
     "ai.generating": "Claude is writing…",
     "ai.regenerate": "Rewrite",

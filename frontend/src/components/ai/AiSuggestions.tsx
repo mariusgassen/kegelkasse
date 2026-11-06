@@ -87,13 +87,14 @@ export function NicknameSuggestions({memberId, onPick}: { memberId: number; onPi
     const online = useOnline()
     const [loading, setLoading] = useState(false)
     const [list, setList] = useState<AiNicknameSuggestion[]>([])
+    const [hint, setHint] = useState('')
 
     if (!enabled) return null
 
     async function load() {
         setLoading(true)
         try {
-            setList((await api.aiSuggestNickname(memberId)).suggestions)
+            setList((await api.aiSuggestNickname(memberId, hint.trim() || undefined)).suggestions)
         } catch (e) {
             reportAiError(e, t)
         } finally {
@@ -103,6 +104,9 @@ export function NicknameSuggestions({memberId, onPick}: { memberId: number; onPi
 
     return (
         <div className="mt-2" data-testid="ai-nickname">
+            <input className="kce-input mb-2" value={hint} maxLength={200}
+                   onChange={e => setHint(e.target.value)}
+                   placeholder={t('ai.nickname.hintPlaceholder')} aria-label={t('ai.nickname.hintPlaceholder')}/>
             <button type="button" onClick={load} disabled={loading || !online}
                     className="btn-secondary btn-sm inline-flex items-center gap-1.5">
                 <Sparkles size={14} aria-hidden="true"/>

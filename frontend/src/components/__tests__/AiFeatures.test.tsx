@@ -125,8 +125,16 @@ describe('suggestions', () => {
         wrap(<NicknameSuggestions memberId={7} onPick={onPick}/>)
         fireEvent.click(await screen.findByText('ai.button.suggestNickname'))
         fireEvent.click(await screen.findByText('Tinamite'))
-        expect(api.aiSuggestNickname).toHaveBeenCalledWith(7)
+        expect(api.aiSuggestNickname).toHaveBeenCalledWith(7, undefined)
         expect(onPick).toHaveBeenCalledWith('Tinamite')
+    })
+
+    it('passes the optional wish to the nickname suggestion', async () => {
+        vi.mocked(api.aiSuggestNickname).mockResolvedValue({suggestions: []})
+        wrap(<NicknameSuggestions memberId={7} onPick={vi.fn()}/>)
+        fireEvent.change(screen.getByLabelText('ai.nickname.hintPlaceholder'), {target: {value: ' Angeln '}})
+        fireEvent.click(await screen.findByText('ai.button.suggestNickname'))
+        await waitFor(() => expect(api.aiSuggestNickname).toHaveBeenCalledWith(7, 'Angeln'))
     })
 })
 
