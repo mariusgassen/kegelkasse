@@ -211,6 +211,7 @@ export interface RegularMember {
     is_active: boolean
     is_committee: boolean
     is_auditor?: boolean
+    is_zeugwart?: boolean
     avatar: string | null
     deactivated_at: string | null
 }
@@ -856,4 +857,30 @@ export interface BookingReview {
     flags: BookingFlag[]
     summary: string | null
     ai: boolean
+}
+
+export interface InventoryItem {
+    id: number
+    name: string
+    icon: string | null
+    stock: number
+    target: number
+    /** How many are still missing to reach the target (0 when stocked up). */
+    missing: number
+    note: string | null
+    updated_at: string | null
+}
+
+export interface InventoryList {
+    can_edit: boolean
+    items: InventoryItem[]
+}
+
+export interface InventoryMovement {
+    id: number
+    delta: number
+    stock_after: number
+    note: string | null
+    actor_name: string
+    created_at: string | null
 }

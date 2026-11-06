@@ -19,6 +19,7 @@ import {
     BarChart2,
     Settings,
     Tag,
+    Package,
     Bell,
     Search,
     ChevronsLeft,
@@ -69,13 +70,14 @@ const PRIMARY_NAV: { id: PrimaryNavId; Icon: LucideIcon; labelKey: string }[] = 
 // group and lands on the first section; a secondary strip (rendered under the header while on
 // any group page) switches between them. Keeping them as real routes means every deep link,
 // push URL and per-page test is untouched — only the top-level navigation is reorganised.
-const VEREIN_PAGES: RoutePage[] = ['committee', 'stickers', 'members', 'stats', 'club']
+    'committee', 'stickers', 'members', 'stats', 'zeugwart', 'club'
 
 const VEREIN_SECTIONS: { id: RoutePage; Icon: LucideIcon; labelKey: string; adminOnly?: boolean }[] = [
     {id: 'committee', Icon: Users, labelKey: 'nav.committee'},
     {id: 'stickers', Icon: Tag, labelKey: 'nav.stickers'},
     {id: 'members', Icon: UserRound, labelKey: 'nav.members'},
     {id: 'stats', Icon: BarChart2, labelKey: 'nav.stats'},
+    {id: 'zeugwart', Icon: Package, labelKey: 'nav.zeugwart'},
     {id: 'club', Icon: Settings, labelKey: 'nav.manage', adminOnly: true},
 ]
 

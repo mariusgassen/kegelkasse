@@ -61,6 +61,7 @@ export interface TreasurySearch { tab?: 'overview' | 'analysis' | 'accounts' | '
 export interface ScheduleSearch { evening?: number; event?: number; rsvp?: number; requests?: number }
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
+export interface ZeugwartSearch { item?: number }
 export interface MembersSearch { memberName?: string }
 export interface StickersSearch { tab?: 'feed' | 'map'; item?: number; comment?: number }
 export interface StatsSearch { tab?: 'evening' | 'year' | 'lab' }
@@ -93,6 +94,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute('club', () => import('./pages/ClubAdminPage'), 'ClubAdminPage', passThrough<ClubSearch>),
     pageRoute('stickers', () => import('./pages/StickersPage'), 'StickersPage', passThrough<StickersSearch>),
     pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
+    pageRoute('zeugwart', () => import('./pages/ZeugwartPage'), 'ZeugwartPage', passThrough<ZeugwartSearch>),
 ])
 
 export const router = createRouter({

@@ -14,3 +14,4 @@ from models.bowling import BowlingScore  # noqa: F401
 from models.audit import TreasuryAudit, TreasuryAuditSignature  # noqa: F401
 from models.app_state import AppState  # noqa: F401
 from models.sticker import Sticker  # noqa: F401
+from models.inventory import InventoryItem, InventoryMovement  # noqa: F401
