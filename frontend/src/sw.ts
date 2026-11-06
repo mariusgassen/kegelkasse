@@ -5,6 +5,7 @@ import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
+import { activateNewWorker } from './lib/swActivate'
 
 declare const self: ServiceWorkerGlobalScope
 declare const __BUILD_HASH__: string
@@ -115,6 +116,7 @@ self.addEventListener('push', (event) => {
     const tag = (data.tag as string) ?? 'kegelkasse'
     const actions = (data.actions as {action: string; title: string}[]) ?? []
     const rid = data.rid as number | undefined
+    const update = data.update === true
 
     // Always store in IndexedDB (for when app boots later) AND broadcast to open windows
     const broadcastAndStore = Promise.all([
@@ -131,7 +133,7 @@ self.addEventListener('push', (event) => {
                 body,
                 icon: '/icon.svg',
                 tag,
-                data: { url, rid },
+                data: { url, rid, update },
                 ...(actions.length ? {actions} as object : {}),
             } as NotificationOptions),
         ])
@@ -178,7 +180,7 @@ self.addEventListener('notificationclick', (event) => {
 
     // WindowClient.navigate() requires an absolute URL in most browsers
     const absoluteUrl = url.startsWith('http') ? url : new URL(url, self.location.origin).href
-    event.waitUntil(
+    const openTarget = () =>
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: readonly WindowClient[]) => {
             // Find an existing window and navigate it to the target URL
             for (const c of windowClients) {
@@ -188,5 +190,23 @@ self.addEventListener('notificationclick', (event) => {
             }
             return self.clients.openWindow(absoluteUrl)
         })
-    )
+
+    // Release push: open the app first (a window may only be opened while the click is
+    // fresh), then pull the new version and reload into it, so nobody has to wait for the
+    // browser to notice the update and show the "Aktualisieren" banner.
+    if (notifData.update === true) {
+        event.waitUntil(
+            openTarget()
+                .catch(() => undefined)
+                .then(() => activateNewWorker(self.registration))
+                .then((activated) => {
+                    if (!activated) return
+                    return self.clients.matchAll({ type: 'window' }).then((windowClients) =>
+                        Promise.all(windowClients.map((c) => c.navigate(c.url).catch(() => null))))
+                })
+        )
+        return
+    }
+
+    event.waitUntil(openTarget())
 })

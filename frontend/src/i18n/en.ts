@@ -1162,6 +1162,7 @@ export const en = {
     "push.pref.members": "New members",
     "push.pref.comments": "Comments & reactions",
     "push.pref.guest_requests": "Guest requests",
+    "push.pref.app_updates": "New app versions",
     "guestRequests.title": "Guest requests",
     "guestRequests.pendingCount": "{n} open requests",
     "guestRequests.nonePending": "No open requests.",

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     VAPID_CLAIM_EMAIL: str = "info@kc-eichhorn.de"
     # Public base URL of the app — used to build absolute links in emails (e.g. https://kegelkasse.example.com)
     APP_BASE_URL: str = ""
+    # Seconds after server start before a new version is announced by push, so the
+    # announcement only goes out once the new container is actually serving traffic.
+    RELEASE_ANNOUNCE_DELAY_SECONDS: int = 120
     # Encryption key(s) for secrets at rest (e.g. per-club SMTP passwords).
     # Comma-separated list of Fernet keys — the first encrypts, all decrypt (for
     # rotation). Generate one with: python app/scripts/generate_secret_key.py

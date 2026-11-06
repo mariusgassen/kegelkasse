@@ -1,5 +1,6 @@
 """APScheduler setup — daily reminder and database backup jobs."""
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -16,6 +17,11 @@ def start_scheduler() -> None:
                       id="refresh_token_purge", replace_existing=True)
 
     from core.config import settings
+    # One-off: announce this version by push if it is a new release (see core/releases.py).
+    scheduler.add_job(run_release_announcement, "date",
+                      run_date=datetime.now(timezone.utc) + timedelta(seconds=settings.RELEASE_ANNOUNCE_DELAY_SECONDS),
+                      id="release_announcement", replace_existing=True)
+
     if settings.BACKUP_SCHEDULE:
         try:
             trigger = CronTrigger.from_crontab(settings.BACKUP_SCHEDULE)
@@ -60,6 +66,17 @@ async def run_refresh_token_purge() -> None:
     from core.refresh import purge_expired
     with SessionLocal() as db:
         purge_expired(db)
+
+
+async def run_release_announcement() -> None:
+    """Entry point for the post-start release announcement push."""
+    from core.database import SessionLocal
+    from core.releases import announce_release, current_version
+    try:
+        with SessionLocal() as db:
+            announce_release(db, current_version())
+    except Exception as e:
+        logger.error(f"Release announcement failed: {e}")
 
 
 async def run_daily_digests() -> None:
