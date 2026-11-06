@@ -543,6 +543,7 @@
     .sheet-panel {
         @apply w-full max-w-2xl bg-surface border border-line rounded-t-3xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
         max-height: 100%;
+        overscroll-behavior: contain;
         box-shadow: 0 -8px 32px rgba(0, 0, 0, .35);
     }
 

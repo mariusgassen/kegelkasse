@@ -55,6 +55,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     "digest.section.evenings": {"de": "Kegelabende", "en": "Bowling evenings"},
     "digest.section.penalties": {"de": "Deine Strafen", "en": "Your penalties"},
     "digest.section.bookings": {"de": "Deine Buchungen", "en": "Your bookings"},
+    "digest.section.stickers": {"de": "Neue Sticker", "en": "New stickers"},
     "digest.section.community": {"de": "Neues aus dem Verein", "en": "Club news"},
     "digest.balance.balance": {"de": "Kontostand", "en": "Balance"},
     "digest.balance.penalties": {"de": "Strafen gesamt", "en": "Total penalties"},

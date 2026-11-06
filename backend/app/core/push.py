@@ -87,8 +87,8 @@ CHANNELS = ("push", "email", "telegram")
 # Default channels per notification category when the user never chose any. Everything is
 # push by default; guest requests reach members by email, since most of them have no push
 # subscription and a request is worthless if nobody sees it before the evening. Release
-# announcements are opt-in: off until a member turns them on.
-CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",), "app_updates": ()}
+# announcements and new stickers are opt-in: off until a member turns them on.
+CATEGORY_DEFAULTS: dict[str, tuple[str, ...]] = {"guest_requests": ("email",), "app_updates": (), "stickers": ()}
 
 
 def category_default(category: str) -> tuple[str, ...]:
@@ -248,9 +248,12 @@ def _send_one_no_db(sub: PushSubscription, title: str, body: str, url: str,
 
 
 def push_to_club(db: Session, club_id: int, title: str, body: str,
-                 url: str = '/', category: str = '', extra: dict | None = None) -> None:
+                 url: str = '/', category: str = '', extra: dict | None = None,
+                 exclude_user_id: int | None = None) -> None:
     """Notify every member of a club — Web Push (parallelised), email or Telegram, per preference."""
     users = db.query(User).filter(User.club_id == club_id, User.is_active == True).all()
+    if exclude_user_id is not None:
+        users = [u for u in users if u.id != exclude_user_id]
     email_cache: dict = {}
     telegram_cache: dict = {}
     subs = []
