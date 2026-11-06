@@ -14,4 +14,16 @@ describe('Markdown', () => {
         const {container} = render(<Markdown text={'<img src=x onerror=alert(1)> hi'}/>)
         expect(container.querySelector('img')).toBeNull()
     })
+    it('shows links as plain labels unless the caller renders them', () => {
+        const {container} = render(<Markdown text={'Geh zur [Kasse](app:treasury) oder [weg](https://evil.example)'}/>)
+        expect(container.querySelector('a, button')).toBeNull()
+        expect(screen.getByTestId('markdown').textContent).toBe('Geh zur Kasse oder weg')
+    })
+    it('renders links through renderLink, falling back to the label', () => {
+        render(<Markdown text={'Zur [Kasse](app:treasury) und [Rest](app:x)'} renderLink={(label, href, key) =>
+            href === 'app:treasury' ? <button key={key}>{label}</button> : null}/>)
+        expect(screen.getByRole('button', {name: 'Kasse'})).toBeInTheDocument()
+        expect(screen.queryByRole('button', {name: 'Rest'})).toBeNull()
+        expect(screen.getByText(/Rest/)).toBeInTheDocument()
+    })
 })

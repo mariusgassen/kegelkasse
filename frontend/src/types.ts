@@ -779,7 +779,19 @@ export interface BookingFlag {
     ai_note: string | null
 }
 
-export type AiFeature = 'recaps' | 'suggestions' | 'booking_review'
+export type AiFeature = 'recaps' | 'suggestions' | 'booking_review' | 'search'
+
+/** A link the AI search put in its answer, already validated by the server. */
+export type AiLink =
+    | { href: string; label: string; kind: 'app'; to: string; search: Record<string, string | number> }
+    | { href: string; label: string; kind: 'docs'; url: string }
+    | { href: string; label: string; kind: 'profile'; tab?: 'season' | 'settings' }
+
+export interface AiAnswer {
+    answer: string
+    links: AiLink[]
+    sources: { title: string; url: string }[]
+}
 
 export type AiStatus = { enabled: boolean } & Partial<Record<AiFeature, boolean>>
 

@@ -25,6 +25,8 @@ RUN poetry install --no-root --only main
 COPY backend/ .
 COPY --from=frontend-builder /frontend/dist ./static
 COPY --from=docs-builder /docs/build ./docs_static
+# Markdown sources for the AI search's docs index (core/docs_index.py)
+COPY docs/docs ./docs_src
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 EXPOSE 8000

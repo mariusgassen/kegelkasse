@@ -1017,7 +1017,7 @@ function AiSettingsCard() {
         setSaving(true)
         try {
             const res = await api.updateAiSettings({
-                recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review,
+                recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review, search: form.search,
                 model: form.model, calls_per_hour: form.calls_per_hour,
             })
             setForm(res)
@@ -1031,7 +1031,8 @@ function AiSettingsCard() {
         }
     }
 
-    const toggles: { key: 'recaps' | 'suggestions' | 'booking_review'; label: string; hint?: string }[] = [
+    const toggles: { key: 'recaps' | 'suggestions' | 'booking_review' | 'search'; label: string; hint?: string }[] = [
+        {key: 'search', label: t('ai.settings.search'), hint: t('ai.settings.searchHint')},
         {key: 'recaps', label: t('ai.settings.recaps')},
         {key: 'suggestions', label: t('ai.settings.suggestions')},
         {key: 'booking_review', label: t('ai.settings.bookingReview'), hint: t('ai.settings.bookingReviewHint')},

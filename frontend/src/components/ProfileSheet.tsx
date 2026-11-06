@@ -129,9 +129,11 @@ function ThrowTrendMini({evenings}: { evenings: EveningThrowSummary[] }) {
 interface Props {
     open: boolean
     onClose: () => void
+    /** Tab to show when opened from a link (AI search); otherwise the last tab stays. */
+    initialTab?: 'season' | 'settings'
 }
 
-export function ProfileSheet({open, onClose}: Props) {
+export function ProfileSheet({open, onClose, initialTab}: Props) {
     const t = useT()
     const {locale, setLocale} = useI18n()
     const [whatsNewOpen, setWhatsNewOpen] = useState(false)
@@ -142,7 +144,10 @@ export function ProfileSheet({open, onClose}: Props) {
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
 
-    const [tab, setTab] = useState<'season' | 'settings'>('season')
+    const [tab, setTab] = useState<'season' | 'settings'>(initialTab ?? 'season')
+    useEffect(() => {
+        if (open && initialTab) setTab(initialTab)
+    }, [open, initialTab])
     const [name, setName] = useState(user?.name || '')
     const [username, setUsername] = useState(user?.username || '')
     const [email, setEmail] = useState(() => {

@@ -4,6 +4,8 @@
   returned for review; posting it uses the normal announcement endpoint.
 - Suggestions: new penalty types from the club's own penalty history, Kegelname ideas
   for a member from their stats.
+- Search (``api/v1/ai_search.py``): answer a member's question about the club or the app,
+  grounded in club data they can see and the indexed docs, with clickable in-app links.
 - Booking review: rule-based pre-checks over the treasury bookings of a period (likely
   duplicates, unusual amounts, payouts without a note, future dates). They work without a
   key; with one, Claude explains and ranks the flags for the Kassenprüfer. Admins and
@@ -45,7 +47,7 @@ _limiter = SlidingWindowLimiter(window_seconds=3600)
 
 # Models an admin can pick. The API key itself only ever lives in ANTHROPIC_API_KEY.
 AI_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")
-FEATURES = ("recaps", "suggestions", "booking_review")
+FEATURES = ("recaps", "suggestions", "booking_review", "search")
 
 
 def _model_choices() -> list[str]:
@@ -131,6 +133,7 @@ class AiSettingsUpdate(TrimmedModel):
     recaps: Optional[bool] = None
     suggestions: Optional[bool] = None
     booking_review: Optional[bool] = None
+    search: Optional[bool] = None
     model: Optional[str] = None
     calls_per_hour: Optional[int] = None
 

@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from api.v1 import ai, audit, auth, backups, bowling, club, comments, committee, evenings, guest_requests, public, push, reports, schedule, scoreboard, season, stats, sync, superadmin, telegram, uploads
+from api.v1 import ai, ai_search, audit, auth, backups, bowling, club, comments, committee, evenings, guest_requests, public, push, reports, schedule, scoreboard, season, stats, sync, superadmin, telegram, uploads
 from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
@@ -74,6 +74,7 @@ app.add_middleware(
 
 # API routes
 app.include_router(ai.router, prefix="/api/v1")
+app.include_router(ai_search.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(club.router, prefix="/api/v1")
 app.include_router(evenings.router, prefix="/api/v1")

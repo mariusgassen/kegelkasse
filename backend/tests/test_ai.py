@@ -117,12 +117,12 @@ def evening(db: Session, club: Club):
 def test_status_disabled_without_key(client, auth_headers, monkeypatch):
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
     assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {
-        "enabled": False, "recaps": False, "suggestions": False, "booking_review": False}
+        "enabled": False, "recaps": False, "suggestions": False, "booking_review": False, "search": False}
 
 
 def test_status_enabled_with_key(client, auth_headers, claude):
     assert client.get("/api/v1/ai/status", headers=auth_headers).json() == {
-        "enabled": True, "recaps": True, "suggestions": True, "booking_review": True}
+        "enabled": True, "recaps": True, "suggestions": True, "booking_review": True, "search": True}
 
 
 def test_status_requires_auth(client):
