@@ -10,6 +10,7 @@ import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
+import {Markdown} from '@/components/ui/Markdown.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -166,9 +167,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                     />
                                 )}
                                 {a.text && (
-                                    <p className="text-muted text-xs mt-1 whitespace-pre-wrap leading-relaxed">
-                                        {a.text}
-                                    </p>
+                                    <Markdown text={a.text} className="text-muted text-xs mt-1"/>
                                 )}
                                 <p className="text-xs text-muted mt-2">
                                     {a.created_by_name && (

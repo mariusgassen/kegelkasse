@@ -1532,6 +1532,8 @@ export const de = {
     "ai.recap.title": "KI-Rückblick",
     "ai.recap.hint": "Von Claude geschrieben. Bitte lesen und anpassen, bevor du ihn postest.",
     "ai.recap.headline": "Überschrift",
+    "ai.recap.preview": "Vorschau",
+    "ai.recap.edit": "Bearbeiten",
     "ai.recap.text": "Text",
     "ai.suggest.title": "Strafen-Vorschläge",
     "ai.suggest.hint": "Aus euren frei eingetragenen Strafen abgeleitet. Antippen übernimmt den Vorschlag ins Formular.",
