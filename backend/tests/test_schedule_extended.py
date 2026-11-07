@@ -484,10 +484,26 @@ class TestAttendingCountIgnoresFormerMembers:
             evenings = client.get("/api/v1/schedule/", headers=admin_headers).json()
             return next(e for e in evenings if e["id"] == scheduled_evening.id)["attending_count"]
 
-        assert count() == 1
+        before = count()
         regular_member.deactivated_at = datetime.now(UTC)
         db.commit()
-        assert count() == 0
+        assert count() == before - 1
+
+    def test_no_rsvp_counts_as_participating(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, regular_member: RegularMember):
+        """No RSVP counts as participation; only an explicit decline removes a member."""
+        def row() -> dict:
+            evenings = client.get("/api/v1/schedule/", headers=admin_headers).json()
+            return next(e for e in evenings if e["id"] == scheduled_evening.id)
+
+        undecided = row()
+        assert undecided["attending_count"] >= 1
+        client.post(f"/api/v1/schedule/{scheduled_evening.id}/rsvp/member/{regular_member.id}",
+                    json={"status": "absent"}, headers=admin_headers)
+        declined = row()
+        assert declined["attending_count"] == undecided["attending_count"] - 1
+        assert declined["absent_count"] == undecided["absent_count"] + 1
 
 
 class TestSendReminder:
