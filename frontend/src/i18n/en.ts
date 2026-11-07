@@ -1020,6 +1020,7 @@ export const en = {
     "wrapped.title.allrounder.sub": "Always there.",
     "profile.docs": "📖 Documentation",
     "profile.apiDocs": "⚙️ API Documentation",
+    "profile.book": "📘 Component book",
     "profile.whatsNew": "🆕 What's new",
     "whatsNew.title": "What's new",
     "whatsNew.banner.body": "New in version {v}",

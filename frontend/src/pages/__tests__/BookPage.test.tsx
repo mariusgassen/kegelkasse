@@ -38,7 +38,7 @@ describe('BookPage', () => {
         expect(screen.getByText('Colour roles')).toBeInTheDocument()
         fireEvent.click(screen.getByText('🧩 Components'))
         expect(screen.getByText('Buttons')).toBeInTheDocument()
-        expect(screen.getByRole('switch', {name: 'Specimen switch'})).toHaveAttribute('aria-checked', 'true')
+        expect(screen.getByRole('switch', {name: 'Setting label'})).toHaveAttribute('aria-checked', 'true')
     })
 
     it('opens the specimen sheet', () => {

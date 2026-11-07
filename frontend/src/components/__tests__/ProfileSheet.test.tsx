@@ -247,6 +247,18 @@ describe('ProfileSheet — basic display', () => {
         expect(screen.getByText('profile.displayName')).toBeInTheDocument()
     })
 
+    it('links to the component book and closes the sheet', async () => {
+        const {router} = await import('@/router')
+        const nav = vi.spyOn(router, 'navigate').mockResolvedValue(undefined as never)
+        await setupApiMocks()
+        const onClose = vi.fn()
+        await renderProfileSheet({ tab: 'settings', onClose })
+        fireEvent.click(screen.getByText('profile.book'))
+        expect(onClose).toHaveBeenCalled()
+        expect(nav).toHaveBeenCalledWith({to: '/book'})
+        nav.mockRestore()
+    })
+
     it('shows logout button', async () => {
         await setupApiMocks()
         await renderProfileSheet({ tab: 'settings' })

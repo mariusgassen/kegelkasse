@@ -29,6 +29,7 @@ import {todayDateInput, toDateInput} from '@/lib/datetime.ts'
 import type {ClubPin, ClubConfigBundle, GameTemplate, PenaltyType, RegularMember as RegularMemberType, PgBackrestStanza} from '@/types.ts'
 import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
+import {Switch} from '@/components/ui/Switch'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -452,58 +453,19 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             {/* ── Wurf-Erfassung ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.throwTracking')}</div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <button type="button" role="switch" aria-checked={throwTracking}
-                            aria-label={t('club.throwTracking.label')}
-                            onClick={() => setThrowTracking(v => !v)}
-                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: throwTracking ? 'var(--accent)' : 'var(--surface-2)'}}>
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                              style={{transform: throwTracking ? 'translateX(20px)' : 'none'}}/>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">{t('club.throwTracking.label')}</div>
-                        <p className="text-xs text-muted mt-0.5">{t('club.throwTracking.hint')}</p>
-                    </div>
-                </label>
+                <Switch checked={throwTracking} onChange={setThrowTracking} label={t('club.throwTracking.label')} hint={t('club.throwTracking.hint')}/>
             </div>
 
             {/* ── Audio-Ansagen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.audioCallouts')}</div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <button type="button" role="switch" aria-checked={audioCallouts}
-                            aria-label={t('club.audioCallouts.label')}
-                            onClick={() => setAudioCallouts(v => !v)}
-                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: audioCallouts ? 'var(--accent)' : 'var(--surface-2)'}}>
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                              style={{transform: audioCallouts ? 'translateX(20px)' : 'none'}}/>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">{t('club.audioCallouts.label')}</div>
-                        <p className="text-xs text-muted mt-0.5">{t('club.audioCallouts.hint')}</p>
-                    </div>
-                </label>
+                <Switch checked={audioCallouts} onChange={setAudioCallouts} label={t('club.audioCallouts.label')} hint={t('club.audioCallouts.hint')}/>
             </div>
 
             {/* ── Öffentliche Termine ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.publicSchedule')}</div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <button type="button" role="switch" aria-checked={publicSchedule}
-                            aria-label={t('club.publicSchedule.label')}
-                            onClick={() => setPublicSchedule(v => !v)}
-                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: publicSchedule ? 'var(--accent)' : 'var(--surface-2)'}}>
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                              style={{transform: publicSchedule ? 'translateX(20px)' : 'none'}}/>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">{t('club.publicSchedule.label')}</div>
-                        <p className="text-xs text-muted mt-0.5">{t('club.publicSchedule.hint')}</p>
-                    </div>
-                </label>
+                <Switch checked={publicSchedule} onChange={setPublicSchedule} label={t('club.publicSchedule.label')} hint={t('club.publicSchedule.hint')}/>
                 {publicSchedule && club?.slug && (
                     <div className="bg-surface-2 rounded-lg p-2.5 mt-3 text-sm font-mono text-ink break-all select-all">
                         {`${window.location.origin}/api/v1/public/clubs/${club.slug}/schedule`}
@@ -569,20 +531,7 @@ function AppIconCard() {
     return (
         <div className="kce-card p-4">
             <div className="sec-heading mb-3">{t('appIcon.title')}</div>
-            <label className="flex items-center gap-3 cursor-pointer">
-                <button type="button" role="switch" aria-checked={enabled}
-                        aria-label={t('appIcon.enable')} disabled={busy}
-                        onClick={() => mutation.mutate({enabled: !enabled})}
-                        className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                        style={{background: enabled ? 'var(--accent)' : 'var(--surface-2)'}}>
-                    <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                          style={{transform: enabled ? 'translateX(20px)' : 'none'}}/>
-                </button>
-                <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-ink">{t('appIcon.enable')}</div>
-                    <p className="text-xs text-muted mt-0.5">{t('appIcon.hint')}</p>
-                </div>
-            </label>
+            <Switch checked={enabled} onChange={next => mutation.mutate({enabled: next})} label={t('appIcon.enable')} hint={t('appIcon.hint')} disabled={busy}/>
 
             {data && (
                 <>

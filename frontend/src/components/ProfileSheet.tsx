@@ -24,6 +24,7 @@ import {WrappedDeck} from '@/components/WrappedDeck'
 import {Sheet} from '@/components/ui/Sheet'
 import {MeBadge} from '@/components/ui/MemberBadges'
 import {StatTile} from '@/components/ui/StatTile'
+import {router} from '@/router'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -974,6 +975,17 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-tint-fg"
                                   data-testid="whats-new-badge">{t('whatsNew.new')}</span>
                         )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onClose()
+                            void router.navigate({to: '/book'})
+                        }}
+                        className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
+                    >
+                        <span>{t('profile.book')}</span>
+                        <span className="text-muted text-xs">›</span>
                     </button>
                     <a
                         href={currentExternalHref('/docs/index.html', isStandalone)}

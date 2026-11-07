@@ -18,6 +18,7 @@ import {SearchInput} from '@/components/ui/SearchInput'
 import {Sheet} from '@/components/ui/Sheet'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {StatTile} from '@/components/ui/StatTile'
+import {Switch} from '@/components/ui/Switch'
 import {showToast} from '@/components/ui/Toast'
 
 type BookTab = 'inventory' | 'guide' | 'components'
@@ -322,20 +323,8 @@ function ComponentsTab() {
                 </div>
             </Specimen>
 
-            <Specimen title="Switch (duplicated)" note="Hand-built in ClubAdminPage ×4 and SchedulePage. Proposed <Switch>.">
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <button type="button" role="switch" aria-checked={sw} aria-label="Specimen switch"
-                            onClick={() => setSw(v => !v)}
-                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: sw ? 'var(--accent)' : 'var(--surface-2)'}}>
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                              style={{transform: sw ? 'translateX(20px)' : 'none'}}/>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">Setting label</div>
-                        <p className="text-xs text-muted mt-0.5">Hint text explaining the setting.</p>
-                    </div>
-                </label>
+            <Specimen title="Switch" note="<Switch> — track + knob, label and hint. Used for every on/off setting.">
+                <Switch checked={sw} onChange={setSw} label="Setting label" hint="Hint text explaining the setting."/>
             </Specimen>
 
             <Specimen title="Cards &amp; tiles" note="kce-card, <StatTile>, <ExpandableCard>.">
