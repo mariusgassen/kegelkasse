@@ -42,6 +42,10 @@ vi.mock('@/components/stickers/PhotoPicker.tsx', () => ({
             <button onClick={() => { onFiles?.([new File(['x'], 'a.jpg', {type: 'image/jpeg'})]); onChange([{url: '/uploads/media/media_1_a.jpg'}]) }}>
                 upload-photo
             </button>
+            <button onClick={() => onChange([
+                {url: '/uploads/media/media_1_a.jpg', file: new File(['x'], 'a.jpg')},
+                {url: '/uploads/media/media_1_b.jpg', file: new File(['y'], 'b.jpg')},
+            ])}>upload-two</button>
         </div>
     ),
 }))
@@ -132,7 +136,7 @@ describe('StickersPage', () => {
     it('only asks for the photo until one is chosen', async () => {
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
-        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
         expect(screen.getByText('stickers.form.photoRequired')).toBeInTheDocument()
         expect(screen.queryByLabelText('stickers.form.place')).not.toBeInTheDocument()
         expect(screen.getByText('action.save')).toBeDisabled()
@@ -144,7 +148,7 @@ describe('StickersPage', () => {
         vi.mocked(api.createSticker).mockResolvedValue(S())
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
-        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
         fireEvent.click(screen.getByText('upload-photo'))
         await waitFor(() => expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Lissabon, Portugal'))
         expect(screen.getByLabelText('stickers.form.date')).toHaveValue('2024-08-15')
@@ -164,7 +168,7 @@ describe('StickersPage', () => {
         vi.mocked(readFileExif).mockResolvedValueOnce({gps: null, takenOn: null})
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
-        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
         fireEvent.click(screen.getByText('upload-photo'))
         await waitFor(() => screen.getByTestId('sticker-map'))
         expect(screen.getByLabelText('stickers.form.place')).toHaveValue('')
@@ -181,7 +185,7 @@ describe('StickersPage', () => {
         vi.mocked(readFileExif).mockResolvedValueOnce({gps: null, takenOn: null})
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
-        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
         fireEvent.click(screen.getByText('upload-photo'))
         await waitFor(() => screen.getByTestId('sticker-map'))
         fireEvent.click(screen.getByText('drop-pin')) // starts the slow lookup
@@ -196,7 +200,7 @@ describe('StickersPage', () => {
         vi.mocked(api.createSticker).mockResolvedValue(S())
         renderPage()
         await waitFor(() => screen.getByText('Lisbon'))
-        fireEvent.click(screen.getByText(/stickers.add/))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
         fireEvent.click(screen.getByText('upload-photo'))
         await waitFor(() => screen.getByText('stickers.form.adjustPin'))
         fireEvent.click(screen.getByText('stickers.form.adjustPin'))
@@ -222,6 +226,51 @@ describe('StickersPage', () => {
         await waitFor(() => screen.getByTestId('photo-gallery'))
         expect(screen.getByText('1/3')).toBeInTheDocument()
         expect(screen.getByText('3/3')).toBeInTheDocument()
+    })
+
+    it('offers one post or one post per photo only for several photos', async () => {
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByLabelText('stickers.form.place'))
+        expect(screen.queryByText('stickers.form.modeSplit')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText('upload-two'))
+        expect(screen.getByText('stickers.form.modeSplit')).toBeInTheDocument()
+    })
+
+    it('creates one post per photo, each from its own photo data', async () => {
+        vi.mocked(api.createSticker).mockResolvedValue(S())
+        vi.mocked(readFileExif).mockImplementation(async (f: File) => f.name === 'b.jpg'
+            ? {gps: {latitude: 41.9, longitude: 12.5}, takenOn: null}
+            : {gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'})
+        vi.mocked(reverseGeocode).mockImplementation(async (lat: number) => lat > 40 ? 'Rom, Italien' : 'Lissabon, Portugal')
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
+        fireEvent.click(screen.getByText('upload-photo'))
+        await waitFor(() => screen.getByLabelText('stickers.form.place'))
+        fireEvent.click(screen.getByText('upload-two'))
+        fireEvent.click(screen.getByText('stickers.form.modeSplit'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.createSticker).toHaveBeenCalledTimes(2))
+        vi.mocked(readFileExif).mockImplementation(async () => ({gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'}))
+        vi.mocked(reverseGeocode).mockImplementation(async () => 'Lissabon, Portugal')
+        expect(api.createSticker).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            media_urls: ['/uploads/media/media_1_a.jpg'], place_name: 'Lissabon, Portugal', latitude: 38.7, stuck_on: '2024-08-15'}))
+        expect(api.createSticker).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            media_urls: ['/uploads/media/media_1_b.jpg'], place_name: 'Rom, Italien', latitude: 41.9}))
+    })
+
+    it('filters feed and map by place, caption or author', async () => {
+        renderPage()
+        await waitFor(() => screen.getByText('Rome'))
+        fireEvent.click(screen.getByLabelText('stickers.search'))
+        fireEvent.change(screen.getByPlaceholderText('stickers.search'), {target: {value: 'colosseum'}})
+        expect(screen.queryByText('Lisbon')).not.toBeInTheDocument()
+        expect(screen.getByText('Rome')).toBeInTheDocument()
+        fireEvent.change(screen.getByPlaceholderText('stickers.search'), {target: {value: 'zzz'}})
+        expect(screen.getByText('stickers.search.empty')).toBeInTheDocument()
     })
 
     it('edits an existing sticker', async () => {
