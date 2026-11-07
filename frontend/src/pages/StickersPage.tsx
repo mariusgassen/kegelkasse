@@ -223,6 +223,9 @@ function StickerForm({sticker, onClose, onSaved}: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/** Feed cards rendered at first and added each time the end of the list nears the screen. */
+const FEED_PAGE = 8
+
 export function StickersPage() {
     const t = useT()
     const qc = useQueryClient()
@@ -237,6 +240,8 @@ export function StickersPage() {
     const [target, setTarget] = useState<number | null>(null)
     const [q, setQ] = useState('')
     const hashVersion = useDeepLinkVersion()
+    const [limit, setLimit] = useState(FEED_PAGE)
+    const sentinelRef = useRef<HTMLDivElement>(null)
 
     const {data: stickers = [], isLoading} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers})
 
@@ -252,15 +257,34 @@ export function StickersPage() {
         clearHashParams()
     }, [hashVersion])
 
+    const shown = q.trim() ? stickers.filter(s => matchesSticker(s, q)) : stickers
+    const visible = shown.slice(0, limit)
+
     useEffect(() => {
         if (target === null || tab !== 'feed' || !stickers.some(s => s.id === target)) return
+        // A deep link may point past the cards rendered so far: render up to it first.
+        const at = shown.findIndex(s => s.id === target)
+        if (at >= limit) { setLimit(at + 1); return }
         setOpenComment(highlightComment !== null ? target : null)
         const stop = flashDeepLinkTarget(`sticker-${target}`)
         setTarget(null)
         return stop
-    }, [target, tab, stickers]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [target, tab, stickers, limit]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const shown = q.trim() ? stickers.filter(s => matchesSticker(s, q)) : stickers
+    // Render the feed a page at a time: every card also fetches its reactions/comments and photos.
+    const hasMore = tab === 'feed' && shown.length > limit
+    useEffect(() => {
+        const el = sentinelRef.current
+        if (!hasMore || !el || typeof IntersectionObserver === 'undefined') {
+            if (hasMore && typeof IntersectionObserver === 'undefined') setLimit(shown.length)
+            return
+        }
+        const io = new IntersectionObserver(entries => {
+            if (entries.some(e => e.isIntersecting)) setLimit(l => l + FEED_PAGE)
+        }, {rootMargin: '800px 0px'})
+        io.observe(el)
+        return () => io.disconnect()
+    }, [hasMore, limit, shown.length])
 
     async function refresh() { await qc.invalidateQueries({queryKey: ['stickers']}) }
 
@@ -323,7 +347,7 @@ export function StickersPage() {
 
                 {tab === 'feed' && (
                     <div className="flex flex-col gap-3">
-                        {shown.map(s => (
+                        {visible.map(s => (
                             <div key={s.id} id={`sticker-${s.id}`} className="kce-card p-3">
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="flex-1 min-w-0">
@@ -363,6 +387,7 @@ export function StickersPage() {
                                     onHighlightHandled={() => setHighlightComment(null)}/>
                             </div>
                         ))}
+                        {hasMore && <div ref={sentinelRef} aria-hidden="true" className="h-px"/>}
                     </div>
                 )}
             </div>

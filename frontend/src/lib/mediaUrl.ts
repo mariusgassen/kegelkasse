@@ -8,3 +8,15 @@ export function isMediaUrl(url: string): boolean {
 export function thumbUrl(url: string, width: number): string {
     return isMediaUrl(url) ? `${url}?w=${width}` : url
 }
+
+const preloaded = new Set<string>()
+
+/** Warm the browser cache with a photo the user is likely to open next (e.g. the neighbours of the
+ *  photo shown in the fullscreen viewer). Each URL is requested at most once; non-uploads are skipped. */
+export function preloadImage(url: string | undefined, width: number): void {
+    if (!url || !isMediaUrl(url) || typeof Image === 'undefined') return
+    const href = thumbUrl(url, width)
+    if (preloaded.has(href)) return
+    preloaded.add(href)
+    new Image().src = href
+}
