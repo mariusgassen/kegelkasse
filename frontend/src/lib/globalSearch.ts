@@ -7,7 +7,7 @@
 import type {Locale} from '@/i18n'
 import type {RoutePage} from '@/lib/legacyHash'
 
-export type SearchResultKind = 'member' | 'account' | 'evening' | 'announcement' | 'trip' | 'payment' | 'expense'
+export type SearchResultKind = 'member' | 'account' | 'evening' | 'announcement' | 'trip' | 'sticker' | 'payment' | 'expense'
 
 /** A typed router navigation target — `to` is constrained to a real route path. */
 export interface SearchNav {
@@ -47,6 +47,12 @@ export interface TripLike {
     destination: string
     date: string
     note?: string | null
+}
+
+export interface StickerLike {
+    id: number
+    place_name: string
+    caption?: string | null
 }
 
 export interface PaymentLike {
@@ -153,6 +159,21 @@ export function searchAnnouncements(query: string, items: AnnouncementLike[]): S
             id: a.id,
             title: a.title,
             nav: {to: '/committee', search: {tab: 'announcements', item: a.id}},
+        }))
+}
+
+export function searchStickers(query: string, items: StickerLike[]): SearchResult[] {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return items
+        .filter(s => matches(s.place_name, q) || matches(s.caption, q))
+        .slice(0, RESULT_LIMIT)
+        .map(s => ({
+            kind: 'sticker' as const,
+            id: s.id,
+            title: s.place_name,
+            subtitle: s.caption ?? undefined,
+            nav: {to: '/stickers', search: {tab: 'feed', item: s.id}},
         }))
 }
 
