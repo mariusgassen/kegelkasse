@@ -487,6 +487,28 @@
         }
     }
 
+    /* Native date/time pickers carry an intrinsic min-width (iOS Safari especially) that
+       ignores w-full inside flex rows and sheets, forcing horizontal scroll. Reset it once here. */
+    .kce-input[type='date'],
+    .kce-input[type='datetime-local'],
+    .kce-input[type='time'],
+    .kce-input[type='month'] {
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        display: block;
+        -webkit-appearance: none;
+        appearance: none;
+        min-height: 2.75rem;
+        text-align: left;
+    }
+
+    .kce-input[type='date']::-webkit-date-and-time-value,
+    .kce-input[type='datetime-local']::-webkit-date-and-time-value {
+        text-align: left;
+        min-width: 0;
+    }
+
     .btn-primary {
         @apply bg-accent text-on-accent font-bold rounded-lg px-4 py-2.5 text-sm transition-all active:scale-95 flex items-center gap-1.5 justify-center;
 
