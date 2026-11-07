@@ -29,6 +29,7 @@ import {computeEveningRecap, renderRecapCardImage, shareOrDownloadRecapImage} fr
 import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
 import {useClub} from '@/hooks/useClub.ts'
 import {GuestRequestsSection} from '@/components/schedule/GuestRequestsSection.tsx'
+import {Switch} from '@/components/ui/Switch'
 
 const TODAY = todayDateInput()
 
@@ -678,20 +679,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
-                <label className="flex items-center gap-3 cursor-pointer">
-                    <button type="button" role="switch" aria-checked={guestRequests}
-                            aria-label={t('schedule.guestRequestsEnabled')}
-                            onClick={() => setGuestRequests(v => !v)}
-                            className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors"
-                            style={{background: guestRequests ? 'var(--accent)' : 'var(--surface-2)'}}>
-                        <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                              style={{transform: guestRequests ? 'translateX(20px)' : 'none'}}/>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-ink">{t('schedule.guestRequestsEnabled')}</div>
-                        <p className="text-xs text-muted mt-0.5">{t('schedule.guestRequestsHint')}</p>
-                    </div>
-                </label>
+                <Switch checked={guestRequests} onChange={setGuestRequests} label={t('schedule.guestRequestsEnabled')} hint={t('schedule.guestRequestsHint')}/>
                 <button type="submit" className="btn-primary w-full" disabled={saving || !datetime}>{t('action.save')}</button>
             </div>
         </Sheet>

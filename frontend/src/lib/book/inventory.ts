@@ -35,6 +35,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<ExpandableCard>', source: 'ui/ExpandableCard.tsx', status: 'component', use: 'Disclosure card.', uses: '38 in 8 files'},
     {name: '<MemberRow> + Avatar + MemberBadges', source: 'ui/MemberRow.tsx …', status: 'component', use: 'Any member / player / account list entry.', uses: '8 / 33 / –'},
     {name: '<StatTile>', source: 'ui/StatTile.tsx', status: 'component', use: 'One number plus its caption.', uses: '36 in 4 files'},
+    {name: '<Switch>', source: 'ui/Switch.tsx', status: 'component', use: 'On/off setting row (label + hint). Token colours.', uses: '5 in 3 files'},
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
     {name: '<ChipSelect>', source: 'ui/ChipSelect.tsx', status: 'component', use: 'Multi-select chips with all / none.', uses: '8 in 3 files'},
     {name: '<SearchInput>', source: 'ui/SearchInput.tsx', status: 'component', use: 'Text filter with clear button.', uses: '7 in 3 files'},
@@ -69,15 +70,6 @@ export const DUPLICATES: Duplicate[] = [
         count: '13 horizontally scrolling strips; 6 byte-identical pills in 5 files',
         where: 'ClubAdminPage, TreasuryPage, CommitteePage, StatsPage, StatsLab, HeadToHead, CorrelationSection, ProfileSheet, EveningHubPage, RootLayout',
         proposal: '<Tabs items value onChange variant="pill|segment"> (ModeToggle becomes the "segment" variant)',
-        priority: 1,
-    },
-    {
-        id: 'switch',
-        title: 'On/off switches',
-        finding: 'Five hand-built role="switch" buttons, same 44×24 track + knob, colour set through an inline style (var(--accent) / var(--surface-2)) instead of classes. The knob is bg-white, a literal.',
-        count: '5 switches in 2 files (+ 9 raw checkboxes in 5 files)',
-        where: 'ClubAdminPage (×4), SchedulePage',
-        proposal: '<Switch checked onChange label hint> — owns the label row, hint text, disabled state and the knob colour',
         priority: 1,
     },
     {
@@ -213,8 +205,7 @@ export interface Next {
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
     {step: '1. <Tabs>', why: 'Highest repetition, lowest risk; ModeToggle folds in as the segment variant.'},
-    {step: '2. <Switch>', why: 'Five identical copies, one inline-style colour bug waiting to happen.'},
-    {step: '3. <ConfirmSheet>', why: 'Removes the most boilerplate and makes destructive flows uniform.'},
-    {step: '4. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
-    {step: '5. Adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+    {step: '2. <ConfirmSheet>', why: 'Removes the most boilerplate and makes destructive flows uniform.'},
+    {step: '3. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
+    {step: '4. Adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
 ]
