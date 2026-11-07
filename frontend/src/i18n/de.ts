@@ -515,7 +515,6 @@ export const de = {
     "search.bookings": "Buchungen",
     "search.announcements": "Ankündigungen",
     "search.docs": "Dokumentation öffnen",
-    "docs.title": "Dokumentation",
     "search.trips": "Kegelfahrten",
     "wheel.title": "🎲 Zufalls-Strafe",
     "wheel.spin": "Drehen!",

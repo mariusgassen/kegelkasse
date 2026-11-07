@@ -515,7 +515,6 @@ export const en = {
     "search.bookings": "Bookings",
     "search.announcements": "Announcements",
     "search.docs": "Open documentation",
-    "docs.title": "Documentation",
     "search.trips": "Trips",
     "wheel.title": "🎲 Random penalty",
     "wheel.spin": "Spin!",

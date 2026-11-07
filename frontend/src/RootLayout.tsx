@@ -44,7 +44,6 @@ import {NotificationPrompt} from './components/NotificationPrompt'
 import {ProfileSheet} from './components/ProfileSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
-import {DocsViewer} from './components/DocsViewer'
 import {BowlingGame} from './components/BowlingGame'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHash'
@@ -318,7 +317,6 @@ export function RootLayout() {
             <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
-            <DocsViewer/>
             {bowlingOpen && <BowlingGame onClose={() => setBowlingOpen(false)}/>}
         </div>
     )

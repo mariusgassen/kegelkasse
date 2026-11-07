@@ -3,7 +3,6 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 const navigate = vi.fn(() => Promise.resolve())
 vi.mock('@/router', () => ({router: {navigate: (...a: unknown[]) => navigate(...(a as []))}}))
 
-import {useDocsViewer} from '@/store/docsViewer'
 import {followAiLink, OPEN_PROFILE_EVENT} from '../aiLinks'
 
 describe('followAiLink', () => {
@@ -25,11 +24,10 @@ describe('followAiLink', () => {
         expect(navigate).not.toHaveBeenCalled()
     })
 
-    it('opens docs in the in-app viewer instead of the browser', () => {
+    it('opens docs in a new tab and keeps the app where it is', () => {
         const open = vi.spyOn(window, 'open').mockReturnValue(null)
         expect(followAiLink({href: 'docs:funktionen/push', label: 'Doku', kind: 'docs', url: '/docs/funktionen/push'})).toBe(false)
-        expect(open).not.toHaveBeenCalled()
-        expect(useDocsViewer.getState().url).toBe('/docs/funktionen/push')
+        expect(open).toHaveBeenCalledWith(expect.stringMatching(/\/docs\/funktionen\/push$/), '_blank', 'noopener')
         expect(navigate).not.toHaveBeenCalled()
     })
 })
