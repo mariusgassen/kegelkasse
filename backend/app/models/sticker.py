@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from core.database import Base
@@ -16,7 +16,8 @@ class Sticker(Base):
     id = Column(Integer, primary_key=True, index=True)
     club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    media_url = Column(String, nullable=False)
+    media_url = Column(String, nullable=False)  # the cover photo (first of the post)
+    extra_media = Column(JSON, nullable=True)  # further photos, in order
     place_name = Column(String, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)

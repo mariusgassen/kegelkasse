@@ -475,6 +475,16 @@
 
     .kce-input {
         @apply w-full bg-canvas border border-line rounded-lg px-3 py-2.5 text-ink font-body placeholder-muted outline-none transition-colors focus:border-accent;
+        min-width: 0;
+        max-width: 100%;
+
+        /* iOS gives native date/time pickers an intrinsic width wider than the field, which made
+           whole sheets scroll sideways. */
+        &[type='date'], &[type='time'], &[type='datetime-local'] {
+            -webkit-appearance: none;
+            appearance: none;
+            min-height: 2.75rem;
+        }
     }
 
     .btn-primary {
@@ -543,6 +553,7 @@
     .sheet-panel {
         @apply w-full max-w-2xl bg-surface border border-line rounded-t-3xl px-4 pb-8 pt-0 overflow-y-auto animate-slide-up;
         max-height: 100%;
+        overflow-x: hidden;
         overscroll-behavior: contain;
         box-shadow: 0 -8px 32px rgba(0, 0, 0, .35);
     }

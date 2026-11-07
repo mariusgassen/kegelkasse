@@ -34,11 +34,15 @@ vi.mock('@/lib/exifGps.ts', () => ({
     readFileExif: vi.fn(async () => ({gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'})),
 }))
 vi.mock('@/lib/geocode.ts', () => ({reverseGeocode: vi.fn(async () => 'Lissabon, Portugal')}))
-vi.mock('@/components/ui/MediaUploadButton.tsx', () => ({
-    MediaUploadButton: ({onUploaded, onFile}: any) => (
-        <button onClick={() => { onFile?.(new File(['x'], 'a.jpg', {type: 'image/jpeg'})); onUploaded('/uploads/media/media_1_a.jpg') }}>
-            upload-photo
-        </button>
+vi.mock('@/components/stickers/PhotoPicker.tsx', () => ({
+    PhotoPicker: ({photos, onChange, onFiles}: any) => (
+        <div>
+            <span data-testid="photo-count">{photos.length}</span>
+            {photos.length === 0 && <span>stickers.form.photoRequired</span>}
+            <button onClick={() => { onFiles?.([new File(['x'], 'a.jpg', {type: 'image/jpeg'})]); onChange([{url: '/uploads/media/media_1_a.jpg'}]) }}>
+                upload-photo
+            </button>
+        </div>
     ),
 }))
 vi.mock('@/components/ui/Sheet.tsx', () => ({
@@ -62,7 +66,7 @@ import {readFileExif} from '@/lib/exifGps.ts'
 import {reverseGeocode} from '@/lib/geocode.ts'
 
 const S = (over: Partial<Sticker> = {}): Sticker => ({
-    id: 1, media_url: '/uploads/media/media_1_a.jpg', place_name: 'Lisbon', latitude: 38.7, longitude: -9.1,
+    id: 1, media_url: '/uploads/media/media_1_a.jpg', media_urls: ['/uploads/media/media_1_a.jpg'], place_name: 'Lisbon', latitude: 38.7, longitude: -9.1,
     caption: 'On a lamp post', stuck_on: '2025-07-01', created_by_name: 'Pudel', created_at: '2025-07-02T10:00:00Z',
     can_edit: true, ...over,
 })
@@ -149,7 +153,7 @@ describe('StickersPage', () => {
         expect(screen.queryByTestId('sticker-map')).not.toBeInTheDocument()
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.createSticker).toHaveBeenCalledWith(expect.objectContaining({
-            media_url: '/uploads/media/media_1_a.jpg', place_name: 'Lissabon, Portugal',
+            media_urls: ['/uploads/media/media_1_a.jpg'], place_name: 'Lissabon, Portugal',
             latitude: 38.7, longitude: -9.1, stuck_on: '2024-08-15',
         })))
         // The list is reloaded after saving
@@ -201,6 +205,23 @@ describe('StickersPage', () => {
         await waitFor(() => expect(screen.getByTestId('sticker-map').dataset.picked).toBe('10'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.createSticker).toHaveBeenCalledWith(expect.objectContaining({latitude: 10, longitude: 20})))
+    })
+
+    it('starts an edit with all photos of the post', async () => {
+        vi.mocked(api.listStickers).mockResolvedValue([S({media_urls: ['/a.jpg', '/b.jpg']})])
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('action.edit'))
+        expect(screen.getByTestId('photo-count')).toHaveTextContent('2')
+    })
+
+    it('numbers the photos of a post with several photos in the feed', async () => {
+        vi.mocked(api.listStickers).mockResolvedValue([S({media_urls: ['/a.jpg', '/b.jpg', '/c.jpg']})])
+        renderPage()
+        await waitFor(() => screen.getByTestId('photo-gallery'))
+        expect(screen.getByText('1/3')).toBeInTheDocument()
+        expect(screen.getByText('3/3')).toBeInTheDocument()
     })
 
     it('edits an existing sticker', async () => {

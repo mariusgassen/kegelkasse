@@ -1,7 +1,8 @@
 /**
  * World map for the sticker wall (Leaflet + OpenStreetMap tiles). Two modes share one component:
- *  - overview: one pin per place (stickers within ~100 m collapse into a pin with a count),
- *    tapping a pin opens a popup that leads to the newest post there;
+ *  - overview: one pin per place showing the newest photo (stickers within ~100 m collapse into one
+ *    pin, numbered with how many photos are there); tapping it opens a popup with numbered previews
+ *    that leads to the newest post;
  *  - picker: tap anywhere to drop a single pin (used by the post form).
  * Loaded lazily by the page so Leaflet stays out of the main bundle.
  */
@@ -9,7 +10,7 @@ import {useEffect, useRef} from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type {Sticker} from '@/types.ts'
-import {groupByPlace} from '@/lib/stickers.ts'
+import {groupByPlace, groupPhotos} from '@/lib/stickers.ts'
 
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
@@ -40,6 +41,49 @@ function pinIcon(count: number): L.DivIcon {
         html: `<div style="position:relative;width:28px;height:28px;border-radius:50%;background:var(--accent);` +
               `border:3px solid var(--on-accent);box-shadow:0 1px 4px rgba(0,0,0,.5)">${badge}</div>`,
     })
+}
+
+/** A pin showing the newest photo at a place, numbered when there is more than one photo. */
+function photoPinIcon(cover: string, count: number): L.DivIcon {
+    const box = document.createElement('div')
+    box.style.cssText = 'position:relative;width:48px;height:48px'
+    const img = document.createElement('img')
+    img.src = cover
+    img.alt = ''
+    img.style.cssText = 'width:48px;height:48px;object-fit:cover;border-radius:12px;background:var(--surface);' +
+        'border:3px solid var(--accent);box-shadow:0 1px 5px rgba(0,0,0,.55)'
+    box.append(img)
+    if (count > 1) {
+        const badge = document.createElement('span')
+        badge.textContent = String(count)
+        badge.style.cssText = 'position:absolute;top:-8px;right:-8px;min-width:20px;height:20px;padding:0 5px;' +
+            'border-radius:10px;background:var(--accent);color:var(--on-accent);' +
+            'font:700 12px/20px sans-serif;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.5)'
+        box.append(badge)
+    }
+    return L.divIcon({className: '', iconSize: [48, 48], iconAnchor: [24, 24], html: box})
+}
+
+/** Up to six numbered thumbnails for a pin's popup. */
+function previewStrip(urls: string[]): HTMLElement {
+    const row = document.createElement('div')
+    row.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;max-width:220px'
+    urls.slice(0, 6).forEach((u, i) => {
+        const cell = document.createElement('div')
+        cell.style.cssText = 'position:relative;width:64px;height:64px'
+        const im = document.createElement('img')
+        im.src = u
+        im.alt = ''
+        im.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px'
+        const n = document.createElement('span')
+        n.textContent = String(i + 1)
+        n.style.cssText = 'position:absolute;bottom:2px;right:2px;min-width:18px;padding:0 4px;border-radius:9px;' +
+            'background:var(--accent);color:var(--on-accent);font:700 12px/18px sans-serif;text-align:center'
+        cell.append(im)
+        if (urls.length > 1) cell.append(n)
+        row.append(cell)
+    })
+    return row
 }
 
 export default function StickerMap({stickers = [], onOpen, openLabel = '', picked, onPick, attribution, className}: Props) {
@@ -80,7 +124,8 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
         for (const grp of groupByPlace(stickers)) {
             const pos: L.LatLngTuple = [grp.latitude, grp.longitude]
             bounds.push(pos)
-            const marker = L.marker(pos, {icon: pinIcon(grp.stickers.length), title: grp.place_name}).addTo(g)
+            const photos = groupPhotos(grp)
+            const marker = L.marker(pos, {icon: photoPinIcon(photos[0], photos.length), title: grp.place_name}).addTo(g)
             // Built from DOM nodes (not an HTML string): place names are user input.
             const box = document.createElement('div')
             const title = document.createElement('strong')
@@ -91,7 +136,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
             btn.style.cssText = 'display:block;margin-top:6px;padding:6px 10px;border-radius:8px;border:0;' +
                 'background:var(--accent);color:var(--on-accent);font-weight:700'
             btn.onclick = () => cb.current.onOpen?.(grp.stickers[0].id)
-            box.append(title, btn)
+            box.append(title, previewStrip(photos), btn)
             marker.bindPopup(box)
         }
         // Frame all pins once, the first time data arrives — not on every refetch.

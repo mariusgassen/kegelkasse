@@ -177,3 +177,38 @@ def test_stickers_preference_round_trips(client: TestClient, auth_headers):
     assert r.status_code == 200
     prefs = client.get("/api/v1/push/preferences", headers=auth_headers).json()
     assert prefs["stickers"] == ["push"]
+
+
+def test_multiple_photos_keep_order_and_cover(client: TestClient, auth_headers, club: Club):
+    urls = [_media(club, "a"), _media(club, "b"), _media(club, "c")]
+    body = _body(club)
+    body.pop("media_url")
+    r = client.post(URL, json={**body, "media_urls": urls}, headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["media_url"] == urls[0]
+    assert r.json()["media_urls"] == urls
+
+
+def test_single_media_url_still_works(client: TestClient, auth_headers, club: Club):
+    r = client.post(URL, json=_body(club), headers=auth_headers)
+    assert r.json()["media_urls"] == [_media(club)]
+
+
+def test_photo_required_and_limited(client: TestClient, auth_headers, club: Club):
+    body = _body(club)
+    body.pop("media_url")
+    assert client.post(URL, json=body, headers=auth_headers).status_code == 400
+    many = [_media(club, str(i)) for i in range(11)]
+    assert client.post(URL, json={**body, "media_urls": many}, headers=auth_headers).status_code == 400
+    bad = [_media(club, "a"), "https://evil.example/x.jpg"]
+    assert client.post(URL, json={**body, "media_urls": bad}, headers=auth_headers).status_code == 400
+
+
+def test_update_replaces_photo_list(client: TestClient, auth_headers, club: Club):
+    sid = client.post(URL, json=_body(club), headers=auth_headers).json()["id"]
+    new = [_media(club, "x"), _media(club, "y")]
+    r = client.patch(f"{URL}{sid}", json={"media_urls": new}, headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["media_urls"] == new
+    r = client.patch(f"{URL}{sid}", json={"media_urls": [_media(club, "z")]}, headers=auth_headers)
+    assert r.json()["media_urls"] == [_media(club, "z")]

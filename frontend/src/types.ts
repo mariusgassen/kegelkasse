@@ -229,6 +229,8 @@ export interface ClubAnnouncement {
 export interface Sticker {
     id: number
     media_url: string
+    /** All photos of the post, the cover (`media_url`) first. */
+    media_urls: string[]
     place_name: string
     latitude: number
     longitude: number
@@ -240,7 +242,7 @@ export interface Sticker {
 }
 
 export interface StickerInput {
-    media_url: string
+    media_urls: string[]
     place_name: string
     latitude: number
     longitude: number
