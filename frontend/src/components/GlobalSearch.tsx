@@ -1,4 +1,6 @@
 import {useSearchStore} from '@/store/search.ts'
+import {currentExternalHref} from '@/lib/externalLink'
+import {detectStandalone} from '@/hooks/usePwaInstall'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {Sheet} from '@/components/ui/Sheet'
@@ -123,7 +125,7 @@ export function GlobalSearch({open, onClose}: Props) {
                     </div>
                 ))}
             </div>
-            <a href="/docs/" target="_blank" rel="noopener"
+            <a href={currentExternalHref('/docs/index.html', detectStandalone())} target="_blank" rel="noopener"
                className="mt-3 text-xs text-muted flex items-center justify-center gap-1" data-testid="search-docs-link">
                 <BookOpen size={14} aria-hidden/> {t('search.docs')}
             </a>

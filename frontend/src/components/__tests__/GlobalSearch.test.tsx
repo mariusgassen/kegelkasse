@@ -84,7 +84,7 @@ describe('GlobalSearch', () => {
 
     it('links to the documentation', async () => {
         await renderSearch()
-        expect(screen.getByTestId('search-docs-link')).toHaveAttribute('href', '/docs/')
+        expect(screen.getByTestId('search-docs-link').getAttribute('href')).toMatch(/\/docs\/index\.html$/)
     })
 
     it('shows no results/groups before typing a query', async () => {

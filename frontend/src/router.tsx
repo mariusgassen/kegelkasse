@@ -64,6 +64,7 @@ export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'te
 export interface ZeugwartSearch { item?: number }
 export interface MembersSearch { memberName?: string }
 export interface StickersSearch { tab?: 'feed' | 'map'; item?: number; comment?: number }
+export interface BookSearch { tab?: 'inventory' | 'guide' | 'components' }
 export interface StatsSearch { tab?: 'evening' | 'year' | 'lab' }
 
 const passThrough = <T,>(s: Record<string, unknown>): T => s as T
@@ -94,6 +95,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute('club', () => import('./pages/ClubAdminPage'), 'ClubAdminPage', passThrough<ClubSearch>),
     pageRoute('stickers', () => import('./pages/StickersPage'), 'StickersPage', passThrough<StickersSearch>),
     pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
+    pageRoute('book', () => import('./pages/BookPage'), 'BookPage', passThrough<BookSearch>),
     pageRoute('zeugwart', () => import('./pages/ZeugwartPage'), 'ZeugwartPage', passThrough<ZeugwartSearch>),
 ])
 

@@ -27,7 +27,7 @@ describe('followAiLink', () => {
     it('opens docs in a new tab and keeps the app where it is', () => {
         const open = vi.spyOn(window, 'open').mockReturnValue(null)
         expect(followAiLink({href: 'docs:funktionen/push', label: 'Doku', kind: 'docs', url: '/docs/funktionen/push'})).toBe(false)
-        expect(open).toHaveBeenCalledWith('/docs/funktionen/push', '_blank', 'noopener')
+        expect(open).toHaveBeenCalledWith(expect.stringMatching(/\/docs\/funktionen\/push$/), '_blank', 'noopener')
         expect(navigate).not.toHaveBeenCalled()
     })
 })
