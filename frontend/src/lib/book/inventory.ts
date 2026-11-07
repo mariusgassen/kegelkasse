@@ -36,6 +36,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<MemberRow> + Avatar + MemberBadges', source: 'ui/MemberRow.tsx …', status: 'component', use: 'Any member / player / account list entry.', uses: '8 / 33 / –'},
     {name: '<StatTile>', source: 'ui/StatTile.tsx', status: 'component', use: 'One number plus its caption.', uses: '36 in 4 files'},
     {name: '<Tabs>', source: 'ui/Tabs.tsx', status: 'component', use: 'Scrolling pill tab strip for pages and sheets.', uses: '5 in 5 files'},
+    {name: '<ConfirmSheet>', source: 'ui/ConfirmSheet.tsx', status: 'component', use: 'Confirm-before-delete sheet: message + one red button.', uses: '6 in 4 files'},
     {name: '<Switch>', source: 'ui/Switch.tsx', status: 'component', use: 'On/off setting row (label + hint). Token colours.', uses: '5 in 3 files'},
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
     {name: '<ChipSelect>', source: 'ui/ChipSelect.tsx', status: 'component', use: 'Multi-select chips with all / none.', uses: '8 in 3 files'},
@@ -67,8 +68,8 @@ export const DUPLICATES: Duplicate[] = [
     {
         id: 'confirm',
         title: 'Confirm-before-destructive sheets',
-        finding: 'Each delete flow builds its own <Sheet> with message, red btn-danger and a cancel button. Wording, button order and busy state differ per site.',
-        count: '27 btn-danger uses in 12 files',
+        finding: '<ConfirmSheet> now covers the plain message + red button sheets (6 sites). The remaining ones carry extra fields (reason inputs, payout, cancel button) and still build their own <Sheet>.',
+        count: 'about 15 btn-danger sheets left in 8 files',
         where: 'EveningPage, ProtocolPage, GamesPage, CommitteePage, TreasuryPage, MembersPage, SchedulePage, ClubAdminPage …',
         proposal: '<ConfirmSheet open title message confirmLabel danger busy onConfirm onClose>',
         priority: 1,
@@ -196,7 +197,6 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-    {step: '1. <ConfirmSheet>', why: 'Removes the most boilerplate and makes destructive flows uniform.'},
-    {step: '2. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
-    {step: '3. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+        {step: '1. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
+    {step: '2. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
 ]

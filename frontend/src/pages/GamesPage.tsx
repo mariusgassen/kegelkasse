@@ -6,6 +6,7 @@ import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {CardActionMenu, type SheetAction} from '@/components/ui/ActionSheet.tsx'
 import {toDateTimeInput} from '@/lib/datetime.ts'
@@ -443,15 +444,8 @@ export function GamesPage() {
 
             {/* ── Delete game confirm ── */}
             {confirmDeleteId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('game.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full"
-                                onClick={() => doDelete(confirmDeleteId)}>
-                            {t('action.confirmDelete')}
-                        </button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}
+                              message={t('game.deleteConfirm')} onConfirm={() => doDelete(confirmDeleteId)}/>
             )}
 
             {/* ── Add game sheet ── */}
