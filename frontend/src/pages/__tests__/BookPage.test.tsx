@@ -28,8 +28,8 @@ describe('BookPage', () => {
 
     it('expands a pattern to show its proposal', () => {
         render(<BookPage/>)
-        fireEvent.click(screen.getByText('Tab strips'))
-        expect(screen.getByText(/<Tabs items value onChange/)).toBeInTheDocument()
+        fireEvent.click(screen.getByText('Confirm-before-destructive sheets'))
+        expect(screen.getByText(/<ConfirmSheet open title message/)).toBeInTheDocument()
     })
 
     it('switches to the design guide and the live specimens', () => {

@@ -30,6 +30,7 @@ import type {ClubPin, ClubConfigBundle, GameTemplate, PenaltyType, RegularMember
 import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
 import {Switch} from '@/components/ui/Switch'
+import {Tabs} from '@/components/ui/Tabs'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -83,13 +84,7 @@ export function ClubAdminPage() {
             {/* Header: title + tab strip */}
             <div className="flex-shrink-0 px-3 pt-3 pb-0">
                 <div className="sec-heading">{t('club.title')}</div>
-                <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
-                    {TABS.map(tb => (
-                        <button key={tb.id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                onClick={() => setTab(tb.id as any)}>{tb.label}</button>
-                    ))}
-                </div>
+                <Tabs items={TABS} value={tab} onChange={setTab as any} className="mb-3"/>
             </div>
 
             {/* Members tab: full-height mounted sub-page */}
