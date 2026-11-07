@@ -38,7 +38,13 @@ async def upload_media(
     data = images.shrink(data, file.content_type)
     ext = _ALLOWED_TYPES[file.content_type]
     key = f"media/media_{user.club_id}_{uuid.uuid4().hex}.{ext}"
-    get_storage().put(key, data, file.content_type)
+    storage = get_storage()
+    storage.put(key, data, file.content_type)
+    # Build the sizes the feed asks for now, so the first viewer never waits for them.
+    for width in images.VARIANT_WIDTHS:
+        variant = images.make_variant(data, file.content_type, width)
+        if variant is not None:
+            storage.put(f"thumbs/{width}/{key.split('/', 1)[1]}", variant, file.content_type)
     return {"url": url_for_key(key)}
 
 

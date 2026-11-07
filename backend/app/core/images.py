@@ -73,6 +73,9 @@ def make_variant(data: bytes, content_type: str, width: int) -> Optional[bytes]:
         img = Image.open(io.BytesIO(data))
         if getattr(img, "is_animated", False) or max(img.size) <= width:
             return None
+        if img.format == "JPEG":
+            # Let the decoder downscale while reading (DCT scaling): several times faster on big photos.
+            img.draft("RGB", (width, width))
         img = ImageOps.exif_transpose(img)
         img.thumbnail((width, width), Image.LANCZOS)
         return _encode(img, content_type)

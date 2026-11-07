@@ -49,9 +49,9 @@ describe('ZoomableImage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
 
-    it('tap toggles the metadata overlay with share menu', () => {
+    it('tap toggles the metadata overlay with share menu', async () => {
         Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
-        render(<ZoomableImage src="/uploads/media/p.jpg" title="Rom" subtitle="1. Mai 2026" />)
+        render(<ZoomableImage src="/uploads/media/p.jpg" title="Rom" subtitle="1. Mai 2026" shareUrl="/stickers?tab=feed&item=7" />)
         fireEvent.click(screen.getByRole('button', { name: 'media.viewFullscreen' }))
         const dialog = screen.getByRole('dialog')
         expect(screen.queryByText('Rom')).not.toBeInTheDocument()
@@ -61,7 +61,8 @@ describe('ZoomableImage', () => {
         expect(screen.getByText('1. Mai 2026')).toBeInTheDocument()
         fireEvent.click(screen.getByRole('button', { name: 'media.share' }))
         fireEvent.click(screen.getByRole('menuitem', { name: /media.copyLink/ }))
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/uploads/media/p.jpg`)
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/stickers?tab=feed&item=7`)
+        expect(await screen.findByText('media.linkCopied')).toBeInTheDocument()
         fireEvent.pointerDown(dialog, { clientX: 5, clientY: 5 })
         fireEvent.pointerUp(dialog)
         expect(screen.queryByText('Rom')).not.toBeInTheDocument()
@@ -80,5 +81,18 @@ describe('ZoomableImage', () => {
         expect(document.body.style.overflow).toBe('hidden')
         fireEvent.keyDown(document, { key: 'Escape' })
         expect(document.body.style.overflow).toBe('')
+    })
+})
+
+describe('ZoomableImage share menu without a post link', () => {
+    it('hides copy link but keeps share/save', () => {
+        render(<ZoomableImage src="/uploads/media/p.jpg" title="Rom" />)
+        fireEvent.click(screen.getByRole('button', { name: 'media.viewFullscreen' }))
+        const dialog = screen.getByRole('dialog')
+        fireEvent.pointerDown(dialog, { clientX: 5, clientY: 5 })
+        fireEvent.pointerUp(dialog)
+        fireEvent.click(screen.getByRole('button', { name: 'media.share' }))
+        expect(screen.queryByRole('menuitem', { name: /media.copyLink/ })).not.toBeInTheDocument()
+        expect(screen.getByRole('menuitem', { name: /media.shareSave/ })).toBeInTheDocument()
     })
 })

@@ -1481,7 +1481,7 @@ export const en = {
     "media.captionHint": "Optional: add a caption",
     "media.viewFullscreen": "View image fullscreen",
     "media.copyLink": "Copy link",
-    "media.saveLocal": "Save to device",
+    "media.shareSave": "Share / Save",
     "media.share": "Share",
     "media.linkCopied": "Link copied",
     "media.copyFailed": "Copy failed",
