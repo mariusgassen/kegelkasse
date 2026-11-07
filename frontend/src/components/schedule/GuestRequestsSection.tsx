@@ -71,7 +71,7 @@ function PendingCard({req, onDecide}: {req: GuestRequest; onDecide: (d: Decision
 
 /**
  * Guest requests from the club website: pending ones up front with approve/reject; decided and expired
- * ones only as a small collapsed line (no heading when nothing is open). Any member may decide; both decisions mail the requester, so each goes through
+ * ones only as a plain "+ N settled" line (same style as the treasury accounts). Any member may decide; both decisions mail the requester, so each goes through
  * a confirmation sheet. Renders nothing until the club has received its first request.
  */
 export function GuestRequestsSection() {
@@ -132,24 +132,23 @@ export function GuestRequestsSection() {
 
     return (
         <div id={GUEST_REQUESTS_ANCHOR} className="mb-4">
-            {pending.length > 0 && (
-                <div className="sec-heading flex items-center gap-2">
-                    🙋 {t('guestRequests.title')}
+            <div className="sec-heading flex items-center gap-2">
+                🙋 {t('guestRequests.title')}
+                {pending.length > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full bg-accent text-on-accent text-xs font-bold"
                           aria-label={t('guestRequests.pendingCount').replace('{n}', String(pending.length))}>
                         {pending.length}
                     </span>
-                </div>
-            )}
+                )}
+            </div>
 
             {pending.map(r => <PendingCard key={r.id} req={r} onDecide={setDecision}/>)}
 
             {archive.length > 0 && (
-                <ExpandableCard
-                    title={<span className="text-xs font-bold text-muted">
-                        {t('guestRequests.decided')} ({archive.length})
-                    </span>}>
-                    <div className="px-3 pb-3 space-y-1.5">
+                <ExpandableCard bare
+                                headerClassName="justify-center gap-1 text-xs text-muted"
+                                title={<>+ {archive.length} {t('guestRequests.settledCount')}</>}>
+                    <div className="mt-1.5 space-y-1.5">
                         {archive.map(({req: r, status}) => (
                             <div key={r.id} className="flex items-center gap-2 text-sm" data-testid="guest-request-decided">
                                 <span className="flex-1 min-w-0 truncate text-ink">

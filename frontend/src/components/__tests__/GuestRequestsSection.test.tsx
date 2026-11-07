@@ -130,9 +130,9 @@ describe('GuestRequestsSection', () => {
             request({ id: 2, name: 'Bernd', status: 'approved', decided_at: '2026-10-02T10:00:00Z' }),
         ])
         renderSection()
-        fireEvent.click(await screen.findByText(/guestRequests\.decided/))
-        // Nothing open: no heading and no big panel, just the small collapsed line.
-        expect(screen.queryByText(/guestRequests\.title/)).not.toBeInTheDocument()
+        fireEvent.click(await screen.findByText(/guestRequests\.settledCount/))
+        // Nothing open: the heading stays, the decided ones are just a plain "+ N settled" line.
+        expect(screen.getByText(/guestRequests\.title/)).toBeInTheDocument()
         expect(screen.getByTestId('guest-request-decided')).toHaveTextContent('Bernd')
         expect(screen.getByText('guestRequests.status.approved')).toBeInTheDocument()
     })
@@ -142,9 +142,9 @@ describe('GuestRequestsSection', () => {
             request({ id: 3, name: 'Alt Gast', scheduled_at: '2020-01-10T20:00' }),
         ])
         renderSection()
-        expect(await screen.findByText(/guestRequests\.decided/)).toBeInTheDocument()
+        expect(await screen.findByText(/guestRequests\.settledCount/)).toBeInTheDocument()
         expect(screen.queryByText('Alt Gast')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByText(/guestRequests\.decided/))
+        fireEvent.click(screen.getByText(/guestRequests\.settledCount/))
         expect(screen.getByTestId('guest-request-decided')).toHaveTextContent('Alt Gast')
         expect(screen.getByText('guestRequests.status.expired')).toBeInTheDocument()
         expect(screen.queryByText(/guestRequests\.approve/)).not.toBeInTheDocument()

@@ -1216,7 +1216,7 @@ export const en = {
     "guestRequests.title": "Guest requests",
     "guestRequests.pendingCount": "{n} open requests",
     "guestRequests.status.expired": "Expired",
-    "guestRequests.decided": "Decided requests",
+    "guestRequests.settledCount": "settled",
     "guestRequests.approve": "Accept",
     "guestRequests.reject": "Decline",
     "guestRequests.approveTitle": "Accept guest request?",
