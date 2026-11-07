@@ -276,7 +276,7 @@ export function StickersPage() {
 
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
-            <div className="flex-shrink-0 px-3 pt-2 flex items-center gap-2">
+            <div className="flex-shrink-0 px-3 pt-2 flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                     <ModeToggle value={tab} onChange={v => setTab(v as 'feed' | 'map')}
                                 options={[{value: 'feed', label: t('stickers.view.feed')},
@@ -285,11 +285,11 @@ export function StickersPage() {
                 {stickers.length > 0 && (
                     <button type="button" onClick={() => setSearchOpen(o => !o)} aria-label={t('stickers.search')}
                             aria-expanded={searchOpen || q !== ''}
-                            className="btn-secondary w-10 h-10 flex-shrink-0 flex items-center justify-center p-0">
+                            className="btn-secondary w-9 h-9 flex-shrink-0 flex items-center justify-center p-0">
                         <Search size={18} aria-hidden="true"/>
                     </button>
                 )}
-                <button type="button" className="btn-primary w-10 h-10 flex-shrink-0 flex items-center justify-center p-0"
+                <button type="button" className="btn-primary w-9 h-9 flex-shrink-0 flex items-center justify-center p-0"
                         onClick={() => setForm('new')} aria-label={t('stickers.add')}>
                     <Plus size={20} aria-hidden="true"/>
                 </button>
@@ -348,7 +348,8 @@ export function StickersPage() {
                                     )}
                                 </div>
                                 <PhotoGallery urls={s.media_urls} title={s.place_name}
-                                              subtitle={s.stuck_on ? fDay(s.stuck_on, locale) : undefined}/>
+                                              subtitle={s.stuck_on ? fDay(s.stuck_on, locale) : undefined}
+                                              shareUrl={`/stickers?tab=feed&item=${s.id}`}/>
                                 {s.caption && <p className="text-sm text-ink mt-2 whitespace-pre-wrap">{s.caption}</p>}
                                 <ItemReactionBar
                                     parentType="sticker" parentId={s.id}
