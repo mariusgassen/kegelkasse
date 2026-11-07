@@ -36,18 +36,21 @@ def _serialize_guest(g: ScheduledEveningGuest) -> dict:
 
 def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Optional[int], db=None) -> dict:
     rsvps = se.rsvps
-    if db is not None and rsvps:
-        # RSVPs of members who left, became guests or were deactivated no longer count — the RSVP
-        # sheet (list_rsvps) lists only current members, so the counts must agree with it.
+    absent_ids = {r.regular_member_id for r in rsvps if r.status == RsvpStatus.absent}
+    if db is not None:
+        # Current members only (left, guest or deactivated members don't count — same roster as the
+        # RSVP sheet, list_rsvps). No RSVP counts as participation: everyone except those who declined.
         current = {m_id for (m_id,) in db.query(RegularMember.id).filter(
-            RegularMember.id.in_([r.regular_member_id for r in rsvps]),
+            RegularMember.club_id == se.club_id,
             RegularMember.is_active == True,
             RegularMember.is_guest == False,
             RegularMember.deactivated_at.is_(None),
         )}
-        rsvps = [r for r in rsvps if r.regular_member_id in current]
-    attending = [r for r in rsvps if r.status == RsvpStatus.attending]
-    absent = [r for r in rsvps if r.status == RsvpStatus.absent]
+        attending_count = len(current - absent_ids)
+        absent_count = len(current & absent_ids)
+    else:
+        attending_count = len([r for r in rsvps if r.status == RsvpStatus.attending])
+        absent_count = len(absent_ids)
     my_rsvp = None
     if my_regular_member_id:
         for r in se.rsvps:
@@ -69,8 +72,8 @@ def _serialize_scheduled_evening(se: ScheduledEvening, my_regular_member_id: Opt
         "venue": se.venue,
         "note": se.note,
         "created_at": se.created_at.isoformat() if se.created_at else None,
-        "attending_count": len(attending),
-        "absent_count": len(absent),
+        "attending_count": attending_count,
+        "absent_count": absent_count,
         "my_rsvp": my_rsvp,
         "guests": [_serialize_guest(g) for g in se.guests],
         "evening_id": linked_evening_id,
