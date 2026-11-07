@@ -158,6 +158,6 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
         }
     }, [stickers, picked, onPick, openLabel, zoom])
 
-    return <div ref={el} className={className ?? 'w-full h-72 rounded-xl overflow-hidden border border-line'}
+    return <div ref={el} className={`${className ?? 'w-full h-72 rounded-xl overflow-hidden border border-line'} isolate`}
                 role="region" aria-label="map"/>
 }
