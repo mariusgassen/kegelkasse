@@ -35,6 +35,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<ExpandableCard>', source: 'ui/ExpandableCard.tsx', status: 'component', use: 'Disclosure card.', uses: '38 in 8 files'},
     {name: '<MemberRow> + Avatar + MemberBadges', source: 'ui/MemberRow.tsx …', status: 'component', use: 'Any member / player / account list entry.', uses: '8 / 33 / –'},
     {name: '<StatTile>', source: 'ui/StatTile.tsx', status: 'component', use: 'One number plus its caption.', uses: '36 in 4 files'},
+    {name: '<Tabs>', source: 'ui/Tabs.tsx', status: 'component', use: 'Scrolling pill tab strip for pages and sheets.', uses: '5 in 5 files'},
     {name: '<Switch>', source: 'ui/Switch.tsx', status: 'component', use: 'On/off setting row (label + hint). Token colours.', uses: '5 in 3 files'},
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
     {name: '<ChipSelect>', source: 'ui/ChipSelect.tsx', status: 'component', use: 'Multi-select chips with all / none.', uses: '8 in 3 files'},
@@ -63,15 +64,6 @@ export interface Duplicate {
 
 /** Patterns the app repeats by hand. */
 export const DUPLICATES: Duplicate[] = [
-    {
-        id: 'tabs',
-        title: 'Tab strips',
-        finding: 'The same pill markup ("flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold …" with bg-accent / bg-surface-2) is pasted into every page. Other strips (Stats lab, Profile, Evening hub, Verein sub-nav) are near copies with different gaps, paddings and scrollbar hiding.',
-        count: '13 horizontally scrolling strips; 6 byte-identical pills in 5 files',
-        where: 'ClubAdminPage, TreasuryPage, CommitteePage, StatsPage, StatsLab, HeadToHead, CorrelationSection, ProfileSheet, EveningHubPage, RootLayout',
-        proposal: '<Tabs items value onChange variant="pill|segment"> (ModeToggle becomes the "segment" variant)',
-        priority: 1,
-    },
     {
         id: 'confirm',
         title: 'Confirm-before-destructive sheets',
@@ -204,8 +196,7 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-    {step: '1. <Tabs>', why: 'Highest repetition, lowest risk; ModeToggle folds in as the segment variant.'},
-    {step: '2. <ConfirmSheet>', why: 'Removes the most boilerplate and makes destructive flows uniform.'},
-    {step: '3. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
-    {step: '4. Adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+    {step: '1. <ConfirmSheet>', why: 'Removes the most boilerplate and makes destructive flows uniform.'},
+    {step: '2. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
+    {step: '3. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
 ]

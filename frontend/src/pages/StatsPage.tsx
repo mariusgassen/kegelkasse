@@ -23,6 +23,7 @@ import {playerColor, withAlpha} from '@/lib/chartColors.ts'
 import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
 import {StatsLab} from '@/components/stats/StatsLab.tsx'
 import {useThrowTracking} from '@/hooks/useClub.ts'
+import {Tabs} from '@/components/ui/Tabs'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -1413,15 +1414,11 @@ export function StatsPage() {
             <div className="sec-heading">{t('stats.title')}</div>
 
             {/* ── Tab strip ── */}
-            <div className="flex gap-1 mb-3">
-                {(['evening', 'year', 'lab'] as const).map(tb => (
-                    <button key={tb} type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                            onClick={() => setTab(tb)}>
-                        {tb === 'evening' ? t('stats.evening') : tb === 'year' ? t('stats.year') : t('stats.tab.lab')}
-                    </button>
-                ))}
-            </div>
+            <Tabs value={tab} onChange={setTab} className="mb-3" items={[
+                {id: 'evening', label: t('stats.evening')},
+                {id: 'year', label: t('stats.year')},
+                {id: 'lab', label: t('stats.tab.lab')},
+            ]}/>
 
             {tab === 'evening' && (
             <>

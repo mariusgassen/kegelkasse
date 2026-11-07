@@ -20,6 +20,7 @@ import {SkeletonRows} from '@/components/ui/Skeleton'
 import {StatTile} from '@/components/ui/StatTile'
 import {Switch} from '@/components/ui/Switch'
 import {showToast} from '@/components/ui/Toast'
+import {Tabs} from '@/components/ui/Tabs'
 
 type BookTab = 'inventory' | 'guide' | 'components'
 
@@ -44,15 +45,7 @@ export function BookPage() {
             <p className="text-sm text-muted mb-3">
                 What the UI is made of, how it should look, and where it is still copied by hand.
             </p>
-            <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-                {TABS.map(tb => (
-                    <button key={tb.id} type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                            onClick={() => setTab(tb.id)}>
-                        {tb.label}
-                    </button>
-                ))}
-            </div>
+            <Tabs items={TABS} value={tab} onChange={setTab} className="mb-4"/>
             {tab === 'inventory' && <InventoryTab/>}
             {tab === 'guide' && <GuideTab/>}
             {tab === 'components' && <ComponentsTab/>}
@@ -311,16 +304,10 @@ function ComponentsTab() {
                 </div>
             </Specimen>
 
-            <Specimen title="Tab strip (duplicated)" note="Copy-pasted on every page today. Proposed <Tabs>.">
-                <div className="flex gap-1 overflow-x-auto pb-1">
-                    {['x', 'y', 'z'].map(id => (
-                        <button key={id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pill === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                onClick={() => setPill(id)}>
-                            Tab {id.toUpperCase()}
-                        </button>
-                    ))}
-                </div>
+            <Specimen title="Tabs" note="<Tabs> — scrolling pill strip for page and sheet sections.">
+                <Tabs value={pill} onChange={setPill} className="" items={[
+                    {id: 'x', label: 'Tab X'}, {id: 'y', label: 'Tab Y'}, {id: 'z', label: 'Tab Z'},
+                ]}/>
             </Specimen>
 
             <Specimen title="Switch" note="<Switch> — track + knob, label and hint. Used for every on/off setting.">

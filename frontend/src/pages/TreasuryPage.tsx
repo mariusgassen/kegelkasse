@@ -23,6 +23,7 @@ import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
+import {Tabs} from '@/components/ui/Tabs'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -621,15 +622,7 @@ export function TreasuryPage() {
             </div>
 
             {/* Tab strip */}
-            <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-                {TABS.map(tb => (
-                    <button key={tb.id} type="button"
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                            onClick={() => setTab(tb.id)}>
-                        {tb.label}
-                    </button>
-                ))}
-            </div>
+            <Tabs items={TABS} value={tab} onChange={setTab} className="mb-4"/>
 
             {/* ── Übersicht ── */}
             {tab === 'overview' && (

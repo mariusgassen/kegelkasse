@@ -25,6 +25,7 @@ import {Sheet} from '@/components/ui/Sheet'
 import {MeBadge} from '@/components/ui/MemberBadges'
 import {StatTile} from '@/components/ui/StatTile'
 import {router} from '@/router'
+import {Tabs} from '@/components/ui/Tabs'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -429,15 +430,10 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
     return (
         <Sheet open={open} onClose={onClose} title={t('profile.title')}
                header={
-                   <div className="flex gap-1 overflow-x-auto pb-1 min-w-0">
-                       {(['season', 'settings'] as const).map(tb => (
-                           <button key={tb} type="button"
-                                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                   onClick={() => setTab(tb)}>
-                               {t(`profile.tab.${tb}`)}
-                           </button>
-                       ))}
-                   </div>
+                   <Tabs value={tab} onChange={setTab} className="" items={[
+                       {id: 'season', label: t('profile.tab.season')},
+                       {id: 'settings', label: t('profile.tab.settings')},
+                   ]}/>
                }
                overlays={<>
                    <WhatsNewSheet open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)}/>

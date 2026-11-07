@@ -26,6 +26,7 @@ import {TripExpenses} from '@/components/committee/TripExpenses.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
+import {Tabs} from '@/components/ui/Tabs'
 
 function fDateTime(isoStr: string) {
     return new Date(isoStr).toLocaleString('de-DE', {
@@ -963,13 +964,7 @@ export function CommitteePage() {
                         </span>
                     )}
                 </div>
-                <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
-                    {TABS.map(tb => (
-                        <button key={tb.id} type="button"
-                                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                onClick={() => setTab(tb.id as any)}>{tb.label}</button>
-                    ))}
-                </div>
+                <Tabs items={TABS} value={tab} onChange={setTab as any} className="mb-3"/>
             </div>
 
             <div className="page-scroll px-3 pb-24">
