@@ -45,3 +45,11 @@ export function currentExternalHref(path: string, standalone: boolean): string {
         origin: typeof window === 'undefined' ? 'http://localhost' : window.location.origin,
     })
 }
+
+/**
+ * Open a same-origin page (docs) in the system browser from a click handler. In an installed PWA the
+ * plain URL would stay inside the app window, so it is rewritten via `currentExternalHref`.
+ */
+export function openExternal(path: string, standalone: boolean): void {
+    window.open(currentExternalHref(path, standalone), '_blank', 'noopener')
+}

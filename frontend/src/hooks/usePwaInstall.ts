@@ -32,7 +32,7 @@ function detectIos(): boolean {
     return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
-function detectStandalone(): boolean {
+export function detectStandalone(): boolean {
     if (typeof window === 'undefined') return false
     const standaloneByMedia = typeof window.matchMedia === 'function' &&
         window.matchMedia('(display-mode: standalone)').matches
