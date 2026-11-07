@@ -1675,6 +1675,16 @@ export const de = {
     "stickers.map.offline": "Die Karte braucht eine Internetverbindung.",
     "stickers.map.attribution": "Kartendaten © OpenStreetMap-Mitwirkende",
     "stickers.map.open": "Beitrag ansehen",
+    "stickers.form.moveLeft": "Foto nach vorn",
+    "stickers.form.moveRight": "Foto nach hinten",
+    "stickers.form.mode": "Aufteilung",
+    "stickers.form.modeOne": "Ein Post",
+    "stickers.form.modeSplit": "Je Foto ein Post",
+    "stickers.form.modeSplitHint": "Ort, Pin und Datum kommen aus den Daten jedes Fotos. Die Angaben unten gelten nur, wenn ein Foto keine hat.",
+    "stickers.form.needLocationEach": "Für mindestens ein Foto fehlen Ort und Pin – bitte unten ergänzen.",
+    "stickers.savedMany": "✓ {n} Sticker gespeichert",
+    "stickers.search": "Suche nach Ort, Text oder Name",
+    "stickers.search.empty": "Keine Treffer.",
     "stickers.saved": "✓ Sticker gespeichert",
 } as const
 

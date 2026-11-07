@@ -6,11 +6,12 @@
  *  - picker: tap anywhere to drop a single pin (used by the post form).
  * Loaded lazily by the page so Leaflet stays out of the main bundle.
  */
-import {useEffect, useRef} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import {thumbUrl} from '@/lib/mediaUrl.ts'
 import type {Sticker} from '@/types.ts'
-import {groupByPlace, groupPhotos} from '@/lib/stickers.ts'
+import {clusterByZoom, groupPhotos} from '@/lib/stickers.ts'
 
 const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
@@ -48,7 +49,8 @@ function photoPinIcon(cover: string, count: number): L.DivIcon {
     const box = document.createElement('div')
     box.style.cssText = 'position:relative;width:48px;height:48px'
     const img = document.createElement('img')
-    img.src = cover
+    img.src = thumbUrl(cover, 240)
+    img.decoding = 'async'
     img.alt = ''
     img.style.cssText = 'width:48px;height:48px;object-fit:cover;border-radius:12px;background:var(--surface);' +
         'border:3px solid var(--accent);box-shadow:0 1px 5px rgba(0,0,0,.55)'
@@ -72,7 +74,8 @@ function previewStrip(urls: string[]): HTMLElement {
         const cell = document.createElement('div')
         cell.style.cssText = 'position:relative;width:64px;height:64px'
         const im = document.createElement('img')
-        im.src = u
+        im.src = thumbUrl(u, 240)
+        im.loading = 'lazy'
         im.alt = ''
         im.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px'
         const n = document.createElement('span')
@@ -94,6 +97,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
     const cb = useRef({onOpen, onPick})
     cb.current = {onOpen, onPick}
     const fitted = useRef(false)
+    const [zoom, setZoom] = useState(2)
 
     useEffect(() => {
         if (!el.current) return
@@ -101,6 +105,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
         L.tileLayer(TILES, {maxZoom: 18, attribution}).addTo(m)
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
+        m.on('zoomend', () => setZoom(m.getZoom()))
         map.current = m
         return () => { m.remove(); map.current = null; layer.current = null }
     }, [attribution])
@@ -121,11 +126,18 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
             }
             return
         }
-        for (const grp of groupByPlace(stickers)) {
+        for (const grp of clusterByZoom(stickers, zoom)) {
             const pos: L.LatLngTuple = [grp.latitude, grp.longitude]
             bounds.push(pos)
             const photos = groupPhotos(grp)
             const marker = L.marker(pos, {icon: photoPinIcon(photos[0], photos.length), title: grp.place_name}).addTo(g)
+            // A cluster of several places zooms in on its members instead of opening a popup.
+            if (grp.places > 1 && zoom < 17) {
+                marker.on('click', () => m.fitBounds(
+                    L.latLngBounds(grp.stickers.map(s => [s.latitude, s.longitude] as L.LatLngTuple)),
+                    {padding: [60, 60], maxZoom: 18}))
+                continue
+            }
             // Built from DOM nodes (not an HTML string): place names are user input.
             const box = document.createElement('div')
             const title = document.createElement('strong')
@@ -144,7 +156,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
             m.fitBounds(L.latLngBounds(bounds), {padding: [40, 40], maxZoom: 6})
             fitted.current = true
         }
-    }, [stickers, picked, onPick, openLabel])
+    }, [stickers, picked, onPick, openLabel, zoom])
 
     return <div ref={el} className={className ?? 'w-full h-72 rounded-xl overflow-hidden border border-line'}
                 role="region" aria-label="map"/>

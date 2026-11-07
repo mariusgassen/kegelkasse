@@ -15,6 +15,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
+import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {SkeletonCard} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {PhotoPicker, type Photo} from '@/components/stickers/PhotoPicker.tsx'
@@ -25,7 +26,7 @@ import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {readFileExif} from '@/lib/exifGps.ts'
 import {reverseGeocode} from '@/lib/geocode.ts'
-import {placeCount} from '@/lib/stickers.ts'
+import {placeCount, matchesSticker} from '@/lib/stickers.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import type {Sticker} from '@/types.ts'
 import type {LatLng} from '@/components/stickers/StickerMap.tsx'
@@ -60,6 +61,8 @@ function StickerForm({sticker, onClose, onSaved}: {
     const [pos, setPos] = useState<LatLng | null>(
         sticker ? {latitude: sticker.latitude, longitude: sticker.longitude} : null)
     const [fromPhoto, setFromPhoto] = useState(false)
+    // 'one' = a single post carrying every photo; 'split' = one post per photo from the same pick.
+    const [mode, setMode] = useState<'one' | 'split'>('one')
     const [showMap, setShowMap] = useState(false)
     const [saving, setSaving] = useState(false)
     const locale = useI18n(st => st.locale)
@@ -103,12 +106,37 @@ function StickerForm({sticker, onClose, onSaved}: {
         )
     }
 
-    const canSave = photos.length > 0 && !!place.trim() && !!pos && !saving
+    const split = !sticker && photos.length > 1 && mode === 'split'
+    // In split mode place/pin/date come from each photo's own data; the fields below are the fallback.
+    const canSave = photos.length > 0 && (split || (!!place.trim() && !!pos)) && !saving
+
+    /** One post per photo: each takes its own EXIF position/date/place, else the form's values. */
+    async function saveSplit() {
+        const posts = []
+        for (const p of photos) {
+            const meta = p.file ? await readFileExif(p.file).catch(() => null) : null
+            const at = meta?.gps ?? pos
+            const label = meta?.gps
+                ? (await reverseGeocode(meta.gps.latitude, meta.gps.longitude, locale)) ?? place.trim()
+                : place.trim()
+            if (!at || !label) { showToast(t('stickers.form.needLocationEach'), 'error'); return false }
+            const taken = meta?.takenOn && meta.takenOn <= todayDateInput() ? meta.takenOn : ''
+            posts.push({media_urls: [p.url], place_name: label, latitude: at.latitude, longitude: at.longitude,
+                caption: caption.trim(), stuck_on: taken || day})
+        }
+        for (const body of posts) await api.createSticker(body)
+        return true
+    }
 
     async function save() {
-        if (!photos.length || !pos) { showToast(t('stickers.form.needLocation'), 'error'); return }
+        if (!canSave) { showToast(t('stickers.form.needLocation'), 'error'); return }
         setSaving(true)
         try {
+            if (split) {
+                if (await saveSplit()) { showToast(t('stickers.savedMany').replace('{n}', String(photos.length))); onSaved() }
+                return
+            }
+            if (!pos) return
             const body = {
                 media_urls: photos.map(p => p.url), place_name: place.trim(), latitude: pos.latitude, longitude: pos.longitude,
                 caption: caption.trim(), stuck_on: day,
@@ -129,6 +157,17 @@ function StickerForm({sticker, onClose, onSaved}: {
                title={t(sticker ? 'stickers.form.edit' : 'stickers.form.new')}>
             <div className="flex flex-col gap-3">
                 <PhotoPicker photos={photos} onChange={setPhotos} onFiles={handleFiles}/>
+                {!sticker && photos.length > 1 && (
+                    <div role="group" aria-label={t('stickers.form.mode')} className="flex flex-col gap-1">
+                        <div className="flex gap-2">
+                            <button type="button" className={mode === 'one' ? 'chip active' : 'chip'} aria-pressed={mode === 'one'}
+                                    onClick={() => setMode('one')}>{t('stickers.form.modeOne')}</button>
+                            <button type="button" className={mode === 'split' ? 'chip active' : 'chip'} aria-pressed={mode === 'split'}
+                                    onClick={() => setMode('split')}>{t('stickers.form.modeSplit')}</button>
+                        </div>
+                        {mode === 'split' && <p className="text-sm text-muted">{t('stickers.form.modeSplitHint')}</p>}
+                    </div>
+                )}
                 {photos.length > 0 && (<>
                     <div>
                         <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
@@ -195,6 +234,7 @@ export function StickersPage() {
     const [openComment, setOpenComment] = useState<number | null>(null)
     const [highlightComment, setHighlightComment] = useState<number | null>(null)
     const [target, setTarget] = useState<number | null>(null)
+    const [q, setQ] = useState('')
     const hashVersion = useDeepLinkVersion()
 
     const {data: stickers = [], isLoading} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers})
@@ -205,6 +245,7 @@ export function StickersPage() {
         const item = params.get('item')
         if (!item) return
         const comment = params.get('comment')
+        setQ('')
         setTarget(parseInt(item, 10))
         setHighlightComment(comment ? parseInt(comment, 10) : null)
         clearHashParams()
@@ -217,6 +258,8 @@ export function StickersPage() {
         setTarget(null)
         return stop
     }, [target, tab, stickers]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const shown = q.trim() ? stickers.filter(s => matchesSticker(s, q)) : stickers
 
     async function refresh() { await qc.invalidateQueries({queryKey: ['stickers']}) }
 
@@ -242,6 +285,7 @@ export function StickersPage() {
                 <ModeToggle value={tab} onChange={v => setTab(v as 'feed' | 'map')}
                             options={[{value: 'feed', label: t('stickers.view.feed')},
                                       {value: 'map', label: t('stickers.view.map')}]}/>
+                {stickers.length > 0 && <SearchInput className="mb-2" value={q} onChange={setQ} placeholder={t('stickers.search')}/>}
                 {stickers.length > 0 && (
                     <p className="text-sm text-muted mb-2">
                         {t('stickers.count').replace('{n}', String(stickers.length))
@@ -254,18 +298,20 @@ export function StickersPage() {
                 {isLoading && <SkeletonCard className="mb-2"/>}
                 {!isLoading && stickers.length === 0 && <Empty icon="🏷️" text={t('stickers.none')}/>}
 
-                {tab === 'map' && stickers.length > 0 && (
+                {stickers.length > 0 && shown.length === 0 && <Empty icon="🔍" text={t('stickers.search.empty')}/>}
+
+                {tab === 'map' && shown.length > 0 && (
                     <MapBox online={online}>
-                        <StickerMap stickers={stickers} attribution={t('stickers.map.attribution')}
+                        <StickerMap stickers={shown} attribution={t('stickers.map.attribution')}
                                     openLabel={t('stickers.map.open')}
                                     className="w-full h-[60vh] rounded-xl overflow-hidden border border-line"
-                                    onOpen={id => { setTarget(id); setTab('feed') }}/>
+                                    onOpen={id => { setQ(''); setTarget(id); setTab('feed') }}/>
                     </MapBox>
                 )}
 
                 {tab === 'feed' && (
                     <div className="flex flex-col gap-3">
-                        {stickers.map(s => (
+                        {shown.map(s => (
                             <div key={s.id} id={`sticker-${s.id}`} className="kce-card p-4">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="flex-1 min-w-0">

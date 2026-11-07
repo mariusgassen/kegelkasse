@@ -4,13 +4,16 @@
  * everything chosen. Each photo can be edited (rotate/crop) or removed.
  */
 import {useRef, useState} from 'react'
-import {Crop, ImagePlus, Loader2, Trash2} from 'lucide-react'
+import {ChevronLeft, ChevronRight, Crop, ImagePlus, Loader2, Trash2} from 'lucide-react'
 import {uploadMedia} from '@/api/client.ts'
 import {useT} from '@/i18n'
 import {toastError} from '@/utils/error.ts'
+import {LazyImage} from '@/components/ui/LazyImage.tsx'
+import {thumbUrl} from '@/lib/mediaUrl.ts'
 import {PhotoEditor} from './PhotoEditor.tsx'
 
-export interface Photo { url: string }
+/** `file` is the original the member picked (kept for its EXIF data; an edit does not replace it). */
+export interface Photo { url: string; file?: File }
 export const MAX_PHOTOS = 10
 
 interface Props {
@@ -36,7 +39,7 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
         setBusy(true)
         const next = [...photos]
         try {
-            for (const f of files) next.push({url: await uploadMedia(f)})
+            for (const f of files) next.push({url: await uploadMedia(f), file: f})
         } catch (err) {
             toastError(err)
         } finally {
@@ -51,11 +54,21 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
         setSel(Math.max(0, i - 1))
     }
 
+    function move(dir: -1 | 1) {
+        const i = Math.min(sel, photos.length - 1)
+        const j = i + dir
+        if (j < 0 || j >= photos.length) return
+        const next = [...photos]
+        ;[next[i], next[j]] = [next[j], next[i]]
+        onChange(next)
+        setSel(j)
+    }
+
     async function applyEdit(file: File) {
         try {
             const url = await uploadMedia(file)
             const i = Math.min(sel, photos.length - 1)
-            onChange(photos.map((p, k) => k === i ? {url} : p))
+            onChange(photos.map((p, k) => k === i ? {...p, url} : p))
             setEditing(false)
         } catch (err) {
             toastError(err)
@@ -87,8 +100,8 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
         <div className="flex flex-col gap-2">
             {fileInput}
             <div className="relative rounded-2xl overflow-hidden border border-line bg-canvas">
-                <img src={current.url} alt={`${t('stickers.form.photo')} ${sel + 1}`}
-                     className="w-full max-h-[45vh] object-contain"/>
+                <LazyImage src={current.url} alt={`${t('stickers.form.photo')} ${sel + 1}`}
+                           className="mx-auto max-w-full max-h-[45vh] object-contain" placeholderClassName="aspect-[4/3]"/>
                 {photos.length > 1 && (
                     <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-accent text-on-accent text-xs font-bold">
                         {Math.min(sel, photos.length - 1) + 1}/{photos.length}
@@ -108,7 +121,7 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
                                 aria-pressed={i === sel}
                                 className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
                                     i === sel ? 'border-accent' : 'border-line'}`}>
-                            <img src={p.url} alt="" className="w-full h-full object-cover"/>
+                            <img src={thumbUrl(p.url, 240)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover"/>
                             <span className="absolute bottom-0 right-0 px-1.5 text-xs font-bold bg-accent text-on-accent rounded-tl">
                                 {i + 1}
                             </span>
@@ -133,6 +146,16 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
                         onClick={remove} disabled={busy}>
                     <Trash2 size={16} aria-hidden="true"/> {t('stickers.form.removePhoto')}
                 </button>
+                {photos.length > 1 && (<>
+                    <button type="button" className="btn-secondary btn-xs flex items-center" onClick={() => move(-1)}
+                            disabled={busy || sel <= 0} aria-label={t('stickers.form.moveLeft')}>
+                        <ChevronLeft size={16} aria-hidden="true"/>
+                    </button>
+                    <button type="button" className="btn-secondary btn-xs flex items-center" onClick={() => move(1)}
+                            disabled={busy || sel >= photos.length - 1} aria-label={t('stickers.form.moveRight')}>
+                        <ChevronRight size={16} aria-hidden="true"/>
+                    </button>
+                </>)}
             </div>
             {editing && <PhotoEditor src={current.url} onCancel={() => setEditing(false)} onApply={applyEdit}/>}
         </div>

@@ -74,7 +74,7 @@ describe('PhotoPicker', () => {
         fireEvent.click(screen.getByText('action.edit'))
         fireEvent.click(screen.getByText('apply-edit'))
         await waitFor(() => expect(screen.queryByText('apply-edit')).not.toBeInTheDocument())
-        expect(screen.getByAltText('stickers.form.photo 1')).toHaveAttribute('src', '/uploads/media/p1.jpg')
+        expect(screen.getByAltText('stickers.form.photo 1')).toHaveAttribute("src", "/uploads/media/p1.jpg?w=960")
     })
 
     it('keeps the photo when the edit is cancelled', () => {
@@ -89,5 +89,22 @@ describe('PhotoPicker', () => {
         const ten = Array.from({length: 10}, (_, i) => ({url: `/${i}`}))
         render(<Harness initial={ten}/>)
         expect(screen.queryByLabelText('stickers.form.addPhotos')).not.toBeInTheDocument()
+    })
+
+    it('moves the selected photo and keeps it selected', () => {
+        render(<Harness initial={[{url: '/1'}, {url: '/2'}, {url: '/3'}]}/>)
+        fireEvent.click(screen.getByLabelText('stickers.form.photo 1'))
+        expect(screen.getByLabelText('stickers.form.moveLeft')).toBeDisabled()
+        fireEvent.click(screen.getByLabelText('stickers.form.moveRight'))
+        expect(screen.getByText('2/3')).toBeInTheDocument()
+        expect(screen.getByAltText('stickers.form.photo 2')).toHaveAttribute('src', '/1')
+        fireEvent.click(screen.getByLabelText('stickers.form.moveRight'))
+        expect(screen.getByLabelText('stickers.form.moveRight')).toBeDisabled()
+        expect(screen.getByLabelText('stickers.form.photo 3')).toBeInTheDocument()
+    })
+
+    it('hides the move buttons for a single photo', () => {
+        render(<Harness initial={[{url: '/1'}]}/>)
+        expect(screen.queryByLabelText('stickers.form.moveLeft')).not.toBeInTheDocument()
     })
 })

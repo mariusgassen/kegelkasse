@@ -2,18 +2,21 @@ import {useEffect, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {X} from 'lucide-react'
 import {useT} from '@/i18n'
+import {LazyImage} from '@/components/ui/LazyImage.tsx'
 
 interface ZoomableImageProps {
     src: string
     alt?: string
     className?: string
+    /** Classes for the placeholder box shown while the photo loads. */
+    placeholderClassName?: string
 }
 
 /**
  * Drop-in replacement for a content `<img>` (comment/highlight/announcement photos) that opens
  * a fullscreen viewer on tap — the thumbnail itself never grows past its usual card size.
  */
-export function ZoomableImage({src, alt = '', className}: ZoomableImageProps) {
+export function ZoomableImage({src, alt = '', className, placeholderClassName}: ZoomableImageProps) {
     const t = useT()
     const [open, setOpen] = useState(false)
     return (
@@ -24,7 +27,7 @@ export function ZoomableImage({src, alt = '', className}: ZoomableImageProps) {
                 aria-label={t('media.viewFullscreen')}
                 className="block cursor-zoom-in"
             >
-                <img src={src} alt={alt} className={className}/>
+                <LazyImage src={src} alt={alt} className={className} placeholderClassName={placeholderClassName}/>
             </button>
             {open && <Lightbox src={src} alt={alt} onClose={() => setOpen(false)}/>}
         </>
@@ -69,11 +72,14 @@ function Lightbox({src, alt, onClose}: {src: string; alt: string; onClose: () =>
                 if (e.target === e.currentTarget) onClose()
             }}
         >
-            <img
+            <LazyImage
                 src={src}
                 alt={alt}
+                width={1600}
+                eager
                 className="object-contain"
                 style={{maxWidth: '94vw', maxHeight: '90vh'}}
+                placeholderClassName="w-[60vw] h-[40vh]"
             />
             <button
                 ref={closeRef}

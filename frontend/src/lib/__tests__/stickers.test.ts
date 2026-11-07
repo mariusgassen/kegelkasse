@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {groupByPlace, groupPhotos, placeCount} from '../stickers'
+import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount} from '../stickers'
 import type {Sticker} from '@/types.ts'
 
 const s = (id: number, lat: number, lon: number, place = 'X'): Sticker => ({
@@ -25,5 +25,41 @@ describe('groupPhotos', () => {
         const a = {...s(2, 1, 1), media_urls: ['/a1', '/a2']}
         const b = {...s(1, 1, 1), media_urls: ['/b1']}
         expect(groupPhotos(groupByPlace([a, b])[0])).toEqual(['/a1', '/a2', '/b1'])
+    })
+})
+
+describe('clusterByZoom', () => {
+    const lisbon = s(3, 38.72, -9.14, 'Lisbon')
+    const porto = s(2, 41.15, -8.61, 'Porto')
+    const rome = s(1, 41.9, 12.5, 'Rome')
+
+    it('merges neighbouring places when zoomed out and splits them when zoomed in', () => {
+        const out = clusterByZoom([lisbon, porto, rome], 1)
+        expect(out).toHaveLength(1)
+        expect(out[0].places).toBe(3)
+        expect(out[0].stickers.map(x => x.id)).toEqual([3, 2, 1])
+        expect(out[0].place_name).toBe('Lisbon +2')
+        expect(clusterByZoom([lisbon, porto, rome], 10)).toHaveLength(3)
+    })
+    it('keeps same-place stickers together at every zoom and positions at the centroid', () => {
+        const a = s(2, 10, 10, 'A'), b = s(1, 10.0004, 10.0004, 'A')
+        const c = clusterByZoom([a, b], 12)
+        expect(c).toHaveLength(1)
+        expect(c[0].places).toBe(1)
+        expect(c[0].latitude).toBeCloseTo(10.0002, 4)
+    })
+    it('handles no stickers and the poles', () => {
+        expect(clusterByZoom([], 5)).toEqual([])
+        expect(clusterByZoom([s(1, 90, 0)], 5)).toHaveLength(1)
+    })
+})
+
+describe('matchesSticker', () => {
+    const x = {...s(1, 1, 1, 'Lissabon, Portugal'), caption: 'Laternenmast', created_by_name: 'Pudel'}
+    it('matches place, caption and author, every word, case-insensitive', () => {
+        expect(matchesSticker(x, 'lissabon')).toBe(true)
+        expect(matchesSticker(x, 'LATERNE pudel')).toBe(true)
+        expect(matchesSticker(x, 'lissabon rom')).toBe(false)
+        expect(matchesSticker(x, '')).toBe(true)
     })
 })
