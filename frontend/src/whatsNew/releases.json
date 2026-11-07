@@ -1,6 +1,139 @@
 {
   "releases": [
     {
+      "version": "1.73.0",
+      "date": "2026-11-07",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "049f7a8",
+              "pr": 541,
+              "sha": "049f7a8",
+              "text": {
+                "en": "ask to enable notifications on first launch",
+                "de": "beim ersten Start fragen, ob Benachrichtigungen aktiviert werden sollen"
+              }
+            },
+            {
+              "key": "e029595",
+              "pr": 551,
+              "sha": "e029595",
+              "text": {
+                "en": "faster sticker photos with blurred placeholders, reorder, split posts, feed search and zoom-based map clusters",
+                "de": "schnellere Sticker-Fotos mit unscharfen Platzhaltern, Sortieren, Beiträge teilen, Feed-Suche und zoomabhängige Karten-Cluster"
+              }
+            },
+            {
+              "key": "d3a5bdc",
+              "pr": 546,
+              "sha": "d3a5bdc",
+              "text": {
+                "en": "find stickers in search and link them from AI answers",
+                "de": "Sticker in der Suche finden und in KI-Antworten verlinken"
+              }
+            },
+            {
+              "key": "02c60d2",
+              "pr": 552,
+              "sha": "02c60d2",
+              "text": {
+                "en": "link the component book from profile settings and add a shared Switch",
+                "de": "Bauteile-Buch in den Profileinstellungen verlinken und einen gemeinsamen Switch hinzufügen"
+              }
+            },
+            {
+              "key": "f10812a",
+              "pr": 542,
+              "sha": "f10812a",
+              "text": {
+                "en": "prefill sticker place and date from the photo, add sticker notifications and digest section",
+                "de": "Ort und Datum des Stickers aus dem Foto vorausfüllen, Sticker-Benachrichtigungen und Übersicht im Digest ergänzen"
+              }
+            },
+            {
+              "key": "fc6fd5c",
+              "pr": 548,
+              "sha": "fc6fd5c",
+              "text": {
+                "en": "several photos per sticker with a photo picker, basic editor and photo pins on the map",
+                "de": "mehrere Fotos pro Sticker mit Fotoauswahl, einfachem Editor und Foto-Pins auf der Karte"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "8b7804c",
+              "pr": 553,
+              "sha": "8b7804c",
+              "text": {
+                "en": "count members without RSVP as attending for the next evening",
+                "de": "Mitglieder ohne Rückmeldung beim nächsten Kegelabend als anwesend zählen"
+              }
+            },
+            {
+              "key": "52e8879",
+              "pr": 545,
+              "sha": "52e8879",
+              "text": {
+                "en": "installed app now checks for new versions on its own",
+                "de": "installierte App sucht jetzt selbstständig nach neuen Versionen"
+              }
+            },
+            {
+              "key": "ef1f75f",
+              "pr": 556,
+              "sha": "ef1f75f",
+              "text": {
+                "en": "keep the sticker map beneath the new-sticker sheet",
+                "de": "Sticker-Karte unter dem Fenster für neue Sticker sichtbar lassen"
+              }
+            },
+            {
+              "key": "b1d97ac",
+              "pr": 547,
+              "sha": "b1d97ac",
+              "text": {
+                "en": "open documentation links from search in the system browser",
+                "de": "Links zur Dokumentation aus der Suche im Systembrowser öffnen"
+              }
+            },
+            {
+              "key": "a734fe6",
+              "pr": 543,
+              "sha": "a734fe6",
+              "text": {
+                "en": "show expired and decided guest requests only as a small collapsed line",
+                "de": "abgelaufene und entschiedene Gast-Anfragen nur noch als kleine, eingeklappte Zeile anzeigen"
+              }
+            },
+            {
+              "key": "3960c31",
+              "pr": 550,
+              "sha": "3960c31",
+              "text": {
+                "en": "show settled guest requests as a plain '+ N settled' line and keep the heading",
+                "de": "erledigte Gast-Anfragen als einfache Zeile „+ N erledigt“ anzeigen und die Überschrift behalten"
+              }
+            },
+            {
+              "key": "40ee44e",
+              "pr": 554,
+              "sha": "40ee44e",
+              "text": {
+                "en": "sticker photo viewer sharing, swiping and faster photo loading",
+                "de": "Sticker-Fotoansicht mit Teilen, Wischen und schnellerem Laden der Fotos"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.72.0",
       "date": "2026-11-06",
       "sections": [
