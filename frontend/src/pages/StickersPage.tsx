@@ -324,16 +324,16 @@ export function StickersPage() {
                 {tab === 'feed' && (
                     <div className="flex flex-col gap-3">
                         {shown.map(s => (
-                            <div key={s.id} id={`sticker-${s.id}`} className="kce-card p-4">
-                                <div className="flex items-start justify-between gap-2">
+                            <div key={s.id} id={`sticker-${s.id}`} className="kce-card p-3">
+                                <div className="flex items-center justify-between gap-2">
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-ink text-sm leading-snug flex items-center gap-1">
-                                            <MapPin size={16} aria-hidden="true" className="flex-shrink-0"/>
-                                            <span className="truncate">{s.place_name}</span>
-                                        </p>
-                                        <p className="text-xs text-muted mt-0.5">
-                                            {s.stuck_on && <span>{t('stickers.stuckOn')} {fDay(s.stuck_on, locale)} · </span>}
-                                            {s.created_by_name && <span>{t('stickers.by')} {s.created_by_name}</span>}
+                                        <p className="text-sm leading-snug truncate">
+                                            <MapPin size={14} aria-hidden="true" className="inline -mt-0.5 mr-1"/>
+                                            <span className="font-bold text-ink">{s.place_name}</span>
+                                            <span className="text-xs text-muted">
+                                                {s.stuck_on && <> · {fDay(s.stuck_on, locale)}</>}
+                                                {s.created_by_name && <> · {s.created_by_name}</>}
+                                            </span>
                                         </p>
                                     </div>
                                     {s.can_edit && (
