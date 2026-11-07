@@ -36,6 +36,7 @@ vi.mock('@/store/app.ts', () => ({
 const mockApi = {
     listEvenings: vi.fn().mockResolvedValue([{id: 10, date: '2026-03-15', venue: 'Kegelbahn Nord'}]),
     listAnnouncements: vi.fn().mockResolvedValue([{id: 20, title: 'Sommerfest', text: null}]),
+    listStickers: vi.fn().mockResolvedValue([]),
     listTrips: vi.fn().mockResolvedValue([{id: 30, destination: 'Rhein-Fahrt', date: '2026-06-01', note: null}]),
     getAllPayments: vi.fn().mockResolvedValue([
         {id: 100, member_name: 'Hans Müller', amount: 20, note: 'Eintrittsbeitrag', date: '2026-03-01', created_at: null},
@@ -83,7 +84,7 @@ describe('GlobalSearch', () => {
 
     it('links to the documentation', async () => {
         await renderSearch()
-        expect(screen.getByTestId('search-docs-link')).toHaveAttribute('href', '/docs/')
+        expect(screen.getByTestId('search-docs-link').getAttribute('href')).toMatch(/\/docs\/index\.html$/)
     })
 
     it('shows no results/groups before typing a query', async () => {

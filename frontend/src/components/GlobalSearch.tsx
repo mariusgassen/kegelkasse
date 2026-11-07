@@ -1,4 +1,6 @@
 import {useSearchStore} from '@/store/search.ts'
+import {currentExternalHref} from '@/lib/externalLink'
+import {detectStandalone} from '@/hooks/usePwaInstall'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {Sheet} from '@/components/ui/Sheet'
@@ -14,6 +16,7 @@ import {
     searchEvenings,
     searchAnnouncements,
     searchTrips,
+    searchStickers,
     searchBookings,
     type SearchResult,
 } from '@/lib/globalSearch'
@@ -23,7 +26,7 @@ interface Props {
     onClose: () => void
 }
 
-type GroupKey = 'member' | 'account' | 'evening' | 'booking' | 'announcement' | 'trip'
+type GroupKey = 'member' | 'account' | 'evening' | 'booking' | 'announcement' | 'trip' | 'sticker'
 
 const GROUP_ICON: Record<GroupKey, string> = {
     member: '🧑',
@@ -32,6 +35,7 @@ const GROUP_ICON: Record<GroupKey, string> = {
     booking: '📒',
     announcement: '📣',
     trip: '🚌',
+    sticker: '🏷️',
 }
 
 export function GlobalSearch({open, onClose}: Props) {
@@ -46,6 +50,7 @@ export function GlobalSearch({open, onClose}: Props) {
     const {data: evenings = []} = useQuery({queryKey: ['evenings'], queryFn: api.listEvenings, enabled: open, staleTime: 60000})
     const {data: announcements = []} = useQuery({queryKey: ['announcements'], queryFn: api.listAnnouncements, enabled: open, staleTime: 60000})
     const {data: trips = []} = useQuery({queryKey: ['trips'], queryFn: api.listTrips, enabled: open, staleTime: 60000})
+    const {data: stickers = []} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers, enabled: open, staleTime: 60000})
     const {data: payments = []} = useQuery({queryKey: ['member-payments'], queryFn: api.getAllPayments, enabled: open, staleTime: 60000})
     const {data: expenses = []} = useQuery({queryKey: ['club-expenses'], queryFn: api.getExpenses, enabled: open, staleTime: 60000})
 
@@ -69,7 +74,8 @@ export function GlobalSearch({open, onClose}: Props) {
         {key: 'booking', label: t('search.bookings'), results: searchBookings(query, payments, expenses, locale)},
         {key: 'announcement', label: t('search.announcements'), results: searchAnnouncements(query, announcements)},
         {key: 'trip', label: t('search.trips'), results: searchTrips(query, trips, locale)},
-    ]), [query, regularMembers, evenings, announcements, trips, payments, expenses, locale, t])
+        {key: 'sticker', label: t('search.stickers'), results: searchStickers(query, stickers)},
+    ]), [query, regularMembers, evenings, announcements, trips, stickers, payments, expenses, locale, t])
 
     const hasQuery = query.trim().length > 0
     const totalResults = groups.reduce((sum, g) => sum + g.results.length, 0)
@@ -119,7 +125,7 @@ export function GlobalSearch({open, onClose}: Props) {
                     </div>
                 ))}
             </div>
-            <a href="/docs/" target="_blank" rel="noopener"
+            <a href={currentExternalHref('/docs/index.html', detectStandalone())} target="_blank" rel="noopener"
                className="mt-3 text-xs text-muted flex items-center justify-center gap-1" data-testid="search-docs-link">
                 <BookOpen size={14} aria-hidden/> {t('search.docs')}
             </a>

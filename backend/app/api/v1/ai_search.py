@@ -40,6 +40,7 @@ from models.evening import Evening, RegularMember
 from models.game import GameTemplate
 from models.penalty import PenaltyType
 from models.schedule import MemberRsvp, ScheduledEvening
+from models.sticker import Sticker
 from models.user import User, UserRole
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -85,6 +86,10 @@ TARGETS: dict[str, Target] = {
     "committee.poll": Target("/committee", (("tab", "polls"),), "Eine Abstimmung",
                              id_param="item", id_kind="umfrage"),
     "members": Target("/members", desc="Verein → Mitglieder"),
+    "stickers": Target("/stickers", (("tab", "feed"),), "Verein → Sticker-Wand (Feed)"),
+    "stickers.map": Target("/stickers", (("tab", "map"),), "Verein → Sticker-Wand (Weltkarte)"),
+    "sticker": Target("/stickers", (("tab", "feed"),), "Ein Sticker in der Sticker-Wand",
+                      id_param="item", id_kind="sticker"),
     "stats.evening": Target("/stats", (("tab", "evening"),), "Statistik → Abend"),
     "stats.year": Target("/stats", (("tab", "year"),), "Statistik → Jahr (Ranking, Podium)"),
     "stats.lab": Target("/stats", (("tab", "lab"),), "Statistik → Labor (Rekorde, Kopf-an-Kopf)"),
@@ -180,7 +185,7 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
     links to an item can be checked. No e-mails and no money per person."""
     cid = user.club_id
     now = wall_now()
-    ids: dict[str, set[int]] = {k: set() for k in ("termin", "abend", "ankuendigung", "fahrt", "umfrage")}
+    ids: dict[str, set[int]] = {k: set() for k in ("termin", "abend", "ankuendigung", "fahrt", "umfrage", "sticker")}
     club = db.get(Club, cid)
     me = db.get(RegularMember, user.regular_member_id) if user.regular_member_id else None
 
@@ -244,6 +249,11 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         ids["fahrt"].add(tr.id)
     for p in polls:
         ids["umfrage"].add(p.id)
+    stickers = db.query(Sticker).filter(
+        Sticker.club_id == cid, Sticker.is_deleted == False,  # noqa: E712
+    ).order_by(Sticker.created_at.desc()).limit(8).all()
+    for st in stickers:
+        ids["sticker"].add(st.id)
 
     facts = {
         "verein": club.name if club else None,
@@ -268,6 +278,7 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         "kegelfahrten": [{"id": tr.id, "ziel": tr.destination, "von": _wall(tr.date)[:10],
                           "bis": _wall(tr.end_date)[:10] if tr.end_date else None, "notiz": _snip(tr.note, 200)}
                          for tr in trips],
+        "sticker": [{"id": st.id, "ort": st.place_name, "text": _snip(st.caption, 120)} for st in stickers],
         "abstimmungen": [{"id": p.id, "titel": p.title, "offen": not p.is_closed} for p in polls],
         "mitglieder": sorted(
             [{"name": _alias(m, m.name), "vga": bool(m.is_committee), "kassenpruefer": bool(m.is_auditor),

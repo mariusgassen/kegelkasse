@@ -1,5 +1,7 @@
 import {router} from '@/router'
 import type {AiLink} from '@/types.ts'
+import {openExternal} from '@/lib/externalLink'
+import {detectStandalone} from '@/hooks/usePwaInstall'
 
 /** Window event that opens the profile sheet (it is an overlay, not a route). */
 export const OPEN_PROFILE_EVENT = 'kegelkasse:open-profile'
@@ -14,7 +16,7 @@ export type OpenProfileDetail = { tab?: 'season' | 'settings' }
  */
 export function followAiLink(link: AiLink): boolean {
     if (link.kind === 'docs') {
-        window.open(link.url, '_blank', 'noopener')
+        openExternal(link.url, detectStandalone())
         return false
     }
     if (link.kind === 'profile') {
