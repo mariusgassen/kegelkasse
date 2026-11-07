@@ -1479,6 +1479,12 @@ export const de = {
     "media.remove": "Bild entfernen",
     "media.captionHint": "Optional: Bildunterschrift hinzufügen",
     "media.viewFullscreen": "Bild in voller Größe anzeigen",
+    "media.copyLink": "Link kopieren",
+    "media.saveLocal": "Lokal speichern",
+    "media.share": "Teilen",
+    "media.linkCopied": "Link kopiert",
+    "media.copyFailed": "Kopieren fehlgeschlagen",
+    "media.saveFailed": "Speichern fehlgeschlagen",
 
     "season.tab": "Saisonabschluss",
     "season.title": "Saisonabschluss",

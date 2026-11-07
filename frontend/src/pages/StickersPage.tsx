@@ -5,7 +5,7 @@
  */
 import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {MapPin} from 'lucide-react'
+import {MapPin, Plus, Search} from 'lucide-react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
@@ -230,6 +230,7 @@ export function StickersPage() {
     const online = useOnline()
     const [tab, setTab] = useHashTab<'feed' | 'map'>('feed', ['feed', 'map'])
     const [form, setForm] = useState<Sticker | 'new' | null>(null)
+    const [searchOpen, setSearchOpen] = useState(false)
     const [delId, setDelId] = useState<number | null>(null)
     const [openComment, setOpenComment] = useState<number | null>(null)
     const [highlightComment, setHighlightComment] = useState<number | null>(null)
@@ -275,26 +276,37 @@ export function StickersPage() {
 
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
-            <div className="flex-shrink-0 px-3 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="sec-heading">{t('stickers.title')}</div>
-                    <button type="button" className="btn-primary btn-xs" onClick={() => setForm('new')}>
-                        + {t('stickers.add')}
-                    </button>
+            <div className="flex-shrink-0 px-3 pt-2 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <ModeToggle value={tab} onChange={v => setTab(v as 'feed' | 'map')}
+                                options={[{value: 'feed', label: t('stickers.view.feed')},
+                                          {value: 'map', label: t('stickers.view.map')}]}/>
                 </div>
-                <ModeToggle value={tab} onChange={v => setTab(v as 'feed' | 'map')}
-                            options={[{value: 'feed', label: t('stickers.view.feed')},
-                                      {value: 'map', label: t('stickers.view.map')}]}/>
-                {stickers.length > 0 && <SearchInput className="mb-2" value={q} onChange={setQ} placeholder={t('stickers.search')}/>}
                 {stickers.length > 0 && (
-                    <p className="text-sm text-muted mb-2">
+                    <button type="button" onClick={() => setSearchOpen(o => !o)} aria-label={t('stickers.search')}
+                            aria-expanded={searchOpen || q !== ''}
+                            className="btn-secondary w-10 h-10 flex-shrink-0 flex items-center justify-center p-0">
+                        <Search size={18} aria-hidden="true"/>
+                    </button>
+                )}
+                <button type="button" className="btn-primary w-10 h-10 flex-shrink-0 flex items-center justify-center p-0"
+                        onClick={() => setForm('new')} aria-label={t('stickers.add')}>
+                    <Plus size={20} aria-hidden="true"/>
+                </button>
+            </div>
+            {stickers.length > 0 && (searchOpen || q !== '') && (
+                <div className="flex-shrink-0 px-3 pt-2">
+                    <SearchInput value={q} onChange={setQ} placeholder={t('stickers.search')}/>
+                </div>
+            )}
+
+            <div className="page-scroll px-3 pt-2 pb-24">
+                {stickers.length > 0 && (
+                    <p className="text-xs text-muted mb-2">
                         {t('stickers.count').replace('{n}', String(stickers.length))
                             .replace('{p}', String(placeCount(stickers)))}
                     </p>
                 )}
-            </div>
-
-            <div className="page-scroll px-3 pb-24">
                 {isLoading && <SkeletonCard className="mb-2"/>}
                 {!isLoading && stickers.length === 0 && <Empty icon="🏷️" text={t('stickers.none')}/>}
 
@@ -335,7 +347,8 @@ export function StickersPage() {
                                         />
                                     )}
                                 </div>
-                                <PhotoGallery urls={s.media_urls}/>
+                                <PhotoGallery urls={s.media_urls} title={s.place_name}
+                                              subtitle={s.stuck_on ? fDay(s.stuck_on, locale) : undefined}/>
                                 {s.caption && <p className="text-sm text-ink mt-2 whitespace-pre-wrap">{s.caption}</p>}
                                 <ItemReactionBar
                                     parentType="sticker" parentId={s.id}

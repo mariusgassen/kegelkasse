@@ -26,7 +26,7 @@ Bearbeiten und Löschen können der Autor und Admins über das ⋮-Menü der Kar
 ## Feed und Karte
 
 - **Suche** über dem Feed: nach Ort, Beschreibung oder Autor (gilt auch für die Karte).
-- **Feed**: neueste zuerst (nach dem Tag, an dem der Sticker geklebt wurde). Fotos öffnen per Tipp im Vollbild; mehrere Fotos eines Beitrags wischst du durch und sie sind mit 1/3, 2/3 … nummeriert; ❤️ und Kommentare funktionieren wie bei Neuigkeiten.
+- **Feed**: neueste zuerst (nach dem Tag, an dem der Sticker geklebt wurde). Fotos öffnen per Tipp im Vollbild (zum Schließen nach unten wischen; ein Tipp blendet Ort, Datum und das Teilen-Menü mit „Link kopieren“ und „Lokal speichern“ ein bzw. aus); mehrere Fotos eines Beitrags wischst du durch und sie sind mit 1/3, 2/3 … nummeriert; ❤️ und Kommentare funktionieren wie bei Neuigkeiten. Oben stehen nur Feed/Karte-Umschalter, Suche (Lupe) und ＋; die Anzahl steht über der Liste.
 - **Karte**: die Pins sind Fotos (das neueste am Ort); gibt es dort mehrere Fotos – auch von mehreren Stickern nahe beieinander –, zeigt eine Zahl am Pin, wie viele. Die Gruppierung hängt vom Zoom ab: herausgezoomt verschmelzen benachbarte Orte zu einem Pin, hineingezoomt trennen sie sich wieder. Ein Tipp auf eine Gruppe mehrerer Orte zoomt hinein; ein Tipp auf einen einzelnen Ort öffnet den Ort mit nummerierten Vorschaubildern, **Beitrag ansehen** springt zum neuesten Post dort.
 
 ## Benachrichtigungen und Zusammenfassung

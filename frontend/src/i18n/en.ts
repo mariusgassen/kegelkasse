@@ -1479,6 +1479,12 @@ export const en = {
     "media.remove": "Remove image",
     "media.captionHint": "Optional: add a caption",
     "media.viewFullscreen": "View image fullscreen",
+    "media.copyLink": "Copy link",
+    "media.saveLocal": "Save to device",
+    "media.share": "Share",
+    "media.linkCopied": "Link copied",
+    "media.copyFailed": "Copy failed",
+    "media.saveFailed": "Save failed",
 
     "season.tab": "Season Close",
     "season.title": "Season Closing",
