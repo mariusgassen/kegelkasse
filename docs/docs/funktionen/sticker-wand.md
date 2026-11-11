@@ -38,5 +38,5 @@ Bearbeiten und Löschen können der Autor und Admins über das ⋮-Menü der Kar
 
 - Bilder laden schnell: Beim Hochladen werden große Fotos auf höchstens 2048 Pixel verkleinert (Drehung aus den Fotodaten wird übernommen), Listen, Karte und Vorschauen laden kleinere Größen (im Hintergrund erzeugt und zwischengespeichert). Bis ein Foto da ist, zeigt die App eine unscharfe Vorschau statt einer leeren Fläche.
 
-- Die Karte nutzt CARTO-Kartenkacheln (auf Basis von OpenStreetMap-Daten) und braucht eine Internetverbindung; ohne Netz erscheint ein Hinweis, der Feed funktioniert weiter.
-- Außer den Kartenkacheln fragt dein Browser nur bei OpenStreetMap (Nominatim) nach dem Ortsnamen zur Foto-Position; es wird kein Foto und kein Nutzername übertragen.
+- Die Karte nutzt CARTO-Kartenkacheln (auf Basis von OpenStreetMap-Daten, über den Server geladen, damit `CARTO_API_KEY` auf dem Server bleibt) und braucht eine Internetverbindung; ohne Netz erscheint ein Hinweis, der Feed funktioniert weiter.
+- Für die automatische Ortsbestimmung fragt dein Browser bei OpenStreetMap (Nominatim) nach dem Ortsnamen zur Foto-Position; es wird kein Foto und kein Nutzername übertragen.

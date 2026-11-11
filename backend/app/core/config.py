@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     BACKUP_SCHEDULE: str = "0 2 * * *"  # daily full backup at 02:00 UTC
     BACKUP_RETAIN_FULL: int = 7          # number of full backup sets to retain
     PGB_MGMT_URL: str = "http://db:8089"
+    # CARTO basemap tiles for the sticker wall map — proxied by /api/v1/stickers/tiles/{z}/{x}/{y}.png
+    # so CARTO_API_KEY stays server-side.
+    CARTO_API_KEY: str = ""
+    CARTO_TILE_URL: str = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
 
     @property
     def sync_database_url(self) -> str:
