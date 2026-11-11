@@ -65,6 +65,7 @@ export interface ZeugwartSearch { item?: number }
 export interface MembersSearch { memberName?: string }
 export interface StickersSearch { tab?: 'feed' | 'map'; item?: number; comment?: number }
 export interface BookSearch { tab?: 'inventory' | 'guide' | 'components' }
+export interface RoadmapSearch { tab?: 'all' | 'planned' | 'in_progress' | 'idea' | 'completed'; item?: number }
 export interface StatsSearch { tab?: 'evening' | 'year' | 'lab' }
 
 const passThrough = <T,>(s: Record<string, unknown>): T => s as T
@@ -97,6 +98,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
     pageRoute('book', () => import('./pages/BookPage'), 'BookPage', passThrough<BookSearch>),
     pageRoute('zeugwart', () => import('./pages/ZeugwartPage'), 'ZeugwartPage', passThrough<ZeugwartSearch>),
+    pageRoute('roadmap', () => import('./pages/RoadmapPage'), 'RoadmapPage', passThrough<RoadmapSearch>),
 ])
 
 export const router = createRouter({
