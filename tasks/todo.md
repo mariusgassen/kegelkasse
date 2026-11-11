@@ -28,6 +28,9 @@ Merge-Aktion (nur Stammspieler).
       Club-Zugehörigkeit validieren (404 sonst — schließt Cross-Club-Verlinkung).
 - [x] `approve_guest_request` (`guest_requests.py`): gleicher Helper — der formularangemeldete
       Gast bekommt sofort einen (verlinkten oder neuen) `RegularMember`.
+- [x] Migration `071_backfill_guest_members.py`: migriert bestehende genehmigte Gastanfragen und
+      geplante Gäste ohne `regular_member_id` idempotent in `RegularMember`-Einträge bzw. verlinkt
+      sie mit namensgleichen bekannten Gästen.
 
 ## 2. Backend — Merge vollständig machen
 

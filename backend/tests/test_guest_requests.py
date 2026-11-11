@@ -358,3 +358,59 @@ class TestGuestRequestCategory:
             r = client.patch(f"/api/v1/schedule/{r.json()['id']}", json={"guest_requests_enabled": True},
                              headers=auth_headers)
         assert r.json()["guest_requests_enabled"] is True
+
+
+# ── Backfill migration (071) ────────────────────────────────────────────────
+
+class TestBackfillMigration:
+    def test_migration_backfills_unlinked_guests_and_approved_requests(self, db, club):
+        from pathlib import Path
+        import importlib.util
+        path = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "071_backfill_guest_members.py"
+        spec = importlib.util.spec_from_file_location("migration_071", path)
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        se = _evening(db, club)
+        # 1. Existing planned guest without regular_member_id (legacy row)
+        g1 = ScheduledEveningGuest(scheduled_evening_id=se.id, name="Alt-Gast Unverlinkt", regular_member_id=None)
+        # 2. Existing planned guest matching an already known guest
+        known = RegularMember(club_id=club.id, name="Bekannter Gast", nickname="Beki", is_guest=True, is_active=True)
+        db.add(known)
+        db.flush()
+        g2 = ScheduledEveningGuest(scheduled_evening_id=se.id, name="bekannter gast", regular_member_id=None)
+        # 3. Approved guest request without guest_id
+        req = GuestRequest(club_id=club.id, scheduled_evening_id=se.id, name="Formular Genehmigt",
+                           email="g@test.de", status="approved", guest_id=None)
+        db.add_all([g1, g2, req])
+        db.commit()
+
+        # Run migration upgrade with mocked op.get_bind()
+        with patch.object(migration.op, "get_bind", return_value=db.connection()):
+            migration.upgrade()
+            db.commit()
+
+        # Verify g1 got a newly created RegularMember
+        db.refresh(g1)
+        assert g1.regular_member_id is not None
+        rm1 = db.get(RegularMember, g1.regular_member_id)
+        assert rm1.name == "Alt-Gast Unverlinkt"
+        assert rm1.is_guest is True
+
+        # Verify g2 was linked to existing known guest
+        db.refresh(g2)
+        assert g2.regular_member_id == known.id
+        assert g2.name == "Beki"
+
+        # Verify req was created as RegularMember
+        rm_req = db.query(RegularMember).filter(
+            RegularMember.club_id == club.id, RegularMember.name == "Formular Genehmigt").first()
+        assert rm_req is not None
+        assert rm_req.is_guest is True
+
+        # Running again is idempotent (no duplicate members)
+        with patch.object(migration.op, "get_bind", return_value=db.connection()):
+            migration.upgrade()
+            db.commit()
+        assert db.query(RegularMember).filter(RegularMember.club_id == club.id).count() == 3
+
