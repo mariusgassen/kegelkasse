@@ -15,7 +15,7 @@ from models.game import GameTemplate
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog
 from models.schedule import ScheduledEvening, ScheduledEveningGuest, MemberRsvp, RsvpStatus
-from models.user import User, UserRole
+from models.user import User, UserRole, InviteToken
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +46,9 @@ def cleanup(db: Session, club: Club):
     db.query(GameTemplate).filter(GameTemplate.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubTeam).filter(ClubTeam.club_id == club.id).delete(synchronize_session=False)
     db.query(PenaltyType).filter(PenaltyType.club_id == club.id).delete(synchronize_session=False)
+    db.query(InviteToken).filter(InviteToken.club_id == club.id).delete(synchronize_session=False)
     # user cleanups for users created in this module (admin_user + member users linked to roster)
+    db.query(User).filter(User.club_id == club.id).update({User.regular_member_id: None}, synchronize_session=False)
     db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.query(User).filter(User.club_id == club.id, User.email.like("%ext%")).delete(synchronize_session=False)
     db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
@@ -257,6 +259,36 @@ class TestListRegularMembers:
         assert resp.status_code == 200
         ids = [m["id"] for m in resp.json()]
         assert regular_member.id in ids
+
+    def test_evening_count_returned(self, client: TestClient, auth_headers: dict, db: Session,
+                                    club: Club, regular_member: RegularMember):
+        # Create 2 evenings for this club, and 1 player in each evening for regular_member
+        ev1 = Evening(club_id=club.id, date=datetime.now(UTC))
+        ev2 = Evening(club_id=club.id, date=datetime.now(UTC))
+        db.add_all([ev1, ev2])
+        db.flush()
+        p1 = EveningPlayer(evening_id=ev1.id, regular_member_id=regular_member.id, name=regular_member.name)
+        p2 = EveningPlayer(evening_id=ev2.id, regular_member_id=regular_member.id, name=regular_member.name)
+        db.add_all([p1, p2])
+
+        # New guest with 0 evenings
+        guest = RegularMember(club_id=club.id, name="Fresh Guest", is_guest=True)
+        db.add(guest)
+        db.commit()
+
+        resp = client.get("/api/v1/club/regular-members", headers=auth_headers)
+        assert resp.status_code == 200
+        data = {m["id"]: m for m in resp.json()}
+        assert data[regular_member.id]["evening_count"] == 2
+        assert data[guest.id]["evening_count"] == 0
+
+        # Clean up
+        db.delete(p1)
+        db.delete(p2)
+        db.delete(ev1)
+        db.delete(ev2)
+        db.delete(guest)
+        db.commit()
 
     def test_requires_auth(self, client: TestClient):
         resp = client.get("/api/v1/club/regular-members")

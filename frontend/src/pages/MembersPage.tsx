@@ -360,6 +360,12 @@ export function MembersPage() {
         }
     }
 
+    function formatEveningCount(count?: number) {
+        if (!count) return t('member.eveningCountNone')
+        if (count === 1) return t('member.eveningCountSingular')
+        return t('member.eveningCountPlural').replace('{n}', String(count))
+    }
+
     const alreadyInEvening = new Set(evening?.players.map(p => p.regular_member_id).filter(Boolean))
     const linkedMemberIds = new Set(appUsers.map(u => u.regular_member_id).filter(Boolean))
     // Unlinked roster = not linked to any active app user
@@ -604,7 +610,7 @@ export function MembersPage() {
                             name={displayName}
                             avatar={m.avatar}
                             avatarVariant="muted"
-                            meta={<>{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</>}
+                            meta={<>{m.nickname ? m.name + ' · ' : ''}<span>{t('member.guestLabel')}</span> · <span>{formatEveningCount(m.evening_count)}</span></>}
                             trailing={inEvening
                                 ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
@@ -792,7 +798,7 @@ export function MembersPage() {
 
             {/* Merge roster sheet */}
             <Sheet open={mergeSheet} onClose={() => setMergeSheet(false)}
-                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" ${t('member.mergeWith')}`}>
+                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" (${formatEveningCount(mergeDiscard?.evening_count)}) ${t('member.mergeWith')}`}>
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-muted mb-1">
                         {t('member.mergeHint')}
@@ -803,7 +809,11 @@ export function MembersPage() {
                             <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
-                                {m.nickname && <div className="text-xs text-muted">{m.name}</div>}
+                                <div className="text-xs text-muted">
+                                    {m.nickname ? `${m.name} · ` : ''}
+                                    {m.is_guest ? <>{t('member.guestLabel')} · </> : null}
+                                    <span>{formatEveningCount(m.evening_count)}</span>
+                                </div>
                             </div>
                             <span className="text-xs text-muted">{t('member.keep')}</span>
                         </button>

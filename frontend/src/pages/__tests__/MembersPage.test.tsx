@@ -1134,6 +1134,42 @@ describe('MembersPage — guest merge', () => {
         const actionSheetEl = await openRowActions('Gustav Gast')
         expect(within(actionSheetEl).queryByText('⇄')).not.toBeInTheDocument()
     })
+
+    it('renders evening counts on guest cards and in merge sheet', async () => {
+        const guestsWithCounts = [
+            ...REGULAR_MEMBERS,
+            { id: 5, name: 'Gustav Empty', nickname: null, is_guest: true, is_active: true, evening_count: 0 },
+            { id: 6, name: 'Gustav Veteran', nickname: null, is_guest: true, is_active: true, evening_count: 3 },
+        ]
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: guestsWithCounts,
+            setRegularMembers: vi.fn(),
+        } as any)
+
+        await renderMembersPage()
+        // Check guest cards show evening count
+        await waitFor(() => {
+            expect(screen.getAllByText('member.eveningCountNone').length).toBeGreaterThan(0)
+            expect(screen.getByText('member.eveningCountPlural')).toBeInTheDocument()
+        })
+
+        // Open merge sheet on empty guest
+        const actionSheetEl = await openRowActions('Gustav Empty')
+        fireEvent.click(within(actionSheetEl).getByText('⇄'))
+        const mergeSheet = await screen.findByTestId('sheet')
+
+        // Merge sheet should show candidate with its evening count
+        await waitFor(() => {
+            expect(within(mergeSheet).getByText('Gustav Veteran')).toBeInTheDocument()
+            expect(within(mergeSheet).getByText('member.eveningCountPlural')).toBeInTheDocument()
+        })
+    })
 })
 
 describe('MembersPage — inactive toggle details', () => {

@@ -316,24 +316,37 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
 
 # ── Regular members (Stammspieler) — admin write, all read ──
 
-def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
+def _member_dict(m: RegularMember, avatar: str | None = None, evening_count: int = 0) -> dict:
     return {"id": m.id, "name": m.name, "nickname": m.nickname,
             "is_guest": m.is_guest, "is_active": m.is_active,
             "is_committee": m.is_committee, "is_auditor": bool(m.is_auditor),
             "is_zeugwart": bool(m.is_zeugwart), "avatar": avatar,
-            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None}
+            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None,
+            "evening_count": evening_count}
 
 
 @router.get("/regular-members")
 def list_regular_members(include_inactive: bool = False, db: Session = Depends(get_db),
                          user: User = Depends(require_club_member)):
-    q = (db.query(RegularMember, User.avatar)
+    evening_subq = (
+        db.query(
+            EveningPlayer.regular_member_id.label("mid"),
+            func.count(func.distinct(EveningPlayer.evening_id)).label("count"),
+        )
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
+        .group_by(EveningPlayer.regular_member_id)
+        .subquery()
+    )
+
+    q = (db.query(RegularMember, User.avatar, func.coalesce(evening_subq.c.count, 0))
          .outerjoin(User, User.id == RegularMember.user_id)
+         .outerjoin(evening_subq, evening_subq.c.mid == RegularMember.id)
          .filter(RegularMember.club_id == user.club_id))
     if not include_inactive:
         q = q.filter(RegularMember.is_active == True)
     rows = q.order_by(RegularMember.name).all()
-    return [_member_dict(m, avatar) for m, avatar in rows]
+    return [_member_dict(m, avatar, int(count or 0)) for m, avatar, count in rows]
 
 
 class RegularMemberCreate(TrimmedModel):
@@ -362,7 +375,13 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
     m.nickname = data.nickname
     m.is_guest = data.is_guest
     db.commit()
-    return _member_dict(m)
+    count = (
+        db.query(func.count(func.distinct(EveningPlayer.evening_id)))
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
+        .scalar()
+    ) or 0
+    return _member_dict(m, evening_count=int(count))
 
 
 class DeactivateRegularMemberBody(TrimmedModel):
@@ -408,7 +427,13 @@ def deactivate_regular_member(mid: int, data: Optional[DeactivateRegularMemberBo
         from core.refresh import revoke_all_for_user
         revoke_all_for_user(db, linked_user.id)
     logger.info("Regular member deactivated: member=%d by admin=%d", mid, user.id)
-    return _member_dict(m)
+    count = (
+        db.query(func.count(func.distinct(EveningPlayer.evening_id)))
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
+        .scalar()
+    ) or 0
+    return _member_dict(m, evening_count=int(count))
 
 
 @router.post("/regular-members/{mid}/purge-penalties-since-deactivation")
