@@ -10,10 +10,14 @@ import {useEffect, useRef, useState} from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {thumbUrl} from '@/lib/mediaUrl.ts'
-import type {Sticker} from '@/types.ts'
+import type {MapStyle, Sticker} from '@/types.ts'
 import {clusterByZoom, groupPhotos} from '@/lib/stickers.ts'
 
 export const TILES = '/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}'
+
+export function tileUrl(style?: MapStyle | string): string {
+    return style && style !== 'voyager' ? `${TILES}&style=${encodeURIComponent(style)}` : TILES
+}
 
 export interface LatLng { latitude: number; longitude: number }
 
@@ -26,6 +30,7 @@ interface Props {
     picked?: LatLng | null
     onPick?: (p: LatLng) => void
     attribution?: string
+    mapStyle?: MapStyle | string
     className?: string
 }
 
@@ -89,26 +94,32 @@ function previewStrip(urls: string[]): HTMLElement {
     return row
 }
 
-export default function StickerMap({stickers = [], onOpen, openLabel = '', picked, onPick, className}: Props) {
+export default function StickerMap({stickers = [], onOpen, openLabel = '', picked, onPick, mapStyle = 'voyager', className}: Props) {
     const el = useRef<HTMLDivElement>(null)
     const map = useRef<L.Map | null>(null)
+    const tileLayer = useRef<L.TileLayer | null>(null)
     const layer = useRef<L.LayerGroup | null>(null)
     // Latest callbacks, so the long-lived Leaflet handlers never go stale.
     const cb = useRef({onOpen, onPick})
     cb.current = {onOpen, onPick}
     const fitted = useRef(false)
     const [zoom, setZoom] = useState(2)
+    const isClubTint = mapStyle === 'club_dark' || mapStyle === 'club_light'
 
     useEffect(() => {
         if (!el.current) return
         const m = L.map(el.current, {worldCopyJump: true, minZoom: 1, zoomControl: true, attributionControl: false}).setView([30, 10], 2)
-        L.tileLayer(TILES, {maxZoom: 19}).addTo(m)
+        tileLayer.current = L.tileLayer(tileUrl(mapStyle), {maxZoom: 19}).addTo(m)
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
         m.on('zoomend', () => setZoom(m.getZoom()))
         map.current = m
-        return () => { m.remove(); map.current = null; layer.current = null }
+        return () => { m.remove(); map.current = null; tileLayer.current = null; layer.current = null }
     }, [])
+
+    useEffect(() => {
+        tileLayer.current?.setUrl(tileUrl(mapStyle))
+    }, [mapStyle])
 
     useEffect(() => {
         const m = map.current
@@ -158,6 +169,21 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
         }
     }, [stickers, picked, onPick, openLabel, zoom])
 
-    return <div ref={el} className={`${className ?? 'w-full h-72 rounded-xl overflow-hidden border border-line'} isolate`}
-                role="region" aria-label="map"/>
+    return (
+        <div className={`${className ?? 'w-full h-72 rounded-xl overflow-hidden border border-line'} relative isolate`}>
+            <div ref={el} className="w-full h-full" role="region" aria-label="map"/>
+            {isClubTint && (
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                        zIndex: 250,
+                        background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary, var(--accent)))',
+                        mixBlendMode: mapStyle === 'club_dark' ? 'color' : 'soft-light',
+                        opacity: mapStyle === 'club_dark' ? 0.45 : 0.5,
+                    }}
+                />
+            )}
+        </div>
+    )
 }

@@ -25,6 +25,18 @@ PLACE_MAX = 120
 CAPTION_MAX = 1000
 MAX_PHOTOS = 10
 _SUBDOMAINS = ("a", "b", "c", "d")
+DEFAULT_MAP_STYLE = "voyager"
+CARTO_STYLES: dict[str, str] = {
+    "voyager": "rastertiles/voyager",
+    "voyager_nolabels": "rastertiles/voyager_nolabels",
+    "voyager_labels_under": "rastertiles/voyager_labels_under",
+    "light_all": "light_all",
+    "light_nolabels": "light_nolabels",
+    "dark_all": "dark_all",
+    "dark_nolabels": "dark_nolabels",
+    "club_dark": "dark_all",
+    "club_light": "light_all",
+}
 
 
 def _author_names(user_ids: set[int], db: Session) -> dict[int, str]:
@@ -230,13 +242,25 @@ def _fetch_carto_tile(url: str, params: dict[str, str], headers: dict[str, str])
 
 
 @router.get("/tiles/{z}/{x}/{y}.png", include_in_schema=False)
-def proxy_tile(z: int, x: int, y: int, request: Request, r: str = Query(default="")):
+def proxy_tile(
+    z: int,
+    x: int,
+    y: int,
+    request: Request,
+    r: str = Query(default=""),
+    style: str = Query(default=DEFAULT_MAP_STYLE),
+):
     """Proxy CARTO basemap tiles so ``CARTO_API_KEY`` stays on the server and out of client bundles."""
     if not (0 <= z <= 20) or not (0 <= x < (1 << z)) or not (0 <= y < (1 << z)):
         raise HTTPException(400, "Invalid tile coordinates")
     retina = "@2x" if r == "@2x" else ""
     sub = _SUBDOMAINS[(x + y) % len(_SUBDOMAINS)]
-    url = settings.CARTO_TILE_URL.format(s=sub, z=z, x=x, y=y, r=retina)
+    style_path = CARTO_STYLES.get(style, CARTO_STYLES[DEFAULT_MAP_STYLE])
+    template = settings.CARTO_TILE_URL
+    if "{style}" in template:
+        url = template.format(s=sub, style=style_path, z=z, x=x, y=y, r=retina)
+    else:
+        url = template.replace("rastertiles/voyager", style_path).format(s=sub, z=z, x=x, y=y, r=retina)
     params: dict[str, str] = {}
     headers = {"User-Agent": "Kegelkasse/1.0"}
     referer = _client_referer(request)

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount, posterNames} from '../stickers'
-import {TILES} from '@/components/stickers/StickerMap.tsx'
+import {TILES, tileUrl} from '@/components/stickers/StickerMap.tsx'
 import type {Sticker} from '@/types.ts'
 
 const s = (id: number, lat: number, lon: number, place = 'X'): Sticker => ({
@@ -77,5 +77,9 @@ describe('matchesSticker & posterNames', () => {
 
     it('uses the backend CARTO tile proxy instead of OpenStreetMap tile server', () => {
         expect(TILES).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl()).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl('voyager')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl('dark_all')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}&style=dark_all')
+        expect(tileUrl('club_dark')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}&style=club_dark')
     })
 })

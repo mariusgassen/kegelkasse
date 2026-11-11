@@ -242,6 +242,20 @@ def test_carto_tile_proxy_forwards_api_key_and_referer(client: TestClient, monke
     assert fallback_headers["Referer"] == "https://kegelkasse.example.de/"
 
 
+    # Style parameter selects different CARTO basemap paths
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_dark:
+        r_dark = client.get("/api/v1/stickers/tiles/2/1/3.png?style=dark_all")
+    assert r_dark.status_code == 200
+    called_dark_url, _, _ = fetch_dark.call_args[0]
+    assert "basemaps.cartocdn.com/dark_all/2/1/3.png" in called_dark_url
+
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_club:
+        r_club = client.get("/api/v1/stickers/tiles/2/1/3.png?style=club_dark")
+    assert r_club.status_code == 200
+    called_club_url, _, _ = fetch_club.call_args[0]
+    assert "basemaps.cartocdn.com/dark_all/2/1/3.png" in called_club_url
+
+
 def test_carto_tile_proxy_rejects_invalid_coords_and_handles_upstream_error(client: TestClient):
     assert client.get("/api/v1/stickers/tiles/25/0/0.png").status_code == 400
     assert client.get("/api/v1/stickers/tiles/1/5/0.png").status_code == 400

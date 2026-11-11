@@ -25,12 +25,23 @@ export interface User {
     regular_member_id: number | null
 }
 
+export type MapStyle =
+    | 'voyager'
+    | 'light_all'
+    | 'dark_all'
+    | 'club_dark'
+    | 'club_light'
+    | 'voyager_nolabels'
+    | 'light_nolabels'
+    | 'dark_nolabels'
+
 export interface ClubSettings {
     home_venue: string | null
     logo_url: string | null
     primary_color: string
     secondary_color: string
     bg_color: string | null
+    map_style?: MapStyle
     guest_penalty_cap: number | null
     paypal_me: string | null
     no_cancel_fee: number | null
