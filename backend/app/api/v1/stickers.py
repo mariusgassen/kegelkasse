@@ -204,3 +204,36 @@ def delete_sticker(sid: int, db: Session = Depends(get_db), user: User = Depends
         raise HTTPException(403, "Only the author or an admin can delete this sticker")
     s.is_deleted = True
     db.commit()
+
+
+def _fetch_carto_tile(url: str, params: dict[str, str], headers: dict[str, str]) -> tuple[bytes, str]:
+    import httpx
+    resp = httpx.get(url, params=params, headers=headers, timeout=10, follow_redirects=True)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("content-type", "image/png")
+
+
+@router.get("/tiles/{z}/{x}/{y}.png", include_in_schema=False)
+def proxy_tile(z: int, x: int, y: int, r: str = Query(default="")):
+    """Proxy CARTO basemap tiles so ``CARTO_API_KEY`` stays on the server and out of client bundles."""
+    if not (0 <= z <= 20) or not (0 <= x < (1 << z)) or not (0 <= y < (1 << z)):
+        raise HTTPException(400, "Invalid tile coordinates")
+    retina = "@2x" if r == "@2x" else ""
+    sub = _SUBDOMAINS[(x + y) % len(_SUBDOMAINS)]
+    url = settings.CARTO_TILE_URL.format(s=sub, z=z, x=x, y=y, r=retina)
+    params: dict[str, str] = {}
+    headers = {"User-Agent": "Kegelkasse/1.0"}
+    if settings.CARTO_API_KEY:
+        params["api_key"] = settings.CARTO_API_KEY
+        headers["Authorization"] = f"Bearer {settings.CARTO_API_KEY}"
+    try:
+        content, media_type = _fetch_carto_tile(url, params, headers)
+    except Exception as exc:
+        logger.warning("CARTO tile fetch failed (%s): %s", url, exc)
+        raise HTTPException(502, "Tile upstream unavailable")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+

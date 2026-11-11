@@ -75,7 +75,7 @@ describe('matchesSticker & posterNames', () => {
         expect(posterNames(list)).toEqual(['Pudel', 'Hasi'])
     })
 
-    it('uses CARTO basemap tiles instead of OpenStreetMap tile server', () => {
-        expect(TILES).toContain('basemaps.cartocdn.com')
+    it('uses the backend CARTO tile proxy instead of OpenStreetMap tile server', () => {
+        expect(TILES).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
     })
 })

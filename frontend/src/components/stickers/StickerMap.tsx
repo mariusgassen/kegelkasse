@@ -13,7 +13,7 @@ import {thumbUrl} from '@/lib/mediaUrl.ts'
 import type {Sticker} from '@/types.ts'
 import {clusterByZoom, groupPhotos} from '@/lib/stickers.ts'
 
-export const TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+export const TILES = '/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}'
 
 export interface LatLng { latitude: number; longitude: number }
 
@@ -102,7 +102,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
     useEffect(() => {
         if (!el.current) return
         const m = L.map(el.current, {worldCopyJump: true, minZoom: 1, zoomControl: true}).setView([30, 10], 2)
-        L.tileLayer(TILES, {subdomains: 'abcd', maxZoom: 19, attribution}).addTo(m)
+        L.tileLayer(TILES, {maxZoom: 19, attribution}).addTo(m)
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
         m.on('zoomend', () => setZoom(m.getZoom()))
