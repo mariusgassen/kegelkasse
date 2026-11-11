@@ -1,4 +1,4 @@
-"""Community-driven roadmap and member upvotes for Kegelkasse 2.0."""
+"""Community-driven roadmap and member upvotes for Kegelkasse."""
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.sql import func
 
@@ -8,9 +8,9 @@ from core.database import Base
 class RoadmapItem(Base):
     """An item or idea on the Kegelkasse roadmap.
 
-    ``club_id`` is NULL for official Kegelkasse 2.0 roadmap items visible to all clubs.
+    ``club_id`` is NULL for official Kegelkasse roadmap items visible to all clubs.
     If ``club_id`` is set, it was submitted by a member of that club (community proposal).
-    ``status`` can be: 'planned', 'in_progress', 'completed', 'idea', 'rejected'.
+    ``status`` can be: 'idea', 'planned', 'in_progress', 'completed', 'rejected', 'duplicate'.
     """
     __tablename__ = "roadmap_item"
 
@@ -21,9 +21,13 @@ class RoadmapItem(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="idea", index=True)
-    category = Column(String(30), nullable=True, default="feature")
+    category = Column(String(50), nullable=True, default="feature", index=True)
+    tags = Column(String(200), nullable=True)
+    is_pinned = Column(Boolean, nullable=False, default=False)
+    duplicate_of_id = Column(Integer, ForeignKey("roadmap_item.id", ondelete="SET NULL"), nullable=True)
     target_version = Column(String(20), nullable=True)
     is_official = Column(Boolean, nullable=False, default=False)
+    admin_notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

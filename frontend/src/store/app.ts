@@ -43,3 +43,12 @@ export const useAppStore = create<AppState>()(
 // Role helpers
 export const isAdmin = (user: User | null) =>
     user?.role === 'admin' || user?.role === 'superadmin'
+
+export const isSuperadmin = (user: User | null) =>
+    user?.role === 'superadmin'
+
+export const isProductManager = (user: User | null) =>
+    user?.role === 'product_manager'
+
+export const canManageRoadmap = (user: User | null) =>
+    user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'product_manager'

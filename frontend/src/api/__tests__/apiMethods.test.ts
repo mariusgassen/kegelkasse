@@ -1830,3 +1830,54 @@ describe('api AI methods', () => {
         })
     }
 })
+
+describe('api roadmap methods', () => {
+    it('listRoadmap GETs /roadmap', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const {api} = await import('../client')
+        await api.listRoadmap()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/roadmap')
+    })
+
+    it('listRoadmap with filter params', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const {api} = await import('../client')
+        await api.listRoadmap({status: 'planned', category: 'feature', tag: 'voting'})
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/roadmap?status=planned&category=feature&tag=voting')
+    })
+
+    it('createRoadmapItem POSTs to /roadmap/items', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({id: 1}))
+        const {api} = await import('../client')
+        await api.createRoadmapItem({title: 'Test', description: 'Desc', category: 'feature'})
+        const [url, opts] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/roadmap/items')
+        expect(JSON.parse(opts.body)).toMatchObject({title: 'Test', description: 'Desc', category: 'feature'})
+    })
+
+    it('toggleRoadmapVote POSTs to /roadmap/items/{id}/vote', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({has_voted: true, vote_count: 5}))
+        const {api} = await import('../client')
+        await api.toggleRoadmapVote(42)
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/roadmap/items/42/vote')
+    })
+})
+
+describe('api superadmin role management methods', () => {
+    it('superadminListUsers GETs /superadmin/users', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk([]))
+        const {api} = await import('../client')
+        await api.superadminListUsers()
+        expect(mockFetch.mock.calls[0][0]).toBe('/api/v1/superadmin/users')
+    })
+
+    it('superadminSetUserRole PATCHes /superadmin/users/{id}/role', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({id: 7, role: 'product_manager'}))
+        const {api} = await import('../client')
+        await api.superadminSetUserRole(7, 'product_manager')
+        const [url, opts] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/superadmin/users/7/role')
+        expect(opts.method).toBe('PATCH')
+        expect(JSON.parse(opts.body)).toEqual({role: 'product_manager'})
+    })
+})

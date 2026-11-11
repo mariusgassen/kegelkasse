@@ -144,7 +144,7 @@ function flattenAllComments(comments: Comment[]): {comment: Comment; depth: numb
 }
 
 interface Props {
-    parentType: 'highlight' | 'announcement' | 'trip' | 'sticker'
+    parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap'
     parentId: number
     /** Controlled mode: when provided, the built-in toggle button is hidden */
     open?: boolean
