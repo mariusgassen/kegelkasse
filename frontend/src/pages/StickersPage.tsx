@@ -44,7 +44,7 @@ function fDay(day: string, locale: string) {
 function MapBox({online, children}: { online: boolean; children: React.ReactNode }) {
     const t = useT()
     if (!online) return <p className="text-sm text-muted py-6 text-center">{t('stickers.map.offline')}</p>
-    return <Suspense fallback={<SkeletonCard/>}>{children}</Suspense>
+    return <div data-no-ptr className="w-full"><Suspense fallback={<SkeletonCard/>}>{children}</Suspense></div>
 }
 
 // ── Post / edit form ──────────────────────────────────────────────────────────
