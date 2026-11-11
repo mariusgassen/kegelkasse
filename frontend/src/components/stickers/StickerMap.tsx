@@ -25,7 +25,7 @@ interface Props {
     /** Picker mode: current pin (or null) and change handler. */
     picked?: LatLng | null
     onPick?: (p: LatLng) => void
-    attribution: string
+    attribution?: string
     className?: string
 }
 
@@ -89,7 +89,7 @@ function previewStrip(urls: string[]): HTMLElement {
     return row
 }
 
-export default function StickerMap({stickers = [], onOpen, openLabel = '', picked, onPick, attribution, className}: Props) {
+export default function StickerMap({stickers = [], onOpen, openLabel = '', picked, onPick, className}: Props) {
     const el = useRef<HTMLDivElement>(null)
     const map = useRef<L.Map | null>(null)
     const layer = useRef<L.LayerGroup | null>(null)
@@ -101,14 +101,14 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
 
     useEffect(() => {
         if (!el.current) return
-        const m = L.map(el.current, {worldCopyJump: true, minZoom: 1, zoomControl: true}).setView([30, 10], 2)
-        L.tileLayer(TILES, {maxZoom: 19, attribution}).addTo(m)
+        const m = L.map(el.current, {worldCopyJump: true, minZoom: 1, zoomControl: true, attributionControl: false}).setView([30, 10], 2)
+        L.tileLayer(TILES, {maxZoom: 19}).addTo(m)
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
         m.on('zoomend', () => setZoom(m.getZoom()))
         map.current = m
         return () => { m.remove(); map.current = null; layer.current = null }
-    }, [attribution])
+    }, [])
 
     useEffect(() => {
         const m = map.current
