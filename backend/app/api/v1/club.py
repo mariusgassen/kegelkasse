@@ -18,13 +18,15 @@ from api.v1.app_icon import serialize_app_icon
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
 from core.storage import get_storage, key_from_url, url_for_key
+from models.bowling import BowlingScore
 from models.club import Club, ClubSettings, ClubPin
 from models.committee import ClubTrip
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog, SOUND_PRESET_KEYS
-from models.user import User, UserRole
+from models.schedule import MemberRsvp, ScheduledEveningGuest
+from models.user import User, UserRole, InviteToken
 
 logger = logging.getLogger(__name__)
 
@@ -484,9 +486,12 @@ def reactivate_regular_member(mid: int, db: Session = Depends(get_db),
 @router.post("/regular-members/{discard_id}/merge-into/{keep_id}")
 def merge_regular_members(discard_id: int, keep_id: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_admin)):
-    """Re-attribute all data from discard to keep, then soft-delete discard."""
-    from models.evening import EveningPlayer
-    from models.user import InviteToken
+    """Re-attribute all data from discard to keep, then soft-delete discard.
+
+    Guests included: merging a form-registered guest into a manually created one moves planned
+    evenings, treasury entries, penalties, RSVPs and pins, so nothing of the discarded entry is
+    lost (guests are never deletable, the discard just becomes inactive).
+    """
     discard = db.query(RegularMember).filter(
         RegularMember.id == discard_id, RegularMember.club_id == user.club_id).first()
     keep = db.query(RegularMember).filter(
@@ -504,6 +509,36 @@ def merge_regular_members(discard_id: int, keep_id: int, db: Session = Depends(g
     # Re-attribute invite tokens
     db.query(InviteToken).filter(InviteToken.regular_member_id == discard_id).update(
         {InviteToken.regular_member_id: keep_id})
+    # Re-attribute planned guests (scheduled evenings) — the display name follows the kept
+    # entry, same as picking the guest from the "Bekannte Gäste" chips
+    db.query(ScheduledEveningGuest).filter(ScheduledEveningGuest.regular_member_id == discard_id).update(
+        {ScheduledEveningGuest.regular_member_id: keep_id,
+         ScheduledEveningGuest.name: keep.nickname or keep.name})
+    # Re-attribute treasury entries (payments, payment requests)
+    db.query(MemberPayment).filter(MemberPayment.regular_member_id == discard_id).update(
+        {MemberPayment.regular_member_id: keep_id})
+    db.query(PaymentRequest).filter(PaymentRequest.regular_member_id == discard_id).update(
+        {PaymentRequest.regular_member_id: keep_id})
+    # Re-attribute penalties logged directly for the member (absence entries)
+    db.query(PenaltyLog).filter(PenaltyLog.regular_member_id == discard_id).update(
+        {PenaltyLog.regular_member_id: keep_id})
+    # Re-attribute pins
+    db.query(ClubPin).filter(ClubPin.holder_regular_member_id == discard_id).update(
+        {ClubPin.holder_regular_member_id: keep_id})
+    # Re-attribute mini-bowling scores
+    db.query(BowlingScore).filter(BowlingScore.regular_member_id == discard_id).update(
+        {BowlingScore.regular_member_id: keep_id})
+    # RSVPs — unique per (scheduled evening, member): where keep already answered, the
+    # discard's answer is dropped instead of moved (keep wins)
+    keep_rsvp_evenings = [r.scheduled_evening_id for r in db.query(MemberRsvp).filter(
+        MemberRsvp.regular_member_id == keep_id)]
+    if keep_rsvp_evenings:
+        db.query(MemberRsvp).filter(
+            MemberRsvp.regular_member_id == discard_id,
+            MemberRsvp.scheduled_evening_id.in_(keep_rsvp_evenings),
+        ).delete(synchronize_session=False)
+    db.query(MemberRsvp).filter(MemberRsvp.regular_member_id == discard_id).update(
+        {MemberRsvp.regular_member_id: keep_id})
     # Soft-delete the discarded entry
     discard.is_active = False
     db.commit()

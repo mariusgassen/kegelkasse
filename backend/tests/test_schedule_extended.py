@@ -266,6 +266,127 @@ class TestGuestManagement:
                              headers=auth_headers)
         assert resp.status_code == 403
 
+    # ── Known-guest entries: guests are roster entries from the moment they are entered ──
+
+    def test_add_guest_creates_known_guest_entry(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """A newly entered guest becomes a RegularMember (is_guest) right away, so it shows up
+        under "Bekannte Gäste" immediately instead of only when the evening starts."""
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "Neuer Gast"}, headers=admin_headers)
+        assert resp.status_code == 200
+        member = db.query(RegularMember).filter(
+            RegularMember.club_id == club.id, RegularMember.name == "Neuer Gast").one()
+        assert (member.is_guest, member.is_active) == (True, True)
+        assert resp.json()["regular_member_id"] == member.id
+
+    def test_add_guest_links_same_full_name_case_insensitive(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """An exact full-name match (case-insensitive, never the Kegelname) links the existing
+        known guest instead of creating a duplicate."""
+        known = RegularMember(club_id=club.id, name="Anna Schmidt", nickname="Schmidtchen",
+                              is_guest=True, is_active=True)
+        db.add(known)
+        db.commit()
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "anna schmidt"}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["regular_member_id"] == known.id
+        assert resp.json()["name"] == "Schmidtchen"  # display name of the linked entry
+        assert db.query(RegularMember).filter(RegularMember.club_id == club.id).count() == 1
+
+    def test_add_guest_does_not_match_nickname(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """Typing someone's Kegelname must not silently link a different person — only the
+        full name links; the Kegelname creates a fresh entry."""
+        known = RegularMember(club_id=club.id, name="Anna Schmidt", nickname="Schmidtchen",
+                              is_guest=True, is_active=True)
+        db.add(known)
+        db.commit()
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "Schmidtchen"}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["regular_member_id"] != known.id
+        assert db.query(RegularMember).filter(RegularMember.club_id == club.id).count() == 2
+
+    def test_add_guest_foreign_regular_member_is_404(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session):
+        """Linking a roster entry of another club is rejected."""
+        other = Club(name="Other Club", slug="other-club-guests")
+        db.add(other)
+        db.commit()
+        foreign = RegularMember(club_id=other.id, name="Fremder Gast", is_guest=True)
+        db.add(foreign)
+        db.commit()
+        try:
+            resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                               json={"name": "Fremder Gast", "regular_member_id": foreign.id},
+                               headers=admin_headers)
+            assert resp.status_code == 404
+        finally:
+            db.query(RegularMember).filter(RegularMember.club_id == other.id).delete(synchronize_session=False)
+            db.delete(other)
+            db.commit()
+
+    def test_add_guest_same_member_twice_is_400(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """The same roster entry cannot be planned twice for one evening."""
+        known = RegularMember(club_id=club.id, name="Doppelt Geplant", is_guest=True, is_active=True)
+        db.add(known)
+        db.commit()
+        first = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                            json={"name": "Doppelt Geplant", "regular_member_id": known.id},
+                            headers=admin_headers)
+        assert first.status_code == 200
+        second = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                             json={"name": "Doppelt Geplant", "regular_member_id": known.id},
+                             headers=admin_headers)
+        assert second.status_code == 400
+
+    def test_add_guest_empty_name_is_422(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening):
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "   "}, headers=admin_headers)
+        assert resp.status_code == 422
+
+    def test_remove_guest_deletes_never_played_entry(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """Removing a planned guest also removes its eagerly created roster entry when it was
+        never used anywhere — "Bekannte Gäste" must not collect one-off typed names."""
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "Wieder Weg"}, headers=admin_headers)
+        gid, member_id = resp.json()["id"], resp.json()["regular_member_id"]
+        assert member_id
+        resp = client.delete(f"/api/v1/schedule/{scheduled_evening.id}/guests/{gid}",
+                             headers=admin_headers)
+        assert resp.status_code == 204
+        assert db.query(RegularMember).filter(RegularMember.id == member_id).first() is None
+
+    def test_remove_guest_keeps_played_guest(
+            self, client: TestClient, admin_headers: dict,
+            scheduled_evening: ScheduledEvening, db: Session, club: Club):
+        """A guest that already played (or is referenced anywhere else) stays part of the
+        club history when the plan entry is removed."""
+        resp = client.post(f"/api/v1/schedule/{scheduled_evening.id}/guests",
+                           json={"name": "Stammgast"}, headers=admin_headers)
+        gid, member_id = resp.json()["id"], resp.json()["regular_member_id"]
+        ev = Evening(club_id=club.id, date=datetime.now(UTC))
+        db.add(ev)
+        db.flush()
+        db.add(EveningPlayer(evening_id=ev.id, regular_member_id=member_id, name="Stammgast"))
+        db.commit()
+        resp = client.delete(f"/api/v1/schedule/{scheduled_evening.id}/guests/{gid}",
+                             headers=admin_headers)
+        assert resp.status_code == 204
+        assert db.query(RegularMember).filter(RegularMember.id == member_id).first() is not None
+
 
 # ---------------------------------------------------------------------------
 # POST /api/v1/schedule/{sid}/start — start evening from schedule

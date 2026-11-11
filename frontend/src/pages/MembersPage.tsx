@@ -379,6 +379,14 @@ export function MembersPage() {
     // For link sheet: roster members not already linked to someone
     const availableForLink = regularMembers.filter(m => !linkedMemberIds.has(m.id))
 
+    // Merge sheet keep-candidates: merging a guest offers the other known guests (the
+    // duplicate case, e.g. form-registered vs. manually created); Stammspieler keeps the
+    // full roster as before.
+    const knownGuests = regularMembers.filter(m => m.is_guest || m.deactivated_at)
+    const mergeCandidates = mergeDiscard?.is_guest
+        ? knownGuests.filter(m => m.id !== mergeDiscard.id)
+        : regularMembers.filter(m => m.id !== mergeDiscard?.id)
+
     const activeUsers = appUsers.filter(u => {
         if (!u.is_active) return false
         if (!q) return true
@@ -583,6 +591,10 @@ export function MembersPage() {
                         onClick: () => addToEvening(m),
                     })
                     actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
+                    if (admin) actions.push({
+                        icon: '⇄', label: t('member.action.merge'),
+                        onClick: () => { setMergeDiscard(m); setMergeSheet(true) },
+                    })
                     if (admin) actions.push({icon: '⬆️', label: t('member.reactivateRoster'), onClick: () => openPromoteConfirm(m)})
 
                     return (
@@ -785,7 +797,7 @@ export function MembersPage() {
                     <p className="text-xs text-muted mb-1">
                         {t('member.mergeHint')}
                     </p>
-                    {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
+                    {mergeCandidates.map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleMerge(m.id)}>
                             <Avatar name={m.nickname || m.name} size="sm"/>
@@ -796,7 +808,7 @@ export function MembersPage() {
                             <span className="text-xs text-muted">{t('member.keep')}</span>
                         </button>
                     ))}
-                    {regularMembers.filter(m => m.id !== mergeDiscard?.id).length === 0 && (
+                    {mergeCandidates.length === 0 && (
                         <p className="text-xs text-muted text-center py-2">{t('member.noOtherEntries')}</p>
                     )}
                 </div>

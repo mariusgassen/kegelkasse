@@ -1087,6 +1087,55 @@ describe('MembersPage — merge sheet', () => {
     })
 })
 
+describe('MembersPage — guest merge', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    // Two guest entries (e.g. form-registered vs. manually created) plus the regulars —
+    // the duplicate-guest case this action exists for.
+    const GUESTS_FOR_MERGE = [
+        ...REGULAR_MEMBERS,
+        { id: 5, name: 'Gustav Gast', nickname: null, is_guest: true, is_active: true },
+    ]
+
+    it('shows ⇄ on guest rows for admins and merges into another guest, offering only guests', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.getMembers).mockResolvedValue(APP_USERS as any)
+        vi.mocked(useAppStore).mockReturnValue({
+            user: { id: 10, role: 'admin', email: 'a@b.de', name: 'Admin User', username: 'admin', club_id: 1, preferred_locale: 'de', avatar: null, regular_member_id: 1 },
+            regularMembers: GUESTS_FOR_MERGE,
+            setRegularMembers: vi.fn(),
+        } as any)
+        vi.mocked(api.mergeRegularMembers).mockResolvedValueOnce(undefined as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValueOnce(GUESTS_FOR_MERGE as any)
+
+        await renderMembersPage()
+        const actionSheetEl = await openRowActions('Gustav Gast')
+        fireEvent.click(within(actionSheetEl).getByText('⇄'))
+        const mergeSheet = await screen.findByTestId('sheet')
+        // Merging a guest only offers the other known guests as keep entries —
+        // Stammspieler (Hansi, Franz Schmidt) stay out of the list.
+        await waitFor(() => expect(within(mergeSheet).getByText('Gast Franz')).toBeInTheDocument())
+        expect(within(mergeSheet).queryByText('Hansi')).not.toBeInTheDocument()
+        expect(within(mergeSheet).queryByText('Franz Schmidt')).not.toBeInTheDocument()
+        fireEvent.click(within(mergeSheet).getByText('Gast Franz'))
+        await waitFor(() => {
+            expect(api.mergeRegularMembers).toHaveBeenCalledWith(5, 3)
+        })
+    })
+
+    it('does not offer ⇄ on guest rows for non-admins', async () => {
+        await setupMember(GUESTS_FOR_MERGE)
+        await renderMembersPage()
+        const actionSheetEl = await openRowActions('Gustav Gast')
+        expect(within(actionSheetEl).queryByText('⇄')).not.toBeInTheDocument()
+    })
+})
+
 describe('MembersPage — inactive toggle details', () => {
     beforeEach(() => {
         vi.clearAllMocks()

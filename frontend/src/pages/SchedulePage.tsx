@@ -121,6 +121,9 @@ function AddGuestForm({se, onAdded, onCancel}: {
             })
             if (guest) {
                 onAdded(guest)
+                // The backend eagerly saved (or linked) a roster entry for the guest —
+                // refresh so it shows up under "Bekannte Gäste" immediately
+                api.listRegularMembers().then(d => useAppStore.getState().setRegularMembers(d))
             } else {
                 // Queued offline — optimistically show the guest in the list
                 onAdded({id: -Date.now(), name: name.trim(), regular_member_id: matchedId})
@@ -165,11 +168,19 @@ function AddGuestForm({se, onAdded, onCancel}: {
                     className="kce-input"
                     placeholder={t('schedule.guestName')}
                     value={name}
-                    onChange={e => { setName(e.target.value); setMatchedId(null) }}
+                    onChange={e => {
+                        setName(e.target.value)
+                        // Typing a known guest's full name (not the Kegelname) links to it —
+                        // the same case-insensitive full-name rule the backend applies
+                        const typed = e.target.value.trim().toLowerCase()
+                        const match = availableKnownGuests.find(
+                            m => m.name.trim().toLowerCase() === typed)
+                        setMatchedId(match ? match.id : null)
+                    }}
                     autoFocus={availableKnownGuests.length === 0}
                 />
                 {matchedId && (
-                    <p className="text-xs text-positive-fg mt-1">✓ {t('schedule.guestKnown')}</p>
+                    <p className="text-xs text-positive-fg mt-1">✓ <span>{t('schedule.guestKnown')}</span></p>
                 )}
             </div>
             <div className="flex gap-2">

@@ -1,59 +1,111 @@
-# Feature #65 abschließen: Würfe im Live-Ticker
+# Gäste zusammenlegen (Formular ↔ manuell) + sofortige Sichtbarkeit unter „Bekannte Gäste"
 
-Branch: `claude/feature-65-contents-r7pg7c`
+## Ausgangslage (heutiges Verhalten)
 
-Feature #65 („Abend-Modus / Live-Takeover") stand auf 🚧 mit zwei bewusst zurückgestellten Punkten:
+| | Formular-Gast (Gastanfrage) | Manuell angelegter Gast |
+|---|---|---|
+| Bei Antrag/Anlage | `ScheduledEveningGuest` **ohne** `regular_member_id` | `RegularMember(is_guest=True)` sofort vorhanden |
+| In „Bekannte Gäste" sichtbar | ❌ erst wenn der Abend gestartet wird | ✅ sofort |
+| Beim Abend-Start | Backend minted einen **neuen** `RegularMember` → **Duplikat**, falls der Gast schon manuell existiert | wird wiederverwendet |
 
-1. **Würfe / „Alle Neune" im chronologischen Ticker** — zurückgestellt, weil das API keinen
-   Zeitstempel pro Wurf lieferte und ein Ticker ohne Zeitstempel eine erfundene Reihenfolge zeigen
-   würde. → *wird jetzt geliefert*
-2. **Bottom-Nav-Reduktion auf „Abend / Rest der App"** → *durch #79 bereits erledigt*: die primäre
-   Navigation ist auf 4 permanente Tabs plus den kontextuellen 🏆 Abend-Tab (nur bei laufendem
-   Abend, #78) reduziert. Kein offener Rest — wird in der Roadmap als erledigt vermerkt statt
-   nochmal angefasst.
+Der Merge-Endpoint `POST /club/regular-members/{discard}/merge-into/{keep}` re-attributiert nur
+`EveningPlayer`, `User`, `InviteToken` — **nicht** `ScheduledEveningGuest`, `MemberPayment`,
+`PaymentRequest`, `PenaltyLog`, `MemberRsvp`, `ClubPin`. Und Gäste haben in MembersPage keine
+Merge-Aktion (nur Stammspieler).
 
-## 1. Zeitstempel pro Wurf (Backend)
-- [x] `GameThrowLog.created_at` existiert bereits (`server_default=func.now()`) — **keine Migration nötig**
-- [x] `serialize_evening` (`evenings.py`) gibt `created_at` pro Wurf aus
-- [x] pytest: Wurf-Serialisierung enthält den Zeitstempel
+## 1. Backend — sofortiger Gast-Eintrag (Helper)
 
-## 2. Ticker um Wurf-Meilensteine erweitern (Frontend)
-- [x] `types.ts`: `GameThrowLog.created_at`
-- [x] `lib/liveEvening.ts`: neue Event-Art `throw`, Signatur auf Options-Objekt (`{limit, throws}`)
-- [x] **Bewusst nur Meilensteine (Alle Neune, `pins >= 9`), nicht jeder Wurf** — ein Abend hat
-      hunderte Würfe, der volle Strom würde Strafen/Getränke/Highlights innerhalb einer Minute aus
-      dem gedeckelten Ticker drängen; der laufende Wurf-Stand steht weiterhin in der Anzeigetafel
-- [x] Würfe ohne parsbaren Zeitstempel werden übersprungen (Altbestand/Offline) statt auf ts=0 zu fallen
-- [x] `LiveEveningView`: Wurf-Events über `useThrowTracking()` gegated (#78), Alle-Neune-Zeile hervorgehoben
-- [x] i18n `live.allNine` (de + en)
+- [x] `ensure_guest_member(db, club_id, name) -> RegularMember` in `api/v1/schedule.py`:
+      sucht einen aktiven bekannten Gast (`is_active=True` UND (`is_guest=True` ODER
+      `deactivated_at` gesetzt) — exakt die Chip-Definition der AddGuestForm, ausgetretene
+      Mitglieder eingeschlossen) mit **gleichem vollen Namen** (`name`, NICHT Kegelname;
+      case-insensitive, getrimmt — Nutzer-Entscheidung) → verlinken statt duplizieren; sonst
+      `RegularMember(club_id, name, is_guest=True, is_active=True)` neu anlegen. Einzige Quelle
+      der Wahrheit für beide Call-Sites. Verlinkter Termin-Gast übernimmt den Anzeigenamen des
+      Mitglieds (Kegelname || Name) — gleiches Verhalten wie Chip-Auswahl.
+- [x] `add_guest` (`POST /schedule/{sid}/guests`): ohne `regular_member_id` → `ensure_guest_member`,
+      `ScheduledEveningGuest.regular_member_id` ist danach immer gesetzt. Mit `regular_member_id`:
+      Club-Zugehörigkeit validieren (404 sonst — schließt Cross-Club-Verlinkung).
+- [x] `approve_guest_request` (`guest_requests.py`): gleicher Helper — der formularangemeldete
+      Gast bekommt sofort einen (verlinkten oder neuen) `RegularMember`.
 
-## 3. Tests
-- [x] Vitest `liveEvening.test.ts`: Alle-Neune-Event, normale Würfe bleiben draußen, Gating,
-      fehlender Zeitstempel, chronologische Einsortierung, Options-Signatur
-- [x] Vitest `LiveEveningView.test.tsx`: Alle-Neune-Zeile sichtbar / bei abgeschalteter Wurf-Erfassung nicht
-- [x] pytest `test_games.py`: `created_at` in der Wurf-Serialisierung
+## 2. Backend — Merge vollständig machen
 
-## 4. Doku
-- [x] Roadmap #65 auf ✅ + Nachtrag, README, `docs/docs/`
-- [x] Version-Bump (MINOR)
+- [x] `merge_regular_members` (`club.py`) re-attributiert zusätzlich:
+  - `ScheduledEveningGuest.regular_member_id` (Kern dieses Features)
+  - `MemberPayment.regular_member_id` (Gast-Salden/Kassenbuchung)
+  - `PaymentRequest.regular_member_id`
+  - `PenaltyLog.regular_member_id` (Abwesenheits-Einträge)
+  - `MemberRsvp.regular_member_id` — UniqueConstraint `(scheduled_evening_id, regular_member_id)`:
+        hat `keep` für denselben Termin schon eine RSVP, wird die discard-Zeile gelöscht statt
+        verschoben (sonst 500)
+  - `ClubPin.holder_regular_member_id`
+  - `BowlingScore.regular_member_id` (Easter-Egg-Leaderboard, falls nach Mitglied gruppiert)
+- [x] `remove_guest` räumt auf: zeigt der gelöschte Termin-Gast auf einen `RegularMember`, der
+      nirgends referenziert ist (kein EveningPlayer, MemberPayment, PaymentRequest, anderes
+      ScheduledEveningGuest, PenaltyLog, MemberRsvp, ClubPin, User, InviteToken), wird er hart
+      gelöscht — der eager angelegte Gast hat nie gespielt und würde sonst „Bekannte Gäste"
+      müllen. Gespielte/verlinkte Gäste bleiben (Historie, „Gäste sind nicht löschbar").
+
+## 3. Frontend — sofort in „Bekannte Gäste" + Auto-Match
+
+- [x] `AddGuestForm` (`SchedulePage.tsx`): Tippt der Admin den vollen Namen eines bekannten
+      Gastes (`m.name`, case-insensitive — nicht den Kegelnamen), wird der Chip automatisch
+      markiert („✓ Bekannter Gast (Stammgast)") und `regular_member_id` mitgeschickt.
+      Backend-Match als Fallback bleibt.
+- [x] `AddGuestForm.submit`: nach erfolgreicher Anlage Roster-Store refreshen
+      (`api.listRegularMembers()` → `setRegularMembers`) → neuer Gast erscheint sofort in
+      „Bekannte Gäste" (MembersPage, EveningPage-Spielerauswahl, Chips).
+- [x] `GuestRequestsSection.confirm`: nach Approve ebenfalls den Roster-Store refreshen.
+- [x] i18n: `guestRequests.approveHint` erweitern („… und als bekannter Gast gespeichert"),
+      `member.mergeHint` aktualisieren (was übertragen wird), de.ts + en.ts synchron.
+
+## 4. Frontend — Merge-Aktion für Gäste
+
+- [x] `MembersPage.tsx` Gäste-Sektion: Merge-Aktion (`⇄ member.action.merge`) für Admins in
+      Gast-Zeilen, identisch zum Stammspieler-Muster; bestehendes Merge-Sheet wiederverwenden
+      (Liste der möglichen Keep-Einträge).
+
+## 5. Tests (Policy: jedes Feature mit Tests)
+
+- [x] pytest:
+  - `add_guest`: legt RegularMember sofort an (is_guest, verlinkt, in Serialisierung);
+    Auto-Match bei gleichem Namen (kein Duplikat); 404 bei fremdvereinlichem
+    `regular_member_id`; mit `regular_member_id` kein Neuanlage
+  - `approve_guest_request`: RegularMember sofort angelegt/verlinkt, `guest_id` gesetzt
+  - `remove_guest`: löscht ungenutzten eager-Gast, behält gespielten Gast
+  - `merge_regular_members`: ScheduledEveningGuest + MemberPayment wandern mit; RSVP-Kollision;
+    Gäste-spezifischer Merge (Gast ↔ Gast)
+  - Guards: 401/403/404 wo betroffen
+- [x] Vitest:
+  - `SchedulePage.test.tsx` (AddGuestForm): Auto-Match-Chip-Auswahl, Store-Refresh nach Submit
+  - `GuestRequestsSection.test.tsx`: approve → Roster-Refresh
+  - `MembersPage.test.tsx`: Gast-Zeile hat Merge-Aktion (Admin) + Merge-Aufruf
+
+## 6. Doku (vor dem Commit, Pflicht)
+
+- [x] `docs/docs/funktionen/termine.md`: „Gäste eintragen" + „Gastanfragen" — sofortige
+      Speicherung als bekannter Gast, Auto-Zusammenführung bei gleichem Namen
+- [x] `docs/docs/rollen/admin.md`: „Stammspieler zusammenführen" um Gäste erweitern
+      (was übertragen wird)
+- [x] `README.md` Feature-Katalog (Guest-requests-Zeile erweitern)
+- [x] `CLAUDE.md` Roadmap: #20-Notiz anpassen („Gäste ohne regular_member_id werden beim Start
+      automatisch angelegt" → jetzt sofortige Anlage), Nachtrag zum Feature
 
 ## Review
 
-**Gemacht:** Der Live-Ticker zeigt jetzt „🎳 Alle Neune"-Momente chronologisch zwischen Strafen,
-Getränkerunden und Highlights. Möglich wurde das durch einen Einzeiler im Backend — die Spalte
-`game_throw_log.created_at` gibt es seit Migration 038, sie wurde nur nie ausgeliefert. Die
-ursprüngliche Begründung für das Zurückstellen („das API liefert keinen Zeitstempel") war also
-halb richtig: das Feld fehlte in der Serialisierung, nicht in der Datenbank.
+**Gemacht:** Gäste, die für einen Termin eingetragen oder per Gastanfrage angenommen werden,
+werden ab sofort unmittelbar als `RegularMember(is_guest=True)` angelegt. Sie stehen damit sofort
+unter „Bekannte Gäste" bereit (und nicht erst ab Abend-Start). Bei Namensgleichheit (voller Name,
+case-insensitive) wird automatisch der bestehende Gast verlinkt statt ein Duplikat anzulegen.
+Wird ein ungenutzter Gast wieder aus dem Termin gelöscht, wird auch der vorgemerkte Roster-Eintrag
+sauber entfernt.
 
-**Die eigentliche Entscheidung** war keine technische, sondern eine Produktfrage: „Würfe im
-Ticker" wörtlich zu nehmen hätte den Ticker zerstört. Ein Kegelabend erzeugt hunderte Würfe; bei
-einem auf 30 Einträge gedeckelten Verlauf wäre nach einem einzigen Spiel nichts anderes mehr
-sichtbar. Der Ticker beantwortet „was ist gerade passiert", die Anzeigetafel „wie steht es" —
-deshalb kommen nur Meilensteine in den Ticker.
+Der Merge-Endpoint `POST /club/regular-members/{discard}/merge-into/{keep}` überträgt nun
+vollständig alle Daten: `ScheduledEveningGuest`, `MemberPayment`, `PaymentRequest`, `PenaltyLog`,
+`MemberRsvp` (inkl. Bereinigung von Kollisionen), `ClubPin` und `BowlingScore`.
+In der MembersPage können Admins nun auch Gäste mit anderen bekannten Gästen zusammenführen.
 
-**Zweiter Punkt:** Die Nav-Reduktion war durch #79 bereits erledigt (4 permanente Tabs +
-kontextueller Abend-Tab) und wurde nur noch dokumentiert, nicht erneut implementiert.
-
-**Verifikation:** pytest `tests/test_games.py -k Throw` 9 grün (inkl. neuem Serialisierungs-Test),
-Vitest liveEvening/LiveEveningView/EveningHubPage/i18n 89 grün, `tsc --noEmit` und `eslint` ohne
-Fehler.
+**Verifikation:** pytest `tests/test_guest_requests.py` (35 Tests), `tests/test_schedule_extended.py` (48 Tests)
+und `tests/test_club_extended.py` (inkl. 6 Tests für Merge) alle grün; Vitest volle Suite mit
+136 Testdateien und 2845 Tests grün.

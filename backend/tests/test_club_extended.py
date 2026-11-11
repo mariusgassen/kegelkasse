@@ -2,16 +2,19 @@
 Extended tests for app/api/v1/club.py — covers routes not tested in test_club.py.
 """
 
+from datetime import datetime, UTC
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from core.security import create_access_token, get_password_hash
+from models.bowling import BowlingScore
 from models.club import Club, ClubSettings, ClubPin
 from models.evening import RegularMember, EveningPlayer, Evening, ClubTeam
 from models.game import GameTemplate
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
-from models.penalty import PenaltyType
+from models.penalty import PenaltyType, PenaltyLog
+from models.schedule import ScheduledEvening, ScheduledEveningGuest, MemberRsvp, RsvpStatus
 from models.user import User, UserRole
 
 
@@ -26,9 +29,17 @@ def cleanup(db: Session, club: Club):
     db.query(PaymentRequest).filter(PaymentRequest.club_id == club.id).delete(synchronize_session=False)
     db.query(MemberPayment).filter(MemberPayment.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubExpense).filter(ClubExpense.club_id == club.id).delete(synchronize_session=False)
+    db.query(BowlingScore).filter(BowlingScore.club_id == club.id).delete(synchronize_session=False)
+    se_ids = [r[0] for r in db.query(ScheduledEvening.id).filter(ScheduledEvening.club_id == club.id).all()]
+    if se_ids:
+        db.query(ScheduledEveningGuest).filter(ScheduledEveningGuest.scheduled_evening_id.in_(se_ids)).delete(synchronize_session=False)
+        db.query(MemberRsvp).filter(MemberRsvp.scheduled_evening_id.in_(se_ids)).delete(synchronize_session=False)
+    db.query(ScheduledEvening).filter(ScheduledEvening.club_id == club.id).delete(synchronize_session=False)
+    member_ids = [r[0] for r in db.query(RegularMember.id).filter(RegularMember.club_id == club.id).all()]
+    if member_ids:
+        db.query(PenaltyLog).filter(PenaltyLog.regular_member_id.in_(member_ids)).delete(synchronize_session=False)
     evening_ids = [r[0] for r in db.query(Evening.id).filter(Evening.club_id == club.id).all()]
     if evening_ids:
-        from models.penalty import PenaltyLog
         db.query(PenaltyLog).filter(PenaltyLog.evening_id.in_(evening_ids)).delete(synchronize_session=False)
         db.query(EveningPlayer).filter(EveningPlayer.evening_id.in_(evening_ids)).delete(synchronize_session=False)
     db.query(Evening).filter(Evening.club_id == club.id).delete(synchronize_session=False)
@@ -40,6 +51,7 @@ def cleanup(db: Session, club: Club):
     db.query(User).filter(User.club_id == club.id, User.email.like("%ext%")).delete(synchronize_session=False)
     db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.commit()
+    db.expire_all()
 
 
 @pytest.fixture()
@@ -315,6 +327,116 @@ class TestMergeRegularMembers:
             headers=admin_headers,
         )
         assert resp.status_code == 400
+
+    def test_merge_moves_scheduled_guests_payments_penalties_pins_and_bowling_scores(
+            self, client: TestClient, admin_headers: dict, db: Session, club: Club, admin_user: User):
+        discard = RegularMember(club_id=club.id, name="Discard Me", is_guest=True, is_active=True)
+        keep = RegularMember(club_id=club.id, name="Keep Me", nickname="Keeper", is_guest=True, is_active=True)
+        db.add_all([discard, keep])
+        db.commit()
+
+        se = ScheduledEvening(club_id=club.id, scheduled_at=datetime.now(UTC), created_by=admin_user.id)
+        db.add(se)
+        db.commit()
+
+        guest = ScheduledEveningGuest(scheduled_evening_id=se.id, regular_member_id=discard.id, name="Discard Me")
+        payment = MemberPayment(club_id=club.id, regular_member_id=discard.id, amount=12.5, note="Barzahlung")
+        pay_req = PaymentRequest(club_id=club.id, regular_member_id=discard.id, amount=20.0,
+                                 status=PaymentRequestStatus.pending)
+        ev = Evening(club_id=club.id, date=datetime.now(UTC))
+        db.add(ev)
+        db.flush()
+        penalty = PenaltyLog(evening_id=ev.id, regular_member_id=discard.id, amount=2.0,
+                             player_name="Discard Me", penalty_type_name="Abwesenheit", client_timestamp=100.0)
+        pin = ClubPin(club_id=club.id, name="Krone", holder_regular_member_id=discard.id)
+        score = BowlingScore(club_id=club.id, regular_member_id=discard.id, player_name="Discard Me", score=18)
+        db.add_all([guest, payment, pay_req, penalty, pin, score])
+        db.commit()
+
+        resp = client.post(f"/api/v1/club/regular-members/{discard.id}/merge-into/{keep.id}",
+                           headers=admin_headers)
+        assert resp.status_code == 200
+
+        db.refresh(guest)
+        db.refresh(payment)
+        db.refresh(pay_req)
+        db.refresh(penalty)
+        db.refresh(pin)
+        db.refresh(score)
+        db.refresh(discard)
+
+        assert guest.regular_member_id == keep.id
+        assert guest.name == "Keeper"  # display name followed keep's nickname
+        assert payment.regular_member_id == keep.id
+        assert pay_req.regular_member_id == keep.id
+        assert penalty.regular_member_id == keep.id
+        assert pin.holder_regular_member_id == keep.id
+        assert score.regular_member_id == keep.id
+        assert discard.is_active is False
+
+    def test_merge_rsvp_collision_drops_discard_and_retains_keep(
+            self, client: TestClient, admin_headers: dict, db: Session, club: Club, admin_user: User):
+        discard = RegularMember(club_id=club.id, name="Discard RSVP", is_active=True)
+        keep = RegularMember(club_id=club.id, name="Keep RSVP", is_active=True)
+        db.add_all([discard, keep])
+        db.commit()
+
+        se1 = ScheduledEvening(club_id=club.id, scheduled_at=datetime.now(UTC), created_by=admin_user.id)
+        se2 = ScheduledEvening(club_id=club.id, scheduled_at=datetime.now(UTC), created_by=admin_user.id)
+        db.add_all([se1, se2])
+        db.commit()
+
+        # Both have RSVP on se1; only discard has RSVP on se2
+        rsvp_keep_1 = MemberRsvp(scheduled_evening_id=se1.id, regular_member_id=keep.id,
+                                 status=RsvpStatus.attending)
+        rsvp_discard_1 = MemberRsvp(scheduled_evening_id=se1.id, regular_member_id=discard.id,
+                                    status=RsvpStatus.absent)
+        rsvp_discard_2 = MemberRsvp(scheduled_evening_id=se2.id, regular_member_id=discard.id,
+                                    status=RsvpStatus.attending)
+        db.add_all([rsvp_keep_1, rsvp_discard_1, rsvp_discard_2])
+        db.commit()
+
+        resp = client.post(f"/api/v1/club/regular-members/{discard.id}/merge-into/{keep.id}",
+                           headers=admin_headers)
+        assert resp.status_code == 200
+
+        # se1 retained keep's RSVP, discard's was dropped to prevent unique constraint violation
+        rsvps_se1 = db.query(MemberRsvp).filter(MemberRsvp.scheduled_evening_id == se1.id).all()
+        assert len(rsvps_se1) == 1
+        assert rsvps_se1[0].regular_member_id == keep.id
+        assert rsvps_se1[0].status == RsvpStatus.attending
+
+        # se2 discard's RSVP was migrated to keep
+        rsvps_se2 = db.query(MemberRsvp).filter(MemberRsvp.scheduled_evening_id == se2.id).all()
+        assert len(rsvps_se2) == 1
+        assert rsvps_se2[0].regular_member_id == keep.id
+
+    def test_merge_guests_sets_discard_inactive_and_retains_both_in_db(
+            self, client: TestClient, admin_headers: dict, db: Session, club: Club):
+        g1 = RegularMember(club_id=club.id, name="Gast Einmal", is_guest=True, is_active=True)
+        g2 = RegularMember(club_id=club.id, name="Gast Dauerhaft", is_guest=True, is_active=True)
+        db.add_all([g1, g2])
+        db.commit()
+
+        resp = client.post(f"/api/v1/club/regular-members/{g1.id}/merge-into/{g2.id}",
+                           headers=admin_headers)
+        assert resp.status_code == 200
+        db.refresh(g1)
+        db.refresh(g2)
+        assert g1.is_active is False
+        assert g2.is_active is True
+
+    def test_merge_guards(self, client: TestClient, auth_headers: dict, db: Session, club: Club):
+        m1 = RegularMember(club_id=club.id, name="M1", is_active=True)
+        m2 = RegularMember(club_id=club.id, name="M2", is_active=True)
+        db.add_all([m1, m2])
+        db.commit()
+
+        # 401 unauthenticated
+        assert client.post(f"/api/v1/club/regular-members/{m1.id}/merge-into/{m2.id}").status_code == 401
+        # 403 non-admin member
+        assert client.post(f"/api/v1/club/regular-members/{m1.id}/merge-into/{m2.id}",
+                           headers=auth_headers).status_code == 403
 
 
 # ---------------------------------------------------------------------------

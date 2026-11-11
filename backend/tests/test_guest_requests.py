@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from api.v1 import public
 from core.push import _user_channels
 from models.club import Club, ClubSettings
+from models.evening import RegularMember
 from models.schedule import GuestRequest, ScheduledEvening, ScheduledEveningGuest
 from models.user import User
 
@@ -36,6 +37,9 @@ def cleanup(db: Session, club: Club):
         db.query(ScheduledEveningGuest).filter(
             ScheduledEveningGuest.scheduled_evening_id.in_(se_ids)).delete(synchronize_session=False)
     db.query(ScheduledEvening).filter(ScheduledEvening.club_id == club.id).delete(synchronize_session=False)
+    # Approving a request creates the guest roster entry right away — remove it with the rest,
+    # otherwise the club teardown trips over the dangling reference.
+    db.query(RegularMember).filter(RegularMember.club_id == club.id).delete(synchronize_session=False)
     db.query(ClubSettings).filter(ClubSettings.club_id == club.id).delete(synchronize_session=False)
     db.commit()
 
@@ -247,7 +251,52 @@ class TestGuestRequestDecision:
         assert r.status_code == 200
         assert r.json()["status"] == "rejected"
         assert db.query(ScheduledEveningGuest).count() == 0
+        assert db.query(RegularMember).count() == 0
         assert send.call_args[0][2] == "Deine Anfrage zum Gastkegeln am 14.11.2099"
+
+    def test_approve_saves_guest_as_known_guest(self, client, db, club, auth_headers):
+        """Approval creates the roster entry right away, so the guest shows up under
+        "Bekannte Gäste" immediately instead of only when the evening starts."""
+        se = _evening(db, club)
+        req = _request(db, club, se)
+        r, _ = self._decide(client, auth_headers, req.id, "approve")
+        assert r.status_code == 200
+        member = db.query(RegularMember).filter(RegularMember.club_id == club.id).one()
+        assert (member.name, member.is_guest, member.is_active) == ("Anna Gast", True, True)
+        guest = db.query(ScheduledEveningGuest).one()
+        assert guest.regular_member_id == member.id
+        listed = client.get("/api/v1/club/regular-members", headers=auth_headers).json()
+        assert any(m["id"] == member.id and m["is_guest"] for m in listed)
+
+    def test_approve_links_same_named_known_guest(self, client, db, club, auth_headers):
+        """A known guest with the same full name is linked instead of duplicated (case-insensitive)."""
+        se = _evening(db, club)
+        req = _request(db, club, se)
+        known = RegularMember(club_id=club.id, name="anna gast", nickname="Ännchen",
+                               is_guest=True, is_active=True)
+        db.add(known)
+        db.commit()
+        r, _ = self._decide(client, auth_headers, req.id, "approve")
+        assert r.status_code == 200
+        assert db.query(RegularMember).filter(RegularMember.club_id == club.id).count() == 1
+        guest = db.query(ScheduledEveningGuest).one()
+        assert guest.regular_member_id == known.id
+        assert guest.name == "Ännchen"  # display name of the linked entry
+
+    def test_approve_does_not_match_nickname(self, client, db, club, auth_headers):
+        """Matching is on the full name only — a Kegelname that equals the request name must
+        not link the request to a different person."""
+        se = _evening(db, club)
+        req = _request(db, club, se)  # name "Anna Gast"
+        known = RegularMember(club_id=club.id, name="Anna Schmidt", nickname="Anna Gast",
+                              is_guest=True, is_active=True)
+        db.add(known)
+        db.commit()
+        r, _ = self._decide(client, auth_headers, req.id, "approve")
+        assert r.status_code == 200
+        assert db.query(RegularMember).filter(RegularMember.club_id == club.id).count() == 2
+        guest = db.query(ScheduledEveningGuest).one()
+        assert guest.regular_member_id != known.id
 
     def test_without_smtp_decision_is_saved_but_reported(self, client, db, club, auth_headers):
         req = _request(db, club, _evening(db, club))
