@@ -360,6 +360,12 @@ export function MembersPage() {
         }
     }
 
+    function formatEveningCount(count?: number) {
+        if (!count) return t('member.eveningCountNone')
+        if (count === 1) return t('member.eveningCountSingular')
+        return t('member.eveningCountPlural').replace('{n}', String(count))
+    }
+
     const alreadyInEvening = new Set(evening?.players.map(p => p.regular_member_id).filter(Boolean))
     const linkedMemberIds = new Set(appUsers.map(u => u.regular_member_id).filter(Boolean))
     // Unlinked roster = not linked to any active app user
@@ -378,6 +384,14 @@ export function MembersPage() {
 
     // For link sheet: roster members not already linked to someone
     const availableForLink = regularMembers.filter(m => !linkedMemberIds.has(m.id))
+
+    // Merge sheet keep-candidates: merging a guest offers the other known guests (the
+    // duplicate case, e.g. form-registered vs. manually created); Stammspieler keeps the
+    // full roster as before.
+    const knownGuests = regularMembers.filter(m => m.is_guest || m.deactivated_at)
+    const mergeCandidates = mergeDiscard?.is_guest
+        ? knownGuests.filter(m => m.id !== mergeDiscard.id)
+        : regularMembers.filter(m => m.id !== mergeDiscard?.id)
 
     const activeUsers = appUsers.filter(u => {
         if (!u.is_active) return false
@@ -583,6 +597,10 @@ export function MembersPage() {
                         onClick: () => addToEvening(m),
                     })
                     actions.push({icon: '✏️', label: t('action.edit'), onClick: () => openEdit(m)})
+                    if (admin) actions.push({
+                        icon: '⇄', label: t('member.action.merge'),
+                        onClick: () => { setMergeDiscard(m); setMergeSheet(true) },
+                    })
                     if (admin) actions.push({icon: '⬆️', label: t('member.reactivateRoster'), onClick: () => openPromoteConfirm(m)})
 
                     return (
@@ -592,7 +610,7 @@ export function MembersPage() {
                             name={displayName}
                             avatar={m.avatar}
                             avatarVariant="muted"
-                            meta={<>{m.nickname ? m.name + ' · ' : ''}{t('member.guestLabel')}</>}
+                            meta={<>{m.nickname ? m.name + ' · ' : ''}<span>{t('member.guestLabel')}</span> · <span>{formatEveningCount(m.evening_count)}</span></>}
                             trailing={inEvening
                                 ? <span className="text-accent-fg text-sm flex-shrink-0" aria-hidden="true">✓</span>
                                 : undefined}
@@ -780,23 +798,27 @@ export function MembersPage() {
 
             {/* Merge roster sheet */}
             <Sheet open={mergeSheet} onClose={() => setMergeSheet(false)}
-                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" ${t('member.mergeWith')}`}>
+                   title={`⇄ "${mergeDiscard?.nickname || mergeDiscard?.name}" (${formatEveningCount(mergeDiscard?.evening_count)}) ${t('member.mergeWith')}`}>
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-muted mb-1">
                         {t('member.mergeHint')}
                     </p>
-                    {regularMembers.filter(m => m.id !== mergeDiscard?.id).map(m => (
+                    {mergeCandidates.map(m => (
                         <button key={m.id} className="kce-card p-3 flex items-center gap-3 text-left active:opacity-70"
                                 onClick={() => handleMerge(m.id)}>
                             <Avatar name={m.nickname || m.name} size="sm"/>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate">{m.nickname || m.name}</div>
-                                {m.nickname && <div className="text-xs text-muted">{m.name}</div>}
+                                <div className="text-xs text-muted">
+                                    {m.nickname ? `${m.name} · ` : ''}
+                                    {m.is_guest ? <>{t('member.guestLabel')} · </> : null}
+                                    <span>{formatEveningCount(m.evening_count)}</span>
+                                </div>
                             </div>
                             <span className="text-xs text-muted">{t('member.keep')}</span>
                         </button>
                     ))}
-                    {regularMembers.filter(m => m.id !== mergeDiscard?.id).length === 0 && (
+                    {mergeCandidates.length === 0 && (
                         <p className="text-xs text-muted text-center py-2">{t('member.noOtherEntries')}</p>
                     )}
                 </div>

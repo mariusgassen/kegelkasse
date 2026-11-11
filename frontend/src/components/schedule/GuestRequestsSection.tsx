@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Mail} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
+import {useAppStore} from '@/store/app.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
@@ -113,8 +114,12 @@ export function GuestRequestsSection() {
                 ? await api.approveGuestRequest(request.id)
                 : await api.rejectGuestRequest(request.id)
             await qc.invalidateQueries({queryKey: ['guest-requests']})
-            // Approval adds a planned guest to the evening.
-            if (action === 'approve') qc.invalidateQueries({queryKey: ['schedule']})
+            if (action === 'approve') {
+                // Approval adds a planned guest to the evening and eagerly saves it as a
+                // known guest — refresh both so each shows up immediately.
+                qc.invalidateQueries({queryKey: ['schedule']})
+                api.listRegularMembers().then(d => useAppStore.getState().setRegularMembers(d))
+            }
             if (result.guest_notified) {
                 showToast(t(action === 'approve' ? 'guestRequests.approved' : 'guestRequests.rejected'))
             } else {

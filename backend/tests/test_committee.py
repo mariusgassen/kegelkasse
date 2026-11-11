@@ -269,7 +269,7 @@ class TestTripEndDate:
         resp = client.patch(url, json={"date": "2025-08-20"}, headers=admin_headers)
         assert resp.status_code == 400
         db.expire_all()
-        assert db.query(ClubTrip).get(trip.id).date.date().isoformat() == "2025-08-10"
+        assert db.get(ClubTrip, trip.id).date.date().isoformat() == "2025-08-10"
 
     def test_listing_includes_end_date(self, client: TestClient, db, club, admin_user, admin_headers):
         trip = TestUpdateTrip()._create_trip(db, club, admin_user)
