@@ -11,12 +11,27 @@ function touchEvent(type: string, clientY: number, clientX = 0): Event {
     return evt
 }
 
+function multiTouchEvent(type: string, touches: Array<{clientX?: number; clientY: number}>): Event {
+    const evt = new Event(type, {bubbles: true, cancelable: true})
+    const touchList = touches.map(t => ({clientX: t.clientX ?? 0, clientY: t.clientY}))
+    Object.defineProperty(evt, 'touches', {value: touchList, configurable: true})
+    return evt
+}
+
 function TestHarness({onRefresh}: { onRefresh: () => void | Promise<void> }) {
     const {containerRef, pullDistance, dragging, refreshing} = usePullToRefresh(onRefresh)
     return (
         <div ref={containerRef as React.RefObject<HTMLDivElement | null>}>
             <div className="page-scroll" data-testid="scroller">
                 <button data-testid="target">target</button>
+                <div className="leaflet-container" data-testid="map">
+                    <div className="leaflet-pane">
+                        <div data-testid="map-tile">tile</div>
+                    </div>
+                </div>
+                <div data-no-ptr data-testid="no-ptr-box">
+                    <button data-testid="no-ptr-target">no-ptr</button>
+                </div>
             </div>
             <div data-testid="state">{JSON.stringify({pullDistance, dragging, refreshing})}</div>
         </div>
@@ -144,5 +159,75 @@ describe('usePullToRefresh', () => {
         expect(onRefresh).not.toHaveBeenCalled()
         expect(readState().pullDistance).toBe(0)
         expect(readState().dragging).toBe(false)
+    })
+
+    it('does not trigger pull to refresh when scrolling/dragging on a map (.leaflet-container)', async () => {
+        const onRefresh = vi.fn()
+        render(<TestHarness onRefresh={onRefresh}/>)
+        const mapTile = screen.getByTestId('map-tile')
+
+        await act(async () => { mapTile.dispatchEvent(touchEvent('touchstart', 100)) })
+        await act(async () => { mapTile.dispatchEvent(touchEvent('touchmove', 190)) }) // delta 90 (past threshold)
+        expect(readState().pullDistance).toBe(0)
+        expect(readState().dragging).toBe(false)
+
+        await act(async () => { mapTile.dispatchEvent(touchEvent('touchend', 190)) })
+        expect(onRefresh).not.toHaveBeenCalled()
+        expect(readState().pullDistance).toBe(0)
+    })
+
+    it('does not trigger pull to refresh when scrolling/dragging on an element with data-no-ptr', async () => {
+        const onRefresh = vi.fn()
+        render(<TestHarness onRefresh={onRefresh}/>)
+        const noPtrTarget = screen.getByTestId('no-ptr-target')
+
+        await act(async () => { noPtrTarget.dispatchEvent(touchEvent('touchstart', 100)) })
+        await act(async () => { noPtrTarget.dispatchEvent(touchEvent('touchmove', 190)) })
+        expect(readState().pullDistance).toBe(0)
+        expect(readState().dragging).toBe(false)
+
+        await act(async () => { noPtrTarget.dispatchEvent(touchEvent('touchend', 190)) })
+        expect(onRefresh).not.toHaveBeenCalled()
+        expect(readState().pullDistance).toBe(0)
+    })
+
+    it('ignores multi-touch gestures such as pinch-to-zoom', async () => {
+        const onRefresh = vi.fn()
+        render(<TestHarness onRefresh={onRefresh}/>)
+        const target = screen.getByTestId('target')
+
+        // 2 fingers down
+        await act(async () => {
+            target.dispatchEvent(multiTouchEvent('touchstart', [{clientY: 100}, {clientY: 120}]))
+        })
+        await act(async () => {
+            target.dispatchEvent(multiTouchEvent('touchmove', [{clientY: 190}, {clientY: 210}]))
+        })
+        expect(readState().pullDistance).toBe(0)
+        expect(readState().dragging).toBe(false)
+
+        await act(async () => { target.dispatchEvent(touchEvent('touchend', 190)) })
+        expect(onRefresh).not.toHaveBeenCalled()
+    })
+
+    it('cancels pull if a second touch appears during an in-progress drag', async () => {
+        const onRefresh = vi.fn()
+        render(<TestHarness onRefresh={onRefresh}/>)
+        const target = screen.getByTestId('target')
+
+        await act(async () => { target.dispatchEvent(touchEvent('touchstart', 100)) })
+        await act(async () => { target.dispatchEvent(touchEvent('touchmove', 140)) })
+        expect(readState().dragging).toBe(true)
+        expect(readState().pullDistance).toBe(40)
+
+        // Second finger appears (e.g. user begins pinching)
+        await act(async () => {
+            target.dispatchEvent(multiTouchEvent('touchmove', [{clientY: 180}, {clientY: 200}]))
+        })
+        expect(readState().dragging).toBe(false)
+        expect(readState().pullDistance).toBe(0)
+
+        await act(async () => { target.dispatchEvent(touchEvent('touchend', 180)) })
+        expect(onRefresh).not.toHaveBeenCalled()
     })
 })

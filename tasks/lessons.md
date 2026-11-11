@@ -99,6 +99,9 @@ Updated after every significant correction — reviewed at session start.
 - Replacing a text loading state with a visual one removes the only thing a screen reader had to announce. Wrap
   skeletons in `role="status"` with an sr-only label instead.
 
+### Delegated pull-to-refresh
+- `usePullToRefresh` listens on `<main>` and delegates to `.page-scroll`. Interactive components with their own drag/pan gestures (like Leaflet maps) or widgets opting out must be excluded (`.leaflet-container`, `[data-no-ptr]`, `[data-prevent-ptr]`), and multi-touch gestures must be ignored, so panning/zooming doesn't trigger a page refresh.
+
 ---
 
 ## Versioning
