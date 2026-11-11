@@ -15,16 +15,18 @@ from models.evening import EveningHighlight, Evening
 from models.user import User, UserRole
 from models.evening import RegularMember
 from models.sticker import Sticker
+from models.roadmap import RoadmapItem
 
 router = APIRouter(prefix="/comments", tags=["comments"])
 
-VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip', 'sticker'}
+VALID_PARENT_TYPES = {'highlight', 'announcement', 'trip', 'sticker', 'roadmap'}
 
 _TYPE_LABEL_DE = {
     'highlight': 'Highlight',
     'announcement': 'Ankündigung',
     'trip': 'Kegelfahrt',
     'sticker': 'Sticker',
+    'roadmap': 'Roadmap-Idee',
 }
 
 
@@ -71,6 +73,9 @@ def _parent_title(parent_type: str, parent_id: int, db: Session) -> str:
     if parent_type == 'sticker':
         st = db.query(Sticker).filter(Sticker.id == parent_id).first()
         return st.place_name if st else ''
+    if parent_type == 'roadmap':
+        rm = db.query(RoadmapItem).filter(RoadmapItem.id == parent_id).first()
+        return rm.title if rm else ''
     return ''
 
 
@@ -153,6 +158,9 @@ def _parent_creator_user_id(parent_type: str, parent_id: int, db: Session) -> Op
     if parent_type == 'sticker':
         st = db.query(Sticker).filter(Sticker.id == parent_id).first()
         return st.created_by if st else None
+    if parent_type == 'roadmap':
+        rm = db.query(RoadmapItem).filter(RoadmapItem.id == parent_id).first()
+        return rm.created_by_user_id if rm else None
     return None
 
 
@@ -189,6 +197,14 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
         ).first()
         if not st:
             raise HTTPException(404, "Sticker not found")
+    elif parent_type == 'roadmap':
+        rm = db.query(RoadmapItem).filter(RoadmapItem.id == parent_id).first()
+        if not rm:
+            raise HTTPException(404, "Roadmap item not found")
+        # Global items (club_id is None) can be accessed by everyone.
+        # Club-specific items can be accessed by club members or superadmin/product_manager.
+        if rm.club_id is not None and rm.club_id != user.club_id and user.role not in (UserRole.superadmin, UserRole.product_manager):
+            raise HTTPException(404, "Roadmap item not found")
 
 
 def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = None) -> str:
@@ -199,6 +215,8 @@ def _parent_url(parent_type: str, parent_id: int, comment_id: Optional[int] = No
         base = f'/#committee:trips?item={parent_id}'
     elif parent_type == 'sticker':
         base = f'/#stickers?item={parent_id}'
+    elif parent_type == 'roadmap':
+        base = f'/#roadmap?item={parent_id}'
     else:  # highlight
         base = f'/#evening:highlights?item={parent_id}'
     if comment_id:
@@ -466,7 +484,7 @@ def delete_comment(
     ).first()
     if not c:
         raise HTTPException(404, "Comment not found")
-    if c.created_by != user.id and user.role not in (UserRole.admin, UserRole.superadmin):
+    if c.created_by != user.id and user.role not in (UserRole.admin, UserRole.superadmin, UserRole.product_manager):
         raise HTTPException(403, "Not allowed")
     c.is_deleted = True
     db.commit()

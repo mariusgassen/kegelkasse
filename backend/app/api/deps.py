@@ -28,8 +28,8 @@ def get_current_user(
 
 
 def require_club_member(user: User = Depends(get_current_user)) -> User:
-    """Any authenticated user with a club."""
-    if not user.club_id:
+    """Any authenticated user with a club (or superadmin/product_manager)."""
+    if not user.club_id and user.role not in (UserRole.superadmin, UserRole.product_manager):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No club assigned")
     return user
 

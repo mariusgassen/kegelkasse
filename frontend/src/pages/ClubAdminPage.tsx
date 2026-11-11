@@ -32,6 +32,7 @@ import {SeasonTab} from './SeasonTab'
 import {Switch} from '@/components/ui/Switch'
 import {Tabs} from '@/components/ui/Tabs'
 import {SkeletonCard} from '@/components/ui/Skeleton'
+import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -41,7 +42,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee', 'season', 'backups'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'roles' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'roles', 'members', 'pins', 'committee', 'season', 'backups'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -76,8 +77,11 @@ export function ClubAdminPage() {
         {id: 'pins', label: t('club.tab.pins')},
         {id: 'committee', label: t('club.tab.committee')},
         {id: 'season', label: `📆 ${t('season.tab')}`},
-        ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
-        ...(user?.role === 'superadmin' ? [{id: 'backups', label: t('club.tab.backups')}] : []),
+        ...(user?.role === 'superadmin' ? [
+            {id: 'clubs', label: t('club.tab.clubs')},
+            {id: 'roles', label: `👥 ${t('superadmin.roles.title')}`},
+            {id: 'backups', label: t('club.tab.backups')},
+        ] : []),
     ]
 
     return (
@@ -139,6 +143,11 @@ export function ClubAdminPage() {
                     )}
                     {tab === 'clubs' && user?.role === 'superadmin' && (
                         <SuperadminClubsTab qc={qc}/>
+                    )}
+                    {tab === 'roles' && user?.role === 'superadmin' && (
+                        <div className="p-1">
+                            <SuperadminRolesManager/>
+                        </div>
                     )}
                     {tab === 'backups' && user?.role === 'superadmin' && (
                         <BackupsTab/>

@@ -11,7 +11,7 @@ export interface NotificationItem {
 }
 
 
-export type UserRole = 'superadmin' | 'admin' | 'member'
+export type UserRole = 'superadmin' | 'product_manager' | 'admin' | 'member'
 
 export interface User {
     id: number
@@ -900,8 +900,8 @@ export interface InventoryMovement {
     created_at: string | null
 }
 
-export type RoadmapStatus = 'idea' | 'planned' | 'in_progress' | 'completed' | 'rejected'
-export type RoadmapCategory = 'feature' | 'improvement' | 'design' | 'bug' | 'general'
+export type RoadmapStatus = 'idea' | 'planned' | 'in_progress' | 'completed' | 'rejected' | 'duplicate'
+export type RoadmapCategory = 'feature' | 'improvement' | 'design' | 'evening' | 'kasse' | 'admin' | string
 
 export interface RoadmapItem {
     id: number
@@ -911,11 +911,18 @@ export interface RoadmapItem {
     title: string
     description: string | null
     status: RoadmapStatus
-    category: RoadmapCategory | null
+    category: string | null
+    tags: string[]
+    tags_raw?: string
+    is_pinned: boolean
+    duplicate_of_id: number | null
+    duplicate_of_title: string | null
+    admin_notes: string | null
     target_version: string | null
     is_official: boolean
     vote_count: number
     has_voted: boolean
+    comment_count?: number
     created_at: string | null
     updated_at: string | null
 }
@@ -923,14 +930,19 @@ export interface RoadmapItem {
 export interface RoadmapItemCreate {
     title: string
     description?: string | null
-    category?: RoadmapCategory | null
+    category?: string | null
+    tags?: string | null
 }
 
 export interface RoadmapItemUpdate {
     title?: string | null
     description?: string | null
     status?: RoadmapStatus | null
-    category?: RoadmapCategory | null
+    category?: string | null
+    tags?: string | null
+    is_pinned?: boolean | null
+    duplicate_of_id?: number | null
+    admin_notes?: string | null
     target_version?: string | null
 }
 

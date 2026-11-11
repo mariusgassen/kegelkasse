@@ -10,10 +10,23 @@ const storeState: any = {user: null}
 vi.mock('@/store/app.ts', () => ({
     useAppStore: vi.fn((sel: any) => sel(storeState)),
     isAdmin: vi.fn((u: any) => u?.role === 'admin' || u?.role === 'superadmin'),
+    isSuperadmin: vi.fn((u: any) => u?.role === 'superadmin'),
+    isProductManager: vi.fn((u: any) => u?.role === 'product_manager'),
+    canManageRoadmap: vi.fn((u: any) => u?.role === 'admin' || u?.role === 'superadmin' || u?.role === 'product_manager'),
 }))
 
 vi.mock('@/components/ui/Toast.tsx', () => ({showToast: vi.fn()}))
 vi.mock('@/lib/haptics.ts', () => ({haptic: vi.fn()}))
+
+vi.mock('@/components/ui/CommentThread', () => ({
+    CommentThread: ({parentType, parentId}: any) => (
+        <div data-testid={`comment-thread-${parentType}-${parentId}`}>CommentThread Mock</div>
+    ),
+}))
+
+vi.mock('@/components/superadmin/SuperadminRolesManager', () => ({
+    SuperadminRolesManager: () => <div data-testid="superadmin-roles-manager">Roles Manager Mock</div>,
+}))
 
 vi.mock('@/api/client.ts', () => ({
     api: {
@@ -38,11 +51,17 @@ const MOCK_ITEMS: RoadmapItem[] = [
         title: 'Desktop-Master-Detail',
         description: 'Zweispaltige Ansicht auf großen Bildschirmen',
         status: 'planned',
-        category: 'feature',
+        category: 'design',
+        tags: ['desktop', 'ui'],
+        is_pinned: true,
+        duplicate_of_id: null,
+        duplicate_of_title: null,
+        admin_notes: null,
         target_version: '2.0',
         is_official: true,
         vote_count: 12,
         has_voted: false,
+        comment_count: 3,
         created_at: '2026-11-01T10:00:00Z',
         updated_at: '2026-11-01T10:00:00Z',
     },
@@ -54,11 +73,17 @@ const MOCK_ITEMS: RoadmapItem[] = [
         title: 'Königs-Tippspiel',
         description: 'Vor dem Eröffnungsspiel auf den König tippen',
         status: 'idea',
-        category: 'feature',
+        category: 'evening',
+        tags: ['tippspiel', 'king'],
+        is_pinned: false,
+        duplicate_of_id: null,
+        duplicate_of_title: null,
+        admin_notes: null,
         target_version: null,
         is_official: false,
         vote_count: 5,
         has_voted: true,
+        comment_count: 0,
         created_at: '2026-11-05T12:00:00Z',
         updated_at: '2026-11-05T12:00:00Z',
     },
@@ -71,10 +96,16 @@ const MOCK_ITEMS: RoadmapItem[] = [
         description: 'Vereins-Sticker auf der Weltkarte',
         status: 'completed',
         category: 'feature',
+        tags: ['sticker'],
+        is_pinned: false,
+        duplicate_of_id: null,
+        duplicate_of_title: null,
+        admin_notes: null,
         target_version: '1.73',
         is_official: true,
         vote_count: 20,
         has_voted: false,
+        comment_count: 1,
         created_at: '2026-10-01T10:00:00Z',
         updated_at: '2026-10-01T10:00:00Z',
     },
@@ -105,6 +136,9 @@ describe('RoadmapPage', () => {
             expect(screen.getByText('Desktop-Master-Detail')).toBeInTheDocument()
             expect(screen.getByText('Königs-Tippspiel')).toBeInTheDocument()
             expect(screen.getByText('Sticker-Wand')).toBeInTheDocument()
+            // Tags rendered
+            expect(screen.getByText('#desktop')).toBeInTheDocument()
+            expect(screen.getByText('#tippspiel')).toBeInTheDocument()
         })
     })
 
@@ -156,6 +190,22 @@ describe('RoadmapPage', () => {
         })
     })
 
+    it('toggles comment thread next to upvotes', async () => {
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('Desktop-Master-Detail')).toBeInTheDocument()
+        })
+
+        const commentBtn = screen.getByLabelText('roadmap.comments: Desktop-Master-Detail')
+        expect(screen.queryByTestId('comment-thread-roadmap-1')).not.toBeInTheDocument()
+
+        fireEvent.click(commentBtn)
+        expect(screen.getByTestId('comment-thread-roadmap-1')).toBeInTheDocument()
+
+        fireEvent.click(commentBtn)
+        expect(screen.queryByTestId('comment-thread-roadmap-1')).not.toBeInTheDocument()
+    })
+
     it('opens propose idea sheet and submits a new idea', async () => {
         const newItem: RoadmapItem = {
             id: 4,
@@ -166,6 +216,11 @@ describe('RoadmapPage', () => {
             description: 'Banner im nächsten Termin',
             status: 'idea',
             category: 'feature',
+            tags: ['banner'],
+            is_pinned: false,
+            duplicate_of_id: null,
+            duplicate_of_title: null,
+            admin_notes: null,
             target_version: null,
             is_official: false,
             vote_count: 1,
@@ -197,22 +252,20 @@ describe('RoadmapPage', () => {
                 title: 'Geburtstagsbanner',
                 description: 'Banner im nächsten Termin',
                 category: 'feature',
+                tags: null,
             })
             expect(showToast).toHaveBeenCalledWith('roadmap.propose.success')
         })
     })
 
-    it('toggles 2.0 principles accordion', () => {
+    it('shows role management sheet button for superadmins', async () => {
+        storeState.user = {id: 1, role: 'superadmin', club_id: null}
         renderPage()
-        const accordionBtn = screen.getByText('roadmap.principles.title')
-        expect(screen.queryByText('roadmap.principles.p1')).not.toBeInTheDocument()
 
-        fireEvent.click(accordionBtn)
-        expect(screen.getByText('roadmap.principles.p1')).toBeInTheDocument()
-        expect(screen.getByText('roadmap.principles.p2')).toBeInTheDocument()
-        expect(screen.getByText('roadmap.principles.p3')).toBeInTheDocument()
+        const manageRolesBtn = screen.getByText('roadmap.manageRoles')
+        expect(manageRolesBtn).toBeInTheDocument()
 
-        fireEvent.click(accordionBtn)
-        expect(screen.queryByText('roadmap.principles.p1')).not.toBeInTheDocument()
+        fireEvent.click(manageRolesBtn)
+        expect(screen.getByTestId('superadmin-roles-manager')).toBeInTheDocument()
     })
 })

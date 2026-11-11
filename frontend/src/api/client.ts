@@ -35,6 +35,7 @@ import {
     ScheduledEveningGuest,
     Team,
     User,
+    UserRole,
     Comment,
     ItemReaction,
     PaymentRequest,
@@ -445,6 +446,21 @@ export const api = {
         access_token: string;
         user: User
     }>('POST', `/superadmin/switch-club/${clubId}`),
+    superadminListUsers: () => request<{
+        id: number;
+        name: string;
+        email: string;
+        role: UserRole;
+        club_id: number | null;
+        club_name?: string | null;
+        is_active: boolean;
+    }[]>('GET', '/superadmin/users'),
+    superadminSetUserRole: (userId: number, role: UserRole) => request<{
+        id: number;
+        name: string;
+        email: string;
+        role: UserRole;
+    }>('PATCH', `/superadmin/users/${userId}/role`, {role}),
 
     // Regular members (Stammspieler)
     mergeRegularMembers: (discardId: number, keepId: number) =>
@@ -756,9 +772,9 @@ export const api = {
         request<void>('DELETE', `/evening/${eid}/highlights/${hid}`),
 
     // Comments
-    listComments: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number) =>
+    listComments: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap', parentId: number) =>
         request<Comment[]>('GET', `/comments/${parentType}/${parentId}`),
-    addComment: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number, text: string, mediaUrl?: string, parentCommentId?: number) =>
+    addComment: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap', parentId: number, text: string, mediaUrl?: string, parentCommentId?: number) =>
         request<Comment>('POST', `/comments/${parentType}/${parentId}`, {text: text || null, media_url: mediaUrl || null, parent_comment_id: parentCommentId ?? null}),
     editComment: (commentId: number, text: string | null, mediaUrl?: string | null) =>
         request<Comment>('PATCH', `/comments/${commentId}`, {text: text || null, media_url: mediaUrl || null}),
@@ -766,9 +782,9 @@ export const api = {
         request<void>('DELETE', `/comments/${commentId}`),
     toggleReaction: (commentId: number, emoji: string) =>
         request<{action: 'added' | 'removed'}>('POST', `/comments/${commentId}/reactions`, {emoji}),
-    toggleItemReaction: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number, emoji: string) =>
+    toggleItemReaction: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap', parentId: number, emoji: string) =>
         request<{action: 'added' | 'removed'; reactions: ItemReaction[]}>('POST', `/comments/item-reaction/${parentType}/${parentId}`, {emoji}),
-    getItemReactions: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker', parentId: number) =>
+    getItemReactions: (parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap', parentId: number) =>
         request<ItemReaction[]>('GET', `/comments/item-reactions/${parentType}/${parentId}`),
 
     // Stats
@@ -1010,9 +1026,18 @@ export const api = {
         URL.revokeObjectURL(url)
     },
 
-    // Roadmap 2.0 (Community-driven roadmap & voting)
-    listRoadmap: (status?: string) =>
-        request<RoadmapItem[]>('GET', status ? `/roadmap?status=${encodeURIComponent(status)}` : '/roadmap'),
+    // Roadmap (Community-driven roadmap & voting)
+    listRoadmap: (params?: { status?: string; category?: string; tag?: string } | string) => {
+        if (typeof params === 'string') {
+            return request<RoadmapItem[]>('GET', `/roadmap?status=${encodeURIComponent(params)}`)
+        }
+        const query = new URLSearchParams()
+        if (params?.status) query.set('status', params.status)
+        if (params?.category) query.set('category', params.category)
+        if (params?.tag) query.set('tag', params.tag)
+        const qs = query.toString()
+        return request<RoadmapItem[]>('GET', qs ? `/roadmap?${qs}` : '/roadmap')
+    },
     createRoadmapItem: (data: RoadmapItemCreate) =>
         request<RoadmapItem>('POST', '/roadmap/items', data),
     toggleRoadmapVote: (itemId: number) =>
