@@ -1,6 +1,72 @@
 {
   "releases": [
     {
+      "version": "1.74.0",
+      "date": "2026-11-11",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "852e5dc",
+              "scope": "roadmap",
+              "pr": 537,
+              "sha": "852e5dc",
+              "text": {
+                "en": "refine 2.0 roadmap into an interactive community-driven feature",
+                "de": "2.0-Roadmap zu einer interaktiven Funktion überarbeitet, die von der Community mitgestaltet wird"
+              }
+            },
+            {
+              "key": "c7178ac",
+              "scope": "stickers",
+              "pr": 567,
+              "sha": "c7178ac",
+              "text": {
+                "en": "allow club admin to configure map style matching club colors",
+                "de": "Club-Admins können jetzt einen Kartenstil passend zu den Clubfarben einstellen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "77d11b9",
+              "scope": "club",
+              "pr": 570,
+              "sha": "77d11b9",
+              "text": {
+                "en": "save map style immediately upon selection and flag extra JSON modified",
+                "de": "Kartenstil wird direkt nach der Auswahl gespeichert und zusätzliches JSON als geändert markiert"
+              }
+            },
+            {
+              "key": "bb60b46",
+              "scope": "search",
+              "pr": 566,
+              "sha": "bb60b46",
+              "text": {
+                "en": "link stickers from AI answers and match sticker keywords in global search",
+                "de": "Sticker aus KI-Antworten werden verlinkt und Sticker-Stichwörter in der globalen Suche gefunden"
+              }
+            },
+            {
+              "key": "781adb7",
+              "scope": "ui",
+              "pr": 569,
+              "sha": "781adb7",
+              "text": {
+                "en": "prevent pull-to-refresh when dragging or scrolling on maps",
+                "de": "Kein versehentliches Neuladen durch Herunterziehen mehr beim Ziehen oder Scrollen auf Karten"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.73.0",
       "date": "2026-11-11",
       "sections": [
