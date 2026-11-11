@@ -178,7 +178,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
                     className="pointer-events-none absolute inset-0"
                     style={{
                         zIndex: 250,
-                        background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary, var(--accent)))',
+                        background: 'linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent)))',
                         mixBlendMode: mapStyle === 'club_dark' ? 'color' : 'soft-light',
                         opacity: mapStyle === 'club_dark' ? 0.45 : 0.5,
                     }}
