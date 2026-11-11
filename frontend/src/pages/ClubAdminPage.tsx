@@ -161,13 +161,13 @@ function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
     ]
 }
 
-const MAP_STYLE_OPTIONS: {key: MapStyle; labelKey: string; icon: string}[] = [
-    {key: 'voyager', labelKey: 'club.mapStyle.voyager', icon: '🎨'},
-    {key: 'club_dark', labelKey: 'club.mapStyle.club_dark', icon: '🎳'},
-    {key: 'club_light', labelKey: 'club.mapStyle.club_light', icon: '🎳'},
-    {key: 'dark_all', labelKey: 'club.mapStyle.dark_all', icon: '⚫'},
-    {key: 'light_all', labelKey: 'club.mapStyle.light_all', icon: '⚪'},
-]
+const MAP_STYLE_OPTIONS = [
+    {key: 'voyager' as const, labelKey: 'club.mapStyle.voyager' as const, icon: '🎨'},
+    {key: 'club_dark' as const, labelKey: 'club.mapStyle.club_dark' as const, icon: '🎳'},
+    {key: 'club_light' as const, labelKey: 'club.mapStyle.club_light' as const, icon: '🎳'},
+    {key: 'dark_all' as const, labelKey: 'club.mapStyle.dark_all' as const, icon: '⚫'},
+    {key: 'light_all' as const, labelKey: 'club.mapStyle.light_all' as const, icon: '⚪'},
+] as const
 
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
