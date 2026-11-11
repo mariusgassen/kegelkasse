@@ -5,6 +5,7 @@ Sets DATABASE_URL and SECRET_KEY before any app code is imported, so pydantic-se
 picks up the SQLite in-memory URL instead of requiring a running Postgres instance.
 """
 import os
+import warnings
 from unittest.mock import MagicMock
 
 # --- must happen before any app import ---
@@ -23,6 +24,7 @@ _sa_async.create_async_engine = lambda *a, **kw: MagicMock()  # type: ignore[ass
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.exc import SAWarning  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
@@ -48,7 +50,13 @@ def engine():
     )
     Base.metadata.create_all(bind=e)
     yield e
-    Base.metadata.drop_all(bind=e)
+    # regular_member.user_id <-> user.regular_member_id form a foreign key cycle
+    # that SQLite cannot resolve via ALTER statements, so drop_all() cannot sort
+    # the tables for DROP and emits a harmless SAWarning. Silencing it here keeps
+    # the test output clean without hiding real warnings elsewhere.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SAWarning)
+        Base.metadata.drop_all(bind=e)
 
 
 @pytest.fixture()

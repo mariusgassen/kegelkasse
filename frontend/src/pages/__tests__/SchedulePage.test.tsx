@@ -7,13 +7,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({ useT: () => (key: string) => key }))
 
+// AddGuestForm refreshes the roster after saving a guest via
+// useAppStore.getState().setRegularMembers() — the mock is a plain function, so the
+// zustand-style getState has to be attached explicitly (all imports stay dynamic, so
+// the factory runs after this const is initialized).
+const rosterState = { setRegularMembers: vi.fn() }
+
 vi.mock('@/store/app.ts', () => ({
-    useAppStore: vi.fn((sel: any) => sel({
-        user: null,
-        regularMembers: [],
-        setActiveEveningId: vi.fn(),
-        activeEveningId: null,
-    })),
+    useAppStore: Object.assign(
+        vi.fn((sel: any) => sel({
+            user: null,
+            regularMembers: [],
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        })),
+        { getState: () => rosterState },
+    ),
     isAdmin: vi.fn(() => false),
 }))
 
@@ -41,6 +50,8 @@ vi.mock('@/api/client.ts', () => ({
         updateEvening: vi.fn(),
         createEvening: vi.fn(),
         deleteEvening: vi.fn(),
+        // AddGuestForm refreshes the roster after saving a guest
+        listRegularMembers: vi.fn().mockResolvedValue([]),
     },
 }))
 
@@ -1973,6 +1984,91 @@ describe('SchedulePage — AddGuestForm submit flow', () => {
         fireEvent.click(screen.getByText('Gast'))
         const nameInput = screen.getByPlaceholderText(/schedule\.guestName/) as HTMLInputElement
         expect(nameInput.value).toBe('Gast')
+    })
+
+    it('auto-links the guest when the full name of a known guest is typed (case-insensitive)', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            regularMembers: [
+                // Kegelname differs from the full name — only the full name may match
+                { id: 10, name: 'Gaston Freundlich', nickname: 'Gast', is_guest: true, is_active: true, is_committee: false, avatar: null },
+            ],
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([TODAY_SE] as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.addScheduledGuest).mockResolvedValueOnce(
+            { id: 99, name: 'Gaston Freundlich', regular_member_id: 10 } as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByText(/schedule\.addGuest/))
+        fireEvent.click(screen.getByText(/schedule\.addGuest/))
+        await waitFor(() => screen.getByPlaceholderText(/schedule\.guestName/))
+        fireEvent.change(screen.getByPlaceholderText(/schedule\.guestName/), { target: { value: 'gaston freundlich' } })
+        // Known-guest hint appears and the chip is marked
+        expect(screen.getByText('schedule.guestKnown')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => {
+            expect(api.addScheduledGuest).toHaveBeenCalledWith(9, { name: 'gaston freundlich', regular_member_id: 10 })
+        })
+    })
+
+    it('does not auto-link when only the Kegelname (nickname) is typed', async () => {
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({
+            user: { id: 1, role: 'admin', email: 'a@b.de', name: 'Admin', regular_member_id: 1 },
+            regularMembers: [
+                { id: 10, name: 'Gaston Freundlich', nickname: 'Gast', is_guest: true, is_active: true, is_committee: false, avatar: null },
+            ],
+            setActiveEveningId: vi.fn(),
+            activeEveningId: null,
+        }))
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([TODAY_SE] as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.addScheduledGuest).mockResolvedValueOnce({ id: 99, name: 'Gast', regular_member_id: null } as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByText(/schedule\.addGuest/))
+        fireEvent.click(screen.getByText(/schedule\.addGuest/))
+        await waitFor(() => screen.getByPlaceholderText(/schedule\.guestName/))
+        fireEvent.change(screen.getByPlaceholderText(/schedule\.guestName/), { target: { value: 'Gast' } })
+        expect(screen.queryByText('schedule.guestKnown')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => {
+            expect(api.addScheduledGuest).toHaveBeenCalledWith(9, expect.objectContaining({ regular_member_id: undefined }))
+        })
+    })
+
+    it('refreshes the roster after a guest was saved', async () => {
+        await setupAsAdmin()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
+        vi.mocked(api.listScheduledEvenings).mockResolvedValue([TODAY_SE] as any)
+        vi.mocked(api.listRsvps).mockResolvedValue([] as any)
+        vi.mocked(api.listPins).mockResolvedValue([] as any)
+        vi.mocked(api.addScheduledGuest).mockResolvedValueOnce(
+            { id: 99, name: 'Neuling', regular_member_id: 42 } as any)
+        vi.mocked(api.listRegularMembers).mockResolvedValueOnce([
+            { id: 42, name: 'Neuling', nickname: null, is_guest: true, is_active: true, is_committee: false, avatar: null },
+        ] as any)
+        await renderSchedulePage()
+        await waitFor(() => screen.getByText(/schedule\.addGuest/))
+        fireEvent.click(screen.getByText(/schedule\.addGuest/))
+        await waitFor(() => screen.getByPlaceholderText(/schedule\.guestName/))
+        fireEvent.change(screen.getByPlaceholderText(/schedule\.guestName/), { target: { value: 'Neuling' } })
+        fireEvent.click(screen.getByText('action.save'))
+        await waitFor(() => expect(api.listRegularMembers).toHaveBeenCalled())
+        await waitFor(() => expect(rosterState.setRegularMembers).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 42, name: 'Neuling' }),
+        ]))
     })
 })
 

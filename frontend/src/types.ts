@@ -215,6 +215,7 @@ export interface RegularMember {
     is_zeugwart?: boolean
     avatar: string | null
     deactivated_at: string | null
+    evening_count?: number
 }
 
 export interface ClubAnnouncement {

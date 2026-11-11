@@ -31,6 +31,7 @@ import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
 import {Switch} from '@/components/ui/Switch'
 import {Tabs} from '@/components/ui/Tabs'
+import {SkeletonCard} from '@/components/ui/Skeleton'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -621,7 +622,7 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                     <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
                 </>
             ) : (
-                <p className="text-xs text-muted">{t('action.loading')}</p>
+                <SkeletonCard lines={2}/>
             )}
 
             {confirmRegen && (
@@ -2215,7 +2216,7 @@ function BackupsTab() {
                 </div>
             )}
 
-            {isLoading && <div className="text-xs text-muted">{t('action.loading')}</div>}
+            {isLoading && <SkeletonCard lines={3}/>}
 
             {/* Stanza cards */}
             {stanzas.map(s => (

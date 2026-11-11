@@ -96,7 +96,11 @@ Falls zwei Einträge dieselbe Person sind:
 
 1. Tippe auf einen Stammspieler → **Zusammenführen**
 2. Wähle den Eintrag, der erhalten bleiben soll
-3. Alle verknüpften Abende werden auf den verbleibenden Eintrag übertragen
+3. Alle verknüpften Daten werden auf den verbleibenden Eintrag übertragen
+
+Übertragen werden gespielte Abende, geplante Gäste-Einträge, Kassen- und Strafeneinträge, Termin-Antworten (RSVPs), Pins sowie die Verknüpfung zum App-Nutzer. Der aufgegebene Eintrag wird danach nur deaktiviert und bleibt so in der Historie sichtbar.
+
+Das funktioniert genauso für **Gäste**: Tippe in der Liste „Bekannte Gäste" auf einen Gast → **Zusammenführen**. Angeboten werden die anderen bekannten Gäste — z. B. um eine per Formular angemeldete und eine manuell angelegte Version derselben Person zusammenzulegen. Bereits gespielte Gäste lassen sich nicht löschen, aber auf diese Weise zusammenführen.
 
 ---
 

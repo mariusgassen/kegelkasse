@@ -7,11 +7,25 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({ useT: () => (key: string) => key }))
 
+// The component refreshes the roster after approving (useAppStore.getState().
+// setRegularMembers). vi.hoisted runs before the static imports below, so the
+// factory can safely reference the shared mock.
+const { mockSetRegularMembers } = vi.hoisted(() => ({ mockSetRegularMembers: vi.fn() }))
+
+vi.mock('@/store/app.ts', () => ({
+    useAppStore: Object.assign(
+        vi.fn((sel: any) => sel({ user: null, regularMembers: [] })),
+        { getState: () => ({ setRegularMembers: mockSetRegularMembers }) },
+    ),
+}))
+
 vi.mock('@/api/client.ts', () => ({
     api: {
         listGuestRequests: vi.fn(),
         approveGuestRequest: vi.fn(),
         rejectGuestRequest: vi.fn(),
+        // Approving saves the guest as a known guest → roster refresh
+        listRegularMembers: vi.fn().mockResolvedValue([]),
     },
 }))
 
@@ -95,6 +109,21 @@ describe('GuestRequestsSection', () => {
         await waitFor(() => expect(showToast).toHaveBeenCalledWith('guestRequests.approved'))
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ['guest-requests'] })
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ['schedule'] })
+    })
+
+    it('refreshes the roster after approving — the guest is a known guest right away', async () => {
+        vi.mocked(api.listGuestRequests).mockResolvedValue([request()])
+        vi.mocked(api.approveGuestRequest).mockResolvedValue({ ...request({ status: 'approved' }), guest_notified: true })
+        vi.mocked(api.listRegularMembers).mockResolvedValueOnce([
+            { id: 7, name: 'Anna Gast', nickname: null, is_guest: true, is_active: true },
+        ] as any)
+        renderSection()
+        fireEvent.click(await screen.findByText(/guestRequests\.approve/))
+        fireEvent.click(screen.getByRole('dialog', { name: 'guestRequests.approveTitle' }).querySelector('.btn-primary')!)
+        await waitFor(() => expect(api.listRegularMembers).toHaveBeenCalled())
+        await waitFor(() => expect(mockSetRegularMembers).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 7, name: 'Anna Gast' }),
+        ]))
     })
 
     it('rejects after confirmation', async () => {
