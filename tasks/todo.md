@@ -1,114 +1,79 @@
-# Gäste zusammenlegen (Formular ↔ manuell) + sofortige Sichtbarkeit unter „Bekannte Gäste"
+# Community-Driven Roadmap (Refine #537)
 
-## Ausgangslage (heutiges Verhalten)
+## Ausgangslage & Zielsetzung
 
-| | Formular-Gast (Gastanfrage) | Manuell angelegter Gast |
-|---|---|---|
-| Bei Antrag/Anlage | `ScheduledEveningGuest` **ohne** `regular_member_id` | `RegularMember(is_guest=True)` sofort vorhanden |
-| In „Bekannte Gäste" sichtbar | ❌ erst wenn der Abend gestartet wird | ✅ sofort |
-| Beim Abend-Start | Backend minted einen **neuen** `RegularMember` → **Duplikat**, falls der Gast schon manuell existiert | wird wiederverwendet |
+PR #537 fügte ursprünglich einen statischen Markdown-Entwurf `docs/roadmap-2.0.md` hinzu mit dem Hinweis:
+„Dazu kommt erst ein eigener PR (feat:), wenn diese Roadmap abgenommen ist."
+Statt einer passiven Markdown-Datei soll die 2.0-Roadmap direkt als interaktives, community-getriebenes Feature in der App leben:
+- Dedizierte Roadmap-Ansicht (`/roadmap`), erreichbar über Profil → Einstellungen
+- Phasen / Status: Geplant, In Arbeit, Ideenpool, Abgeschlossen
+- Community-Voting: Mitglieder können per Upvote über Ideen abstimmen
+- In-App-Vorschlagstool: Mitglieder können eigene Ideen und Wünsche direkt einreichen
+- Vorbefüllung mit den offiziellen Kegelkasse 2.0 Kern-Meilensteinen aus #537
 
-Der Merge-Endpoint `POST /club/regular-members/{discard}/merge-into/{keep}` re-attributiert nur
-`EveningPlayer`, `User`, `InviteToken` — **nicht** `ScheduledEveningGuest`, `MemberPayment`,
-`PaymentRequest`, `PenaltyLog`, `MemberRsvp`, `ClubPin`. Und Gäste haben in MembersPage keine
-Merge-Aktion (nur Stammspieler).
+---
 
-## 1. Backend — sofortiger Gast-Eintrag (Helper)
+## 1. Backend: Datenmodell & Migration
 
-- [x] `ensure_guest_member(db, club_id, name) -> RegularMember` in `api/v1/schedule.py`:
-      sucht einen aktiven bekannten Gast (`is_active=True` UND (`is_guest=True` ODER
-      `deactivated_at` gesetzt) — exakt die Chip-Definition der AddGuestForm, ausgetretene
-      Mitglieder eingeschlossen) mit **gleichem vollen Namen** (`name`, NICHT Kegelname;
-      case-insensitive, getrimmt — Nutzer-Entscheidung) → verlinken statt duplizieren; sonst
-      `RegularMember(club_id, name, is_guest=True, is_active=True)` neu anlegen. Einzige Quelle
-      der Wahrheit für beide Call-Sites. Verlinkter Termin-Gast übernimmt den Anzeigenamen des
-      Mitglieds (Kegelname || Name) — gleiches Verhalten wie Chip-Auswahl.
-- [x] `add_guest` (`POST /schedule/{sid}/guests`): ohne `regular_member_id` → `ensure_guest_member`,
-      `ScheduledEveningGuest.regular_member_id` ist danach immer gesetzt. Mit `regular_member_id`:
-      Club-Zugehörigkeit validieren (404 sonst — schließt Cross-Club-Verlinkung).
-- [x] `approve_guest_request` (`guest_requests.py`): gleicher Helper — der formularangemeldete
-      Gast bekommt sofort einen (verlinkten oder neuen) `RegularMember`.
-- [x] Migration `071_backfill_guest_members.py`: migriert bestehende genehmigte Gastanfragen und
-      geplante Gäste ohne `regular_member_id` idempotent in `RegularMember`-Einträge bzw. verlinkt
-      sie mit namensgleichen bekannten Gästen.
+- [x] SQLAlchemy Model `backend/app/models/roadmap.py`:
+  - `RoadmapItem`: `id`, `club_id` (nullable FK), `created_by_user_id` (nullable FK), `author_name`, `title`, `description`, `status` ('planned', 'in_progress', 'completed', 'idea', 'rejected'), `category`, `target_version`, `is_official`, `created_at`, `updated_at`
+  - `RoadmapVote`: `id`, `item_id` (FK), `user_id` (FK), `created_at`, `uq_roadmap_vote` UniqueConstraint
+  - Registrierung in `backend/app/models/__init__.py`
+- [x] Alembic Migration `072_roadmap.py`:
+  - Erstellt `roadmap_item` und `roadmap_vote` Tabellen
+  - Seeding der offiziellen 2.0-Meilensteine aus #537 (Desktop-Master-Detail, Königs-Tippspiel, Geburtstage, etc.)
 
-## 2. Backend — Merge vollständig machen
+## 2. Backend: API-Routen & Schemas
 
-- [x] `merge_regular_members` (`club.py`) re-attributiert zusätzlich:
-  - `ScheduledEveningGuest.regular_member_id` (Kern dieses Features)
-  - `MemberPayment.regular_member_id` (Gast-Salden/Kassenbuchung)
-  - `PaymentRequest.regular_member_id`
-  - `PenaltyLog.regular_member_id` (Abwesenheits-Einträge)
-  - `MemberRsvp.regular_member_id` — UniqueConstraint `(scheduled_evening_id, regular_member_id)`:
-        hat `keep` für denselben Termin schon eine RSVP, wird die discard-Zeile gelöscht statt
-        verschoben (sonst 500)
-  - `ClubPin.holder_regular_member_id`
-  - `BowlingScore.regular_member_id` (Easter-Egg-Leaderboard, falls nach Mitglied gruppiert)
-- [x] `remove_guest` räumt auf: zeigt der gelöschte Termin-Gast auf einen `RegularMember`, der
-      nirgends referenziert ist (kein EveningPlayer, MemberPayment, PaymentRequest, anderes
-      ScheduledEveningGuest, PenaltyLog, MemberRsvp, ClubPin, User, InviteToken), wird er hart
-      gelöscht — der eager angelegte Gast hat nie gespielt und würde sonst „Bekannte Gäste"
-      müllen. Gespielte/verlinkte Gäste bleiben (Historie, „Gäste sind nicht löschbar").
+- [x] Schemas in `backend/app/api/v1/roadmap.py`:
+  - `RoadmapItemCreate`, `RoadmapItemUpdate` via `TrimmedModel`
+- [x] Router `backend/app/api/v1/roadmap.py`:
+  - `GET /api/v1/roadmap`: Liste der Roadmap-Items (Global + Vereins-Items), inkl. `vote_count` und `has_voted`
+  - `POST /api/v1/roadmap/items`: Neue Idee einreichen (startet im Ideenpool mit automatischem Erst-Upvote)
+  - `POST /api/v1/roadmap/items/{item_id}/vote`: Upvote toggle
+  - `PATCH /api/v1/roadmap/items/{item_id}`: Status/Details ändern (Admin / Superadmin)
+  - `DELETE /api/v1/roadmap/items/{item_id}`: Löschen (Ersteller oder Admin)
+- [x] Einbindung in `backend/app/main.py`
 
-## 3. Frontend — sofort in „Bekannte Gäste" + Auto-Match
+## 3. Frontend: API-Client & Typen
 
-- [x] `AddGuestForm` (`SchedulePage.tsx`): Tippt der Admin den vollen Namen eines bekannten
-      Gastes (`m.name`, case-insensitive — nicht den Kegelnamen), wird der Chip automatisch
-      markiert („✓ Bekannter Gast (Stammgast)") und `regular_member_id` mitgeschickt.
-      Backend-Match als Fallback bleibt.
-- [x] `AddGuestForm.submit`: nach erfolgreicher Anlage Roster-Store refreshen
-      (`api.listRegularMembers()` → `setRegularMembers`) → neuer Gast erscheint sofort in
-      „Bekannte Gäste" (MembersPage, EveningPage-Spielerauswahl, Chips).
-- [x] `GuestRequestsSection.confirm`: nach Approve ebenfalls den Roster-Store refreshen.
-- [x] i18n: `guestRequests.approveHint` erweitern („… und als bekannter Gast gespeichert"),
-      `member.mergeHint` aktualisieren (was übertragen wird), de.ts + en.ts synchron.
+- [x] Typdefinitionen in `frontend/src/types.ts`: `RoadmapItem`, `RoadmapItemCreate`, `RoadmapItemUpdate`, `RoadmapVoteResponse`, `RoadmapStatus`, `RoadmapCategory`
+- [x] API-Client Methoden in `frontend/src/api/client.ts`:
+  - `listRoadmap()`, `createRoadmapItem()`, `toggleRoadmapVote()`, `updateRoadmapItem()`, `deleteRoadmapItem()`
 
-## 4. Frontend — Merge-Aktion für Gäste
+## 4. Frontend: Roadmap-Seite & UI
 
-- [x] `MembersPage.tsx` Gäste-Sektion: Merge-Aktion (`⇄ member.action.merge`) für Admins in
-      Gast-Zeilen, identisch zum Stammspieler-Muster; bestehendes Merge-Sheet wiederverwenden
-      (Liste der möglichen Keep-Einträge).
+- [x] `frontend/src/pages/RoadmapPage.tsx`:
+  - Header: Titel, Untertitel, 2.0-Prinzipien Banner (einklappbar)
+  - Aktionsbutton: „Idee vorschlagen"
+  - Filter-Tabs: Alle, Geplant, In Arbeit, Ideenpool, Abgeschlossen
+  - Item-Karten mit Status-Badge, 2.0-Official-Badge, Titel, Beschreibung, Autor, Version
+  - Tactile Upvote-Button mit Haptik und optimistischer Zähleraktualisierung
+  - Admin-Aktionen (Statuswechsel, Löschen)
+  - Vorschlag-Modal (`<Sheet>`): Formular für Titel, Beschreibung, Kategorie
+- [x] Routing in `frontend/src/router.tsx` & `legacyHash.ts`: `/roadmap` Route registrieren
+- [x] Navigation in `frontend/src/components/ProfileSheet.tsx`:
+  - Link zu `/roadmap`
 
-## 5. Tests (Policy: jedes Feature mit Tests)
+## 5. i18n & Dokumentation
 
-- [x] pytest:
-  - `add_guest`: legt RegularMember sofort an (is_guest, verlinkt, in Serialisierung);
-    Auto-Match bei gleichem Namen (kein Duplikat); 404 bei fremdvereinlichem
-    `regular_member_id`; mit `regular_member_id` kein Neuanlage
-  - `approve_guest_request`: RegularMember sofort angelegt/verlinkt, `guest_id` gesetzt
-  - `remove_guest`: löscht ungenutzten eager-Gast, behält gespielten Gast
-  - `merge_regular_members`: ScheduledEveningGuest + MemberPayment wandern mit; RSVP-Kollision;
-    Gäste-spezifischer Merge (Gast ↔ Gast)
-  - Guards: 401/403/404 wo betroffen
-- [x] Vitest:
-  - `SchedulePage.test.tsx` (AddGuestForm): Auto-Match-Chip-Auswahl, Store-Refresh nach Submit
-  - `GuestRequestsSection.test.tsx`: approve → Roster-Refresh
-  - `MembersPage.test.tsx`: Gast-Zeile hat Merge-Aktion (Admin) + Merge-Aufruf
+- [x] Übersetzungsschlüssel in `frontend/src/i18n/de.ts` und `frontend/src/i18n/en.ts`
+- [x] `docs/roadmap-2.0.md` aktualisiert: Beschreibt die interaktive In-App-Roadmap unter `/roadmap`
+- [x] `README.md` aktualisiert: Neuer Feature-Eintrag für Community-driven Roadmap 2.0
 
-## 6. Doku (vor dem Commit, Pflicht)
+## 6. Tests & Verifikation
 
-- [x] `docs/docs/funktionen/termine.md`: „Gäste eintragen" + „Gastanfragen" — sofortige
-      Speicherung als bekannter Gast, Auto-Zusammenführung bei gleichem Namen
-- [x] `docs/docs/rollen/admin.md`: „Stammspieler zusammenführen" um Gäste erweitern
-      (was übertragen wird)
-- [x] `README.md` Feature-Katalog (Guest-requests-Zeile erweitern)
-- [x] `CLAUDE.md` Roadmap: #20-Notiz anpassen („Gäste ohne regular_member_id werden beim Start
-      automatisch angelegt" → jetzt sofortige Anlage), Nachtrag zum Feature
+- [x] Backend Pytest: `backend/tests/test_roadmap.py` (Listing, Create, Vote-Toggle, Admin-Update, Delete, Auth-Checks) — 8 von 8 bestanden
+- [x] Frontend Vitest: `frontend/src/pages/__tests__/RoadmapPage.test.tsx` (Rendern, Phasenfilter, Upvote, Idee-Einreichung) — 6 von 6 bestanden
+- [x] ProfileSheet Vitest: `frontend/src/components/__tests__/ProfileSheet.test.tsx` — 92 von 92 bestanden
+- [x] i18n Paritätstest: `src/i18n/__tests__/i18n.test.ts` — 4 von 4 bestanden
+- [x] TypeScript & Vite Build: `npm --prefix frontend run build` — fehlerfrei durchgelaufen
+- [x] Backend Linting: `ruff check` — All checks passed!
 
 ## Review
 
-**Gemacht:** Gäste, die für einen Termin eingetragen oder per Gastanfrage angenommen werden,
-werden ab sofort unmittelbar als `RegularMember(is_guest=True)` angelegt. Sie stehen damit sofort
-unter „Bekannte Gäste" bereit (und nicht erst ab Abend-Start). Bei Namensgleichheit (voller Name,
-case-insensitive) wird automatisch der bestehende Gast verlinkt statt ein Duplikat anzulegen.
-Wird ein ungenutzter Gast wieder aus dem Termin gelöscht, wird auch der vorgemerkte Roster-Eintrag
-sauber entfernt.
-
-Der Merge-Endpoint `POST /club/regular-members/{discard}/merge-into/{keep}` überträgt nun
-vollständig alle Daten: `ScheduledEveningGuest`, `MemberPayment`, `PaymentRequest`, `PenaltyLog`,
-`MemberRsvp` (inkl. Bereinigung von Kollisionen), `ClubPin` und `BowlingScore`.
-In der MembersPage können Admins nun auch Gäste mit anderen bekannten Gästen zusammenführen.
-
-**Verifikation:** pytest `tests/test_guest_requests.py` (35 Tests), `tests/test_schedule_extended.py` (48 Tests)
-und `tests/test_club_extended.py` (inkl. 6 Tests für Merge) alle grün; Vitest volle Suite mit
-136 Testdateien und 2845 Tests grün.
+PR #537 wurde von einem reinen Markdown-Entwurf in ein voll funktionsfähiges, interaktives Community-Roadmap-System überführt:
+- **Datenbank & Backend:** Modelle `RoadmapItem` und `RoadmapVote`, Migration `072_roadmap.py` mit Vorbefüllung der Kern-Meilensteine für 2.0, REST-Endpunkte für Abruf, Einreichung, Voting und Admin-Verwaltung.
+- **Frontend & Navigation:** Vollständige `/roadmap`-Seite mit Phasen-Tabs (Geplant, In Arbeit, Ideenpool, Abgeschlossen), Textsuche, haptischem Upvoting, einklappbaren 2.0-Redesign-Prinzipien und einem Einreichungsmodal (`<Sheet>`).
+- **Verlinkung:** Über *Profil → Einstellungen* direkt erreichbar.
+- **Doku & i18n:** Deutsche und englische Übersetzungen synchron, `docs/roadmap-2.0.md` und `README.md` angepasst.

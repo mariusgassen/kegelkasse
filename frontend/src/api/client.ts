@@ -59,6 +59,10 @@ import {
     AiStatus,
     AiSettings,
     AiAnswer,
+    RoadmapItem,
+    RoadmapItemCreate,
+    RoadmapItemUpdate,
+    RoadmapVoteResponse,
 } from '@/types';
 
 const API_BASE = '/api/v1'
@@ -1005,6 +1009,18 @@ export const api = {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
     },
+
+    // Roadmap 2.0 (Community-driven roadmap & voting)
+    listRoadmap: (status?: string) =>
+        request<RoadmapItem[]>('GET', status ? `/roadmap?status=${encodeURIComponent(status)}` : '/roadmap'),
+    createRoadmapItem: (data: RoadmapItemCreate) =>
+        request<RoadmapItem>('POST', '/roadmap/items', data),
+    toggleRoadmapVote: (itemId: number) =>
+        request<RoadmapVoteResponse>('POST', `/roadmap/items/${itemId}/vote`),
+    updateRoadmapItem: (itemId: number, data: RoadmapItemUpdate) =>
+        request<RoadmapItem>('PATCH', `/roadmap/items/${itemId}`, data),
+    deleteRoadmapItem: (itemId: number) =>
+        request<{ ok: boolean; id: number }>('DELETE', `/roadmap/items/${itemId}`),
 }
 
 /** True while a flush is in progress — prevents concurrent duplicate flushes. */
