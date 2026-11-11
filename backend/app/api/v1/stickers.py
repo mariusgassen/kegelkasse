@@ -3,11 +3,12 @@ import logging
 from datetime import UTC, date as date_type, datetime
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from pydantic import Field
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
+from core.config import settings
 from core.database import get_db
 from core.push import push_to_club
 from core.schemas import TrimmedModel
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/stickers", tags=["stickers"])
 PLACE_MAX = 120
 CAPTION_MAX = 1000
 MAX_PHOTOS = 10
+_SUBDOMAINS = ("a", "b", "c", "d")
 
 
 def _author_names(user_ids: set[int], db: Session) -> dict[int, str]:
