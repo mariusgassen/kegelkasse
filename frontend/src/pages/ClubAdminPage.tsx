@@ -8,7 +8,7 @@ import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {AiSettings, AppIconVariant, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
+import type {AiSettings, AppIconVariant, MapStyle, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -161,6 +161,14 @@ function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
     ]
 }
 
+const MAP_STYLE_OPTIONS = [
+    {key: 'voyager' as const, labelKey: 'club.mapStyle.voyager' as const, icon: '🎨'},
+    {key: 'club_dark' as const, labelKey: 'club.mapStyle.club_dark' as const, icon: '🎳'},
+    {key: 'club_light' as const, labelKey: 'club.mapStyle.club_light' as const, icon: '🎳'},
+    {key: 'dark_all' as const, labelKey: 'club.mapStyle.dark_all' as const, icon: '⚫'},
+    {key: 'light_all' as const, labelKey: 'club.mapStyle.light_all' as const, icon: '⚪'},
+] as const
+
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
     const qc = useQueryClient()
@@ -182,6 +190,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [throwTracking, setThrowTracking] = useState(club?.settings?.throw_tracking_enabled !== false)
     const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
     const [publicSchedule, setPublicSchedule] = useState(club?.settings?.public_schedule_enabled === true)
+    const [mapStyle, setMapStyle] = useState<MapStyle>(club?.settings?.map_style || 'voyager')
 
     useEffect(() => {
         if (!club) return
@@ -190,6 +199,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setColor1(club.settings?.primary_color || DEFAULT_PRIMARY)
         setColor2(club.settings?.secondary_color || DEFAULT_SECONDARY)
         setBgColor(club.settings?.bg_color || DEFAULT_DARK_BG)
+        setMapStyle(club.settings?.map_style || 'voyager')
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
@@ -255,6 +265,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 primary_color: color1,
                 secondary_color: color2,
                 bg_color: bgColor,
+                map_style: mapStyle,
                 guest_penalty_cap: cap,
                 paypal_me: paypalMe.trim() || null,
                 no_cancel_fee: noRsvp,
@@ -405,6 +416,35 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* ── Sticker-Karte Stil ── */}
+                <div className="mt-4 pt-4 border-t border-line">
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                        {t('club.mapStyle.title')}
+                    </div>
+                    <p className="text-xs text-muted mb-3">{t('club.mapStyle.hint')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {MAP_STYLE_OPTIONS.map(ms => {
+                            const active = mapStyle === ms.key
+                            return (
+                                <button
+                                    key={ms.key}
+                                    type="button"
+                                    onClick={() => setMapStyle(ms.key)}
+                                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                                        active
+                                            ? 'border-accent bg-accent/10 shadow-sm font-semibold'
+                                            : 'border-line hover:border-line-strong'
+                                    }`}
+                                >
+                                    <span className="text-base flex-shrink-0">{ms.icon}</span>
+                                    <span className="text-xs flex-1 min-w-0 truncate">{t(ms.labelKey)}</span>
+                                    {active && <span className="text-accent text-xs font-bold">✓</span>}
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
 

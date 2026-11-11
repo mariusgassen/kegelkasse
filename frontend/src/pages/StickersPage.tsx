@@ -29,7 +29,8 @@ import {reverseGeocode} from '@/lib/geocode.ts'
 import {placeCount, matchesSticker, posterNames} from '@/lib/stickers.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {useAppStore} from '@/store/app.ts'
-import type {Sticker} from '@/types.ts'
+import {useClub} from '@/hooks/useClub.ts'
+import type {MapStyle, Sticker} from '@/types.ts'
 import type {LatLng} from '@/components/stickers/StickerMap.tsx'
 
 // Leaflet is ~150 KB; only fetch it when the map or the location picker is actually shown.
@@ -48,8 +49,9 @@ function MapBox({online, children}: { online: boolean; children: React.ReactNode
 
 // ── Post / edit form ──────────────────────────────────────────────────────────
 
-function StickerForm({sticker, onClose, onSaved}: {
+function StickerForm({sticker, mapStyle, onClose, onSaved}: {
     sticker: Sticker | null
+    mapStyle?: MapStyle | string
     onClose: () => void
     onSaved: () => void
 }) {
@@ -265,7 +267,7 @@ function StickerForm({sticker, onClose, onSaved}: {
                             <div className="mt-2">
                                 <MapBox online={online}>
                                     <StickerMap picked={shownPos} onPick={p => { void setPinForCurrent(p, false) }}
-                                                attribution={t('stickers.map.attribution')}
+                                                mapStyle={mapStyle}
                                                 className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
                                 </MapBox>
                             </div>
@@ -315,6 +317,8 @@ export function StickersPage() {
     const stopFlash = useRef<(() => void) | null>(null)
 
     const {data: stickers = [], isLoading} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers})
+    const {data: club} = useClub()
+    const mapStyle = club?.settings?.map_style
 
     useEffect(() => () => stopFlash.current?.(), [])
 
@@ -434,7 +438,7 @@ export function StickersPage() {
 
                 {tab === 'map' && shown.length > 0 && (
                     <MapBox online={online}>
-                        <StickerMap stickers={shown} attribution={t('stickers.map.attribution')}
+                        <StickerMap stickers={shown} mapStyle={mapStyle}
                                     openLabel={t('stickers.map.open')}
                                     className="w-full h-[60vh] rounded-xl overflow-hidden border border-line"
                                     onOpen={id => { setQ(''); setTarget(id); setTab('feed') }}/>
@@ -489,7 +493,7 @@ export function StickersPage() {
             </div>
 
             {form !== null && (
-                <StickerForm sticker={form === 'new' ? null : form} onClose={() => setForm(null)}
+                <StickerForm sticker={form === 'new' ? null : form} mapStyle={mapStyle} onClose={() => setForm(null)}
                              onSaved={async () => { setForm(null); await refresh() }}/>
             )}
 

@@ -18,7 +18,7 @@ vi.mock('@/hooks/useOnline.ts', () => ({useOnline: () => mockOnline}))
 let mockOnline = true
 
 vi.mock('@/api/client.ts', () => ({
-    api: {listStickers: vi.fn(), createSticker: vi.fn(), updateSticker: vi.fn(), deleteSticker: vi.fn()},
+    api: {listStickers: vi.fn(), createSticker: vi.fn(), updateSticker: vi.fn(), deleteSticker: vi.fn(), getClub: vi.fn()},
 }))
 vi.mock('@/utils/error.ts', () => ({toastError: vi.fn()}))
 const mockGetHashParams = vi.fn(() => new URLSearchParams(''))
@@ -59,8 +59,10 @@ vi.mock('@/components/ui/Sheet.tsx', () => ({
 }))
 // Leaflet needs a real layout engine; the map itself is exercised by lib tests.
 vi.mock('@/components/stickers/StickerMap.tsx', () => ({
-    default: ({stickers, onOpen, onPick, picked}: any) => (
-        <div data-testid="sticker-map" data-count={stickers?.length ?? 0} data-picked={picked ? `${picked.latitude}` : ''}>
+    default: ({stickers, onOpen, onPick, picked, mapStyle}: any) => (
+        <div data-testid="sticker-map" data-count={stickers?.length ?? 0}
+             data-picked={picked ? `${picked.latitude}` : ''}
+             data-mapstyle={mapStyle ?? ''}>
             {onOpen && <button onClick={() => onOpen(stickers[0].id)}>pin</button>}
             {onPick && <button onClick={() => onPick({latitude: 10, longitude: 20})}>drop-pin</button>}
         </div>
@@ -89,6 +91,7 @@ describe('StickersPage', () => {
         mockTab = 'feed'
         mockOnline = true
         mockGetHashParams.mockReturnValue(new URLSearchParams(''))
+        vi.mocked(api.getClub).mockResolvedValue({id: 1, name: 'KC', settings: {map_style: 'club_dark'}} as any)
         vi.mocked(api.listStickers).mockResolvedValue([S(), S({id: 2, place_name: 'Rome', caption: 'Colosseum', can_edit: false})])
     })
 
@@ -117,6 +120,7 @@ describe('StickersPage', () => {
         renderPage()
         const map = await screen.findByTestId('sticker-map')
         expect(map.dataset.count).toBe('2')
+        expect(map.dataset.mapstyle).toBe('club_dark')
         fireEvent.click(screen.getByText('pin'))
         expect(mockSetTab).toHaveBeenCalledWith('feed')
     })

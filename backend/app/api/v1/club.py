@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import require_club_member, require_club_admin
 from api.v1.app_icon import serialize_app_icon
+from api.v1.stickers import CARTO_STYLES, DEFAULT_MAP_STYLE
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
 from core.storage import get_storage, key_from_url, url_for_key
@@ -41,6 +42,7 @@ def _serialize_settings(s: ClubSettings) -> dict:
         "primary_color": s.primary_color or "#e8a020",
         "secondary_color": s.secondary_color or "#6b7c5a",
         "bg_color": extra.get("bg_color"),
+        "map_style": extra.get("map_style") or DEFAULT_MAP_STYLE,
         "guest_penalty_cap": extra.get("guest_penalty_cap"),
         "paypal_me": extra.get("paypal_me"),
         "no_cancel_fee": extra.get("no_cancel_fee"),
@@ -104,6 +106,7 @@ class ClubSettingsUpdate(TrimmedModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
+    map_style: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
     paypal_me: Optional[str] = None
     no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
@@ -116,7 +119,7 @@ class ClubSettingsUpdate(TrimmedModel):
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
+_SETTINGS_EXTRA = {"bg_color", "map_style", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
                    "default_evening_time", "throw_tracking_enabled", "audio_callouts_enabled",
                    "public_schedule_enabled"}
 
@@ -126,6 +129,8 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
                          user: User = Depends(require_club_admin)):
     """Admin only: update club settings (home venue, colors) and club name."""
     payload = data.model_dump(exclude_none=True)
+    if "map_style" in payload and payload["map_style"] not in CARTO_STYLES:
+        raise HTTPException(400, "Invalid map style")
     if "name" in payload:
         club = db.query(Club).filter(Club.id == user.club_id).first()
         if club:
@@ -2294,6 +2299,7 @@ class ConfigSettings(TrimmedModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
+    map_style: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
     no_cancel_fee: Optional[float] = None
     pin_penalty: Optional[float] = None
@@ -2337,6 +2343,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
             primary_color=s.primary_color if s else None,
             secondary_color=s.secondary_color if s else None,
             bg_color=extra.get("bg_color"),
+            map_style=extra.get("map_style", DEFAULT_MAP_STYLE),
             guest_penalty_cap=extra.get("guest_penalty_cap"),
             no_cancel_fee=extra.get("no_cancel_fee"),
             pin_penalty=extra.get("pin_penalty"),

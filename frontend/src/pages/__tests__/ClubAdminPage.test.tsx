@@ -406,6 +406,19 @@ describe('ClubAdminPage — settings tab', () => {
         })
     })
 
+    it('selects and saves map style', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderClubAdminPage()
+        const clubDarkBtn = await screen.findByText('club.mapStyle.club_dark')
+        fireEvent.click(clubDarkBtn)
+        fireEvent.click(screen.getAllByText('action.save')[0])
+        await waitFor(() => {
+            expect(vi.mocked(api.updateClubSettings)).toHaveBeenCalledWith(
+                expect.objectContaining({map_style: 'club_dark'}),
+            )
+        })
+    })
+
     it('shows the public schedule URL when enabled', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue(
