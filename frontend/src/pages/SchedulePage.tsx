@@ -7,7 +7,7 @@ import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
-import {SkeletonRows} from '@/components/ui/Skeleton'
+import {SkeletonChart, SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -1312,7 +1312,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 )}
                                             </>
                                         ) : (
-                                            <p className="text-xs text-muted py-2">{t('action.loading')}</p>
+                                            <SkeletonChart height="4rem" className="py-2"/>
                                         )}
                                     </div>
                                 )}
