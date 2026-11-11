@@ -4,6 +4,7 @@ import {Share2, Link as LinkIcon, Download, Check} from 'lucide-react'
 import {useT} from '@/i18n'
 import {LazyImage} from '@/components/ui/LazyImage.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
+import {preloadImage} from '@/lib/mediaUrl.ts'
 
 interface ZoomableImageProps {
     src: string
@@ -70,6 +71,13 @@ function Lightbox({src: initialSrc, gallery, index: startIndex = 0, alt, title, 
         document.addEventListener('keydown', handler)
         return () => document.removeEventListener('keydown', handler)
     }, [onClose, many, gallery])
+
+    // Fetch the photos either side of the current one so a swipe shows them without a wait.
+    useEffect(() => {
+        if (!many) return
+        preloadImage(gallery![idx + 1], 1600)
+        preloadImage(gallery![idx - 1], 1600)
+    }, [many, gallery, idx])
 
     useEffect(() => {
         previouslyFocusedRef.current = document.activeElement as HTMLElement | null

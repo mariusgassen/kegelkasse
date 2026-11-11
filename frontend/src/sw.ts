@@ -54,6 +54,17 @@ registerRoute(
     })
 )
 
+// Uploaded photos: a file name never gets new content (see serve_upload), so serve repeat views
+// from the cache instead of asking the server/S3 again. The name carries no build hash on purpose —
+// the activate cleanup above only touches build-hashed caches, so photos survive an app update.
+registerRoute(
+    ({ url }) => url.origin === self.location.origin && url.pathname.startsWith('/uploads/media/'),
+    new CacheFirst({
+        cacheName: 'media-images',
+        plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true })],
+    })
+)
+
 // API: network first — exclude SSE event streams (they are long-lived, not cacheable)
 registerRoute(
     ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.endsWith('/events'),
