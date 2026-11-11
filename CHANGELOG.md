@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.74.0](https://github.com/mariusgassen/kegelkasse/compare/v1.73.0...v1.74.0) (2026-11-11)
+
+
+### Features
+
+* **roadmap:** refine 2.0 roadmap into an interactive community-driven feature ([#537](https://github.com/mariusgassen/kegelkasse/issues/537)) ([852e5dc](https://github.com/mariusgassen/kegelkasse/commit/852e5dc1ddb44aa69dfc2bd7f1a227633ec67a33))
+* **stickers:** allow club admin to configure map style matching club colors ([#567](https://github.com/mariusgassen/kegelkasse/issues/567)) ([c7178ac](https://github.com/mariusgassen/kegelkasse/commit/c7178ac9eae669a67162613989618c4214c3622f))
+
+
+### Bug Fixes
+
+* **club:** save map style immediately upon selection and flag extra JSON modified ([#570](https://github.com/mariusgassen/kegelkasse/issues/570)) ([77d11b9](https://github.com/mariusgassen/kegelkasse/commit/77d11b99b3ae69d2bc49551eb321a8baf299ee13))
+* **search:** link stickers from AI answers and match sticker keywords in global search ([#566](https://github.com/mariusgassen/kegelkasse/issues/566)) ([bb60b46](https://github.com/mariusgassen/kegelkasse/commit/bb60b46605c90f7c1d4539c162ee20290eb4c55d))
+* **ui:** prevent pull-to-refresh when dragging or scrolling on maps ([#569](https://github.com/mariusgassen/kegelkasse/issues/569)) ([781adb7](https://github.com/mariusgassen/kegelkasse/commit/781adb72b762dc5373c7633d57da45e194f44e78))
+
 ## [1.73.0](https://github.com/mariusgassen/kegelkasse/compare/v1.72.0...v1.73.0) (2026-11-11)
 
 
