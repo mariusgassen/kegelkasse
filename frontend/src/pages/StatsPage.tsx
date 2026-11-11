@@ -984,7 +984,7 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
         queryFn: () => api.getMemberThrowStats(memberId, year),
         staleTime: 1000 * 60 * 5,
     })
-    if (isLoading) return <div className="text-xs text-muted py-2 text-center">{t('action.loading')}</div>
+    if (isLoading) return <SkeletonChart height="5rem" className="py-2"/>
     if (!data || data.throw_count === 0) return <div className="text-xs text-muted py-2 text-center">{t('stats.noThrowData')}</div>
     return (
         <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
