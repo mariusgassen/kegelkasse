@@ -113,8 +113,18 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
         m.on('zoomend', () => setZoom(m.getZoom()))
+        const onResize = () => m.invalidateSize()
+        window.addEventListener('resize', onResize)
+        const raf = requestAnimationFrame(() => m.invalidateSize())
         map.current = m
-        return () => { m.remove(); map.current = null; tileLayer.current = null; layer.current = null }
+        return () => {
+            cancelAnimationFrame(raf)
+            window.removeEventListener('resize', onResize)
+            m.remove()
+            map.current = null
+            tileLayer.current = null
+            layer.current = null
+        }
     }, [])
 
     useEffect(() => {

@@ -41,10 +41,16 @@ function fDay(day: string, locale: string) {
         {day: '2-digit', month: 'long', year: 'numeric'})
 }
 
-function MapBox({online, children}: { online: boolean; children: React.ReactNode }) {
+function MapBox({online, className, children}: { online: boolean; className?: string; children: React.ReactNode }) {
     const t = useT()
     if (!online) return <p className="text-sm text-muted py-6 text-center">{t('stickers.map.offline')}</p>
-    return <div data-no-ptr className="w-full"><Suspense fallback={<SkeletonCard/>}>{children}</Suspense></div>
+    return (
+        <div data-no-ptr className={className ?? "w-full"}>
+            <Suspense fallback={<SkeletonCard className="w-full h-full flex-1"/>}>
+                {children}
+            </Suspense>
+        </div>
+    )
 }
 
 // ── Post / edit form ──────────────────────────────────────────────────────────
@@ -424,28 +430,33 @@ export function StickersPage() {
                 </div>
             )}
 
-            <div className="page-scroll px-3 pt-2 pb-24">
-                {stickers.length > 0 && (
-                    <p className="text-xs text-muted mb-2">
-                        {t('stickers.count').replace('{n}', String(shown.length))
-                            .replace('{p}', String(placeCount(shown)))}
-                    </p>
-                )}
-                {isLoading && <SkeletonCard className="mb-2"/>}
-                {!isLoading && stickers.length === 0 && <Empty icon="🏷️" text={t('stickers.none')}/>}
+            {tab === 'map' ? (
+                <div className="flex-1 min-h-0 px-3 pt-2 pb-3 flex flex-col overflow-hidden">
+                    {isLoading && <SkeletonCard className="w-full h-full flex-1"/>}
+                    {!isLoading && stickers.length === 0 && <Empty icon="🏷️" text={t('stickers.none')}/>}
+                    {stickers.length > 0 && shown.length === 0 && <Empty icon="🔍" text={t('stickers.search.empty')}/>}
+                    {shown.length > 0 && (
+                        <MapBox online={online} className="flex-1 min-h-0 w-full h-full flex flex-col">
+                            <StickerMap stickers={shown} mapStyle={mapStyle}
+                                        openLabel={t('stickers.map.open')}
+                                        className="w-full h-full flex-1 rounded-xl overflow-hidden border border-line"
+                                        onOpen={id => { setQ(''); setTarget(id); setTab('feed') }}/>
+                        </MapBox>
+                    )}
+                </div>
+            ) : (
+                <div className="page-scroll flex-1 px-3 pt-2 pb-24">
+                    {stickers.length > 0 && (
+                        <p className="text-xs text-muted mb-2">
+                            {t('stickers.count').replace('{n}', String(shown.length))
+                                .replace('{p}', String(placeCount(shown)))}
+                        </p>
+                    )}
+                    {isLoading && <SkeletonCard className="mb-2"/>}
+                    {!isLoading && stickers.length === 0 && <Empty icon="🏷️" text={t('stickers.none')}/>}
 
-                {stickers.length > 0 && shown.length === 0 && <Empty icon="🔍" text={t('stickers.search.empty')}/>}
+                    {stickers.length > 0 && shown.length === 0 && <Empty icon="🔍" text={t('stickers.search.empty')}/>}
 
-                {tab === 'map' && shown.length > 0 && (
-                    <MapBox online={online}>
-                        <StickerMap stickers={shown} mapStyle={mapStyle}
-                                    openLabel={t('stickers.map.open')}
-                                    className="w-full h-[60vh] rounded-xl overflow-hidden border border-line"
-                                    onOpen={id => { setQ(''); setTarget(id); setTab('feed') }}/>
-                    </MapBox>
-                )}
-
-                {tab === 'feed' && (
                     <div className="flex flex-col gap-3">
                         {visible.map(s => (
                             <div key={s.id} id={`sticker-${s.id}`} className="kce-card p-3">
@@ -489,8 +500,8 @@ export function StickersPage() {
                         ))}
                         {hasMore && <div ref={sentinelRef} aria-hidden="true" className="h-px"/>}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {form !== null && (
                 <StickerForm sticker={form === 'new' ? null : form} mapStyle={mapStyle} onClose={() => setForm(null)}

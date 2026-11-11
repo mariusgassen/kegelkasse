@@ -117,10 +117,11 @@ describe('StickersPage', () => {
 
     it('renders the map view with all stickers and opens a post from a pin', async () => {
         mockTab = 'map'
-        renderPage()
+        const {container} = renderPage()
         const map = await screen.findByTestId('sticker-map')
         expect(map.dataset.count).toBe('2')
         expect(map.dataset.mapstyle).toBe('club_dark')
+        expect(container.querySelector('.page-scroll')).toBeNull()
         fireEvent.click(screen.getByText('pin'))
         expect(mockSetTab).toHaveBeenCalledWith('feed')
     })
