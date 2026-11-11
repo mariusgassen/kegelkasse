@@ -54,6 +54,8 @@ export interface StickerLike {
     place_name: string
     caption?: string | null
     created_by_name?: string | null
+    stuck_on?: string | null
+    created_at?: string | null
 }
 
 export interface PaymentLike {
@@ -163,19 +165,83 @@ export function searchAnnouncements(query: string, items: AnnouncementLike[]): S
         }))
 }
 
-export function searchStickers(query: string, items: StickerLike[]): SearchResult[] {
+const STICKER_KEYWORDS = ['sticker', 'stickers', 'aufkleber', 'stickerwand', 'sticker-wand']
+const MAP_KEYWORDS = ['karte', 'map', 'weltkarte', 'worldmap']
+
+function isStickerKeyword(w: string): boolean {
+    const s = w.toLowerCase()
+    return STICKER_KEYWORDS.some(k => k.startsWith(s) || s.startsWith(k))
+}
+
+function isMapKeyword(w: string): boolean {
+    const s = w.toLowerCase()
+    return MAP_KEYWORDS.some(k => k.startsWith(s) || s.startsWith(k))
+}
+
+export function searchStickers(query: string, items: StickerLike[], locale?: Locale): SearchResult[] {
     const q = query.trim().toLowerCase()
     if (!q) return []
-    return items
-        .filter(s => matches(s.place_name, q) || matches(s.caption, q) || matches(s.created_by_name, q))
-        .slice(0, RESULT_LIMIT)
+
+    const words = q.split(/\s+/).filter(Boolean)
+    const hasStickerWord = words.some(isStickerKeyword)
+    const hasMapWord = words.some(isMapKeyword)
+    const remainingWords = words.filter(w => !isStickerKeyword(w) && !isMapKeyword(w))
+
+    let matchingItems: StickerLike[] = []
+    if (remainingWords.length > 0) {
+        matchingItems = items.filter(s =>
+            remainingWords.every(w =>
+                matches(s.place_name, w) ||
+                matches(s.caption, w) ||
+                matches(s.created_by_name, w) ||
+                (locale && matchesDate(s.stuck_on ?? s.created_at, w, locale))
+            )
+        )
+    } else if (hasStickerWord || hasMapWord) {
+        matchingItems = items
+    } else {
+        matchingItems = items.filter(s =>
+            matches(s.place_name, q) ||
+            matches(s.caption, q) ||
+            matches(s.created_by_name, q) ||
+            (locale && matchesDate(s.stuck_on ?? s.created_at, q, locale))
+        )
+    }
+
+    const results: SearchResult[] = []
+
+    if ((hasStickerWord || hasMapWord) && remainingWords.length === 0) {
+        const isMap = hasMapWord && !hasStickerWord
+        const title = isMap
+            ? (locale === 'en' ? 'Sticker map' : 'Sticker-Weltkarte')
+            : (locale === 'en' ? 'Sticker wall' : 'Sticker-Wand')
+        const subtitle = isMap
+            ? (locale === 'en' ? 'World map' : 'Weltkarte')
+            : (locale === 'en' ? 'Feed & map' : 'Feed & Weltkarte')
+        results.push({
+            kind: 'sticker',
+            id: 0,
+            title,
+            subtitle,
+            nav: {to: '/stickers', search: {tab: isMap ? 'map' : 'feed'}},
+        })
+    }
+
+    const stickerResults: SearchResult[] = matchingItems
+        .slice(0, RESULT_LIMIT - results.length)
         .map(s => ({
             kind: 'sticker' as const,
             id: s.id,
             title: s.place_name,
-            subtitle: [s.caption, s.created_by_name].filter(Boolean).join(' · ') || undefined,
+            subtitle: [
+                s.caption,
+                s.created_by_name,
+                locale ? formatSearchDate(s.stuck_on ?? s.created_at, locale) : undefined,
+            ].filter(Boolean).join(' · ') || undefined,
             nav: {to: '/stickers', search: {tab: 'feed', item: s.id}},
         }))
+
+    return [...results, ...stickerResults].slice(0, RESULT_LIMIT)
 }
 
 export function searchTrips(query: string, items: TripLike[], locale: Locale): SearchResult[] {
