@@ -231,15 +231,17 @@ describe('searchBookings', () => {
 
 describe('searchStickers', () => {
     const stickers = [
-        {id: 7, place_name: 'Lissabon, Portugal', caption: 'Am Tejo'},
-        {id: 8, place_name: 'Wien', caption: null},
+        {id: 7, place_name: 'Lissabon, Portugal', caption: 'Am Tejo', created_by_name: 'Pudel'},
+        {id: 8, place_name: 'Wien', caption: null, created_by_name: null},
     ]
 
-    it('matches place and caption and deep-links to the sticker', () => {
+    it('matches place, caption and poster and deep-links to the sticker', () => {
         const r = searchStickers('lissa', stickers)
         expect(r).toHaveLength(1)
         expect(r[0].nav).toEqual({to: '/stickers', search: {tab: 'feed', item: 7}})
+        expect(r[0].subtitle).toBe('Am Tejo · Pudel')
         expect(searchStickers('tejo', stickers)).toHaveLength(1)
+        expect(searchStickers('pudel', stickers)).toHaveLength(1)
     })
 
     it('handles a null caption and empty queries', () => {

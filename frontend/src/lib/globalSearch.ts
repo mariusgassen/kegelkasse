@@ -53,6 +53,7 @@ export interface StickerLike {
     id: number
     place_name: string
     caption?: string | null
+    created_by_name?: string | null
 }
 
 export interface PaymentLike {
@@ -166,13 +167,13 @@ export function searchStickers(query: string, items: StickerLike[]): SearchResul
     const q = query.trim().toLowerCase()
     if (!q) return []
     return items
-        .filter(s => matches(s.place_name, q) || matches(s.caption, q))
+        .filter(s => matches(s.place_name, q) || matches(s.caption, q) || matches(s.created_by_name, q))
         .slice(0, RESULT_LIMIT)
         .map(s => ({
             kind: 'sticker' as const,
             id: s.id,
             title: s.place_name,
-            subtitle: s.caption ?? undefined,
+            subtitle: [s.caption, s.created_by_name].filter(Boolean).join(' · ') || undefined,
             nav: {to: '/stickers', search: {tab: 'feed', item: s.id}},
         }))
 }

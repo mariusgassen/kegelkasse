@@ -17,23 +17,43 @@ export function placeLabel(a: NominatimAddress | undefined): string | null {
     return label || null
 }
 
+const cache = new Map<string, string>()
+let queue: Promise<unknown> = Promise.resolve()
+
+export function clearGeocodeCache(): void {
+    cache.clear()
+}
+
 export async function reverseGeocode(
     latitude: number, longitude: number, locale: string, signal?: AbortSignal,
 ): Promise<string | null> {
-    try {
-        const qs = new URLSearchParams({
-            format: 'jsonv2', zoom: '10', addressdetails: '1',
-            lat: latitude.toFixed(5), lon: longitude.toFixed(5),
-            'accept-language': locale === 'en' ? 'en' : 'de',
-        })
-        const timeout = AbortSignal.timeout(6000)
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${qs}`, {
-            signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-        })
-        if (!res.ok) return null
-        const data = await res.json() as { address?: NominatimAddress }
-        return placeLabel(data.address)
-    } catch {
-        return null
-    }
+    const lang = locale === 'en' ? 'en' : 'de'
+    const key = `${latitude.toFixed(3)},${longitude.toFixed(3)}:${lang}`
+    const hit = cache.get(key)
+    if (hit) return hit
+
+    const job = queue.then(async () => {
+        const cached = cache.get(key)
+        if (cached) return cached
+        try {
+            const qs = new URLSearchParams({
+                format: 'jsonv2', zoom: '10', addressdetails: '1',
+                lat: latitude.toFixed(5), lon: longitude.toFixed(5),
+                'accept-language': lang,
+            })
+            const timeout = AbortSignal.timeout(6000)
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${qs}`, {
+                signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+            })
+            if (!res.ok) return null
+            const data = await res.json() as { address?: NominatimAddress }
+            const label = placeLabel(data.address)
+            if (label) cache.set(key, label)
+            return label
+        } catch {
+            return null
+        }
+    })
+    queue = job.then(() => undefined, () => undefined)
+    return job
 }

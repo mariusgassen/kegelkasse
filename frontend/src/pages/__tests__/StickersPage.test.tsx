@@ -5,7 +5,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import type {Sticker} from '@/types.ts'
 
 vi.mock('@/i18n', () => ({
-    useT: () => (key: string) => key,
+    useT: () => (key: string) => key === 'stickers.count' ? 'stickers.count {n} {p}' : key,
     useI18n: (sel: any) => sel({locale: 'de'}),
 }))
 
@@ -35,10 +35,13 @@ vi.mock('@/lib/exifGps.ts', () => ({
 }))
 vi.mock('@/lib/geocode.ts', () => ({reverseGeocode: vi.fn(async () => 'Lissabon, Portugal')}))
 vi.mock('@/components/stickers/PhotoPicker.tsx', () => ({
-    PhotoPicker: ({photos, onChange, onFiles}: any) => (
+    PhotoPicker: ({photos, onChange, onFiles, onSelect}: any) => (
         <div>
             <span data-testid="photo-count">{photos.length}</span>
             {photos.length === 0 && <span>stickers.form.photoRequired</span>}
+            {photos.map((_: any, i: number) => (
+                <button key={i} type="button" onClick={() => onSelect?.(i)}>select-photo-{i + 1}</button>
+            ))}
             <button onClick={() => { onFiles?.([new File(['x'], 'a.jpg', {type: 'image/jpeg'})]); onChange([{url: '/uploads/media/media_1_a.jpg'}]) }}>
                 upload-photo
             </button>
@@ -262,15 +265,70 @@ describe('StickersPage', () => {
             media_urls: ['/uploads/media/media_1_b.jpg'], place_name: 'Rom, Italien', latitude: 41.9}))
     })
 
-    it('filters feed and map by place, caption or author', async () => {
+    it('shows the determined place and date per photo when stepping through pictures in split mode', async () => {
+        vi.mocked(readFileExif).mockImplementation(async (f: File) => f.name === 'b.jpg'
+            ? {gps: {latitude: 41.9, longitude: 12.5}, takenOn: '2024-09-01'}
+            : {gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'})
+        vi.mocked(reverseGeocode).mockImplementation(async (lat: number) => lat > 40 ? 'Rom, Italien' : 'Lissabon, Portugal')
+        renderPage()
+        await waitFor(() => screen.getByText('Lisbon'))
+        fireEvent.click(screen.getByLabelText('stickers.add'))
+        fireEvent.click(screen.getByText('upload-two'))
+        fireEvent.click(screen.getByText('stickers.form.modeSplit'))
+        await waitFor(() => expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Lissabon, Portugal'))
+        expect(screen.getByLabelText('stickers.form.date')).toHaveValue('2024-08-15')
+
+        fireEvent.click(screen.getByText('select-photo-2'))
+        await waitFor(() => expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Rom, Italien'))
+        expect(screen.getByLabelText('stickers.form.date')).toHaveValue('2024-09-01')
+
+        fireEvent.click(screen.getByText('select-photo-1'))
+        expect(screen.getByLabelText('stickers.form.place')).toHaveValue('Lissabon, Portugal')
+
+        vi.mocked(readFileExif).mockImplementation(async () => ({gps: {latitude: 38.7, longitude: -9.1}, takenOn: '2024-08-15'}))
+        vi.mocked(reverseGeocode).mockImplementation(async () => 'Lissabon, Portugal')
+    })
+
+    it('filters feed and map by place, caption or poster and updates the count', async () => {
+        const {useAppStore} = await import('@/store/app.ts')
+        useAppStore.getState().setRegularMembers([
+            {id: 1, name: 'Marius Gassen', nickname: 'Pudel', is_guest: false, is_active: true, is_committee: false, avatar: null, deactivated_at: null},
+        ])
+        vi.mocked(api.listStickers).mockResolvedValue([
+            S({id: 1, place_name: 'Lisbon', latitude: 38.7, longitude: -9.1, created_by_name: 'Pudel'}),
+            S({id: 2, place_name: 'Rome', latitude: 41.9, longitude: 12.5, caption: 'Colosseum', created_by_name: 'Hasi', can_edit: false}),
+        ])
         renderPage()
         await waitFor(() => screen.getByText('Rome'))
+        expect(screen.getByText('stickers.count 2 2')).toBeInTheDocument()
+
         fireEvent.click(screen.getByLabelText('stickers.search'))
-        fireEvent.change(screen.getByPlaceholderText('stickers.search'), {target: {value: 'colosseum'}})
+        // Clicking a poster filter chip filters to that poster and updates the count
+        fireEvent.click(screen.getByRole('button', {name: 'Hasi'}))
         expect(screen.queryByText('Lisbon')).not.toBeInTheDocument()
         expect(screen.getByText('Rome')).toBeInTheDocument()
+        expect(screen.getByText('stickers.count 1 1')).toBeInTheDocument()
+
+        // Searching by a member's real name also matches their Kegelname poster
+        fireEvent.change(screen.getByPlaceholderText('stickers.search'), {target: {value: 'marius'}})
+        expect(screen.getByText('Lisbon')).toBeInTheDocument()
+        expect(screen.queryByText('Rome')).not.toBeInTheDocument()
+        expect(screen.getByText('stickers.count 1 1')).toBeInTheDocument()
+
         fireEvent.change(screen.getByPlaceholderText('stickers.search'), {target: {value: 'zzz'}})
         expect(screen.getByText('stickers.search.empty')).toBeInTheDocument()
+        expect(screen.getByText('stickers.count 0 0')).toBeInTheDocument()
+        useAppStore.getState().setRegularMembers([])
+    })
+
+    it('scrolls the target sticker into view on deep link without cancelling the flash timer', async () => {
+        const scrollSpy = vi.fn()
+        Element.prototype.scrollIntoView = scrollSpy
+        mockGetHashParams.mockReturnValue(new URLSearchParams('item=2'))
+        renderPage()
+        await waitFor(() => screen.getByText('Rome'))
+        await waitFor(() => expect(scrollSpy).toHaveBeenCalled(), {timeout: 500})
+        expect(document.getElementById('sticker-2')).toHaveClass('kce-deeplink-flash')
     })
 
     it('edits an existing sticker', async () => {
