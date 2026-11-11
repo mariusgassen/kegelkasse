@@ -899,3 +899,43 @@ export interface InventoryMovement {
     actor_name: string
     created_at: string | null
 }
+
+export type RoadmapStatus = 'idea' | 'planned' | 'in_progress' | 'completed' | 'rejected'
+export type RoadmapCategory = 'feature' | 'improvement' | 'design' | 'bug' | 'general'
+
+export interface RoadmapItem {
+    id: number
+    club_id: number | null
+    created_by_user_id: number | null
+    author_name: string
+    title: string
+    description: string | null
+    status: RoadmapStatus
+    category: RoadmapCategory | null
+    target_version: string | null
+    is_official: boolean
+    vote_count: number
+    has_voted: boolean
+    created_at: string | null
+    updated_at: string | null
+}
+
+export interface RoadmapItemCreate {
+    title: string
+    description?: string | null
+    category?: RoadmapCategory | null
+}
+
+export interface RoadmapItemUpdate {
+    title?: string | null
+    description?: string | null
+    status?: RoadmapStatus | null
+    category?: RoadmapCategory | null
+    target_version?: string | null
+}
+
+export interface RoadmapVoteResponse {
+    item_id: number
+    has_voted: boolean
+    vote_count: number
+}

@@ -27,6 +27,7 @@ export const ROUTE_PAGES = [
     'stickers',
     'zeugwart',
     'book',
+    'roadmap',
 ] as const
 
 export type RoutePage = (typeof ROUTE_PAGES)[number]

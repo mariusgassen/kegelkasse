@@ -976,6 +976,17 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         type="button"
                         onClick={() => {
                             onClose()
+                            void router.navigate({to: '/roadmap'})
+                        }}
+                        className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
+                    >
+                        <span>{t('profile.roadmap')}</span>
+                        <span className="text-muted text-xs">›</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onClose()
                             void router.navigate({to: '/book'})
                         }}
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
