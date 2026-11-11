@@ -74,7 +74,7 @@ export function GlobalSearch({open, onClose}: Props) {
         {key: 'booking', label: t('search.bookings'), results: searchBookings(query, payments, expenses, locale)},
         {key: 'announcement', label: t('search.announcements'), results: searchAnnouncements(query, announcements)},
         {key: 'trip', label: t('search.trips'), results: searchTrips(query, trips, locale)},
-        {key: 'sticker', label: t('search.stickers'), results: searchStickers(query, stickers)},
+        {key: 'sticker', label: t('search.stickers'), results: searchStickers(query, stickers, locale)},
     ]), [query, regularMembers, evenings, announcements, trips, stickers, payments, expenses, locale, t])
 
     const hasQuery = query.trim().length > 0
