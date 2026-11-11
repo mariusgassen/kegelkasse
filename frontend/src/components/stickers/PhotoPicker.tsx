@@ -13,7 +13,14 @@ import {thumbUrl} from '@/lib/mediaUrl.ts'
 import {PhotoEditor} from './PhotoEditor.tsx'
 
 /** `file` is the original the member picked (kept for its EXIF data; an edit does not replace it). */
-export interface Photo { url: string; file?: File }
+export interface Photo {
+    url: string
+    file?: File
+    place?: string
+    gps?: { latitude: number; longitude: number } | null
+    takenOn?: string
+    fromPhoto?: boolean
+}
 export const MAX_PHOTOS = 10
 
 interface Props {
@@ -21,22 +28,39 @@ interface Props {
     onChange: (photos: Photo[]) => void
     /** The freshly chosen originals (before upload), e.g. to read their EXIF position and date. */
     onFiles?: (files: File[]) => void
+    selected?: number
+    onSelect?: (index: number) => void
 }
 
-export function PhotoPicker({photos, onChange, onFiles}: Props) {
+export function PhotoPicker({photos, onChange, onFiles, selected, onSelect}: Props) {
     const t = useT()
     const input = useRef<HTMLInputElement>(null)
-    const [sel, setSel] = useState(0)
+    const [innerSel, setInnerSel] = useState(0)
+    const sel = selected ?? innerSel
+    const setSel = (i: number) => { setInnerSel(i); onSelect?.(i) }
     const [busy, setBusy] = useState(false)
     const [editing, setEditing] = useState(false)
-    const current = photos[Math.min(sel, photos.length - 1)]
+    const idx = Math.min(sel, Math.max(0, photos.length - 1))
+    const current = photos[idx]
 
     async function addFiles(e: React.ChangeEvent<HTMLInputElement>) {
-        const files = [...(e.target.files ?? [])].slice(0, MAX_PHOTOS - photos.length)
-        e.target.value = ''
-        if (!files.length) return
-        onFiles?.(files)
+        const inputEl = e.target
+        const raw = [...(inputEl.files ?? [])].slice(0, MAX_PHOTOS - photos.length)
+        if (!raw.length) { inputEl.value = ''; return }
         setBusy(true)
+        // Snapshot picked files into memory before resetting the input value so mobile browsers
+        // do not release temporary file handles halfway through a >5 photo multi-upload.
+        const files = await Promise.all(raw.map(async f => {
+            try {
+                if (typeof f.arrayBuffer !== 'function') return f
+                const buf = await f.arrayBuffer()
+                return new File([buf], f.name, {type: f.type, lastModified: f.lastModified})
+            } catch {
+                return f
+            }
+        }))
+        inputEl.value = ''
+        onFiles?.(files)
         const next = [...photos]
         try {
             for (const f of files) next.push({url: await uploadMedia(f), file: f})
@@ -100,11 +124,17 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
         <div className="flex flex-col gap-2">
             {fileInput}
             <div className="relative rounded-2xl overflow-hidden border border-line bg-canvas">
-                <LazyImage src={current.url} alt={`${t('stickers.form.photo')} ${sel + 1}`}
+                <LazyImage src={current.url} alt={`${t('stickers.form.photo')} ${idx + 1}`}
                            className="mx-auto max-w-full max-h-[45vh] object-contain" placeholderClassName="aspect-[4/3]"/>
                 {photos.length > 1 && (
                     <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-accent text-on-accent text-xs font-bold">
-                        {Math.min(sel, photos.length - 1) + 1}/{photos.length}
+                        {idx + 1}/{photos.length}
+                    </span>
+                )}
+                {photos.length > 1 && current.place && (
+                    <span data-testid="photo-place-badge"
+                          className="absolute bottom-2 left-2 right-2 px-2.5 py-1 rounded-lg bg-surface text-ink border border-line text-xs font-bold truncate">
+                        {current.place}
                     </span>
                 )}
                 {busy && (
@@ -118,9 +148,9 @@ export function PhotoPicker({photos, onChange, onFiles}: Props) {
                     {photos.map((p, i) => (
                         <button key={p.url} type="button" onClick={() => setSel(i)}
                                 aria-label={`${t('stickers.form.photo')} ${i + 1}`}
-                                aria-pressed={i === sel}
+                                aria-pressed={i === idx}
                                 className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
-                                    i === sel ? 'border-accent' : 'border-line'}`}>
+                                    i === idx ? 'border-accent' : 'border-line'}`}>
                             <img src={thumbUrl(p.url, 240)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover"/>
                             <span className="absolute bottom-0 right-0 px-1.5 text-xs font-bold bg-accent text-on-accent rounded-tl">
                                 {i + 1}

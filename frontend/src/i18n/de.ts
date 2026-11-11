@@ -1680,7 +1680,7 @@ export const de = {
     "stickers.form.needLocation": "Bitte Pin auf der Karte setzen",
     "stickers.deleteConfirm": "Diesen Sticker wirklich löschen?",
     "stickers.map.offline": "Die Karte braucht eine Internetverbindung.",
-    "stickers.map.attribution": "Kartendaten © OpenStreetMap-Mitwirkende",
+    "stickers.map.attribution": "Kartendaten © OpenStreetMap-Mitwirkende, © CARTO",
     "stickers.map.open": "Beitrag ansehen",
     "stickers.form.moveLeft": "Foto nach vorn",
     "stickers.form.moveRight": "Foto nach hinten",

@@ -107,4 +107,24 @@ describe('PhotoPicker', () => {
         render(<Harness initial={[{url: '/1'}]}/>)
         expect(screen.queryByLabelText('stickers.form.moveLeft')).not.toBeInTheDocument()
     })
+
+    it('uploads more than 5 photos in a single multi-upload without losing files', async () => {
+        const onFiles = vi.fn()
+        render(<Harness onFiles={onFiles}/>)
+        pick('1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg')
+        await waitFor(() => screen.getByText('1/7'))
+        expect(mockUpload).toHaveBeenCalledTimes(7)
+        expect(onFiles).toHaveBeenCalledTimes(1)
+        expect(onFiles.mock.calls[0][0]).toHaveLength(7)
+    })
+
+    it('shows the determined place badge on the preview when stepping through multiple photos', () => {
+        render(<Harness initial={[
+            {url: '/1', place: 'Lissabon, Portugal'},
+            {url: '/2', place: 'Rom, Italien'},
+        ]}/>)
+        expect(screen.getByTestId('photo-place-badge')).toHaveTextContent('Lissabon, Portugal')
+        fireEvent.click(screen.getByLabelText('stickers.form.photo 2'))
+        expect(screen.getByTestId('photo-place-badge')).toHaveTextContent('Rom, Italien')
+    })
 })

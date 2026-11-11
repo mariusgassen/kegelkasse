@@ -30,9 +30,19 @@ export function groupPhotos(g: PlaceGroup): string[] {
 }
 
 /** Feed search: place, caption or author, case-insensitive; all words must match somewhere. */
-export function matchesSticker(s: Sticker, query: string): boolean {
-    const hay = `${s.place_name} ${s.caption ?? ''} ${s.created_by_name ?? ''}`.toLowerCase()
+export function matchesSticker(s: Sticker, query: string, extraAuthorNames: string[] = []): boolean {
+    const hay = `${s.place_name} ${s.caption ?? ''} ${s.created_by_name ?? ''} ${extraAuthorNames.join(' ')}`.toLowerCase()
     return query.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
+}
+
+/** Distinct non-empty poster names across the sticker list, in order of first appearance. */
+export function posterNames(stickers: Sticker[]): string[] {
+    const seen = new Set<string>()
+    for (const s of stickers) {
+        const name = s.created_by_name?.trim()
+        if (name) seen.add(name)
+    }
+    return [...seen]
 }
 
 /** Web-Mercator position in pixels of the whole world at `zoom` (256 px tiles). */

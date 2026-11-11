@@ -1,5 +1,5 @@
 /**
- * World map for the sticker wall (Leaflet + OpenStreetMap tiles). Two modes share one component:
+ * World map for the sticker wall (Leaflet + CARTO tiles). Two modes share one component:
  *  - overview: one pin per place showing the newest photo (stickers within ~100 m collapse into one
  *    pin, numbered with how many photos are there); tapping it opens a popup with numbered previews
  *    that leads to the newest post;
@@ -13,7 +13,7 @@ import {thumbUrl} from '@/lib/mediaUrl.ts'
 import type {Sticker} from '@/types.ts'
 import {clusterByZoom, groupPhotos} from '@/lib/stickers.ts'
 
-const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+export const TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 
 export interface LatLng { latitude: number; longitude: number }
 
@@ -102,7 +102,7 @@ export default function StickerMap({stickers = [], onOpen, openLabel = '', picke
     useEffect(() => {
         if (!el.current) return
         const m = L.map(el.current, {worldCopyJump: true, minZoom: 1, zoomControl: true}).setView([30, 10], 2)
-        L.tileLayer(TILES, {maxZoom: 18, attribution}).addTo(m)
+        L.tileLayer(TILES, {subdomains: 'abcd', maxZoom: 19, attribution}).addTo(m)
         layer.current = L.layerGroup().addTo(m)
         m.on('click', (e: L.LeafletMouseEvent) => cb.current.onPick?.({latitude: e.latlng.lat, longitude: e.latlng.lng}))
         m.on('zoomend', () => setZoom(m.getZoom()))

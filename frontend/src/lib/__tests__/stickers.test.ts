@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
-import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount} from '../stickers'
+import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount, posterNames} from '../stickers'
+import {TILES} from '@/components/stickers/StickerMap.tsx'
 import type {Sticker} from '@/types.ts'
 
 const s = (id: number, lat: number, lon: number, place = 'X'): Sticker => ({
@@ -54,12 +55,27 @@ describe('clusterByZoom', () => {
     })
 })
 
-describe('matchesSticker', () => {
+describe('matchesSticker & posterNames', () => {
     const x = {...s(1, 1, 1, 'Lissabon, Portugal'), caption: 'Laternenmast', created_by_name: 'Pudel'}
-    it('matches place, caption and author, every word, case-insensitive', () => {
+    it('matches place, caption, author and extra author names, every word, case-insensitive', () => {
         expect(matchesSticker(x, 'lissabon')).toBe(true)
         expect(matchesSticker(x, 'LATERNE pudel')).toBe(true)
+        expect(matchesSticker(x, 'marius', ['Marius Gassen'])).toBe(true)
         expect(matchesSticker(x, 'lissabon rom')).toBe(false)
         expect(matchesSticker(x, '')).toBe(true)
+    })
+
+    it('collects distinct poster names in order', () => {
+        const list = [
+            {...s(1, 1, 1), created_by_name: 'Pudel'},
+            {...s(2, 1, 1), created_by_name: 'Hasi'},
+            {...s(3, 1, 1), created_by_name: 'Pudel'},
+            {...s(4, 1, 1), created_by_name: null},
+        ]
+        expect(posterNames(list)).toEqual(['Pudel', 'Hasi'])
+    })
+
+    it('uses CARTO basemap tiles instead of OpenStreetMap tile server', () => {
+        expect(TILES).toContain('basemaps.cartocdn.com')
     })
 })

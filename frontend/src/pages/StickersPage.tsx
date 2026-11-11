@@ -26,8 +26,9 @@ import {toastError} from '@/utils/error.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {readFileExif} from '@/lib/exifGps.ts'
 import {reverseGeocode} from '@/lib/geocode.ts'
-import {placeCount, matchesSticker} from '@/lib/stickers.ts'
+import {placeCount, matchesSticker, posterNames} from '@/lib/stickers.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {useAppStore} from '@/store/app.ts'
 import type {Sticker} from '@/types.ts'
 import type {LatLng} from '@/components/stickers/StickerMap.tsx'
 
@@ -55,6 +56,7 @@ function StickerForm({sticker, onClose, onSaved}: {
     const t = useT()
     const online = useOnline()
     const [photos, setPhotos] = useState<Photo[]>(sticker?.media_urls.map(url => ({url})) ?? [])
+    const [sel, setSel] = useState(0)
     const [place, setPlace] = useState(sticker?.place_name ?? '')
     const [caption, setCaption] = useState(sticker?.caption ?? '')
     const [day, setDay] = useState(sticker?.stuck_on ?? '')
@@ -72,6 +74,17 @@ function StickerForm({sticker, onClose, onSaved}: {
     placeRef.current = place
     const posRef = useRef(pos)
     posRef.current = pos
+    const exifCache = useRef(new Map<File, Promise<{gps: LatLng | null; takenOn: string | null} | null>>())
+    const seenFiles = useRef(new Set<File>())
+
+    function getExif(file: File) {
+        let p = exifCache.current.get(file)
+        if (!p) {
+            p = readFileExif(file).catch(() => null)
+            exifCache.current.set(file, p)
+        }
+        return p
+    }
 
     async function prefillPlace(p: LatLng) {
         const label = await reverseGeocode(p.latitude, p.longitude, locale)
@@ -89,38 +102,92 @@ function StickerForm({sticker, onClose, onSaved}: {
         // Everything is only a suggestion: it fills empty fields and never replaces a pin, place or
         // date the member has already set. The first photo that knows something wins.
         for (const file of files) {
-            const meta = await readFileExif(file).catch(() => null)
+            const meta = await getExif(file)
             if (!meta) continue
             if (meta.takenOn && meta.takenOn <= todayDateInput()) setDay(cur => cur || meta.takenOn!)
             if (meta.gps && !posRef.current) setPin(meta.gps, true)
-            else if (meta.gps) void prefillPlace(meta.gps)
+        }
+    }
+
+    // Resolve each picked photo's own EXIF GPS, date and reverse-geocoded place so stepping through
+    // pictures in "One post per photo" mode shows the determined place and pin per sticker.
+    useEffect(() => {
+        photos.forEach(p => {
+            const file = p.file
+            if (!file || seenFiles.current.has(file)) return
+            seenFiles.current.add(file)
+            void (async () => {
+                const meta = await getExif(file)
+                if (!meta) return
+                const validTaken = meta.takenOn && meta.takenOn <= todayDateInput() ? meta.takenOn : ''
+                if (validTaken) setDay(cur => cur || validTaken)
+                if (meta.gps && !posRef.current) setPin(meta.gps, true)
+                const label = meta.gps ? await reverseGeocode(meta.gps.latitude, meta.gps.longitude, locale) : null
+                setPhotos(prev => prev.map(item => item.file === file ? {
+                    ...item,
+                    gps: item.gps ?? meta.gps ?? null,
+                    takenOn: item.takenOn ?? (validTaken || undefined),
+                    fromPhoto: item.fromPhoto ?? !!meta.gps,
+                    place: item.place ?? (label ?? undefined),
+                } : item))
+            })()
+        })
+    }, [photos, locale]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const split = !sticker && photos.length > 1 && mode === 'split'
+    const idx = Math.min(sel, Math.max(0, photos.length - 1))
+    const cur = photos[idx]
+    const shownPlace = split ? (cur?.place ?? '') : place
+    const shownPos = split ? (cur?.gps ?? null) : pos
+    const shownFromPhoto = split ? (cur?.fromPhoto ?? false) : fromPhoto
+    const shownDay = split ? (cur?.takenOn ?? '') : day
+
+    function updateCurrentPhoto(patch: Partial<Photo>) {
+        setPhotos(prev => prev.map((p, k) => k === idx ? {...p, ...patch} : p))
+    }
+
+    async function setPinForCurrent(p: LatLng, photo: boolean) {
+        if (!split) {
+            setPin(p, photo)
+            return
+        }
+        updateCurrentPhoto({gps: p, fromPhoto: photo})
+        const label = await reverseGeocode(p.latitude, p.longitude, locale)
+        if (label) {
+            setPhotos(prev => prev.map((item, k) => k === idx && !item.place?.trim() ? {...item, place: label} : item))
         }
     }
 
     function useMyLocation() {
         if (!navigator.geolocation) { showToast(t('stickers.form.locationDenied'), 'error'); return }
         navigator.geolocation.getCurrentPosition(
-            p => setPin({latitude: p.coords.latitude, longitude: p.coords.longitude}, false),
+            p => { void setPinForCurrent({latitude: p.coords.latitude, longitude: p.coords.longitude}, false) },
             () => showToast(t('stickers.form.locationDenied'), 'error'),
             {enableHighAccuracy: true, timeout: 10000},
         )
     }
 
-    const split = !sticker && photos.length > 1 && mode === 'split'
     // In split mode place/pin/date come from each photo's own data; the fields below are the fallback.
     const canSave = photos.length > 0 && (split || (!!place.trim() && !!pos)) && !saving
 
     /** One post per photo: each takes its own EXIF position/date/place, else the form's values. */
     async function saveSplit() {
         const posts = []
-        for (const p of photos) {
-            const meta = p.file ? await readFileExif(p.file).catch(() => null) : null
-            const at = meta?.gps ?? pos
-            const label = meta?.gps
-                ? (await reverseGeocode(meta.gps.latitude, meta.gps.longitude, locale)) ?? place.trim()
-                : place.trim()
-            if (!at || !label) { showToast(t('stickers.form.needLocationEach'), 'error'); return false }
-            const taken = meta?.takenOn && meta.takenOn <= todayDateInput() ? meta.takenOn : ''
+        for (let i = 0; i < photos.length; i++) {
+            const p = photos[i]
+            const meta = p.gps !== undefined ? {gps: p.gps, takenOn: p.takenOn ?? null}
+                : (p.file ? await getExif(p.file) : null)
+            const at = p.gps ?? meta?.gps ?? pos
+            const label = (p.place?.trim()) || (at
+                ? (await reverseGeocode(at.latitude, at.longitude, locale)) ?? place.trim()
+                : place.trim())
+            if (!at || !label) {
+                setSel(i)
+                showToast(t('stickers.form.needLocationEach'), 'error')
+                return false
+            }
+            const rawTaken = p.takenOn ?? meta?.takenOn ?? ''
+            const taken = rawTaken && rawTaken <= todayDateInput() ? rawTaken : ''
             posts.push({media_urls: [p.url], place_name: label, latitude: at.latitude, longitude: at.longitude,
                 caption: caption.trim(), stuck_on: taken || day})
         }
@@ -156,14 +223,15 @@ function StickerForm({sticker, onClose, onSaved}: {
         <Sheet open onClose={onClose} onSubmit={save}
                title={t(sticker ? 'stickers.form.edit' : 'stickers.form.new')}>
             <div className="flex flex-col gap-3">
-                <PhotoPicker photos={photos} onChange={setPhotos} onFiles={handleFiles}/>
+                <PhotoPicker photos={photos} onChange={setPhotos} onFiles={handleFiles}
+                             selected={sel} onSelect={setSel}/>
                 {!sticker && photos.length > 1 && (
                     <div role="group" aria-label={t('stickers.form.mode')} className="flex flex-col gap-1">
                         <div className="flex gap-2">
                             <button type="button" className={mode === 'one' ? 'chip active' : 'chip'} aria-pressed={mode === 'one'}
-                                    onClick={() => setMode('one')}>{t('stickers.form.modeOne')}</button>
+                                     onClick={() => setMode('one')}>{t('stickers.form.modeOne')}</button>
                             <button type="button" className={mode === 'split' ? 'chip active' : 'chip'} aria-pressed={mode === 'split'}
-                                    onClick={() => setMode('split')}>{t('stickers.form.modeSplit')}</button>
+                                     onClick={() => setMode('split')}>{t('stickers.form.modeSplit')}</button>
                         </div>
                         {mode === 'split' && <p className="text-sm text-muted">{t('stickers.form.modeSplitHint')}</p>}
                     </div>
@@ -171,17 +239,18 @@ function StickerForm({sticker, onClose, onSaved}: {
                 {photos.length > 0 && (<>
                     <div>
                         <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
-                        <input id="sticker-place" className="kce-input" value={place} maxLength={120}
-                               onChange={e => setPlace(e.target.value)} placeholder={t('stickers.form.placeHint')}/>
+                        <input id="sticker-place" className="kce-input" value={shownPlace} maxLength={120}
+                               onChange={e => split ? updateCurrentPhoto({place: e.target.value}) : setPlace(e.target.value)}
+                               placeholder={t('stickers.form.placeHint')}/>
                     </div>
                     <div>
                         <label className="field-label">{t('stickers.form.location')}</label>
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-sm flex items-center gap-1 ${pos ? 'text-ink' : 'text-muted'}`}>
+                            <span className={`text-sm flex items-center gap-1 ${shownPos ? 'text-ink' : 'text-muted'}`}>
                                 <MapPin size={16} aria-hidden="true"/>
-                                {!pos ? t('stickers.form.locationHint') : fromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
+                                {!shownPos ? t('stickers.form.locationHint') : shownFromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
                             </span>
-                            {pos && !showMap && (
+                            {shownPos && !showMap && (
                                 <button type="button" className="btn-secondary btn-xs" onClick={() => setShowMap(true)}>
                                     {t('stickers.form.adjustPin')}
                                 </button>
@@ -192,10 +261,10 @@ function StickerForm({sticker, onClose, onSaved}: {
                         </div>
                         {/* The map is only needed when the photo carried no position, or to fine-tune it:
                             keeping it folded keeps the dialog short instead of a long scrolling form. */}
-                        {(showMap || !pos) && (
+                        {(showMap || !shownPos) && (
                             <div className="mt-2">
                                 <MapBox online={online}>
-                                    <StickerMap picked={pos} onPick={p => setPin(p, false)}
+                                    <StickerMap picked={shownPos} onPick={p => { void setPinForCurrent(p, false) }}
                                                 attribution={t('stickers.map.attribution')}
                                                 className="w-full h-56 rounded-xl overflow-hidden border border-line"/>
                                 </MapBox>
@@ -204,8 +273,8 @@ function StickerForm({sticker, onClose, onSaved}: {
                     </div>
                     <div>
                         <label className="field-label" htmlFor="sticker-day">{t('stickers.form.date')}</label>
-                        <input id="sticker-day" type="date" className="kce-input" value={day} max={todayDateInput()}
-                               onChange={e => setDay(e.target.value)}/>
+                        <input id="sticker-day" type="date" className="kce-input" value={shownDay} max={todayDateInput()}
+                               onChange={e => split ? updateCurrentPhoto({takenOn: e.target.value}) : setDay(e.target.value)}/>
                     </div>
                     <div>
                         <label className="field-label" htmlFor="sticker-caption">{t('stickers.form.caption')}</label>
@@ -231,6 +300,7 @@ export function StickersPage() {
     const qc = useQueryClient()
     const locale = useI18n(s => s.locale)
     const online = useOnline()
+    const regularMembers = useAppStore(s => s.regularMembers)
     const [tab, setTab] = useHashTab<'feed' | 'map'>('feed', ['feed', 'map'])
     const [form, setForm] = useState<Sticker | 'new' | null>(null)
     const [searchOpen, setSearchOpen] = useState(false)
@@ -242,10 +312,13 @@ export function StickersPage() {
     const hashVersion = useDeepLinkVersion()
     const [limit, setLimit] = useState(FEED_PAGE)
     const sentinelRef = useRef<HTMLDivElement>(null)
+    const stopFlash = useRef<(() => void) | null>(null)
 
     const {data: stickers = [], isLoading} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers})
 
-    // Deep link (`?item=ID[&comment=ID]`, from comment notifications and the map popup).
+    useEffect(() => () => stopFlash.current?.(), [])
+
+    // Deep link (`?item=ID[&comment=ID]`, from comment notifications, global search and the map popup).
     useEffect(() => {
         const params = getHashParams()
         const item = params.get('item')
@@ -254,22 +327,31 @@ export function StickersPage() {
         setQ('')
         setTarget(parseInt(item, 10))
         setHighlightComment(comment ? parseInt(comment, 10) : null)
+        if (tab !== 'feed') setTab('feed')
         clearHashParams()
-    }, [hashVersion])
+    }, [hashVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const shown = q.trim() ? stickers.filter(s => matchesSticker(s, q)) : stickers
+    function extraNamesFor(s: Sticker): string[] {
+        if (!s.created_by_name) return []
+        const m = regularMembers.find(rm => rm.nickname === s.created_by_name || rm.name === s.created_by_name)
+        return m ? [m.name, m.nickname ?? ''] : []
+    }
+
+    const shown = q.trim() ? stickers.filter(s => matchesSticker(s, q, extraNamesFor(s))) : stickers
     const visible = shown.slice(0, limit)
+    const posters = posterNames(stickers)
 
     useEffect(() => {
         if (target === null || tab !== 'feed' || !stickers.some(s => s.id === target)) return
         // A deep link may point past the cards rendered so far: render up to it first.
         const at = shown.findIndex(s => s.id === target)
+        if (at < 0) return
         if (at >= limit) { setLimit(at + 1); return }
         setOpenComment(highlightComment !== null ? target : null)
-        const stop = flashDeepLinkTarget(`sticker-${target}`)
+        stopFlash.current?.()
+        stopFlash.current = flashDeepLinkTarget(`sticker-${target}`)
         setTarget(null)
-        return stop
-    }, [target, tab, stickers, limit]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [target, tab, stickers, shown, limit]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Render the feed a page at a time: every card also fetches its reactions/comments and photos.
     const hasMore = tab === 'feed' && shown.length > limit
@@ -319,16 +401,30 @@ export function StickersPage() {
                 </button>
             </div>
             {stickers.length > 0 && (searchOpen || q !== '') && (
-                <div className="flex-shrink-0 px-3 pt-2">
+                <div className="flex-shrink-0 px-3 pt-2 flex flex-col gap-1.5">
                     <SearchInput value={q} onChange={setQ} placeholder={t('stickers.search')}/>
+                    {posters.length > 0 && (
+                        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                            {posters.map(name => {
+                                const active = q.trim().toLowerCase() === name.toLowerCase()
+                                return (
+                                    <button key={name} type="button" aria-pressed={active}
+                                            className={`${active ? 'chip active' : 'chip'} flex-shrink-0`}
+                                            onClick={() => setQ(active ? '' : name)}>
+                                        {name}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
             <div className="page-scroll px-3 pt-2 pb-24">
                 {stickers.length > 0 && (
                     <p className="text-xs text-muted mb-2">
-                        {t('stickers.count').replace('{n}', String(stickers.length))
-                            .replace('{p}', String(placeCount(stickers)))}
+                        {t('stickers.count').replace('{n}', String(shown.length))
+                            .replace('{p}', String(placeCount(shown)))}
                     </p>
                 )}
                 {isLoading && <SkeletonCard className="mb-2"/>}
