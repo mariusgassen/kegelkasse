@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFi
 from core.schemas import TrimmedModel
 from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from api.deps import require_club_member, require_club_admin
 from api.v1.app_icon import serialize_app_icon
@@ -139,13 +140,17 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
+    extra = dict(s.extra or {})
+    extra_changed = False
     for field, value in payload.items():
         if field in _SETTINGS_COLUMNS:
             setattr(s, field, value)
         elif field in _SETTINGS_EXTRA:
-            extra = dict(s.extra or {})
             extra[field] = value
-            s.extra = extra
+            extra_changed = True
+    if extra_changed:
+        s.extra = extra
+        flag_modified(s, "extra")
     db.commit()
     return {"ok": True}
 
