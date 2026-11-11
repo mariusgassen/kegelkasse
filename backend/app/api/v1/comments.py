@@ -203,7 +203,7 @@ def _assert_parent_access(parent_type: str, parent_id: int, user: User, db: Sess
             raise HTTPException(404, "Roadmap item not found")
         # Global items (club_id is None) can be accessed by everyone.
         # Club-specific items can be accessed by club members or superadmin/product_manager.
-        if rm.club_id is not None and rm.club_id != user.club_id and user.role not in (UserRole.superadmin, UserRole.product_manager):
+        if rm.club_id is not None and rm.club_id != user.club_id and not user.has_role(UserRole.superadmin, UserRole.product_manager):
             raise HTTPException(404, "Roadmap item not found")
 
 
@@ -484,7 +484,7 @@ def delete_comment(
     ).first()
     if not c:
         raise HTTPException(404, "Comment not found")
-    if c.created_by != user.id and user.role not in (UserRole.admin, UserRole.superadmin, UserRole.product_manager):
+    if c.created_by != user.id and not user.has_role(UserRole.admin, UserRole.product_manager):
         raise HTTPException(403, "Not allowed")
     c.is_deleted = True
     db.commit()

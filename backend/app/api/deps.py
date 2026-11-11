@@ -29,14 +29,14 @@ def get_current_user(
 
 def require_club_member(user: User = Depends(get_current_user)) -> User:
     """Any authenticated user with a club (or superadmin/product_manager)."""
-    if not user.club_id and user.role not in (UserRole.superadmin, UserRole.product_manager):
+    if not user.club_id and not user.has_role(UserRole.superadmin, UserRole.product_manager):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No club assigned")
     return user
 
 
 def require_club_admin(user: User = Depends(get_current_user)) -> User:
     """Club admin or superadmin required — for club settings, templates, member management."""
-    if user.role not in (UserRole.admin, UserRole.superadmin):
+    if not user.has_role(UserRole.admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Club admin role required for this action"
@@ -45,7 +45,7 @@ def require_club_admin(user: User = Depends(get_current_user)) -> User:
 
 
 def require_superadmin(user: User = Depends(get_current_user)) -> User:
-    if user.role != UserRole.superadmin:
+    if not user.is_superadmin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin required")
     return user
 
@@ -55,7 +55,7 @@ def require_committee_or_admin(
         db: Session = Depends(get_db),
 ) -> User:
     """Committee member (is_committee=True) or club admin/superadmin required."""
-    if user.role in (UserRole.admin, UserRole.superadmin):
+    if user.has_role(UserRole.admin):
         return user
     if not user.regular_member_id or not user.club_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -65,3 +65,4 @@ def require_committee_or_admin(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Vergnügungsausschuss or admin required")
     return user
+

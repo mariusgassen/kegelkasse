@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore, isAdmin } from '../app'
-import type { User } from '../../types'
+import { useAppStore, isAdmin, isSuperadmin, isProductManager, canManageRoadmap, hasRole } from '../app'
+import type { User, UserRole } from '../../types'
 
-function makeUser(role: string): User {
+function makeUser(role: string, roles?: UserRole[]): User {
     return {
         id: 1,
         email: 'test@test.de',
         name: 'Test User',
         username: 'testuser',
         role: role as User['role'],
+        roles,
         club_id: 1,
         preferred_locale: 'de',
         avatar: null,
@@ -16,23 +17,44 @@ function makeUser(role: string): User {
     }
 }
 
-describe('isAdmin helper', () => {
+describe('role helpers', () => {
     it('returns false for null user', () => {
         expect(isAdmin(null)).toBe(false)
+        expect(isSuperadmin(null)).toBe(false)
+        expect(isProductManager(null)).toBe(false)
+        expect(canManageRoadmap(null)).toBe(false)
     })
 
-    it('returns false for member role', () => {
+    it('handles single role (legacy)', () => {
         expect(isAdmin(makeUser('member'))).toBe(false)
-    })
-
-    it('returns true for admin role', () => {
         expect(isAdmin(makeUser('admin'))).toBe(true)
+        expect(isAdmin(makeUser('superadmin'))).toBe(true)
+        expect(isSuperadmin(makeUser('superadmin'))).toBe(true)
+        expect(isSuperadmin(makeUser('admin'))).toBe(false)
+        expect(isProductManager(makeUser('product_manager'))).toBe(true)
+        expect(canManageRoadmap(makeUser('product_manager'))).toBe(true)
     })
 
-    it('returns true for superadmin role', () => {
-        expect(isAdmin(makeUser('superadmin'))).toBe(true)
+    it('handles multiple roles', () => {
+        const adminPmUser = makeUser('admin', ['admin', 'product_manager'])
+        expect(isAdmin(adminPmUser)).toBe(true)
+        expect(isProductManager(adminPmUser)).toBe(true)
+        expect(canManageRoadmap(adminPmUser)).toBe(true)
+        expect(isSuperadmin(adminPmUser)).toBe(false)
+
+        const memberPmUser = makeUser('product_manager', ['member', 'product_manager'])
+        expect(isAdmin(memberPmUser)).toBe(false)
+        expect(isProductManager(memberPmUser)).toBe(true)
+        expect(canManageRoadmap(memberPmUser)).toBe(true)
+
+        const superUser = makeUser('superadmin', ['superadmin'])
+        expect(isAdmin(superUser)).toBe(true)
+        expect(isProductManager(superUser)).toBe(true)
+        expect(isSuperadmin(superUser)).toBe(true)
+        expect(canManageRoadmap(superUser)).toBe(true)
     })
 })
+
 
 describe('useAppStore', () => {
     beforeEach(() => {

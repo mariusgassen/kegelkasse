@@ -451,6 +451,7 @@ export const api = {
         name: string;
         email: string;
         role: UserRole;
+        roles?: UserRole[];
         club_id: number | null;
         club_name?: string | null;
         is_active: boolean;
@@ -460,7 +461,15 @@ export const api = {
         name: string;
         email: string;
         role: UserRole;
+        roles?: UserRole[];
     }>('PATCH', `/superadmin/users/${userId}/role`, {role}),
+    superadminSetUserRoles: (userId: number, roles: UserRole[]) => request<{
+        id: number;
+        name: string;
+        email: string;
+        role: UserRole;
+        roles: UserRole[];
+    }>('PATCH', `/superadmin/users/${userId}/roles`, {roles}),
 
     // Regular members (Stammspieler)
     mergeRegularMembers: (discardId: number, keepId: number) =>

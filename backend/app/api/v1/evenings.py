@@ -460,7 +460,7 @@ def update_penalty(eid: int, lid: int, data: PenaltyUpdate, db: Session = Depend
     updates = data.model_dump(exclude_none=True)
     # Date override requires admin role
     if "date" in updates:
-        if user.role not in ("admin", "superadmin"):
+        if not user.has_role(UserRole.admin):
             raise HTTPException(403, "Admin required to change penalty date")
         date_str = updates.pop("date")
         try:
@@ -1009,7 +1009,7 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
     new_started_at = g.started_at.replace(tzinfo=UTC) if g.started_at and not g.started_at.tzinfo else g.started_at
     new_finished_at = g.finished_at.replace(tzinfo=UTC) if g.finished_at and not g.finished_at.tzinfo else g.finished_at
     if data.started_at is not None or data.finished_at is not None:
-        if user.role not in (UserRole.admin, UserRole.superadmin):
+        if not user.has_role(UserRole.admin):
             raise HTTPException(status_code=403, detail="Club admin role required to edit game timestamps")
         try:
             if data.started_at is not None:

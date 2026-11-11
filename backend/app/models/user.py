@@ -22,6 +22,7 @@ class User(Base):
     name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.member)
+    roles = Column(JSON, nullable=True, default=list)
     club_id = Column(Integer, ForeignKey("club.id"), nullable=True)
     regular_member_id = Column(Integer, ForeignKey("regular_member.id"), nullable=True)
     avatar = Column(Text, nullable=True)  # /uploads/avatars/<key> URL (legacy rows: base64 data URI)
@@ -36,6 +37,47 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     club = relationship("Club", back_populates="members")
+
+    @property
+    def all_roles(self) -> set[str]:
+        """Set of all role identifiers assigned to this user."""
+        roles_set: set[str] = set()
+        if self.roles and isinstance(self.roles, list):
+            for r in self.roles:
+                if isinstance(r, str):
+                    roles_set.add(r)
+                elif hasattr(r, "value"):
+                    roles_set.add(r.value)
+        if self.role:
+            val = self.role.value if hasattr(self.role, "value") else str(self.role)
+            roles_set.add(val)
+        if not roles_set:
+            roles_set.add(UserRole.member.value)
+        return roles_set
+
+    def has_role(self, *roles: object) -> bool:
+        """Return True if user has ANY of the specified roles (or superadmin)."""
+        assigned = self.all_roles
+        if UserRole.superadmin.value in assigned:
+            return True
+        for r in roles:
+            val = r.value if hasattr(r, "value") else str(r)
+            if val in assigned:
+                return True
+        return False
+
+    @property
+    def is_superadmin(self) -> bool:
+        return UserRole.superadmin.value in self.all_roles
+
+    @property
+    def is_product_manager(self) -> bool:
+        return self.has_role(UserRole.product_manager)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.has_role(UserRole.admin)
+
 
 
 class InviteToken(Base):

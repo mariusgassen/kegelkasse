@@ -299,3 +299,34 @@ class TestUserRoleManagement:
             headers=member_headers,
         )
         assert resp2.status_code == 403
+
+    def test_assign_multiple_roles(self, client, superadmin_headers, member_user, db):
+        resp = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/roles",
+            json={"roles": ["admin", "product_manager"]},
+            headers=superadmin_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data["roles"]) == {"admin", "product_manager"}
+        db.refresh(member_user)
+        assert member_user.has_role(UserRole.admin)
+        assert member_user.has_role(UserRole.product_manager)
+        assert member_user.is_admin
+        assert member_user.is_product_manager
+        assert not member_user.is_superadmin
+
+    def test_cannot_demote_only_superadmin_via_roles(self, client, superadmin_headers, superadmin_user, db):
+        db.query(User).filter(User.id != superadmin_user.id).update({User.role: UserRole.member, User.roles: ["member"]})
+        superadmin_user.roles = ["superadmin"]
+        superadmin_user.role = UserRole.superadmin
+        db.commit()
+
+        resp = client.patch(
+            f"/api/v1/superadmin/users/{superadmin_user.id}/roles",
+            json={"roles": ["admin", "product_manager"]},
+            headers=superadmin_headers,
+        )
+        assert resp.status_code == 400
+        assert "only active superadmin" in resp.json()["detail"]
+

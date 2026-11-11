@@ -183,7 +183,9 @@ def switch_club(club_id: int, db: Session = Depends(get_db),
         "access_token": token,
         "user": {
             "id": user.id, "email": user.email, "name": user.name,
-            "role": user.role, "club_id": user.club_id,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "roles": sorted(list(user.all_roles)),
+            "club_id": user.club_id,
             "preferred_locale": user.preferred_locale,
         }
     }
@@ -193,12 +195,16 @@ class UpdateUserRoleRequest(TrimmedModel):
     role: str
 
 
+class UpdateUserRolesRequest(TrimmedModel):
+    roles: list[str]
+
+
 @router.get("/users")
 def list_users(
     db: Session = Depends(get_db),
     user: User = Depends(require_superadmin),
 ):
-    """List all users with their club and role for global role administration."""
+    """List all users with their club and roles for global role administration."""
     users = db.query(User).order_by(User.name).all()
     clubs = {c.id: c.name for c in db.query(Club).all()}
     return [
@@ -207,12 +213,61 @@ def list_users(
             "name": u.name,
             "email": u.email,
             "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+            "roles": sorted(list(u.all_roles)),
             "club_id": u.club_id,
             "club_name": clubs.get(u.club_id) if u.club_id else None,
             "is_active": u.is_active,
         }
         for u in users
     ]
+
+
+def _apply_user_roles(
+    db: Session,
+    current_user: User,
+    target_user: User,
+    new_roles: list[str],
+) -> dict:
+    allowed_roles = {r.value for r in UserRole}
+    for r in new_roles:
+        if r not in allowed_roles:
+            raise HTTPException(400, f"Invalid role: {r}. Allowed: {sorted(allowed_roles)}")
+
+    normalized_roles = list({r for r in new_roles if r in allowed_roles})
+    if not normalized_roles:
+        normalized_roles = [UserRole.member.value]
+
+    # Safety: Cannot demote yourself if you are the only active superadmin
+    if target_user.id == current_user.id and UserRole.superadmin.value not in normalized_roles:
+        active_users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        superadmin_count = sum(1 for u in active_users if u.is_superadmin)
+        if superadmin_count <= 1:
+            raise HTTPException(400, "Cannot demote the only active superadmin")
+
+    target_user.roles = sorted(normalized_roles)
+    # Sync primary role column for backward compatibility
+    if UserRole.superadmin.value in normalized_roles:
+        target_user.role = UserRole.superadmin
+    elif UserRole.admin.value in normalized_roles:
+        target_user.role = UserRole.admin
+    elif UserRole.product_manager.value in normalized_roles:
+        target_user.role = UserRole.product_manager
+    else:
+        target_user.role = UserRole.member
+
+    db.commit()
+    db.refresh(target_user)
+    logger.info(
+        "User roles updated: user_id=%d roles=%r primary_role=%r by superadmin=%d",
+        target_user.id, target_user.roles, target_user.role.value, current_user.id,
+    )
+    return {
+        "id": target_user.id,
+        "name": target_user.name,
+        "email": target_user.email,
+        "role": target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
+        "roles": sorted(list(target_user.all_roles)),
+    }
 
 
 @router.patch("/users/{user_id}/role")
@@ -222,35 +277,23 @@ def update_user_role(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_superadmin),
 ):
-    """Assign a role (superadmin, product_manager, admin, member) to a user."""
+    """Assign a single role to a user (backwards compatible)."""
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(404, "User not found")
+    return _apply_user_roles(db, current_user, target_user, [data.role])
 
-    allowed_roles = {r.value for r in UserRole}
-    if data.role not in allowed_roles:
-        raise HTTPException(400, f"Invalid role: {data.role}. Allowed: {sorted(allowed_roles)}")
 
-    # Safety: Cannot demote yourself if you are the only active superadmin
-    if target_user.id == current_user.id and data.role != UserRole.superadmin.value:
-        superadmin_count = (
-            db.query(User)
-            .filter(User.role == UserRole.superadmin, User.is_active == True)  # noqa: E712
-            .count()
-        )
-        if superadmin_count <= 1:
-            raise HTTPException(400, "Cannot demote the only active superadmin")
+@router.patch("/users/{user_id}/roles")
+def update_user_roles(
+    user_id: int,
+    data: UpdateUserRolesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_superadmin),
+):
+    """Assign multiple roles to a user (e.g. ['admin', 'product_manager'])."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(404, "User not found")
+    return _apply_user_roles(db, current_user, target_user, data.roles)
 
-    target_user.role = UserRole(data.role)
-    db.commit()
-    db.refresh(target_user)
-    logger.info(
-        "User role updated: user_id=%d role=%r by superadmin=%d",
-        target_user.id, target_user.role.value, current_user.id,
-    )
-    return {
-        "id": target_user.id,
-        "name": target_user.name,
-        "email": target_user.email,
-        "role": target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
-    }

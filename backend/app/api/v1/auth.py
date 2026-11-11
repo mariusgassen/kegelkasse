@@ -44,9 +44,18 @@ class UpdateLocaleRequest(TrimmedModel):
 
 
 def _user_dict(u: User) -> dict:
-    return {"id": u.id, "email": u.email, "username": u.username, "name": u.name,
-            "role": u.role, "club_id": u.club_id, "preferred_locale": u.preferred_locale,
-            "avatar": u.avatar, "regular_member_id": u.regular_member_id}
+    return {
+        "id": u.id,
+        "email": u.email,
+        "username": u.username,
+        "name": u.name,
+        "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+        "roles": sorted(list(u.all_roles)),
+        "club_id": u.club_id,
+        "preferred_locale": u.preferred_locale,
+        "avatar": u.avatar,
+        "regular_member_id": u.regular_member_id,
+    }
 
 
 @router.post("/login")
@@ -226,7 +235,7 @@ class CreateResetTokenRequest(TrimmedModel):
 def create_reset_token(req: CreateResetTokenRequest, db: Session = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
     """Admin creates a one-time password-reset link for another user."""
-    if current_user.role not in (UserRole.admin, UserRole.superadmin):
+    if not current_user.has_role(UserRole.admin):
         raise HTTPException(status_code=403, detail="Admin required")
     user = db.query(User).filter(User.id == req.user_id).first()
     if not user:
@@ -355,7 +364,7 @@ def request_password_reset(req: RequestPasswordResetRequest, request: Request,
 @router.post("/invite")
 def create_invite(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Club admin or superadmin can create invites
-    if current_user.role not in (UserRole.admin, UserRole.superadmin):
+    if not current_user.has_role(UserRole.admin):
         raise HTTPException(status_code=403, detail="Admin required to create invites")
     token_val = secrets.token_urlsafe(32)
     expires = datetime.now(UTC) + timedelta(days=7)

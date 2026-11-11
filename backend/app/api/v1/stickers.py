@@ -54,7 +54,7 @@ def _author_names(user_ids: set[int], db: Session) -> dict[int, str]:
 
 
 def _can_edit(s: Sticker, user: User) -> bool:
-    return s.created_by == user.id or user.role in (UserRole.admin, UserRole.superadmin)
+    return s.created_by == user.id or user.has_role(UserRole.admin)
 
 
 def _serialize(s: Sticker, names: dict[int, str], user: User) -> dict:
