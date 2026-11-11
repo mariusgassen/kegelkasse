@@ -3,7 +3,7 @@ import logging
 from datetime import UTC, date as date_type, datetime
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import Field
 from sqlalchemy.orm import Session
 
@@ -208,6 +208,20 @@ def delete_sticker(sid: int, db: Session = Depends(get_db), user: User = Depends
     db.commit()
 
 
+def _client_referer(request: Request) -> Optional[str]:
+    referer = request.headers.get("referer")
+    if referer:
+        return referer
+    origin = request.headers.get("origin")
+    if origin:
+        return f"{origin.rstrip('/')}/"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host:
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+        return f"{proto.split(',')[0].strip()}://{host.split(',')[0].strip()}/"
+    return None
+
+
 def _fetch_carto_tile(url: str, params: dict[str, str], headers: dict[str, str]) -> tuple[bytes, str]:
     import httpx
     resp = httpx.get(url, params=params, headers=headers, timeout=10, follow_redirects=True)
@@ -216,7 +230,7 @@ def _fetch_carto_tile(url: str, params: dict[str, str], headers: dict[str, str])
 
 
 @router.get("/tiles/{z}/{x}/{y}.png", include_in_schema=False)
-def proxy_tile(z: int, x: int, y: int, r: str = Query(default="")):
+def proxy_tile(z: int, x: int, y: int, request: Request, r: str = Query(default="")):
     """Proxy CARTO basemap tiles so ``CARTO_API_KEY`` stays on the server and out of client bundles."""
     if not (0 <= z <= 20) or not (0 <= x < (1 << z)) or not (0 <= y < (1 << z)):
         raise HTTPException(400, "Invalid tile coordinates")
@@ -225,9 +239,11 @@ def proxy_tile(z: int, x: int, y: int, r: str = Query(default="")):
     url = settings.CARTO_TILE_URL.format(s=sub, z=z, x=x, y=y, r=retina)
     params: dict[str, str] = {}
     headers = {"User-Agent": "Kegelkasse/1.0"}
+    referer = _client_referer(request)
+    if referer:
+        headers["Referer"] = referer
     if settings.CARTO_API_KEY:
-        params["api_key"] = settings.CARTO_API_KEY
-        headers["Authorization"] = f"Bearer {settings.CARTO_API_KEY}"
+        params["key"] = settings.CARTO_API_KEY
     try:
         content, media_type = _fetch_carto_tile(url, params, headers)
     except Exception as exc:

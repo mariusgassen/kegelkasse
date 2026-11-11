@@ -214,18 +214,32 @@ def test_update_replaces_photo_list(client: TestClient, auth_headers, club: Club
     assert r.json()["media_urls"] == [_media(club, "z")]
 
 
-def test_carto_tile_proxy_forwards_api_key(client: TestClient, monkeypatch):
+def test_carto_tile_proxy_forwards_api_key_and_referer(client: TestClient, monkeypatch):
     from core.config import settings
     monkeypatch.setattr(settings, "CARTO_API_KEY", "secret-carto-key")
     with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch:
-        r = client.get("/api/v1/stickers/tiles/2/1/3.png?r=@2x")
+        r = client.get(
+            "/api/v1/stickers/tiles/2/1/3.png?r=@2x",
+            headers={"Referer": "https://kegelkasse.example.de/#stickers"},
+        )
     assert r.status_code == 200
     assert r.content == b"\x89PNGtile"
     assert r.headers["content-type"] == "image/png"
     called_url, called_params, called_headers = fetch.call_args[0]
     assert "basemaps.cartocdn.com/rastertiles/voyager/2/1/3@2x.png" in called_url
-    assert called_params["api_key"] == "secret-carto-key"
-    assert called_headers["Authorization"] == "Bearer secret-carto-key"
+    assert called_params["key"] == "secret-carto-key"
+    assert "Authorization" not in called_headers
+    assert called_headers["Referer"] == "https://kegelkasse.example.de/#stickers"
+
+    # Without an explicit Referer header, falls back to the request Host header
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_fallback:
+        r2 = client.get(
+            "/api/v1/stickers/tiles/2/1/3.png",
+            headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "kegelkasse.example.de"},
+        )
+    assert r2.status_code == 200
+    _, _, fallback_headers = fetch_fallback.call_args[0]
+    assert fallback_headers["Referer"] == "https://kegelkasse.example.de/"
 
 
 def test_carto_tile_proxy_rejects_invalid_coords_and_handles_upstream_error(client: TestClient):
