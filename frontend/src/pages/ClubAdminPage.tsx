@@ -229,6 +229,17 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setSuggestions(palettes)
     }
 
+    async function handleMapStyleChange(next: MapStyle) {
+        setMapStyle(next)
+        try {
+            await api.updateClubSettings({map_style: next})
+            await qc.invalidateQueries({queryKey: ['club']})
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        }
+    }
+
     async function handleLogoUpload(file: File) {
         setLogoUploading(true)
         try {
@@ -431,7 +442,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                 <button
                                     key={ms.key}
                                     type="button"
-                                    onClick={() => setMapStyle(ms.key)}
+                                    onClick={() => handleMapStyleChange(ms.key)}
+                                    disabled={!isOnline}
                                     className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
                                         active
                                             ? 'border-accent bg-accent/10 shadow-sm font-semibold'
