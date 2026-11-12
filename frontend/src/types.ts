@@ -11,7 +11,7 @@ export interface NotificationItem {
 }
 
 
-export type UserRole = 'superadmin' | 'admin' | 'member'
+export type UserRole = 'superadmin' | 'product_manager' | 'admin' | 'member'
 
 export interface User {
     id: number
@@ -25,12 +25,23 @@ export interface User {
     regular_member_id: number | null
 }
 
+export type MapStyle =
+    | 'voyager'
+    | 'light_all'
+    | 'dark_all'
+    | 'club_dark'
+    | 'club_light'
+    | 'voyager_nolabels'
+    | 'light_nolabels'
+    | 'dark_nolabels'
+
 export interface ClubSettings {
     home_venue: string | null
     logo_url: string | null
     primary_color: string
     secondary_color: string
     bg_color: string | null
+    map_style?: MapStyle
     guest_penalty_cap: number | null
     paypal_me: string | null
     no_cancel_fee: number | null
@@ -215,6 +226,7 @@ export interface RegularMember {
     is_zeugwart?: boolean
     avatar: string | null
     deactivated_at: string | null
+    evening_count?: number
 }
 
 export interface ClubAnnouncement {
@@ -886,4 +898,56 @@ export interface InventoryMovement {
     note: string | null
     actor_name: string
     created_at: string | null
+}
+
+export type RoadmapStatus = 'idea' | 'planned' | 'in_progress' | 'completed' | 'rejected' | 'duplicate'
+export type RoadmapCategory = 'feature' | 'improvement' | 'design' | 'evening' | 'kasse' | 'admin' | string
+
+export interface RoadmapItem {
+    id: number
+    club_id: number | null
+    created_by_user_id: number | null
+    author_name: string
+    title: string
+    description: string | null
+    status: RoadmapStatus
+    category: string | null
+    tags: string[]
+    tags_raw?: string
+    is_pinned: boolean
+    duplicate_of_id: number | null
+    duplicate_of_title: string | null
+    admin_notes: string | null
+    target_version: string | null
+    is_official: boolean
+    vote_count: number
+    has_voted: boolean
+    comment_count?: number
+    created_at: string | null
+    updated_at: string | null
+}
+
+export interface RoadmapItemCreate {
+    title: string
+    description?: string | null
+    category?: string | null
+    tags?: string | null
+}
+
+export interface RoadmapItemUpdate {
+    title?: string | null
+    description?: string | null
+    status?: RoadmapStatus | null
+    category?: string | null
+    tags?: string | null
+    is_pinned?: boolean | null
+    duplicate_of_id?: number | null
+    admin_notes?: string | null
+    target_version?: string | null
+}
+
+export interface RoadmapVoteResponse {
+    item_id: number
+    has_voted: boolean
+    vote_count: number
 }

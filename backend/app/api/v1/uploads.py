@@ -3,7 +3,7 @@ serves every stored file (``/uploads/<key>``) from the active storage backend.""
 import mimetypes
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from api.deps import require_club_member
@@ -24,8 +24,17 @@ _ALLOWED_TYPES = {
 _MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
+def _store_variants(storage, key: str, data: bytes, content_type: str) -> None:
+    name = key.split("/", 1)[1]
+    for width in images.VARIANT_WIDTHS:
+        variant = images.make_variant(data, content_type, width)
+        if variant is not None:
+            storage.put(f"thumbs/{width}/{name}", variant, content_type)
+
+
 @router.post("/media")
 async def upload_media(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: User = Depends(require_club_member),
 ):
@@ -40,11 +49,8 @@ async def upload_media(
     key = f"media/media_{user.club_id}_{uuid.uuid4().hex}.{ext}"
     storage = get_storage()
     storage.put(key, data, file.content_type)
-    # Build the sizes the feed asks for now, so the first viewer never waits for them.
-    for width in images.VARIANT_WIDTHS:
-        variant = images.make_variant(data, file.content_type, width)
-        if variant is not None:
-            storage.put(f"thumbs/{width}/{key.split('/', 1)[1]}", variant, file.content_type)
+    # Build the sizes the feed asks for in the background so multi-photo uploads return fast.
+    background_tasks.add_task(_store_variants, storage, key, data, file.content_type)
     return {"url": url_for_key(key)}
 
 

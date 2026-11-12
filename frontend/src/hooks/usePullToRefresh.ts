@@ -49,7 +49,12 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void): PullToR
         function onTouchStart(e: TouchEvent) {
             reset()
             if (busyRef.current) return
-            const scroller = (e.target as Element | null)?.closest('.page-scroll') ?? null
+            if (e.touches.length !== 1) return
+            const target = e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement
+            if (!target) return
+            // Maps (Leaflet, etc.) or interactive widgets opting out of delegated pull-to-refresh
+            if (target.closest('.leaflet-container, [data-no-ptr], [data-prevent-ptr]')) return
+            const scroller = target.closest('.page-scroll') ?? null
             if (!scroller || scroller.scrollTop > 0) return
             startX.current = e.touches[0].clientX
             startY.current = e.touches[0].clientY
@@ -57,6 +62,11 @@ export function usePullToRefresh(onRefresh: () => Promise<void> | void): PullToR
 
         function onTouchMove(e: TouchEvent) {
             if (startY.current === null || startX.current === null) return
+            if (e.touches.length !== 1) {
+                reset()
+                setPullDistance(0)
+                return
+            }
             const dx = e.touches[0].clientX - startX.current
             const dy = e.touches[0].clientY - startY.current
 

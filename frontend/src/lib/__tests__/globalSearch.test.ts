@@ -231,19 +231,67 @@ describe('searchBookings', () => {
 
 describe('searchStickers', () => {
     const stickers = [
-        {id: 7, place_name: 'Lissabon, Portugal', caption: 'Am Tejo'},
-        {id: 8, place_name: 'Wien', caption: null},
+        {id: 7, place_name: 'Lissabon, Portugal', caption: 'Am Tejo', created_by_name: 'Pudel'},
+        {id: 8, place_name: 'Wien', caption: null, created_by_name: null},
     ]
 
-    it('matches place and caption and deep-links to the sticker', () => {
+    it('matches place, caption and poster and deep-links to the sticker', () => {
         const r = searchStickers('lissa', stickers)
         expect(r).toHaveLength(1)
         expect(r[0].nav).toEqual({to: '/stickers', search: {tab: 'feed', item: 7}})
+        expect(r[0].subtitle).toBe('Am Tejo · Pudel')
         expect(searchStickers('tejo', stickers)).toHaveLength(1)
+        expect(searchStickers('pudel', stickers)).toHaveLength(1)
     })
 
     it('handles a null caption and empty queries', () => {
         expect(searchStickers('wien', stickers)[0].subtitle).toBeUndefined()
         expect(searchStickers('  ', stickers)).toEqual([])
+    })
+
+    it('matches generic sticker keywords and provides an overview link plus all stickers', () => {
+        const r = searchStickers('sticker', stickers, 'de')
+        expect(r).toHaveLength(3)
+        expect(r[0]).toEqual({
+            kind: 'sticker',
+            id: 0,
+            title: 'Sticker-Wand',
+            subtitle: 'Feed & Weltkarte',
+            nav: {to: '/stickers', search: {tab: 'feed'}},
+        })
+        expect(r[1].id).toBe(7)
+        expect(r[2].id).toBe(8)
+
+        expect(searchStickers('stickers', stickers, 'en')[0].title).toBe('Sticker wall')
+        expect(searchStickers('aufkleber', stickers, 'de')[0].title).toBe('Sticker-Wand')
+    })
+
+    it('matches multi-word queries combining sticker keywords with places or names', () => {
+        const r = searchStickers('sticker lissa', stickers)
+        expect(r).toHaveLength(1)
+        expect(r[0].id).toBe(7)
+        expect(searchStickers('sticker pudel', stickers)).toHaveLength(1)
+    })
+
+    it('matches map keywords and links to the world map tab', () => {
+        const r = searchStickers('karte', stickers, 'de')
+        expect(r[0]).toEqual({
+            kind: 'sticker',
+            id: 0,
+            title: 'Sticker-Weltkarte',
+            subtitle: 'Weltkarte',
+            nav: {to: '/stickers', search: {tab: 'map'}},
+        })
+        expect(searchStickers('map', stickers, 'en')[0].title).toBe('Sticker map')
+    })
+
+    it('matches date when stuck_on is provided', () => {
+        const datedStickers = [
+            {id: 9, place_name: 'Rom', caption: null, created_by_name: null, stuck_on: '2026-03-15'},
+        ]
+        const r = searchStickers('märz', datedStickers, 'de')
+        expect(r).toHaveLength(1)
+        expect(r[0].id).toBe(9)
+        expect(r[0].subtitle).toBe('15. März 2026')
     })
 })

@@ -12,19 +12,23 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFi
 from core.schemas import TrimmedModel
 from sqlalchemy import or_, and_, func, case
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from api.deps import require_club_member, require_club_admin
 from api.v1.app_icon import serialize_app_icon
+from api.v1.stickers import CARTO_STYLES, DEFAULT_MAP_STYLE
 from core.database import get_db
 from core.push import push_to_regular_member, push_to_club_admins
 from core.storage import get_storage, key_from_url, url_for_key
+from models.bowling import BowlingScore
 from models.club import Club, ClubSettings, ClubPin
 from models.committee import ClubTrip
 from models.evening import RegularMember, ClubTeam, EveningPlayer, Evening
 from models.game import GameTemplate, WinnerType
 from models.payment import MemberPayment, ClubExpense, PaymentRequest, PaymentRequestStatus
 from models.penalty import PenaltyType, PenaltyLog, SOUND_PRESET_KEYS
-from models.user import User, UserRole
+from models.schedule import MemberRsvp, ScheduledEveningGuest
+from models.user import User, UserRole, InviteToken
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +43,7 @@ def _serialize_settings(s: ClubSettings) -> dict:
         "primary_color": s.primary_color or "#e8a020",
         "secondary_color": s.secondary_color or "#6b7c5a",
         "bg_color": extra.get("bg_color"),
+        "map_style": extra.get("map_style") or DEFAULT_MAP_STYLE,
         "guest_penalty_cap": extra.get("guest_penalty_cap"),
         "paypal_me": extra.get("paypal_me"),
         "no_cancel_fee": extra.get("no_cancel_fee"),
@@ -102,6 +107,7 @@ class ClubSettingsUpdate(TrimmedModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
+    map_style: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
     paypal_me: Optional[str] = None
     no_cancel_fee: Optional[float] = None  # extra penalty for members who did not cancel
@@ -114,7 +120,7 @@ class ClubSettingsUpdate(TrimmedModel):
 
 
 _SETTINGS_COLUMNS = {"home_venue", "primary_color", "secondary_color"}
-_SETTINGS_EXTRA = {"bg_color", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
+_SETTINGS_EXTRA = {"bg_color", "map_style", "guest_penalty_cap", "paypal_me", "no_cancel_fee", "pin_penalty",
                    "default_evening_time", "throw_tracking_enabled", "audio_callouts_enabled",
                    "public_schedule_enabled"}
 
@@ -124,6 +130,8 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
                          user: User = Depends(require_club_admin)):
     """Admin only: update club settings (home venue, colors) and club name."""
     payload = data.model_dump(exclude_none=True)
+    if "map_style" in payload and payload["map_style"] not in CARTO_STYLES:
+        raise HTTPException(400, "Invalid map style")
     if "name" in payload:
         club = db.query(Club).filter(Club.id == user.club_id).first()
         if club:
@@ -132,13 +140,17 @@ def update_club_settings(data: ClubSettingsUpdate, db: Session = Depends(get_db)
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
+    extra = dict(s.extra or {})
+    extra_changed = False
     for field, value in payload.items():
         if field in _SETTINGS_COLUMNS:
             setattr(s, field, value)
         elif field in _SETTINGS_EXTRA:
-            extra = dict(s.extra or {})
             extra[field] = value
-            s.extra = extra
+            extra_changed = True
+    if extra_changed:
+        s.extra = extra
+        flag_modified(s, "extra")
     db.commit()
     return {"ok": True}
 
@@ -314,24 +326,37 @@ def link_user_to_roster(member_id: int, data: LinkRosterRequest, db: Session = D
 
 # ── Regular members (Stammspieler) — admin write, all read ──
 
-def _member_dict(m: RegularMember, avatar: str | None = None) -> dict:
+def _member_dict(m: RegularMember, avatar: str | None = None, evening_count: int = 0) -> dict:
     return {"id": m.id, "name": m.name, "nickname": m.nickname,
             "is_guest": m.is_guest, "is_active": m.is_active,
             "is_committee": m.is_committee, "is_auditor": bool(m.is_auditor),
             "is_zeugwart": bool(m.is_zeugwart), "avatar": avatar,
-            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None}
+            "deactivated_at": m.deactivated_at.isoformat() if m.deactivated_at else None,
+            "evening_count": evening_count}
 
 
 @router.get("/regular-members")
 def list_regular_members(include_inactive: bool = False, db: Session = Depends(get_db),
                          user: User = Depends(require_club_member)):
-    q = (db.query(RegularMember, User.avatar)
+    evening_subq = (
+        db.query(
+            EveningPlayer.regular_member_id.label("mid"),
+            func.count(func.distinct(EveningPlayer.evening_id)).label("count"),
+        )
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id.isnot(None))
+        .group_by(EveningPlayer.regular_member_id)
+        .subquery()
+    )
+
+    q = (db.query(RegularMember, User.avatar, func.coalesce(evening_subq.c.count, 0))
          .outerjoin(User, User.id == RegularMember.user_id)
+         .outerjoin(evening_subq, evening_subq.c.mid == RegularMember.id)
          .filter(RegularMember.club_id == user.club_id))
     if not include_inactive:
         q = q.filter(RegularMember.is_active == True)
     rows = q.order_by(RegularMember.name).all()
-    return [_member_dict(m, avatar) for m, avatar in rows]
+    return [_member_dict(m, avatar, int(count or 0)) for m, avatar, count in rows]
 
 
 class RegularMemberCreate(TrimmedModel):
@@ -360,7 +385,13 @@ def update_regular_member(mid: int, data: RegularMemberCreate, db: Session = Dep
     m.nickname = data.nickname
     m.is_guest = data.is_guest
     db.commit()
-    return _member_dict(m)
+    count = (
+        db.query(func.count(func.distinct(EveningPlayer.evening_id)))
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
+        .scalar()
+    ) or 0
+    return _member_dict(m, evening_count=int(count))
 
 
 class DeactivateRegularMemberBody(TrimmedModel):
@@ -406,7 +437,13 @@ def deactivate_regular_member(mid: int, data: Optional[DeactivateRegularMemberBo
         from core.refresh import revoke_all_for_user
         revoke_all_for_user(db, linked_user.id)
     logger.info("Regular member deactivated: member=%d by admin=%d", mid, user.id)
-    return _member_dict(m)
+    count = (
+        db.query(func.count(func.distinct(EveningPlayer.evening_id)))
+        .join(Evening, Evening.id == EveningPlayer.evening_id)
+        .filter(Evening.club_id == user.club_id, EveningPlayer.regular_member_id == mid)
+        .scalar()
+    ) or 0
+    return _member_dict(m, evening_count=int(count))
 
 
 @router.post("/regular-members/{mid}/purge-penalties-since-deactivation")
@@ -484,9 +521,12 @@ def reactivate_regular_member(mid: int, db: Session = Depends(get_db),
 @router.post("/regular-members/{discard_id}/merge-into/{keep_id}")
 def merge_regular_members(discard_id: int, keep_id: int, db: Session = Depends(get_db),
                           user: User = Depends(require_club_admin)):
-    """Re-attribute all data from discard to keep, then soft-delete discard."""
-    from models.evening import EveningPlayer
-    from models.user import InviteToken
+    """Re-attribute all data from discard to keep, then soft-delete discard.
+
+    Guests included: merging a form-registered guest into a manually created one moves planned
+    evenings, treasury entries, penalties, RSVPs and pins, so nothing of the discarded entry is
+    lost (guests are never deletable, the discard just becomes inactive).
+    """
     discard = db.query(RegularMember).filter(
         RegularMember.id == discard_id, RegularMember.club_id == user.club_id).first()
     keep = db.query(RegularMember).filter(
@@ -504,6 +544,36 @@ def merge_regular_members(discard_id: int, keep_id: int, db: Session = Depends(g
     # Re-attribute invite tokens
     db.query(InviteToken).filter(InviteToken.regular_member_id == discard_id).update(
         {InviteToken.regular_member_id: keep_id})
+    # Re-attribute planned guests (scheduled evenings) — the display name follows the kept
+    # entry, same as picking the guest from the "Bekannte Gäste" chips
+    db.query(ScheduledEveningGuest).filter(ScheduledEveningGuest.regular_member_id == discard_id).update(
+        {ScheduledEveningGuest.regular_member_id: keep_id,
+         ScheduledEveningGuest.name: keep.nickname or keep.name})
+    # Re-attribute treasury entries (payments, payment requests)
+    db.query(MemberPayment).filter(MemberPayment.regular_member_id == discard_id).update(
+        {MemberPayment.regular_member_id: keep_id})
+    db.query(PaymentRequest).filter(PaymentRequest.regular_member_id == discard_id).update(
+        {PaymentRequest.regular_member_id: keep_id})
+    # Re-attribute penalties logged directly for the member (absence entries)
+    db.query(PenaltyLog).filter(PenaltyLog.regular_member_id == discard_id).update(
+        {PenaltyLog.regular_member_id: keep_id})
+    # Re-attribute pins
+    db.query(ClubPin).filter(ClubPin.holder_regular_member_id == discard_id).update(
+        {ClubPin.holder_regular_member_id: keep_id})
+    # Re-attribute mini-bowling scores
+    db.query(BowlingScore).filter(BowlingScore.regular_member_id == discard_id).update(
+        {BowlingScore.regular_member_id: keep_id})
+    # RSVPs — unique per (scheduled evening, member): where keep already answered, the
+    # discard's answer is dropped instead of moved (keep wins)
+    keep_rsvp_evenings = [r.scheduled_evening_id for r in db.query(MemberRsvp).filter(
+        MemberRsvp.regular_member_id == keep_id)]
+    if keep_rsvp_evenings:
+        db.query(MemberRsvp).filter(
+            MemberRsvp.regular_member_id == discard_id,
+            MemberRsvp.scheduled_evening_id.in_(keep_rsvp_evenings),
+        ).delete(synchronize_session=False)
+    db.query(MemberRsvp).filter(MemberRsvp.regular_member_id == discard_id).update(
+        {MemberRsvp.regular_member_id: keep_id})
     # Soft-delete the discarded entry
     discard.is_active = False
     db.commit()
@@ -2234,6 +2304,7 @@ class ConfigSettings(TrimmedModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     bg_color: Optional[str] = None
+    map_style: Optional[str] = None
     guest_penalty_cap: Optional[float] = None
     no_cancel_fee: Optional[float] = None
     pin_penalty: Optional[float] = None
@@ -2277,6 +2348,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
             primary_color=s.primary_color if s else None,
             secondary_color=s.secondary_color if s else None,
             bg_color=extra.get("bg_color"),
+            map_style=extra.get("map_style", DEFAULT_MAP_STYLE),
             guest_penalty_cap=extra.get("guest_penalty_cap"),
             no_cancel_fee=extra.get("no_cancel_fee"),
             pin_penalty=extra.get("pin_penalty"),

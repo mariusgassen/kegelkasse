@@ -21,7 +21,7 @@ from models.payment import ClubExpense, MemberPayment, PaymentRequest
 from models.penalty import PenaltyLog, PenaltyType
 from models.push import NotificationLog, PushSubscription
 from models.schedule import MemberRsvp, ScheduledEvening, ScheduledEveningGuest
-from models.user import InviteToken, User
+from models.user import InviteToken, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -186,4 +186,71 @@ def switch_club(club_id: int, db: Session = Depends(get_db),
             "role": user.role, "club_id": user.club_id,
             "preferred_locale": user.preferred_locale,
         }
+    }
+
+
+class UpdateUserRoleRequest(TrimmedModel):
+    role: str
+
+
+@router.get("/users")
+def list_users(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_superadmin),
+):
+    """List all users with their club and role for global role administration."""
+    users = db.query(User).order_by(User.name).all()
+    clubs = {c.id: c.name for c in db.query(Club).all()}
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+            "club_id": u.club_id,
+            "club_name": clubs.get(u.club_id) if u.club_id else None,
+            "is_active": u.is_active,
+        }
+        for u in users
+    ]
+
+
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    data: UpdateUserRoleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_superadmin),
+):
+    """Assign a role (superadmin, product_manager, admin, member) to a user."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(404, "User not found")
+
+    allowed_roles = {r.value for r in UserRole}
+    if data.role not in allowed_roles:
+        raise HTTPException(400, f"Invalid role: {data.role}. Allowed: {sorted(allowed_roles)}")
+
+    # Safety: Cannot demote yourself if you are the only active superadmin
+    if target_user.id == current_user.id and data.role != UserRole.superadmin.value:
+        superadmin_count = (
+            db.query(User)
+            .filter(User.role == UserRole.superadmin, User.is_active == True)  # noqa: E712
+            .count()
+        )
+        if superadmin_count <= 1:
+            raise HTTPException(400, "Cannot demote the only active superadmin")
+
+    target_user.role = UserRole(data.role)
+    db.commit()
+    db.refresh(target_user)
+    logger.info(
+        "User role updated: user_id=%d role=%r by superadmin=%d",
+        target_user.id, target_user.role.value, current_user.id,
+    )
+    return {
+        "id": target_user.id,
+        "name": target_user.name,
+        "email": target_user.email,
+        "role": target_user.role.value if hasattr(target_user.role, "value") else str(target_user.role),
     }

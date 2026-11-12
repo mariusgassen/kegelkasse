@@ -1,6 +1,290 @@
 {
   "releases": [
     {
+      "version": "1.74.0",
+      "date": "2026-11-11",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "852e5dc",
+              "scope": "roadmap",
+              "pr": 537,
+              "sha": "852e5dc",
+              "text": {
+                "en": "refine 2.0 roadmap into an interactive community-driven feature",
+                "de": "2.0-Roadmap zu einer interaktiven Funktion überarbeitet, die von der Community mitgestaltet wird"
+              }
+            },
+            {
+              "key": "c7178ac",
+              "scope": "stickers",
+              "pr": 567,
+              "sha": "c7178ac",
+              "text": {
+                "en": "allow club admin to configure map style matching club colors",
+                "de": "Club-Admins können jetzt einen Kartenstil passend zu den Clubfarben einstellen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "77d11b9",
+              "scope": "club",
+              "pr": 570,
+              "sha": "77d11b9",
+              "text": {
+                "en": "save map style immediately upon selection and flag extra JSON modified",
+                "de": "Kartenstil wird direkt nach der Auswahl gespeichert und zusätzliches JSON als geändert markiert"
+              }
+            },
+            {
+              "key": "bb60b46",
+              "scope": "search",
+              "pr": 566,
+              "sha": "bb60b46",
+              "text": {
+                "en": "link stickers from AI answers and match sticker keywords in global search",
+                "de": "Sticker aus KI-Antworten werden verlinkt und Sticker-Stichwörter in der globalen Suche gefunden"
+              }
+            },
+            {
+              "key": "781adb7",
+              "scope": "ui",
+              "pr": 569,
+              "sha": "781adb7",
+              "text": {
+                "en": "prevent pull-to-refresh when dragging or scrolling on maps",
+                "de": "Kein versehentliches Neuladen durch Herunterziehen mehr beim Ziehen oder Scrollen auf Karten"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.73.0",
+      "date": "2026-11-11",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "049f7a8",
+              "pr": 541,
+              "sha": "049f7a8",
+              "text": {
+                "en": "ask to enable notifications on first launch",
+                "de": "beim ersten Start nach der Erlaubnis für Benachrichtigungen fragen"
+              }
+            },
+            {
+              "key": "e029595",
+              "pr": 551,
+              "sha": "e029595",
+              "text": {
+                "en": "faster sticker photos with blurred placeholders, reorder, split posts, feed search and zoom-based map clusters",
+                "de": "schnellere Sticker-Fotos mit unscharfen Platzhaltern, Sortieren, Beiträge teilen, Suche im Feed und zoomabhängige Gruppen auf der Karte"
+              }
+            },
+            {
+              "key": "d3a5bdc",
+              "pr": 546,
+              "sha": "d3a5bdc",
+              "text": {
+                "en": "find stickers in search and link them from AI answers",
+                "de": "Sticker in der Suche finden und in KI-Antworten verlinken"
+              }
+            },
+            {
+              "key": "02c60d2",
+              "pr": 552,
+              "sha": "02c60d2",
+              "text": {
+                "en": "link the component book from profile settings and add a shared Switch",
+                "de": "Komponentenbuch in den Profileinstellungen verlinkt und einen gemeinsamen Switch ergänzt"
+              }
+            },
+            {
+              "key": "f10812a",
+              "pr": 542,
+              "sha": "f10812a",
+              "text": {
+                "en": "prefill sticker place and date from the photo, add sticker notifications and digest section",
+                "de": "Ort und Datum des Stickers aus dem Foto vorausfüllen, Sticker-Benachrichtigungen und Übersicht im Digest ergänzt"
+              }
+            },
+            {
+              "key": "abc5236",
+              "scope": "schedule",
+              "pr": 561,
+              "sha": "abc5236",
+              "text": {
+                "en": "merge guests and display before evening start",
+                "de": "Gäste zusammenführen und vor Beginn des Kegelabends anzeigen"
+              }
+            },
+            {
+              "key": "fc6fd5c",
+              "pr": 548,
+              "sha": "fc6fd5c",
+              "text": {
+                "en": "several photos per sticker with a photo picker, basic editor and photo pins on the map",
+                "de": "mehrere Fotos pro Sticker mit Fotoauswahl, einfachem Editor und Foto-Markierungen auf der Karte"
+              }
+            },
+            {
+              "key": "fc22b96",
+              "scope": "stickers",
+              "pr": 564,
+              "sha": "fc22b96",
+              "text": {
+                "en": "proxy CARTO tiles on the backend using CARTO_API_KEY",
+                "de": "CARTO-Kacheln über das Backend mit CARTO_API_KEY laden"
+              }
+            },
+            {
+              "key": "458f0a0",
+              "scope": "ui",
+              "pr": 562,
+              "sha": "458f0a0",
+              "text": {
+                "en": "show skeleton placeholders instead of loading text",
+                "de": "Platzhalter statt Ladetext anzeigen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "8b7804c",
+              "pr": 553,
+              "sha": "8b7804c",
+              "text": {
+                "en": "count members without RSVP as attending for the next evening",
+                "de": "Mitglieder ohne Rückmeldung zählen für den nächsten Kegelabend als zugesagt"
+              }
+            },
+            {
+              "key": "52e8879",
+              "pr": 545,
+              "sha": "52e8879",
+              "text": {
+                "en": "installed app now checks for new versions on its own",
+                "de": "die installierte App sucht jetzt selbstständig nach neuen Versionen"
+              }
+            },
+            {
+              "key": "ef1f75f",
+              "pr": 556,
+              "sha": "ef1f75f",
+              "text": {
+                "en": "keep the sticker map beneath the new-sticker sheet",
+                "de": "die Sticker-Karte bleibt unter dem Fenster für neue Sticker sichtbar"
+              }
+            },
+            {
+              "key": "b1d97ac",
+              "pr": 547,
+              "sha": "b1d97ac",
+              "text": {
+                "en": "open documentation links from search in the system browser",
+                "de": "Links zur Dokumentation aus der Suche im Systembrowser öffnen"
+              }
+            },
+            {
+              "key": "a734fe6",
+              "pr": 543,
+              "sha": "a734fe6",
+              "text": {
+                "en": "show expired and decided guest requests only as a small collapsed line",
+                "de": "abgelaufene und entschiedene Gastanfragen nur noch als kleine eingeklappte Zeile anzeigen"
+              }
+            },
+            {
+              "key": "3960c31",
+              "pr": 550,
+              "sha": "3960c31",
+              "text": {
+                "en": "show settled guest requests as a plain '+ N settled' line and keep the heading",
+                "de": "erledigte Gastanfragen als einfache Zeile „+ N erledigt“ anzeigen und die Überschrift behalten"
+              }
+            },
+            {
+              "key": "40ee44e",
+              "pr": 554,
+              "sha": "40ee44e",
+              "text": {
+                "en": "sticker photo viewer sharing, swiping and faster photo loading",
+                "de": "Sticker-Fotoansicht mit Teilen, Wischen und schnellerem Laden der Fotos"
+              }
+            },
+            {
+              "key": "e3b3be7",
+              "scope": "stickers",
+              "pr": 565,
+              "sha": "e3b3be7",
+              "text": {
+                "en": "forward client Referer & ?key= to CARTO tile proxy and hide map footer",
+                "de": "Referer und ?key= des Clients an den CARTO-Kachel-Proxy weitergeben und Karten-Fußzeile ausblenden"
+              }
+            },
+            {
+              "key": "2f16e54",
+              "scope": "stickers",
+              "pr": 563,
+              "sha": "2f16e54",
+              "text": {
+                "en": "per-photo split place, deep-link scroll, &gt;5 upload, CARTO tiles and poster filter",
+                "de": "Ort pro Foto beim Teilen, Sprung per Link zur Stelle, Upload von mehr als 5 Fotos, CARTO-Kacheln und Filter für Poster"
+              }
+            }
+          ]
+        },
+        {
+          "type": "perf",
+          "items": [
+            {
+              "key": "dc5ce30",
+              "pr": 557,
+              "sha": "dc5ce30",
+              "text": {
+                "en": "load sticker photos faster with paged feed, srcset, preloading and a photo cache",
+                "de": "Sticker-Fotos schneller laden mit seitenweisem Feed, srcset, Vorladen und Foto-Cache"
+              }
+            }
+          ]
+        },
+        {
+          "type": "deps",
+          "items": [
+            {
+              "key": "e674c39",
+              "pr": 560,
+              "sha": "e674c39",
+              "text": {
+                "en": "bump the production-dependencies group in /backend with 5 updates"
+              }
+            },
+            {
+              "key": "6b3e02f",
+              "pr": 559,
+              "sha": "6b3e02f",
+              "text": {
+                "en": "bump the production-dependencies group in /frontend with 3 updates"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.72.0",
       "date": "2026-11-06",
       "sections": [

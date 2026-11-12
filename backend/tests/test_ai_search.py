@@ -266,14 +266,35 @@ def test_sticker_links_are_validated(db, client, auth_headers, club, claude):
     db.add(st)
     db.commit()
     try:
-        claude.payload = {"answer": f"[Sticker](app:sticker:{st.id}) [Karte](app:stickers.map) [Falsch](app:sticker:999999)"}
+        claude.payload = {
+            "answer": (
+                f"[Sticker](app:sticker:{st.id}) "
+                f"[Plural](app:stickers:{st.id}) "
+                f"[Slash](app:stickers/{st.id}) "
+                f"[Query](app:stickers?item={st.id}) "
+                f"[Wand](app:stickers) "
+                f"[WandSingular](app:sticker) "
+                f"[Karte](app:stickers.map) "
+                f"[KarteSingular](app:sticker.map) "
+                f"[Falsch](app:sticker:999999)"
+            )
+        }
         r = _ask(client, auth_headers)
         assert r.status_code == 200, r.text
         assert claude.data["vereinsdaten"]["sticker"][0]["ort"] == "Lissabon"
         links = {l["href"]: l for l in r.json()["links"]}
         assert links[f"app:sticker:{st.id}"]["search"] == {"tab": "feed", "item": st.id}
+        assert links["app:stickers"]["to"] == "/stickers"
         assert links["app:stickers.map"]["to"] == "/stickers"
         assert "app:sticker:999999" not in links
+        # Plural, slash and query forms were normalized to app:sticker:{st.id}
+        assert f"app:stickers:{st.id}" not in links
+        assert f"[Plural](app:sticker:{st.id})" in r.json()["answer"]
+        assert f"[Slash](app:sticker:{st.id})" in r.json()["answer"]
+        assert f"[Query](app:sticker:{st.id})" in r.json()["answer"]
+        assert "[WandSingular](app:stickers)" in r.json()["answer"]
+        assert "[KarteSingular](app:stickers.map)" in r.json()["answer"]
     finally:
         db.query(Sticker).filter(Sticker.club_id == club.id).delete()
         db.commit()
+

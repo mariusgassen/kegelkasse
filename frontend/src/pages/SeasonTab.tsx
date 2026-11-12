@@ -6,6 +6,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {SeasonSnapshot} from '@/types'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 
 type Balance = {
     regular_member_id: number
@@ -173,7 +174,7 @@ export function SeasonTab() {
                 <div className="flex flex-col gap-3 mt-2">
                     <h3 className="sec-heading">{t('season.history')}</h3>
                     {snapsLoading ? (
-                        <p className="text-sm text-muted">{t('season.loading')}</p>
+                        <SkeletonRows rows={2}/>
                     ) : snapshots.length === 0 ? (
                         <Empty icon="📋" text={t('season.noHistory')} />
                     ) : (
@@ -205,9 +206,7 @@ export function SeasonTab() {
                 <p className="text-sm text-muted">{t('season.step1.hint')}</p>
 
                 {balancesLoading ? (
-                    <div className="kce-card p-4">
-                        <p className="text-sm text-muted">{t('season.loading')}</p>
-                    </div>
+                    <SkeletonRows rows={4}/>
                 ) : nonZeroBalances.length === 0 ? (
                     <div className="kce-card p-4">
                         <p className="text-sm text-positive-fg">{t('season.step1.noDebts')}</p>

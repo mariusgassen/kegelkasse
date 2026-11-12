@@ -174,6 +174,18 @@ class TestUpdateClubSettings:
         verify = client.get("/api/v1/club/", headers=admin_headers)
         assert verify.json()["settings"]["audio_callouts_enabled"] is True
 
+    def test_admin_can_update_map_style_and_rejects_invalid(self, client: TestClient, admin_headers: dict, club_with_settings: Club):
+        verify = client.get("/api/v1/club/", headers=admin_headers)
+        assert verify.json()["settings"]["map_style"] == "voyager"
+
+        resp = client.patch("/api/v1/club/settings", headers=admin_headers, json={"map_style": "dark_all"})
+        assert resp.status_code == 200
+        verify = client.get("/api/v1/club/", headers=admin_headers)
+        assert verify.json()["settings"]["map_style"] == "dark_all"
+
+        resp_bad = client.patch("/api/v1/club/settings", headers=admin_headers, json={"map_style": "nonexistent_style"})
+        assert resp_bad.status_code == 400
+
     def test_member_cannot_update_settings(self, client: TestClient, auth_headers: dict, club_with_settings: Club):
         resp = client.patch("/api/v1/club/settings", headers=auth_headers,
                             json={"primary_color": "#000000"})

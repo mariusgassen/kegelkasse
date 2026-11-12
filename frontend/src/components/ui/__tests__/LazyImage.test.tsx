@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest'
 import {render, screen, fireEvent} from '@testing-library/react'
 import {LazyImage} from '../LazyImage'
-import {thumbUrl, isMediaUrl} from '@/lib/mediaUrl.ts'
+import {thumbUrl, isMediaUrl, preloadImage} from '@/lib/mediaUrl.ts'
 
 describe('mediaUrl', () => {
     it('only asks the server for variants of uploaded photos', () => {
@@ -12,7 +12,31 @@ describe('mediaUrl', () => {
     })
 })
 
+describe('preloadImage', () => {
+    it('requests an uploaded photo once and ignores other URLs', () => {
+        const srcs: string[] = []
+        const Original = globalThis.Image
+        globalThis.Image = class { set src(v: string) { srcs.push(v) } } as unknown as typeof Image
+        try {
+            preloadImage('/uploads/media/p.jpg', 1600)
+            preloadImage('/uploads/media/p.jpg', 1600)
+            preloadImage('https://x/y.jpg', 1600)
+            preloadImage(undefined, 1600)
+        } finally {
+            globalThis.Image = Original
+        }
+        expect(srcs).toEqual(['/uploads/media/p.jpg?w=1600'])
+    })
+})
+
 describe('LazyImage', () => {
+    it('lets the browser pick a size and loads the blurred preview lazily too', () => {
+        const {container} = render(<LazyImage src="/uploads/media/a.jpg"/>)
+        const imgs = container.querySelectorAll('img')
+        expect(imgs[0].getAttribute('srcset')).toBe('/uploads/media/a.jpg?w=480 480w, /uploads/media/a.jpg?w=960 960w')
+        expect(imgs[1].getAttribute('loading')).toBe('lazy')
+    })
+
     it('shows a blurred preview until the photo has loaded, then fades the photo in', () => {
         const {container} = render(<LazyImage src="/uploads/media/a.jpg" alt="Foto" className="photo"/>)
         const box = screen.getByTestId('lazy-image')

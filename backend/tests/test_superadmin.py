@@ -229,3 +229,73 @@ class TestSwitchClub:
         resp = client.post(f"/api/v1/superadmin/switch-club/{second_club.id}",
                            headers=member_headers)
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# GET /superadmin/users & PATCH /superadmin/users/{id}/role
+# ---------------------------------------------------------------------------
+
+class TestUserRoleManagement:
+    def test_list_users(self, client, superadmin_headers, member_user, superadmin_user):
+        resp = client.get("/api/v1/superadmin/users", headers=superadmin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        user_ids = [u["id"] for u in data]
+        assert member_user.id in user_ids
+        assert superadmin_user.id in user_ids
+
+    def test_update_user_role_to_product_manager_and_superadmin(
+        self, client, superadmin_headers, member_user, db
+    ):
+        # Promote regular member to product_manager
+        resp = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/role",
+            json={"role": "product_manager"},
+            headers=superadmin_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["role"] == "product_manager"
+        db.refresh(member_user)
+        assert member_user.role == UserRole.product_manager
+
+        # Promote product_manager to superadmin
+        resp2 = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/role",
+            json={"role": "superadmin"},
+            headers=superadmin_headers,
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["role"] == "superadmin"
+        db.refresh(member_user)
+        assert member_user.role == UserRole.superadmin
+
+    def test_cannot_demote_only_superadmin(self, client, superadmin_headers, superadmin_user, db):
+        # Ensure only 1 superadmin exists
+        db.query(User).filter(User.id != superadmin_user.id, User.role == UserRole.superadmin).update({User.role: UserRole.member})
+        db.commit()
+        resp = client.patch(
+            f"/api/v1/superadmin/users/{superadmin_user.id}/role",
+            json={"role": "member"},
+            headers=superadmin_headers,
+        )
+        assert resp.status_code == 400
+        assert "only active superadmin" in resp.json()["detail"]
+
+    def test_invalid_role(self, client, superadmin_headers, member_user):
+        resp = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/role",
+            json={"role": "invalid_role"},
+            headers=superadmin_headers,
+        )
+        assert resp.status_code == 400
+
+    def test_non_superadmin_forbidden(self, client, member_headers, member_user):
+        resp = client.get("/api/v1/superadmin/users", headers=member_headers)
+        assert resp.status_code == 403
+        resp2 = client.patch(
+            f"/api/v1/superadmin/users/{member_user.id}/role",
+            json={"role": "superadmin"},
+            headers=member_headers,
+        )
+        assert resp2.status_code == 403

@@ -1,59 +1,25 @@
-# Feature #65 abschließen: Würfe im Live-Ticker
+# Fix: scrolling on the map will cause the pull to refresh to be activated
 
-Branch: `claude/feature-65-contents-r7pg7c`
+## Problem
+In `RootLayout.tsx`, `usePullToRefresh` is attached to `<main>`. When a user navigates to the Sticker Wall map (`tab === 'map'`) or opens the sticker location picker map, the Leaflet map is placed inside a `.page-scroll` container.
+Because the scroller is at `scrollTop === 0`, touch gestures on the map (panning/scrolling the map downwards) bubble up to `<main>` and trigger `usePullToRefresh`, pulling the entire page down and activating a page refresh instead of panning the map.
 
-Feature #65 („Abend-Modus / Live-Takeover") stand auf 🚧 mit zwei bewusst zurückgestellten Punkten:
-
-1. **Würfe / „Alle Neune" im chronologischen Ticker** — zurückgestellt, weil das API keinen
-   Zeitstempel pro Wurf lieferte und ein Ticker ohne Zeitstempel eine erfundene Reihenfolge zeigen
-   würde. → *wird jetzt geliefert*
-2. **Bottom-Nav-Reduktion auf „Abend / Rest der App"** → *durch #79 bereits erledigt*: die primäre
-   Navigation ist auf 4 permanente Tabs plus den kontextuellen 🏆 Abend-Tab (nur bei laufendem
-   Abend, #78) reduziert. Kein offener Rest — wird in der Roadmap als erledigt vermerkt statt
-   nochmal angefasst.
-
-## 1. Zeitstempel pro Wurf (Backend)
-- [x] `GameThrowLog.created_at` existiert bereits (`server_default=func.now()`) — **keine Migration nötig**
-- [x] `serialize_evening` (`evenings.py`) gibt `created_at` pro Wurf aus
-- [x] pytest: Wurf-Serialisierung enthält den Zeitstempel
-
-## 2. Ticker um Wurf-Meilensteine erweitern (Frontend)
-- [x] `types.ts`: `GameThrowLog.created_at`
-- [x] `lib/liveEvening.ts`: neue Event-Art `throw`, Signatur auf Options-Objekt (`{limit, throws}`)
-- [x] **Bewusst nur Meilensteine (Alle Neune, `pins >= 9`), nicht jeder Wurf** — ein Abend hat
-      hunderte Würfe, der volle Strom würde Strafen/Getränke/Highlights innerhalb einer Minute aus
-      dem gedeckelten Ticker drängen; der laufende Wurf-Stand steht weiterhin in der Anzeigetafel
-- [x] Würfe ohne parsbaren Zeitstempel werden übersprungen (Altbestand/Offline) statt auf ts=0 zu fallen
-- [x] `LiveEveningView`: Wurf-Events über `useThrowTracking()` gegated (#78), Alle-Neune-Zeile hervorgehoben
-- [x] i18n `live.allNine` (de + en)
-
-## 3. Tests
-- [x] Vitest `liveEvening.test.ts`: Alle-Neune-Event, normale Würfe bleiben draußen, Gating,
-      fehlender Zeitstempel, chronologische Einsortierung, Options-Signatur
-- [x] Vitest `LiveEveningView.test.tsx`: Alle-Neune-Zeile sichtbar / bei abgeschalteter Wurf-Erfassung nicht
-- [x] pytest `test_games.py`: `created_at` in der Wurf-Serialisierung
-
-## 4. Doku
-- [x] Roadmap #65 auf ✅ + Nachtrag, README, `docs/docs/`
-- [x] Version-Bump (MINOR)
+## Plan
+- [x] 1. Update `usePullToRefresh.ts`:
+  - Check `e.touches.length === 1` in `onTouchStart` and `onTouchMove` (ignore multi-touch/pinch).
+  - Check `target.closest('.leaflet-container, [data-no-ptr], [data-prevent-ptr]')` in `onTouchStart` and return early if matched.
+- [x] 2. Update `StickerMap.tsx` and `StickersPage.tsx`:
+  - Add `data-no-ptr` to the `StickerMap` container element and `MapBox` wrapper.
+  - In `index.css`, ensure `.leaflet-container` has `overscroll-behavior: contain`.
+- [x] 3. Tests:
+  - Add test in `usePullToRefresh.test.tsx` verifying drags on `.leaflet-container` or `[data-no-ptr]` do not activate pull-to-refresh.
+  - Add test in `usePullToRefresh.test.tsx` verifying multi-touch gestures are ignored.
+- [x] 4. Verification:
+  - Run `npm test` and `npm run build` in `frontend/`.
 
 ## Review
-
-**Gemacht:** Der Live-Ticker zeigt jetzt „🎳 Alle Neune"-Momente chronologisch zwischen Strafen,
-Getränkerunden und Highlights. Möglich wurde das durch einen Einzeiler im Backend — die Spalte
-`game_throw_log.created_at` gibt es seit Migration 038, sie wurde nur nie ausgeliefert. Die
-ursprüngliche Begründung für das Zurückstellen („das API liefert keinen Zeitstempel") war also
-halb richtig: das Feld fehlte in der Serialisierung, nicht in der Datenbank.
-
-**Die eigentliche Entscheidung** war keine technische, sondern eine Produktfrage: „Würfe im
-Ticker" wörtlich zu nehmen hätte den Ticker zerstört. Ein Kegelabend erzeugt hunderte Würfe; bei
-einem auf 30 Einträge gedeckelten Verlauf wäre nach einem einzigen Spiel nichts anderes mehr
-sichtbar. Der Ticker beantwortet „was ist gerade passiert", die Anzeigetafel „wie steht es" —
-deshalb kommen nur Meilensteine in den Ticker.
-
-**Zweiter Punkt:** Die Nav-Reduktion war durch #79 bereits erledigt (4 permanente Tabs +
-kontextueller Abend-Tab) und wurde nur noch dokumentiert, nicht erneut implementiert.
-
-**Verifikation:** pytest `tests/test_games.py -k Throw` 9 grün (inkl. neuem Serialisierungs-Test),
-Vitest liveEvening/LiveEveningView/EveningHubPage/i18n 89 grün, `tsc --noEmit` und `eslint` ohne
-Fehler.
+- Modified `usePullToRefresh.ts` so touches originating inside maps (`.leaflet-container`) or elements opting out (`[data-no-ptr]`, `[data-prevent-ptr]`) are excluded from pull-to-refresh.
+- Multi-finger touches (pinch-to-zoom gestures) are ignored on touchstart and cancel any ongoing pull on touchmove.
+- Added `data-no-ptr` to `StickerMap` and `MapBox` container in `StickersPage`.
+- Added `overscroll-behavior: contain` to `.leaflet-container` in `index.css`.
+- Added unit tests in `usePullToRefresh.test.tsx` verifying map interactions, `data-no-ptr` elements, and multi-touch behavior.

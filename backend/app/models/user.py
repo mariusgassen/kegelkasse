@@ -9,6 +9,7 @@ from core.database import Base
 
 class UserRole(str, enum.Enum):
     superadmin = "superadmin"
+    product_manager = "product_manager"
     admin = "admin"  # club admin — can manage club settings, invite members
     member = "member"  # regular club member
 

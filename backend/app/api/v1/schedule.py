@@ -7,6 +7,8 @@ from typing import Optional
 from babel.dates import format_datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import Response
+from pydantic import Field
+from sqlalchemy import func, or_
 from core.schemas import TrimmedModel
 from sqlalchemy.orm import Session
 
@@ -17,12 +19,15 @@ from core.database import get_db
 from core.email import email_theme
 from core.i18n import t as tr
 from core.push import push_to_regular_member, push_to_club
-from models.club import Club, ClubSettings
+from models.bowling import BowlingScore
+from models.club import Club, ClubSettings, ClubPin
 from models.committee import ClubTrip
 from models.evening import RegularMember, Evening, EveningPlayer
+from models.penalty import PenaltyLog
+from models.payment import MemberPayment, PaymentRequest
 from models.schedule import ScheduledEvening, MemberRsvp, RsvpStatus, ScheduledEveningGuest
 from models.season import SeasonSnapshot
-from models.user import User
+from models.user import InviteToken, User
 
 logger = logging.getLogger(__name__)
 
@@ -198,8 +203,61 @@ def delete_scheduled_evening(
 
 # ── Guests ────────────────────────────────────────────────────────────────────
 
+def _known_guest_by_name(db: Session, club_id: int, name: str) -> Optional[RegularMember]:
+    """An active roster entry usable as a known guest whose full name matches exactly.
+
+    Same population as the frontend's "Bekannte Gäste" chips: guests and deactivated (former)
+    members. Matching is on the full name only — never the Kegelname — and case-insensitive, so
+    "anna gast" links to "Anna Gast" instead of creating a duplicate.
+    """
+    return (
+        db.query(RegularMember)
+        .filter(
+            RegularMember.club_id == club_id,
+            RegularMember.is_active == True,  # noqa: E712 — SQLAlchemy filter
+            or_(RegularMember.is_guest == True, RegularMember.deactivated_at.isnot(None)),  # noqa: E712
+            func.lower(RegularMember.name) == name.strip().lower(),
+        )
+        .order_by(RegularMember.is_guest.desc(), RegularMember.id)
+        .first()
+    )
+
+
+def ensure_guest_member(db: Session, club_id: int, name: str) -> RegularMember:
+    """The roster entry behind a planned guest — linked when one exists, created otherwise.
+
+    Every newly entered guest becomes a RegularMember (is_guest=True) right away, so it shows up
+    under "Bekannte Gäste" immediately instead of only when the evening starts. An exact full-name
+    match reuses the existing entry instead of minting a duplicate.
+    """
+    rm = _known_guest_by_name(db, club_id, name)
+    if rm:
+        return rm
+    rm = RegularMember(club_id=club_id, name=name.strip(), is_guest=True, is_active=True)
+    db.add(rm)
+    db.flush()
+    return rm
+
+
+def _guest_member_in_use(db: Session, member_id: int) -> bool:
+    """Whether anything references the roster entry — played evenings, treasury data, RSVPs,
+    pins, a linked account or another planned evening."""
+    return any((
+        db.query(EveningPlayer.id).filter(EveningPlayer.regular_member_id == member_id).first(),
+        db.query(ScheduledEveningGuest.id).filter(ScheduledEveningGuest.regular_member_id == member_id).first(),
+        db.query(MemberPayment.id).filter(MemberPayment.regular_member_id == member_id).first(),
+        db.query(PaymentRequest.id).filter(PaymentRequest.regular_member_id == member_id).first(),
+        db.query(PenaltyLog.id).filter(PenaltyLog.regular_member_id == member_id).first(),
+        db.query(MemberRsvp.id).filter(MemberRsvp.regular_member_id == member_id).first(),
+        db.query(ClubPin.id).filter(ClubPin.holder_regular_member_id == member_id).first(),
+        db.query(User.id).filter(User.regular_member_id == member_id).first(),
+        db.query(InviteToken.id).filter(InviteToken.regular_member_id == member_id).first(),
+        db.query(BowlingScore.id).filter(BowlingScore.regular_member_id == member_id).first(),
+    ))
+
+
 class GuestCreate(TrimmedModel):
-    name: str
+    name: str = Field(min_length=1)
     regular_member_id: Optional[int] = None
 
 
@@ -211,10 +269,28 @@ def add_guest(
     user: User = Depends(require_club_admin),
 ):
     se = _get_se(sid, user.club_id, db)
+    if data.regular_member_id is not None:
+        member = db.query(RegularMember).filter(
+            RegularMember.id == data.regular_member_id,
+            RegularMember.club_id == user.club_id,
+        ).first()
+        if not member:
+            raise HTTPException(404, "Roster-Eintrag nicht gefunden")
+    else:
+        # No explicit link: reuse a same-named known guest, or create the guest roster entry
+        # right away (instead of at evening start) so it shows up under "Bekannte Gäste".
+        member = ensure_guest_member(db, user.club_id, data.name)
+    if db.query(ScheduledEveningGuest).filter(
+        ScheduledEveningGuest.scheduled_evening_id == se.id,
+        ScheduledEveningGuest.regular_member_id == member.id,
+    ).first():
+        raise HTTPException(400, "Dieser Gast ist bereits für den Termin eingetragen")
+    # The guest list shows the linked member's display name (Kegelname first), exactly like
+    # picking the guest from the "Bekannte Gäste" chips does.
     guest = ScheduledEveningGuest(
         scheduled_evening_id=se.id,
-        name=data.name.strip(),
-        regular_member_id=data.regular_member_id,
+        name=member.nickname or member.name,
+        regular_member_id=member.id,
     )
     db.add(guest)
     db.commit()
@@ -236,7 +312,16 @@ def remove_guest(
     ).first()
     if not guest:
         raise HTTPException(404, "Guest not found")
+    member_id = guest.regular_member_id
     db.delete(guest)
+    db.flush()
+    # Eagerly created guest entries (see add_guest) that never played anywhere are removed with
+    # the plan entry — otherwise "Bekannte Gäste" would collect names that were only ever typed.
+    if member_id and not _guest_member_in_use(db, member_id):
+        member = db.query(RegularMember).filter(
+            RegularMember.id == member_id, RegularMember.club_id == user.club_id).first()
+        if member and member.is_guest:
+            db.delete(member)
     db.commit()
 
 
@@ -306,7 +391,9 @@ def start_evening(
             continue
         rm_id = guest.regular_member_id
         if not rm_id:
-            # Create a RegularMember record for this guest so evening_player has a proper link
+            # Legacy guest rows (created before guests were roster entries from the start —
+            # see add_guest / approve_guest_request): create the RegularMember now so
+            # evening_player has a proper link.
             rm = RegularMember(
                 club_id=se.club_id,
                 name=guest.name,

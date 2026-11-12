@@ -16,6 +16,7 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_CLAIM_EMAIL: ${VAPID_CLAIM_EMAIL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CARTO_API_KEY: ${CARTO_API_KEY:-}
       CORS_ALLOW_ORIGIN: '${CORS_ALLOW_ORIGIN:-}'
       # pgbackrest — scheduled full backup cron + management API URL
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}

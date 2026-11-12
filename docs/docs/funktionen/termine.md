@@ -54,6 +54,8 @@ Bekannte Gäste (aus der Stammspieler-Liste als Gast markiert) können dem Termi
 1. Tippe auf **+ Gast**
 2. Wähle den Gast aus der Liste oder gib einen Namen ein
 
+Ein neu eingetragener Gast wird **sofort** als bekannter Gast gespeichert (Verein → „Bekannte Gäste") und steht damit auch für alle folgenden Termine zur Auswahl — nicht erst wenn der Abend gestartet wird. Existiert dort bereits ein Gast mit **exakt demselben vollständigen Namen** (Groß-/Kleinschreibung egal), wird automatisch der bestehende Eintrag verknüpft statt ein Duplikat anzulegen; tippe den vollen Namen einfach ein, der passende Gast wird dir vorgeschlagen.
+
 ## Abend aus Termin starten *(Admin)*
 
 Wenn der Spieltag kommt, kann direkt aus dem Termin ein echter Abend gestartet werden:
@@ -131,7 +133,7 @@ Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegl
 
 - **Benachrichtigung:** Für jede neue Anfrage bekommen alle Mitglieder eine Benachrichtigung mit Link zur Übersicht. Die Kategorie „Gastanfragen“ ist standardmäßig **per E-Mail** aktiv und lässt sich im Profil wie jede andere Benachrichtigung umstellen oder abschalten. E-Mails gehen nur raus, wenn der Verein einen [E-Mail-Server](push.md#e-mail-server-admin-pro-verein) eingerichtet hat.
 - **Übersicht:** Oben auf der Seite 📅 **Termine** erscheint der Bereich 🙋 **Gastanfragen**, sobald es Anfragen gibt — offene mit Name, Termin, E-Mail und Nachricht. Erledigte sowie abgelaufene Anfragen (Termin liegt in der Vergangenheit, nicht mehr annehmbar) stehen nur als schlichte Zeile „+ N erledigt“ darunter (wie „+ N ausgeglichen“ in den Konten), die sich aufklappen lässt.
-- **Entscheiden:** **Jedes Mitglied** kann eine Anfrage annehmen oder ablehnen (mit Bestätigung). **Annehmen** trägt den Gast automatisch als Gast beim Termin ein. In beiden Fällen bekommt der Gast eine E-Mail. Konnte sie nicht verschickt werden (kein Mailserver eingerichtet), sagt die App das — dann bitte direkt an die angezeigte Adresse schreiben.
+- **Entscheiden:** **Jedes Mitglied** kann eine Anfrage annehmen oder ablehnen (mit Bestätigung). **Annehmen** trägt den Gast automatisch als Gast beim Termin ein und speichert ihn sofort als bekannten Gast — auch hier wird bei gleichem vollständigen Namen der bestehende Eintrag verknüpft. In beiden Fällen bekommt der Gast eine E-Mail. Konnte sie nicht verschickt werden (kein Mailserver eingerichtet), sagt die App das — dann bitte direkt an die angezeigte Adresse schreiben.
 - **Pro Termin abschaltbar *(Admin)*:** Im Termin-Formular „Gastanfragen erlauben“ ausschalten, dann verschwindet der Link auf der Homepage.
 
 :::info

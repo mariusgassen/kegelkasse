@@ -15,6 +15,7 @@ services:
       FIRST_SUPERADMIN_PASSWORD: admin123
       BACKUP_SCHEDULE: ""
       PGB_MGMT_URL: http://db:8089
+      CARTO_API_KEY: ${CARTO_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

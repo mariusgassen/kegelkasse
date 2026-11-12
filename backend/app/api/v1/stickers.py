@@ -3,11 +3,12 @@ import logging
 from datetime import UTC, date as date_type, datetime
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import Field
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
+from core.config import settings
 from core.database import get_db
 from core.push import push_to_club
 from core.schemas import TrimmedModel
@@ -23,6 +24,19 @@ router = APIRouter(prefix="/stickers", tags=["stickers"])
 PLACE_MAX = 120
 CAPTION_MAX = 1000
 MAX_PHOTOS = 10
+_SUBDOMAINS = ("a", "b", "c", "d")
+DEFAULT_MAP_STYLE = "voyager"
+CARTO_STYLES: dict[str, str] = {
+    "voyager": "rastertiles/voyager",
+    "voyager_nolabels": "rastertiles/voyager_nolabels",
+    "voyager_labels_under": "rastertiles/voyager_labels_under",
+    "light_all": "light_all",
+    "light_nolabels": "light_nolabels",
+    "dark_all": "dark_all",
+    "dark_nolabels": "dark_nolabels",
+    "club_dark": "dark_all",
+    "club_light": "light_all",
+}
 
 
 def _author_names(user_ids: set[int], db: Session) -> dict[int, str]:
@@ -204,3 +218,64 @@ def delete_sticker(sid: int, db: Session = Depends(get_db), user: User = Depends
         raise HTTPException(403, "Only the author or an admin can delete this sticker")
     s.is_deleted = True
     db.commit()
+
+
+def _client_referer(request: Request) -> Optional[str]:
+    referer = request.headers.get("referer")
+    if referer:
+        return referer
+    origin = request.headers.get("origin")
+    if origin:
+        return f"{origin.rstrip('/')}/"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host:
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+        return f"{proto.split(',')[0].strip()}://{host.split(',')[0].strip()}/"
+    return None
+
+
+def _fetch_carto_tile(url: str, params: dict[str, str], headers: dict[str, str]) -> tuple[bytes, str]:
+    import httpx
+    resp = httpx.get(url, params=params, headers=headers, timeout=10, follow_redirects=True)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("content-type", "image/png")
+
+
+@router.get("/tiles/{z}/{x}/{y}.png", include_in_schema=False)
+def proxy_tile(
+    z: int,
+    x: int,
+    y: int,
+    request: Request,
+    r: str = Query(default=""),
+    style: str = Query(default=DEFAULT_MAP_STYLE),
+):
+    """Proxy CARTO basemap tiles so ``CARTO_API_KEY`` stays on the server and out of client bundles."""
+    if not (0 <= z <= 20) or not (0 <= x < (1 << z)) or not (0 <= y < (1 << z)):
+        raise HTTPException(400, "Invalid tile coordinates")
+    retina = "@2x" if r == "@2x" else ""
+    sub = _SUBDOMAINS[(x + y) % len(_SUBDOMAINS)]
+    style_path = CARTO_STYLES.get(style, CARTO_STYLES[DEFAULT_MAP_STYLE])
+    template = settings.CARTO_TILE_URL
+    if "{style}" in template:
+        url = template.format(s=sub, style=style_path, z=z, x=x, y=y, r=retina)
+    else:
+        url = template.replace("rastertiles/voyager", style_path).format(s=sub, z=z, x=x, y=y, r=retina)
+    params: dict[str, str] = {}
+    headers = {"User-Agent": "Kegelkasse/1.0"}
+    referer = _client_referer(request)
+    if referer:
+        headers["Referer"] = referer
+    if settings.CARTO_API_KEY:
+        params["key"] = settings.CARTO_API_KEY
+    try:
+        content, media_type = _fetch_carto_tile(url, params, headers)
+    except Exception as exc:
+        logger.warning("CARTO tile fetch failed (%s): %s", url, exc)
+        raise HTTPException(502, "Tile upstream unavailable")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+

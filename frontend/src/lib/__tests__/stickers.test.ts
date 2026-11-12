@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
-import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount} from '../stickers'
+import {clusterByZoom, groupByPlace, groupPhotos, matchesSticker, placeCount, posterNames} from '../stickers'
+import {TILES, tileUrl} from '@/components/stickers/StickerMap.tsx'
 import type {Sticker} from '@/types.ts'
 
 const s = (id: number, lat: number, lon: number, place = 'X'): Sticker => ({
@@ -54,12 +55,31 @@ describe('clusterByZoom', () => {
     })
 })
 
-describe('matchesSticker', () => {
+describe('matchesSticker & posterNames', () => {
     const x = {...s(1, 1, 1, 'Lissabon, Portugal'), caption: 'Laternenmast', created_by_name: 'Pudel'}
-    it('matches place, caption and author, every word, case-insensitive', () => {
+    it('matches place, caption, author and extra author names, every word, case-insensitive', () => {
         expect(matchesSticker(x, 'lissabon')).toBe(true)
         expect(matchesSticker(x, 'LATERNE pudel')).toBe(true)
+        expect(matchesSticker(x, 'marius', ['Marius Gassen'])).toBe(true)
         expect(matchesSticker(x, 'lissabon rom')).toBe(false)
         expect(matchesSticker(x, '')).toBe(true)
+    })
+
+    it('collects distinct poster names in order', () => {
+        const list = [
+            {...s(1, 1, 1), created_by_name: 'Pudel'},
+            {...s(2, 1, 1), created_by_name: 'Hasi'},
+            {...s(3, 1, 1), created_by_name: 'Pudel'},
+            {...s(4, 1, 1), created_by_name: null},
+        ]
+        expect(posterNames(list)).toEqual(['Pudel', 'Hasi'])
+    })
+
+    it('uses the backend CARTO tile proxy instead of OpenStreetMap tile server', () => {
+        expect(TILES).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl()).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl('voyager')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}')
+        expect(tileUrl('dark_all')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}&style=dark_all')
+        expect(tileUrl('club_dark')).toBe('/api/v1/stickers/tiles/{z}/{x}/{y}.png?r={r}&style=club_dark')
     })
 })

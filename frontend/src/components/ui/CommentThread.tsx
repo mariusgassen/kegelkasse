@@ -13,6 +13,7 @@ import {MediaUploadButton} from '@/components/ui/MediaUploadButton'
 import {ReactionPill} from '@/components/ui/ReactionPill'
 import {ZoomableImage} from '@/components/ui/ZoomableImage'
 import type {Comment} from '@/types'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 
 const PICKER_W = 300
 const PICKER_H = 380
@@ -143,7 +144,7 @@ function flattenAllComments(comments: Comment[]): {comment: Comment; depth: numb
 }
 
 interface Props {
-    parentType: 'highlight' | 'announcement' | 'trip' | 'sticker'
+    parentType: 'highlight' | 'announcement' | 'trip' | 'sticker' | 'roadmap'
     parentId: number
     /** Controlled mode: when provided, the built-in toggle button is hidden */
     open?: boolean
@@ -460,9 +461,7 @@ export function CommentThread({parentType, parentId, open: controlledOpen, onOpe
 
             {open && (
                 <div className="mt-3 flex flex-col gap-3">
-                    {isLoading && (
-                        <p className="text-xs text-muted">{t('action.loading')}</p>
-                    )}
+                    {isLoading && <SkeletonRows rows={2}/>}
                     {!isLoading && comments.length === 0 && (
                         <p className="text-xs text-muted italic pl-1">{t('comment.none')}</p>
                     )}

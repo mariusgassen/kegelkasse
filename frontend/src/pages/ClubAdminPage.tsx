@@ -8,7 +8,7 @@ import type {ChangeEvent} from 'react'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import {api, authState} from '@/api/client.ts'
-import type {AiSettings, AppIconVariant, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
+import type {AiSettings, AppIconVariant, MapStyle, ReminderSettings, ReminderTypeSettings, EmailSettings, TelegramSettings} from '@/types.ts'
 import {shareOrCopy} from '@/utils/share.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {applyClubTheme, hexToHsl, hslToHex} from '@/App.tsx'
@@ -31,6 +31,8 @@ import {MembersPage} from './MembersPage'
 import {SeasonTab} from './SeasonTab'
 import {Switch} from '@/components/ui/Switch'
 import {Tabs} from '@/components/ui/Tabs'
+import {SkeletonCard} from '@/components/ui/Skeleton'
+import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -40,7 +42,7 @@ export function ClubAdminPage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const {setPenaltyTypes, setRegularMembers, setGameTemplates} = useAppStore()
-    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'members', 'pins', 'committee', 'season', 'backups'])
+    const [tab, setTab] = useHashTab<'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'roles' | 'members' | 'pins' | 'committee' | 'season' | 'backups'>('settings', ['settings', 'penalties', 'templates', 'teams', 'clubs', 'roles', 'members', 'pins', 'committee', 'season', 'backups'])
 
     const qc = useQueryClient()
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
@@ -75,8 +77,11 @@ export function ClubAdminPage() {
         {id: 'pins', label: t('club.tab.pins')},
         {id: 'committee', label: t('club.tab.committee')},
         {id: 'season', label: `📆 ${t('season.tab')}`},
-        ...(user?.role === 'superadmin' ? [{id: 'clubs', label: t('club.tab.clubs')}] : []),
-        ...(user?.role === 'superadmin' ? [{id: 'backups', label: t('club.tab.backups')}] : []),
+        ...(user?.role === 'superadmin' ? [
+            {id: 'clubs', label: t('club.tab.clubs')},
+            {id: 'roles', label: `👥 ${t('superadmin.roles.title')}`},
+            {id: 'backups', label: t('club.tab.backups')},
+        ] : []),
     ]
 
     return (
@@ -139,6 +144,11 @@ export function ClubAdminPage() {
                     {tab === 'clubs' && user?.role === 'superadmin' && (
                         <SuperadminClubsTab qc={qc}/>
                     )}
+                    {tab === 'roles' && user?.role === 'superadmin' && (
+                        <div className="p-1">
+                            <SuperadminRolesManager/>
+                        </div>
+                    )}
                     {tab === 'backups' && user?.role === 'superadmin' && (
                         <BackupsTab/>
                     )}
@@ -159,6 +169,14 @@ function buildPalettes(h: number, t: ReturnType<typeof useT>): Palette[] {
         {label: t('club.palette.soft'), primary: hslToHex(h, 58, 60), secondary: hslToHex((h + 40) % 360, 32, 40), bg: hslToHex(h, 15, 11)},
     ]
 }
+
+const MAP_STYLE_OPTIONS = [
+    {key: 'voyager' as const, labelKey: 'club.mapStyle.voyager' as const, icon: '🎨'},
+    {key: 'club_dark' as const, labelKey: 'club.mapStyle.club_dark' as const, icon: '🎳'},
+    {key: 'club_light' as const, labelKey: 'club.mapStyle.club_light' as const, icon: '🎳'},
+    {key: 'dark_all' as const, labelKey: 'club.mapStyle.dark_all' as const, icon: '⚫'},
+    {key: 'light_all' as const, labelKey: 'club.mapStyle.light_all' as const, icon: '⚪'},
+] as const
 
 function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const t = useT()
@@ -181,6 +199,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [throwTracking, setThrowTracking] = useState(club?.settings?.throw_tracking_enabled !== false)
     const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
     const [publicSchedule, setPublicSchedule] = useState(club?.settings?.public_schedule_enabled === true)
+    const [mapStyle, setMapStyle] = useState<MapStyle>(club?.settings?.map_style || 'voyager')
 
     useEffect(() => {
         if (!club) return
@@ -189,6 +208,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         setColor1(club.settings?.primary_color || DEFAULT_PRIMARY)
         setColor2(club.settings?.secondary_color || DEFAULT_SECONDARY)
         setBgColor(club.settings?.bg_color || DEFAULT_DARK_BG)
+        setMapStyle(club.settings?.map_style || 'voyager')
         setGuestCap(club.settings?.guest_penalty_cap != null ? String(club.settings.guest_penalty_cap) : '')
         setPaypalMe(club.settings?.paypal_me || '')
         setNoRsvpExtra(club.settings?.no_cancel_fee != null ? String(club.settings.no_cancel_fee) : '')
@@ -216,6 +236,17 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
         const palettes = buildPalettes(h, t)
         applyPalette(palettes[Math.floor(Math.random() * palettes.length)])
         setSuggestions(palettes)
+    }
+
+    async function handleMapStyleChange(next: MapStyle) {
+        setMapStyle(next)
+        try {
+            await api.updateClubSettings({map_style: next})
+            await qc.invalidateQueries({queryKey: ['club']})
+            showToast(t('club.savedOk'))
+        } catch (e) {
+            toastError(e)
+        }
     }
 
     async function handleLogoUpload(file: File) {
@@ -254,6 +285,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 primary_color: color1,
                 secondary_color: color2,
                 bg_color: bgColor,
+                map_style: mapStyle,
                 guest_penalty_cap: cap,
                 paypal_me: paypalMe.trim() || null,
                 no_cancel_fee: noRsvp,
@@ -404,6 +436,36 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             ))}
                         </div>
                     )}
+                </div>
+
+                {/* ── Sticker-Karte Stil ── */}
+                <div className="mt-4 pt-4 border-t border-line">
+                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                        {t('club.mapStyle.title')}
+                    </div>
+                    <p className="text-xs text-muted mb-3">{t('club.mapStyle.hint')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {MAP_STYLE_OPTIONS.map(ms => {
+                            const active = mapStyle === ms.key
+                            return (
+                                <button
+                                    key={ms.key}
+                                    type="button"
+                                    onClick={() => handleMapStyleChange(ms.key)}
+                                    disabled={!isOnline}
+                                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                                        active
+                                            ? 'border-accent bg-accent/10 shadow-sm font-semibold'
+                                            : 'border-line hover:border-line-strong'
+                                    }`}
+                                >
+                                    <span className="text-base flex-shrink-0">{ms.icon}</span>
+                                    <span className="text-xs flex-1 min-w-0 truncate">{t(ms.labelKey)}</span>
+                                    {active && <span className="text-accent text-xs font-bold">✓</span>}
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
 
@@ -621,7 +683,7 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                     <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
                 </>
             ) : (
-                <p className="text-xs text-muted">{t('action.loading')}</p>
+                <SkeletonCard lines={2}/>
             )}
 
             {confirmRegen && (
@@ -2215,7 +2277,7 @@ function BackupsTab() {
                 </div>
             )}
 
-            {isLoading && <div className="text-xs text-muted">{t('action.loading')}</div>}
+            {isLoading && <SkeletonCard lines={3}/>}
 
             {/* Stanza cards */}
             {stanzas.map(s => (

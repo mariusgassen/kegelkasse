@@ -212,3 +212,53 @@ def test_update_replaces_photo_list(client: TestClient, auth_headers, club: Club
     assert r.json()["media_urls"] == new
     r = client.patch(f"{URL}{sid}", json={"media_urls": [_media(club, "z")]}, headers=auth_headers)
     assert r.json()["media_urls"] == [_media(club, "z")]
+
+
+def test_carto_tile_proxy_forwards_api_key_and_referer(client: TestClient, monkeypatch):
+    from core.config import settings
+    monkeypatch.setattr(settings, "CARTO_API_KEY", "secret-carto-key")
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch:
+        r = client.get(
+            "/api/v1/stickers/tiles/2/1/3.png?r=@2x",
+            headers={"Referer": "https://kegelkasse.example.de/#stickers"},
+        )
+    assert r.status_code == 200
+    assert r.content == b"\x89PNGtile"
+    assert r.headers["content-type"] == "image/png"
+    called_url, called_params, called_headers = fetch.call_args[0]
+    assert "basemaps.cartocdn.com/rastertiles/voyager/2/1/3@2x.png" in called_url
+    assert called_params["key"] == "secret-carto-key"
+    assert "Authorization" not in called_headers
+    assert called_headers["Referer"] == "https://kegelkasse.example.de/#stickers"
+
+    # Without an explicit Referer header, falls back to the request Host header
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_fallback:
+        r2 = client.get(
+            "/api/v1/stickers/tiles/2/1/3.png",
+            headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "kegelkasse.example.de"},
+        )
+    assert r2.status_code == 200
+    _, _, fallback_headers = fetch_fallback.call_args[0]
+    assert fallback_headers["Referer"] == "https://kegelkasse.example.de/"
+
+
+    # Style parameter selects different CARTO basemap paths
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_dark:
+        r_dark = client.get("/api/v1/stickers/tiles/2/1/3.png?style=dark_all")
+    assert r_dark.status_code == 200
+    called_dark_url, _, _ = fetch_dark.call_args[0]
+    assert "basemaps.cartocdn.com/dark_all/2/1/3.png" in called_dark_url
+
+    with patch("api.v1.stickers._fetch_carto_tile", return_value=(b"\x89PNGtile", "image/png")) as fetch_club:
+        r_club = client.get("/api/v1/stickers/tiles/2/1/3.png?style=club_dark")
+    assert r_club.status_code == 200
+    called_club_url, _, _ = fetch_club.call_args[0]
+    assert "basemaps.cartocdn.com/dark_all/2/1/3.png" in called_club_url
+
+
+def test_carto_tile_proxy_rejects_invalid_coords_and_handles_upstream_error(client: TestClient):
+    assert client.get("/api/v1/stickers/tiles/25/0/0.png").status_code == 400
+    assert client.get("/api/v1/stickers/tiles/1/5/0.png").status_code == 400
+    with patch("api.v1.stickers._fetch_carto_tile", side_effect=RuntimeError("boom")):
+        assert client.get("/api/v1/stickers/tiles/1/0/0.png").status_code == 502
+

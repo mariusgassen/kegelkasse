@@ -114,6 +114,49 @@ def _targets_for(user: User) -> dict[str, Target]:
             if (admin or not t.admin) and (t.id_kind != "me" or user.regular_member_id)}
 
 
+def _normalize_app_href(href: str) -> tuple[str, str]:
+    """Parse 'app:<key>[:<id>]', normalizing slashes, query strings, and singular/plural aliases."""
+    raw = href[4:].strip()
+    if "?" in raw:
+        path, _, qs = raw.partition("?")
+        key = path.strip("/")
+        raw_id = ""
+        for param in qs.split("&"):
+            if "=" in param:
+                pk, _, pv = param.partition("=")
+                if pk in ("item", "id", "evening", "rsvp", "member") and pv.isdigit():
+                    raw_id = pv
+                    break
+    elif "/" in raw:
+        key, _, raw_id = raw.partition("/")
+    else:
+        key, _, raw_id = raw.partition(":")
+
+    key = key.strip()
+    raw_id = raw_id.strip()
+
+    # Singular / plural and convenience aliases
+    if key in ("stickers", "sticker"):
+        key = "sticker" if raw_id else "stickers"
+    elif key in ("stickers.map", "sticker.map", "stickers_map", "sticker_map"):
+        key = "stickers.map"
+        raw_id = ""
+    elif key in ("stickers.feed", "sticker.feed"):
+        key = "sticker" if raw_id else "stickers"
+    elif key in ("committee.announcements", "committee.announcement"):
+        key = "committee.announcement" if raw_id else "committee.announcements"
+    elif key in ("committee.trips", "committee.trip"):
+        key = "committee.trip" if raw_id else "committee.trips"
+    elif key in ("committee.polls", "committee.poll"):
+        key = "committee.poll" if raw_id else "committee.polls"
+    elif key in ("schedule.evenings", "schedule.evening"):
+        key = "schedule.evening" if raw_id else "schedule"
+    elif key in ("schedule.rsvps", "schedule.rsvp"):
+        key = "schedule.rsvp" if raw_id else "schedule"
+
+    return key, raw_id
+
+
 def _resolve(href: str, label: str, targets: dict[str, Target], ids: dict[str, set[int]],
              user: User) -> dict | None:
     """A validated link object for the frontend, or None when the link isn't allowed."""
@@ -128,7 +171,7 @@ def _resolve(href: str, label: str, targets: dict[str, Target], ids: dict[str, s
                 "kind": "docs", "url": doc_url(path, anchor)}
     if not href.startswith("app:"):
         return None
-    key, _, raw_id = href[4:].partition(":")
+    key, raw_id = _normalize_app_href(href)
     t = targets.get(key)
     if t is None:
         return None
@@ -251,9 +294,28 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         ids["umfrage"].add(p.id)
     stickers = db.query(Sticker).filter(
         Sticker.club_id == cid, Sticker.is_deleted == False,  # noqa: E712
-    ).order_by(Sticker.created_at.desc()).limit(8).all()
+    ).order_by(
+        Sticker.stuck_on.desc().nullslast(),
+        Sticker.created_at.desc(),
+    ).limit(30).all()
     for st in stickers:
         ids["sticker"].add(st.id)
+    for sid_tuple in db.query(Sticker.id).filter(
+        Sticker.club_id == cid, Sticker.is_deleted == False,  # noqa: E712
+    ).all():
+        ids["sticker"].add(sid_tuple[0])
+
+    sticker_author_ids = {st.created_by for st in stickers if st.created_by}
+    sticker_users = {u.id: u for u in db.query(User).filter(User.id.in_(sticker_author_ids)).all()} if sticker_author_ids else {}
+    sticker_rm_ids = {u.regular_member_id for u in sticker_users.values() if u.regular_member_id}
+    sticker_rms = {m.id: m for m in db.query(RegularMember).filter(RegularMember.id.in_(sticker_rm_ids)).all()} if sticker_rm_ids else {}
+
+    def _sticker_author(st: Sticker) -> str | None:
+        if not st.created_by or st.created_by not in sticker_users:
+            return None
+        u = sticker_users[st.created_by]
+        rm = sticker_rms.get(u.regular_member_id) if u.regular_member_id else None
+        return _alias(rm, u.name)
 
     facts = {
         "verein": club.name if club else None,
@@ -278,7 +340,16 @@ def club_snapshot(db: Session, user: User) -> tuple[dict, dict[str, set[int]]]:
         "kegelfahrten": [{"id": tr.id, "ziel": tr.destination, "von": _wall(tr.date)[:10],
                           "bis": _wall(tr.end_date)[:10] if tr.end_date else None, "notiz": _snip(tr.note, 200)}
                          for tr in trips],
-        "sticker": [{"id": st.id, "ort": st.place_name, "text": _snip(st.caption, 120)} for st in stickers],
+        "sticker": [
+            {
+                "id": st.id,
+                "ort": st.place_name,
+                "datum": _wall(st.stuck_on or st.created_at)[:10] if (st.stuck_on or st.created_at) else None,
+                "von": _sticker_author(st),
+                "text": _snip(st.caption, 120),
+            }
+            for st in stickers
+        ],
         "abstimmungen": [{"id": p.id, "titel": p.title, "offen": not p.is_closed} for p in polls],
         "mitglieder": sorted(
             [{"name": _alias(m, m.name), "vga": bool(m.is_committee), "kassenpruefer": bool(m.is_auditor),
@@ -299,15 +370,19 @@ SYSTEM_PROMPT = (
 _TASK = (
     "Beantworte die frage aus <daten>. Antworte in der Sprache von sprache (de = Deutsch, en = Englisch), "
     "höchstens etwa 120 Wörter, Markdown erlaubt (fett, Listen). "
-    "Links: Wenn du sagst, wohin man in der App gehen soll, setze einen Markdown-Link mit einem Ziel aus "
-    "app_ziele, z. B. [Kasse → Konten](app:treasury.accounts). Ziele mit braucht_id bekommen die id aus "
-    "vereinsdaten angehängt, z. B. [Termin am 12.03.](app:schedule.rsvp:42). Um auf die Doku zu verweisen, "
-    "nutze das link-Feld eines Abschnitts aus dokumentation, z. B. [Doku: Kasse](docs:funktionen/kasse). "
-    "Erfinde keine anderen Links und keine URLs. Biete nur Aktionen an, die zur rolle in ich passen: "
-    "Admin-Funktionen nur für Admins; ein Mitglied verweist du für Admin-Aufgaben an einen Admin. "
-    "Datenschutz: Nenne niemals Geldbeträge einzelner Personen (Kontostände, Schulden, Guthaben, "
-    "Strafensummen pro Person) — die stehen nicht in den Daten. Fragt jemand danach, verweise auf "
-    "[Mein Konto](app:treasury.my_account) bzw. die Kasse."
+    "Links: Verlinke erwähnte konkrete Einträge aus vereinsdaten (Sticker, Termine, vergangene Abende, "
+    "Fahrten, Ankündigungen, Abstimmungen) oder passende Bereiche der App immer direkt mit einem Markdown-Link "
+    "aus app_ziele. Wenn du Sticker erwähnst oder nach Stickern gefragt wird, verlinke die einzelnen Sticker "
+    "als [Sticker in <Ort>](app:sticker:<id>) und biete Links zur [Sticker-Wand](app:stickers) bzw. "
+    "[Weltkarte](app:stickers.map) an. Ziele mit braucht_id bekommen die id aus vereinsdaten angehängt, "
+    "z. B. [Termin am 12.03.](app:schedule.rsvp:42) oder [Sticker in Lissabon](app:sticker:7). "
+    "Wenn du sagst, wohin man in der App gehen soll, nutze ein Ziel aus app_ziele (z. B. [Kasse → Konten](app:treasury.accounts)). "
+    "Um auf die Doku zu verweisen, nutze das link-Feld eines Abschnitts aus dokumentation, "
+    "z. B. [Doku: Kasse](docs:funktionen/kasse). Erfinde keine anderen Links und keine URLs. Biete nur "
+    "Aktionen an, die zur rolle in ich passen: Admin-Funktionen nur für Admins; ein Mitglied verweist "
+    "du für Admin-Aufgaben an einen Admin. Datenschutz: Nenne niemals Geldbeträge einzelner Personen "
+    "(Kontostände, Schulden, Guthaben, Strafensummen pro Person) — die stehen nicht in den Daten. "
+    "Fragt jemand danach, verweise auf [Mein Konto](app:treasury.my_account) bzw. die Kasse."
 )
 
 _ANSWER_SCHEMA = {
