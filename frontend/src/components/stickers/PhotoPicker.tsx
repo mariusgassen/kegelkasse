@@ -11,6 +11,7 @@ import {toastError} from '@/utils/error.ts'
 import {LazyImage} from '@/components/ui/LazyImage.tsx'
 import {thumbUrl} from '@/lib/mediaUrl.ts'
 import {PhotoEditor} from './PhotoEditor.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 /** `file` is the original the member picked (kept for its EXIF data; an edit does not replace it). */
 export interface Photo {
@@ -168,23 +169,23 @@ export function PhotoPicker({photos, onChange, onFiles, selected, onSelect}: Pro
                 </div>
             </div>
             <div className="flex gap-2">
-                <button type="button" className="btn-secondary btn-xs flex items-center gap-1"
+                <Button type="button" variant="secondary" size="xs" className="flex items-center gap-1"
                         onClick={() => setEditing(true)} disabled={busy}>
                     <Crop size={16} aria-hidden="true"/> {t('action.edit')}
-                </button>
-                <button type="button" className="btn-secondary btn-xs flex items-center gap-1"
+                </Button>
+                <Button type="button" variant="secondary" size="xs" className="flex items-center gap-1"
                         onClick={remove} disabled={busy}>
                     <Trash2 size={16} aria-hidden="true"/> {t('stickers.form.removePhoto')}
-                </button>
+                </Button>
                 {photos.length > 1 && (<>
-                    <button type="button" className="btn-secondary btn-xs flex items-center" onClick={() => move(-1)}
+                    <Button type="button" variant="secondary" size="xs" className="flex items-center" onClick={() => move(-1)}
                             disabled={busy || sel <= 0} aria-label={t('stickers.form.moveLeft')}>
                         <ChevronLeft size={16} aria-hidden="true"/>
-                    </button>
-                    <button type="button" className="btn-secondary btn-xs flex items-center" onClick={() => move(1)}
+                    </Button>
+                    <Button type="button" variant="secondary" size="xs" className="flex items-center" onClick={() => move(1)}
                             disabled={busy || sel >= photos.length - 1} aria-label={t('stickers.form.moveRight')}>
                         <ChevronRight size={16} aria-hidden="true"/>
-                    </button>
+                    </Button>
                 </>)}
             </div>
             {editing && <PhotoEditor src={current.url} onCancel={() => setEditing(false)} onApply={applyEdit}/>}

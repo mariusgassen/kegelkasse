@@ -21,6 +21,7 @@ import {StatTile} from '@/components/ui/StatTile'
 import {Switch} from '@/components/ui/Switch'
 import {showToast} from '@/components/ui/Toast'
 import {Tabs} from '@/components/ui/Tabs'
+import {Button} from '@/components/ui/Button.tsx'
 
 type BookTab = 'inventory' | 'guide' | 'components'
 
@@ -271,14 +272,14 @@ function ComponentsTab() {
 
     return (
         <div className="space-y-4">
-            <Specimen title="Buttons" note="CSS classes in index.css. A <Button> component is proposed (see Inventory).">
+            <Specimen title="Buttons" note="<Button variant size block>, wrapping the btn-* classes in index.css.">
                 <div className="flex flex-wrap gap-2 items-center">
-                    <button type="button" className="btn-primary">Primary</button>
-                    <button type="button" className="btn-secondary">Secondary</button>
-                    <button type="button" className="btn-danger">Danger</button>
-                    <button type="button" className="btn-primary" disabled>Disabled</button>
-                    <button type="button" className="btn-primary btn-sm">Small</button>
-                    <button type="button" className="btn-secondary btn-xs">Extra small</button>
+                    <Button type="button" variant="primary">Primary</Button>
+                    <Button type="button" variant="secondary">Secondary</Button>
+                    <Button type="button" variant="danger">Danger</Button>
+                    <Button type="button" variant="primary" disabled>Disabled</Button>
+                    <Button type="button" variant="primary" size="sm">Small</Button>
+                    <Button type="button" variant="secondary" size="xs">Extra small</Button>
                 </div>
             </Specimen>
 
@@ -340,14 +341,14 @@ function ComponentsTab() {
                 <Empty icon="🎳" text="Nothing here yet"/>
                 <SkeletonRows rows={2}/>
                 <div className="flex gap-2 mt-3">
-                    <button type="button" className="btn-secondary btn-sm" onClick={() => showToast('Saved')}>Toast</button>
-                    <button type="button" className="btn-secondary btn-sm" onClick={() => setSheet(true)}>Open sheet</button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => showToast('Saved')}>Toast</Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setSheet(true)}>Open sheet</Button>
                 </div>
             </Specimen>
 
             <Sheet open={sheet} onClose={() => setSheet(false)} title="Specimen sheet">
                 <p className="text-sm text-muted mb-3">Every bottom sheet goes through this component.</p>
-                <button type="button" className="btn-primary w-full" onClick={() => setSheet(false)}>Done</button>
+                <Button type="button" variant="primary" block onClick={() => setSheet(false)}>Done</Button>
             </Sheet>
         </div>
     )

@@ -5,6 +5,7 @@ import {useT} from '../i18n'
 import {api} from '../api/client'
 import {toastError} from '../utils/error'
 import type {NotificationItem} from '../types'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface Props {
     open: boolean
@@ -133,30 +134,30 @@ function NotificationRow({n, onClose}: { n: NotificationItem; onClose: () => voi
                 <div className="flex gap-2 px-3 pb-3 -mt-1">
                     {rid && (
                         <>
-                            <button
+                            <Button
                                 disabled={busy}
-                                className="btn-primary btn-sm flex-1 text-xs"
+                                variant="primary" size="sm" className="flex-1 text-xs"
                                 onClick={(e) => { e.stopPropagation(); handleConfirm() }}
                             >
                                 ✅ {t('paymentRequest.confirm')}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 disabled={busy}
-                                className="btn-secondary btn-sm flex-1 text-xs"
+                                variant="secondary" size="sm" className="flex-1 text-xs"
                                 onClick={(e) => { e.stopPropagation(); handleReject() }}
                             >
                                 ❌ {t('paymentRequest.reject')}
-                            </button>
+                            </Button>
                         </>
                     )}
                     {eventId && (
-                        <button
+                        <Button
                             disabled={busy}
-                            className="btn-secondary btn-sm flex-1 text-xs"
+                            variant="secondary" size="sm" className="flex-1 text-xs"
                             onClick={(e) => { e.stopPropagation(); handleRsvp() }}
                         >
                             {t('rsvp.absent.short')}
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}

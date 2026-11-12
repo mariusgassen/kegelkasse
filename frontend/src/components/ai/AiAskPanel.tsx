@@ -11,6 +11,7 @@ import {aiErrorKey} from '@/lib/aiErrors.ts'
 import {followAiLink} from '@/lib/aiLinks.ts'
 import {useSearchStore} from '@/store/search.ts'
 import type {AiLink} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface Props {
     question: string
@@ -69,11 +70,11 @@ export function AiAskPanel({question, askSignal = 0, onNavigate}: Props) {
     return (
         <div className="flex flex-col gap-2" data-testid="ai-ask">
             {q.length >= 3 && q !== asked && (
-                <button type="button" className="btn-secondary w-full flex items-center justify-center gap-2"
+                <Button type="button" variant="secondary" block className="flex items-center justify-center gap-2"
                         onClick={ask} disabled={loading || !online} data-testid="ai-ask-button">
                     <Sparkles size={16} aria-hidden/>
                     <span className="truncate">{loading ? t('ai.search.thinking') : t('ai.search.ask').replace('{q}', q)}</span>
-                </button>
+                </Button>
             )}
             {answer && (
                 <div className="kce-card p-3 text-sm text-ink" data-testid="ai-answer">

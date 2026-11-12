@@ -33,6 +33,7 @@ import {Switch} from '@/components/ui/Switch'
 import {Tabs} from '@/components/ui/Tabs'
 import {SkeletonCard} from '@/components/ui/Skeleton'
 import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -409,14 +410,14 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                    onChange={e => setPaletteBase(e.target.value)}
                                    className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                         </div>
-                        <button className="btn-secondary text-xs px-3 py-2"
+                        <Button variant="secondary" className="text-xs px-3 py-2"
                                 onClick={() => handleSuggest(paletteBase)}>
                             {t('club.palette.suggest')}
-                        </button>
-                        <button className="btn-secondary text-xs px-3 py-2"
+                        </Button>
+                        <Button variant="secondary" className="text-xs px-3 py-2"
                                 onClick={handleRandomPalette}>
                             ✨ {t('club.palette.random')}
-                        </button>
+                        </Button>
                     </div>
                     {suggestions.length > 0 && (
                         <div className="grid grid-cols-2 gap-2 mt-3">
@@ -548,9 +549,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
             </div>
 
-            <button className="btn-primary w-full" onClick={handleSave} disabled={!isOnline}>
+            <Button variant="primary" block onClick={handleSave} disabled={!isOnline}>
                 {isOnline ? t('action.save') : t('offline.btnLabel')}
-            </button>
+            </Button>
 
             <ReminderSettingsCard />
             <EmailSettingsCard />
@@ -672,14 +673,14 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                         <a href={url} target="_blank" rel="noreferrer" className="flex-1 btn-primary text-center text-sm">
                             {t('scoreboard.open')}
                         </a>
-                        <button className="btn-secondary btn-sm flex-shrink-0" onClick={copy}>
+                        <Button variant="secondary" size="sm" className="flex-shrink-0" onClick={copy}>
                             {copied ? '✓' : t('scoreboard.copy')}
-                        </button>
+                        </Button>
                     </div>
-                    <button className="btn-secondary btn-sm w-full mt-2" disabled={!isOnline}
+                    <Button variant="secondary" size="sm" block className="mt-2" disabled={!isOnline}
                             onClick={() => setConfirmRegen(true)}>
                         {t('scoreboard.regenerate')}
-                    </button>
+                    </Button>
                     <p className="text-xs text-muted mt-1">{t('scoreboard.regenerateHint')}</p>
                 </>
             ) : (
@@ -690,12 +691,12 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
                 <Sheet open onClose={() => setConfirmRegen(false)} title={t('scoreboard.regenerate')}>
                     <p className="text-sm text-ink mb-3">{t('scoreboard.regenerateConfirm')}</p>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setConfirmRegen(false)}>
+                        <Button variant="secondary" className="flex-1" onClick={() => setConfirmRegen(false)}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-danger flex-1" onClick={regenerate}>
+                        </Button>
+                        <Button variant="danger" className="flex-1" onClick={regenerate}>
                             {t('scoreboard.regenerate')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -782,13 +783,13 @@ function ClubConfigCard() {
             <div className="sec-heading mb-3">{t('club.config.title')}</div>
             <p className="text-xs text-muted mb-3">{t('club.config.hint')}</p>
             <div className="flex gap-2">
-                <button className="btn-secondary flex-1" onClick={exportConfig} disabled={!isOnline}>
+                <Button variant="secondary" className="flex-1" onClick={exportConfig} disabled={!isOnline}>
                     {t('club.config.export')}
-                </button>
-                <button className="btn-secondary flex-1" disabled={!isOnline}
+                </Button>
+                <Button variant="secondary" className="flex-1" disabled={!isOnline}
                         onClick={() => fileInputRef.current?.click()}>
                     {t('club.config.import')}
-                </button>
+                </Button>
                 <input ref={fileInputRef} type="file" accept="application/json" className="hidden"
                        onChange={onFileSelected}/>
             </div>
@@ -808,12 +809,12 @@ function ClubConfigCard() {
                         <li>{t('club.tab.pins')}: {pendingBundle.pins.length}</li>
                     </ul>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setPendingBundle(null)}>
+                        <Button variant="secondary" className="flex-1" onClick={() => setPendingBundle(null)}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-danger flex-1" onClick={confirmImport} disabled={importing}>
+                        </Button>
+                        <Button variant="danger" className="flex-1" onClick={confirmImport} disabled={importing}>
                             {importing ? t('action.loading') : t('club.config.import')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -953,13 +954,13 @@ function EmailSettingsCard() {
             </div>
 
             <div className="flex gap-2 mt-4">
-                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline || saving}>
+                <Button variant="primary" className="flex-1" onClick={handleSave} disabled={!isOnline || saving}>
                     {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
-                </button>
-                <button className="btn-secondary flex-shrink-0" onClick={handleTest}
+                </Button>
+                <Button variant="secondary" className="flex-shrink-0" onClick={handleTest}
                         disabled={!isOnline || testing || !enabled}>
                     {testing ? '…' : t('email.sendTest')}
-                </button>
+                </Button>
             </div>
         </div>
     )
@@ -1052,13 +1053,13 @@ function TelegramSettingsCard() {
             </div>
 
             <div className="flex gap-2 mt-4">
-                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline || saving}>
+                <Button variant="primary" className="flex-1" onClick={handleSave} disabled={!isOnline || saving}>
                     {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
-                </button>
-                <button className="btn-secondary flex-shrink-0" onClick={handleTest}
+                </Button>
+                <Button variant="secondary" className="flex-shrink-0" onClick={handleTest}
                         disabled={!isOnline || testing || !enabled || !tokenSet}>
                     {testing ? '…' : t('telegram.sendTest')}
-                </button>
+                </Button>
             </div>
         </div>
     )
@@ -1171,10 +1172,10 @@ function AiSettingsCard() {
                 </div>
             </div>
 
-            <button className="btn-primary w-full mt-4" onClick={handleSave}
+            <Button variant="primary" block className="mt-4" onClick={handleSave}
                     disabled={!isOnline || saving || !limitOk} data-testid="ai-settings-save">
                 {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
-            </button>
+            </Button>
         </div>
     )
 }
@@ -1356,15 +1357,15 @@ function ReminderSettingsCard() {
             </div>
 
             <div className="flex gap-2 mt-0">
-                <button className="btn-primary flex-1" onClick={handleSave} disabled={!isOnline}>
+                <Button variant="primary" className="flex-1" onClick={handleSave} disabled={!isOnline}>
                     {isOnline ? t('action.save') : t('offline.btnLabel')}
-                </button>
-                <button className="btn-secondary flex-shrink-0" disabled={!isOnline} onClick={async () => {
+                </Button>
+                <Button variant="secondary" className="flex-shrink-0" disabled={!isOnline} onClick={async () => {
                     try {
                         await api.triggerReminders()
                         showToast(t('reminders.triggered'))
                     } catch (e) { toastError(e) }
-                }}>{t('reminders.triggerNow')}</button>
+                }}>{t('reminders.triggerNow')}</Button>
             </div>
         </div>
     )
@@ -1409,9 +1410,9 @@ function BroadcastPushCard() {
                 <label className="field-label">{t('broadcast.url')}</label>
                 <input className="kce-input" value={bUrl} onChange={e => setBUrl(e.target.value)} placeholder="/"/>
             </div>
-            <button className="btn-primary w-full" onClick={handleBroadcast} disabled={sending || !bTitle.trim() || !bBody.trim()}>
+            <Button variant="primary" block onClick={handleBroadcast} disabled={sending || !bTitle.trim() || !bBody.trim()}>
                 {sending ? '…' : t('broadcast.send')}
-            </button>
+            </Button>
         </div>
     )
 }
@@ -1482,9 +1483,9 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                            onChange={e => setAmount(e.target.value)}/>
                     <SoundPickerButton value={soundKey} onChange={setSoundKey}/>
                 </div>
-                <button type="submit" className="btn-primary w-full btn-sm" disabled={!isOnline}>
+                <Button type="submit" variant="primary" size="sm" block disabled={!isOnline}>
                     {isOnline ? `+ ${t('action.add')}` : t('offline.btnLabel')}
-                </button>
+                </Button>
                 <PenaltySuggestions onPick={sg => {
                     setIcon(sg.icon)
                     setName(sg.name)
@@ -1531,8 +1532,8 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
                         </div>
                     </div>
-                    <button type="submit" className="btn-primary w-full mt-1"
-                            disabled={!editName.trim()}>{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block className="mt-1"
+                            disabled={!editName.trim()}>{t('action.save')}</Button>
                 </div>
             </Sheet>
         </div>
@@ -1595,7 +1596,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
 
     return (
         <div>
-            <button className="btn-primary btn-sm mb-3" onClick={openNew} disabled={!isOnline}>+ {t('club.template.add')}</button>
+            <Button variant="primary" size="sm" className="mb-3" onClick={openNew} disabled={!isOnline}>+ {t('club.template.add')}</Button>
             {!templates.length && <Empty icon="🏆" text={t('club.template.none')}/>}
             {templates.map((gt, i) => (
                 <div key={gt.id} className="kce-card p-3 mb-2 flex items-start gap-3">
@@ -1676,7 +1677,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                onChange={e => setPerPoint(e.target.value)}/>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </div>
-                    <button type="submit" className="btn-primary w-full mt-1">{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block className="mt-1">{t('action.save')}</Button>
                 </div>
             </Sheet>
         </div>
@@ -1753,9 +1754,9 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                                 {t('superadmin.clubs.active')}
                             </span>
                         ) : (
-                            <button className="btn-secondary btn-xs" onClick={() => handleSwitch(c.id)}>
+                            <Button variant="secondary" size="xs" onClick={() => handleSwitch(c.id)}>
                                 {t('superadmin.clubs.switch')}
-                            </button>
+                            </Button>
                         )}
                         <CardActionMenu
                             title={c.name}
@@ -1778,9 +1779,9 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                     <input className="kce-input flex-1" value={newName} onChange={e => setNewName(e.target.value)}
                            placeholder={t('superadmin.clubs.namePlaceholder')}
                            onKeyDown={e => e.key === 'Enter' && handleCreate()}/>
-                    <button className="btn-primary btn-sm flex-shrink-0" onClick={handleCreate}>
+                    <Button variant="primary" size="sm" className="flex-shrink-0" onClick={handleCreate}>
                         + {t('action.add')}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -1798,10 +1799,10 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                                    onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                                    placeholder={t('superadmin.clubs.slugPlaceholder')}/>
                         </div>
-                        <button type="submit" className="btn-primary w-full"
+                        <Button type="submit" variant="primary" block
                                 disabled={!editName.trim() || !editSlug.trim()}>
                             {t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -1811,10 +1812,10 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                 <Sheet open onClose={() => setDeleteClubId(null)} title={t('superadmin.clubs.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('superadmin.clubs.deleteConfirm')}</p>
-                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(deleteClubId)}>
                             {t('action.confirmDelete')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -1863,7 +1864,7 @@ function ClubTeamsTab() {
     return (
         <div>
             <p className="text-xs text-muted mb-3">{t('club.teams.description')}</p>
-            <button className="btn-primary btn-sm mb-3" disabled={!isOnline} onClick={openNew}>+ {t('club.teams.add')}</button>
+            <Button variant="primary" size="sm" className="mb-3" disabled={!isOnline} onClick={openNew}>+ {t('club.teams.add')}</Button>
             {teams.length === 0 && <Empty icon="🤝" text={t('club.teams.none')}/>}
             {teams.map(team => (
                 <div key={team.id} className="kce-card p-3 mb-2 flex items-center gap-3">
@@ -1901,8 +1902,8 @@ function ClubTeamsTab() {
                         <input className="kce-input w-20" type="number" value={sortOrder}
                                onChange={e => setSortOrder(e.target.value)} min="0"/>
                     </div>
-                    <button type="submit" className="btn-primary w-full"
-                            disabled={!name.trim()}>{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block
+                            disabled={!name.trim()}>{t('action.save')}</Button>
                 </div>
             </Sheet>
         </div>
@@ -1949,7 +1950,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
 
     return (
         <div>
-            <button className="btn-primary btn-sm mb-3" onClick={openNew}>+ {t('pin.add')}</button>
+            <Button variant="primary" size="sm" className="mb-3" onClick={openNew}>+ {t('pin.add')}</Button>
             {pins.length === 0 && <Empty icon="📌" text={t('pin.none')}/>}
             {pins.map(p => {
                 const holderMember = p.holder_regular_member_id
@@ -2018,7 +2019,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                                    onChange={e => setPinDate(e.target.value)} style={{width: 'auto'}}/>
                         </div>
                     )}
-                    <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block>{t('action.save')}</Button>
                 </div>
             </Sheet>
         </div>
@@ -2191,10 +2192,10 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('backup.delete.confirm')}</p>
                         <p className="text-xs font-mono text-accent-fg">{confirmLabel}</p>
-                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: '#c0392b'}}
                                 onClick={() => { onDelete(confirmLabel); setConfirmLabel(null) }}>
                             {t('action.confirmDelete')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}

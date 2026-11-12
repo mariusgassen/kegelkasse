@@ -13,6 +13,7 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {flashDeepLinkTarget, useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {nowDateTimeInput} from '@/lib/datetime.ts'
 import type {GuestRequest} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 export const GUEST_REQUESTS_ANCHOR = 'guest-requests'
 
@@ -55,15 +56,15 @@ function PendingCard({req, onDecide}: {req: GuestRequest; onDecide: (d: Decision
                 </p>
             )}
             <div className="flex gap-2 mt-2.5">
-                <button className="btn-secondary btn-sm flex-1" disabled={!isOnline}
+                <Button variant="secondary" size="sm" className="flex-1" disabled={!isOnline}
                         onClick={() => onDecide({request: req, action: 'reject'})}>
                     {t('guestRequests.reject')}
-                </button>
+                </Button>
                 {!req.evening_cancelled && (
-                    <button className="btn-primary btn-sm flex-1" disabled={!isOnline}
+                    <Button variant="primary" size="sm" className="flex-1" disabled={!isOnline}
                             onClick={() => onDecide({request: req, action: 'approve'})}>
                         ✓ {t('guestRequests.approve')}
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>
@@ -183,9 +184,9 @@ export function GuestRequestsSection() {
                             .replace('{email}', decision.request.email)}
                     </p>
                     <div className="flex gap-2">
-                        <button className="btn-secondary flex-1" onClick={() => setDecision(null)}>
+                        <Button variant="secondary" className="flex-1" onClick={() => setDecision(null)}>
                             {t('action.cancel')}
-                        </button>
+                        </Button>
                         <button className={`${decision.action === 'approve' ? 'btn-primary' : 'btn-danger'} flex-1`}
                                 disabled={busy} onClick={confirm}>
                             {busy ? t('action.loading')

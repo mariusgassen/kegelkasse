@@ -3,6 +3,7 @@ import {createPortal} from 'react-dom'
 import {Volume2, Play} from 'lucide-react'
 import {useT} from '@/i18n'
 import {SOUND_PRESETS, SoundPresetKey, previewSound} from '@/lib/soundboard'
+import {Button} from '@/components/ui/Button.tsx'
 
 const PICKER_W = 260
 const PICKER_H = 340
@@ -87,14 +88,14 @@ export function SoundPickerButton({value, onChange}: SoundPickerButtonProps) {
                         <span aria-hidden="true">{p.emoji}</span>
                         <span>{t(p.labelKey as any)}</span>
                     </button>
-                    <button
+                    <Button
                         type="button"
-                        className="btn-secondary btn-xs h-8 w-8 flex-shrink-0 flex items-center justify-center"
+                        variant="secondary" size="xs" className="h-8 w-8 flex-shrink-0 flex items-center justify-center"
                         aria-label={t('sound.preview')}
                         onClick={() => previewSound(p.key)}
                     >
                         <Play size={14} strokeWidth={2} aria-hidden="true"/>
-                    </button>
+                    </Button>
                 </div>
             ))}
         </div>,

@@ -21,6 +21,7 @@ import {WifiOff} from 'lucide-react'
 import {hexToHsl, hslToHex} from './lib/color'
 import {DEFAULT_DARK_BG, deriveTokens} from './lib/tokens'
 import {applyAppIcon} from './lib/appIcon'
+import {Button} from '@/components/ui/Button.tsx'
 
 export {hexToHsl, hslToHex}
 
@@ -263,13 +264,13 @@ export default function App() {
                     </p>
                     <p className="text-muted text-xs">{t('error.network')}</p>
                 </div>
-                <button className="btn-primary px-6" onClick={() => {
+                <Button variant="primary" className="px-6" onClick={() => {
                     setBootNetworkError(false)
                     setBootDone(false)
                     retryBoot()
                 }}>
                     {t('error.retry')}
-                </button>
+                </Button>
             </div>
         )
     }

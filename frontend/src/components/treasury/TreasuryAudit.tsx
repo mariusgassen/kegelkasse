@@ -21,6 +21,7 @@ import type {
     TreasuryAuditStatus,
     TreasuryAuditSummary,
 } from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -168,8 +169,8 @@ function AuditDetailSheet({auditId, canSign, onClose}: {auditId: number | null; 
                    <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t('audit.delete')}>
                        <p className="text-sm text-ink mb-4">{t('audit.deleteConfirm')}</p>
                        <div className="flex gap-2">
-                           <button className="btn-secondary flex-1" onClick={() => setConfirmDelete(false)}>{t('action.cancel')}</button>
-                           <button className="btn-danger flex-1" disabled={busy} onClick={remove}>{t('action.delete')}</button>
+                           <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(false)}>{t('action.cancel')}</Button>
+                           <Button variant="danger" className="flex-1" disabled={busy} onClick={remove}>{t('action.delete')}</Button>
                        </div>
                    </Sheet>
                }>
@@ -287,25 +288,25 @@ function AuditDetailSheet({auditId, canSign, onClose}: {auditId: number | null; 
                                     </label>
                                     <textarea id="audit-note" className="kce-input w-full" rows={3} value={note}
                                               onChange={e => setNote(e.target.value)}/>
-                                    <button className="btn-primary w-full" disabled={busy || !isOnline || objectionInvalid}
+                                    <Button variant="primary" block disabled={busy || !isOnline || objectionInvalid}
                                             onClick={sign}>
                                         {t('audit.submit')}
-                                    </button>
+                                    </Button>
                                 </>
                             )}
                         </div>
                     )}
 
                     {audit.signed_by_me && (
-                        <button className="btn-secondary w-full" disabled={busy || !isOnline} onClick={withdraw}>
+                        <Button variant="secondary" block disabled={busy || !isOnline} onClick={withdraw}>
                             {t('audit.withdraw')}
-                        </button>
+                        </Button>
                     )}
 
                     {admin && audit.signatures.length === 0 && (
-                        <button className="btn-danger w-full" disabled={busy || !isOnline} onClick={() => setConfirmDelete(true)}>
+                        <Button variant="danger" block disabled={busy || !isOnline} onClick={() => setConfirmDelete(true)}>
                             {t('audit.delete')}
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}
@@ -373,9 +374,9 @@ function CreateAuditSheet({open, onClose, onCreated}: {open: boolean; onClose: (
                         </p>
                     </div>
                 )}
-                <button type="submit" className="btn-primary w-full" disabled={!valid || busy || !isOnline}>
+                <Button type="submit" variant="primary" block disabled={!valid || busy || !isOnline}>
                     {t('audit.create')}
-                </button>
+                </Button>
             </div>
         </Sheet>
     )
@@ -481,9 +482,9 @@ export function TreasuryAudit() {
             {admin && <AuditorManager auditorIds={auditorIds}/>}
 
             {data?.can_create && (
-                <button className="btn-primary w-full" onClick={() => setCreating(true)} data-testid="audit-new">
+                <Button variant="primary" block onClick={() => setCreating(true)} data-testid="audit-new">
                     + {t('audit.new')}
-                </button>
+                </Button>
             )}
 
             {data?.can_create && <BookingReviewCard/>}

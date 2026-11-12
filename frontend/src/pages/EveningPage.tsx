@@ -18,6 +18,7 @@ import {MediaUploadButton} from '@/components/ui/MediaUploadButton.tsx'
 import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 export function EveningPage() {
     const t = useT()
@@ -69,10 +70,10 @@ export function EveningPage() {
                 <div className="sec-heading">🎳 {t('nav.evening')}</div>
                 <div className="kce-card p-5">
                     <Empty icon="🎳" text={t('evening.noActiveHint')}/>
-                    <button className="btn-primary w-full mt-2"
+                    <Button variant="primary" block className="mt-2"
                             onClick={() => router.navigate({to: '/schedule'}).catch(() => {})}>
                         {t('evening.goToSchedule')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         )
@@ -196,13 +197,13 @@ export function EveningPage() {
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {!evening.is_closed ? (
-                            <button className="btn-danger btn-xs" onClick={() => openCloseConfirm(evening.ended_at)}>
+                            <Button variant="danger" size="xs" onClick={() => openCloseConfirm(evening.ended_at)}>
                                 {t('evening.end')}
-                            </button>
+                            </Button>
                         ) : (
-                            <button className="btn-secondary btn-xs" disabled={closing} onClick={reopen}>
+                            <Button variant="secondary" size="xs" disabled={closing} onClick={reopen}>
                                 {t('evening.reopen')}
-                            </button>
+                            </Button>
                         )}
                         <CardActionMenu
                             title={formatDate(evening.date)}
@@ -226,14 +227,14 @@ export function EveningPage() {
                         <p className="text-xs text-muted mt-1">{t('evening.endedAtHint')}</p>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
+                        <Button type="button" variant="secondary" size="sm" className="flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>
                             {t('action.cancel')}
-                        </button>
-                        <button type="button" className="btn-primary btn-sm flex-1" disabled={closing}
+                        </Button>
+                        <Button type="button" variant="primary" size="sm" className="flex-1" disabled={closing}
                                 onClick={confirmClose}>
                             {t('action.done')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -253,7 +254,7 @@ export function EveningPage() {
                 {!evening.is_closed && (
                     <div className="flex gap-1">
                         {teams.length === 0 && (
-                            <button className="btn-secondary btn-xs" aria-label={t('team.fromTemplate')}
+                            <Button variant="secondary" size="xs" aria-label={t('team.fromTemplate')}
                                     onClick={async () => {
                                         try {
                                             await api.applyClubTeamsToEvening(evening.id, false)
@@ -263,9 +264,9 @@ export function EveningPage() {
                                         }
                                     }}>
                                 {t('team.fromTemplateBadge')}
-                            </button>
+                            </Button>
                         )}
-                        <button className="btn-secondary btn-xs" aria-label={t('team.randomize')}
+                        <Button variant="secondary" size="xs" aria-label={t('team.randomize')}
                                 onClick={async () => {
                                     if (players.length === 0) {
                                         showToast(t('team.noPlayers'))
@@ -283,10 +284,10 @@ export function EveningPage() {
                                     }
                                 }}>
                             🎲
-                        </button>
-                        <button className="btn-secondary btn-xs" onClick={openNewTeam}>
+                        </Button>
+                        <Button variant="secondary" size="xs" onClick={openNewTeam}>
                             + {t('team.create')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </div>
@@ -328,12 +329,12 @@ export function EveningPage() {
                     👤 {t('team.members')} ({players.length})
                 </div>
                 {!evening.is_closed && (
-                    <button className="btn-secondary btn-xs" onClick={() => {
+                    <Button variant="secondary" size="xs" onClick={() => {
                         setGuestName('')
                         setSelectedMemberIds(new Set())
                         setAddPlayerTeamId(teams.length > 0 ? teams[0].id : null)
                         setPlayerSheet(true)
-                    }}>+ {t('player.add')}</button>
+                    }}>+ {t('player.add')}</Button>
                 )}
             </div>
 
@@ -485,7 +486,7 @@ export function EveningPage() {
                             onUploaded={setHighlightMediaUrl}
                             onRemove={() => setHighlightMediaUrl(null)}
                         />
-                        <button className="btn-primary btn-sm flex-shrink-0"
+                        <Button variant="primary" size="sm" className="flex-shrink-0"
                             aria-label={t('highlight.add')}
                             disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
                             onClick={async () => {
@@ -497,7 +498,7 @@ export function EveningPage() {
                                     setHighlightMediaUrl(null)
                                     invalidate()
                                 } catch (err) { toastError(err) } finally { setAddingHighlight(false) }
-                            }}>+</button>
+                            }}>+</Button>
                     </div>
                     {highlightMediaUrl && <div className="pl-0">
                         <img src={highlightMediaUrl} alt="" className="rounded max-h-32 max-w-full object-contain border border-line/40"/>
@@ -523,7 +524,7 @@ export function EveningPage() {
                         <label className="field-label">{t('evening.note')}</label>
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
                     </div>
-                    <button type="submit" className="btn-primary w-full">{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block>{t('action.save')}</Button>
                 </div>
             </Sheet>
 
@@ -622,10 +623,10 @@ export function EveningPage() {
                             <p className="text-xs text-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
                     </div>
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={(selectedMemberIds.size === 0 && !guestName.trim()) || teams.length === 0 || addPlayerTeamId === null}>
                         {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -643,10 +644,10 @@ export function EveningPage() {
                                 {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                             </select>
                         </div>
-                        <button type="submit" className="btn-primary w-full"
+                        <Button type="submit" variant="primary" block
                                 disabled={teams.length > 0 && !editPlayerTeam}>
                             {t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </Sheet>
@@ -667,8 +668,8 @@ export function EveningPage() {
                         onChange={setTeamPlayerIds}
                         onSelectAll={() => setTeamPlayerIds(availableForTeam(editingTeam?.id ?? null).map(o => o.id))}
                         onSelectNone={() => setTeamPlayerIds([])}/>
-                    <button type="submit" className="btn-primary w-full"
-                            disabled={!teamName.trim()}>{t('action.save')}</button>
+                    <Button type="submit" variant="primary" block
+                            disabled={!teamName.trim()}>{t('action.save')}</Button>
                 </div>
             </Sheet>
 
@@ -923,12 +924,12 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                 )}
 
                 <div className="flex gap-2 pt-1">
-                    <button className="btn-secondary flex-1" onClick={onCancel} disabled={saving}>
+                    <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={saving}>
                         {t('action.cancel')}
-                    </button>
-                    <button className="btn-primary flex-1" onClick={handleDone} disabled={saving}>
+                    </Button>
+                    <Button variant="primary" className="flex-1" onClick={handleDone} disabled={saving}>
                         {saving ? t('action.loading') : t('evening.startButton')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Sheet>
@@ -1015,16 +1016,16 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                     {alreadyLogged
                         ? <div className="flex items-center gap-1 flex-shrink-0">
                             <span className="text-xs text-positive-fg font-bold">✓ {t('pin.missingPenalty')}</span>
-                            <button className="btn-secondary btn-xs"
+                            <Button variant="secondary" size="xs"
                                     onClick={() => undoMissingPin(pin, logEntry!.id)}>
                                 {t('action.undo')}
-                            </button>
+                            </Button>
                           </div>
-                        : <button
-                            className="btn-danger btn-xs flex-shrink-0"
+                        : <Button
+                            variant="danger" size="xs" className="flex-shrink-0"
                             onClick={() => logMissingPins(pin)}>
                             ✕ {t('pin.missingPenalty')}
-                          </button>
+                          </Button>
                     }
                 </div>
                 )

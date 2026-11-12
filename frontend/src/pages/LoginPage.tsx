@@ -5,6 +5,7 @@ import {useI18n, useT} from '@/i18n'
 import {AppLogo} from '@/components/Logo.tsx'
 import {InlineError} from '@/components/ui/InlineError.tsx'
 import {clearAuthParams} from '@/hooks/usePage.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface LoginPageProps {
     onLogin?: () => void
@@ -181,9 +182,9 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                        placeholder="••••••••" required/>
                             </div>
                             <InlineError text={error}/>
-                            <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                            <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.loginButton')}
-                            </button>
+                            </Button>
                         </form>
                         <p className="text-center text-muted text-xs mt-4">
                             {t('auth.haveInvite')}{' '}
@@ -224,9 +225,9 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                            placeholder="name@example.de" required autoFocus/>
                                 </div>
                                 <InlineError text={error}/>
-                                <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                                <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                     {loading ? t('action.loading') : t('auth.forgot.button')}
-                                </button>
+                                </Button>
                             </form>
                         )}
                         <p className="text-center text-muted text-xs mt-4">
@@ -245,12 +246,12 @@ export function LoginPage({onLogin}: LoginPageProps) {
                         {resetDone ? (
                             <>
                                 <p className="text-positive-fg text-sm mb-4">{t('auth.reset.success')}</p>
-                                <button className="btn-primary w-full" onClick={() => {
+                                <Button variant="primary" block onClick={() => {
                                     setMode('login');
                                     setResetDone(false)
                                 }}>
                                     {t('auth.login')}
-                                </button>
+                                </Button>
                             </>
                         ) : (
                             <form onSubmit={handleReset} className="flex flex-col gap-3">
@@ -266,9 +267,9 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                            autoFocus/>
                                 </div>
                                 <InlineError text={error}/>
-                                <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                                <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                     {loading ? t('action.loading') : t('auth.reset.button')}
-                                </button>
+                                </Button>
                             </form>
                         )}
                         <p className="text-center text-muted text-xs mt-4">
@@ -328,9 +329,9 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                        onChange={e => setPw(e.target.value)} placeholder="••••••••" required/>
                             </div>
                             <InlineError text={error}/>
-                            <button type="submit" className="btn-primary mt-1" disabled={loading}>
+                            <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.register.button')}
-                            </button>
+                            </Button>
                         </form>
                         <p className="text-center text-muted text-xs mt-4">
                             <button onClick={() => setMode('login')}

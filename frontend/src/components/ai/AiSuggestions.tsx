@@ -9,6 +9,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {aiErrorKey} from '@/lib/aiErrors.ts'
 import type {AiNicknameSuggestion, AiPenaltySuggestion} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 function reportAiError(e: unknown, t: ReturnType<typeof useT>) {
     const key = aiErrorKey(e)
@@ -47,12 +48,12 @@ export function PenaltySuggestions({onPick}: { onPick: (s: AiPenaltySuggestion) 
 
     return (
         <>
-            <button type="button" onClick={load} disabled={loading || !online}
-                    className="btn-secondary btn-sm w-full mt-2 inline-flex items-center justify-center gap-1.5"
+            <Button type="button" onClick={load} disabled={loading || !online}
+                    variant="secondary" size="sm" block className="mt-2 inline-flex items-center justify-center gap-1.5"
                     data-testid="ai-penalty-suggest">
                 <Sparkles size={14} aria-hidden="true"/>
                 {loading ? t('ai.generating') : t('ai.button.suggest')}
-            </button>
+            </Button>
             <Sheet open={list !== null} onClose={() => setList(null)} title={t('ai.suggest.title')}>
                 <p className="text-xs text-muted mb-3">{t('ai.suggest.hint')}</p>
                 {list && list.length === 0 && <p className="text-sm text-muted">{t('ai.suggest.none')}</p>}
@@ -107,11 +108,11 @@ export function NicknameSuggestions({memberId, onPick}: { memberId: number; onPi
             <input className="kce-input mb-2" value={hint} maxLength={200}
                    onChange={e => setHint(e.target.value)}
                    placeholder={t('ai.nickname.hintPlaceholder')} aria-label={t('ai.nickname.hintPlaceholder')}/>
-            <button type="button" onClick={load} disabled={loading || !online}
-                    className="btn-secondary btn-sm inline-flex items-center gap-1.5">
+            <Button type="button" onClick={load} disabled={loading || !online}
+                    variant="secondary" size="sm" className="inline-flex items-center gap-1.5">
                 <Sparkles size={14} aria-hidden="true"/>
                 {loading ? t('ai.generating') : t('ai.button.suggestNickname')}
-            </button>
+            </Button>
             {list.length > 0 && (
                 <div className="mt-2">
                     <p className="text-xs text-muted mb-1">{t('ai.nickname.hint')}</p>

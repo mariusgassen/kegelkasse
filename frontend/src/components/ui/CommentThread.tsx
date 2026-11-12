@@ -14,6 +14,7 @@ import {ReactionPill} from '@/components/ui/ReactionPill'
 import {ZoomableImage} from '@/components/ui/ZoomableImage'
 import type {Comment} from '@/types'
 import {SkeletonRows} from '@/components/ui/Skeleton'
+import {Button} from '@/components/ui/Button.tsx'
 
 const PICKER_W = 300
 const PICKER_H = 380
@@ -242,15 +243,15 @@ function CommentItem({
                                         />
                                     </div>
                                     <div className="flex gap-1.5">
-                                        <button type="button" className="btn-primary btn-xs"
+                                        <Button type="button" variant="primary" size="xs"
                                                 disabled={!editText.trim() && !editMediaUrl}
                                                 onClick={handleSaveEdit}>
                                             {t('action.save')}
-                                        </button>
-                                        <button type="button" className="btn-secondary btn-xs"
+                                        </Button>
+                                        <Button type="button" variant="secondary" size="xs"
                                                 onClick={() => {setEditing(false); setEditText(comment.text ?? ''); setEditMediaUrl(comment.media_url)}}>
                                             {t('action.cancel')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ) : (

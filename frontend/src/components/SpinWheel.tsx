@@ -1,6 +1,7 @@
 import {useRef, useState} from 'react'
 import {useT} from '../i18n'
 import type {PenaltyType} from '../types'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface SpinWheelProps {
     penaltyTypes: PenaltyType[]
@@ -81,9 +82,9 @@ export function SpinWheel({penaltyTypes, onResult}: SpinWheelProps) {
                 </div>
             </div>
 
-            <button className="btn-primary px-8" onClick={spin} disabled={spinning}>
+            <Button variant="primary" className="px-8" onClick={spin} disabled={spinning}>
                 {spinning ? '🌀' : t('wheel.spin')}
-            </button>
+            </Button>
 
             {result && !spinning && (
                 <div className="text-center animate-fade-in">
