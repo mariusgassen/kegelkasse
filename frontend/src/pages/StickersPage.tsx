@@ -45,7 +45,7 @@ function fDay(day: string, locale: string) {
 
 function MapBox({online, className, children}: { online: boolean; className?: string; children: React.ReactNode }) {
     const t = useT()
-    if (!online) return <p className="text-sm text-muted py-6 text-center">{t('stickers.map.offline')}</p>
+    if (!online) return <Empty text={t('stickers.map.offline')}/>
     return (
         <div data-no-ptr className={className ?? "w-full"}>
             <Suspense fallback={<SkeletonCard className="w-full h-full flex-1"/>}>

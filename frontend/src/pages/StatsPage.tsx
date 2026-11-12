@@ -621,7 +621,7 @@ function GamesDetailSheet({evening, t, onClose}: {
     return (
         <Sheet open onClose={onClose} title={t('stats.gamesDetail')}>
             {games.length === 0 ? (
-                <div className="text-sm text-muted text-center py-4">{t('stats.noGames')}</div>
+                <Empty text={t('stats.noGames')}/>
             ) : (
                 <div className="space-y-2">
                     {games.map(g => {
@@ -733,7 +733,7 @@ function PenaltyTimelineSheet({evening, t, onSelectPlayer, onClose}: {
     return (
         <Sheet open onClose={onClose} title={t('stats.penaltyTimeline')}>
             {entries.length === 0 ? (
-                <div className="text-sm text-muted text-center py-4">{t('stats.noPenalties')}</div>
+                <Empty text={t('stats.noPenalties')}/>
             ) : (
                 <div className="space-y-1.5">
                     {entries.map(l => {
@@ -985,7 +985,7 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
         staleTime: 1000 * 60 * 5,
     })
     if (isLoading) return <SkeletonChart height="5rem" className="py-2"/>
-    if (!data || data.throw_count === 0) return <div className="text-xs text-muted py-2 text-center">{t('stats.noThrowData')}</div>
+    if (!data || data.throw_count === 0) return <Empty text={t('stats.noThrowData')}/>
     return (
         <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
             <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
@@ -1162,7 +1162,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             <div className="kce-card p-3 mb-3">
                 <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
                 {penalties.length === 0 ? (
-                    <div className="text-xs text-muted text-center py-1">{t('stats.noPenalties')}</div>
+                    <Empty text={t('stats.noPenalties')}/>
                 ) : (
                     <div className="space-y-1.5">
                         {penalties.map(l => {
@@ -1325,7 +1325,7 @@ function DrinkRoundsDetailSheet({evening, initialTab, t, onClose}: {
                 </button>
             </div>
             {rounds.length === 0 ? (
-                <div className="text-sm text-muted text-center py-4">{t('drinks.noRounds')}</div>
+                <Empty text={t('drinks.noRounds')}/>
             ) : (
                 <div className="space-y-2">
                     {rounds.map((r, i) => (

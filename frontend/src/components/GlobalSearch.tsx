@@ -20,6 +20,7 @@ import {
     searchBookings,
     type SearchResult,
 } from '@/lib/globalSearch'
+import {Empty} from '@/components/ui/Empty.tsx'
 
 interface Props {
     open: boolean
@@ -100,7 +101,7 @@ export function GlobalSearch({open, onClose}: Props) {
             <div className="flex flex-col gap-3 mt-3 max-h-[60vh] overflow-y-auto">
                 <AiAskPanel question={query} askSignal={askSignal} onNavigate={onClose}/>
                 {hasQuery && totalResults === 0 && (
-                    <p className="text-xs text-muted text-center py-4">{t('search.noResults')}</p>
+                    <Empty text={t('search.noResults')}/>
                 )}
                 {hasQuery && groups.filter(g => g.results.length > 0).map(g => (
                     <div key={g.key}>

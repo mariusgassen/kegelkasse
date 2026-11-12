@@ -41,7 +41,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
     {name: '<ChipSelect>', source: 'ui/ChipSelect.tsx', status: 'component', use: 'Multi-select chips with all / none.', uses: '8 in 3 files'},
     {name: '<SearchInput>', source: 'ui/SearchInput.tsx', status: 'component', use: 'Text filter with clear button.', uses: '7 in 3 files'},
-    {name: '<Empty>', source: 'ui/Empty.tsx', status: 'component', use: 'Empty-state icon + text.', uses: '39 in 18 files'},
+    {name: '<Empty>', source: 'ui/Empty.tsx', status: 'component', use: 'Empty-state icon + text.', uses: '51 in 21 files'},
     {name: '<Skeleton*>', source: 'ui/Skeleton.tsx', status: 'component', use: 'Loading placeholders.', uses: '58 in 14 files'},
     {name: '<Loading>', source: 'ui/Loading.tsx', status: 'component', use: 'Text-only loader. No importers left (dead).', uses: '0'},
     {name: 'showToast / <ToastContainer>', source: 'ui/Toast.tsx', status: 'component', use: 'Feedback after mutations.', uses: 'everywhere'},
@@ -86,8 +86,8 @@ export const DUPLICATES: Duplicate[] = [
     {
         id: 'empty',
         title: 'Empty states',
-        finding: '<Empty> exists, but 66 spots still write "text-center … text-muted" by hand, often with different padding and font size.',
-        count: '39 <Empty> uses vs 66 hand-rolled',
+        finding: '<Empty> now covers both the icon block and a one-line inline note (no icon). The earlier "66 hand-rolled" count was mostly false positives (the € prefix span, captions, hints); about 12 real empty states were migrated. Left: two kce-card empties (PenaltyTimeline, EventTicker) and TreasuryAudit, which carry their own card/test-id.',
+        count: '51 <Empty> uses',
         where: 'MembersPage, TreasuryPage, SchedulePage, StatsPage, CommitteePage …',
         proposal: 'Adopt <Empty>; add size="inline" for in-card use',
         priority: 2,
@@ -197,5 +197,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+        {step: '1. Fold ModeToggle into <Tabs>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
 ]

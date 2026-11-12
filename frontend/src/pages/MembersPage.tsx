@@ -785,7 +785,7 @@ export function MembersPage() {
                         </button>
                     ))}
                     {availableForLink.length === 0 && (
-                        <p className="text-xs text-muted text-center py-2">{t('member.allLinked')}</p>
+                        <Empty text={t('member.allLinked')}/>
                     )}
                     <Button variant="secondary" size="sm" className="mt-1"
                             onClick={async () => {
@@ -820,7 +820,7 @@ export function MembersPage() {
                         </button>
                     ))}
                     {mergeCandidates.length === 0 && (
-                        <p className="text-xs text-muted text-center py-2">{t('member.noOtherEntries')}</p>
+                        <Empty text={t('member.noOtherEntries')}/>
                     )}
                 </div>
             </Sheet>
