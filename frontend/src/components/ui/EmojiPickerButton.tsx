@@ -3,6 +3,7 @@ import {useEffect, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {Smile} from 'lucide-react'
 import {useT} from '@/i18n'
+import {Button} from '@/components/ui/Button.tsx'
 
 const PICKER_W = 300
 const PICKER_H = 380
@@ -84,15 +85,15 @@ export function EmojiPickerButton({value, onChange, mode = 'icon'}: EmojiPickerB
     if (mode === 'insert') {
         return (
             <>
-                <button
+                <Button
                     ref={triggerRef}
                     type="button"
-                    className="btn-secondary btn-xs h-full px-2 flex-shrink-0"
+                    variant="secondary" size="xs" className="h-full px-2 flex-shrink-0"
                     aria-label={t('emoji.insert')}
                     onClick={openPicker}
                 >
                     <Smile size={16} strokeWidth={2} aria-hidden="true"/>
-                </button>
+                </Button>
                 {portal}
             </>
         )

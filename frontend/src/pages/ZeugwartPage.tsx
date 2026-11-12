@@ -13,6 +13,7 @@ import {ActionItem} from '@/components/ui/ActionSheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {InventoryItem} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fDateTime(iso: string | null) {
     if (!iso) return ''
@@ -104,8 +105,8 @@ function ItemForm({initial, onSubmit, onCancel, busy, withStock}: {
                        onChange={e => setNote(e.target.value)}/>
             </div>
             <div className="flex gap-2">
-                <button type="button" className="btn-secondary flex-1" onClick={onCancel}>{t('action.cancel')}</button>
-                <button type="submit" className="btn-primary flex-1" disabled={!valid || busy}>{t('action.save')}</button>
+                <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>{t('action.cancel')}</Button>
+                <Button type="submit" variant="primary" className="flex-1" disabled={!valid || busy}>{t('action.save')}</Button>
             </div>
         </form>
     )
@@ -171,11 +172,11 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                    <Sheet open={mode === 'delete'} onClose={() => setMode('view')} title={t('zeugwart.delete')}>
                        <p className="text-sm text-ink mb-4">{t('zeugwart.deleteConfirm').replace('{name}', item.name)}</p>
                        <div className="flex gap-2">
-                           <button className="btn-secondary flex-1" onClick={() => setMode('view')}>{t('action.cancel')}</button>
-                           <button className="btn-danger flex-1" disabled={busy || !isOnline}
+                           <Button variant="secondary" className="flex-1" onClick={() => setMode('view')}>{t('action.cancel')}</Button>
+                           <Button variant="danger" className="flex-1" disabled={busy || !isOnline}
                                    onClick={() => run(() => api.deleteInventoryItem(item.id), 'zeugwart.saved', close)}>
                                {t('action.delete')}
-                           </button>
+                           </Button>
                        </div>
                    </Sheet>
                )}>
@@ -202,16 +203,16 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                                    value={note} maxLength={500} onChange={e => setNote(e.target.value)}/>
                             {recount ? (
                                 <div className="flex gap-2">
-                                    <button className="btn-secondary flex-1" onClick={() => setRecount(false)}>{t('action.cancel')}</button>
-                                    <button className="btn-primary flex-1" disabled={n == null || busy || !isOnline}
-                                            onClick={doRecount}>{t('action.save')}</button>
+                                    <Button variant="secondary" className="flex-1" onClick={() => setRecount(false)}>{t('action.cancel')}</Button>
+                                    <Button variant="primary" className="flex-1" disabled={n == null || busy || !isOnline}
+                                            onClick={doRecount}>{t('action.save')}</Button>
                                 </div>
                             ) : (
                                 <div className="flex gap-2">
-                                    <button className="btn-secondary flex-1" disabled={!n || busy || !isOnline}
-                                            onClick={() => book(-1)}>− {t('zeugwart.out')}</button>
-                                    <button className="btn-primary flex-1" disabled={!n || busy || !isOnline}
-                                            onClick={() => book(1)}>+ {t('zeugwart.in')}</button>
+                                    <Button variant="secondary" className="flex-1" disabled={!n || busy || !isOnline}
+                                            onClick={() => book(-1)}>− {t('zeugwart.out')}</Button>
+                                    <Button variant="primary" className="flex-1" disabled={!n || busy || !isOnline}
+                                            onClick={() => book(1)}>+ {t('zeugwart.in')}</Button>
                                 </div>
                             )}
                             {!recount && (
@@ -341,9 +342,9 @@ export function ZeugwartPage() {
                     <p className="text-xs text-muted">{t('zeugwart.hint')}</p>
                 </div>
                 {canEdit && (
-                    <button className="btn-primary flex-shrink-0" disabled={!isOnline} onClick={() => setAdding(true)}>
+                    <Button variant="primary" className="flex-shrink-0" disabled={!isOnline} onClick={() => setAdding(true)}>
                         + {t('zeugwart.add')}
-                    </button>
+                    </Button>
                 )}
             </div>
 

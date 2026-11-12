@@ -11,6 +11,7 @@ import {toastError} from '@/utils/error.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import type {ClubTrip, TripExpenses as TripExpensesData} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -104,9 +105,9 @@ function AddExpenseSheet({trip, open, onClose, expense}: {
                            onChange={e => setDay(e.target.value)}/>
                 </div>
                 {!expense && <p className="text-xs text-muted">{t('trip.expenses.addHint')}</p>}
-                <button type="submit" className="btn-primary w-full" disabled={saving || !valid}>
+                <Button type="submit" variant="primary" block disabled={saving || !valid}>
                     ✓ {t('action.save')}
-                </button>
+                </Button>
             </div>
         </Sheet>
     )
@@ -132,9 +133,9 @@ function DeleteExpenseSheet({trip, expense, onClose}: { trip: ClubTrip; expense:
         <Sheet open onClose={onClose} title={`🗑️ ${t('action.delete')}`}>
             <p className="text-sm text-ink mb-3">{t('trip.expenses.deleteConfirm')}</p>
             <p className="text-sm font-bold mb-4">{expense.description} · {fe(expense.amount)}</p>
-            <button type="button" className="btn-danger w-full" disabled={busy} onClick={remove}>
+            <Button type="button" variant="danger" block disabled={busy} onClick={remove}>
                 {t('action.delete')}
-            </button>
+            </Button>
         </Sheet>
     )
 }
@@ -209,10 +210,10 @@ export function TripExpenses({trip, canWrite = false}: { trip: ClubTrip; canWrit
             )}
             {canWrite && (
                 <>
-                    <button type="button" className="btn-secondary btn-xs mt-2" data-testid="trip-expense-add"
+                    <Button type="button" variant="secondary" size="xs" className="mt-2" data-testid="trip-expense-add"
                             onClick={() => setAdding(true)}>
                         ＋ {t('trip.expenses.add')}
-                    </button>
+                    </Button>
                     {adding && <AddExpenseSheet trip={trip} open onClose={() => setAdding(false)}/>}
                 </>
             )}

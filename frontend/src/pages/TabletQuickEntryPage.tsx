@@ -23,6 +23,7 @@ import {useThrowTracking, useAudioCallouts} from '@/hooks/useClub.ts'
 import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -589,9 +590,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             >
                 {/* Row 1: close + game identity + primary actions */}
                 <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                    <button type="button" className="btn-secondary btn-xs" onClick={onClose} aria-label={t('action.close')}>
+                    <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
                         ✕
-                    </button>
+                    </Button>
                     {activeGame ? (
                         <>
                             <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
@@ -613,15 +614,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             )}
                             <div style={{flex: 1, minWidth: 0}}/>
                             {activeGame.status === 'open' && (
-                                <button type="button" className="btn-primary btn-xs" onClick={handleStartGame}>
+                                <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
                                     ▶ {t('game.start')}
-                                </button>
+                                </Button>
                             )}
                             {activeGame.status === 'running' && (
-                                <button type="button" className="btn-secondary btn-xs"
+                                <Button type="button" variant="secondary" size="xs"
                                         onClick={() => setFinishGameOpen(f => !f)}>
                                     🏁 {t('quickEntry.finishGame')}
-                                </button>
+                                </Button>
                             )}
                         </>
                     ) : (
@@ -629,10 +630,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
                             <div style={{flex: 1, minWidth: 0}}/>
                             {!showNewGame && (
-                                <button type="button" className="btn-secondary btn-xs"
+                                <Button type="button" variant="secondary" size="xs"
                                         onClick={() => setShowNewGame(true)}>
                                     ＋ {t('quickEntry.newGame')}
-                                </button>
+                                </Button>
                             )}
                         </>
                     )}
@@ -700,19 +701,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         <div style={{flex: 1, minWidth: 0}}/>
                         {/* Block mode: switch team */}
                         {gameTurnMode === 'block' && teams.length >= 1 && (
-                            <button type="button" className="btn-primary btn-xs" onClick={switchTeam}>
+                            <Button type="button" variant="primary" size="xs" onClick={switchTeam}>
                                 ⇄ {t('quickEntry.switchTeam')}
                                 {teams.length > 1 && (
                                     <span style={{opacity: 0.75, marginLeft: 4}}>
                                         → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
                                     </span>
                                 )}
-                            </button>
+                            </Button>
                         )}
                         {/* Manual advance */}
-                        <button type="button" className="btn-secondary btn-xs" onClick={advanceTurn}>
+                        <Button type="button" variant="secondary" size="xs" onClick={advanceTurn}>
                             {t('quickEntry.advanceTurn')} ▶
-                        </button>
+                        </Button>
                     </div>
                 )}
 
@@ -826,16 +827,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             })}
                             {/* Heatmap toggle */}
                             {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
-                                <button
+                                <Button
                                     type="button"
-                                    className="btn-secondary btn-xs"
+                                    variant="secondary" size="xs"
                                     aria-label={t('quickEntry.heatmap')}
                                     aria-pressed={showHeatmap}
                                     style={{flexShrink: 0, fontSize: 12, marginLeft: 2}}
                                     onClick={() => setShowHeatmap(h => !h)}
                                 >
                                     🎯
-                                </button>
+                                </Button>
                             )}
                         </div>
                         {/* Pin heatmap */}
@@ -1006,15 +1007,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             </div>
                         )}
                         <div style={{display: 'flex', gap: 6}}>
-                            <button className="btn-secondary btn-sm" style={{flex: 1}}
+                            <Button variant="secondary" size="sm" style={{flex: 1}}
                                     onClick={() => { setFinishGameOpen(false); setFinishWinnerRef(''); setFinishScores({}) }}>
                                 {t('action.cancel')}
-                            </button>
-                            <button className="btn-primary btn-sm" style={{flex: 1}}
+                            </Button>
+                            <Button variant="primary" size="sm" style={{flex: 1}}
                                     disabled={!finishWinnerRef || finishSaving}
                                     onClick={handleFinishGame}>
                                 ✓ {t('game.finish')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -1036,13 +1037,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 </button>
                             ))}
                         </div>
-                        <button
+                        <Button
                             type="button"
-                            className="btn-secondary btn-xs"
+                            variant="secondary" size="xs"
                             onClick={() => setShowNewGame(false)}
                         >
                             {t('action.cancel')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </div>
@@ -1081,20 +1082,20 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     ? t('quickEntry.selectPlayer')
                                     : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
                             </span>
-                            <button
+                            <Button
                                 type="button"
-                                className="btn-secondary btn-xs"
+                                variant="secondary" size="xs"
                                 onClick={() => setSelectedPlayerIds(sortedPlayers.map(p => p.id))}
                             >
                                 {t('action.all')}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
-                                className="btn-secondary btn-xs"
+                                variant="secondary" size="xs"
                                 onClick={() => setSelectedPlayerIds([])}
                             >
                                 {t('action.none')}
-                            </button>
+                            </Button>
                         </div>
 
                         {/* Player buttons */}

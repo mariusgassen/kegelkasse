@@ -7,6 +7,7 @@ import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {SeasonSnapshot} from '@/types'
 import {SkeletonRows} from '@/components/ui/Skeleton'
+import {Button} from '@/components/ui/Button.tsx'
 
 type Balance = {
     regular_member_id: number
@@ -160,13 +161,13 @@ export function SeasonTab() {
                             {t('season.alreadyClosed').replace('{year}', String(year))}
                         </p>
                     ) : (
-                        <button
+                        <Button
                             type="button"
-                            className="btn-primary w-full"
+                            variant="primary" block
                             onClick={startWizard}
                         >
                             {t('season.close').replace('{year}', String(year))}
-                        </button>
+                        </Button>
                     )}
                 </div>
 
@@ -250,13 +251,13 @@ export function SeasonTab() {
                     </div>
                 )}
 
-                <button
+                <Button
                     type="button"
-                    className="btn-primary w-full"
+                    variant="primary" block
                     onClick={() => setStep('confirm')}
                 >
                     {t('action.continue')} →
-                </button>
+                </Button>
             </div>
         )
     }
@@ -319,15 +320,15 @@ export function SeasonTab() {
                     />
                 </div>
 
-                <button
+                <Button
                     type="button"
-                    className="btn-primary w-full"
+                    variant="primary" block
                     style={{background: loading ? undefined : '#c0392b'}}
                     disabled={loading}
                     onClick={handleConfirm}
                 >
                     {loading ? t('season.loading') : t('season.confirm')}
-                </button>
+                </Button>
             </div>
         )
     }
@@ -351,12 +352,12 @@ export function SeasonTab() {
                 </div>
             )}
 
-            <button type="button" className="btn-primary w-full" onClick={handleDownloadPdf}>
+            <Button type="button" variant="primary" block onClick={handleDownloadPdf}>
                 {t('season.done.download')}
-            </button>
-            <button type="button" className="btn-secondary w-full" onClick={reset}>
+            </Button>
+            <Button type="button" variant="secondary" block onClick={reset}>
                 {t('season.done.back')}
-            </button>
+            </Button>
         </div>
     )
 }
@@ -417,14 +418,14 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
                 <span>{t('season.snapshot.carryOver').replace('{n}', String(snap.carry_over_count))}</span>
             </div>
             {snap.notes && <p className="text-xs text-muted italic">{snap.notes}</p>}
-            <button
+            <Button
                 type="button"
-                className="btn-secondary w-full text-xs py-1.5"
+                variant="secondary" block className="text-xs py-1.5"
                 disabled={downloading}
                 onClick={download}
             >
                 {downloading ? '…' : `📄 ${t('season.snapshot.download')}`}
-            </button>
+            </Button>
             {confirmReopen ? (
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-amber-400">

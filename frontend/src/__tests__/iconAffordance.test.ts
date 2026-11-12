@@ -150,7 +150,7 @@ describe('touch affordance', () => {
         for (const file of FILES) {
             const source = readFileSync(file, 'utf-8')
             for (const tag of scanTags(source)) {
-                if (tag.name !== 'button') continue
+                if (tag.name !== 'button' && tag.name !== 'Button') continue
                 if (/(^|\s)aria-label(?:ledby)?=/.test(tag.attrs)) continue
                 const text = elementBody(source, tag).replace(/<[^>]*>/g, '').trim()
                 if (!ICON_ONLY.test(text)) continue

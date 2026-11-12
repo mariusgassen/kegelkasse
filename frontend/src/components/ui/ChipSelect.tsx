@@ -1,5 +1,6 @@
 import type {ReactNode} from 'react'
 import {useT} from '@/i18n'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface Option {
     id: number | string;
@@ -30,9 +31,9 @@ export function ChipSelect({options, selected, onChange, onSelectAll, onSelectNo
           </span>
                     <div className="ml-auto flex gap-1.5">
                         {onSelectAll &&
-                            <button type="button" className="btn-secondary btn-xs" onClick={onSelectAll}>{t('action.all')}</button>}
-                        {onSelectNone && <button type="button" className="btn-secondary btn-xs"
-                                                 onClick={onSelectNone}>{t('action.none')}</button>}
+                            <Button type="button" variant="secondary" size="xs" onClick={onSelectAll}>{t('action.all')}</Button>}
+                        {onSelectNone && <Button type="button" variant="secondary" size="xs"
+                                                 onClick={onSelectNone}>{t('action.none')}</Button>}
                     </div>
                 </div>
             )}

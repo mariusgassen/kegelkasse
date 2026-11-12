@@ -101,6 +101,7 @@ function resizeToBase64(file: File, size = 256): Promise<string> {
 }
 
 import type {EveningThrowSummary} from '@/types'
+import {Button} from '@/components/ui/Button.tsx'
 
 function ThrowTrendMini({evenings}: { evenings: EveningThrowSummary[] }) {
     const avgs = evenings.map(e => e.avg_pins)
@@ -482,11 +483,11 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                                 />
                                             </div>
                                             <div className="flex gap-2">
-                                                <button className="btn-secondary flex-1 btn-sm"
+                                                <Button variant="secondary" size="sm" className="flex-1"
                                                         onClick={() => { setReportingPayment(false); setPaymentAmount('') }}>
                                                     {t('action.cancel')}
-                                                </button>
-                                                <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                </Button>
+                                                <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                                     const amt = paymentAmount.trim()
                                                         ? parseFloat(paymentAmount.replace(',', '.'))
                                                         : debtAmount
@@ -502,14 +503,14 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                                     } catch (e) { toastError(e) }
                                                 }}>
                                                     {t('profile.reportPayment')}
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     )}
                                     {!reportingPayment && (
-                                        <button className="btn-secondary w-full text-sm" onClick={() => setReportingPayment(true)}>
+                                        <Button variant="secondary" block className="text-sm" onClick={() => setReportingPayment(true)}>
                                             {t('profile.reportPayment')}
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
                             )}
@@ -958,9 +959,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         </div>
                     )}
 
-                    <button className="btn-primary w-full" disabled={saving} onClick={save}>
+                    <Button variant="primary" block disabled={saving} onClick={save}>
                         {saving ? t('action.saving') : t('action.save')}
-                    </button>
+                    </Button>
                     <button
                         type="button"
                         onClick={() => setWhatsNewOpen(true)}
@@ -1031,15 +1032,15 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         <div className="kce-card p-3 flex flex-col gap-2">
                             <p className="text-xs text-center text-muted">{t('profile.deleteConfirm')}</p>
                             <div className="flex gap-2">
-                                <button className="btn-secondary flex-1 btn-sm"
+                                <Button variant="secondary" size="sm" className="flex-1"
                                         onClick={() => setConfirmDelete(false)}>{t('action.cancel')}
-                                </button>
-                                <button className="btn-secondary flex-1 btn-sm text-danger-fg/70" onClick={async () => {
+                                </Button>
+                                <Button variant="secondary" size="sm" className="flex-1 text-danger-fg/70" onClick={async () => {
                                     await api.deleteAccount()
                                     await api.logout()
                                     setUser(null)
                                 }}>{t('action.confirmDelete')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}

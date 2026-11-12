@@ -23,7 +23,7 @@ export interface Primitive {
 
 /** What already exists as a shared building block. */
 export const PRIMITIVES: Primitive[] = [
-    {name: 'btn-primary / btn-secondary / btn-danger', source: 'index.css', status: 'css-class', use: 'Buttons. Sizes via btn-sm / btn-xs.', uses: '120 / 123 / 27'},
+    {name: '<Button>', source: 'ui/Button.tsx', status: 'component', use: 'The one button: variant primary|secondary|danger, size md|sm|xs, block. Wraps the btn-* classes.', uses: '259 in 36 files'},
     {name: 'btn-ghost', source: 'index.css', status: 'css-class', use: 'Defined, never used (dead).', uses: '0'},
     {name: 'kce-card', source: 'index.css', status: 'css-class', use: 'Card surface (16px radius, 1px line).', uses: '163'},
     {name: 'kce-input', source: 'index.css', status: 'css-class', use: 'Text input, select and textarea.', uses: '161'},
@@ -77,8 +77,8 @@ export const DUPLICATES: Duplicate[] = [
     {
         id: 'buttons',
         title: 'Buttons',
-        finding: 'Buttons are CSS classes, not a component, so variants are inconsistent: btn-danger is smaller than btn-primary (px-3 py-2 text-xs vs px-4 py-2.5 text-sm), has no disabled style, and btn-ghost is dead. 57 call sites add "w-full" by hand. 140 <button> elements carry no shared class at all (icon buttons, rows, ad-hoc pills).',
-        count: '489 <button> in 61 files; 140 outside btn-/chip',
+        finding: '<Button> now wraps the btn-* classes (259 call sites migrated). Still open: btn-danger is smaller than btn-primary and has no disabled style, btn-ghost is dead, and ~140 <button> elements (icon buttons, rows, ad-hoc pills) carry no shared class.',
+        count: '~140 <button> outside Button/chip',
         where: 'everywhere',
         proposal: '<Button variant="primary|secondary|danger|ghost" size="md|sm|xs" block busy leadingIcon> keeping the CSS classes underneath so nothing moves visually',
         priority: 2,
@@ -197,6 +197,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. <Button>', why: 'Wraps the existing classes; fixes btn-danger sizing, drops btn-ghost, then the 57 "w-full" can become `block`.'},
-    {step: '2. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+        {step: '1. Fold ModeToggle into <Tabs>, adopt <Empty>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
 ]

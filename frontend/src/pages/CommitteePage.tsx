@@ -27,6 +27,7 @@ import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
 import {Tabs} from '@/components/ui/Tabs'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fDateTime(isoStr: string) {
     return new Date(isoStr).toLocaleString('de-DE', {
@@ -137,9 +138,9 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
     return (
         <div>
             {canWrite && (
-                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
                     + {t('committee.announcement.add')}
-                </button>
+                </Button>
             )}
 
             <input
@@ -236,9 +237,9 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                 onRemove={() => setMediaUrl(null)}
                             />
                         </div>
-                        <button type="submit" className="btn-primary w-full" disabled={!title.trim() || saving}>
+                        <Button type="submit" variant="primary" block disabled={!title.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -248,10 +249,10 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
-                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -360,9 +361,9 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     return (
         <div>
             {canWrite && (
-                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
                     + {t('committee.trip.add')}
-                </button>
+                </Button>
             )}
 
             <input
@@ -420,9 +421,9 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                     <div className="flex flex-col gap-3">
                         <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
                                         onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
-                        <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
+                        <Button type="submit" variant="primary" block disabled={!destination.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -433,9 +434,9 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                     <div className="flex flex-col gap-3">
                         <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
                                         onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
-                        <button type="submit" className="btn-primary w-full" disabled={!destination.trim() || saving}>
+                        <Button type="submit" variant="primary" block disabled={!destination.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -445,10 +446,10 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
-                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -686,9 +687,9 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
     return (
         <div>
             {canWrite && (
-                <button className="btn-primary w-full mb-4" onClick={() => setAddOpen(true)}>
+                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
                     + {t('committee.poll.add')}
-                </button>
+                </Button>
             )}
 
             {isLoading && <SkeletonCard className="mb-2"/>}
@@ -796,12 +797,12 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                             {!poll.is_closed && (
                                 <div className="mt-3 flex gap-2">
                                     {!voted ? (
-                                        <button
-                                            className="btn-primary text-xs py-1.5 px-4"
+                                        <Button
+                                            variant="primary" className="text-xs py-1.5 px-4"
                                             disabled={selected.length === 0 || voting === poll.id}
                                             onClick={() => handleVote(poll)}>
                                             {voting === poll.id ? t('action.saving') : t('committee.poll.vote')}
-                                        </button>
+                                        </Button>
                                     ) : (
                                         <button
                                             className="text-xs text-muted hover:text-danger-fg underline"
@@ -892,12 +893,12 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                         {newOptions.map(o => o.trim()).filter(Boolean).length < 2 && (
                             <p className="text-xs text-danger-fg">{t('committee.poll.minOptions')}</p>
                         )}
-                        <button
+                        <Button
                             type="submit"
-                            className="btn-primary w-full"
+                            variant="primary" block
                             disabled={!newTitle.trim() || newOptions.map(o => o.trim()).filter(Boolean).length < 2 || saving}>
                             {saving ? t('action.saving') : t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -907,10 +908,10 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.poll.deleteConfirm')}</p>
-                        <button className="btn-primary w-full" style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: '#c0392b'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}

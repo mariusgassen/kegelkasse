@@ -3,6 +3,7 @@ import {ImagePlus, Loader2, X} from 'lucide-react'
 import {uploadMedia} from '@/api/client'
 import {toastError} from '@/utils/error'
 import {useT} from '@/i18n'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface Props {
     /** Called with the uploaded URL once the file is successfully uploaded. */
@@ -68,9 +69,9 @@ export function MediaUploadButton({onUploaded, value, onRemove, onFile}: Props) 
                 className="hidden"
                 onChange={handleFile}
             />
-            <button
+            <Button
                 type="button"
-                className="btn-secondary btn-xs flex-shrink-0 flex items-center gap-1"
+                variant="secondary" size="xs" className="flex-shrink-0 flex items-center gap-1"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploading}
                 aria-label={t('media.attach')}
@@ -78,7 +79,7 @@ export function MediaUploadButton({onUploaded, value, onRemove, onFile}: Props) 
                 {uploading
                     ? <Loader2 size={16} strokeWidth={2} className="animate-spin" aria-hidden="true"/>
                     : <ImagePlus size={16} strokeWidth={2} aria-hidden="true"/>}
-            </button>
+            </Button>
         </>
     )
 }
