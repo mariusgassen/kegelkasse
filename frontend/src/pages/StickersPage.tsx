@@ -12,6 +12,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {useT, useI18n} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
@@ -509,14 +510,8 @@ export function StickersPage() {
             )}
 
             {delId !== null && (
-                <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('stickers.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full" onClick={() => handleDelete(delId)}>
-                            {t('action.confirmDelete')}
-                        </button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setDelId(null)} title={t('action.delete')}
+                              message={t('stickers.deleteConfirm')} onConfirm={() => handleDelete(delId)}/>
             )}
         </div>
     )

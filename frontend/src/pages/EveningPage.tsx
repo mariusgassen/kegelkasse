@@ -7,6 +7,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {router} from '@/router'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -384,36 +385,30 @@ export function EveningPage() {
 
             {/* Remove player confirm */}
             {confirmRemovePlayerId !== null && (
-                <Sheet open onClose={() => setConfirmRemovePlayerId(null)} title={t('player.removeConfirm')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-danger-fg text-sm">⚠️ {t('player.removeWarning')}</p>
-                        <button type="button" className="btn-danger w-full" onClick={async () => {
-                            const pid = confirmRemovePlayerId
-                            setConfirmRemovePlayerId(null)
-                            try {
-                                await api.removePlayer(evening.id, pid)
-                                invalidate()
-                            } catch (e) { toastError(e) }
-                        }}>{t('action.confirmDelete')}</button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmRemovePlayerId(null)} title={t('player.removeConfirm')} warning
+                              message={<>⚠️ {t('player.removeWarning')}</>}
+                              onConfirm={async () => {
+                                  const pid = confirmRemovePlayerId
+                                  setConfirmRemovePlayerId(null)
+                                  try {
+                                      await api.removePlayer(evening.id, pid)
+                                      invalidate()
+                                  } catch (e) { toastError(e) }
+                              }}/>
             )}
 
             {/* Delete team confirm */}
             {confirmDeleteTeamId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteTeamId(null)} title={t('action.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('team.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full" onClick={async () => {
-                            const tid = confirmDeleteTeamId
-                            setConfirmDeleteTeamId(null)
-                            try {
-                                await api.deleteTeam(evening.id, tid)
-                                invalidate()
-                            } catch (e) { toastError(e) }
-                        }}>{t('action.confirmDelete')}</button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteTeamId(null)} title={t('action.delete')}
+                              message={t('team.deleteConfirm')}
+                              onConfirm={async () => {
+                                  const tid = confirmDeleteTeamId
+                                  setConfirmDeleteTeamId(null)
+                                  try {
+                                      await api.deleteTeam(evening.id, tid)
+                                      invalidate()
+                                  } catch (e) { toastError(e) }
+                              }}/>
             )}
 
             {/* ── Highlights ── */}
@@ -453,19 +448,16 @@ export function EveningPage() {
 
             {/* Delete highlight confirm */}
             {confirmDeleteHighlightId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteHighlightId(null)} title={t('highlight.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('highlight.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full" onClick={async () => {
-                            const hid = confirmDeleteHighlightId
-                            setConfirmDeleteHighlightId(null)
-                            try {
-                                await api.deleteHighlight(evening.id, hid)
-                                invalidate()
-                            } catch (e) { toastError(e) }
-                        }}>{t('action.confirmDelete')}</button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteHighlightId(null)} title={t('highlight.delete')}
+                              message={t('highlight.deleteConfirm')}
+                              onConfirm={async () => {
+                                  const hid = confirmDeleteHighlightId
+                                  setConfirmDeleteHighlightId(null)
+                                  try {
+                                      await api.deleteHighlight(evening.id, hid)
+                                      invalidate()
+                                  } catch (e) { toastError(e) }
+                              }}/>
             )}
             {!evening.is_closed && (
                 <div className="flex flex-col gap-1.5 mb-4">

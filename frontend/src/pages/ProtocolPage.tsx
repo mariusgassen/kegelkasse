@@ -5,6 +5,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {ChipSelect} from '@/components/ui/ChipSelect.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -622,15 +623,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
             {/* Delete penalty confirm */}
             {confirmDeleteId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('penalty.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full"
-                                onClick={() => confirmDelete(confirmDeleteId)}>
-                            {t('action.confirmDelete')}
-                        </button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteId(null)} title={t('action.delete')}
+                              message={t('penalty.deleteConfirm')} onConfirm={() => confirmDelete(confirmDeleteId)}/>
             )}
 
             {/* ── GETRÄNKE section ── */}
@@ -674,15 +668,8 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
             {/* Delete drink round confirm */}
             {confirmDeleteDrinkId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteDrinkId(null)} title={t('action.delete')}>
-                    <div className="flex flex-col gap-3">
-                        <p className="text-muted text-sm">{t('drinks.deleteConfirm')}</p>
-                        <button type="button" className="btn-danger w-full"
-                                onClick={() => confirmDeleteDrink(confirmDeleteDrinkId)}>
-                            {t('action.confirmDelete')}
-                        </button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteDrinkId(null)} title={t('action.delete')}
+                              message={t('drinks.deleteConfirm')} onConfirm={() => confirmDeleteDrink(confirmDeleteDrinkId)}/>
             )}
 
             {/* Add penalty sheet */}
