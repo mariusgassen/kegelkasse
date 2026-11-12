@@ -17,6 +17,16 @@ Unter **`/roadmap`** können Mitglieder und Admins:
    - Entwicklungs- und Admin-Notizen für die Community hinterlegen
 6. **Rollenmanagement:** Superadmins können direkt über die Roadmap oder die Vereinsverwaltung neue Produktmanager (`product_manager`) oder weitere Superadmins ernennen.
 
+## Regeln
+
+- **Sichtbarkeit:** Offizielle Einträge sehen alle, Ideen eines Vereins nur dessen Mitglieder. Produktmanager und Superadmins sehen alle Vereine.
+- **Moderation:** Status, Pin, Duplikat, Notizen und Zielversion ändern Produktmanager, Superadmins und Admins des eigenen Vereins (bei dessen Ideen). Offizielle Einträge nur Produktmanager und Superadmins.
+- **Eigene Ideen** bearbeitet der Einreicher, solange sie im Ideenpool stehen. Danach nur noch die Moderation.
+- **Abstimmen** geht nicht bei verworfenen Ideen und Duplikaten (die Stimme zurücknehmen schon). Stimmen von Duplikaten zählen für das Hauptfeature, jede Person nur einmal.
+- **Grenzen:** Titel 200, Beschreibung 4000 Zeichen, bis zu 8 Tags (je 30 Zeichen), höchstens 10 neue Ideen pro Stunde und Person.
+- **Rückmeldung:** Ändert sich Status oder Notiz einer Idee, bekommt der Einreicher eine Benachrichtigung (Profil → Einstellungen → „Meine Roadmap-Ideen").
+- Beim Löschen einer Idee verschwinden auch ihre Kommentare.
+
 ## Aktuelle Kern-Meilensteine
 
 | Meilenstein | Phase | Notiz |
