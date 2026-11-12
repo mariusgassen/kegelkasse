@@ -26,6 +26,7 @@ import {TabletQuickEntryPage} from './TabletQuickEntryPage'
 import {LiveEveningView} from '@/components/evening/LiveEveningView.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 type SubTab = 'live' | 'penalties' | 'games' | 'highlights' | 'manage'
 
@@ -127,18 +128,18 @@ export function EveningHubPage() {
 
                 {/* End / reopen evening — always accessible in the tab bar */}
                 {!isClosed ? (
-                    <button
-                        className="btn-secondary btn-xs flex-shrink-0 ml-1"
+                    <Button
+                        variant="secondary" size="xs" className="flex-shrink-0 ml-1"
                         onClick={() => openCloseConfirm(evening?.ended_at)}>
                         {t('evening.end')}
-                    </button>
+                    </Button>
                 ) : (
-                    <button
-                        className="btn-secondary btn-xs flex-shrink-0 ml-1"
+                    <Button
+                        variant="secondary" size="xs" className="flex-shrink-0 ml-1"
                         disabled={closing}
                         onClick={reopen}>
                         {t('evening.reopen')}
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -157,14 +158,14 @@ export function EveningHubPage() {
                         <p className="text-xs text-muted mt-1">{t('evening.endedAtHint')}</p>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary btn-sm flex-1" disabled={closing}
+                        <Button type="button" variant="secondary" size="sm" className="flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>
                             {t('action.cancel')}
-                        </button>
-                        <button type="button" className="btn-primary btn-sm flex-1" disabled={closing}
+                        </Button>
+                        <Button type="button" variant="primary" size="sm" className="flex-1" disabled={closing}
                                 onClick={confirmClose}>
                             {t('action.done')}
-                        </button>
+                        </Button>
                     </div>
                 </Sheet>
             )}
@@ -223,12 +224,12 @@ export function EveningHubPage() {
                                             onUploaded={setHighlightMediaUrl}
                                             onRemove={() => setHighlightMediaUrl(null)}
                                         />
-                                        <button className="btn-primary btn-sm flex-shrink-0"
+                                        <Button variant="primary" size="sm" className="flex-shrink-0"
                                                 disabled={(!highlightText.trim() && !highlightMediaUrl) || addingHighlight}
                                                 aria-label={t('highlight.add')}
                                                 onClick={addHighlight}>
                                             <Plus size={16} strokeWidth={2.5} aria-hidden="true"/>
-                                        </button>
+                                        </Button>
                                     </div>
                                     {highlightMediaUrl && (
                                         <img src={highlightMediaUrl} alt=""
@@ -253,14 +254,14 @@ export function EveningHubPage() {
                                                     {h.text && <div className="text-sm mt-1">{h.text}</div>}
                                                 </div>
                                                 {!isClosed && (
-                                                    <button className="btn-danger btn-xs flex-shrink-0"
+                                                    <Button variant="danger" size="xs" className="flex-shrink-0"
                                                             aria-label={t('highlight.delete')}
                                                             onClick={async () => {
                                                                 try {
                                                                     await api.deleteHighlight(evening.id, h.id)
                                                                     invalidate()
                                                                 } catch (e) { toastError(e) }
-                                                            }}>✕</button>
+                                                            }}>✕</Button>
                                                 )}
                                             </div>
                                             <ItemReactionBar

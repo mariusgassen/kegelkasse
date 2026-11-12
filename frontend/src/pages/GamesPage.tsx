@@ -17,6 +17,7 @@ import {useThrowTracking} from '@/hooks/useClub.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {Game, TurnMode, WinnerType} from '@/types.ts'
 import {CameraCapturePage} from '@/pages/CameraCapturePage.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -321,21 +322,21 @@ export function GamesPage() {
                     <span className="text-xs text-amber-400 flex-1">
                         ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
                     </span>
-                    <button className="btn-secondary btn-xs flex-shrink-0"
+                    <Button variant="secondary" size="xs" className="flex-shrink-0"
                             onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
                         → {t('nav.evening')}
-                    </button>
+                    </Button>
                 </div>
             )}
 
             <div className="flex gap-2 mb-4">
-                <button className="btn-primary flex-1" onClick={openAddSheet}>
+                <Button variant="primary" className="flex-1" onClick={openAddSheet}>
                     + {t('game.add')}
-                </button>
+                </Button>
                 {isAdmin(user) && throwTracking && (
-                    <button className="btn-secondary" aria-label={t('camera.title')} onClick={() => setCameraOpen(true)}>
+                    <Button variant="secondary" aria-label={t('camera.title')} onClick={() => setCameraOpen(true)}>
                         <Camera size={16} strokeWidth={2} aria-hidden="true"/>
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -408,19 +409,19 @@ export function GamesPage() {
                             else (edit, times, delete) lives behind the shared ⋮ menu. */}
                         <div className="flex items-center gap-1 justify-end">
                             {game.status === 'open' && (
-                                <button className="btn-primary btn-sm" onClick={() => startGame(game.id)}>
+                                <Button variant="primary" size="sm" onClick={() => startGame(game.id)}>
                                     ▶ {t('game.start')}
-                                </button>
+                                </Button>
                             )}
                             {game.status === 'running' && (
-                                <button className="btn-primary btn-sm" onClick={() => openFinishSheet(game)}>
+                                <Button variant="primary" size="sm" onClick={() => openFinishSheet(game)}>
                                     🏁 {t('game.finish')}
-                                </button>
+                                </Button>
                             )}
                             {game.status === 'finished' && (
-                                <button className="btn-secondary btn-sm" onClick={() => openFinishSheet(game)}>
+                                <Button variant="secondary" size="sm" onClick={() => openFinishSheet(game)}>
                                     ✏️ {t('game.editResult')}
-                                </button>
+                                </Button>
                             )}
                             <CardActionMenu
                                 title={game.name}
@@ -565,10 +566,10 @@ export function GamesPage() {
                         </label>
                     )}
 
-                    <button type="submit" className="btn-primary w-full mt-1"
+                    <Button type="submit" variant="primary" block className="mt-1"
                             disabled={saving || !gameName.trim()}>
                         {t('action.add')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -699,10 +700,10 @@ export function GamesPage() {
                             </div>
                         )}
 
-                        <button type="submit" className="btn-primary w-full mt-1"
+                        <Button type="submit" variant="primary" block className="mt-1"
                                 disabled={saving || !winnerRef}>
                             {finishTarget.status === 'finished' ? t('action.save') : t('game.finish')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </Sheet>
@@ -794,9 +795,9 @@ export function GamesPage() {
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}
                                placeholder="…"/>
                     </div>
-                    <button type="submit" className="btn-primary w-full mt-1"
+                    <Button type="submit" variant="primary" block className="mt-1"
                             disabled={saving}>{t('action.save')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -818,9 +819,9 @@ export function GamesPage() {
                                        onChange={e => setEditFinishedAt(e.target.value)}/>
                             </div>
                         )}
-                        <button type="submit" className="btn-primary w-full mt-1"
+                        <Button type="submit" variant="primary" block className="mt-1"
                                 disabled={saving}>{t('action.save')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </Sheet>

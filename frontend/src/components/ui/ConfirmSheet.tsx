@@ -1,6 +1,7 @@
 import type {ReactNode} from 'react'
 import {Sheet} from './Sheet.tsx'
 import {useT} from '@/i18n'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface ConfirmSheetProps {
     open: boolean
@@ -22,9 +23,9 @@ export function ConfirmSheet({open, onClose, title, message, onConfirm, confirmL
         <Sheet open={open} onClose={onClose} title={title}>
             <div className="flex flex-col gap-3">
                 <p className={`text-sm ${warning ? 'text-danger-fg' : 'text-muted'}`}>{message}</p>
-                <button type="button" className="btn-danger w-full" disabled={busy} onClick={onConfirm}>
+                <Button type="button" variant="danger" block disabled={busy} onClick={onConfirm}>
                     {confirmLabel ?? t('action.confirmDelete')}
-                </button>
+                </Button>
             </div>
         </Sheet>
     )

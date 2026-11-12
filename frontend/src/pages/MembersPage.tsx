@@ -20,6 +20,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import type {RegularMember} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 type MemberAction = SheetAction
 
@@ -421,9 +422,9 @@ export function MembersPage() {
                 <div className="sec-heading mb-0">{t('member.appUsers')}</div>
                 <div className="flex gap-1">
                     {admin && (
-                        <button className="btn-secondary btn-xs" disabled={!isOnline} onClick={openGeneralInvite}>
+                        <Button variant="secondary" size="xs" disabled={!isOnline} onClick={openGeneralInvite}>
                             📨 {t('club.tab.invites')}
-                        </button>
+                        </Button>
                     )}
                     {admin && inactiveUsers.length > 0 && (
                         <button
@@ -503,10 +504,10 @@ export function MembersPage() {
                                 <div className="text-sm font-bold truncate line-through">{u.name}</div>
                             </div>
                             {admin && (
-                                <button className="btn-secondary btn-xs opacity-100"
+                                <Button variant="secondary" size="xs" className="opacity-100"
                                         onClick={() => handleReactivate(u.id)}>
                                     {t('member.reactivate')}
-                                </button>
+                                </Button>
                             )}
                         </div>
                     ))}
@@ -517,7 +518,7 @@ export function MembersPage() {
             <div className="flex items-center justify-between mt-4 mb-3">
                 <div className="sec-heading mb-0">{t('member.roster')}</div>
                 {admin && (
-                    <button className="btn-secondary btn-xs" onClick={openNew}>+ {t('member.add')}</button>
+                    <Button variant="secondary" size="xs" onClick={openNew}>+ {t('member.add')}</Button>
                 )}
             </div>
             <p className="text-xs text-muted mb-3">
@@ -660,13 +661,13 @@ export function MembersPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setRemoveConfirm(null)}>
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => setRemoveConfirm(null)}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-primary btn-sm flex-1"
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1"
                                 onClick={() => removeConfirm && remove(removeConfirm)}>
                             {t('member.removeFromClub')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -698,13 +699,13 @@ export function MembersPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setPromoteConfirm(null)}>
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => setPromoteConfirm(null)}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-primary btn-sm flex-1"
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1"
                                 onClick={() => promoteConfirm && promote(promoteConfirm)}>
                             ⬆️ {t('member.reactivateRoster')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -732,13 +733,13 @@ export function MembersPage() {
                         />
                     </div>
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setDeactivateConfirm(null)}>
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => setDeactivateConfirm(null)}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-primary btn-sm flex-1"
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1"
                                 onClick={() => deactivateConfirm && deactivate(deactivateConfirm)}>
                             ⏸️ {t('member.action.deactivateRoster')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -755,13 +756,13 @@ export function MembersPage() {
                         </div>
                     )}
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1" onClick={() => setPurgeConfirm(null)} disabled={purging}>
+                        <Button variant="secondary" size="sm" className="flex-1" onClick={() => setPurgeConfirm(null)} disabled={purging}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-primary btn-sm flex-1" disabled={purging}
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1" disabled={purging}
                                 onClick={() => purgeConfirm && purgePenalties(purgeConfirm)}>
                             🧹 {t('member.action.purgePenalties')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -786,13 +787,13 @@ export function MembersPage() {
                     {availableForLink.length === 0 && (
                         <p className="text-xs text-muted text-center py-2">{t('member.allLinked')}</p>
                     )}
-                    <button className="btn-secondary btn-sm mt-1"
+                    <Button variant="secondary" size="sm" className="mt-1"
                             onClick={async () => {
                                 await handleAutoCreateRoster(linkUserId!, linkUserName);
                                 setLinkSheet(false)
                             }}>
                         + {t('member.createRosterEntry')} „{linkUserName}"
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -836,14 +837,14 @@ export function MembersPage() {
                                 {inviteUrl}
                             </div>
                             <div className="flex gap-2">
-                                <button className="btn-secondary btn-sm flex-1" onClick={() => {
+                                <Button variant="secondary" size="sm" className="flex-1" onClick={() => {
                                     navigator.clipboard.writeText(inviteUrl)
                                     setCopied(true)
                                     setTimeout(() => setCopied(false), 2000)
-                                }}>{copied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</button>
-                                <button className="btn-primary btn-sm flex-1" onClick={async () => {
+                                }}>{copied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</Button>
+                                <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                     await shareOrCopy(inviteUrl, `Kegelkasse Einladung für ${inviteName}`)
-                                }}>📤 {t('share.button')}</button>
+                                }}>📤 {t('share.button')}</Button>
                             </div>
                         </>
                     )}
@@ -868,14 +869,14 @@ export function MembersPage() {
                                 {resetUrl}
                             </div>
                             <div className="flex gap-2">
-                                <button className="btn-secondary btn-sm flex-1" onClick={() => {
+                                <Button variant="secondary" size="sm" className="flex-1" onClick={() => {
                                     navigator.clipboard.writeText(resetUrl)
                                     setResetCopied(true)
                                     setTimeout(() => setResetCopied(false), 2000)
-                                }}>{resetCopied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</button>
-                                <button className="btn-primary btn-sm flex-1" onClick={async () => {
+                                }}>{resetCopied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</Button>
+                                <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                     await shareOrCopy(resetUrl, `${resetUserName} — Passwort zurücksetzen`)
-                                }}>📤 {t('share.button')}</button>
+                                }}>📤 {t('share.button')}</Button>
                             </div>
                         </>
                     )}
@@ -896,9 +897,9 @@ export function MembersPage() {
                                placeholder="z.B. Kapitän, Aufschläger…"/>
                         {editing && <NicknameSuggestions memberId={editing.id} onPick={setNickname}/>}
                     </div>
-                    <button type="submit" className="btn-primary w-full" disabled={saving || !name.trim()}>
+                    <Button type="submit" variant="primary" block disabled={saving || !name.trim()}>
                         {t('action.save')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
         </div>

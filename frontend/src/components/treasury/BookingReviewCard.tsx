@@ -6,6 +6,7 @@ import {useOnline} from '@/hooks/useOnline.ts'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {BookingFlag, BookingFlagSeverity, BookingReview} from '@/types.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -100,10 +101,10 @@ export function BookingReviewCard({initialStart, initialEnd}: { initialStart?: s
                            onChange={e => setEnd(e.target.value)}/>
                 </div>
             </div>
-            <button type="button" className="btn-primary btn-sm w-full mb-2" onClick={run}
+            <Button type="button" variant="primary" size="sm" block className="mb-2" onClick={run}
                     disabled={loading || !online || !start || !end}>
                 {loading ? t('ai.review.running') : t('ai.review.run')}
-            </button>
+            </Button>
             {result && (
                 result.flags.length === 0
                     ? <p className="text-sm text-muted">{t('ai.review.clean').replace('{n}', String(result.booking_count))}</p>

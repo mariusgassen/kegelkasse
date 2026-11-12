@@ -33,6 +33,7 @@ import {useAppStore} from '@/store/app.ts'
 import {useClub} from '@/hooks/useClub.ts'
 import type {MapStyle, Sticker} from '@/types.ts'
 import type {LatLng} from '@/components/stickers/StickerMap.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 // Leaflet is ~150 KB; only fetch it when the map or the location picker is actually shown.
 const StickerMap = lazy(() => import('@/components/stickers/StickerMap.tsx'))
@@ -260,13 +261,13 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
                                 {!shownPos ? t('stickers.form.locationHint') : shownFromPhoto ? t('stickers.form.fromPhoto') : t('stickers.form.pinSet')}
                             </span>
                             {shownPos && !showMap && (
-                                <button type="button" className="btn-secondary btn-xs" onClick={() => setShowMap(true)}>
+                                <Button type="button" variant="secondary" size="xs" onClick={() => setShowMap(true)}>
                                     {t('stickers.form.adjustPin')}
-                                </button>
+                                </Button>
                             )}
-                            <button type="button" className="btn-secondary btn-xs" onClick={useMyLocation}>
+                            <Button type="button" variant="secondary" size="xs" onClick={useMyLocation}>
                                 {t('stickers.form.useMyLocation')}
-                            </button>
+                            </Button>
                         </div>
                         {/* The map is only needed when the photo carried no position, or to fine-tune it:
                             keeping it folded keeps the dialog short instead of a long scrolling form. */}
@@ -291,9 +292,9 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
                                   value={caption} onChange={e => setCaption(e.target.value)}/>
                     </div>
                 </>)}
-                <button type="submit" className="btn-primary w-full" disabled={!canSave}>
+                <Button type="submit" variant="primary" block disabled={!canSave}>
                     {saving ? t('action.saving') : t('action.save')}
-                </button>
+                </Button>
             </div>
         </Sheet>
     )
@@ -400,16 +401,16 @@ export function StickersPage() {
                                           {value: 'map', label: t('stickers.view.map')}]}/>
                 </div>
                 {stickers.length > 0 && (
-                    <button type="button" onClick={() => setSearchOpen(o => !o)} aria-label={t('stickers.search')}
+                    <Button type="button" onClick={() => setSearchOpen(o => !o)} aria-label={t('stickers.search')}
                             aria-expanded={searchOpen || q !== ''}
-                            className="btn-secondary w-9 h-9 flex-shrink-0 flex items-center justify-center p-0">
+                            variant="secondary" className="w-9 h-9 flex-shrink-0 flex items-center justify-center p-0">
                         <Search size={18} aria-hidden="true"/>
-                    </button>
+                    </Button>
                 )}
-                <button type="button" className="btn-primary w-9 h-9 flex-shrink-0 flex items-center justify-center p-0"
+                <Button type="button" variant="primary" className="w-9 h-9 flex-shrink-0 flex items-center justify-center p-0"
                         onClick={() => setForm('new')} aria-label={t('stickers.add')}>
                     <Plus size={20} aria-hidden="true"/>
-                </button>
+                </Button>
             </div>
             {stickers.length > 0 && (searchOpen || q !== '') && (
                 <div className="flex-shrink-0 px-3 pt-2 flex flex-col gap-1.5">

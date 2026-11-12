@@ -6,6 +6,7 @@ import {Sheet} from '@/components/ui/Sheet'
 import {toastError} from '@/utils/error'
 import {OPEN_PROFILE_EVENT} from '@/lib/aiLinks'
 import {pushSupported, subscribeThisDevice} from '@/lib/pushSubscribe'
+import {Button} from '@/components/ui/Button.tsx'
 
 /** Set once the member has answered the first-launch prompt (either way) so it never returns. */
 export const NOTIFICATION_PROMPT_KEY = 'kce_notification_prompt_done'
@@ -66,12 +67,12 @@ export function NotificationPrompt() {
             <p className="text-sm mb-2">{t('notifPrompt.body')}</p>
             <p className="text-sm text-muted mb-4">{t('notifPrompt.hint')}</p>
             <div className="flex flex-col gap-2">
-                <button className="btn-primary" onClick={accept} disabled={busy}>
+                <Button variant="primary" onClick={accept} disabled={busy}>
                     {busy ? '…' : t('notifPrompt.accept')}
-                </button>
-                <button className="btn-secondary" onClick={finish} disabled={busy}>
+                </Button>
+                <Button variant="secondary" onClick={finish} disabled={busy}>
                     {t('notifPrompt.later')}
-                </button>
+                </Button>
             </div>
         </Sheet>
     )

@@ -11,6 +11,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {aiErrorKey} from '@/lib/aiErrors.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 type Target = { kind: 'evening'; eveningId: number } | { kind: 'season'; year: number }
 
@@ -114,19 +115,19 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-secondary btn-sm flex-1" onClick={copy}>
+                        <Button type="button" variant="secondary" size="sm" className="flex-1" onClick={copy}>
                             {t('ai.copy')}
-                        </button>
-                        <button type="button" className="btn-secondary btn-sm flex-1" onClick={generate}
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" className="flex-1" onClick={generate}
                                 disabled={loading || !online}>
                             {loading ? t('ai.generating') : t('ai.regenerate')}
-                        </button>
+                        </Button>
                     </div>
                     {canPost && (
-                        <button type="button" className="btn-primary w-full" onClick={post}
+                        <Button type="button" variant="primary" block onClick={post}
                                 disabled={posting || !online || !title.trim()} data-testid="ai-recap-post">
                             {posting ? t('action.loading') : `📣 ${t('ai.post')}`}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </Sheet>

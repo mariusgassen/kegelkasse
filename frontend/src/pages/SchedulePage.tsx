@@ -30,6 +30,7 @@ import {deriveTokens, DEFAULT_DARK_BG} from '@/lib/tokens'
 import {useClub} from '@/hooks/useClub.ts'
 import {GuestRequestsSection} from '@/components/schedule/GuestRequestsSection.tsx'
 import {Switch} from '@/components/ui/Switch'
+import {Button} from '@/components/ui/Button.tsx'
 
 const TODAY = todayDateInput()
 
@@ -184,10 +185,10 @@ function AddGuestForm({se, onAdded, onCancel}: {
                 )}
             </div>
             <div className="flex gap-2">
-                <button className="btn-secondary btn-sm flex-1" onClick={onCancel}>{t('action.cancel')}</button>
-                <button className="btn-primary btn-sm flex-1" disabled={saving || !name.trim()} onClick={submit}>
+                <Button variant="secondary" size="sm" className="flex-1" onClick={onCancel}>{t('action.cancel')}</Button>
+                <Button variant="primary" size="sm" className="flex-1" disabled={saving || !name.trim()} onClick={submit}>
                     {t('action.save')}
-                </button>
+                </Button>
             </div>
         </div>
     )
@@ -395,9 +396,9 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                     🧑‍🤝‍🧑 {t('schedule.guests')}{guests.length > 0 ? ` (${guests.length})` : ''}
                                 </div>
                                 {!addingGuest && (
-                                    <button className="btn-secondary btn-xs" onClick={() => setAddingGuest(true)}>
+                                    <Button variant="secondary" size="xs" onClick={() => setAddingGuest(true)}>
                                         + {t('schedule.addGuest')}
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                             {guests.map(g => (
@@ -464,9 +465,9 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                         )}
 
                         <div className="pt-1">
-                            <button className="btn-primary w-full" disabled={starting} onClick={doStart}>
+                            <Button variant="primary" block disabled={starting} onClick={doStart}>
                                 {starting ? t('action.loading') : t('schedule.start')}
-                            </button>
+                            </Button>
                         </div>
                     </>
                 )}
@@ -551,12 +552,12 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                             <span className="ml-0.5">{showGuests ? '▲' : '▼'}</span>
                         </button>
                         {!addingGuest && (
-                            <button className="btn-secondary btn-xs" onClick={() => {
+                            <Button variant="secondary" size="xs" onClick={() => {
                                 setShowGuests(true)
                                 setAddingGuest(true)
                             }}>
                                 + {t('schedule.addGuest')}
-                            </button>
+                            </Button>
                         )}
                     </div>
 
@@ -596,18 +597,18 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                 shouldn't be blocked from starting just because no admin is present) */}
             <div className="mt-2.5 pt-2.5 border-t border-surface-2">
                 {isAlreadyStarted ? (
-                    <button
-                        className="btn-primary w-full text-sm"
+                    <Button
+                        variant="primary" block className="text-sm"
                         onClick={() => onNavigate?.()}>
                         🎳 {t('evening.active')}
-                    </button>
+                    </Button>
                 ) : activeEveningId !== null ? (
                     <>
-                        <button
-                            className="btn-secondary w-full text-sm opacity-60 cursor-not-allowed"
+                        <Button
+                            variant="secondary" block className="text-sm opacity-60 cursor-not-allowed"
                             disabled>
                             {t('schedule.start')}
-                        </button>
+                        </Button>
                         <p className="text-xs text-muted text-center mt-1">{t('evening.alreadyActive')}</p>
                     </>
                 ) : (
@@ -691,7 +692,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
                            value={note} onChange={e => setNote(e.target.value)}/>
                 </div>
                 <Switch checked={guestRequests} onChange={setGuestRequests} label={t('schedule.guestRequestsEnabled')} hint={t('schedule.guestRequestsHint')}/>
-                <button type="submit" className="btn-primary w-full" disabled={saving || !datetime}>{t('action.save')}</button>
+                <Button type="submit" variant="primary" block disabled={saving || !datetime}>{t('action.save')}</Button>
             </div>
         </Sheet>
     )
@@ -739,12 +740,12 @@ function IcalSheet({clubName, onClose}: { clubName: string; onClose: () => void 
                    <Sheet open onClose={() => setConfirmRegen(false)} title={t('schedule.icalRegenerate')}>
                        <p className="text-sm text-ink mb-3">{t('schedule.icalRegenerateConfirm')}</p>
                        <div className="flex gap-2">
-                           <button className="btn-secondary flex-1" onClick={() => setConfirmRegen(false)}>
+                           <Button variant="secondary" className="flex-1" onClick={() => setConfirmRegen(false)}>
                                {t('action.cancel')}
-                           </button>
-                           <button className="btn-danger flex-1" onClick={regenerate}>
+                           </Button>
+                           <Button variant="danger" className="flex-1" onClick={regenerate}>
                                {t('schedule.icalRegenerate')}
-                           </button>
+                           </Button>
                        </div>
                    </Sheet>
                )}>
@@ -756,9 +757,9 @@ function IcalSheet({clubName, onClose}: { clubName: string; onClose: () => void 
                         {url}
                     </div>
                     <div className="flex flex-col gap-2">
-                        <button className="btn-secondary text-sm" onClick={copy}>
+                        <Button variant="secondary" className="text-sm" onClick={copy}>
                             {copied ? '✓' : t('schedule.icalCopy')}
-                        </button>
+                        </Button>
                         <a href={url} className="btn-secondary text-center text-sm">
                             {t('schedule.openInCalendar')}
                         </a>
@@ -775,9 +776,9 @@ function IcalSheet({clubName, onClose}: { clubName: string; onClose: () => void 
                 )}
                 <p className="text-xs text-muted text-center">{t('schedule.icalFooter')}</p>
                 {!isLoading && icalToken && (
-                    <button className="btn-secondary btn-sm w-full" onClick={() => setConfirmRegen(true)}>
+                    <Button variant="secondary" size="sm" block onClick={() => setConfirmRegen(true)}>
                         {t('schedule.icalRegenerate')}
-                    </button>
+                    </Button>
                 )}
             </div>
         </Sheet>
@@ -879,9 +880,9 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                                         <span className="flex-1 text-sm text-ink truncate">
                                             {r.nickname || r.name}
                                         </span>
-                                        <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'absent')}>
+                                        <Button variant="secondary" size="xs" onClick={() => setFor(r.regular_member_id, 'absent')}>
                                             → {t('rsvp.absent.short')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 ))}
                             </div>
@@ -896,9 +897,9 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                                         <span className="flex-1 text-sm text-muted truncate">
                                             {r.nickname || r.name}
                                         </span>
-                                        <button className="btn-secondary btn-xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
+                                        <Button variant="secondary" size="xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
                                             → {t('rsvp.attending.short')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 ))}
                             </div>
@@ -1052,14 +1053,14 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                 <input className="kce-input flex-1" value={search} onChange={e => setSearch(e.target.value)}
                        placeholder={t('history.search')}/>
                 {isAdmin(user) && (
-                    <button className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
+                    <Button variant="secondary" size="sm" className="whitespace-nowrap flex-shrink-0"
                             onClick={() => {
                                 setBacklogDate(TODAY)
                                 setBacklogVenue(defaultVenue)
                                 setBacklogSheet(true)
                             }}>
                         + {t('history.backlog')}
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -1125,11 +1126,11 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <button className="btn-secondary btn-sm w-full mb-3"
+                                                <Button variant="secondary" size="sm" block className="mb-3"
                                                         disabled={sharingId === ev.id}
                                                         onClick={() => handleShareRecap(ev, detail)}>
                                                     {sharingId === ev.id ? t('action.loading') : `📤 ${t('recap.share')}`}
-                                                </button>
+                                                </Button>
                                                 <AiRecapButton target={{kind: 'evening', eveningId: ev.id}}
                                                                className="btn-secondary btn-sm w-full mb-3"/>
                                                 {detail.players.length > 0 && (
@@ -1286,27 +1287,27 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                                 📦 {t('history.archived')}
                                                             </span>
                                                         ) : (
-                                                            <button className="btn-secondary btn-sm flex-1"
+                                                            <Button variant="secondary" size="sm" className="flex-1"
                                                                     onClick={() => doReopen(ev.id)}>
                                                                 ↩ {t('history.reopen')}
-                                                            </button>
+                                                            </Button>
                                                         )}
                                                         {confirmDeleteId === ev.id ? (
                                                             <div className="flex gap-1 flex-1">
-                                                                <button className="btn-danger btn-sm flex-1"
+                                                                <Button variant="danger" size="sm" className="flex-1"
                                                                         onClick={() => doDelete(ev.id)}>
                                                                     ✓ {t('action.delete')}
-                                                                </button>
-                                                                <button className="btn-secondary btn-sm"
+                                                                </Button>
+                                                                <Button variant="secondary" size="sm"
                                                                         aria-label={t('action.cancel')}
                                                                         onClick={() => setConfirmDeleteId(null)}>✕
-                                                                </button>
+                                                                </Button>
                                                             </div>
                                                         ) : (
-                                                            <button className="btn-danger btn-sm flex-1"
+                                                            <Button variant="danger" size="sm" className="flex-1"
                                                                     onClick={() => setConfirmDeleteId(ev.id)}>
                                                                 🗑 {t('action.delete')}
-                                                            </button>
+                                                            </Button>
                                                         )}
                                                     </div>
                                                 )}
@@ -1335,8 +1336,8 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
                     </div>
-                    <button type="submit" className="btn-primary w-full"
-                            disabled={saving || !backlogDate}>{t('evening.startButton')}</button>
+                    <Button type="submit" variant="primary" block
+                            disabled={saving || !backlogDate}>{t('evening.startButton')}</Button>
                 </div>
             </Sheet>
 
@@ -1447,16 +1448,16 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
             <div className="flex items-center justify-between mb-0">
                 <div className="sec-heading flex-1">📅 {t('schedule.upcoming')}</div>
                 <div className="flex items-center gap-1.5 ml-2 mb-3 flex-shrink-0">
-                    <button className="btn-secondary btn-xs inline-flex items-center gap-1"
+                    <Button variant="secondary" size="xs" className="inline-flex items-center gap-1"
                             onClick={() => setIcalSheet(true)}>
                         <CalendarPlus size={14} strokeWidth={2} aria-hidden="true"/>
                         {t('schedule.subscribeCalendar')}
-                    </button>
+                    </Button>
                     {isAdminUser && (
-                        <button className="btn-secondary btn-xs"
+                        <Button variant="secondary" size="xs"
                                 onClick={() => setEditSheet('new')}>
                             + {t('schedule.add')}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

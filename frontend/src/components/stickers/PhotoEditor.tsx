@@ -7,6 +7,7 @@ import {RotateCcw, RotateCw} from 'lucide-react'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useT} from '@/i18n'
 import {ASPECTS, INITIAL_EDIT, MAX_ZOOM, drawEdited, renderEdited, type Aspect, type EditState} from '@/lib/photoEdit.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 interface Props {
     src: string
@@ -85,12 +86,12 @@ export function PhotoEditor({src, onCancel, onApply}: Props) {
                 )}
                 {!failed && <p className="text-sm text-muted">{t('stickers.editor.dragHint')}</p>}
                 <div className="flex gap-2">
-                    <button type="button" className="btn-secondary btn-xs flex items-center gap-1" onClick={() => rotate(-1)}>
+                    <Button type="button" variant="secondary" size="xs" className="flex items-center gap-1" onClick={() => rotate(-1)}>
                         <RotateCcw size={16} aria-hidden="true"/> {t('stickers.editor.rotateLeft')}
-                    </button>
-                    <button type="button" className="btn-secondary btn-xs flex items-center gap-1" onClick={() => rotate(1)}>
+                    </Button>
+                    <Button type="button" variant="secondary" size="xs" className="flex items-center gap-1" onClick={() => rotate(1)}>
                         <RotateCw size={16} aria-hidden="true"/> {t('stickers.editor.rotateRight')}
-                    </button>
+                    </Button>
                 </div>
                 <div className="flex flex-wrap gap-2" role="group" aria-label={t('stickers.editor.shape')}>
                     {ASPECTS.map((a: Aspect) => (
@@ -105,10 +106,10 @@ export function PhotoEditor({src, onCancel, onApply}: Props) {
                 <input id="photo-zoom" type="range" min={1} max={MAX_ZOOM} step={0.05} value={state.zoom}
                        onChange={e => patch({zoom: Number(e.target.value)})} className="w-full accent-accent"/>
                 <div className="flex gap-2">
-                    <button type="button" className="btn-secondary flex-1" onClick={onCancel}>{t('action.cancel')}</button>
-                    <button type="button" className="btn-primary flex-1" disabled={!ready || busy} onClick={apply}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>{t('action.cancel')}</Button>
+                    <Button type="button" variant="primary" className="flex-1" disabled={!ready || busy} onClick={apply}>
                         {busy ? t('action.saving') : t('stickers.editor.apply')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Sheet>

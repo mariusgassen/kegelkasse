@@ -27,6 +27,7 @@ import {
     PIN_POSITIONS,
     readFrame,
 } from '@/lib/cameraEngine.ts'
+import {Button} from '@/components/ui/Button.tsx'
 
 const STORAGE_KEY = 'kce_camera_cal_v2'
 const CONFIRM_SECONDS = 5
@@ -586,10 +587,10 @@ export function CameraCapturePage({onClose}: Props) {
                     <span style={{fontWeight: 'bold', color: 'var(--ink)', flex: 1, fontSize: 14}}>
                         📷 {t('camera.title')}
                     </span>
-                    <button className="btn-secondary btn-sm"
+                    <Button variant="secondary" size="sm"
                             onClick={() => setMode(mode === 'calibrating' ? 'detecting' : 'calibrating')}>
                         {mode === 'calibrating' ? '▶ ' + t('camera.detecting') : '⚙ ' + t('camera.calibrate')}
-                    </button>
+                    </Button>
                 </div>
             )}
 
@@ -726,12 +727,12 @@ export function CameraCapturePage({onClose}: Props) {
                             <span style={{fontSize: 12, color: 'var(--muted)'}}>
                                 {throws.length} {t(throws.length === 1 ? 'camera.throw' : 'camera.throws')} ✓
                             </span>
-                            <button
-                                className="btn-secondary btn-xs"
+                            <Button
+                                variant="secondary" size="xs"
                                 onClick={() => setMode('detecting')}
                             >
                                 {t('camera.exitKiosk')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -780,13 +781,13 @@ export function CameraCapturePage({onClose}: Props) {
                                    style={{width: '100%'}}/>
                         </div>
                         <div style={{display: 'flex', gap: 8}}>
-                            <button className="btn-primary" style={{flex: 1}} onClick={saveCalibration}>
+                            <Button variant="primary" style={{flex: 1}} onClick={saveCalibration}>
                                 💾 {t('camera.saveCalibration')}
-                            </button>
-                            <button className="btn-secondary"
+                            </Button>
+                            <Button variant="secondary"
                                     onClick={() => setCalibration({...DEFAULT_CALIBRATION})}>
                                 {t('camera.resetCalibration')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -826,12 +827,12 @@ export function CameraCapturePage({onClose}: Props) {
                                         <p style={{fontSize: 12, color: 'var(--accent)', margin: 0, fontWeight: 'bold', flex: 1}}>
                                             ✓ {t('camera.syncActive')}
                                         </p>
-                                        <button
-                                            className="btn-primary btn-xs"
+                                        <Button
+                                            variant="primary" size="xs"
                                             onClick={() => setMode('kiosk')}
                                         >
                                             📷 {t('camera.enterKiosk')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
                             </div>
@@ -997,24 +998,24 @@ export function CameraCapturePage({onClose}: Props) {
                                         {t('camera.detectedScore')}: <strong style={{color: 'var(--ink)'}}>{latestCumulative}</strong>
                                     </p>
                                 )}
-                                <button className="btn-primary" onClick={handleFinishGame}
+                                <Button variant="primary" onClick={handleFinishGame}
                                         disabled={saving || !winnerRef}>
                                     🏁 {t('game.finish')}
-                                </button>
+                                </Button>
                             </div>
                         )}
 
                         {/* 6. Manual test-throw mode (no camera / lane needed) */}
                         {isAdmin(user) && selectedGame && (
                             <div style={{borderTop: '1px solid var(--line)', paddingTop: 10}}>
-                                <button
+                                <Button
                                     type="button"
-                                    className="btn-secondary btn-xs"
+                                    variant="secondary" size="xs"
                                     onClick={() => setTestMode(p => !p)}
                                     style={{marginBottom: testMode ? 8 : 0}}
                                 >
                                     🧪 {t('camera.testMode')}
-                                </button>
+                                </Button>
                                 {testMode && (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 10px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--line)'}}>
                                         <p style={{fontSize: 12, color: 'var(--muted)', margin: 0}}>
@@ -1061,21 +1062,21 @@ export function CameraCapturePage({onClose}: Props) {
                                                    placeholder="—"
                                                    onChange={e => setTestCumulative(e.target.value ? parseInt(e.target.value) : null)}
                                                    style={{width: 60, fontSize: 13, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 6, background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--muted)'}}/>
-                                            <button
+                                            <Button
                                                 type="button"
-                                                className="btn-primary btn-sm"
+                                                variant="primary" size="sm"
                                                 disabled={testSubmitting}
                                                 onClick={handleTestThrow}
                                             >
                                                 {testSubmitting ? '…' : `▶ ${t('camera.testSend')}`}
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
                                                 type="button"
-                                                className="btn-secondary btn-sm"
+                                                variant="secondary" size="sm"
                                                 onClick={handleTestAdvanceTurn}
                                             >
                                                 {t('quickEntry.advanceTurn')}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -1143,12 +1144,12 @@ export function CameraCapturePage({onClose}: Props) {
                         </div>
 
                         <div style={{display: 'flex', gap: 8}}>
-                            <button className="btn-secondary" style={{flex: 1}} onClick={dismissThrow}>
+                            <Button variant="secondary" style={{flex: 1}} onClick={dismissThrow}>
                                 {t('action.cancel')}
-                            </button>
-                            <button className="btn-primary" style={{flex: 1}} onClick={confirmThrow}>
+                            </Button>
+                            <Button variant="primary" style={{flex: 1}} onClick={confirmThrow}>
                                 ✓ {t('action.done')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>

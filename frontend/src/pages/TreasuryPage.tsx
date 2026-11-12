@@ -24,6 +24,7 @@ import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
 import {Tabs} from '@/components/ui/Tabs'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -679,10 +680,10 @@ export function TreasuryPage() {
                                                 >
                                                     {t('profile.payNow')}
                                                 </a>
-                                                <button className="btn-secondary flex-1 btn-sm"
+                                                <Button variant="secondary" size="sm" className="flex-1"
                                                         onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
                                                     {t('profile.reportPayment')}
-                                                </button>
+                                                </Button>
                                             </div>
                                         ) : (
                                             <div className="flex flex-col gap-2">
@@ -697,11 +698,11 @@ export function TreasuryPage() {
                                                     />
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button className="btn-secondary flex-1 btn-sm"
+                                                    <Button variant="secondary" size="sm" className="flex-1"
                                                             onClick={() => { setReportingMyPayment(false); setMyPaymentAmount('') }}>
                                                         {t('action.cancel')}
-                                                    </button>
-                                                    <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                    </Button>
+                                                    <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                                         const amt = myPaymentAmount.trim()
                                                             ? parseFloat(myPaymentAmount.replace(',', '.'))
                                                             : myDebtAmount
@@ -716,7 +717,7 @@ export function TreasuryPage() {
                                                         } catch (e) { toastError(e) }
                                                     }}>
                                                         {t('profile.reportPayment')}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         )
@@ -861,10 +862,10 @@ export function TreasuryPage() {
                                             <span
                                                 className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
                                             {admin && (
-                                                <button className="btn-primary btn-sm flex-shrink-0"
+                                                <Button variant="primary" size="sm" className="flex-shrink-0"
                                                         onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                     {t('treasury.payment.settle')}
-                                                </button>
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -941,18 +942,18 @@ export function TreasuryPage() {
                                         </div>
                                         <span className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
                                         {admin && (
-                                            <button className="btn-primary btn-sm flex-shrink-0"
+                                            <Button variant="primary" size="sm" className="flex-shrink-0"
                                                     onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 {t('treasury.payment.settle')}
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                     {admin && (
                                         <div className="border-t border-line px-3 pb-3 pt-2">
-                                            <button className="btn-secondary btn-sm w-full"
+                                            <Button variant="secondary" size="sm" block
                                                     onClick={() => openTransferSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 ↪️ {t('treasury.transfer.button')}
-                                            </button>
+                                            </Button>
                                         </div>
                                     )}
                                 </div>
@@ -984,16 +985,16 @@ export function TreasuryPage() {
                                         </div>
                                     </div>
                                     <span className="font-bold text-accent-fg flex-shrink-0">{fe(r.amount)}</span>
-                                    <button
-                                        className="btn-primary btn-sm flex-shrink-0 text-xs px-2 py-1"
+                                    <Button
+                                        variant="primary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
                                         onClick={() => confirmRequest(r.id, r.regular_member_id)}>
                                         {t('paymentRequest.confirm')}
-                                    </button>
-                                    <button
-                                        className="btn-secondary btn-sm flex-shrink-0 text-xs px-2 py-1"
+                                    </Button>
+                                    <Button
+                                        variant="secondary" size="sm" className="flex-shrink-0 text-xs px-2 py-1"
                                         onClick={() => rejectRequest(r.id)}>
                                         {t('paymentRequest.reject')}
-                                    </button>
+                                    </Button>
                                 </div>
                             ))}
                         </div>
@@ -1155,14 +1156,14 @@ export function TreasuryPage() {
                                                         <span
                                                             className="text-muted flex-shrink-0">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
                                                         {admin && (
-                                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
                                                                     aria-label={t('treasury.booking.edit')}
-                                                                    onClick={() => openEditPayment(p, b.regular_member_id, b.nickname || b.name)}>✏️</button>
+                                                                    onClick={() => openEditPayment(p, b.regular_member_id, b.nickname || b.name)}>✏️</Button>
                                                         )}
                                                         {admin && (
-                                                            <button className="btn-danger btn-xs flex-shrink-0"
+                                                            <Button variant="danger" size="xs" className="flex-shrink-0"
                                                                     aria-label={t('treasury.payment.deleteConfirm')}
-                                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</button>
+                                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</Button>
                                                         )}
                                                     </div>
                                                 )})())
@@ -1181,10 +1182,10 @@ export function TreasuryPage() {
                                                                 >
                                                                     {t('profile.payNow')}
                                                                 </a>
-                                                                <button className="btn-secondary flex-1 btn-sm"
+                                                                <Button variant="secondary" size="sm" className="flex-1"
                                                                         onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
                                                                     {t('profile.reportPayment')}
-                                                                </button>
+                                                                </Button>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col gap-2">
@@ -1199,11 +1200,11 @@ export function TreasuryPage() {
                                                                     />
                                                                 </div>
                                                                 <div className="flex gap-2">
-                                                                    <button className="btn-secondary flex-1 btn-sm"
+                                                                    <Button variant="secondary" size="sm" className="flex-1"
                                                                             onClick={() => { setReportingMyPayment(false); setMyPaymentAmount('') }}>
                                                                         {t('action.cancel')}
-                                                                    </button>
-                                                                    <button className="btn-primary flex-1 btn-sm" onClick={async () => {
+                                                                    </Button>
+                                                                    <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                                                         const amt = myPaymentAmount.trim()
                                                                             ? parseFloat(myPaymentAmount.replace(',', '.'))
                                                                             : myDebtAmount
@@ -1218,7 +1219,7 @@ export function TreasuryPage() {
                                                                         } catch (e) { toastError(e) }
                                                                     }}>
                                                                         {t('profile.reportPayment')}
-                                                                    </button>
+                                                                    </Button>
                                                                 </div>
                                                             </div>
                                                         )
@@ -1232,10 +1233,10 @@ export function TreasuryPage() {
                                             {admin && (
                                                 <div className="flex gap-2 mt-2">
                                                     {hasDebt && (
-                                                        <button className="btn-primary btn-sm flex-1"
+                                                        <Button variant="primary" size="sm" className="flex-1"
                                                                 onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                             💸 {t('treasury.payment.settle')}
-                                                        </button>
+                                                        </Button>
                                                     )}
                                                     <button
                                                         className={`btn-secondary btn-sm ${hasDebt ? '' : 'w-full'}`}
@@ -1280,10 +1281,10 @@ export function TreasuryPage() {
                                             }
                                         </div>
                                         {admin && hasDebt && (
-                                            <button className="btn-primary btn-sm flex-shrink-0"
+                                            <Button variant="primary" size="sm" className="flex-shrink-0"
                                                     onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
                                                 {t('treasury.payment.settle')}
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                 )
@@ -1308,9 +1309,9 @@ export function TreasuryPage() {
                             <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-positive-fg' : 'text-orange-400'}`}>{fe(-totalExpenses)}</div>
                         </div>
                         {admin && (
-                            <button className="btn-primary btn-sm" onClick={openBookingSheet}>
+                            <Button variant="primary" size="sm" onClick={openBookingSheet}>
                                 + {t('treasury.booking.add')}
-                            </button>
+                            </Button>
                         )}
                     </div>
 
@@ -1340,14 +1341,14 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
                                         </div>
                                         {admin && (
-                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
                                                     aria-label={t('treasury.booking.edit')}
-                                                    onClick={() => openEditPayment(p, p.regular_member_id, p.member_name)}>✏️</button>
+                                                    onClick={() => openEditPayment(p, p.regular_member_id, p.member_name)}>✏️</Button>
                                         )}
                                         {admin && (
-                                            <button className="btn-danger btn-xs flex-shrink-0"
+                                            <Button variant="danger" size="xs" className="flex-shrink-0"
                                                     aria-label={t('treasury.payment.deleteConfirm')}
-                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</button>
+                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</Button>
                                         )}
                                     </div>
                                 )
@@ -1374,14 +1375,14 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">{e.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>
                                         </div>
                                         {admin && (
-                                            <button className="btn-secondary btn-xs flex-shrink-0"
+                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
                                                     aria-label={t('treasury.booking.edit')}
-                                                    onClick={() => openEditExpense(e)}>✏️</button>
+                                                    onClick={() => openEditExpense(e)}>✏️</Button>
                                         )}
                                         {admin && (
-                                            <button className="btn-danger btn-xs flex-shrink-0"
+                                            <Button variant="danger" size="xs" className="flex-shrink-0"
                                                     aria-label={t('treasury.expense.deleteConfirm')}
-                                                    onClick={() => setConfirmDeleteExpense(e.id)}>✕</button>
+                                                    onClick={() => setConfirmDeleteExpense(e.id)}>✕</Button>
                                         )}
                                     </div>
                                 )
@@ -1400,14 +1401,14 @@ export function TreasuryPage() {
                            onChange={e => setDeletePaymentReason(e.target.value)}
                            placeholder={t('treasury.payment.deleteReasonPlaceholder')} />
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1"
+                        <Button variant="secondary" size="sm" className="flex-1"
                                 onClick={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-danger btn-sm flex-1" disabled={deletingPaymentId !== null}
+                        </Button>
+                        <Button variant="danger" size="sm" className="flex-1" disabled={deletingPaymentId !== null}
                                 onClick={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId, deletePaymentReason)}>
                             {t('action.delete')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -1421,14 +1422,14 @@ export function TreasuryPage() {
                            onChange={e => setDeleteExpenseReason(e.target.value)}
                            placeholder={t('treasury.expense.deleteReasonPlaceholder')} />
                     <div className="flex gap-2">
-                        <button className="btn-secondary btn-sm flex-1"
+                        <Button variant="secondary" size="sm" className="flex-1"
                                 onClick={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}>
                             {t('action.cancel')}
-                        </button>
-                        <button className="btn-danger btn-sm flex-1" disabled={deletingExpenseId !== null}
+                        </Button>
+                        <Button variant="danger" size="sm" className="flex-1" disabled={deletingExpenseId !== null}
                                 onClick={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense, deleteExpenseReason)}>
                             {t('action.delete')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </Sheet>
@@ -1492,10 +1493,10 @@ export function TreasuryPage() {
                         <TripPicker trips={trips as ClubTrip[]} value={editTrip} onChange={setEditTrip}/>
                     )}
 
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={savingEdit || !editValid}>
                         ✓ {t('action.save')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -1542,10 +1543,10 @@ export function TreasuryPage() {
                                onChange={e => setTransferNote(e.target.value)}
                                placeholder={t('treasury.transfer.notePlaceholder')}/>
                     </div>
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={transferring || !transferTargetId || parseAmount(transferAmount) <= 0}>
                         ✓ {t('treasury.transfer.submit')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -1576,10 +1577,10 @@ export function TreasuryPage() {
                                onChange={e => setPaymentNote(e.target.value)}
                                placeholder={t('treasury.payment.notePlaceholder')}/>
                     </div>
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
                         ✓ {t('treasury.payment.record')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -1665,10 +1666,10 @@ export function TreasuryPage() {
                                onChange={e => setBookingDate(e.target.value)}/>
                     </div>
 
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={savingBooking || !bookingValid}>
                         ✓ {t('action.save')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 
@@ -1698,9 +1699,9 @@ export function TreasuryPage() {
                             <option value="pdf">PDF</option>
                         </select>
                     </div>
-                    <button type="submit" className="btn-primary w-full" disabled={exporting}>
+                    <Button type="submit" variant="primary" block disabled={exporting}>
                         {exporting ? t('report.downloading') : t('report.download')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
 

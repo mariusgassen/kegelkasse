@@ -21,6 +21,7 @@ import {useAudioCallouts} from '@/hooks/useClub.ts'
 import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 import {PinBadges} from '@/components/ui/MemberBadges.tsx'
+import {Button} from '@/components/ui/Button.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -440,18 +441,18 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     <span className="font-display font-bold text-accent-fg text-xl">{fe(euroTotal)}</span>
                 </div>
                 <div className="flex gap-2">
-                    <button className="btn-primary flex-1" onClick={openSheet}>
+                    <Button variant="primary" className="flex-1" onClick={openSheet}>
                         ⚠️ + Strafe
-                    </button>
+                    </Button>
                     {players.length > 0 && (
-                        <button className="btn-secondary flex-1" onClick={openDrinkSheet}>
+                        <Button variant="secondary" className="flex-1" onClick={openDrinkSheet}>
                             🍺 + Getränk
-                        </button>
+                        </Button>
                     )}
                     {onQuickEntry && players.length > 0 && (
-                        <button className="btn-secondary flex-shrink-0" onClick={onQuickEntry}>
+                        <Button variant="secondary" className="flex-shrink-0" onClick={onQuickEntry}>
                             ⚡ {t('quickEntry.open')}
-                        </button>
+                        </Button>
                     )}
                 </div>
                 {isAdmin(user) && (
@@ -733,10 +734,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             )}
                         </div>
 
-                        <button type="submit" className="btn-primary w-full"
+                        <Button type="submit" variant="primary" block
                                 disabled={saving || !selectedType || playerIds.length === 0}>
                             {t('penalty.confirm')}
-                        </button>
+                        </Button>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-3">
@@ -802,10 +803,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             </button>
                         )}
 
-                        <button type="submit" className="btn-primary w-full"
+                        <Button type="submit" variant="primary" block
                                 disabled={saving || !customName.trim() || customPlayerIds.length === 0}>
                             {t('penalty.confirm')}
-                        </button>
+                        </Button>
                     </div>
                 )}
             </Sheet>
@@ -836,7 +837,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         onSelectAll={() => setDrinkPlayerIds(players.map(p => p.id))}
                         onSelectNone={() => setDrinkPlayerIds([])}/>
                     <div className="flex gap-2">
-                        <button type="button" className="btn-primary w-full" disabled={drinkPlayerIds.length === 0}
+                        <Button type="button" variant="primary" block disabled={drinkPlayerIds.length === 0}
                                 onClick={async () => {
                                     await api.addDrinkRound(evening!.id, {
                                         drink_type: drinkType,
@@ -846,7 +847,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                     })
                                     invalidate()
                                     setDrinkSheet(false)
-                                }}>{t('action.done')}</button>
+                                }}>{t('action.done')}</Button>
                     </div>
                 </div>
             </Sheet>
@@ -939,10 +940,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         </div>
                     )}
 
-                    <button type="submit" className="btn-primary w-full"
+                    <Button type="submit" variant="primary" block
                             disabled={saving || (editTab === 'custom' && !editName.trim()) || (editTab === 'quick' && !editType)}>
                         {t('action.save')}
-                    </button>
+                    </Button>
                 </div>
             </Sheet>
         </div>
