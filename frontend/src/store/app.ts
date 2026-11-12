@@ -1,6 +1,6 @@
 import {create} from 'zustand'
 import {persist} from 'zustand/middleware'
-import type {GameTemplate, PenaltyType, RegularMember, User} from '../types'
+import type {GameTemplate, PenaltyType, RegularMember, User, UserRole} from '../types'
 
 interface AppState {
     user: User | null
@@ -41,14 +41,30 @@ export const useAppStore = create<AppState>()(
 )
 
 // Role helpers
+export const getUserRoles = (user: User | null): UserRole[] => {
+    if (!user) return []
+    if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+        return user.roles
+    }
+    return user.role ? [user.role] : []
+}
+
+export const hasRole = (user: User | null, ...roles: UserRole[]): boolean => {
+    if (!user) return false
+    const assigned = getUserRoles(user)
+    if (assigned.includes('superadmin')) return true
+    return roles.some((r) => assigned.includes(r))
+}
+
 export const isAdmin = (user: User | null) =>
-    user?.role === 'admin' || user?.role === 'superadmin'
+    hasRole(user, 'admin')
 
 export const isSuperadmin = (user: User | null) =>
-    user?.role === 'superadmin'
+    getUserRoles(user).includes('superadmin')
 
 export const isProductManager = (user: User | null) =>
-    user?.role === 'product_manager'
+    hasRole(user, 'product_manager')
 
 export const canManageRoadmap = (user: User | null) =>
-    user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'product_manager'
+    hasRole(user, 'product_manager', 'admin')
+

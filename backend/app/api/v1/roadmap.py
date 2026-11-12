@@ -84,7 +84,7 @@ def list_roadmap(
     user: User = Depends(get_current_user),
 ):
     """List roadmap items for the current user and their club (or global items)."""
-    if user.role in (UserRole.superadmin, UserRole.product_manager):
+    if user.has_role(UserRole.product_manager):
         clauses = [True]
     elif user.club_id:
         clauses = [RoadmapItem.club_id.is_(None), RoadmapItem.club_id == user.club_id]
@@ -207,7 +207,7 @@ def toggle_vote(
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
 
-    if item.club_id is not None and item.club_id != user.club_id and user.role != UserRole.superadmin:
+    if item.club_id is not None and item.club_id != user.club_id and not user.is_superadmin:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
 
     existing_vote = (
@@ -242,7 +242,7 @@ def update_roadmap_item(
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
 
-    is_lead = user.role in (UserRole.superadmin, UserRole.product_manager)
+    is_lead = user.has_role(UserRole.product_manager)
     is_club_adm = _is_admin(user) and (item.club_id is None or user.club_id == item.club_id)
     is_author = item.created_by_user_id == user.id
     can_manage = is_lead or is_club_adm
@@ -354,7 +354,7 @@ def delete_roadmap_item(
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Roadmap item not found")
 
-    is_lead = user.role in (UserRole.superadmin, UserRole.product_manager)
+    is_lead = user.has_role(UserRole.product_manager)
     is_club_adm = _is_admin(user) and (item.club_id is None or user.club_id == item.club_id)
     is_author = item.created_by_user_id == user.id and item.status == "idea"
 

@@ -19,6 +19,7 @@ export interface User {
     username: string | null
     name: string
     role: UserRole
+    roles?: UserRole[]
     club_id: number | null
     preferred_locale: string
     avatar: string | null

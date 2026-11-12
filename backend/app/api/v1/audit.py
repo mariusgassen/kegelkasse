@@ -32,7 +32,7 @@ router = APIRouter(prefix="/treasury-audits", tags=["treasury-audits"])
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _is_admin(user: User) -> bool:
-    return user.role in (UserRole.admin, UserRole.superadmin)
+    return user.has_role(UserRole.admin)
 
 
 def _my_member(db: Session, user: User) -> Optional[RegularMember]:
