@@ -19,7 +19,7 @@ Unter **`/roadmap`** können Mitglieder und Admins:
 
 ## Regeln
 
-- **Sichtbarkeit:** Offizielle Einträge sehen alle, Ideen eines Vereins nur dessen Mitglieder. Produktmanager und Superadmins sehen alle Vereine.
+- **Sichtbarkeit:** Die Roadmap ist vereinsübergreifend global: alle Mitglieder sehen und unterstützen alle Ideen, damit Wünsche nicht doppelt gestellt werden. Moderation bleibt beim eigenen Verein (siehe unten).
 - **Moderation:** Status, Pin, Duplikat, Notizen und Zielversion ändern Produktmanager, Superadmins und Admins des eigenen Vereins (bei dessen Ideen). Offizielle Einträge nur Produktmanager und Superadmins.
 - **Eigene Ideen** bearbeitet der Einreicher, solange sie im Ideenpool stehen. Danach nur noch die Moderation.
 - **Abstimmen** geht nicht bei verworfenen Ideen und Duplikaten (die Stimme zurücknehmen schon). Stimmen von Duplikaten zählen für das Hauptfeature, jede Person nur einmal.

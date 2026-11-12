@@ -409,22 +409,23 @@ def test_club_admin_cannot_manage_official_item(client, admin, db):
 
 def test_club_admin_cannot_touch_other_club_item(client, admin, other_club_admin, db):
     foreign = _item(db, club_id=other_club_admin.club_id, created_by_user_id=other_club_admin.id)
-    assert client.patch(f"/api/v1/roadmap/items/{foreign.id}", json={"status": "planned"}, headers=_headers(admin)).status_code == 404
-    assert client.delete(f"/api/v1/roadmap/items/{foreign.id}", headers=_headers(admin)).status_code == 404
-    assert client.post(f"/api/v1/roadmap/items/{foreign.id}/vote", headers=_headers(admin)).status_code == 404
+    assert client.patch(f"/api/v1/roadmap/items/{foreign.id}", json={"status": "planned"}, headers=_headers(admin)).status_code == 403
+    assert client.delete(f"/api/v1/roadmap/items/{foreign.id}", headers=_headers(admin)).status_code == 403
+    # Voting is global: members of any club can back an idea.
+    assert client.post(f"/api/v1/roadmap/items/{foreign.id}/vote", headers=_headers(admin)).status_code == 200
 
 
-def test_list_hides_other_club_items(client, user, auth_headers, other_club_admin, db):
+def test_list_shows_other_club_items(client, user, auth_headers, other_club_admin, db):
     _item(db, title="Fremd", club_id=other_club_admin.club_id)
     titles = [x["title"] for x in client.get("/api/v1/roadmap", headers=auth_headers).json()]
-    assert "Fremd" not in titles
+    assert "Fremd" in titles
 
 
-def test_duplicate_target_must_be_visible(client, admin, other_club_admin, db):
+def test_duplicate_target_may_be_in_other_club(client, admin, other_club_admin, db):
     mine = _item(db, club_id=admin.club_id, created_by_user_id=admin.id)
     foreign = _item(db, title="Geheim", club_id=other_club_admin.club_id)
     r = client.patch(f"/api/v1/roadmap/items/{mine.id}", json={"duplicate_of_id": foreign.id}, headers=_headers(admin))
-    assert r.status_code == 404
+    assert r.status_code == 200
 
 
 def test_duplicate_loop_rejected_and_link_cleared(client, admin, db):

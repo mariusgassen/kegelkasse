@@ -4,7 +4,7 @@ from typing import List, Optional
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, func
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -105,11 +105,8 @@ def _clean_text(raw: Optional[str], limit: int, field: str) -> Optional[str]:
 
 
 def _can_see(item: RoadmapItem, user: User) -> bool:
-    return (
-        item.club_id is None
-        or item.club_id == user.club_id
-        or user.has_role(UserRole.product_manager)
-    )
+    """The roadmap is global: every club sees every idea so requests are not filed twice."""
+    return True
 
 
 def _can_manage(item: RoadmapItem, user: User) -> bool:
@@ -197,18 +194,8 @@ def list_roadmap(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """List roadmap items for the current user and their club (or global items).
-
-    Product managers see every club's ideas; everyone else only official items plus their own club.
-    """
-    if user.has_role(UserRole.product_manager):
-        clauses = [True]
-    elif user.club_id:
-        clauses = [RoadmapItem.club_id.is_(None), RoadmapItem.club_id == user.club_id]
-    else:
-        clauses = [RoadmapItem.club_id.is_(None)]
-
-    query = db.query(RoadmapItem).filter(or_(*clauses))
+    """List roadmap items. The roadmap is global: all clubs see all ideas (managing stays per club)."""
+    query = db.query(RoadmapItem)
 
     if status_filter:
         query = query.filter(RoadmapItem.status == status_filter)
