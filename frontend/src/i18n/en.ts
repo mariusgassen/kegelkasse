@@ -1225,6 +1225,7 @@ export const en = {
     "push.pref.comments": "Comments & reactions",
     "push.pref.guest_requests": "Guest requests",
     "push.pref.stickers": "New stickers",
+    "push.pref.roadmap": "My roadmap ideas",
     "push.pref.app_updates": "New app versions",
     "guestRequests.title": "Guest requests",
     "guestRequests.pendingCount": "{n} open requests",

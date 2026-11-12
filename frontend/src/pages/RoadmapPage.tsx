@@ -1,3 +1,4 @@
+import {TagInput} from '@/components/ui/TagInput.tsx'
 import {useState, useMemo} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {
@@ -63,7 +64,7 @@ export function RoadmapPage() {
     const [newTitle, setNewTitle] = useState('')
     const [newDesc, setNewDesc] = useState('')
     const [newCategory, setNewCategory] = useState('feature')
-    const [newTags, setNewTags] = useState('')
+    const [newTags, setNewTags] = useState<string[]>([])
     const [submitting, setSubmitting] = useState(false)
 
     // Edit form state
@@ -71,7 +72,7 @@ export function RoadmapPage() {
     const [editDesc, setEditDesc] = useState('')
     const [editStatus, setEditStatus] = useState<RoadmapStatus>('idea')
     const [editCategory, setEditCategory] = useState('feature')
-    const [editTags, setEditTags] = useState('')
+    const [editTags, setEditTags] = useState<string[]>([])
     const [editPinned, setEditPinned] = useState(false)
     const [editDuplicateId, setEditDuplicateId] = useState<number | null>(null)
     const [editAdminNotes, setEditAdminNotes] = useState('')
@@ -90,6 +91,12 @@ export function RoadmapPage() {
         {id: 'completed' as FilterTab, label: t('roadmap.tab.completed')},
         {id: 'duplicate' as FilterTab, label: t('roadmap.status.duplicate')},
     ], [t])
+
+    const availableTags = useMemo(() => {
+        const set = new Set<string>()
+        items.forEach(it => it.tags.forEach(tag => set.add(tag)))
+        return Array.from(set).sort()
+    }, [items])
 
     // Available categories from loaded items + defaults
     const availableCategories = useMemo(() => {
@@ -155,7 +162,7 @@ export function RoadmapPage() {
                 title: newTitle.trim(),
                 description: newDesc.trim() || null,
                 category: newCategory.trim() || 'feature',
-                tags: newTags.trim() || null,
+                tags: newTags.join(',') || null,
             })
             haptic('success')
             showToast(t('roadmap.propose.success'))
@@ -163,7 +170,7 @@ export function RoadmapPage() {
             setNewTitle('')
             setNewDesc('')
             setNewCategory('feature')
-            setNewTags('')
+            setNewTags([])
             setProposeOpen(false)
         } catch (err) {
             toastError(err)
@@ -178,7 +185,7 @@ export function RoadmapPage() {
         setEditDesc(item.description || '')
         setEditStatus(defaultStatus ?? item.status)
         setEditCategory(item.category || 'feature')
-        setEditTags(item.tags.join(', '))
+        setEditTags(item.tags)
         setEditPinned(item.is_pinned)
         setEditDuplicateId(item.duplicate_of_id)
         setEditAdminNotes(item.admin_notes || '')
@@ -211,7 +218,7 @@ export function RoadmapPage() {
                 description: editDesc.trim() || null,
                 status: editStatus,
                 category: editCategory.trim() || 'feature',
-                tags: editTags.trim() || null,
+                tags: editTags.join(',') || null,
                 is_pinned: editPinned,
                 duplicate_of_id: editStatus === 'duplicate' ? (editDuplicateId || null) : null,
                 admin_notes: editAdminNotes.trim() || null,
@@ -639,31 +646,26 @@ export function RoadmapPage() {
                         <label htmlFor="roadmap-new-category" className="block text-xs font-bold text-ink mb-1">
                             {t('roadmap.propose.field.category')}
                         </label>
-                        <select
+                        <TagInput
                             id="roadmap-new-category"
-                            value={newCategory}
-                            onChange={e => setNewCategory(e.target.value)}
-                            className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent"
-                        >
-                            {CATEGORY_PRESETS.map(cat => (
-                                <option key={cat} value={cat}>
-                                    {getCategoryLabel(cat)}
-                                </option>
-                            ))}
-                        </select>
+                            max={1}
+                            value={newCategory ? [newCategory] : []}
+                            onChange={v => setNewCategory(v[0] ?? '')}
+                            suggestions={availableCategories}
+                            renderLabel={getCategoryLabel}
+                        />
                     </div>
 
                     <div>
                         <label htmlFor="roadmap-new-tags" className="block text-xs font-bold text-ink mb-1">
                             {t('roadmap.propose.field.tags')}
                         </label>
-                        <input
+                        <TagInput
                             id="roadmap-new-tags"
-                            type="text"
                             value={newTags}
-                            onChange={e => setNewTags(e.target.value)}
+                            onChange={setNewTags}
+                            suggestions={availableTags}
                             placeholder={t('roadmap.propose.field.tags.placeholder')}
-                            className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent"
                         />
                     </div>
 
@@ -785,34 +787,26 @@ export function RoadmapPage() {
                                 <label htmlFor="roadmap-edit-cat" className="block text-xs font-bold text-ink mb-1">
                                     {t('roadmap.edit.category')}
                                 </label>
-                                <input
+                                <TagInput
                                     id="roadmap-edit-cat"
-                                    type="text"
-                                    list="category-suggestions"
-                                    value={editCategory}
-                                    onChange={e => setEditCategory(e.target.value)}
-                                    className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent"
+                                    max={1}
+                                    value={editCategory ? [editCategory] : []}
+                                    onChange={v => setEditCategory(v[0] ?? '')}
+                                    suggestions={availableCategories}
+                                    renderLabel={getCategoryLabel}
                                 />
-                                <datalist id="category-suggestions">
-                                    {CATEGORY_PRESETS.map(cat => (
-                                        <option key={cat} value={cat}>
-                                            {getCategoryLabel(cat)}
-                                        </option>
-                                    ))}
-                                </datalist>
                             </div>
 
                             <div>
                                 <label htmlFor="roadmap-edit-tags" className="block text-xs font-bold text-ink mb-1">
                                     {t('roadmap.edit.tags')}
                                 </label>
-                                <input
+                                <TagInput
                                     id="roadmap-edit-tags"
-                                    type="text"
                                     value={editTags}
-                                    onChange={e => setEditTags(e.target.value)}
+                                    onChange={setEditTags}
+                                    suggestions={availableTags}
                                     placeholder={t('roadmap.edit.tags.placeholder')}
-                                    className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent"
                                 />
                             </div>
                         </div>
