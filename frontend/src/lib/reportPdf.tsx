@@ -210,7 +210,12 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
     )
     const w = (shares: (number | 'rest')[]) => fill(PORTRAIT_W, shares)
 
-    const accountCols = w([92, 'rest', 70, 70, 76])
+    const accountCols = w([80, 'rest', 58, 58, 62, 62])
+    const openCols = w([110, 'rest', 70, 70, 76])
+    // open penalties = unpaid share of a member's penalties (negative balance)
+    const openOf = (a: { balance: number }) => Math.max(0, Math.round(-a.balance * 100) / 100)
+    const openRows = data.accounts.filter(a => openOf(a) > 0).sort((a, b) => openOf(b) - openOf(a))
+    const openTotal = openRows.reduce((sum, a) => sum + openOf(a), 0)
     const evCols = w([62, 'rest', 58, 46, 46, 62, 86])
     const bookCols = w([64, 62, 'rest', 74, 'rest'])
     // two `rest` columns share the remainder: description ≈ 45 %, note ≈ 55 %
@@ -271,20 +276,49 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                                 {w: accountCols[2], head: 'Strafen', align: 'right'},
                                 {w: accountCols[3], head: 'Einzahl.', align: 'right'},
                                 {w: accountCols[4], head: 'Saldo', align: 'right'},
+                                {w: accountCols[5], head: 'Offen', align: 'right'},
                             ]}
                             rows={data.accounts.map(a => ({
                                 cells: [
                                     a.nickname, a.deactivated ? `${a.name} (deaktiviert)` : a.name,
                                     reportEuro(a.penalties), reportEuro(a.payments), reportSigned(a.balance),
+                                    openOf(a) > 0 ? reportEuro(openOf(a)) : '–',
                                 ],
-                                tones: [undefined, a.deactivated ? 'muted' : undefined, undefined, undefined, signTone(a.balance)],
+                                tones: [undefined, a.deactivated ? 'muted' : undefined, undefined, undefined, signTone(a.balance),
+                                    openOf(a) > 0 ? 'neg' : 'muted'],
                             }))}
                             footer={{
-                                cells: ['GESAMT', '', reportEuro(accountTotals.pen), reportEuro(accountTotals.pay), reportSigned(accountBalance)],
-                                tones: [undefined, undefined, undefined, undefined, signTone(accountBalance)],
+                                cells: ['GESAMT', '', reportEuro(accountTotals.pen), reportEuro(accountTotals.pay), reportSigned(accountBalance),
+                                    openTotal > 0 ? reportEuro(openTotal) : '–'],
+                                tones: [undefined, undefined, undefined, undefined, signTone(accountBalance),
+                                    openTotal > 0 ? 'neg' : 'muted'],
                             }}
                         />
                     </Section>
+
+                    {openRows.length > 0 && (
+                        <Section title="Offene Strafen" accent={accent}>
+                            <DataTable
+                                tint={tint}
+                                cols={[
+                                    {w: openCols[0], head: 'Kegelname'},
+                                    {w: openCols[1], head: 'Name'},
+                                    {w: openCols[2], head: 'Strafen', align: 'right'},
+                                    {w: openCols[3], head: 'Bezahlt', align: 'right'},
+                                    {w: openCols[4], head: 'Offen', align: 'right'},
+                                ]}
+                                rows={openRows.map(a => ({
+                                    cells: [a.nickname, a.deactivated ? `${a.name} (deaktiviert)` : a.name,
+                                        reportEuro(a.penalties), reportEuro(a.payments), reportEuro(openOf(a))],
+                                    tones: [undefined, a.deactivated ? 'muted' : undefined, undefined, undefined, 'neg'],
+                                }))}
+                                footer={{
+                                    cells: ['GESAMT', '', '', '', reportEuro(openTotal)],
+                                    tones: [undefined, undefined, undefined, undefined, 'neg'],
+                                }}
+                            />
+                        </Section>
+                    )}
                 </Page>
 
                 <Page size="A4" margin={MARGIN}>
