@@ -185,10 +185,7 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                     </div>
 
                     {canEdit && (
-                        <div className="kce-card p-3 space-y-2">
-                            <label className="field-label" htmlFor="zw-amount">
-                                {recount ? t('zeugwart.recountTo') : t('zeugwart.amount')}
-                            </label>
+                        <Field label={recount ? t('zeugwart.recountTo') : t('zeugwart.amount')} htmlFor="zw-amount" className="kce-card p-3 space-y-2">
                             <input id="zw-amount" className="kce-input" inputMode="numeric" value={amount}
                                    onChange={e => setAmount(e.target.value)}/>
                             <input className="kce-input" placeholder={t('zeugwart.movementNote')} aria-label={t('zeugwart.movementNote')}
@@ -214,7 +211,7 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
                                     <ActionItem icon="🗑️" label={t('zeugwart.delete')} danger onClick={() => setMode('delete')}/>
                                 </div>
                             )}
-                        </div>
+                        </Field>
                     )}
 
                     <div>

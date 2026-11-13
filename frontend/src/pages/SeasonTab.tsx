@@ -8,6 +8,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {SeasonSnapshot} from '@/types'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 type Balance = {
     regular_member_id: number
@@ -309,8 +310,7 @@ export function SeasonTab() {
                     </ul>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                    <label className="field-label">{t('season.notes')}</label>
+                <Field label={t('season.notes')} className="flex flex-col gap-1">
                     <input
                         type="text"
                         className="kce-input"
@@ -318,7 +318,7 @@ export function SeasonTab() {
                         value={notes}
                         onChange={e => setNotes(e.target.value)}
                     />
-                </div>
+                </Field>
 
                 <Button
                     type="button"

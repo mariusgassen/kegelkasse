@@ -1426,11 +1426,7 @@ export function TreasuryPage() {
                    title={`✏️ ${t('treasury.booking.edit')}`} onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
                     {editTarget?.kind === 'payment' && (
-                        <div>
-                            <label className="field-label">
-                                {t('treasury.booking.for')}: <span className="font-bold text-ink">{editTarget.label}</span>
-                            </label>
-                        </div>
+                        <div><label className="field-label">{t('treasury.booking.for')}: <span className="font-bold text-ink">{editTarget.label}</span></label></div>
                     )}
 
                     {/* Direction */}
@@ -1489,11 +1485,7 @@ export function TreasuryPage() {
                     <p className="text-xs text-muted">
                         {t('treasury.transfer.hint')}
                     </p>
-                    <div>
-                        <label className="field-label">
-                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-ink">{transferGuest?.name ?? ''}</span>
-                        </label>
-                    </div>
+                    <div><label className="field-label">{t('treasury.transfer.fromGuest')}: <span className="font-bold text-ink">{transferGuest?.name ?? ''}</span></label></div>
                     <Field label={t('treasury.transfer.target')}>
                         {memberPickerList.length === 0
                             ? <p className="text-xs text-muted">{t('treasury.transfer.noTargets')}</p>
