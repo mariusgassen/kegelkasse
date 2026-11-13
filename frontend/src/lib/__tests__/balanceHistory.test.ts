@@ -349,7 +349,7 @@ describe('clusterPoints', () => {
 
 describe('balanceAt / monthlyStatements', () => {
     let evId = 0
-    const ev = (d: string, delta: number) => ({id: ++evId, ts: new Date(d).getTime(), delta, kind: 'payment' as BalanceEventKind, label: ''})
+    const ev = (d: string, delta: number) => ({id: String(++evId), ts: new Date(d).getTime(), delta, kind: 'payment' as BalanceEventKind, label: ''})
     const actual = [ev('2026-01-10T12:00:00', 100), ev('2026-01-20T12:00:00', -30), ev('2026-03-05T12:00:00', 50)]
 
     it('sums events up to and including the cut-off', () => {
