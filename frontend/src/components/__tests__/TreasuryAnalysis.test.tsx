@@ -150,6 +150,8 @@ describe('TreasuryAnalysis', () => {
         // Selecting a member without "Nur Auswahl anzeigen" simulates them leaving — expenses
         // aren't attributable to a member and stay out of that simulation.
         fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getByText('treasury.balanceFilter.simHeading')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('treasury.balanceFilter.simHeading'))
         await waitFor(() => expect(screen.getByTestId('balance-opt-only')).toBeInTheDocument())
         expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('expense-1')
     })
@@ -161,6 +163,8 @@ describe('TreasuryAnalysis', () => {
         await waitFor(() => expect(screen.getByTestId('chart-actual-event-ids')).toHaveTextContent('expense-1'))
 
         fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getByText('treasury.balanceFilter.simHeading')).toBeInTheDocument())
+        fireEvent.click(screen.getByText('treasury.balanceFilter.simHeading'))
         await waitFor(() => expect(screen.getByTestId('balance-opt-only')).toBeInTheDocument())
         fireEvent.click(screen.getByTestId('balance-opt-only'))
 

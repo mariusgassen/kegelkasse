@@ -26,7 +26,7 @@ Die Kasse ist in vier Reiter unterteilt — **Übersicht** ist die Blick-Ebene (
 
 ## Übersicht
 
-Die Übersicht beantwortet auf einen Blick drei Fragen — je eine Karte pro Frage: *Was schulde ich?*, *Was ist in der Kasse?* und *Wer schuldet noch?* Alles, was diese Zahlen auswertet oder durchspielt, sitzt im Reiter **🔬 Analyse**, damit die Übersicht kurz bleibt.
+Die Übersicht beantwortet auf einen Blick drei Fragen — je eine Karte pro Frage: *Was schulde ich?*, *Was ist in der Kasse?* und *Wer schuldet noch?* Alles, was diese Zahlen auswertet, sitzt im Reiter **🔬 Analyse**, damit die Übersicht kurz bleibt.
 
 Die Übersicht zeigt dabei **immer die echten Vereinszahlen** — der Spieler-Filter der Analyse wirkt sich nie auf sie aus.
 
@@ -48,17 +48,13 @@ Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zus
 | ⬆ **Eingezahlt (Mitglieder + Gäste)** | Alles, was je real in die Kasse eingezahlt wurde |
 | ⬇ **Ausgaben** | Echte Vereinsausgaben (Bahnmiete, Vereinsfahrt, …) |
 | ⬆ **Sonstige Einnahmen** | Nur sichtbar, wenn vorhanden — Einnahmen, die über das Ausgaben-Konto verbucht wurden (z. B. Sponsoring, Zuschuss), statt als Mitgliedseinzahlung |
-| 💰 **Kassenstand** | Eingezahlt minus Ausgaben plus Sonstige Einnahmen — echtes Geld in der Kasse |
-| 🔴 **Noch nicht bezahlt (offen)** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
+| 💰 **Kassenstand** | Eingezahlt minus Ausgaben plus Sonstige — echtes Geld in der Kasse |
+| 🔴 **Offen** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
 | → **Kassenstand, wenn alle zahlen** | Kassenstand plus offene Beträge |
 
-Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Noch nicht bezahlt".
+Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Offen".
 
-Die Zeilen nennen hier nur die Beträge. Wer wie viel eingezahlt hat, welche einzelnen Ausgaben-Posten die Summe ergeben und wer noch offene Beträge hat, steht hinter **Geldfluss im Detail ansehen ›** am Fuß der Karte — das führt in den Reiter **🔬 Analyse**.
-
-### Wie funktioniert die Kasse?
-
-Am unteren Rand der Kassenstand-Karte lässt sich **❓ Wie funktioniert die Kasse?** aufklappen — eine unauffällige, kleingedruckte Zeile statt einer eigenen Karte, die das Modell in vier Sätzen erklärt: Strafen erzeugen offene Beträge, Einzahlungen senken sie (Saldo = Bezahlt − Strafen), der Kassenstand ist echtes Geld, Guthaben wird mit künftigen Strafen verrechnet.
+Die Zeilen nennen hier nur die Beträge. Wer wie viel eingezahlt hat und welche einzelnen Posten die Summen ergeben, steht im Reiter **🔬 Analyse**.
 
 ### Wer schuldet noch?
 
@@ -79,18 +75,19 @@ Ganz oben im Analyse-Reiter steht **🔍 Nach Spielern filtern** — direkt geö
 1. Wähle über die Mitglieder-Pillen ein oder mehrere Mitglieder aus (eigenes Konto zuerst, **Ich**-Badge)
 2. Sobald mindestens ein Mitglied ausgewählt ist, erscheinen die Filter-Optionen:
    - **Nur Auswahl anzeigen**: reine Ansichts-Einschränkung — die Zahlen darunter beziehen sich ausschließlich auf die ausgewählten Mitglieder
-   - Andernfalls simuliert der Filter, dass die Auswahl den Verein verlässt, über drei unabhängige Optionen:
-     - **Offene Strafen abschreiben** (Standard an): die offenen Schulden der Auswahl werden nicht mehr eingefordert (bereits Bezahltes bleibt)
+   - Andernfalls simuliert der Filter, dass die Auswahl den Verein verlässt. Die Optionen dafür stehen eingeklappt hinter **Erweitert** — dort steht auch **Nur Auswahl anzeigen**; erst nach dem Aufklappen sind die Häkchen sichtbar:
+     - Die offenen Strafen der Auswahl werden dabei immer abgeschrieben (bereits Bezahltes bleibt); optional sind nur:
      - **Eingezahltes abziehen**: das bereits eingezahlte Geld der Auswahl wird zurückgezahlt und aus dem Kassenstand entfernt (senkt „Eingezahlt")
      - **Anteil verrechnen**: anteiliger Ausgleich von 1/n der sonstigen Einnahmen minus 1/n der Ausgaben je ausgewähltem Mitglied (n = Anzahl der Mitgliedskonten) — erscheint als eigene Zeile **Anteil Auswahl** im Kassenstand-Geldfluss
 
+
 Ein Zähl-Badge neben dem Titel zeigt an, wie viele Mitglieder ausgewählt sind; ein **Zurücksetzen**-Knopf leert die Auswahl und stellt die Standard-Optionen wieder her.
 
-Der Filter steht bewusst **vor** allem, was er beeinflusst: die Geldfluss-Karte darunter (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch nicht bezahlt, Kassenstand-Projektion) und — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im Verlauf-Graph. **Außerhalb des Analyse-Reiters wirkt er nicht**: Übersicht, Konten und Kassenbuch zeigen immer die vollständigen Vereinszahlen. Gäste sind nie Teil der Auswahl. Die „Inkl. Schulden"-Verlaufslinie bleibt immer clubweit (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt). **Bei „Nur Auswahl anzeigen"** blendet die „Tatsächlich"-Linie zusätzlich die nicht mitgliedsgebundenen Vereinsausgaben/-einnahmen aus — die Linie zeigt dann ausschließlich die Zahlungen der ausgewählten Mitglieder, statt clubweite Buchungen mit hineinzumischen. Bei den drei Austritts-Simulationsoptionen (Abschreiben/Zurückzahlen/Verrechnen) bleiben Vereinsausgaben dagegen unverändert Teil der Linie, da sie dort nicht Gegenstand der Simulation sind.
+Der Filter steht bewusst **vor** allem, was er beeinflusst: die Geldfluss-Karte darunter (Eingezahlt, Ausgaben, Sonstige, Offen, Kassenstand-Projektion) und — im 🏛️ Kasse-Modus — die „Tatsächlich"-Linie im Verlauf-Graph. **Außerhalb des Analyse-Reiters wirkt er nicht**: Übersicht, Konten und Kassenbuch zeigen immer die vollständigen Vereinszahlen. Gäste sind nie Teil der Auswahl. Die „Inkl. Schulden"-Verlaufslinie bleibt immer clubweit (ein clubweiter Zeitstrahl, der sich nicht auf einzelne Mitglieder herunterbrechen lässt). Bei aktiver Auswahl blendet die „Tatsächlich"-Linie zusätzlich die nicht mitgliedsgebundenen Vereinsausgaben/-einnahmen aus — sie zeigt dann nur die Zahlungen der ausgewählten Mitglieder.
 
 ### Geldfluss im Detail
 
-Darunter steht derselbe Geldfluss wie auf der Übersicht — hier aber **aufklappbar**: Jede Zeile (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch offen) lässt sich antippen und zeigt die zugrunde liegenden Einzelbuchungen (Mitglied bzw. Ausgaben-Beschreibung mit Datum und Betrag), ohne in den Kassenbuch-Tab wechseln zu müssen. Die große Zahl oben ist der Kassenstand, den die Zeilen ergeben — mit aktivem Filter also der simulierte statt des tatsächlichen.
+Darunter steht derselbe Geldfluss wie auf der Übersicht — hier aber **aufklappbar**: Jede Zeile (Eingezahlt, Ausgaben, Sonstige, Offen) lässt sich antippen und zeigt die zugrunde liegenden Einzelbuchungen (Mitglied bzw. Ausgaben-Beschreibung mit Datum und Betrag), ohne in den Kassenbuch-Tab wechseln zu müssen. Die große Zahl oben ist der Kassenstand, den die Zeilen ergeben
 
 ---
 

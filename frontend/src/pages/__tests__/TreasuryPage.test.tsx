@@ -572,18 +572,6 @@ describe('TreasuryPage — overview clarity sections', () => {
         expect(screen.queryByText(/treasury\.my\.title/)).not.toBeInTheDocument()
     })
 
-    it('toggles the how-it-works explainer open and closed', async () => {
-        await setupDefaultMocks()
-        await renderTreasuryPage()
-        await waitFor(() => screen.getByText(/treasury\.help\.title/))
-        expect(screen.queryByText('treasury.help.penalties')).not.toBeInTheDocument()
-        fireEvent.click(screen.getByText(/treasury\.help\.title/))
-        expect(screen.getByText('treasury.help.penalties')).toBeInTheDocument()
-        expect(screen.getByText('treasury.help.cash')).toBeInTheDocument()
-        fireEvent.click(screen.getByText(/treasury\.help\.title/))
-        expect(screen.queryByText('treasury.help.penalties')).not.toBeInTheDocument()
-    })
-
     it('renders paid-share progress bar for a debtor with partial payments', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue({ id: 1, name: 'TestClub', settings: {} } as any)
@@ -1171,17 +1159,6 @@ describe('TreasuryPage — glance vs. analysis split', () => {
         expect(screen.queryByTestId('flow-amount-paidIn')).not.toBeInTheDocument()
     })
 
-    it('links from the cash card into the analysis tab', async () => {
-        const setTab = vi.fn()
-        const { useHashTab } = await import('@/hooks/usePage.ts')
-        vi.mocked(useHashTab).mockReturnValue(['overview', setTab] as any)
-        await renderTreasuryPage()
-        await waitFor(() => expect(screen.getByTestId('goto-analysis')).toBeInTheDocument())
-
-        fireEvent.click(screen.getByTestId('goto-analysis'))
-        expect(setTab).toHaveBeenCalledWith('analysis')
-    })
-
     it('keeps the glance figures unfiltered — the debtor list shows the whole club', async () => {
         await renderTreasuryPage()
         await waitFor(() => {
@@ -1282,7 +1259,7 @@ describe('TreasuryPage — balance filter by players (analysis tab)', () => {
         expect(scope.queryByTestId('balance-filter-options')).not.toBeInTheDocument()
     })
 
-    it('write-off (default on) drops a selected debtor\'s outstanding balance', async () => {
+    it('write-off (always on) drops a selected debtor\'s outstanding balance', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €'))
 
@@ -1293,24 +1270,14 @@ describe('TreasuryPage — balance filter by players (analysis tab)', () => {
         await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
     })
 
-    it('unchecking write-off keeps the selected debtor\'s outstanding balance', async () => {
-        await renderTreasuryPage()
-        const scope = within(screen.getByTestId('balance-filter'))
-        await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
-
-        fireEvent.click(scope.getByText('Hansi'))
-        await waitFor(() => expect(screen.queryByTestId('flow-amount-outstanding')).not.toBeInTheDocument())
-
-        fireEvent.click(scope.getByTestId('balance-opt-writeoff'))
-        await waitFor(() => expect(screen.getByTestId('flow-amount-outstanding')).toHaveTextContent('5,50 €'))
-    })
-
     it('only-selected restricts the figures to just the selected member', async () => {
         await renderTreasuryPage()
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+10,00 €'))
 
         const scope = within(screen.getByTestId('balance-filter'))
         fireEvent.click(scope.getByText('Hansi'))
+        await waitFor(() => expect(scope.getByText('treasury.balanceFilter.simHeading')).toBeInTheDocument())
+        fireEvent.click(scope.getByText('treasury.balanceFilter.simHeading'))
         await waitFor(() => expect(scope.getByTestId('balance-opt-only')).toBeInTheDocument())
         fireEvent.click(scope.getByTestId('balance-opt-only'))
 
@@ -1356,6 +1323,7 @@ describe('TreasuryPage — balance filter by players (analysis tab)', () => {
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
+        fireEvent.click(scope.getByText('treasury.balanceFilter.simHeading'))
         fireEvent.click(scope.getByTestId('balance-opt-refund'))
 
         await waitFor(() => expect(screen.getByTestId('flow-amount-paidIn')).toHaveTextContent('+0,00 €'))
@@ -1372,6 +1340,7 @@ describe('TreasuryPage — balance filter by players (analysis tab)', () => {
         const scope = within(screen.getByTestId('balance-filter'))
         await waitFor(() => expect(scope.getByText('Hansi')).toBeInTheDocument())
         fireEvent.click(scope.getByText('Hansi'))
+        fireEvent.click(scope.getByText('treasury.balanceFilter.simHeading'))
         fireEvent.click(scope.getByTestId('balance-opt-share'))
 
         // A positive share is a payout — the row shows it leaving the till.

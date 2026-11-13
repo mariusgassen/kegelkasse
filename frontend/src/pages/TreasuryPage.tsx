@@ -609,6 +609,50 @@ export function TreasuryPage() {
         {id: 'audit', label: t('treasury.tab.audit')},
     ] as const
 
+    // Statement (payments + penalties per evening) for an expanded account.
+    const renderStatement = (memberId: number, memberName: string) => (
+        <>
+        {accountStatement.length === 0
+            ?
+            <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
+            : accountStatement.map(entry => entry.kind === 'evening' ? (
+                <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs"
+                     data-testid="statement-evening">
+                    <span className="font-bold flex-shrink-0 w-20 text-danger-fg">
+                        {fe(-entry.total)}
+                    </span>
+                    <span className="text-muted truncate flex-1">
+                        {entry.absenceOnly ? '🚪' : '🎳'} {entry.absenceOnly ? t('treasury.statement.absence') : t('treasury.statement.evening')}
+                        {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
+                    </span>
+                    <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
+                </div>
+            ) : (() => { const p = entry.payment; return (
+                <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs">
+                    <span
+                        className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
+                        {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
+                    </span>
+                    <span
+                        className="text-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
+                    <span
+                        className="text-muted flex-shrink-0">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
+                    {admin && (
+                        <Button variant="secondary" size="xs" className="flex-shrink-0"
+                                aria-label={t('treasury.booking.edit')}
+                                onClick={() => openEditPayment(p, memberId, memberName)}>✏️</Button>
+                    )}
+                    {admin && (
+                        <Button variant="danger" size="xs" className="flex-shrink-0"
+                                aria-label={t('treasury.payment.deleteConfirm')}
+                                onClick={() => setConfirmDeletePayment({id: p.id, memberId: memberId})}>✕</Button>
+                    )}
+                </div>
+            )})())
+        }
+        </>
+    )
+
     const isClubBooking = bookingTarget === 'club'
     const showAsExpense = !isClubBooking && bookingDirection === 'in'
     const bookingValid = parseAmount(bookingAmount) > 0
@@ -780,24 +824,6 @@ export function TreasuryPage() {
                                     </div>
                                 </>
                             )}
-                            <button type="button" data-testid="goto-analysis"
-                                    className="mt-1 text-sm text-accent-fg font-bold text-left"
-                                    onClick={() => setTab('analysis' as Parameters<typeof setTab>[0])}>
-                                {t('treasury.analysis.link')} ›
-                            </button>
-                        </div>
-
-                        {/* How does the treasury work? — tucked away inside the hero, less prominent than a standalone card */}
-                        <div className="mt-2 pt-2 border-t border-line">
-                            <ExpandableCard bare
-                                            title={<span className="text-xs text-muted">❓ {t('treasury.help.title')}</span>}>
-                                <ul className="pt-1.5 flex flex-col gap-1 text-xs text-muted list-disc list-inside">
-                                    <li>{t('treasury.help.penalties')}</li>
-                                    <li>{t('treasury.help.payments')}</li>
-                                    <li>{t('treasury.help.cash')}</li>
-                                    <li>{t('treasury.help.credit')}</li>
-                                </ul>
-                            </ExpandableCard>
                         </div>
                     </div>
 
@@ -1138,44 +1164,7 @@ export function TreasuryPage() {
                                         <div className="border-t border-line px-3 pb-3 pt-2">
                                             <div
                                                 className="text-xs font-bold text-muted mb-2">{t('treasury.payment.history')}</div>
-                                            {accountStatement.length === 0
-                                                ?
-                                                <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
-                                                : accountStatement.map(entry => entry.kind === 'evening' ? (
-                                                    <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs"
-                                                         data-testid="statement-evening">
-                                                        <span className="font-bold flex-shrink-0 w-20 text-danger-fg">
-                                                            {fe(-entry.total)}
-                                                        </span>
-                                                        <span className="text-muted truncate flex-1">
-                                                            {entry.absenceOnly ? '🚪' : '🎳'} {entry.absenceOnly ? t('treasury.statement.absence') : t('treasury.statement.evening')}
-                                                            {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
-                                                        </span>
-                                                        <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
-                                                    </div>
-                                                ) : (() => { const p = entry.payment; return (
-                                                    <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs">
-                                                        <span
-                                                            className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
-                                                            {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
-                                                        </span>
-                                                        <span
-                                                            className="text-muted truncate flex-1">{p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}</span>
-                                                        <span
-                                                            className="text-muted flex-shrink-0">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
-                                                        {admin && (
-                                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
-                                                                    aria-label={t('treasury.booking.edit')}
-                                                                    onClick={() => openEditPayment(p, b.regular_member_id, b.nickname || b.name)}>✏️</Button>
-                                                        )}
-                                                        {admin && (
-                                                            <Button variant="danger" size="xs" className="flex-shrink-0"
-                                                                    aria-label={t('treasury.payment.deleteConfirm')}
-                                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: b.regular_member_id})}>✕</Button>
-                                                        )}
-                                                    </div>
-                                                )})())
-                                            }
+                                            {renderStatement(b.regular_member_id, b.nickname || b.name)}
                                             {/* PayPal payment option for own account */}
                                             {isMe && myDebtAmount > 0 && paypalHandle && (
                                                 <div className="mt-2 pt-2 border-t border-line flex flex-col gap-2">
@@ -1266,33 +1255,46 @@ export function TreasuryPage() {
                             <div className="sec-heading mt-3">{t('treasury.guestsLabel')}</div>
                             {(guestBalances as Balance[]).sort((a, b) => a.balance - b.balance).map(b => {
                                 const hasDebt = b.balance < -0.01
+                                const isExpanded = expandedMember === b.regular_member_id
                                 return (
-                                    <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0"
-                                             style={{background: hasDebt ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))' : 'linear-gradient(135deg,var(--muted),color-mix(in srgb, var(--muted) 70%, black))'}}>
-                                            {b.name[0].toUpperCase()}
+                                    <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
+                                        <div className="p-3 flex items-center gap-3">
+                                            <button type="button" className="flex-1 min-w-0 flex items-center gap-3 text-left"
+                                                    aria-expanded={isExpanded}
+                                                    onClick={() => setExpandedMember(isExpanded ? null : b.regular_member_id)}>
+                                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0"
+                                                     style={{background: hasDebt ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))' : 'linear-gradient(135deg,var(--muted),color-mix(in srgb, var(--muted) 70%, black))'}}>
+                                                    {b.name[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-bold truncate flex items-center gap-1">
+                                                        {b.nickname || b.name}
+                                                        <span className="text-xs text-muted font-bold border border-line rounded px-1">{t('player.guestLabel')}</span>
+                                                    </div>
+                                                    <div className="text-xs text-muted">
+                                                        {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
+                                                    </div>
+                                                    <PaidShareBar b={b}/>
+                                                </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    {hasDebt
+                                                        ? <div className="font-bold text-sm text-danger-fg">{fe(b.balance)}</div>
+                                                        : <div className="text-sm text-muted">✓</div>
+                                                    }
+                                                </div>
+                                            </button>
+                                            {admin && hasDebt && (
+                                                <Button variant="primary" size="sm" className="flex-shrink-0"
+                                                        onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
+                                                    {t('treasury.payment.settle')}
+                                                </Button>
+                                            )}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold truncate flex items-center gap-1">
-                                                {b.nickname || b.name}
-                                                <span className="text-xs text-muted font-bold border border-line rounded px-1">{t('player.guestLabel')}</span>
+                                        {isExpanded && (
+                                            <div className="border-t border-line px-3 pb-3 pt-2">
+                                                <div className="text-xs font-bold text-muted mb-2">{t('treasury.payment.history')}</div>
+                                                {renderStatement(b.regular_member_id, b.nickname || b.name)}
                                             </div>
-                                            <div className="text-xs text-muted">
-                                                {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
-                                            </div>
-                                            <PaidShareBar b={b}/>
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                            {hasDebt
-                                                ? <div className="font-bold text-sm text-danger-fg">{fe(b.balance)}</div>
-                                                : <div className="text-sm text-muted">✓</div>
-                                            }
-                                        </div>
-                                        {admin && hasDebt && (
-                                            <Button variant="primary" size="sm" className="flex-shrink-0"
-                                                    onClick={() => openPaymentSheet(b.regular_member_id, b.nickname || b.name, Math.abs(b.balance))}>
-                                                {t('treasury.payment.settle')}
-                                            </Button>
                                         )}
                                     </div>
                                 )
