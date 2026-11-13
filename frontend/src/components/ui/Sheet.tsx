@@ -52,6 +52,25 @@ export function Sheet({open, onClose, title, header, children, onSubmit, overlay
         }
     }, [open])
 
+    // The on-screen keyboard shrinks the *visual* viewport but (notably on iOS) not the layout
+    // viewport the fixed overlay is sized to, so a bottom-anchored sheet ends up behind the keyboard.
+    // Follow the visual viewport instead.
+    const [viewport, setViewport] = useState<{top: number; height: number} | null>(null)
+    useEffect(() => {
+        const vv = window.visualViewport
+        if (!open || !vv) return
+        const update = () => setViewport(
+            vv.height < window.innerHeight - 80 ? {top: vv.offsetTop, height: vv.height} : null)
+        update()
+        vv.addEventListener('resize', update)
+        vv.addEventListener('scroll', update)
+        return () => {
+            vv.removeEventListener('resize', update)
+            vv.removeEventListener('scroll', update)
+            setViewport(null)
+        }
+    }, [open])
+
     useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : ''
         return () => {
@@ -117,7 +136,9 @@ export function Sheet({open, onClose, title, header, children, onSubmit, overlay
     ) : children
 
     return (
-        <div className="bottom-sheet" onClick={e => {
+        <div className="bottom-sheet"
+             style={viewport ? {top: viewport.top, bottom: 'auto', height: viewport.height} : undefined}
+             onClick={e => {
             if (e.target === e.currentTarget) onClose()
         }}>
             <div
