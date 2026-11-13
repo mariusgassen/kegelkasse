@@ -560,3 +560,18 @@ def test_own_status_change_does_not_notify_self(client, admin, db, monkeypatch):
     item = _item(db, club_id=admin.club_id, created_by_user_id=admin.id)
     client.patch(f"/api/v1/roadmap/items/{item.id}", json={"status": "planned"}, headers=_headers(admin))
     assert calls == []
+
+
+def test_completing_stamps_deployed_version(client, admin, db):
+    from api.v1.roadmap import _deployed_version
+
+    item = _item(db, club_id=admin.club_id, created_by_user_id=admin.id, status="planned", target_version="2.0")
+    r = client.patch(f"/api/v1/roadmap/items/{item.id}", json={"status": "completed", "target_version": "2.0"}, headers=_headers(admin))
+    assert r.status_code == 200
+    assert r.json()["target_version"] == _deployed_version()
+
+
+def test_completing_keeps_explicit_version(client, admin, db):
+    item = _item(db, club_id=admin.club_id, created_by_user_id=admin.id, status="planned", target_version="2.0")
+    r = client.patch(f"/api/v1/roadmap/items/{item.id}", json={"status": "completed", "target_version": "1.50"}, headers=_headers(admin))
+    assert r.json()["target_version"] == "1.50"

@@ -1738,6 +1738,8 @@ export const de = {
     "roadmap.edit.tags.placeholder": "z. B. export, kasse, excel",
     "roadmap.edit.duplicateOf": "Duplikat von",
     "roadmap.edit.duplicateNone": "Kein Duplikat (Eigenständige Idee)",
+    "roadmap.edit.version": "Version (geplant oder ausgeliefert)",
+    "roadmap.edit.version.placeholder": "Leer lassen: beim Abschluss wird die aktuelle Version eingetragen",
     "roadmap.edit.adminNotes": "Admin-Notiz / Entwicklungs-Feedback",
     "roadmap.edit.adminNotes.placeholder": "Interne Notiz oder Feedback für die Community...",
     "roadmap.edit.pinned": "Gepinnt (oben hervorheben)",
