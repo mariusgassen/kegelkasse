@@ -11,7 +11,7 @@ export function OfflineNotice({message}: {message?: string}) {
     const isOnline = useOnline()
     if (isOnline) return null
     return (
-        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-lg bg-accent-tint border border-accent/30 text-xs text-accent-tint-fg flex items-center gap-2">
             <span className="flex-shrink-0">📵</span>
             <span>{message ?? t('offline.noticeWrite')}</span>
         </div>
