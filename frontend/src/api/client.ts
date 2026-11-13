@@ -991,8 +991,11 @@ export const api = {
         if (format === 'pdf') {
             const data = await api.getReportData(year)
             // Imported on demand: the Forme WASM engine must not weigh on the main bundle.
-            const {renderReportPdf} = await import('@/lib/reportPdf')
-            const bytes = await renderReportPdf(data)
+            const [{renderReportPdf}, {loadReportBranding}] = await Promise.all([
+                import('@/lib/reportPdf'), import('@/lib/reportBranding'),
+            ])
+            const branding = await loadReportBranding(await api.getClub().catch(() => undefined))
+            const bytes = await renderReportPdf(data, branding)
             blob = new Blob([bytes as BlobPart], {type: 'application/pdf'})
         } else {
             const params = new URLSearchParams()

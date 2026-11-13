@@ -109,7 +109,7 @@ Die Diagramme nutzen Recharts und werden erst geladen, wenn der Reiter geöffnet
 
 ## Kassenbericht (Excel / PDF)
 
-Admins können oben in der Kasse einen vollständigen Kassenbericht herunterladen — als **Excel-Datei (.xlsx)** oder **PDF**. Das PDF wird direkt in deinem Browser erzeugt; beim ersten Mal kann das einen Moment dauern.
+Admins können oben in der Kasse einen vollständigen Kassenbericht herunterladen — als **Excel-Datei (.xlsx)** oder **PDF**. Das PDF wird direkt in deinem Browser erzeugt; beim ersten Mal kann das einen Moment dauern. Das PDF trägt dein Vereinslogo und die Vereinsfarbe, zeigt Beträge mit Vorzeichen vor dem Betrag (grün = Guthaben/Einnahme, rot = Schuld/Ausgabe) und wendet den Gäste-Deckel pro Abend überall gleich an. Deaktivierte Mitglieder erscheinen mit ihrem Konto, zählen aber nicht als aktive Mitglieder.
 
 ### Inhalte des Berichts
 
