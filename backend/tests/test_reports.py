@@ -1,7 +1,7 @@
 """
 Tests for the report export endpoint:
   GET /reports/export?format=xlsx
-  GET /reports/export?format=pdf
+  GET /reports/data   (JSON the app renders into its PDF)
 """
 import pytest
 from datetime import datetime
@@ -78,11 +78,10 @@ class TestExportReport:
         # Excel files start with PK (zip header)
         assert r.content[:2] == b"PK"
 
-    def test_pdf_format_returns_pdf(self, client, admin_headers):
+    def test_pdf_format_is_no_longer_served(self, client, admin_headers):
+        # The PDF is built in the app from /reports/data.
         r = client.get("/api/v1/reports/export?format=pdf", headers=admin_headers)
-        assert r.status_code == 200
-        assert "pdf" in r.headers["content-type"].lower()
-        assert r.content[:4] == b"%PDF"
+        assert r.status_code == 400
 
     def test_default_format_is_xlsx(self, client, admin_headers):
         r = client.get("/api/v1/reports/export", headers=admin_headers)
@@ -106,22 +105,11 @@ class TestExportReport:
         assert r.status_code == 200
         assert r.content[:2] == b"PK"
 
-    def test_year_filter_pdf(self, client, admin_headers):
-        r = client.get("/api/v1/reports/export?format=pdf&year=2025", headers=admin_headers)
-        assert r.status_code == 200
-        assert r.content[:4] == b"%PDF"
-
     def test_xlsx_content_disposition_contains_filename(self, client, admin_headers):
         r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
         cd = r.headers.get("content-disposition", "")
         assert "kegelkasse_report" in cd
         assert ".xlsx" in cd
-
-    def test_pdf_content_disposition_contains_filename(self, client, admin_headers):
-        r = client.get("/api/v1/reports/export?format=pdf", headers=admin_headers)
-        cd = r.headers.get("content-disposition", "")
-        assert "kegelkasse_report" in cd
-        assert ".pdf" in cd
 
     def test_export_with_data(self, client, admin_headers, db, club, admin_user):
         """Ensure export works correctly when there is actual data in the DB."""
@@ -151,3 +139,63 @@ class TestExportReport:
         r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
         assert r.status_code == 200
         assert r.content[:2] == b"PK"
+
+
+# ---------------------------------------------------------------------------
+# GET /reports/data
+# ---------------------------------------------------------------------------
+
+class TestReportData:
+    def test_requires_auth(self, client):
+        assert client.get("/api/v1/reports/data").status_code == 401
+
+    def test_member_forbidden(self, client, auth_headers):
+        assert client.get("/api/v1/reports/data", headers=auth_headers).status_code == 403
+
+    def test_empty_club_has_full_shape(self, client, admin_headers):
+        r = client.get("/api/v1/reports/data", headers=admin_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["period_label"] == "Gesamt"
+        assert body["summary"]["evenings"] == 0
+        assert body["bookings"] == []
+        assert body["evenings"] == []
+        assert body["monthly"]["months"] == []
+
+    def test_year_sets_period_label(self, client, admin_headers):
+        r = client.get("/api/v1/reports/data?year=2025", headers=admin_headers)
+        assert r.json()["period_label"] == "2025"
+
+    def test_aggregates_penalties_per_member(self, client, admin_headers, db, club):
+        import time
+        from models.penalty import PenaltyMode
+        member = RegularMember(club_id=club.id, name="Data Member", nickname="Dati", is_active=True)
+        db.add(member)
+        db.flush()
+        evening = Evening(club_id=club.id, date=datetime(2025, 3, 1), venue="Bahn 1", is_closed=True)
+        db.add(evening)
+        db.flush()
+        player = EveningPlayer(evening_id=evening.id, regular_member_id=member.id, name="Data Member")
+        db.add(player)
+        db.flush()
+        db.add(PenaltyLog(
+            evening_id=evening.id, player_id=player.id, player_name="Data Member",
+            penalty_type_name="Strafe", amount=2.5, unit_amount=2.5, mode=PenaltyMode.euro,
+            client_timestamp=time.time() * 1000,
+        ))
+        db.commit()
+
+        body = client.get("/api/v1/reports/data?year=2025", headers=admin_headers).json()
+
+        assert body["summary"]["total_penalties"] == 2.5
+        assert body["summary"]["evenings"] == 1
+        acct = next(a for a in body["accounts"] if a["name"] == "Data Member")
+        assert acct["nickname"] == "Dati"
+        assert acct["penalties"] == 2.5
+        assert acct["balance"] == -2.5
+        assert {"nickname": "Dati", "type": "Strafe", "count": 1, "total": 2.5} in body["penalties_by_person"]
+        assert body["evenings"][0]["venue"] == "Bahn 1"
+        assert body["evenings"][0]["penalties"] == 2.5
+        assert body["monthly"]["months"] == ["Mrz"]
+        row = next(m for m in body["monthly"]["regular"] if m["name"] == "Dati")
+        assert row["months"] == [2.5]

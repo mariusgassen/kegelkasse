@@ -928,6 +928,33 @@ describe('api.downloadReport', () => {
         vi.restoreAllMocks()
     })
 
+    it('builds the PDF in the app from /reports/data instead of downloading it', async () => {
+        vi.stubGlobal('fetch', mockFetch)
+        mockFetch.mockResolvedValueOnce({
+            status: 200,
+            ok: true,
+            json: vi.fn().mockResolvedValue({club_name: 'KC'}),
+        })
+        const renderReportPdf = vi.fn().mockResolvedValue(new Uint8Array([37, 80, 68, 70]))
+        vi.doMock('@/lib/reportPdf', () => ({renderReportPdf}))
+        vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() })
+        const anchor = document.createElement('a')
+        const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
+        vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor)
+
+        const { api } = await import('../client')
+        await api.downloadReport(2025, 'pdf')
+
+        expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/reports/data?year=2025')
+        expect(mockFetch.mock.calls.some(c => String(c[0]).includes('/reports/export'))).toBe(false)
+        expect(renderReportPdf).toHaveBeenCalledWith({club_name: 'KC'})
+        expect(anchor.download).toBe('kegelkasse_report_2025.pdf')
+        expect(clickSpy).toHaveBeenCalled()
+        vi.doUnmock('@/lib/reportPdf')
+        vi.unstubAllGlobals()
+        vi.restoreAllMocks()
+    })
+
     it('throws when response is not ok', async () => {
         // Re-stub fetch in case a previous test unstubbed it
         vi.stubGlobal('fetch', mockFetch)

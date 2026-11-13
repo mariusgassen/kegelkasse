@@ -95,7 +95,7 @@ Darunter steht derselbe Geldfluss wie auf der Übersicht — hier aber **aufklap
 
 ## Kassenbericht (Excel / PDF)
 
-Admins können oben in der Kasse einen vollständigen Kassenbericht herunterladen — als **Excel-Datei (.xlsx)** oder **PDF**.
+Admins können oben in der Kasse einen vollständigen Kassenbericht herunterladen — als **Excel-Datei (.xlsx)** oder **PDF**. Das PDF wird direkt in deinem Browser erzeugt; beim ersten Mal kann das einen Moment dauern.
 
 ### Inhalte des Berichts
 
