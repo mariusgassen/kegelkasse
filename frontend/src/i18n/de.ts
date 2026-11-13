@@ -1538,7 +1538,7 @@ export const de = {
     "season.overview.openBalances": "Offene Salden",
     "season.overview.year": "Saison",
     "season.loading": "Wird durchgeführt…",
-    "treasury.tab.charts": "📈 Diagramme",
+    "treasury.tab.charts": "📈 Insights",
     "treasury.charts.intro": "Die Kasse als Bilder: wohin das Geld fließt, wer noch schuldet und wie sich die Abende unterscheiden.",
     "treasury.charts.waterfall": "Kassenstand-Wasserfall",
     "treasury.charts.waterfallHint": "Eingezahlt abzüglich Ausgaben ergibt den Kassenstand; mit den offenen Schulden der projizierte Stand.",

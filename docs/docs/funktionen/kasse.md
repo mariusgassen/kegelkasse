@@ -18,7 +18,7 @@ Die Kasse ist in vier Reiter unterteilt — **Übersicht** ist die Blick-Ebene (
 |-----|--------|
 | **📊 Übersicht** | Mein Konto, Kassenstand, wer schuldet noch |
 | **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf |
-| **📈 Diagramme** | Wasserfall, Schulden-Treemap, Strafen pro Abend, Geldfluss-Sankey, Bezahlt-gegen-offen-Donut |
+| **📈 Insights** | Wasserfall, Schulden-Treemap, Strafen pro Abend, Geldfluss-Sankey, Bezahlt-gegen-offen-Donut |
 | **👤 Konten** | Mitgliedssalden — wer hat noch Schulden? |
 | **📒 Kassenbuch** | Alle Buchungen (Einzahlungen, Auszahlungen, Vereinsausgaben) |
 
@@ -94,9 +94,9 @@ Darunter steht derselbe Geldfluss wie auf der Übersicht — hier aber **aufklap
 
 ---
 
-## Diagramme (📈)
+## Insights (📈)
 
-Der Reiter **Diagramme** zeigt die Kasse als Bilder. Jedes Diagramm lässt sich antippen und zeigt dann den genauen Betrag.
+Der Reiter **Insights** zeigt die Kasse als Bilder. Jedes Diagramm lässt sich antippen und zeigt dann den genauen Betrag.
 
 - **Kassenstand-Wasserfall:** Eingezahlt, abzüglich Ausgaben, ergibt den Kassenstand; mit den offenen Schulden der projizierte Stand. Darüber ein kleiner Verlauf des Kassenstands.
 - **Wer schuldet wie viel?** Eine Treemap: je größer die Kachel, desto höher die offene Schuld. Dein eigenes Konto ist umrandet.

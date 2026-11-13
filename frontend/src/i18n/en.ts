@@ -1538,7 +1538,7 @@ export const en = {
     "season.overview.openBalances": "Open balances",
     "season.overview.year": "Season",
     "season.loading": "Processing…",
-    "treasury.tab.charts": "📈 Charts",
+    "treasury.tab.charts": "📈 Insights",
     "treasury.charts.intro": "The till in pictures: where the money flows, who still owes, and how the evenings differ.",
     "treasury.charts.waterfall": "Cash waterfall",
     "treasury.charts.waterfallHint": "Paid in minus expenses gives the cash balance; add open debts for the projected balance.",
