@@ -21,7 +21,7 @@ export type DualPoint = {
     event: BalanceEvent | null
 }
 
-type ClubPayment = { id: number; regular_member_id: number; member_name: string; amount: number; note: string | null; created_at: string | null; date?: string | null }
+type ClubPayment = { id: number; regular_member_id: number; member_name: string; amount: number; note: string | null; created_at: string | null; date?: string | null; is_writeoff?: boolean }
 type ClubExpense = { id: number; amount: number; description: string; created_at: string | null; date: string | null }
 type MemberPayment = { id: number; amount: number; note: string | null; created_at: string | null; date?: string | null }
 type MemberPenalty = {
@@ -46,6 +46,7 @@ function byTs(a: BalanceEvent, b: BalanceEvent): number {
 export function clubEventsFromBookings(payments: ClubPayment[], expenses: ClubExpense[]): BalanceEvent[] {
     const events: BalanceEvent[] = []
     for (const p of payments) {
+        if (p.is_writeoff) continue // settles a balance, but no cash moved
         const ts = parseTs(p.date ?? p.created_at)
         if (ts === null) continue
         events.push({id: `payment-${p.id}`, ts, delta: p.amount, kind: 'payment', label: p.member_name})

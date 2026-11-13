@@ -209,6 +209,43 @@ class TestCreateMemberPayment:
         ).count() == 1
 
 
+class TestPaymentWriteoff:
+    URL = "/api/v1/club/member-payments"
+
+    def test_writeoff_settles_balance_but_is_not_cash(self, client: TestClient, db, club, regular_member,
+                                                      admin_headers, auth_headers):
+        resp = client.post(self.URL, json={
+            "regular_member_id": regular_member.id, "amount": 12.5, "note": "Austritt", "is_writeoff": True,
+        }, headers=admin_headers)
+        assert resp.status_code == 201
+        assert resp.json()["is_writeoff"] is True
+        row = next(m for m in client.get("/api/v1/club/member-balances", headers=auth_headers).json()
+                   if m["regular_member_id"] == regular_member.id)
+        # Counts towards the balance, but is reported separately so cash maths can subtract it.
+        assert row["payments_total"] == 12.5
+        assert row["writeoff_total"] == 12.5
+
+    def test_normal_payment_is_not_a_writeoff(self, client: TestClient, regular_member, admin_headers, auth_headers):
+        client.post(self.URL, json={"regular_member_id": regular_member.id, "amount": 7.0}, headers=admin_headers)
+        row = next(m for m in client.get("/api/v1/club/member-balances", headers=auth_headers).json()
+                   if m["regular_member_id"] == regular_member.id)
+        assert row["writeoff_total"] == 0.0
+
+    def test_negative_writeoff_rejected(self, client: TestClient, regular_member, admin_headers):
+        resp = client.post(self.URL, json={
+            "regular_member_id": regular_member.id, "amount": -5.0, "is_writeoff": True,
+        }, headers=admin_headers)
+        assert resp.status_code == 400
+
+    def test_listings_expose_flag(self, client: TestClient, regular_member, admin_headers):
+        client.post(self.URL, json={"regular_member_id": regular_member.id, "amount": 3.0, "is_writeoff": True},
+                    headers=admin_headers)
+        allp = client.get(self.URL, headers=admin_headers).json()
+        assert allp[0]["is_writeoff"] is True
+        per = client.get(f"{self.URL}/{regular_member.id}", headers=admin_headers).json()
+        assert per[0]["is_writeoff"] is True
+
+
 class TestPaymentAsClubExpense:
     URL = "/api/v1/club/member-payments"
 

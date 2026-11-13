@@ -242,3 +242,7 @@ Der Admin bestätigt die Zahlung manuell — erst dann wird der Saldo aktualisie
 :::tip
 Den PayPal.me-Handle konfiguriert der Admin unter **Verein → Einstellungen**.
 :::
+
+## Austritt: Abschreibung statt Einzahlung
+
+Beim Entfernen eines Mitglieds wird nur die **noch offene** Schuld abgeschrieben. Die Abschreibung steht im Kassenbuch als 🧾 *Abschreibung*: sie gleicht das Konto auf null aus, zählt aber **nicht** als Einzahlung — weder in „Eingezahlt“ noch im Kassenstand, im Verlauf-Graph oder in der Kassenprüfung, denn es ist kein Geld geflossen. Eine Auszahlung wird nur für echtes Guthaben vorgeschlagen (mehr eingezahlt als Strafen); Eingezahltes, das durch Strafen aufgebraucht wurde, wird nicht zurückgezahlt.

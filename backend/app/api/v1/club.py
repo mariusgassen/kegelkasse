@@ -809,6 +809,21 @@ _PENALTY_EURO_SQL = case(
 )
 
 
+def _writeoff_by_member(db: Session, club_id: int) -> dict[int, float]:
+    """Sum of write-off bookings per member. They count in `payments_total` (they settle the
+    balance) but are not cash, so cash-on-hand maths subtracts them."""
+    return {
+        mid: float(total or 0.0)
+        for mid, total in (
+            db.query(MemberPayment.regular_member_id, func.sum(MemberPayment.amount))
+            .filter(MemberPayment.club_id == club_id, MemberPayment.is_deleted == False,
+                    MemberPayment.is_writeoff == True)
+            .group_by(MemberPayment.regular_member_id)
+            .all()
+        )
+    }
+
+
 @router.get("/member-balances")
 def get_member_balances(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Per-member: total penalties (all evenings), total payments, balance."""
@@ -862,6 +877,7 @@ def get_member_balances(db: Session = Depends(get_db), user: User = Depends(requ
             .all()
         )
     }
+    writeoff_by_member = _writeoff_by_member(db, user.club_id)
 
     result = []
     for m in members:
@@ -873,6 +889,7 @@ def get_member_balances(db: Session = Depends(get_db), user: User = Depends(requ
             "nickname": m.nickname,
             "penalty_total": round(penalty_total, 2),
             "payments_total": round(payments_total, 2),
+            "writeoff_total": round(writeoff_by_member.get(m.id, 0.0), 2),
             "balance": round(payments_total - penalty_total, 2),
         })
     return result
@@ -890,7 +907,8 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
     return [{"id": p.id, "amount": p.amount, "note": p.note,
              "created_at": p.created_at.isoformat() if p.created_at else None,
              "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-             "date": p.date.isoformat() if p.date else None} for p in payments]
+             "date": p.date.isoformat() if p.date else None,
+             "is_writeoff": bool(p.is_writeoff)} for p in payments]
 
 
 @router.get("/member-penalties/{mid}")
@@ -973,6 +991,8 @@ class PaymentCreate(TrimmedModel):
     # Member paid a club cost out of pocket (e.g. lane rental): also book a linked club expense
     as_club_expense: bool = False
     trip_id: Optional[int] = None  # Kegelfahrt the expense paid for (only with as_club_expense)
+    # Write off an open debt: settles the balance without any cash movement (club exit)
+    is_writeoff: bool = False
 
 
 class PaymentUpdate(TrimmedModel):
@@ -1015,7 +1035,8 @@ def _payment_dict(p: MemberPayment) -> dict:
     return {"id": p.id, "amount": p.amount, "note": p.note,
             "created_at": p.created_at.isoformat() if p.created_at else None,
             "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-            "date": p.date.isoformat() if p.date else None}
+            "date": p.date.isoformat() if p.date else None,
+            "is_writeoff": bool(p.is_writeoff)}
 
 
 @router.post("/member-payments", status_code=201)
@@ -1050,6 +1071,8 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         group_id = str(uuid.uuid4())
     elif data.trip_id is not None:
         raise HTTPException(400, "Kegelfahrt nur bei Vereinsausgaben")
+    if data.is_writeoff and (data.amount < 0 or data.as_club_expense):
+        raise HTTPException(400, "Abschreibung muss ein positiver Betrag sein")
     trip_id = _check_trip(db, user.club_id, data.trip_id)
     payment = MemberPayment(
         club_id=user.club_id,
@@ -1060,6 +1083,7 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         date=parsed_date,
         idempotency_key=data.idempotency_key,
         transfer_group_id=group_id,
+        is_writeoff=data.is_writeoff,
     )
     db.add(payment)
     if group_id:
@@ -1072,10 +1096,11 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
     db.refresh(payment)
     logger.info("member payment created: id=%s member=%s amount=%.2f by user=%s",
                 payment.id, data.regular_member_id, data.amount, user.id)
-    fee = f"{data.amount:.2f}".replace('.', ',')
-    background_tasks.add_task(
-        push_to_regular_member, db, data.regular_member_id, "💰 Einzahlung erfasst",
-        f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
+    if not data.is_writeoff:
+        fee = f"{data.amount:.2f}".replace('.', ',')
+        background_tasks.add_task(
+            push_to_regular_member, db, data.regular_member_id, "💰 Einzahlung erfasst",
+            f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
     return _payment_dict(payment)
 
 
@@ -1168,6 +1193,7 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
         "date": p.date.isoformat() if p.date else None,
+        "is_writeoff": bool(p.is_writeoff),
     } for p, m in payments]
 
 
@@ -1232,6 +1258,8 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
         )
     }
 
+    writeoff_by_member = _writeoff_by_member(db, user.club_id)
+
     result = []
     for g in guests:
         penalty_total = round(penalty_by_member.get(g.id, 0.0), 2)
@@ -1244,6 +1272,7 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
             "nickname": g.nickname,
             "penalty_total": penalty_total,
             "payments_total": payments_total,
+            "writeoff_total": round(writeoff_by_member.get(g.id, 0.0), 2),
             "balance": round(payments_total - penalty_total, 2),
         })
     return result
@@ -1666,6 +1695,7 @@ def get_my_balance(db: Session = Depends(get_db), user: User = Depends(require_c
         "regular_member_id": user.regular_member_id,
         "penalty_total": round(penalty_total, 2),
         "payments_total": round(payments_total, 2),
+        "writeoff_total": round(_writeoff_by_member(db, user.club_id).get(user.regular_member_id, 0.0), 2),
         "balance": round(payments_total - penalty_total, 2),
     }
 

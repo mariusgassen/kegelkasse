@@ -452,6 +452,41 @@ describe('MembersPage — unlinked roster member', () => {
         })
     })
 
+    it('writes off only the open debt on exit, as a non-cash write-off, and pays out nothing', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.deleteRegularMember).mockResolvedValueOnce(undefined as any)
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 4, name: 'Klauschen', nickname: null, payments_total: 3.5, penalty_total: 183.46, balance: -179.96 },
+        ] as any)
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.removeFromClub'))
+        await waitFor(() => screen.getByText('member.removeConfirm'))
+        await waitFor(() => screen.getByText(/member\.payoutWriteOffInfo/))
+        fireEvent.click(screen.getByText('member.removeFromClub'))
+        await waitFor(() => {
+            expect(api.createMemberPayment).toHaveBeenCalledWith({
+                regular_member_id: 4, amount: 179.96, note: 'member.writeOffNote', is_writeoff: true,
+            })
+        })
+        expect(api.treasuryPayout).not.toHaveBeenCalled()
+    })
+
+    it('prefills the payout with real credit only', async () => {
+        await setupWithUnlinked()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberBalances).mockResolvedValueOnce([
+            { regular_member_id: 4, name: 'Klauschen', nickname: null, payments_total: 50, penalty_total: 20, balance: 30 },
+        ] as any)
+        await renderMembersPage()
+        const actionSheet = await openRowActions('Klauschen')
+        fireEvent.click(within(actionSheet).getByText('member.removeFromClub'))
+        await waitFor(() => screen.getByText('member.removeConfirm'))
+        const input = screen.getByPlaceholderText('0,00') as HTMLInputElement
+        await waitFor(() => expect(input.value).toBe('30.00'))
+    })
+
     it('calls api.deactivateRegularMember with today prefilled as the date', async () => {
         await setupWithUnlinked()
         const { api } = await import('@/api/client.ts')
