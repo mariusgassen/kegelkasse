@@ -4,6 +4,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton'
@@ -130,13 +131,11 @@ function DeleteExpenseSheet({trip, expense, onClose}: { trip: ClubTrip; expense:
         }
     }
     return (
-        <Sheet open onClose={onClose} title={`🗑️ ${t('action.delete')}`}>
-            <p className="text-sm text-ink mb-3">{t('trip.expenses.deleteConfirm')}</p>
-            <p className="text-sm font-bold mb-4">{expense.description} · {fe(expense.amount)}</p>
-            <Button type="button" variant="danger" block disabled={busy} onClick={remove}>
-                {t('action.delete')}
-            </Button>
-        </Sheet>
+        <ConfirmSheet open onClose={onClose} title={`🗑️ ${t('action.delete')}`}
+                      message={t('trip.expenses.deleteConfirm')} confirmLabel={t('action.delete')}
+                      busy={busy} onConfirm={remove}>
+            <p className="text-sm font-bold">{expense.description} · {fe(expense.amount)}</p>
+        </ConfirmSheet>
     )
 }
 

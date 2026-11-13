@@ -5,6 +5,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
@@ -169,16 +170,10 @@ function ItemSheet({item, canEdit, onClose}: { item: InventoryItem | null; canEd
     return (
         <Sheet open={item != null} onClose={close} title={title}
                overlays={item && (
-                   <Sheet open={mode === 'delete'} onClose={() => setMode('view')} title={t('zeugwart.delete')}>
-                       <p className="text-sm text-ink mb-4">{t('zeugwart.deleteConfirm').replace('{name}', item.name)}</p>
-                       <div className="flex gap-2">
-                           <Button variant="secondary" className="flex-1" onClick={() => setMode('view')}>{t('action.cancel')}</Button>
-                           <Button variant="danger" className="flex-1" disabled={busy || !isOnline}
-                                   onClick={() => run(() => api.deleteInventoryItem(item.id), 'zeugwart.saved', close)}>
-                               {t('action.delete')}
-                           </Button>
-                       </div>
-                   </Sheet>
+                   <ConfirmSheet open={mode === 'delete'} onClose={() => setMode('view')} title={t('zeugwart.delete')}
+                                 message={t('zeugwart.deleteConfirm').replace('{name}', item.name)}
+                                 confirmLabel={t('action.delete')} withCancel busy={busy || !isOnline}
+                                 onConfirm={() => run(() => api.deleteInventoryItem(item.id), 'zeugwart.saved', close)}/>
                )}>
             {item && mode === 'edit' ? (
                 <ItemForm initial={item} withStock={false} busy={busy} onCancel={() => setMode('view')}

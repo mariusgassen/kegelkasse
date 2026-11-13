@@ -7,25 +7,38 @@ interface ConfirmSheetProps {
     open: boolean
     onClose: () => void
     title: string
-    message: ReactNode
+    message?: ReactNode
     onConfirm: () => void
     /** Defaults to "Delete" (action.confirmDelete). */
     confirmLabel?: string
     /** Render the message in the danger colour (for warnings, not plain questions). */
     warning?: boolean
     busy?: boolean
+    /** Extra content between the message and the buttons (e.g. a reason input). */
+    children?: ReactNode
+    /** Show a Cancel button next to the confirm button (otherwise the confirm button is full width). */
+    withCancel?: boolean
 }
 
-/** Confirm-before-destructive bottom sheet: one message, one red button. */
-export function ConfirmSheet({open, onClose, title, message, onConfirm, confirmLabel, warning, busy}: ConfirmSheetProps) {
+/** Confirm-before-destructive bottom sheet: a message, optional extra content, one red button (plus optional Cancel). */
+export function ConfirmSheet({open, onClose, title, message, onConfirm, confirmLabel, warning, busy, children, withCancel}: ConfirmSheetProps) {
     const t = useT()
     return (
         <Sheet open={open} onClose={onClose} title={title}>
             <div className="flex flex-col gap-3">
-                <p className={`text-sm ${warning ? 'text-danger-fg' : 'text-muted'}`}>{message}</p>
-                <Button type="button" variant="danger" block disabled={busy} onClick={onConfirm}>
-                    {confirmLabel ?? t('action.confirmDelete')}
-                </Button>
+                {message && <p className={`text-sm ${warning ? 'text-danger-fg' : 'text-muted'}`}>{message}</p>}
+                {children}
+                <div className="flex gap-2">
+                    {withCancel && (
+                        <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+                            {t('action.cancel')}
+                        </Button>
+                    )}
+                    <Button type="button" variant="danger" block={!withCancel} className={withCancel ? 'flex-1' : undefined}
+                            disabled={busy} onClick={onConfirm}>
+                        {confirmLabel ?? t('action.confirmDelete')}
+                    </Button>
+                </div>
             </div>
         </Sheet>
     )

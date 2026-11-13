@@ -16,4 +16,17 @@ describe('ConfirmSheet', () => {
         render(<ConfirmSheet open onClose={() => {}} title="T" message="m" confirmLabel="Go" busy onConfirm={() => {}}/>)
         expect((screen.getByText('Go') as HTMLButtonElement).disabled).toBe(true)
     })
+    it('renders extra content and a Cancel button that closes', () => {
+        const onClose = vi.fn()
+        render(<ConfirmSheet open onClose={onClose} title="T" message="m" withCancel onConfirm={() => {}}>
+            <input placeholder="reason"/>
+        </ConfirmSheet>)
+        expect(screen.getByPlaceholderText('reason')).toBeTruthy()
+        fireEvent.click(screen.getByText('action.cancel'))
+        expect(onClose).toHaveBeenCalledOnce()
+    })
+    it('omits the message paragraph when none is given', () => {
+        render(<ConfirmSheet open onClose={() => {}} title="T" onConfirm={() => {}}/>)
+        expect(document.querySelector('p')).toBeNull()
+    })
 })
