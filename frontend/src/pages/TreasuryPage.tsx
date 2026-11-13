@@ -4,6 +4,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton'
@@ -1393,46 +1394,24 @@ export function TreasuryPage() {
             )}
 
             {/* Confirm payment deletion */}
-            <Sheet open={!!confirmDeletePayment} onClose={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}
-                   title={t('treasury.payment.deleteConfirm')}>
-                <div className="flex flex-col gap-4">
-                    <p className="text-sm text-muted">{t('treasury.payment.deleteConfirmHint')}</p>
-                    <input className="kce-input" value={deletePaymentReason}
-                           onChange={e => setDeletePaymentReason(e.target.value)}
-                           placeholder={t('treasury.payment.deleteReasonPlaceholder')} />
-                    <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" className="flex-1"
-                                onClick={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}>
-                            {t('action.cancel')}
-                        </Button>
-                        <Button variant="danger" size="sm" className="flex-1" disabled={deletingPaymentId !== null}
-                                onClick={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId, deletePaymentReason)}>
-                            {t('action.delete')}
-                        </Button>
-                    </div>
-                </div>
-            </Sheet>
+            <ConfirmSheet open={!!confirmDeletePayment} onClose={() => {setConfirmDeletePayment(null); setDeletePaymentReason('')}}
+                          title={t('treasury.payment.deleteConfirm')} message={t('treasury.payment.deleteConfirmHint')}
+                          confirmLabel={t('action.delete')} withCancel busy={deletingPaymentId !== null}
+                          onConfirm={() => confirmDeletePayment && deletePayment(confirmDeletePayment.id, confirmDeletePayment.memberId, deletePaymentReason)}>
+                <input className="kce-input" value={deletePaymentReason}
+                       onChange={e => setDeletePaymentReason(e.target.value)}
+                       placeholder={t('treasury.payment.deleteReasonPlaceholder')} />
+            </ConfirmSheet>
 
             {/* Confirm expense deletion */}
-            <Sheet open={!!confirmDeleteExpense} onClose={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}
-                   title={t('treasury.expense.deleteConfirm')}>
-                <div className="flex flex-col gap-4">
-                    <p className="text-sm text-muted">{t('treasury.expense.deleteConfirmHint')}</p>
-                    <input className="kce-input" value={deleteExpenseReason}
-                           onChange={e => setDeleteExpenseReason(e.target.value)}
-                           placeholder={t('treasury.expense.deleteReasonPlaceholder')} />
-                    <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" className="flex-1"
-                                onClick={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}>
-                            {t('action.cancel')}
-                        </Button>
-                        <Button variant="danger" size="sm" className="flex-1" disabled={deletingExpenseId !== null}
-                                onClick={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense, deleteExpenseReason)}>
-                            {t('action.delete')}
-                        </Button>
-                    </div>
-                </div>
-            </Sheet>
+            <ConfirmSheet open={!!confirmDeleteExpense} onClose={() => {setConfirmDeleteExpense(null); setDeleteExpenseReason('')}}
+                          title={t('treasury.expense.deleteConfirm')} message={t('treasury.expense.deleteConfirmHint')}
+                          confirmLabel={t('action.delete')} withCancel busy={deletingExpenseId !== null}
+                          onConfirm={() => confirmDeleteExpense !== null && deleteExpense(confirmDeleteExpense, deleteExpenseReason)}>
+                <input className="kce-input" value={deleteExpenseReason}
+                       onChange={e => setDeleteExpenseReason(e.target.value)}
+                       placeholder={t('treasury.expense.deleteReasonPlaceholder')} />
+            </ConfirmSheet>
 
             {/* Edit booking sheet */}
             <Sheet open={!!editTarget} onClose={() => setEditTarget(null)}

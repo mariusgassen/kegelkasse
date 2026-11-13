@@ -19,6 +19,7 @@ import {AdminGuard} from '@/components/ui/AdminGuard.tsx'
 import {OfflineNotice} from '@/components/ui/OfflineNotice.tsx'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {EmojiPickerButton} from '@/components/ui/EmojiPickerButton.tsx'
 import {SoundPickerButton} from '@/components/ui/SoundPickerButton'
@@ -688,17 +689,9 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
             )}
 
             {confirmRegen && (
-                <Sheet open onClose={() => setConfirmRegen(false)} title={t('scoreboard.regenerate')}>
-                    <p className="text-sm text-ink mb-3">{t('scoreboard.regenerateConfirm')}</p>
-                    <div className="flex gap-2">
-                        <Button variant="secondary" className="flex-1" onClick={() => setConfirmRegen(false)}>
-                            {t('action.cancel')}
-                        </Button>
-                        <Button variant="danger" className="flex-1" onClick={regenerate}>
-                            {t('scoreboard.regenerate')}
-                        </Button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmRegen(false)} title={t('scoreboard.regenerate')}
+                              message={t('scoreboard.regenerateConfirm')} confirmLabel={t('scoreboard.regenerate')}
+                              withCancel onConfirm={regenerate}/>
             )}
         </div>
     )
@@ -795,28 +788,22 @@ function ClubConfigCard() {
             </div>
 
             {pendingBundle && (
-                <Sheet open onClose={() => setPendingBundle(null)} title={t('club.config.import')}>
-                    <p className="text-sm text-ink mb-2">{t('club.config.importConfirm')}</p>
+                <ConfirmSheet open onClose={() => setPendingBundle(null)} title={t('club.config.import')}
+                              message={t('club.config.importConfirm')}
+                              confirmLabel={importing ? t('action.loading') : t('club.config.import')}
+                              withCancel busy={importing} onConfirm={confirmImport}>
                     {pendingBundle.club_name && (
-                        <p className="text-xs text-muted mb-3">
+                        <p className="text-xs text-muted">
                             {t('club.config.importSource').replace('{name}', pendingBundle.club_name)}
                         </p>
                     )}
-                    <ul className="text-sm text-ink mb-3 space-y-1">
+                    <ul className="text-sm text-ink space-y-1">
                         <li>{t('club.tab.penalties')}: {pendingBundle.penalty_types.length}</li>
                         <li>{t('club.tab.templates')}: {pendingBundle.game_templates.length}</li>
                         <li>{t('club.tab.teams')}: {pendingBundle.teams.length}</li>
                         <li>{t('club.tab.pins')}: {pendingBundle.pins.length}</li>
                     </ul>
-                    <div className="flex gap-2">
-                        <Button variant="secondary" className="flex-1" onClick={() => setPendingBundle(null)}>
-                            {t('action.cancel')}
-                        </Button>
-                        <Button variant="danger" className="flex-1" onClick={confirmImport} disabled={importing}>
-                            {importing ? t('action.loading') : t('club.config.import')}
-                        </Button>
-                    </div>
-                </Sheet>
+                </ConfirmSheet>
             )}
         </div>
     )

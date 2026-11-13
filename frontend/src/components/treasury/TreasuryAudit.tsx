@@ -5,6 +5,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {StatTile} from '@/components/ui/StatTile.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
@@ -166,13 +167,9 @@ function AuditDetailSheet({auditId, canSign, onClose}: {auditId: number | null; 
     return (
         <Sheet open={auditId != null} onClose={onClose} title={title}
                overlays={
-                   <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t('audit.delete')}>
-                       <p className="text-sm text-ink mb-4">{t('audit.deleteConfirm')}</p>
-                       <div className="flex gap-2">
-                           <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(false)}>{t('action.cancel')}</Button>
-                           <Button variant="danger" className="flex-1" disabled={busy} onClick={remove}>{t('action.delete')}</Button>
-                       </div>
-                   </Sheet>
+                   <ConfirmSheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t('audit.delete')}
+                                 message={t('audit.deleteConfirm')} confirmLabel={t('action.delete')} withCancel
+                                 busy={busy} onConfirm={remove}/>
                }>
             {!audit || !snap ? <SkeletonRows rows={4}/> : (
                 <div className="space-y-3" data-testid="audit-detail">

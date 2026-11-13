@@ -68,11 +68,11 @@ export const DUPLICATES: Duplicate[] = [
     {
         id: 'confirm',
         title: 'Confirm-before-destructive sheets',
-        finding: '<ConfirmSheet> now covers the plain message + red button sheets (6 sites). The remaining ones carry extra fields (reason inputs, payout, cancel button) and still build their own <Sheet>.',
-        count: '21 danger buttons in 10 files (most are confirm sheets with extra fields)',
+        finding: '<ConfirmSheet> covers the confirm sheets, including ones with extra content (reason inputs, import summary) and a Cancel button (15 sites). Still hand-built: the approve/reject sheet of guest requests (primary or red confirm) and the inline two-step delete in the history list.',
+        count: '2 hand-built confirm sheets left',
         where: 'EveningPage, ProtocolPage, GamesPage, CommitteePage, TreasuryPage, MembersPage, SchedulePage, ClubAdminPage …',
         proposal: '<ConfirmSheet open title message confirmLabel danger busy onConfirm onClose>',
-        priority: 1,
+        priority: 3,
     },
     {
         id: 'buttons',
@@ -188,5 +188,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Migrate confirm sheets with extra fields', why: 'ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
+        {step: '1. Replace hand-rolled form labels with <Field>', why: '44 hits in 16 files; ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
 ]

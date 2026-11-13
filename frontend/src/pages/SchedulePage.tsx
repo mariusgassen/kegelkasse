@@ -6,6 +6,7 @@ import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonChart, SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -737,17 +738,9 @@ function IcalSheet({clubName, onClose}: { clubName: string; onClose: () => void 
     return (
         <Sheet open onClose={onClose} title={t('schedule.subscribeCalendar')}
                overlays={confirmRegen && (
-                   <Sheet open onClose={() => setConfirmRegen(false)} title={t('schedule.icalRegenerate')}>
-                       <p className="text-sm text-ink mb-3">{t('schedule.icalRegenerateConfirm')}</p>
-                       <div className="flex gap-2">
-                           <Button variant="secondary" className="flex-1" onClick={() => setConfirmRegen(false)}>
-                               {t('action.cancel')}
-                           </Button>
-                           <Button variant="danger" className="flex-1" onClick={regenerate}>
-                               {t('schedule.icalRegenerate')}
-                           </Button>
-                       </div>
-                   </Sheet>
+                   <ConfirmSheet open onClose={() => setConfirmRegen(false)} title={t('schedule.icalRegenerate')}
+                                 message={t('schedule.icalRegenerateConfirm')} confirmLabel={t('schedule.icalRegenerate')}
+                                 withCancel onConfirm={regenerate}/>
                )}>
             <div className="space-y-3">
                 <p className="text-sm text-muted">{t('schedule.icalHint').replace('{club}', clubName)}</p>
@@ -1523,16 +1516,8 @@ export function SchedulePage({onNavigate: onNavigateProp}: { onNavigate?: () => 
                 <IcalSheet clubName={club.name} onClose={() => setIcalSheet(false)}/>
             )}
             {confirmDeleteId !== null && (
-                <Sheet open onClose={() => setConfirmDeleteId(null)} title={t('schedule.deleteConfirm')}>
-                    <div className="flex gap-3">
-                        <button className="flex-1 btn-secondary" onClick={() => setConfirmDeleteId(null)}>
-                            {t('action.cancel')}
-                        </button>
-                        <button className="flex-1 btn-danger" onClick={() => handleDelete(confirmDeleteId)}>
-                            {t('action.confirmDelete')}
-                        </button>
-                    </div>
-                </Sheet>
+                <ConfirmSheet open onClose={() => setConfirmDeleteId(null)} title={t('schedule.deleteConfirm')}
+                              withCancel onConfirm={() => handleDelete(confirmDeleteId)}/>
             )}
         </div>
     )
