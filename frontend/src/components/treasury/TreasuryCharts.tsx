@@ -31,8 +31,8 @@ const C = {
 }
 const TICK = {fill: C.muted, fontSize: 12}
 
-function fe(v: number) {
-    return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
+function fe(v: number | null | undefined) {
+    return (v ?? 0).toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 function feShort(v: number) {
     return Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('de-DE', {maximumFractionDigits: 1})}k` : String(Math.round(v))
@@ -227,7 +227,8 @@ export function TreasuryCharts() {
 // Treemap tile: debt amount in the danger colour, own account outlined in the accent.
 function DebtTile(props: any) {
     const {x, y, width, height, name, size, isMe, id, onOpen} = props
-    if (width == null || width < 2 || height < 2) return null
+    // Recharts also renders the treemap root (no size/id) through this content
+    if (width == null || width < 2 || height < 2 || size == null) return null
     const showText = width > 56 && height > 34
     return (
         <g style={{cursor: 'pointer'}} role="button" tabIndex={0} aria-label={`${name} ${fe(size)}`}

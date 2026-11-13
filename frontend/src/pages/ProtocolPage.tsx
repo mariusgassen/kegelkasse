@@ -755,12 +755,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <Field label="Icon">
                                 <EmojiPickerButton value={customIcon} onChange={setCustomIcon}/>
                             </Field>
-                            <div className="flex-1">
-                                <label className="field-label">Name</label>
+                            <Field label="Name" className="flex-1">
                                 <input className="kce-input" value={customName}
                                        onChange={e => setCustomName(e.target.value)}
                                        placeholder="z.B. Zu spät…"/>
-                            </div>
+                            </Field>
                         </div>
 
                         {/* 3 — Mode + Amount (less prominent) */}
@@ -886,12 +885,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             <Field label="Icon">
                                 <EmojiPickerButton value={editIcon} onChange={setEditIcon}/>
                             </Field>
-                            <div className="flex-1">
-                                <label className="field-label">Name</label>
+                            <Field label="Name" className="flex-1">
                                 <input className="kce-input" value={editName}
                                        onChange={e => setEditName(e.target.value)}
                                        placeholder="z.B. Zu spät…"/>
-                            </div>
+                            </Field>
                         </div>
                     )}
 
