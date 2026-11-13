@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useSearchStore} from '@/store/search.ts'
 import {currentExternalHref} from '@/lib/externalLink'
 import {detectStandalone} from '@/hooks/usePwaInstall'
@@ -105,9 +106,9 @@ export function GlobalSearch({open, onClose}: Props) {
                 )}
                 {hasQuery && groups.filter(g => g.results.length > 0).map(g => (
                     <div key={g.key}>
-                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                        <Caption className="mb-1">
                             {GROUP_ICON[g.key]} {g.label}
-                        </div>
+                        </Caption>
                         <div className="flex flex-col gap-1">
                             {g.results.map(r => (
                                 <button

@@ -2,6 +2,7 @@
  * Club admin page — settings, members, penalty types, game templates, invites.
  * Write operations guarded by AdminGuard (admin/superadmin only).
  */
+import {Caption} from '@/components/ui/Caption.tsx'
 import {PenaltySuggestions} from '@/components/ai/AiSuggestions.tsx'
 import {useEffect, useRef, useState} from 'react'
 import type {ChangeEvent} from 'react'
@@ -401,9 +402,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
                 {/* ── Palette generator ── */}
                 <div className="mt-4 pt-4 border-t border-line">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                    <Caption className="mb-3">
                         {t('club.palette.title')}
-                    </div>
+                    </Caption>
                     <div className="flex gap-2 items-end">
                         <div>
                             <label className="field-label">{t('club.palette.baseColor')}</label>
@@ -442,9 +443,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
                 {/* ── Sticker-Karte Stil ── */}
                 <div className="mt-4 pt-4 border-t border-line">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                    <Caption className="mb-1">
                         {t('club.mapStyle.title')}
-                    </div>
+                    </Caption>
                     <p className="text-xs text-muted mb-3">{t('club.mapStyle.hint')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {MAP_STYLE_OPTIONS.map(ms => {

@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useEffect, useState} from 'react'
 import {ArrowRight, BookOpen, Sparkles, UserRound} from 'lucide-react'
 import {api} from '@/api/client.ts'
@@ -78,9 +79,9 @@ export function AiAskPanel({question, askSignal = 0, onNavigate}: Props) {
             )}
             {answer && (
                 <div className="kce-card p-3 text-sm text-ink" data-testid="ai-answer">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Caption className="mb-2 flex items-center gap-1">
                         <Sparkles size={14} aria-hidden/> {t('ai.search.answerTitle')}
-                    </div>
+                    </Caption>
                     <Markdown text={answer.answer} renderLink={(label, href, key) => {
                         const link = links.get(href)
                         if (!link) return null

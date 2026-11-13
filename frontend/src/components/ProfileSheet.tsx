@@ -1,5 +1,6 @@
 declare const __APP_VERSION__: string
 
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {api} from '@/api/client'
@@ -448,9 +449,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Balance & payment link */}
                     {myBalance?.balance != null && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                            <Caption className="mb-3">
                                 {t('profile.myBalance')}
-                            </div>
+                            </Caption>
                             <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs text-muted">{t('profile.balance')}</span>
                                 <span className={`font-display font-bold text-xl ${myBalance.balance < -0.01 ? 'text-danger-fg' : myBalance.balance > 0.01 ? 'text-positive-fg' : 'text-muted'}`}>
@@ -521,9 +522,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                             )}
                             {myRequests.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-surface-2">
-                                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
+                                    <Caption className="mb-2">
                                         {t('profile.paymentRequests')}
-                                    </div>
+                                    </Caption>
                                     {myRequests.map(r => (
                                         <div key={r.id} className="flex items-center justify-between py-1 text-xs">
                                             <span className="text-muted">
@@ -543,9 +544,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Personal year stats */}
                     {myStats && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                            <Caption className="mb-3">
                                 {t('profile.myStats')} {year}
-                            </div>
+                            </Caption>
                             <div className="grid grid-cols-2 gap-2">
                                 <StatTile bare tone="negative" value={fe(myStats.penalty_total)} label={t('profile.penalties')}/>
                                 <StatTile bare tone="default" label={t('profile.evenings')}
@@ -559,9 +560,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Throw performance card */}
                     {throwTrackingEnabled(club?.settings) && myThrowStats && myThrowStats.throw_count > 0 && (
                         <div className="kce-card p-4">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                            <Caption className="mb-3">
                                 {t('profile.throwStats')} {year}
-                            </div>
+                            </Caption>
                             <div className="grid grid-cols-3 gap-2 mb-3">
                                 <StatTile bare tone="default" value={myThrowStats.avg_pins ?? '—'} label={t('stats.avgPins')}/>
                                 <StatTile bare tone="positive" value={myThrowStats.best_avg ?? '—'} label={t('profile.bestAvg')}/>
@@ -688,7 +689,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     </div>
 
                     <div className="kce-card p-4 flex flex-col gap-3">
-                        <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('profile.changePassword')}</div>
+                        <Caption>{t('profile.changePassword')}</Caption>
                         <div>
                             <label className="field-label">{t('profile.currentPassword')}</label>
                             <input className="kce-input" type="password" value={currentPw}
@@ -703,7 +704,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
 
                     {/* Language */}
                     <div className="kce-card p-4 flex items-center justify-between">
-                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.language')}</span>
+                        <Caption as="span">{t('settings.language')}</Caption>
                         <div className="flex gap-1">
                             {(['de', 'en'] as const).map(l => (
                                 <button key={l} onClick={() => {
@@ -720,7 +721,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
 
                     {/* Theme */}
                     <div className="kce-card p-4 flex items-center justify-between">
-                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.theme.title')}</span>
+                        <Caption as="span">{t('settings.theme.title')}</Caption>
                         <div className="flex gap-1">
                             {(['dark', 'light', 'system'] as Theme[]).map(th => (
                                 <button key={th} onClick={() => setTheme(th)}
@@ -734,7 +735,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Celebration effects */}
                     <div className="kce-card p-4 flex items-center justify-between">
                         <div>
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('settings.effects.title')}</div>
+                            <Caption>{t('settings.effects.title')}</Caption>
                             <div className="text-xs text-muted mt-0.5">{t('settings.effects.hint')}</div>
                         </div>
                         <div className="flex gap-1">
@@ -750,7 +751,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Install app (PWA) */}
                     {!isStandalone && (canInstall || isIos) && (
                         <div className="kce-card p-4 flex items-center justify-between">
-                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <Caption as="span">{t('install.profile.button')}</Caption>
                             <button
                                 onClick={async () => {
                                     if (isIos && !canInstall) {
@@ -767,7 +768,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     )}
                     {isStandalone && (
                         <div className="kce-card p-4 flex items-center justify-between">
-                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('install.profile.button')}</span>
+                            <Caption as="span">{t('install.profile.button')}</Caption>
                             <span className="text-xs text-positive-fg font-bold">✓ {t('install.profile.installed')}</span>
                         </div>
                     )}
@@ -776,7 +777,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {pushConfigured && (pushSupported ? (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
-                                <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('push.label')}</span>
+                                <Caption as="span">{t('push.label')}</Caption>
                                 {pushSubscribed && <div className="text-xs text-positive-fg mt-0.5">{t('push.activeOnDevice')}</div>}
                             </div>
                             <div className="flex gap-2 items-center">
@@ -790,7 +791,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         </div>
                     ) : isIos && !isStandalone ? (
                         <div className="kce-card p-4">
-                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('push.iosInstallTitle')}</span>
+                            <Caption as="span">{t('push.iosInstallTitle')}</Caption>
                             <p className="text-xs text-muted mt-1.5 mb-2">{t('push.iosInstallHint')}</p>
                             <div className="flex gap-3 text-xs text-muted">
                                 <span>{t('push.iosInstallStep1')}</span>
@@ -804,7 +805,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {telegramConfigured && (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
-                                <span className="text-xs font-bold text-muted uppercase tracking-wider">{t('telegram.title')}</span>
+                                <Caption as="span">{t('telegram.title')}</Caption>
                                 {telegramLinked ? (
                                     <div className="text-xs text-positive-fg mt-0.5">{t('telegram.connected')}</div>
                                 ) : telegramConnecting ? (
@@ -823,9 +824,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Push notification preferences — shown whenever prefs loaded, not just when subscribed */}
                     {pushPrefs && (
                         <div className="kce-card p-4 space-y-2">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                            <Caption className="mb-3">
                                 {t('push.preferences')}
-                            </div>
+                            </Caption>
                             <p className="text-sm text-muted mb-2 -mt-1">{t('push.channelHint')}</p>
                             {/* Announcements are always on — not toggleable */}
                             <div className="flex items-center justify-between py-0.5">
@@ -839,9 +840,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                 </div>
                             ))}
 
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider pt-3 pb-1">
+                            <Caption className="pt-3 pb-1">
                                 {t('push.reminders')}
-                            </div>
+                            </Caption>
 
                             {/* reminder_debt */}
                             <div className="flex items-center justify-between py-0.5">
@@ -912,9 +913,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Email digest — personalized periodic summary */}
                     {pushPrefs && (
                         <div className="kce-card p-4 space-y-2" data-testid="digest-card">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                            <Caption className="mb-1">
                                 {t('digest.title')}
-                            </div>
+                            </Caption>
                             <p className="text-sm text-muted mb-2">{t('digest.hint')}</p>
                             <div className="flex flex-wrap gap-1">
                                 {(['off', 'daily', 'weekly', 'monthly'] as DigestFrequency[]).map(freq => {

@@ -4,6 +4,7 @@
  * Reads the already-cached `['stats', year]` query, so opening the lab issues no extra
  * request and no new backend endpoint was needed.
  */
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useMemo, useState} from 'react'
 import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
@@ -75,9 +76,9 @@ export function HeadToHead({players, myMemberId}: {
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
+            <Caption className="mb-2">
                 {t('stats.h2h.pickHint')}
-            </div>
+            </Caption>
 
             {/* Anchor picker */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{scrollbarWidth: 'none'}}>

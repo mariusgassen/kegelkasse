@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useEffect, useMemo, useState} from 'react'
 import {AiRecapButton} from '@/components/ai/AiRecapButton.tsx'
 import {useEveningList} from '../hooks/useEvening'
@@ -94,7 +95,7 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
 
     return (
         <div className="mb-1">
-            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">{title}</div>
+            <Caption className="mb-1">{title}</Caption>
             <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
                  style={{overflow: 'visible', display: 'block'}}
                  onClick={onSelect ? () => onSelect(null) : undefined}>
@@ -519,9 +520,9 @@ function EveningDonutChart({evening, totalEuro, penaltyCount, beerRounds, shotRo
             </div>
             <div className="kce-card p-2">
                 <div className="flex items-center justify-between mb-1.5 gap-2">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider">
+                    <Caption>
                         {t('stats.penaltyDistribution')}
-                    </div>
+                    </Caption>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {hasAbsent && (
                             <button type="button"
@@ -664,9 +665,9 @@ function GamesDetailSheet({evening, t, onClose}: {
 
                                 {scoreEntries.length > 0 && (
                                     <div className="mb-1.5">
-                                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                                        <Caption className="mb-1">
                                             {t('stats.scores')}
-                                        </div>
+                                        </Caption>
                                         <div className="space-y-0.5">
                                             {scoreEntries.map(s => (
                                                 <div key={s.ref} className="flex items-center justify-between text-xs">
@@ -806,9 +807,9 @@ function YearEveningsBarChart({evenings, t}: {
         <div className="kce-card p-3 mb-4">
             {/* Header row: title + selected detail */}
             <div className="flex items-center justify-between gap-2 mb-2" style={{minHeight: 18}}>
-                <div className="text-xs font-bold text-muted uppercase tracking-wider flex-shrink-0">
+                <Caption className="flex-shrink-0">
                     {t('stats.eveningBars')}
-                </div>
+                </Caption>
                 {selected ? (
                     <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-xs font-bold text-accent-fg flex-shrink-0">
@@ -884,9 +885,9 @@ function YearPodium({players, myMemberId, t, onSelect}: {
 
     return (
         <div className="kce-card p-3 mb-4">
-            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+            <Caption className="mb-3">
                 {t('stats.podium')}
-            </div>
+            </Caption>
             <div style={{display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 12, paddingBottom: 4}}>
                 {PODIUM_CONFIG.map(cfg => {
                     const p = players[cfg.rank]
@@ -988,7 +989,7 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
     if (!data || data.throw_count === 0) return <Empty text={t('stats.noThrowData')}/>
     return (
         <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
-            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">{t('stats.throwStats')}</div>
+            <Caption className="mb-1">{t('stats.throwStats')}</Caption>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
                     <div className="font-bold text-ink text-sm">{data.avg_pins ?? '—'}</div>
@@ -1160,7 +1161,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
 
             {/* Penalty breakdown */}
             <div className="kce-card p-3 mb-3">
-                <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.penaltyBreakdown')}</div>
+                <Caption className="mb-2">{t('stats.penaltyBreakdown')}</Caption>
                 {penalties.length === 0 ? (
                     <Empty text={t('stats.noPenalties')}/>
                 ) : (
@@ -1182,7 +1183,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Games */}
             {gamesWithPlayer.length > 0 && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.gameResults')}</div>
+                    <Caption className="mb-2">{t('stats.gameResults')}</Caption>
                     <div className="space-y-1.5">
                         {gamesWithPlayer.map(g => {
                             const won = g.winner_ref === `p:${player.id}` || (!!player.team_id && g.winner_ref === `t:${player.team_id}`)
@@ -1208,7 +1209,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Drink rounds */}
             {(beerRoundsPlayer.length > 0 || shotRoundsPlayer.length > 0) && (
                 <div className="kce-card p-3 mb-3">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.drinkRoundsDetail')}</div>
+                    <Caption className="mb-2">{t('stats.drinkRoundsDetail')}</Caption>
                     <div className="space-y-1">
                         {beerRoundsPlayer.map((r, i) => (
                             <div key={r.id} className="flex items-center justify-between text-xs">
@@ -1229,7 +1230,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Throw stats + heatmap */}
             {throwCount > 0 && (
                 <div className="kce-card p-3">
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('stats.throwStats')}</div>
+                    <Caption className="mb-2">{t('stats.throwStats')}</Caption>
                     <div className="flex justify-around text-center mb-3">
                         <div>
                             <div className="font-bold text-ink text-sm">{totalPins}</div>

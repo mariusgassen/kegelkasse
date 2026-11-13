@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {NicknameSuggestions} from '@/components/ai/AiSuggestions.tsx'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
@@ -495,8 +496,8 @@ export function MembersPage() {
             {/* Inactive users */}
             {showInactive && inactiveUsers.length > 0 && (
                 <>
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mt-3 mb-2">{t('member.inactive')}
-                    </div>
+                    <Caption className="mt-3 mb-2">{t('member.inactive')}
+                    </Caption>
                     {inactiveUsers.map(u => (
                         <div key={u.id} className="kce-card p-3 mb-2 flex items-center gap-3 opacity-50">
                             <Avatar name={u.name} variant="muted"/>

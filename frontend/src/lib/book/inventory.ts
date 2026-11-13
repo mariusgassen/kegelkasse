@@ -36,6 +36,8 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<MemberRow> + Avatar + MemberBadges', source: 'ui/MemberRow.tsx …', status: 'component', use: 'Any member / player / account list entry.', uses: '8 / 33 / –'},
     {name: '<StatTile>', source: 'ui/StatTile.tsx', status: 'component', use: 'One number plus its caption.', uses: '36 in 4 files'},
     {name: '<Tabs>', source: 'ui/Tabs.tsx', status: 'component', use: 'Scrolling pill tab strip for pages and sheets.', uses: '5 in 5 files'},
+    {name: '<Caption>', source: 'ui/Caption.tsx', status: 'component', use: 'Small uppercase caption above a block of content.', uses: '43 in 15 files'},
+    {name: '<Field>', source: 'ui/Field.tsx', status: 'component', use: 'Form control with label, hint and error line.', uses: '2 (TripExpenses)'},
     {name: '<ConfirmSheet>', source: 'ui/ConfirmSheet.tsx', status: 'component', use: 'Confirm-before-delete sheet: message + one red button.', uses: '6 in 4 files'},
     {name: '<Switch>', source: 'ui/Switch.tsx', status: 'component', use: 'On/off setting row (label + hint). Token colours.', uses: '5 in 3 files'},
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
@@ -111,15 +113,6 @@ export const DUPLICATES: Duplicate[] = [
         priority: 3,
     },
     {
-        id: 'labels',
-        title: 'Hand-rolled field labels',
-        finding: 'field-label (184 uses) is the standard, but 42 places repeat "text-xs font-bold text-muted uppercase tracking-wider" without the mb-1.5 / display:block that field-label brings.',
-        count: '44 hits in 16 files',
-        where: 'AiAskPanel, HeadToHead, StatsLab, TreasuryPage, StatsPage, MembersPage, ProtocolPage, ProfileSheet …',
-        proposal: '<Field label hint error> wrapping label + control + error line; use field-label for the label',
-        priority: 3,
-    },
-    {
         id: 'progress',
         title: 'Progress / share bars',
         finding: 'PaidShareBar, wrapped progress segments, achievement progress and the accounts chart each draw a rounded track + fill by hand.',
@@ -188,5 +181,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Replace hand-rolled form labels with <Field>', why: '44 hits in 16 files; ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
+        {step: '1. Adopt <Field> for the ~140 form labels that still use the field-label class by hand', why: '<Field> and <Caption> exist; ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
 ]

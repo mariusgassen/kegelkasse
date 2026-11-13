@@ -4,6 +4,7 @@
  * without any edit/delete affordances. Used by the History section's closed-evening
  * detail (#86 follow-up).
  */
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useT} from '@/i18n'
 import type {PenaltyTimelineEvent} from '@/lib/protocolTimeline.ts'
 
@@ -29,9 +30,9 @@ export function PenaltyTimeline({events}: {events: PenaltyTimelineEvent[]}) {
                     return (
                         <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-1 px-1">
                             <div className="h-px flex-1 bg-line"/>
-                            <span className="text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">
+                            <Caption as="span" className="whitespace-nowrap">
                                 ▶ {event.game.name} · {fTime(event.ts)}
-                            </span>
+                            </Caption>
                             <div className="h-px flex-1 bg-line"/>
                         </div>
                     )

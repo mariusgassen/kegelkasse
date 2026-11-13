@@ -3,6 +3,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useAppStore} from '@/store/app.ts'
+import {Field} from '@/components/ui/Field.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
@@ -86,12 +87,11 @@ function AddExpenseSheet({trip, open, onClose, expense}: {
                         ))}
                     </div>
                 </div>}
-                <div>
-                    <label className="field-label" htmlFor="trip-exp-desc">{t('treasury.expense.description')}</label>
+                <Field label={t('treasury.expense.description')} htmlFor="trip-exp-desc">
                     <input id="trip-exp-desc" className="kce-input" value={description} autoFocus
                            onChange={e => setDescription(e.target.value)}
                            placeholder={t('trip.expenses.descPlaceholder')}/>
-                </div>
+                </Field>
                 <div>
                     <label className="field-label" htmlFor="trip-exp-amount">{t('treasury.payment.amount')}</label>
                     <div className="flex items-center gap-2">
@@ -100,11 +100,10 @@ function AddExpenseSheet({trip, open, onClose, expense}: {
                                value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00"/>
                     </div>
                 </div>
-                <div>
-                    <label className="field-label" htmlFor="trip-exp-date">{t('treasury.expense.date')}</label>
+                <Field label={t('treasury.expense.date')} htmlFor="trip-exp-date">
                     <input id="trip-exp-date" type="date" className="kce-input" value={day}
                            onChange={e => setDay(e.target.value)}/>
-                </div>
+                </Field>
                 {!expense && <p className="text-xs text-muted">{t('trip.expenses.addHint')}</p>}
                 <Button type="submit" variant="primary" block disabled={saving || !valid}>
                     ✓ {t('action.save')}
