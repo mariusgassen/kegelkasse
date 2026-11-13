@@ -170,6 +170,24 @@ describe('RoadmapPage', () => {
         expect(screen.queryByText('Desktop-Master-Detail')).not.toBeInTheDocument()
     })
 
+    it('filters items by version pill and toggles it off again', async () => {
+        renderPage()
+        await waitFor(() => expect(screen.getByText('Sticker-Wand')).toBeInTheDocument())
+        const pill = screen.getByRole('button', {name: 'v1.73'})
+        fireEvent.click(pill)
+        expect(screen.getByText('Sticker-Wand')).toBeInTheDocument()
+        expect(screen.queryByText('Desktop-Master-Detail')).not.toBeInTheDocument()
+        fireEvent.click(pill)
+        expect(screen.getByText('Desktop-Master-Detail')).toBeInTheDocument()
+    })
+
+    it('lists each used version once as a pill', async () => {
+        renderPage()
+        await waitFor(() => expect(screen.getByText('Sticker-Wand')).toBeInTheDocument())
+        expect(screen.getAllByRole('button', {name: 'v2.0'})).toHaveLength(1)
+        expect(screen.getAllByRole('button', {name: 'v1.73'})).toHaveLength(1)
+    })
+
     it('toggles upvote when upvote button clicked', async () => {
         vi.mocked(api.toggleRoadmapVote).mockResolvedValue({
             item_id: 1,

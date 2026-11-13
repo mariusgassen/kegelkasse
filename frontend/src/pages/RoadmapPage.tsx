@@ -1,4 +1,7 @@
 import {TagInput} from '@/components/ui/TagInput.tsx'
+
+declare const __APP_VERSION__: string
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''
 import {useState, useMemo} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {
@@ -53,6 +56,7 @@ export function RoadmapPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [selectedTag, setSelectedTag] = useState<string | null>(null)
+    const [selectedVersion, setSelectedVersion] = useState<string | null>(null)
     const [openCommentId, setOpenCommentId] = useState<number | null>(null)
 
     // Modals
@@ -99,6 +103,24 @@ export function RoadmapPage() {
         return Array.from(set).sort()
     }, [items])
 
+    // Versions already used by items plus the running app version, newest first
+    const availableVersions = useMemo(() => {
+        const set = new Set<string>()
+        items.forEach(it => {
+            if (it.target_version) set.add(it.target_version)
+        })
+        if (APP_VERSION) set.add(APP_VERSION)
+        const num = (v: string) => v.split('.').map(n => parseInt(n, 10) || 0)
+        return Array.from(set).sort((a, b) => {
+            const x = num(a), y = num(b)
+            for (let i = 0; i < Math.max(x.length, y.length); i++) {
+                const d = (y[i] ?? 0) - (x[i] ?? 0)
+                if (d) return d
+            }
+            return 0
+        })
+    }, [items])
+
     // Available categories from loaded items + defaults
     const availableCategories = useMemo(() => {
         const set = new Set<string>(CATEGORY_PRESETS)
@@ -112,6 +134,7 @@ export function RoadmapPage() {
         return items.filter(it => {
             if (activeTab !== 'all' && it.status !== activeTab) return false
             if (selectedCategory !== 'all' && it.category !== selectedCategory) return false
+            if (selectedVersion && it.target_version !== selectedVersion) return false
             if (selectedTag && !it.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase())) return false
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase().trim()
@@ -124,7 +147,7 @@ export function RoadmapPage() {
             }
             return true
         })
-    }, [items, activeTab, selectedCategory, selectedTag, searchQuery])
+    }, [items, activeTab, selectedCategory, selectedTag, selectedVersion, searchQuery])
 
     const handleVote = async (itemId: number) => {
         haptic('selection')
@@ -412,6 +435,27 @@ export function RoadmapPage() {
                         </button>
                     )}
                 </div>
+
+                {/* Version pills */}
+                {availableVersions.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs" aria-label={t('roadmap.filter.version')}>
+                        {availableVersions.map(v => (
+                            <button
+                                key={v}
+                                type="button"
+                                aria-pressed={selectedVersion === v}
+                                onClick={() => setSelectedVersion(selectedVersion === v ? null : v)}
+                                className={`px-2.5 py-1 rounded-lg font-bold border transition-all flex-shrink-0 ${
+                                    selectedVersion === v
+                                        ? 'bg-accent text-on-accent border-accent'
+                                        : 'bg-surface-2 text-muted border-line hover:text-ink'
+                                }`}
+                            >
+                                v{v}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Status Tabs */}
                 <Tabs items={tabs} value={activeTab} onChange={setActiveTab} />
@@ -819,14 +863,18 @@ export function RoadmapPage() {
                                 <label htmlFor="roadmap-edit-version" className="block text-xs font-bold text-ink mb-1">
                                     {t('roadmap.edit.version')}
                                 </label>
-                                <input
-                                    id="roadmap-edit-version"
-                                    value={editTargetVersion}
-                                    maxLength={20}
-                                    onChange={e => setEditTargetVersion(e.target.value)}
-                                    placeholder={t('roadmap.edit.version.placeholder')}
-                                    className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent mb-3"
-                                />
+                                <div className="mb-3">
+                                    <TagInput
+                                        id="roadmap-edit-version"
+                                        max={1}
+                                        maxLength={20}
+                                        value={editTargetVersion ? [editTargetVersion] : []}
+                                        onChange={v => setEditTargetVersion((v[0] ?? '').replace(/^v/i, ''))}
+                                        suggestions={availableVersions}
+                                        renderLabel={v => `v${v}`}
+                                        placeholder={t('roadmap.edit.version.placeholder')}
+                                    />
+                                </div>
                                 <label htmlFor="roadmap-edit-admin-notes" className="block text-xs font-bold text-ink mb-1">
                                     {t('roadmap.edit.adminNotes')}
                                 </label>
