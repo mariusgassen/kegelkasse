@@ -8,6 +8,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 import {SkeletonChart, SkeletonRows} from '@/components/ui/Skeleton'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError, handleAlreadyActive} from '@/utils/error.ts'
@@ -677,21 +678,18 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
     return (
         <Sheet open onClose={onClose} title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
             <div className="flex flex-col gap-3">
-                <div>
-                    <label className="field-label">{t('schedule.date')}</label>
+                <Field label={t('schedule.date')}>
                     <input type="datetime-local" className="kce-input" value={datetime}
                            onChange={e => setDatetime(e.target.value)} required/>
-                </div>
-                <div>
-                    <label className="field-label">{t('schedule.venue')}</label>
+                </Field>
+                <Field label={t('schedule.venue')}>
                     <input type="text" className="kce-input" placeholder={t('evening.venuePlaceholder')}
                            value={venue} onChange={e => setVenue(e.target.value)}/>
-                </div>
-                <div>
-                    <label className="field-label">{t('schedule.note')}</label>
+                </Field>
+                <Field label={t('schedule.note')}>
                     <input type="text" className="kce-input" placeholder={t('common.optional')}
                            value={note} onChange={e => setNote(e.target.value)}/>
-                </div>
+                </Field>
                 <Switch checked={guestRequests} onChange={setGuestRequests} label={t('schedule.guestRequestsEnabled')} hint={t('schedule.guestRequestsHint')}/>
                 <Button type="submit" variant="primary" block disabled={saving || !datetime}>{t('action.save')}</Button>
             </div>
@@ -1318,17 +1316,15 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
             <Sheet open={backlogSheet} onClose={() => setBacklogSheet(false)}
                    title={t('history.backlog')} onSubmit={submitBacklog}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('evening.date')}</label>
+                    <Field label={t('evening.date')}>
                         <input className="kce-input" type="date" value={backlogDate}
                                onChange={e => setBacklogDate(e.target.value)}/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('evening.venue')}</label>
+                    </Field>
+                    <Field label={t('evening.venue')}>
                         <input className="kce-input" value={backlogVenue}
                                onChange={e => setBacklogVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block
                             disabled={saving || !backlogDate}>{t('evening.startButton')}</Button>
                 </div>

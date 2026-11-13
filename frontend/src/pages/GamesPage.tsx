@@ -8,6 +8,7 @@ import {api} from '@/api/client.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 import {CardActionMenu, type SheetAction} from '@/components/ui/ActionSheet.tsx'
 import {toDateTimeInput} from '@/lib/datetime.ts'
 import {toastError} from '@/utils/error.ts'
@@ -469,11 +470,10 @@ export function GamesPage() {
                     )}
 
                     {/* Name */}
-                    <div>
-                        <label className="field-label">{t('game.name')}</label>
+                    <Field label={t('game.name')}>
                         <input className="kce-input" value={gameName} onChange={e => setGameName(e.target.value)}
                                placeholder={t('game.name')}/>
-                    </div>
+                    </Field>
 
                     {/* is_opener toggle */}
                     {hasOpener && !isOpener ? (
@@ -528,33 +528,30 @@ export function GamesPage() {
                     )}
 
                     {/* Loser penalty */}
-                    <div>
-                        <label className="field-label">{t('game.loserPenalty')}</label>
+                    <Field label={t('game.loserPenalty')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={loserPenalty} onChange={e => setLoserPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-muted mt-1">{t('game.loserNote')}</p>
-                    </div>
+                    </Field>
 
                     {/* Per-point penalty */}
-                    <div>
-                        <label className="field-label">{t('game.perPointPenalty')}</label>
+                    <Field label={t('game.perPointPenalty')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={perPointPenalty} onChange={e => setPerPointPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
-                    </div>
+                    </Field>
 
                     {/* Note */}
-                    <div>
-                        <label className="field-label">{t('game.note')}</label>
+                    <Field label={t('game.note')}>
                         <input className="kce-input" value={gameNote} onChange={e => setGameNote(e.target.value)}
                                placeholder="…"/>
-                    </div>
+                    </Field>
 
                     {/* Auto-add teams toggle (only when no teams exist yet) */}
                     {teams.length === 0 && (
@@ -649,8 +646,7 @@ export function GamesPage() {
                         )}
 
                         {/* Loser penalty */}
-                        <div>
-                            <label className="field-label">{t('game.loserPenalty')}</label>
+                        <Field label={t('game.loserPenalty')}>
                             <div className="flex items-center gap-2">
                                 <span
                                     className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -658,7 +654,7 @@ export function GamesPage() {
                                        value={finishPenalty}
                                        onChange={e => setFinishPenalty(e.target.value)}/>
                             </div>
-                        </div>
+                        </Field>
 
                         {/* Loser penalty preview */}
                         {finishTarget && winnerRef && (
@@ -722,10 +718,9 @@ export function GamesPage() {
             <Sheet open={!!editTarget} onClose={() => setEditTarget(null)} title={t('action.edit')}
                    onSubmit={submitEdit}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('game.name')}</label>
+                    <Field label={t('game.name')}>
                         <input className="kce-input" value={editName} onChange={e => setEditName(e.target.value)}/>
-                    </div>
+                    </Field>
                     {/* Opener toggle — only show if this game IS the opener, or no opener exists yet */}
                     {(editIsOpener || !hasOpener || editTarget?.is_opener) && (
                         <button type="button"
@@ -773,28 +768,25 @@ export function GamesPage() {
                         </div>
                     )}
 
-                    <div>
-                        <label className="field-label">{t('game.loserPenalty')}</label>
+                    <Field label={t('game.loserPenalty')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editLoserPenalty} onChange={e => setEditLoserPenalty(e.target.value)}/>
                         </div>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('game.perPointPenalty')}</label>
+                    </Field>
+                    <Field label={t('game.perPointPenalty')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editPerPointPenalty} onChange={e => setEditPerPointPenalty(e.target.value)}/>
                         </div>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('game.note')}</label>
+                    </Field>
+                    <Field label={t('game.note')}>
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}
                                placeholder="…"/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block className="mt-1"
                             disabled={saving}>{t('action.save')}
                     </Button>
@@ -807,17 +799,15 @@ export function GamesPage() {
                 {timeEditTarget && (
                     <div className="flex flex-col gap-3">
                         <p className="text-xs text-muted">{t('game.editTimesHint')}</p>
-                        <div>
-                            <label className="field-label">{t('game.startedAt')}</label>
+                        <Field label={t('game.startedAt')}>
                             <input className="kce-input" type="datetime-local" value={editStartedAt}
                                    onChange={e => setEditStartedAt(e.target.value)}/>
-                        </div>
+                        </Field>
                         {timeEditTarget.status === 'finished' && (
-                            <div>
-                                <label className="field-label">{t('game.finishedAt')}</label>
+                            <Field label={t('game.finishedAt')}>
                                 <input className="kce-input" type="datetime-local" value={editFinishedAt}
                                        onChange={e => setEditFinishedAt(e.target.value)}/>
-                            </div>
+                            </Field>
                         )}
                         <Button type="submit" variant="primary" block className="mt-1"
                                 disabled={saving}>{t('action.save')}
