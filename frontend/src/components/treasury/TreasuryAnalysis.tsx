@@ -12,7 +12,7 @@ import {
     memberPaymentEvents,
     memberPenaltyEvents,
 } from '@/lib/balanceHistory.ts'
-import {refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
+import {cashPaidIn, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '@/lib/treasurySummary.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 
 function fe(v: number) {
@@ -26,7 +26,7 @@ function fDate(iso: string | null) {
 
 type Balance = {
     regular_member_id: number; name: string; nickname: string | null;
-    penalty_total: number; payments_total: number; balance: number
+    penalty_total: number; payments_total: number; writeoff_total?: number; balance: number
 }
 
 type Payment = {
@@ -202,8 +202,8 @@ export function TreasuryAnalysis() {
     // instead of netted into a single figure.
     const allBalancesForFlow = [...effectiveBalances, ...(guestBalances as Balance[])] as Balance[]
     const paidInBreakdown = allBalancesForFlow
-        .filter(b => Math.abs(b.payments_total) > 0.001)
-        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: b.payments_total}))
+        .filter(b => Math.abs(cashPaidIn(b)) > 0.001)
+        .map(b => ({id: b.regular_member_id, label: b.nickname || b.name, amount: cashPaidIn(b)}))
         .sort((a, b) => b.amount - a.amount)
     const expensesBreakdown = (expenses as Expense[])
         .filter(e => e.amount > 0)

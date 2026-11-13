@@ -34,6 +34,9 @@ class MemberPayment(Base):
     idempotency_key = Column(String, nullable=True, unique=True)  # client-generated, prevents double-submit
     transfer_group_id = Column(String, nullable=True, index=True)  # links paired rows (guest-cost-transfer, season carry-over)
     date = Column(Date(), nullable=True)  # optional backdated date for the entry
+    # Write-off of an open debt (e.g. on club exit): settles the member's balance but no money
+    # moved, so it is excluded from deposits / cash on hand.
+    is_writeoff = Column(Boolean, default=False, nullable=False, server_default="false")
 
 
 class PaymentRequest(Base):
