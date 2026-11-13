@@ -98,13 +98,12 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                                onChange={e => setTitle(e.target.value)}/>
                     </Field>
                     <div>
-                        <div className="flex items-center justify-between">
-                            <label className="field-label" htmlFor="ai-recap-text">{t('ai.recap.text')}</label>
+                        <Field label={t('ai.recap.text')} htmlFor="ai-recap-text" className="flex items-center justify-between">
                             <button type="button" className="text-xs text-accent-fg font-semibold"
                                     onClick={() => setEditing(e => !e)} data-testid="ai-recap-edit-toggle">
                                 {editing ? t('ai.recap.preview') : t('ai.recap.edit')}
                             </button>
-                        </div>
+                        </Field>
                         {editing ? (
                             <textarea id="ai-recap-text" className="kce-input" rows={10} value={text}
                                       onChange={e => setText(e.target.value)}/>

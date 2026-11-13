@@ -27,6 +27,7 @@ import {LiveEveningView} from '@/components/evening/LiveEveningView.tsx'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {useCloseReopenEvening} from '@/hooks/useCloseReopenEvening.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 type SubTab = 'live' | 'penalties' | 'games' | 'highlights' | 'manage'
 
@@ -151,12 +152,11 @@ export function EveningHubPage() {
                     onClose={() => setCloseConfirm(false)}
                 >
                     <p className="text-sm text-muted mb-4">{t('evening.endConfirm')}</p>
-                    <div className="mb-4">
-                        <label className="field-label">{t('evening.endedAt')}</label>
+                    <Field label={t('evening.endedAt')} className="mb-4">
                         <input type="datetime-local" className="kce-input" value={closeEndedAt}
                                onChange={e => setCloseEndedAt(e.target.value)}/>
                         <p className="text-xs text-muted mt-1">{t('evening.endedAtHint')}</p>
-                    </div>
+                    </Field>
                     <div className="flex gap-2">
                         <Button type="button" variant="secondary" size="sm" className="flex-1" disabled={closing}
                                 onClick={() => setCloseConfirm(false)}>

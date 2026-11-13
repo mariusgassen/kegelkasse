@@ -7,6 +7,7 @@ import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {BookingFlag, BookingFlagSeverity, BookingReview} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -90,16 +91,14 @@ export function BookingReviewCard({initialStart, initialEnd}: { initialStart?: s
                 {t('ai.review.hint')}{aiEnabled ? ` ${t('ai.review.hintAi')}` : ''}
             </p>
             <div className="flex gap-2 mb-2">
-                <div className="flex-1">
-                    <label className="field-label" htmlFor="review-start">{t('ai.review.from')}</label>
+                <Field label={t('ai.review.from')} htmlFor="review-start" className="flex-1">
                     <input id="review-start" type="date" className="kce-input" value={start}
                            onChange={e => setStart(e.target.value)}/>
-                </div>
-                <div className="flex-1">
-                    <label className="field-label" htmlFor="review-end">{t('ai.review.to')}</label>
+                </Field>
+                <Field label={t('ai.review.to')} htmlFor="review-end" className="flex-1">
                     <input id="review-end" type="date" className="kce-input" value={end}
                            onChange={e => setEnd(e.target.value)}/>
-                </div>
+                </Field>
             </div>
             <Button type="button" variant="primary" size="sm" block className="mb-2" onClick={run}
                     disabled={loading || !online || !start || !end}>

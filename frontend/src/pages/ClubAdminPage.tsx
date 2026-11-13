@@ -315,22 +315,19 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             {/* ── Allgemein ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.general')}</div>
-                <div className="mb-3">
-                    <label className="field-label">{t('club.name.label')}</label>
+                <Field label={t('club.name.label')} className="mb-3">
                     <input className="kce-input" value={clubName} onChange={e => setClubName(e.target.value)}
                            placeholder="Vereinsname"/>
-                </div>
-                <div className="mt-3">
-                    <label className="field-label">{t('club.defaultVenue')}</label>
+                </Field>
+                <Field label={t('club.defaultVenue')} className="mt-3">
                     <input className="kce-input" value={venue} onChange={e => setVenue(e.target.value)}
                            placeholder={t('club.defaultVenuePlaceholder')}/>
-                </div>
-                <div className="mt-3">
-                    <label className="field-label">{t('schedule.defaultTime')}</label>
+                </Field>
+                <Field label={t('schedule.defaultTime')} className="mt-3">
                     <input type="time" className="kce-input" style={{width: 'auto'}} value={defaultEveningTime}
                            onChange={e => setDefaultEveningTime(e.target.value)}/>
                     <p className="text-xs text-muted mt-1">{t('schedule.defaultTimeHint')}</p>
-                </div>
+                </Field>
             </div>
 
             {/* ── Erscheinungsbild ── */}
@@ -369,8 +366,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                 </div>
 
                 <div className="flex gap-3">
-                    <div className="flex-1">
-                        <label className="field-label">{t('club.color.primary')}</label>
+                    <Field label={t('club.color.primary')} className="flex-1">
                         <div className="flex gap-2 items-center">
                             <input type="color" value={color1} onChange={e => {
                                 setColor1(e.target.value)
@@ -378,9 +374,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-muted text-xs font-mono">{color1}</span>
                         </div>
-                    </div>
-                    <div className="flex-1">
-                        <label className="field-label">{t('club.color.secondary')}</label>
+                    </Field>
+                    <Field label={t('club.color.secondary')} className="flex-1">
                         <div className="flex gap-2 items-center">
                             <input type="color" value={color2} onChange={e => {
                                 setColor2(e.target.value)
@@ -388,9 +383,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-muted text-xs font-mono">{color2}</span>
                         </div>
-                    </div>
-                    <div className="flex-1">
-                        <label className="field-label">{t('club.color.bg')}</label>
+                    </Field>
+                    <Field label={t('club.color.bg')} className="flex-1">
                         <div className="flex gap-2 items-center">
                             <input type="color" value={bgColor} onChange={e => {
                                 setBgColor(e.target.value)
@@ -398,7 +392,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                             }} className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
                             <span className="text-muted text-xs font-mono">{bgColor}</span>
                         </div>
-                    </div>
+                    </Field>
                 </div>
 
                 {/* ── Palette generator ── */}
@@ -478,8 +472,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             {/* ── Sonderstrafen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.specialPenalties')}</div>
-                <div className="mb-3">
-                    <label className="field-label">{t('club.penalty.guestCap')}</label>
+                <Field label={t('club.penalty.guestCap')} className="mb-3">
                     <div className="flex items-center gap-2">
                         <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
@@ -487,9 +480,8 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                onChange={e => setGuestCap(e.target.value)}/>
                     </div>
                     <p className="text-xs text-muted mt-1">{t('club.penalty.guestCapHint')}</p>
-                </div>
-                <div className="mb-3">
-                    <label className="field-label">{t('club.noRsvpExtra')}</label>
+                </Field>
+                <Field label={t('club.noRsvpExtra')} className="mb-3">
                     <div className="flex items-center gap-2">
                         <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
@@ -497,7 +489,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                onChange={e => setNoRsvpExtra(e.target.value)}/>
                     </div>
                     <p className="text-xs text-muted mt-1">{t('club.noRsvpExtraHint')}</p>
-                </div>
+                </Field>
                 <Field label={t('club.pinPenalty')}>
                     <div className="flex items-center gap-2">
                         <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -896,16 +888,14 @@ function EmailSettingsCard() {
                            placeholder="smtp.example.com" autoCapitalize="none" autoCorrect="off"/>
                 </Field>
                 <div className="flex gap-3">
-                    <div className="flex-1">
-                        <label className="field-label">{t('email.port')}</label>
+                    <Field label={t('email.port')} className="flex-1">
                         <input className="kce-input" type="number" value={port}
                                onChange={e => setPort(parseInt(e.target.value) || 587)}/>
-                    </div>
-                    <div className="flex-[2]">
-                        <label className="field-label">{t('email.fromName')}</label>
+                    </Field>
+                    <Field label={t('email.fromName')} className="flex-[2]">
                         <input className="kce-input" value={fromName} onChange={e => setFromName(e.target.value)}
                                placeholder={t('email.fromNamePlaceholder')}/>
-                    </div>
+                    </Field>
                 </div>
                 <Field label={t('email.fromAddress')}>
                     <input className="kce-input" value={fromAddress} onChange={e => setFromAddress(e.target.value)}
@@ -1238,19 +1228,17 @@ function ReminderSettingsCard() {
                 <p className="text-xs text-muted mb-2">{t('reminders.debt_weekly.hint')}</p>
                 {debtWeekly.enabled && (
                     <div className="flex gap-3 mt-2">
-                        <div className="flex-1">
-                            <label className="field-label">{t('reminders.weekday')}</label>
+                        <Field label={t('reminders.weekday')} className="flex-1">
                             <select className="kce-input" value={debtWeekly.weekday ?? 1}
                                     onChange={e => setDebtWeekly(s => ({...s, weekday: Number(e.target.value)}))}>
                                 {WEEKDAYS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
                             </select>
-                        </div>
-                        <div className="w-28">
-                            <label className="field-label">{t('reminders.min_debt')}</label>
+                        </Field>
+                        <Field label={t('reminders.min_debt')} className="w-28">
                             <input type="number" min={0} step={0.5} className="kce-input"
                                    value={debtWeekly.min_debt ?? 5}
                                    onChange={e => setDebtWeekly(s => ({...s, min_debt: Number(e.target.value)}))} />
-                        </div>
+                        </Field>
                     </div>
                 )}
             </div>
@@ -1263,12 +1251,11 @@ function ReminderSettingsCard() {
                 </div>
                 <p className="text-xs text-muted mb-2">{t('reminders.upcoming_evening.hint')}</p>
                 {upcoming.enabled && (
-                    <div className="mt-2 w-28">
-                        <label className="field-label">{t('reminders.days_before')}</label>
+                    <Field label={t('reminders.days_before')} className="mt-2 w-28">
                         <input type="number" min={1} max={30} className="kce-input"
                                value={upcoming.days_before ?? 5}
                                onChange={e => setUpcoming(s => ({...s, days_before: Number(e.target.value)}))} />
-                    </div>
+                    </Field>
                 )}
             </div>
 
@@ -1280,12 +1267,11 @@ function ReminderSettingsCard() {
                 </div>
                 <p className="text-xs text-muted mb-2">{t('reminders.rsvp_reminder.hint')}</p>
                 {rsvp.enabled && (
-                    <div className="mt-2 w-28">
-                        <label className="field-label">{t('reminders.days_before')}</label>
+                    <Field label={t('reminders.days_before')} className="mt-2 w-28">
                         <input type="number" min={1} max={14} className="kce-input"
                                value={rsvp.days_before ?? 3}
                                onChange={e => setRsvp(s => ({...s, days_before: Number(e.target.value)}))} />
-                    </div>
+                    </Field>
                 )}
             </div>
 
@@ -1306,12 +1292,11 @@ function ReminderSettingsCard() {
                 </div>
                 <p className="text-xs text-muted mb-2">{t('reminders.payment_nudge.hint')}</p>
                 {payNudge.enabled && (
-                    <div className="mt-2 w-28">
-                        <label className="field-label">{t('reminders.days_pending')}</label>
+                    <Field label={t('reminders.days_pending')} className="mt-2 w-28">
                         <input type="number" min={1} max={30} className="kce-input"
                                value={payNudge.days_pending ?? 3}
                                onChange={e => setPayNudge(s => ({...s, days_pending: Number(e.target.value)}))} />
-                    </div>
+                    </Field>
                 )}
             </div>
 
@@ -1323,12 +1308,11 @@ function ReminderSettingsCard() {
                 </div>
                 <p className="text-xs text-muted mb-2">{t('reminders.auto_report.hint')}</p>
                 {autoReport.enabled && (
-                    <div className="mt-2 w-28">
-                        <label className="field-label">{t('reminders.days_before')}</label>
+                    <Field label={t('reminders.days_before')} className="mt-2 w-28">
                         <input type="number" min={0} max={7} className="kce-input"
                                value={autoReport.days_before ?? 1}
                                onChange={e => setAutoReport(s => ({...s, days_before: Number(e.target.value)}))} />
-                    </div>
+                    </Field>
                 )}
             </div>
 
@@ -1374,18 +1358,15 @@ function BroadcastPushCard() {
     return (
         <div className="kce-card p-4">
             <div className="sec-heading mb-3">{t('broadcast.title')}</div>
-            <div className="mb-3">
-                <label className="field-label">{t('broadcast.label')}</label>
+            <Field label={t('broadcast.label')} className="mb-3">
                 <input className="kce-input" value={bTitle} onChange={e => setBTitle(e.target.value)} placeholder={t('broadcast.label')}/>
-            </div>
-            <div className="mb-3">
-                <label className="field-label">{t('broadcast.body')}</label>
+            </Field>
+            <Field label={t('broadcast.body')} className="mb-3">
                 <textarea className="kce-input" rows={2} value={bBody} onChange={e => setBBody(e.target.value)} placeholder={t('broadcast.body')}/>
-            </div>
-            <div className="mb-3">
-                <label className="field-label">{t('broadcast.url')}</label>
+            </Field>
+            <Field label={t('broadcast.url')} className="mb-3">
                 <input className="kce-input" value={bUrl} onChange={e => setBUrl(e.target.value)} placeholder="/"/>
-            </div>
+            </Field>
             <Button variant="primary" block onClick={handleBroadcast} disabled={sending || !bTitle.trim() || !bBody.trim()}>
                 {sending ? '…' : t('broadcast.send')}
             </Button>
@@ -1489,11 +1470,10 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                         <Field label="Icon">
                             <EmojiPickerButton value={editIcon} onChange={setEditIcon}/>
                         </Field>
-                        <div className="flex-1">
-                            <label className="field-label">Name</label>
+                        <Field label="Name" className="flex-1">
                             <input className="kce-input" value={editName}
                                    onChange={e => setEditName(e.target.value)}/>
-                        </div>
+                        </Field>
                         <Field label={t('sound.pick')}>
                             <SoundPickerButton value={editSoundKey} onChange={setEditSoundKey}/>
                         </Field>
@@ -1965,11 +1945,10 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                         <Field label={t('pin.icon')}>
                             <EmojiPickerButton value={pinIcon} onChange={setPinIcon}/>
                         </Field>
-                        <div className="flex-1">
-                            <label className="field-label">{t('pin.name')}</label>
+                        <Field label={t('pin.name')} className="flex-1">
                             <input className="kce-input" value={pinName} onChange={e => setPinName(e.target.value)}
                                    placeholder="z.B. Vereinsnadel"/>
-                        </div>
+                        </Field>
                     </div>
                     <Field label={t('pin.assignHolder')}>
                         <select className="kce-input" value={holderId ?? ''} onChange={e => setHolderId(e.target.value ? Number(e.target.value) : null)}>
