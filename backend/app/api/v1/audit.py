@@ -100,7 +100,9 @@ def compute_audit_snapshot(db: Session, club_id: int, start: date, end: date) ->
         m = members.get(mid)
         return (m.nickname or m.name) if m else f"#{mid}"
 
-    payments = db.query(MemberPayment).filter(MemberPayment.club_id == club_id).all()
+    # Write-offs settle a balance without moving money, so they are not cash bookings.
+    payments = db.query(MemberPayment).filter(
+        MemberPayment.club_id == club_id, MemberPayment.is_writeoff == False).all()
     expenses = db.query(ClubExpense).filter(ClubExpense.club_id == club_id).all()
 
     user_ids = set()

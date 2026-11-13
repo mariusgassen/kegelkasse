@@ -1,11 +1,29 @@
 import {describe, expect, it} from 'vitest'
-import {paidShare, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '../treasurySummary'
+import {cashPaidIn, paidShare, refundPaidIn, shareSettlement, treasurySummary, writeOffOutstandingDebt} from '../treasurySummary'
 
 const bal = (balance: number, payments_total: number, penalty_total: number) =>
     ({balance, payments_total, penalty_total})
 
 const mbal = (id: number, balance: number, payments_total: number, penalty_total: number) =>
     ({regular_member_id: id, balance, payments_total, penalty_total})
+
+describe('write-offs are not cash', () => {
+    it('cashPaidIn subtracts the write-off part of payments_total', () => {
+        expect(cashPaidIn({payments_total: 183.46, writeoff_total: 180})).toBeCloseTo(3.46)
+        expect(cashPaidIn({payments_total: 10})).toBe(10)
+    })
+
+    it('treasurySummary leaves write-offs out of paidIn and cashOnHand', () => {
+        const s = treasurySummary([{balance: 0, payments_total: 183.46, penalty_total: 183.46, writeoff_total: 179.96}], [], [])
+        expect(s.paidIn).toBeCloseTo(3.5)
+        expect(s.cashOnHand).toBeCloseTo(3.5)
+    })
+
+    it('refundPaidIn keeps only the write-off part, which was never cash', () => {
+        const [r] = refundPaidIn([{regular_member_id: 1, balance: 0, payments_total: 50, penalty_total: 40, writeoff_total: 10}], [1])
+        expect(r.payments_total).toBe(10)
+    })
+})
 
 describe('treasurySummary', () => {
     it('returns all zeros for empty inputs', () => {

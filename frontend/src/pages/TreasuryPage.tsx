@@ -22,7 +22,7 @@ import {parseAmount} from '@/utils/parse.ts'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
-import {paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
+import {cashPaidIn, paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
@@ -40,12 +40,13 @@ function fDate(iso: string | null) {
 
 type Balance = {
     regular_member_id: number; name: string; nickname: string | null;
-    penalty_total: number; payments_total: number; balance: number
+    penalty_total: number; payments_total: number; writeoff_total?: number; balance: number
 }
 
 type Payment = {
     id: number; regular_member_id: number; member_name: string;
-    amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
+    amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null;
+    is_writeoff?: boolean
 }
 
 type MemberPayment = {
@@ -553,7 +554,7 @@ export function TreasuryPage() {
     const totalSurplus = balances.reduce((s, b) => b.balance > 0 ? s + b.balance : s, 0)
     // Total paid in by members (gross deposits) — separate from totalSurplus (credit),
     // since credit is money the till already owes back to the member, not free cash.
-    const totalPaidMembers = balances.reduce((s, b) => s + b.payments_total, 0)
+    const totalPaidMembers = balances.reduce((s, b) => s + cashPaidIn(b), 0)
     const maxAccountPenalty = balances.reduce((m, b) => Math.max(m, b.penalty_total), 0)
     // Debtor / credit / settled splits — the "Wer schuldet noch?" card and the Konten tab
     // both read the whole club, so one unfiltered derivation serves both.
@@ -1324,8 +1325,8 @@ export function TreasuryPage() {
                                 const p = entry.data
                                 return (
                                     <div key={`p-${p.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <span className={`text-xl flex-shrink-0 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
-                                            {p.amount >= 0 ? '⬆' : '⬇'}
+                                        <span className={`text-xl flex-shrink-0 ${p.is_writeoff ? 'text-muted' : p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
+                                            {p.is_writeoff ? '🧾' : p.amount >= 0 ? '⬆' : '⬇'}
                                         </span>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold truncate flex items-center gap-1.5">
@@ -1333,7 +1334,8 @@ export function TreasuryPage() {
                                                 {p.regular_member_id === myRegularMemberId && <MeBadge/>}
                                             </div>
                                             <div className="text-xs text-muted truncate">
-                                                {p.note ?? (p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}
+                                                {p.is_writeoff && <>{t('treasury.payment.writeoff')}{p.note ? ' · ' : ''}</>}
+                                                {p.note ?? (p.is_writeoff ? '' : p.amount >= 0 ? t('treasury.payment.deposit') : t('treasury.payment.withdrawal'))}
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">

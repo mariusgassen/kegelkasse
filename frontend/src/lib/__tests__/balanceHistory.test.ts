@@ -27,6 +27,17 @@ describe('clubEventsFromBookings', () => {
         expect(events[1]).toMatchObject({id: 'expense-2', delta: -15, kind: 'expense', label: 'Bälle'})
     })
 
+    it('leaves write-off bookings out of the cash line', () => {
+        const events = clubEventsFromBookings(
+            [
+                {id: 1, regular_member_id: 5, member_name: 'Anna', amount: 20, note: null, created_at: '2024-05-01T10:00:00Z'},
+                {id: 2, regular_member_id: 6, member_name: 'Ben', amount: 99, note: null, created_at: '2024-05-01T10:00:00Z', is_writeoff: true},
+            ],
+            [],
+        )
+        expect(events.map(e => e.id)).toEqual(['payment-1'])
+    })
+
     it('prefers expense.date over expense.created_at for timestamp', () => {
         const events = clubEventsFromBookings([], [
             {id: 1, amount: 10, description: 'X', created_at: '2024-06-01T00:00:00Z', date: '2024-05-01T00:00:00Z'},

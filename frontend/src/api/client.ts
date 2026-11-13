@@ -675,9 +675,10 @@ export const api = {
     }[]>('GET', '/club/treasury-debt-timeline'),
     getAllPayments: () => request<{
         id: number; regular_member_id: number; member_name: string;
-        amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
+        amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null;
+        is_writeoff?: boolean
     }[]>('GET', '/club/member-payments'),
-    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string; as_club_expense?: boolean; trip_id?: number }) =>
+    createMemberPayment: (d: { regular_member_id: number; amount: number; note?: string; date?: string; as_club_expense?: boolean; trip_id?: number; is_writeoff?: boolean }) =>
         request<{
             id: number;
             amount: number;

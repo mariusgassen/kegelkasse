@@ -5,7 +5,14 @@
 export interface BalanceLike {
     balance: number
     payments_total: number
+    /** Part of payments_total that was a write-off (settles the balance, but no cash moved). */
+    writeoff_total?: number
     penalty_total: number
+}
+
+/** Real money a member/guest paid in: write-offs settle a balance but are not cash. */
+export function cashPaidIn(b: Pick<BalanceLike, 'payments_total' | 'writeoff_total'>): number {
+    return b.payments_total - (b.writeoff_total ?? 0)
 }
 
 export interface IdentifiedBalanceLike extends BalanceLike {
@@ -48,7 +55,7 @@ export function treasurySummary(
     expenses: ExpenseLike[],
 ): TreasurySummary {
     const all = [...memberBalances, ...guestBalances]
-    const paidIn = all.reduce((s, b) => s + b.payments_total, 0)
+    const paidIn = all.reduce((s, b) => s + cashPaidIn(b), 0)
     const expensesGross = expenses.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
     const otherIncome = expenses.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
     const expensesNet = expensesGross - otherIncome
@@ -117,7 +124,7 @@ export function refundPaidIn<T extends IdentifiedBalanceLike>(
 ): T[] {
     const idSet = ids instanceof Set ? ids : new Set(ids)
     if (idSet.size === 0) return balances
-    return balances.map(b => idSet.has(b.regular_member_id) ? {...b, payments_total: 0} : b)
+    return balances.map(b => idSet.has(b.regular_member_id) ? {...b, payments_total: b.writeoff_total ?? 0} : b)
 }
 
 /**

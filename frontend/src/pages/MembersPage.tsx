@@ -39,7 +39,7 @@ export function MembersPage() {
     const [removeConfirm, setRemoveConfirm] = useState<RegularMember | null>(null)
     const [removePayoutAmount, setRemovePayoutAmount] = useState('')
     const [removePaymentsTotal, setRemovePaymentsTotal] = useState<number | null>(null)
-    const [removePenaltyTotal, setRemovePenaltyTotal] = useState<number | null>(null)
+    const [removeOpenDebt, setRemoveOpenDebt] = useState<number | null>(null)
     const [promoteConfirm, setPromoteConfirm] = useState<RegularMember | null>(null)
     const [promoteEntryFee, setPromoteEntryFee] = useState('')
     const [deactivateConfirm, setDeactivateConfirm] = useState<RegularMember | null>(null)
@@ -176,17 +176,17 @@ export function MembersPage() {
         setRemoveConfirm(m)
         setRemovePayoutAmount('')
         setRemovePaymentsTotal(null)
-        setRemovePenaltyTotal(null)
+        setRemoveOpenDebt(null)
         try {
             const balances = await api.getMemberBalances()
             const b = balances.find(b => b.regular_member_id === m.id)
-            const payments = b?.payments_total ?? 0
-            const penalties = b?.penalty_total ?? 0
-            setRemovePaymentsTotal(payments)
-            setRemovePenaltyTotal(penalties)
-            // Pre-fill payout with what was physically paid in (not balance)
-            if (payments > 0.01) {
-                setRemovePayoutAmount(payments.toFixed(2))
+            const balance = b?.balance ?? 0
+            setRemovePaymentsTotal(b?.payments_total ?? 0)
+            // Only the still-open debt is written off (no cash moves)…
+            setRemoveOpenDebt(Math.max(0, -balance))
+            // …and only a real credit is paid out. Money already used up by penalties is not refunded.
+            if (balance > 0.01) {
+                setRemovePayoutAmount(balance.toFixed(2))
             }
         } catch {
             // balance is optional — form still works without it
@@ -196,12 +196,13 @@ export function MembersPage() {
     async function remove(m: RegularMember) {
         try {
             await api.deleteRegularMember(m.id)
-            // Write off outstanding penalties so the balance reaches zero
-            if ((removePenaltyTotal ?? 0) > 0.01) {
+            // Write off the open debt so the balance reaches zero — not a deposit, no cash moves
+            if ((removeOpenDebt ?? 0) > 0.01) {
                 await api.createMemberPayment({
                     regular_member_id: m.id,
-                    amount: removePenaltyTotal!,
+                    amount: Math.round(removeOpenDebt! * 100) / 100,
                     note: t('member.writeOffNote'),
+                    is_writeoff: true,
                 })
             }
             const payoutAmt = parseAmount(removePayoutAmount)
@@ -645,9 +646,9 @@ export function MembersPage() {
                     <div>
                         <label className="field-label">{t('member.payoutLabel')}</label>
                         <p className="text-xs text-muted mb-1.5">{t('member.payoutHint')}</p>
-                        {removePenaltyTotal !== null && removePenaltyTotal > 0.01 && (
+                        {removeOpenDebt !== null && removeOpenDebt > 0.01 && (
                             <p className="text-xs text-accent-fg mb-1.5">
-                                {t('member.payoutWriteOffInfo')} ({removePenaltyTotal.toFixed(2).replace('.', ',')} €)
+                                {t('member.payoutWriteOffInfo')} ({removeOpenDebt.toFixed(2).replace('.', ',')} €)
                             </p>
                         )}
                         <div className="flex items-center gap-2">
