@@ -233,3 +233,43 @@ export function clusterPoints(points: DualPoint[], granularity: Granularity): Po
     }
     return Array.from(clusters.values())
 }
+
+// ── Month-end statements ─────────────────────────────────────────────────────
+
+export type MonthStatement = {
+    /** First day of the month (local time), ms. */
+    start: number
+    opening: number
+    inflow: number
+    outflow: number
+    closing: number
+    /** Running balance including the overlay (open debts / booked penalties) at month end. */
+    closingVirtual: number
+}
+
+/** Cumulative sum of events up to and including `ts`. */
+export function balanceAt(events: BalanceEvent[], ts: number): number {
+    let sum = 0
+    for (const e of events) if (e.ts <= ts) sum += e.delta
+    return sum
+}
+
+/** One row per calendar month with activity (either stream), newest first, with opening/closing balances. */
+export function monthlyStatements(actualEvents: BalanceEvent[], overlayEvents: BalanceEvent[]): MonthStatement[] {
+    const monthOf = (ts: number) => { const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), 1).getTime() }
+    const starts = new Set<number>([...actualEvents, ...overlayEvents].map(e => monthOf(e.ts)))
+    return [...starts].sort((a, b) => a - b).map(start => {
+        const end = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 1).getTime()
+        const inMonth = actualEvents.filter(e => e.ts >= start && e.ts < end)
+        const opening = cumulativeBaseline(actualEvents, start)
+        const closing = opening + inMonth.reduce((s, e) => s + e.delta, 0)
+        return {
+            start,
+            opening,
+            inflow: inMonth.filter(e => e.delta > 0).reduce((s, e) => s + e.delta, 0),
+            outflow: inMonth.filter(e => e.delta < 0).reduce((s, e) => s + e.delta, 0),
+            closing,
+            closingVirtual: closing + cumulativeBaseline(overlayEvents, end),
+        }
+    }).reverse()
+}

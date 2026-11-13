@@ -125,6 +125,14 @@ describe('TreasuryAnalysis', () => {
         await waitFor(() => expect(screen.getByText('Getränke')).toBeInTheDocument())
     })
 
+    it('shows month statements and a balance at a chosen cut-off date', async () => {
+        await renderAnalysis()
+        await waitFor(() => expect(screen.getByTestId('statements-card')).toBeInTheDocument())
+        expect(screen.queryByTestId('statements-asof-result')).not.toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText('treasury.statements.asOf'), {target: {value: '2099-01-01'}})
+        await waitFor(() => expect(screen.getByTestId('statements-asof-result')).toBeInTheDocument())
+    })
+
     it('offers a member scope for the history graph', async () => {
         await renderAnalysis()
         await waitFor(() => expect(screen.getByText(/treasury\.history\.scopeMember/)).toBeInTheDocument())

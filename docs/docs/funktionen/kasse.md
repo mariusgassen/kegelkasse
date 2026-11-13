@@ -17,7 +17,7 @@ Die Kasse ist in vier Reiter unterteilt — **Übersicht** ist die Blick-Ebene (
 | Tab | Inhalt |
 |-----|--------|
 | **📊 Übersicht** | Mein Konto, Kassenstand, wer schuldet noch |
-| **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf |
+| **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf, Stichtag & Monatsstände |
 | **📈 Insights** | Wasserfall, Schulden-Treemap, Strafen pro Abend, Geldfluss-Sankey, Bezahlt-gegen-offen-Donut |
 | **👤 Konten** | Mitgliedssalden — wer hat noch Schulden? |
 | **📒 Kassenbuch** | Alle Buchungen (Einzahlungen, Auszahlungen, Vereinsausgaben) |
@@ -135,6 +135,10 @@ Admins können oben in der Kasse einen vollständigen Kassenbericht herunterlade
 In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert werden, dass Admins X Tage vor dem nächsten Kegeltermin automatisch eine Push-Benachrichtigung erhalten — als Erinnerung, den Kassenbericht herunterzuladen.
 
 ---
+
+## Stichtag & Monatsstände
+
+Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Einzahlungen, Auszahlungen und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
 
 ## Verlauf (Saldo-Graph)
 

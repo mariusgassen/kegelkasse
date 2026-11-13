@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {
+    balanceAt,
     bucketStart,
     clubEventsFromBookings,
     clusterPoints,
@@ -11,6 +12,7 @@ import {
     memberPaymentEvents,
     memberPenaltyEvents,
     mergeDualSeries,
+    monthlyStatements,
     windowBounds,
     type BalanceEventKind,
     type DualPoint,
@@ -342,5 +344,33 @@ describe('clusterPoints', () => {
             point(otherDay, {id: 'payment-2', kind: 'payment'}),
         ]
         expect(clusterPoints(points, 'all')).toHaveLength(2)
+    })
+})
+
+describe('balanceAt / monthlyStatements', () => {
+    const ev = (d: string, delta: number) => ({ts: new Date(d).getTime(), delta, kind: 'payment' as BalanceEventKind, label: ''})
+    const actual = [ev('2026-01-10T12:00:00', 100), ev('2026-01-20T12:00:00', -30), ev('2026-03-05T12:00:00', 50)]
+
+    it('sums events up to and including the cut-off', () => {
+        expect(balanceAt(actual, new Date('2026-01-15T00:00:00').getTime())).toBe(100)
+        expect(balanceAt(actual, new Date('2026-12-31T00:00:00').getTime())).toBe(120)
+        expect(balanceAt(actual, 0)).toBe(0)
+    })
+
+    it('builds newest-first month rows with carried-over opening balances', () => {
+        const rows = monthlyStatements(actual, [])
+        expect(rows).toHaveLength(2)
+        expect(rows[1]).toMatchObject({opening: 0, inflow: 100, outflow: -30, closing: 70})
+        expect(rows[0]).toMatchObject({opening: 70, inflow: 50, outflow: 0, closing: 120})
+    })
+
+    it('adds the overlay running total to the virtual closing balance', () => {
+        const rows = monthlyStatements(actual, [ev('2026-01-12T12:00:00', -20)])
+        expect(rows[1].closingVirtual).toBe(50)
+        expect(rows[0].closingVirtual).toBe(100)
+    })
+
+    it('returns nothing without events', () => {
+        expect(monthlyStatements([], [])).toEqual([])
     })
 })
