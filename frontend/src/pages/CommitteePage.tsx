@@ -249,7 +249,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.announcement.deleteConfirm')}</p>
-                        <Button variant="primary" block style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: 'var(--danger)', color: 'var(--on-danger)'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
                         </Button>
@@ -446,7 +446,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.trip.deleteConfirm')}</p>
-                        <Button variant="primary" block style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: 'var(--danger)', color: 'var(--on-danger)'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
                         </Button>
@@ -908,7 +908,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                 <Sheet open onClose={() => setDelId(null)} title={t('action.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('committee.poll.deleteConfirm')}</p>
-                        <Button variant="primary" block style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: 'var(--danger)', color: 'var(--on-danger)'}}
                                 onClick={() => handleDelete(delId)}>
                             {t('action.confirmDelete')}
                         </Button>

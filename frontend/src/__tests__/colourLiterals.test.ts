@@ -1,7 +1,7 @@
 /**
  * Tailwind palette colours (`text-red-400`, `bg-amber-500/10` …) are fixed hues: the theme is
  * club-configurable x dark/light, so a fixed value is unreadable in some valid configuration.
- * Chrome must use the semantic tokens (see CLAUDE.md). Kiosk/artwork files and documented
+ * (`text-kce-text` is a pre-#70 class that matches nothing.) Chrome must use the semantic tokens (see CLAUDE.md). Kiosk/artwork files and documented
  * exceptions are listed below; adding one is allowed, but should be a deliberate decision.
  */
 import {describe, it, expect} from 'vitest'
@@ -19,7 +19,7 @@ const EXEMPT: Record<string, string> = {
     'pages/BookPage.tsx': 'developer docs showing the literals',
 }
 
-const PALETTE = /\b(?:text|bg|border|ring|from|to|via)-(?:red|green|blue|yellow|amber|orange|gray|slate|zinc|neutral|emerald|lime|teal|cyan|sky|indigo|violet|purple|pink|rose)-\d{2,3}\b/g
+const PALETTE = /\b(?:text|bg|border|ring|from|to|via)-(?:red|green|blue|yellow|amber|orange|gray|slate|zinc|neutral|emerald|lime|teal|cyan|sky|indigo|violet|purple|pink|rose)-\d{2,3}\b|\btext-kce-text\b/g
 
 function walk(dir: string, out: string[] = []): string[] {
     for (const e of readdirSync(dir)) {

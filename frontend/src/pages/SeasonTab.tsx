@@ -141,7 +141,7 @@ export function SeasonTab() {
         return (
             <div className="flex flex-col gap-4 pt-3">
                 <div className="kce-card p-4 flex flex-col gap-4">
-                    <h2 className="font-bold text-base text-kce-text">{t('season.title')}</h2>
+                    <h2 className="font-bold text-base text-ink">{t('season.title')}</h2>
 
                     <div className="flex items-center gap-3">
                         <label className="text-sm text-muted whitespace-nowrap">{t('season.overview.year')}</label>
@@ -201,7 +201,7 @@ export function SeasonTab() {
                     >
                         ← {t('action.cancel')}
                     </button>
-                    <h2 className="font-bold text-base text-kce-text">{t('season.step1.title')}</h2>
+                    <h2 className="font-bold text-base text-ink">{t('season.step1.title')}</h2>
                 </div>
 
                 <p className="text-sm text-muted">{t('season.step1.hint')}</p>
@@ -233,7 +233,7 @@ export function SeasonTab() {
                                         onChange={() => toggleMember(b.regular_member_id)}
                                         className="w-4 h-4 accent-accent flex-shrink-0"
                                     />
-                                    <span className="text-sm text-kce-text truncate">{displayName(b)}</span>
+                                    <span className="text-sm text-ink truncate">{displayName(b)}</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm flex-shrink-0">
                                     <span className={b.balance < 0 ? 'text-danger-fg' : 'text-positive-fg'}>
@@ -276,7 +276,7 @@ export function SeasonTab() {
                     >
                         ←
                     </button>
-                    <h2 className="font-bold text-base text-kce-text">{t('season.step2.title')}</h2>
+                    <h2 className="font-bold text-base text-ink">{t('season.step2.title')}</h2>
                 </div>
 
                 <div className="rounded-lg border border-accent/40 bg-accent-tint px-3 py-2.5">
@@ -284,7 +284,7 @@ export function SeasonTab() {
                 </div>
 
                 <div className="kce-card p-4 flex flex-col gap-2">
-                    <p className="text-sm font-medium text-kce-text">{t('season.step2.actions')}</p>
+                    <p className="text-sm font-medium text-ink">{t('season.step2.actions')}</p>
                     <ul className="flex flex-col gap-1.5 mt-1">
                         <li className="text-sm text-muted flex items-start gap-2">
                             <span className="mt-0.5">⚖️</span>
@@ -323,7 +323,7 @@ export function SeasonTab() {
                 <Button
                     type="button"
                     variant="primary" block
-                    style={{background: loading ? undefined : '#c0392b'}}
+                    style={{background: loading ? undefined : 'var(--danger)', color: loading ? undefined : 'var(--on-danger)'}}
                     disabled={loading}
                     onClick={handleConfirm}
                 >
@@ -339,7 +339,7 @@ export function SeasonTab() {
         <div className="flex flex-col gap-4 pt-3">
             <div className="kce-card p-4 flex flex-col gap-3 text-center">
                 <div className="text-3xl">✓</div>
-                <h2 className="font-bold text-base text-kce-text">{t('season.done.title')}</h2>
+                <h2 className="font-bold text-base text-ink">{t('season.done.title')}</h2>
                 <p className="text-sm text-muted">{t('season.done.hint')}</p>
             </div>
 
@@ -366,7 +366,7 @@ function StatCell({label, value}: {label: string; value: string}) {
     return (
         <div className="flex flex-col gap-0.5">
             <span className="text-xs text-muted">{label}</span>
-            <span className="text-sm font-bold text-kce-text">{value}</span>
+            <span className="text-sm font-bold text-ink">{value}</span>
         </div>
     )
 }
@@ -409,7 +409,7 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
     return (
         <div className="kce-card p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-                <span className="font-bold text-kce-text">{t('season.snapshot.year').replace('{year}', String(snap.year))}</span>
+                <span className="font-bold text-ink">{t('season.snapshot.year').replace('{year}', String(snap.year))}</span>
                 <span className="text-xs text-muted">{fDate(snap.closed_at)}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-xs text-muted">

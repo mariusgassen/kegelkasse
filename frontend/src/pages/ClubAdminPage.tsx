@@ -1812,7 +1812,7 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
                 <Sheet open onClose={() => setDeleteClubId(null)} title={t('superadmin.clubs.delete')}>
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('superadmin.clubs.deleteConfirm')}</p>
-                        <Button variant="primary" block style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: 'var(--danger)', color: 'var(--on-danger)'}}
                                 onClick={() => handleDelete(deleteClubId)}>
                             {t('action.confirmDelete')}
                         </Button>
@@ -2192,7 +2192,7 @@ function BackupStanzaCard({stanza, onDelete}: { stanza: PgBackrestStanza; onDele
                     <div className="flex flex-col gap-3">
                         <p className="text-muted text-sm">{t('backup.delete.confirm')}</p>
                         <p className="text-xs font-mono text-accent-fg">{confirmLabel}</p>
-                        <Button variant="primary" block style={{background: '#c0392b'}}
+                        <Button variant="primary" block style={{background: 'var(--danger)', color: 'var(--on-danger)'}}
                                 onClick={() => { onDelete(confirmLabel); setConfirmLabel(null) }}>
                             {t('action.confirmDelete')}
                         </Button>

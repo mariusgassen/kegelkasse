@@ -1093,7 +1093,7 @@ export function TreasuryPage() {
                                 ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))'
                                 : hasCredit
                                     ? 'linear-gradient(135deg,var(--positive),color-mix(in srgb, var(--positive) 70%, black))'
-                                    : 'linear-gradient(135deg,#6b7280,#4b5563)'
+                                    : 'linear-gradient(135deg,var(--muted),color-mix(in srgb, var(--muted) 70%, black))'
                             return (
                                 <div key={b.regular_member_id} className="kce-card mb-2 overflow-hidden">
                                     <button className="w-full p-3 flex items-center gap-3 text-left"
@@ -1261,7 +1261,7 @@ export function TreasuryPage() {
                                 return (
                                     <div key={b.regular_member_id} className="kce-card p-3 mb-2 flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-on-accent text-xs flex-shrink-0"
-                                             style={{background: hasDebt ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))' : 'linear-gradient(135deg,#6b7280,#4b5563)'}}>
+                                             style={{background: hasDebt ? 'linear-gradient(135deg,var(--danger),color-mix(in srgb, var(--danger) 70%, black))' : 'linear-gradient(135deg,var(--muted),color-mix(in srgb, var(--muted) 70%, black))'}}>
                                             {b.name[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -1441,7 +1441,7 @@ export function TreasuryPage() {
                     {editTarget?.kind === 'payment' && (
                         <div>
                             <label className="field-label">
-                                {t('treasury.booking.for')}: <span className="font-bold text-kce-text">{editTarget.label}</span>
+                                {t('treasury.booking.for')}: <span className="font-bold text-ink">{editTarget.label}</span>
                             </label>
                         </div>
                     )}
@@ -1509,7 +1509,7 @@ export function TreasuryPage() {
                     </p>
                     <div>
                         <label className="field-label">
-                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-kce-text">{transferGuest?.name ?? ''}</span>
+                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-ink">{transferGuest?.name ?? ''}</span>
                         </label>
                     </div>
                     <div>

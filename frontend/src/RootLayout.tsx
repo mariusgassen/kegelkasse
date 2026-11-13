@@ -262,7 +262,9 @@ export function RootLayout() {
                     background so the indicator underneath stays hidden until pulled. */}
                 <div style={{
                     position: 'absolute', inset: 0, zIndex: 1, background: 'var(--canvas)',
-                    transform: `translateY(${pullDistance}px)`,
+                    // No transform at rest: any transform makes `position: fixed` descendants (every <Sheet>
+                    // rendered inside a page) anchor to this wrapper instead of the viewport.
+                    transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : 'none',
                     transition: ptrDragging ? 'none' : 'transform 0.25s ease-out',
                 }}>
                     {/* key on page → the .page-pane enter animation restarts on each navigation */}
