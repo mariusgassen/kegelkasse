@@ -18,6 +18,7 @@ Die Kasse ist in vier Reiter unterteilt — **Übersicht** ist die Blick-Ebene (
 |-----|--------|
 | **📊 Übersicht** | Mein Konto, Kassenstand, wer schuldet noch |
 | **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf |
+| **📈 Diagramme** | Wasserfall, Schulden-Treemap, Strafen pro Abend, Geldfluss-Sankey, Bezahlt-gegen-offen-Donut |
 | **👤 Konten** | Mitgliedssalden — wer hat noch Schulden? |
 | **📒 Kassenbuch** | Alle Buchungen (Einzahlungen, Auszahlungen, Vereinsausgaben) |
 
@@ -92,6 +93,18 @@ Der Filter steht bewusst **vor** allem, was er beeinflusst: die Geldfluss-Karte 
 Darunter steht derselbe Geldfluss wie auf der Übersicht — hier aber **aufklappbar**: Jede Zeile (Eingezahlt, Ausgaben, Sonstige Einnahmen, Noch offen) lässt sich antippen und zeigt die zugrunde liegenden Einzelbuchungen (Mitglied bzw. Ausgaben-Beschreibung mit Datum und Betrag), ohne in den Kassenbuch-Tab wechseln zu müssen. Die große Zahl oben ist der Kassenstand, den die Zeilen ergeben — mit aktivem Filter also der simulierte statt des tatsächlichen.
 
 ---
+
+## Diagramme (📈)
+
+Der Reiter **Diagramme** zeigt die Kasse als Bilder. Jedes Diagramm lässt sich antippen und zeigt dann den genauen Betrag.
+
+- **Kassenstand-Wasserfall:** Eingezahlt, abzüglich Ausgaben, ergibt den Kassenstand; mit den offenen Schulden der projizierte Stand. Darüber ein kleiner Verlauf des Kassenstands.
+- **Wer schuldet wie viel?** Eine Treemap: je größer die Kachel, desto höher die offene Schuld. Dein eigenes Konto ist umrandet.
+- **Strafen pro Kegelabend:** Säulen für jeden Abend des laufenden Jahres, damit Ausreißer auffallen.
+- **Geldfluss:** Ein Sankey-Diagramm von Eingezahlt und sonstigen Einnahmen zu Ausgaben und Kasse sowie den offenen Beträgen.
+- **Bezahlt gegen offen:** Ein Donut mit dem Anteil aller Strafen, der schon bezahlt ist.
+
+Die Diagramme nutzen Recharts und werden erst geladen, wenn der Reiter geöffnet wird.
 
 ## Kassenbericht (Excel / PDF)
 
