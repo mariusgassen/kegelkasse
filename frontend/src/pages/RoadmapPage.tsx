@@ -76,6 +76,7 @@ export function RoadmapPage() {
     const [editPinned, setEditPinned] = useState(false)
     const [editDuplicateId, setEditDuplicateId] = useState<number | null>(null)
     const [editAdminNotes, setEditAdminNotes] = useState('')
+    const [editTargetVersion, setEditTargetVersion] = useState('')
     const [editSaving, setEditSaving] = useState(false)
 
     const {data: items = [], isLoading} = useQuery({
@@ -188,6 +189,7 @@ export function RoadmapPage() {
         setEditTags(item.tags)
         setEditPinned(item.is_pinned)
         setEditDuplicateId(item.duplicate_of_id)
+        setEditTargetVersion(item.target_version ?? '')
         setEditAdminNotes(item.admin_notes || '')
     }
 
@@ -222,6 +224,7 @@ export function RoadmapPage() {
                 is_pinned: editPinned,
                 duplicate_of_id: editStatus === 'duplicate' ? (editDuplicateId || null) : null,
                 admin_notes: editAdminNotes.trim() || null,
+                ...(canManage ? {target_version: editTargetVersion.trim()} : {}),
             }
 
             const updated = await api.updateRoadmapItem(editingItem.id, payload)
@@ -813,6 +816,17 @@ export function RoadmapPage() {
 
                         {canManage && (
                             <div>
+                                <label htmlFor="roadmap-edit-version" className="block text-xs font-bold text-ink mb-1">
+                                    {t('roadmap.edit.version')}
+                                </label>
+                                <input
+                                    id="roadmap-edit-version"
+                                    value={editTargetVersion}
+                                    maxLength={20}
+                                    onChange={e => setEditTargetVersion(e.target.value)}
+                                    placeholder={t('roadmap.edit.version.placeholder')}
+                                    className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent mb-3"
+                                />
                                 <label htmlFor="roadmap-edit-admin-notes" className="block text-xs font-bold text-ink mb-1">
                                     {t('roadmap.edit.adminNotes')}
                                 </label>

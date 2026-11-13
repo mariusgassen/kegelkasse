@@ -33,6 +33,15 @@ MAX_CATEGORY = 50
 MAX_TAG_COUNT = 8
 MAX_TAG_LENGTH = 30
 MAX_VERSION = 20
+
+
+def _deployed_version() -> str:
+    """The version of the running deployment (same source as /health)."""
+    import tomllib
+    from pathlib import Path
+
+    with open(Path(__file__).resolve().parents[3] / "pyproject.toml", "rb") as f:
+        return tomllib.load(f)["tool"]["poetry"]["version"]
 MAX_PAGE = 500
 DEFAULT_PAGE = 200
 
@@ -414,6 +423,7 @@ def update_roadmap_item(
             raise HTTPException(status.HTTP_403_FORBIDDEN, "This idea is already being handled and can no longer be edited")
 
     old_status = item.status
+    old_version = item.target_version
     old_notes = item.admin_notes
 
     # Validate everything before touching the object (a rejected request must not leave a dirty session).
@@ -458,6 +468,10 @@ def update_roadmap_item(
         item.admin_notes = new_notes
     if payload.target_version is not None:
         item.target_version = new_version
+    if payload.status == "completed" and old_status != "completed" and item.target_version == old_version:
+        # Shipped: pin the version that is actually deployed instead of a planned guess,
+        # unless the manager explicitly typed a different one.
+        item.target_version = _deployed_version()
     if new_category is not None:
         item.category = new_category
     if payload.tags is not None:
