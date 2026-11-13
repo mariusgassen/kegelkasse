@@ -1,5 +1,5 @@
 import {Caption} from '@/components/ui/Caption.tsx'
-import {useEffect, useState} from 'react'
+import {lazy, Suspense, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -15,7 +15,10 @@ import {SearchInput} from '@/components/ui/SearchInput.tsx'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {TreasuryAudit} from '@/components/treasury/TreasuryAudit.tsx'
+import {SkeletonChart} from '@/components/ui/Skeleton.tsx'
 import {TreasuryAnalysis} from '@/components/treasury/TreasuryAnalysis.tsx'
+// Recharts is ~90 KB gz — only fetched when the Diagramme tab is opened.
+const TreasuryCharts = lazy(() => import('@/components/treasury/TreasuryCharts.tsx').then(m => ({default: m.TreasuryCharts})))
 import {toastError} from '@/utils/error.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {parseAmount} from '@/utils/parse.ts'
@@ -123,7 +126,7 @@ export function TreasuryPage() {
 
     // Übersicht is the glance level (one card per core question); Analyse is the drill-in
     // destination that owns the player filter, the itemized money flow and the history graph.
-    const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'accounts' | 'bookings' | 'audit'>('overview', ['overview', 'analysis', 'accounts', 'bookings', 'audit'])
+    const [tab, setTab] = useHashTab<'overview' | 'analysis' | 'charts' | 'accounts' | 'bookings' | 'audit'>('overview', ['overview', 'analysis', 'charts', 'accounts', 'bookings', 'audit'])
     const [showExportSheet, setShowExportSheet] = useState(false)
 
     // Club data (for PayPal handle)
@@ -600,6 +603,7 @@ export function TreasuryPage() {
     const TABS = [
         {id: 'overview', label: t('treasury.tab.overview')},
         {id: 'analysis', label: t('treasury.tab.analysis')},
+        {id: 'charts', label: t('treasury.tab.charts')},
         {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : '')},
         {id: 'bookings', label: t('treasury.tab.bookings')},
         {id: 'audit', label: t('treasury.tab.audit')},
@@ -969,6 +973,7 @@ export function TreasuryPage() {
 
             {/* ── Analyse ── */}
             {tab === 'analysis' && <TreasuryAnalysis/>}
+            {tab === 'charts' && <Suspense fallback={<SkeletonChart height="260px"/>}><TreasuryCharts/></Suspense>}
             {tab === 'audit' && <TreasuryAudit/>}
 
             {/* ── Konten ── */}
