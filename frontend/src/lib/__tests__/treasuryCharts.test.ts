@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vitest'
 import {treasurySummary} from '@/lib/treasurySummary.ts'
-import {cashTrend, debtTiles, eveningBars, paidOpenSplit, sankeyGraph, waterfallSteps} from '@/lib/treasuryCharts.ts'
+import {cashTrend, debtTiles, eveningBars, eventsInYear, flowTarget, paidOpenSplit, sankeyGraph, waterfallSteps} from '@/lib/treasuryCharts.ts'
 
 const bal = (id: number, penalty: number, paid: number, name = `M${id}`) => ({
     regular_member_id: id, name, nickname: null, penalty_total: penalty, payments_total: paid, balance: paid - penalty,
@@ -91,5 +91,20 @@ describe('cashTrend', () => {
         expect(t).toHaveLength(20)
         expect(t[0].value).toBe(1)
         expect(t[19].value).toBe(200)
+    })
+})
+
+describe('flowTarget / eventsInYear', () => {
+    it('maps flows to the matching Kasse tab', () => {
+        expect(flowTarget('paidIn')).toEqual({tab: 'bookings'})
+        expect(flowTarget('expenses')).toEqual({tab: 'bookings'})
+        expect(flowTarget('outstanding')).toEqual({tab: 'accounts'})
+        expect(flowTarget('unpaid')).toEqual({tab: 'accounts'})
+        expect(flowTarget('cash')).toBeNull()
+    })
+    it('filters events by calendar year, null keeps all', () => {
+        const ev = [{ts: new Date(2025, 5, 1).getTime()}, {ts: new Date(2026, 5, 1).getTime()}]
+        expect(eventsInYear(ev, 2026)).toHaveLength(1)
+        expect(eventsInYear(ev, null)).toHaveLength(2)
     })
 })

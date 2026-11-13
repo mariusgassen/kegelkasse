@@ -140,3 +140,25 @@ export function cashTrend(events: {ts: number; delta: number}[], max = 40): Tren
     const step = (pts.length - 1) / (max - 1)
     return Array.from({length: max}, (_, i) => pts[Math.round(i * step)])
 }
+
+/** Where a tap on a flow/step leads: the bookings or accounts tab of the Kasse (null = nothing to drill into). */
+export type ChartTarget = {tab: 'bookings' | 'accounts'}
+export function flowTarget(key: string): ChartTarget | null {
+    switch (key) {
+        case 'paidIn':
+        case 'expenses':
+        case 'otherIncome':
+            return {tab: 'bookings'}
+        case 'outstanding':
+        case 'unpaid':
+            return {tab: 'accounts'}
+        default:
+            return null
+    }
+}
+
+/** Cash-flow events of one calendar year (null = all time). */
+export function eventsInYear<T extends {ts: number}>(events: T[], year: number | null): T[] {
+    if (year == null) return events
+    return events.filter(e => new Date(e.ts).getFullYear() === year)
+}

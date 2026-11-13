@@ -104,6 +104,10 @@ Der Reiter **Insights** zeigt die Kasse als Bilder. Jedes Diagramm lässt sich a
 - **Geldfluss:** Ein Sankey-Diagramm von Eingezahlt und sonstigen Einnahmen zu Ausgaben und Kasse sowie den offenen Beträgen.
 - **Bezahlt gegen offen:** Ein Donut mit dem Anteil aller Strafen, der schon bezahlt ist.
 
+**Antippen führt weiter:** Eine Kachel der Treemap öffnet das Konto des Mitglieds, ein Balken bei „Strafen pro Kegelabend“ den Abend, Wasserfall-Schritte und Sankey-Knoten für Einzahlungen und Ausgaben den Buchungen-Tab, offene Beträge und der Donut den Konten-Tab.
+
+**Zeitraum:** Die Chips oben (dieses Jahr, letztes Jahr, Alle) gelten für den Kassenverlauf und die Abende. Die übrigen Diagramme zeigen den aktuellen Stand.
+
 Die Diagramme nutzen Recharts und werden erst geladen, wenn der Reiter geöffnet wird.
 
 ## Kassenbericht (Excel / PDF)

@@ -1,11 +1,12 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {render, screen, waitFor} from '@testing-library/react'
+import {fireEvent, render, screen, waitFor} from '@testing-library/react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
 vi.mock('@/store/app.ts', () => ({
     useAppStore: vi.fn((sel: any) => sel({user: {regular_member_id: 1}})),
 }))
+vi.mock('@/router', () => ({router: {navigate: vi.fn(() => Promise.resolve())}}))
 vi.mock('@/api/client.ts', () => ({
     api: {
         getMemberBalances: vi.fn(), getGuestBalances: vi.fn(), getExpenses: vi.fn(),
@@ -62,5 +63,14 @@ describe('TreasuryCharts', () => {
         expect(screen.getByText('treasury.charts.noEvenings')).toBeInTheDocument()
         expect(screen.getByText('treasury.charts.noFlow')).toBeInTheDocument()
         expect(screen.getByText('treasury.charts.noPenalties')).toBeInTheDocument()
+    })
+
+    it('period chips switch the year used for the per-evening bars', async () => {
+        renderIt()
+        await waitFor(() => expect(screen.getByTestId('treasury-charts')).toBeInTheDocument())
+        const year = new Date().getFullYear()
+        fireEvent.click(screen.getByTestId(`period-${year - 1}`))
+        await waitFor(() => expect(api.getYearStats).toHaveBeenCalledWith(year - 1))
+        expect(screen.getByTestId(`period-${year - 1}`)).toHaveAttribute('aria-pressed', 'true')
     })
 })
