@@ -23,6 +23,7 @@ import type {
     TreasuryAuditSummary,
 } from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -346,23 +347,20 @@ function CreateAuditSheet({open, onClose, onCreated}: {open: boolean; onClose: (
             <div className="space-y-3">
                 <p className="text-xs text-muted">{t('audit.newHint')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <label className="field-label" htmlFor="audit-start">{t('audit.periodStart')}</label>
+                    <Field label={t('audit.periodStart')} htmlFor="audit-start">
                         <input id="audit-start" type="date" className="kce-input w-full" value={start}
                                onChange={e => setStart(e.target.value)}/>
-                    </div>
-                    <div>
-                        <label className="field-label" htmlFor="audit-end">{t('audit.periodEnd')}</label>
+                    </Field>
+                    <Field label={t('audit.periodEnd')} htmlFor="audit-end">
                         <input id="audit-end" type="date" className="kce-input w-full" value={end}
                                onChange={e => setEnd(e.target.value)}/>
-                    </div>
+                    </Field>
                 </div>
                 {!valid && <p className="text-xs text-danger-fg">{t('audit.invalidPeriod')}</p>}
-                <div>
-                    <label className="field-label" htmlFor="audit-title">{t('audit.titleLabel')}</label>
+                <Field label={t('audit.titleLabel')} htmlFor="audit-title">
                     <input id="audit-title" className="kce-input w-full" value={title}
                            placeholder={t('audit.titlePlaceholder')} onChange={e => setTitle(e.target.value)}/>
-                </div>
+                </Field>
                 {valid && preview && (
                     <div data-testid="audit-preview">
                         <SummaryGrid s={preview}/>

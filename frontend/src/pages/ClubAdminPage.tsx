@@ -36,6 +36,7 @@ import {Tabs} from '@/components/ui/Tabs'
 import {SkeletonCard} from '@/components/ui/Skeleton'
 import {SuperadminRolesManager} from '@/components/superadmin/SuperadminRolesManager'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -406,12 +407,11 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                         {t('club.palette.title')}
                     </Caption>
                     <div className="flex gap-2 items-end">
-                        <div>
-                            <label className="field-label">{t('club.palette.baseColor')}</label>
+                        <Field label={t('club.palette.baseColor')}>
                             <input type="color" value={paletteBase}
                                    onChange={e => setPaletteBase(e.target.value)}
                                    className="w-10 h-9 rounded cursor-pointer border-0 bg-transparent"/>
-                        </div>
+                        </Field>
                         <Button variant="secondary" className="text-xs px-3 py-2"
                                 onClick={() => handleSuggest(paletteBase)}>
                             {t('club.palette.suggest')}
@@ -498,8 +498,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     </div>
                     <p className="text-xs text-muted mt-1">{t('club.noRsvpExtraHint')}</p>
                 </div>
-                <div>
-                    <label className="field-label">{t('club.pinPenalty')}</label>
+                <Field label={t('club.pinPenalty')}>
                     <div className="flex items-center gap-2">
                         <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                         <input className="kce-input flex-1" type="text" inputMode="decimal"
@@ -507,7 +506,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                onChange={e => setPinPenalty(e.target.value)}/>
                     </div>
                     <p className="text-xs text-muted mt-1">{t('club.pinPenaltyHint')}</p>
-                </div>
+                </Field>
             </div>
 
             {/* ── Wurf-Erfassung ── */}
@@ -539,8 +538,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
             {/* ── Zahlungen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.payments')}</div>
-                <div>
-                    <label className="field-label">{t('club.paypalMe')}</label>
+                <Field label={t('club.paypalMe')}>
                     <div className="flex items-center gap-2">
                         <span className="text-muted text-xs flex-shrink-0">paypal.me/</span>
                         <input className="kce-input flex-1" type="text"
@@ -548,7 +546,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                                onChange={e => setPaypalMe(e.target.value.replace(/^https?:\/\/paypal\.me\//i, '').trim())}/>
                     </div>
                     <p className="text-xs text-muted mt-1">{t('club.paypalMeHint')}</p>
-                </div>
+                </Field>
             </div>
 
             <Button variant="primary" block onClick={handleSave} disabled={!isOnline}>
@@ -893,11 +891,10 @@ function EmailSettingsCard() {
             </div>
 
             <div className="space-y-3">
-                <div>
-                    <label className="field-label">{t('email.host')}</label>
+                <Field label={t('email.host')}>
                     <input className="kce-input" value={host} onChange={e => setHost(e.target.value)}
                            placeholder="smtp.example.com" autoCapitalize="none" autoCorrect="off"/>
-                </div>
+                </Field>
                 <div className="flex gap-3">
                     <div className="flex-1">
                         <label className="field-label">{t('email.port')}</label>
@@ -910,21 +907,18 @@ function EmailSettingsCard() {
                                placeholder={t('email.fromNamePlaceholder')}/>
                     </div>
                 </div>
-                <div>
-                    <label className="field-label">{t('email.fromAddress')}</label>
+                <Field label={t('email.fromAddress')}>
                     <input className="kce-input" value={fromAddress} onChange={e => setFromAddress(e.target.value)}
                            placeholder="noreply@example.com" autoCapitalize="none" autoCorrect="off"/>
-                </div>
-                <div>
-                    <label className="field-label">{t('email.username')}</label>
+                </Field>
+                <Field label={t('email.username')}>
                     <input className="kce-input" value={username} onChange={e => setUsername(e.target.value)}
                            placeholder={t('email.usernamePlaceholder')} autoCapitalize="none" autoCorrect="off"/>
-                </div>
-                <div>
-                    <label className="field-label">{t('email.password')}</label>
+                </Field>
+                <Field label={t('email.password')}>
                     <input className="kce-input" type="password" value={password} onChange={e => setPassword(e.target.value)}
                            placeholder={passwordSet ? t('email.passwordSet') : t('email.passwordPlaceholder')} autoComplete="new-password"/>
-                </div>
+                </Field>
                 <div className="flex items-center justify-between py-0.5">
                     <span className="text-xs text-ink">{t('email.useTls')}</span>
                     <ReminderToggle value={useTls} onChange={v => { setUseTls(v); if (v) setUseSsl(false) }}/>
@@ -933,12 +927,11 @@ function EmailSettingsCard() {
                     <span className="text-xs text-ink">{t('email.useSsl')}</span>
                     <ReminderToggle value={useSsl} onChange={v => { setUseSsl(v); if (v) setUseTls(false) }}/>
                 </div>
-                <div>
-                    <label className="field-label">{t('email.baseUrl')}</label>
+                <Field label={t('email.baseUrl')}>
                     <input className="kce-input" value={baseUrl} onChange={e => setBaseUrl(e.target.value)}
                            placeholder="https://kegeln.meinverein.de" autoCapitalize="none" autoCorrect="off"/>
                     <p className="text-sm text-muted mt-1">{t('email.baseUrlHint')}</p>
-                </div>
+                </Field>
             </div>
 
             <div className="flex gap-2 mt-4">
@@ -1023,17 +1016,15 @@ function TelegramSettingsCard() {
             </div>
 
             <div className="space-y-3">
-                <div>
-                    <label className="field-label">{t('telegram.botToken')}</label>
+                <Field label={t('telegram.botToken')}>
                     <input className="kce-input" type="password" value={botToken} onChange={e => setBotToken(e.target.value)}
                            placeholder={tokenSet ? t('telegram.botTokenSet') : t('telegram.botTokenPlaceholder')}
                            autoComplete="off" autoCapitalize="none" autoCorrect="off"/>
-                </div>
+                </Field>
                 {botUsername && (
-                    <div>
-                        <label className="field-label">{t('telegram.botUsername')}</label>
+                    <Field label={t('telegram.botUsername')}>
                         <p className="text-sm text-ink">@{botUsername}</p>
-                    </div>
+                    </Field>
                 )}
                 {enabled && tokenSet && !webhookRegistered && (
                     <p className="text-sm text-danger-fg">{t('telegram.webhookWarning')}</p>
@@ -1133,31 +1124,28 @@ function AiSettingsCard() {
             </div>
 
             <div className="space-y-3 mt-3">
-                <div>
-                    <label className="field-label" htmlFor="ai-model">{t('ai.settings.model')}</label>
+                <Field label={t('ai.settings.model')} htmlFor="ai-model">
                     <select id="ai-model" className="kce-input" value={form.model}
                             onChange={e => set({model: e.target.value})}>
                         {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
                     </select>
                     <p className="text-xs text-muted mt-1">{t('ai.settings.modelHint')}</p>
-                </div>
-                <div>
-                    <label className="field-label" htmlFor="ai-search-model">{t('ai.settings.searchModel')}</label>
+                </Field>
+                <Field label={t('ai.settings.searchModel')} htmlFor="ai-search-model">
                     <select id="ai-search-model" className="kce-input" value={form.search_model}
                             onChange={e => set({search_model: e.target.value})}>
                         {form.models.map(m => <option key={m} value={m}>{modelLabel(m)}</option>)}
                     </select>
                     <p className="text-xs text-muted mt-1">{t('ai.settings.searchModelHint')}</p>
-                </div>
-                <div>
-                    <label className="field-label" htmlFor="ai-limit">{t('ai.settings.limit')}</label>
+                </Field>
+                <Field label={t('ai.settings.limit')} htmlFor="ai-limit">
                     <input id="ai-limit" className="kce-input" type="number" inputMode="numeric" min={1}
                            max={form.max_calls_per_hour} value={Number.isNaN(form.calls_per_hour) ? '' : form.calls_per_hour}
                            onChange={e => set({calls_per_hour: parseInt(e.target.value, 10)})}/>
                     <p className="text-xs text-muted mt-1">
                         {t('ai.settings.limitHint').replace('{max}', String(form.max_calls_per_hour))}
                     </p>
-                </div>
+                </Field>
             </div>
 
             <Button variant="primary" block className="mt-4" onClick={handleSave}
@@ -1498,28 +1486,25 @@ function PenaltyTypesTab({penaltyTypes, onChanged}: { penaltyTypes: PenaltyType[
                 <div className="flex flex-col gap-3">
                     <p className="text-xs text-muted">{t('club.penalty.editHint')}</p>
                     <div className="flex gap-2">
-                        <div>
-                            <label className="field-label">Icon</label>
+                        <Field label="Icon">
                             <EmojiPickerButton value={editIcon} onChange={setEditIcon}/>
-                        </div>
+                        </Field>
                         <div className="flex-1">
                             <label className="field-label">Name</label>
                             <input className="kce-input" value={editName}
                                    onChange={e => setEditName(e.target.value)}/>
                         </div>
-                        <div>
-                            <label className="field-label">{t('sound.pick')}</label>
+                        <Field label={t('sound.pick')}>
                             <SoundPickerButton value={editSoundKey} onChange={setEditSoundKey}/>
-                        </div>
+                        </Field>
                     </div>
-                    <div>
-                        <label className="field-label">{t('club.penalty.defaultAmount')}</label>
+                    <Field label={t('club.penalty.defaultAmount')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}/>
                         </div>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block className="mt-1"
                             disabled={!editName.trim()}>{t('action.save')}</Button>
                 </div>
@@ -1617,21 +1602,21 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
             <Sheet open={sheet} onClose={() => setSheet(false)}
                    title={editing ? t('club.template.edit') : t('club.template.new')} onSubmit={saveTemplate}>
                 <div className="flex flex-col gap-3">
-                    <div><label className="field-label">{t('game.name')}</label>
+                    <Field label={t('game.name')}>
                         <div className="flex gap-2">
                             <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}/>
                             <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
                         </div>
-                    </div>
-                    <div><label className="field-label">{t('club.template.description')}</label>
-                        <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></div>
-                    <div><label className="field-label">{t('club.template.winnerType')}</label>
+                    </Field>
+                    <Field label={t('club.template.description')}>
+                        <input className="kce-input" value={desc} onChange={e => setDesc(e.target.value)}/></Field>
+                    <Field label={t('club.template.winnerType')}>
                         <select className="kce-input" value={wtype}
                                 disabled={isOpener}
                                 onChange={e => setWtype(e.target.value)}>
                             <option value="individual">{t('club.template.winnerType.individual')}</option>
                             <option value="team" disabled={isOpener}>{t('club.template.winnerType.team')}</option>
-                        </select></div>
+                        </select></Field>
                     {wtype === 'team' && (
                         <div>
                             <div className="field-label">{t('game.turnMode')}</div>
@@ -1657,14 +1642,14 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             {t('club.template.isOpener')}
                         </label>
                     </div>
-                    <div><label className="field-label">{t('club.template.loserPenalty')}</label>
+                    <Field label={t('club.template.loserPenalty')}>
                         <input className="kce-input" type="text" inputMode="decimal" value={penalty}
-                               onChange={e => setPenalty(e.target.value)}/></div>
-                    <div><label className="field-label">{t('game.perPointPenalty')}</label>
+                               onChange={e => setPenalty(e.target.value)}/></Field>
+                    <Field label={t('game.perPointPenalty')}>
                         <input className="kce-input" type="text" inputMode="decimal" value={perPoint}
                                onChange={e => setPerPoint(e.target.value)}/>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block className="mt-1">{t('action.save')}</Button>
                 </div>
             </Sheet>
@@ -1777,16 +1762,14 @@ function SuperadminClubsTab({qc}: { qc: ReturnType<typeof useQueryClient> }) {
             {editClub && (
                 <Sheet open onClose={() => setEditClub(null)} title={t('superadmin.clubs.edit')} onSubmit={handleUpdate}>
                     <div className="flex flex-col gap-3">
-                        <div>
-                            <label className="field-label">{t('club.name')}</label>
+                        <Field label={t('club.name')}>
                             <input className="kce-input" value={editName} onChange={e => setEditName(e.target.value)} autoFocus/>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('superadmin.clubs.slug')}</label>
+                        </Field>
+                        <Field label={t('superadmin.clubs.slug')}>
                             <input className="kce-input font-mono" value={editSlug}
                                    onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                                    placeholder={t('superadmin.clubs.slugPlaceholder')}/>
-                        </div>
+                        </Field>
                         <Button type="submit" variant="primary" block
                                 disabled={!editName.trim() || !editSlug.trim()}>
                             {t('action.save')}
@@ -1877,19 +1860,17 @@ function ClubTeamsTab() {
             <Sheet open={sheet} onClose={() => setSheet(false)}
                    title={editing ? t('club.teams.edit') : t('club.teams.new')} onSubmit={save}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('club.teams.name')}</label>
+                    <Field label={t('club.teams.name')}>
                         <div className="flex gap-2">
                             <input className="kce-input flex-1" value={name} onChange={e => setName(e.target.value)}
                                    placeholder="z.B. Team A, Die Adler…"/>
                             <EmojiPickerButton mode="insert" value={name} onChange={setName}/>
                         </div>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('club.teams.sortOrder')}</label>
+                    </Field>
+                    <Field label={t('club.teams.sortOrder')}>
                         <input className="kce-input w-20" type="number" value={sortOrder}
                                onChange={e => setSortOrder(e.target.value)} min="0"/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block
                             disabled={!name.trim()}>{t('action.save')}</Button>
                 </div>
@@ -1981,31 +1962,28 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
                    title={editing ? t('pin.edit') : t('pin.new')} onSubmit={save}>
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
-                        <div>
-                            <label className="field-label">{t('pin.icon')}</label>
+                        <Field label={t('pin.icon')}>
                             <EmojiPickerButton value={pinIcon} onChange={setPinIcon}/>
-                        </div>
+                        </Field>
                         <div className="flex-1">
                             <label className="field-label">{t('pin.name')}</label>
                             <input className="kce-input" value={pinName} onChange={e => setPinName(e.target.value)}
                                    placeholder="z.B. Vereinsnadel"/>
                         </div>
                     </div>
-                    <div>
-                        <label className="field-label">{t('pin.assignHolder')}</label>
+                    <Field label={t('pin.assignHolder')}>
                         <select className="kce-input" value={holderId ?? ''} onChange={e => setHolderId(e.target.value ? Number(e.target.value) : null)}>
                             <option value="">{t('pin.noHolder')}</option>
                             {regularMembers.filter(m => !m.is_guest).map(m => (
                                 <option key={m.id} value={m.id}>{m.nickname || m.name}</option>
                             ))}
                         </select>
-                    </div>
+                    </Field>
                     {holderId && (
-                        <div>
-                            <label className="field-label">{t('pin.assignedAt')}</label>
+                        <Field label={t('pin.assignedAt')}>
                             <input type="date" className="kce-input" value={pinDate}
                                    onChange={e => setPinDate(e.target.value)} style={{width: 'auto'}}/>
-                        </div>
+                        </Field>
                     )}
                     <Button type="submit" variant="primary" block>{t('action.save')}</Button>
                 </div>

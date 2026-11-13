@@ -12,6 +12,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {aiErrorKey} from '@/lib/aiErrors.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 type Target = { kind: 'evening'; eveningId: number } | { kind: 'season'; year: number }
 
@@ -92,11 +93,10 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
             <Sheet open={open} onClose={() => setOpen(false)} title={t('ai.recap.title')}>
                 <div className="flex flex-col gap-3" data-testid="ai-recap-sheet">
                     <p className="text-xs text-muted">{t('ai.recap.hint')}</p>
-                    <div>
-                        <label className="field-label" htmlFor="ai-recap-title">{t('ai.recap.headline')}</label>
+                    <Field label={t('ai.recap.headline')} htmlFor="ai-recap-title">
                         <input id="ai-recap-title" className="kce-input" value={title}
                                onChange={e => setTitle(e.target.value)}/>
-                    </div>
+                    </Field>
                     <div>
                         <div className="flex items-center justify-between">
                             <label className="field-label" htmlFor="ai-recap-text">{t('ai.recap.text')}</label>
