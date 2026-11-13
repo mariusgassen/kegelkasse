@@ -4,6 +4,7 @@ import {useI18n, useT} from '@/i18n'
 import {compareVersions, itemText, latestVersion, visibleReleases, type Release} from '@/lib/changelog'
 import {useWhatsNewStore} from '@/store/whatsNew'
 import releasesData from '@/whatsNew/releases.json'
+import {Empty} from '@/components/ui/Empty.tsx'
 
 export const ALL_RELEASES = (releasesData as {releases: Release[]}).releases
 
@@ -39,7 +40,7 @@ export function WhatsNewSheet({open, onClose, releases = ALL_RELEASES}: {
     return (
         <Sheet open={open} onClose={onClose} title={t('whatsNew.title')}>
             {visible.length === 0 ? (
-                <p className="text-sm text-muted text-center py-6">{t('whatsNew.empty')}</p>
+                <Empty text={t('whatsNew.empty')}/>
             ) : (
                 <div className="flex flex-col gap-3" data-testid="whats-new">
                     {visible.map(r => (

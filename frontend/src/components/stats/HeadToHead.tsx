@@ -10,6 +10,7 @@ import type {TranslationKey} from '@/i18n/de'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {headToHeadRows, type H2HPlayer, type H2HRow} from '@/lib/statsLab.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
+import {Empty} from '@/components/ui/Empty.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -48,7 +49,7 @@ export function HeadToHead({players, myMemberId}: {
     const [bId, setBId] = useState<number | null>(null)
 
     if (candidates.length < 2) {
-        return <div className="text-xs text-muted py-3 text-center">{t('stats.h2h.notEnough')}</div>
+        return <Empty text={t('stats.h2h.notEnough')}/>
     }
 
     const effectiveA = aId ?? candidates[0].regular_member_id!
@@ -97,7 +98,7 @@ export function HeadToHead({players, myMemberId}: {
             </div>
 
             {!b ? (
-                <div className="text-xs text-muted py-3 text-center">{t('stats.h2h.pickSecond')}</div>
+                <Empty text={t('stats.h2h.pickSecond')}/>
             ) : (
                 <div data-testid="h2h-table">
                     <div className="flex items-center gap-2 mb-2 text-sm font-bold">
