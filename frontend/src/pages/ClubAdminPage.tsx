@@ -1190,7 +1190,7 @@ function ReminderToggle({value, onChange, label}: { value: boolean; onChange: (v
             className={['relative w-9 h-5 rounded-full transition-colors flex-shrink-0', value ? 'bg-accent' : 'bg-surface-2'].join(' ')}
             aria-pressed={value}
         >
-            <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full bg-white shadow transition-transform', value ? 'translate-x-4' : 'translate-x-0.5'].join(' ')} />
+            <span className={['absolute top-0.5 left-0 w-4 h-4 rounded-full shadow transition-transform', value ? 'bg-on-accent translate-x-4' : 'bg-muted translate-x-0.5'].join(' ')} />
         </button>
     )
 }
@@ -1611,7 +1611,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                             {gt.default_loser_penalty > 0 &&
                                 <span className="text-xs text-danger-fg">{fe(gt.default_loser_penalty)}</span>}
                             {(gt.per_point_penalty ?? 0) > 0 &&
-                                <span className="text-xs text-orange-400">+{fe(gt.per_point_penalty)}/P</span>}
+                                <span className="text-xs text-danger-fg">+{fe(gt.per_point_penalty)}/P</span>}
                         </div>
                     </div>
                     <CardActionMenu

@@ -279,8 +279,8 @@ export function SeasonTab() {
                     <h2 className="font-bold text-base text-kce-text">{t('season.step2.title')}</h2>
                 </div>
 
-                <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2.5">
-                    <p className="text-sm text-amber-400 font-medium">{t('season.step2.warning')}</p>
+                <div className="rounded-lg border border-accent/40 bg-accent-tint px-3 py-2.5">
+                    <p className="text-sm text-accent-tint-fg font-medium">{t('season.step2.warning')}</p>
                 </div>
 
                 <div className="kce-card p-4 flex flex-col gap-2">
@@ -428,7 +428,7 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
             </Button>
             {confirmReopen ? (
                 <div className="flex flex-col gap-2">
-                    <p className="text-xs text-amber-400">
+                    <p className="text-xs text-accent-fg">
                         {t('season.snapshot.reopenConfirm').replace('{year}', String(snap.year))}
                     </p>
                     <div className="flex gap-2">
@@ -452,7 +452,7 @@ function SnapshotCard({snap, onReopened}: {snap: SeasonSnapshot; onReopened: () 
             ) : (
                 <button
                     type="button"
-                    className="text-xs py-1 text-muted underline underline-offset-2 hover:text-amber-400 transition-colors"
+                    className="text-xs py-1 text-muted underline underline-offset-2 hover:text-accent-fg transition-colors"
                     onClick={() => setConfirmReopen(true)}
                 >
                     {t('season.snapshot.reopen')}

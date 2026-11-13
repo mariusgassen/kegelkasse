@@ -201,8 +201,7 @@ export function NotificationPanel({open, onClose}: Props) {
                             <button
                                 type="button"
                                 onClick={handleClearAll}
-                                className="text-xs font-bold text-muted active:opacity-60 px-2 py-1 rounded-lg"
-                                style={{background: 'rgba(255,255,255,0.07)'}}
+                                className="text-xs font-bold text-muted bg-surface-2 active:opacity-60 px-2 py-1 rounded-lg"
                             >
                                 {t('notifications.clearAll')}
                             </button>

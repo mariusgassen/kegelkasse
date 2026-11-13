@@ -263,7 +263,7 @@ export function RoadmapPage() {
                 )
             case 'in_progress':
                 return (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-tint-fg border border-accent/30">
                         <Sparkles className="w-3 h-3" />
                         {t('roadmap.status.in_progress')}
                     </span>
@@ -292,7 +292,7 @@ export function RoadmapPage() {
             case 'idea':
             default:
                 return (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-accent-2/15 text-accent-2-fg border border-accent-2/30">
                         <Lightbulb className="w-3 h-3" />
                         {t('roadmap.status.idea')}
                     </span>

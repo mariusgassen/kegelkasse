@@ -351,7 +351,7 @@ export function TreasuryAnalysis() {
                     />
                     <FlowRow
                         icon="⬇" label={t('treasury.flow.expenses')}
-                        amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-orange-400"
+                        amountLabel={`-${fe(summary.expensesGross)}`} colorClass="text-danger-fg"
                         open={flowDetail === 'expenses'} onToggle={() => setFlowDetail(flowDetail === 'expenses' ? null : 'expenses')}
                         items={expensesBreakdown} noEntriesLabel={t('treasury.flow.noEntries')}
                         testId="flow-amount-expenses"
@@ -368,7 +368,7 @@ export function TreasuryAnalysis() {
                     {Math.abs(shareOut) >= 0.005 && (
                         <div className="flex items-center justify-between">
                             <span className="text-muted">⚖️ {t('treasury.flow.shareSettlement')}</span>
-                            <span className={`font-bold ${shareOut > 0 ? 'text-orange-400' : 'text-positive-fg'}`}
+                            <span className={`font-bold ${shareOut > 0 ? 'text-danger-fg' : 'text-positive-fg'}`}
                                   data-testid="flow-amount-share">
                                 {shareOut > 0 ? `-${fe(shareOut)}` : `+${fe(-shareOut)}`}
                             </span>

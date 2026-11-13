@@ -198,16 +198,14 @@ export function RootLayout() {
                         {/* Search button */}
                         <button
                             aria-label={t('search.title')}
-                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity"
-                            style={{background: 'rgba(255,255,255,0.07)', color: 'var(--muted)'}}
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity bg-surface-2 text-muted"
                             onClick={() => setSearchOpen(true)}>
                             <Search size={14} strokeWidth={2}/>
                         </button>
                         {/* Notification bell */}
                         <button
                             aria-label={t('notifications.title')}
-                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative"
-                            style={{background: 'rgba(255,255,255,0.07)', color: 'var(--muted)'}}
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative bg-surface-2 text-muted"
                             onClick={() => setNotifOpen(true)}>
                             <Bell size={14} strokeWidth={2}/>
                             {badgeCount > 0 && (

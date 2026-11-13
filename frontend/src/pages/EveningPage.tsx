@@ -181,7 +181,7 @@ export function EveningPage() {
 
             {/* Pending-sync banner for offline-created evenings */}
             {isPending && (
-                <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center gap-2">
+                <div className="mb-3 p-3 rounded-lg bg-accent-tint border border-accent/30 text-xs text-accent-tint-fg flex items-center gap-2">
                     <span>⏳</span>
                     <span>{t('sync.pendingEvening')}</span>
                 </div>
@@ -534,8 +534,7 @@ export function EveningPage() {
                 <div className="flex flex-col gap-3">
                     {/* Team selection — required */}
                     {teams.length === 0 ? (
-                        <div className="rounded-lg px-3 py-2 text-xs text-danger-fg"
-                             style={{background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)'}}>
+                        <div className="rounded-lg px-3 py-2 text-xs text-danger-tint-fg bg-danger-tint border border-danger/30">
                             ⚠️ {t('player.noTeamsYet')}
                         </div>
                     ) : (

@@ -146,8 +146,8 @@ export function Sheet({open, onClose, title, header, children, onSubmit, overlay
                         type="button"
                         onClick={onClose}
                         aria-label={t('action.close')}
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-muted active:opacity-60 flex-shrink-0"
-                        style={{background: 'rgba(255,255,255,0.07)', fontSize: 16, lineHeight: 1}}
+                        className="w-11 h-11 rounded-full flex items-center justify-center bg-surface-2 text-muted active:opacity-60 flex-shrink-0"
+                        style={{fontSize: 16, lineHeight: 1}}
                     >
                         ✕
                     </button>

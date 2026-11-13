@@ -319,7 +319,7 @@ export function GamesPage() {
             {unassignedPlayers.length > 0 && (
                 <div className="rounded-lg px-3 py-2 mb-3 flex items-center gap-2"
                      style={{background: 'var(--accent-tint)', border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)'}}>
-                    <span className="text-xs text-amber-400 flex-1">
+                    <span className="text-xs text-accent-fg flex-1">
                         ⚠️ {unassignedPlayers.length} {t('team.playersUnassigned')}
                     </span>
                     <Button variant="secondary" size="xs" className="flex-shrink-0"
