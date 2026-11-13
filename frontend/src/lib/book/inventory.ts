@@ -197,5 +197,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Replace remaining hex literals; migrate confirm sheets with extra fields', why: 'ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
+        {step: '1. Migrate confirm sheets with extra fields', why: 'ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
 ]

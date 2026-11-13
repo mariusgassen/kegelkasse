@@ -30,10 +30,10 @@ const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> =
     payment: {icon: '💰', color: 'var(--positive-fg)'},
     expense: {icon: '💸', color: 'var(--accent-deep)'},
     penalty: {icon: '⚠️', color: 'var(--danger-fg)'},
-    debt: {icon: '📉', color: '#a78bfa'},
+    debt: {icon: '📉', color: 'var(--accent-2-fg)'},
 }
 
-const withAlpha = (col: string) => col.startsWith('#') ? col + '22' : 'color-mix(in srgb, var(--accent) 13%, transparent)'
+const withAlpha = (col: string) => `color-mix(in srgb, ${col} 13%, transparent)`
 
 export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, virtualLabel, overlayLabel, threeLine, loading, t}: {
     actualEvents: BalanceEvent[]

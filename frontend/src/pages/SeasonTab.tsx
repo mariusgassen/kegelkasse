@@ -323,7 +323,7 @@ export function SeasonTab() {
                 <Button
                     type="button"
                     variant="primary" block
-                    style={{background: loading ? undefined : '#c0392b'}}
+                    style={{background: loading ? undefined : 'var(--danger)', color: loading ? undefined : 'var(--on-danger)'}}
                     disabled={loading}
                     onClick={handleConfirm}
                 >

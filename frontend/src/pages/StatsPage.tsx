@@ -877,9 +877,9 @@ function YearPodium({players, myMemberId, t, onSelect}: {
     if (players.length < 3) return null
 
     const PODIUM_CONFIG = [
-        {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,#9ca3af,#d1d5db)', label: '🥈', borderColor: '#9ca3af'},
+        {rank: 1, displayOrder: 1, height: 64, avatarSize: 40, gradient: 'linear-gradient(135deg,var(--tier-silver),color-mix(in srgb, var(--tier-silver) 60%, white))', label: '🥈', borderColor: 'var(--tier-silver)'},
         {rank: 0, displayOrder: 2, height: 80, avatarSize: 48, gradient: 'linear-gradient(135deg,var(--accent-shade),var(--accent))', label: '🥇', borderColor: 'var(--accent-fg)'},
-        {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,#78450c,var(--tier-bronze))', label: '🥉', borderColor: '#cd7f32'},
+        {rank: 2, displayOrder: 3, height: 52, avatarSize: 36, gradient: 'linear-gradient(135deg,color-mix(in srgb, var(--tier-bronze) 60%, black),var(--tier-bronze))', label: '🥉', borderColor: 'var(--tier-bronze)'},
     ]
 
     return (
