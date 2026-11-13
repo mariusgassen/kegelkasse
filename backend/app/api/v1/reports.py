@@ -1,18 +1,17 @@
 """
-Report export — admin-only endpoint to generate an Excel (.xlsx) or PDF workbook
-covering member accounts, penalties, transactions, and evening summaries.
+Report export — admin-only endpoints: an Excel (.xlsx) workbook, and the JSON the app
+renders into its PDF report (pdfcn/Forme, client-side), covering member accounts, penalties, transactions, and evening summaries.
 Supports optional year filtering (omit for all-time).
 """
 import io
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from fpdf import FPDF
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -77,23 +76,14 @@ def _penalty_euro(log: PenaltyLog) -> float:
     return 0.0
 
 
-# ── Main export endpoint ──────────────────────────────────────────────────────
+_REPORT_FIELDS = {'club_name', 'member_by_id', 'evenings', 'evening_by_id', 'player_by_id', 'penalty_logs', 'period_label', 'total_penalties', 'total_payments', 'total_expenses', 'kassenstand', 'regular_members', 'member_penalty_total', 'payments_by_member', 'booking_rows', 'pen_by_member_type', 'penalty_per_evening', 'players_per_evening', 'games_per_evening', 'king_per_evening', 'monthly_pen_by_member', 'sorted_months', 'guest_members', '_month_label'}
 
-@router.get("/export")
-def export_report(
-    year: Optional[int] = Query(None, description="Filter to a specific year; omit for all-time"),
-    fmt: str = Query("xlsx", alias="format", description="Output format: xlsx or pdf"),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_club_admin),
-):
-    """Download a full report for the club (admin only). Supports xlsx and pdf formats."""
-    if fmt not in ("xlsx", "pdf"):
-        raise HTTPException(400, "format must be 'xlsx' or 'pdf'")
+
+def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNamespace:
+    """Load and aggregate everything the Excel export and the PDF data endpoint share."""
     club = db.query(Club).filter(Club.id == user.club_id).first()
     club_name = club.name if club else "Kegelclub"
 
-    wb = Workbook()
-    wb.remove(wb.active)  # remove default empty sheet
 
     # ── Load base data ────────────────────────────────────────────────────────
 
@@ -279,39 +269,124 @@ def export_report(
     # Guests with any penalty activity in scope
     guest_members = [m for m in members if m.is_guest and m.id in monthly_pen_by_member]
 
-    year_suffix = f"_{year}" if year else ""
 
-    if fmt == "pdf":
-        # ── PDF output ────────────────────────────────────────────────────────
-        buf = _build_pdf(
-            club_name=club_name,
-            period_label=period_label,
-            total_penalties=total_penalties,
-            total_payments=total_payments,
-            total_expenses=total_expenses,
-            kassenstand=kassenstand,
-            evenings=evenings,
-            regular_members=regular_members,
-            member_penalty_total=member_penalty_total,
-            payments_by_member=payments_by_member,
-            booking_rows=booking_rows,
-            pen_by_member_type=pen_by_member_type,
-            penalty_per_evening=penalty_per_evening,
-            players_per_evening=players_per_evening,
-            games_per_evening=games_per_evening,
-            king_per_evening=king_per_evening,
-            monthly_pen_by_member=monthly_pen_by_member,
-            sorted_months=sorted_months,
-            guest_members=guest_members,
-            month_label_fn=_month_label,
+    return SimpleNamespace(**{k: v for k, v in locals().items() if k in _REPORT_FIELDS})
+
+
+# ── Main export endpoint ──────────────────────────────────────────────────────
+
+@router.get("/data")
+def report_data(
+    year: Optional[int] = Query(None, description="Filter to a specific year; omit for all-time"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """JSON behind the PDF report (admin only). The app renders it into a PDF client-side."""
+    d = _collect_report(db, user, year)
+
+    def _name(m: RegularMember) -> str:
+        return m.nickname or m.name
+
+    def _date_str(v) -> str:
+        return _fmt_date(v) if isinstance(v, datetime) else (v.strftime("%d.%m.%Y") if v else "")
+
+    accounts = []
+    for m in d.regular_members:
+        pen = d.member_penalty_total(m.id)
+        pay = round(d.payments_by_member.get(m.id, 0.0), 2)
+        accounts.append({"nickname": _name(m), "name": m.name, "penalties": pen, "payments": pay,
+                         "balance": round(pay - pen, 2)})
+
+    by_person = []
+    for m in d.regular_members:
+        entries = sorted(
+            ((k[1], v[0], v[1]) for k, v in d.pen_by_member_type.items() if k[0] == m.id),
+            key=lambda x: x[0],
         )
-        filename = f"kegelkasse_report{year_suffix}.pdf"
-        logger.info("PDF report generated: club=%d user=%d year=%s", user.club_id, user.id, year)
-        return StreamingResponse(
-            buf,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+        for pname, cnt, total in entries:
+            by_person.append({"nickname": _name(m), "type": pname, "count": cnt, "total": total})
+
+    def _monthly_row(m: RegularMember) -> dict:
+        pen = d.member_penalty_total(m.id)
+        pay = round(d.payments_by_member.get(m.id, 0.0), 2)
+        return {
+            "name": _name(m),
+            "months": [round(d.monthly_pen_by_member[m.id].get(ym, 0.0), 2) for ym in d.sorted_months],
+            "penalties": pen, "payments": pay, "balance": round(pay - pen, 2),
+        }
+
+    logger.info("PDF report data generated: club=%d user=%d year=%s", user.club_id, user.id, year)
+    return {
+        "club_name": d.club_name,
+        "period_label": d.period_label,
+        "generated_at": datetime.now().strftime("%d.%m.%Y %H:%M"),
+        "summary": {
+            "total_penalties": d.total_penalties,
+            "total_payments": d.total_payments,
+            "total_expenses": d.total_expenses,
+            "kassenstand": d.kassenstand,
+            "evenings": len(d.evenings),
+            "members": len(d.regular_members),
+        },
+        "accounts": accounts,
+        "bookings": [
+            {"date": _date_str(dt), "type": typ, "description": desc, "amount": amt, "note": note}
+            for dt, typ, desc, amt, note in d.booking_rows
+        ],
+        "penalties_by_person": by_person,
+        "evenings": [
+            {
+                "date": _fmt_date(ev.date), "venue": ev.venue or "", "closed": bool(ev.is_closed),
+                "players": d.players_per_evening.get(ev.id, 0), "games": d.games_per_evening.get(ev.id, 0),
+                "penalties": round(d.penalty_per_evening.get(ev.id, 0.0), 2),
+                "king": d.king_per_evening.get(ev.id, ""),
+            }
+            for ev in reversed(d.evenings)
+        ],
+        "monthly": {
+            "months": [d._month_label(ym) for ym in d.sorted_months],
+            "regular": [_monthly_row(m) for m in d.regular_members],
+            "guests": [_monthly_row(m) for m in d.guest_members],
+        },
+    }
+
+
+@router.get("/export")
+def export_report(
+    year: Optional[int] = Query(None, description="Filter to a specific year; omit for all-time"),
+    fmt: str = Query("xlsx", alias="format", description="Output format: xlsx (the PDF report is built in the app from GET /reports/data)"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_club_admin),
+):
+    """Download the Excel report for the club (admin only)."""
+    if fmt != "xlsx":
+        raise HTTPException(400, "format must be 'xlsx' (PDF is built in the app from /reports/data)")
+    d = _collect_report(db, user, year)
+    club_name = d.club_name
+    member_by_id = d.member_by_id
+    evenings = d.evenings
+    evening_by_id = d.evening_by_id
+    player_by_id = d.player_by_id
+    penalty_logs = d.penalty_logs
+    period_label = d.period_label
+    total_penalties = d.total_penalties
+    total_payments = d.total_payments
+    total_expenses = d.total_expenses
+    kassenstand = d.kassenstand
+    regular_members = d.regular_members
+    member_penalty_total = d.member_penalty_total
+    payments_by_member = d.payments_by_member
+    booking_rows = d.booking_rows
+    pen_by_member_type = d.pen_by_member_type
+    penalty_per_evening = d.penalty_per_evening
+    players_per_evening = d.players_per_evening
+    games_per_evening = d.games_per_evening
+    king_per_evening = d.king_per_evening
+    monthly_pen_by_member = d.monthly_pen_by_member
+    sorted_months = d.sorted_months
+    guest_members = d.guest_members
+    _month_label = d._month_label
+    year_suffix = f"_{year}" if year else ""
 
     # ── Excel output ──────────────────────────────────────────────────────────
 
@@ -521,218 +596,3 @@ def export_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-
-# ── PDF builder ───────────────────────────────────────────────────────────────
-
-def _build_pdf(
-    *,
-    club_name: str,
-    period_label: str,
-    total_penalties: float,
-    total_payments: float,
-    total_expenses: float,
-    kassenstand: float,
-    evenings: list,
-    regular_members: list,
-    member_penalty_total,
-    payments_by_member: dict,
-    booking_rows: list,
-    pen_by_member_type: dict,
-    penalty_per_evening: dict,
-    players_per_evening: dict,
-    games_per_evening: dict,
-    king_per_evening: dict,
-    monthly_pen_by_member: dict,
-    sorted_months: list,
-    guest_members: list,
-    month_label_fn,
-) -> io.BytesIO:
-    # Load Liberation Sans — metrically identical to Helvetica, supports € and full Unicode
-    # Installed via fonts-liberation (apt); fallback to a local fonts/ dir for other envs
-    _sys_font_dir = Path("/usr/share/fonts/truetype/liberation")
-    _local_font_dir = Path(__file__).parent.parent.parent / "fonts"
-    _font_dir = _sys_font_dir if _sys_font_dir.exists() else _local_font_dir
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.add_font("Liberation", "", str(_font_dir / "LiberationSans-Regular.ttf"))
-    pdf.add_font("Liberation", "B", str(_font_dir / "LiberationSans-Bold.ttf"))
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_margins(15, 15, 15)
-
-    def _s(txt: str) -> str:
-        """Pass-through; Liberation Sans is a Unicode font — no sanitisation needed."""
-        return str(txt)
-
-    def _h1(txt: str) -> None:
-        pdf.set_font("Liberation", "B", 14)
-        pdf.set_text_color(232, 160, 32)  # amber
-        pdf.cell(0, 8, _s(txt), new_x="LMARGIN", new_y="NEXT")
-        pdf.set_text_color(0, 0, 0)
-        pdf.ln(2)
-
-    def _h2(txt: str) -> None:
-        pdf.set_font("Liberation", "B", 10)
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(226, 232, 240)
-        pdf.cell(0, 7, _s(f"  {txt}"), new_x="LMARGIN", new_y="NEXT", fill=True)
-        pdf.set_text_color(0, 0, 0)
-        pdf.ln(1)
-
-    def _row(cols: list[tuple[str, float]], fill: bool = False) -> None:
-        pdf.set_font("Liberation", size=8)
-        if fill:
-            pdf.set_fill_color(240, 240, 240)
-        for txt, w in cols:
-            pdf.cell(w, 6, _s(str(txt)), border=0, fill=fill)
-        pdf.ln()
-
-    def _header_row(cols: list[tuple[str, float]]) -> None:
-        pdf.set_font("Liberation", "B", 8)
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(226, 232, 240)
-        for txt, w in cols:
-            pdf.cell(w, 7, _s(txt), border=0, fill=True)
-        pdf.ln()
-        pdf.set_text_color(0, 0, 0)
-
-    # ── Cover / Summary ──────────────────────────────────────────────────────
-    pdf.add_page()
-    _h1(f"Kassenbericht - {club_name}")
-    pdf.set_font("Liberation", size=9)
-    pdf.cell(50, 6, "Zeitraum:")
-    pdf.cell(0, 6, _s(period_label), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(50, 6, "Erstellt am:")
-    pdf.cell(0, 6, datetime.now().strftime("%d.%m.%Y %H:%M"), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(4)
-
-    summary = [
-        ("Strafen (gesamt)", _fmt_euro(total_penalties)),
-        ("Einzahlungen (gesamt)", _fmt_euro(total_payments)),
-        ("Ausgaben (gesamt)", _fmt_euro(total_expenses)),
-        ("Kassenstand", _fmt_euro(kassenstand)),
-        ("Abende", str(len(evenings))),
-        ("Mitglieder (aktiv)", str(len(regular_members))),
-    ]
-    for label, value in summary:
-        pdf.set_font("Liberation", "B", 9)
-        pdf.cell(65, 6, _s(label + ":"))
-        pdf.set_font("Liberation", size=9)
-        pdf.cell(0, 6, _s(value), new_x="LMARGIN", new_y="NEXT")
-
-    # ── Mitglieder-Konten ────────────────────────────────────────────────────
-    pdf.ln(4)
-    _h2("Mitglieder-Konten")
-    _header_row([("Kegelname", 45), ("Name", 50), ("Strafen", 30), ("Einz.", 30), ("Saldo", 25)])
-    for i, m in enumerate(regular_members):
-        pen = member_penalty_total(m.id)
-        pay = round(payments_by_member.get(m.id, 0.0), 2)
-        bal = round(pay - pen, 2)
-        _row([
-            (m.nickname or m.name, 45),
-            (m.name, 50),
-            (_fmt_euro(pen), 30),
-            (_fmt_euro(pay), 30),
-            (_fmt_euro(bal), 25),
-        ], fill=(i % 2 == 1))
-
-    # Totals
-    tot_pen = round(sum(member_penalty_total(m.id) for m in regular_members), 2)
-    tot_pay = round(sum(payments_by_member.get(m.id, 0.0) for m in regular_members), 2)
-    pdf.set_font("Liberation", "B", 8)
-    pdf.set_fill_color(30, 41, 59)
-    pdf.set_text_color(241, 245, 249)
-    for txt, w in [("GESAMT", 95), (_fmt_euro(tot_pen), 30), (_fmt_euro(tot_pay), 30), (_fmt_euro(tot_pay - tot_pen), 25)]:
-        pdf.cell(w, 7, _s(txt), fill=True)
-    pdf.ln()
-    pdf.set_text_color(0, 0, 0)
-
-    # ── Buchungen ────────────────────────────────────────────────────────────
-    pdf.add_page()
-    _h2("Buchungen")
-    _header_row([("Datum", 22), ("Typ", 25), ("Mitglied / Beschreibung", 80), ("Betrag", 28), ("Notiz", 25)])
-    for i, (dt, typ, desc, amt, note) in enumerate(booking_rows):
-        _row([
-            (_fmt_date(dt), 22),
-            (typ, 25),
-            (desc[:35], 80),
-            (_fmt_euro(abs(amt)) + (" +" if amt >= 0 else " -"), 28),
-            (note[:20], 25),
-        ], fill=(i % 2 == 1))
-
-    # ── Strafen nach Person ──────────────────────────────────────────────────
-    pdf.add_page()
-    _h2("Strafen nach Person")
-    _header_row([("Kegelname", 40), ("Strafen-Typ", 70), ("Anz.", 15), ("Betrag", 25)])
-    ri = 0
-    for m in regular_members:
-        entries = [(k[1], v[0], v[1]) for k, v in pen_by_member_type.items() if k[0] == m.id]
-        entries.sort(key=lambda x: x[0])
-        for pname, cnt, total in entries:
-            _row([(m.nickname or m.name, 40), (pname, 70), (str(cnt), 15), (_fmt_euro(total), 25)], fill=(ri % 2 == 1))
-            ri += 1
-
-    # ── Abende ───────────────────────────────────────────────────────────────
-    pdf.add_page()
-    _h2("Abende")
-    _header_row([("Datum", 22), ("Ort", 50), ("Status", 25), ("Spieler", 18), ("Spiele", 18), ("Strafen", 25), ("König", 22)])
-    for i, ev in enumerate(reversed(evenings)):
-        _row([
-            (_fmt_date(ev.date), 22),
-            ((ev.venue or "")[:22], 50),
-            ("Arch." if ev.is_closed else "Offen", 25),
-            (str(players_per_evening.get(ev.id, 0)), 18),
-            (str(games_per_evening.get(ev.id, 0)), 18),
-            (_fmt_euro(penalty_per_evening.get(ev.id, 0.0)), 25),
-            ((king_per_evening.get(ev.id, ""))[:12], 22),
-        ], fill=(i % 2 == 1))
-
-    # ── Monatsübersicht ───────────────────────────────────────────────────────
-    if sorted_months:
-        pdf.add_page(orientation="L")  # landscape for wide table
-        _h2("Monatsübersicht")
-
-        # Calculate column widths to fit landscape page (267mm usable)
-        name_w = 45.0
-        fixed_w = 25.0 + 25.0 + 25.0  # Strafen Ges. + Einzahlungen + Kontostand
-        available_w = 267.0 - name_w - fixed_w
-        n_months = len(sorted_months)
-        mon_w = min(22.0, round(available_w / n_months, 1)) if n_months else 20.0
-
-        # Header
-        h_cols = [("Spieler", name_w)] + [(month_label_fn(ym), mon_w) for ym in sorted_months]
-        h_cols += [("Strafen Ges.", 25), ("Einzahlungen", 25), ("Kontostand", 25)]
-        _header_row(h_cols)
-
-        def _monthly_member_row(m, fill: bool) -> None:
-            display = m.nickname or m.name
-            pen = member_penalty_total(m.id)
-            pay = round(payments_by_member.get(m.id, 0.0), 2)
-            cols = [(display[:20], name_w)]
-            for ym in sorted_months:
-                v = monthly_pen_by_member[m.id].get(ym, 0.0)
-                cols.append((_fmt_euro(v) if v else "", mon_w))
-            cols += [(_fmt_euro(pen), 25), (_fmt_euro(pay), 25), (_fmt_euro(pay - pen), 25)]
-            _row(cols, fill=fill)
-
-        # Stammspieler
-        if regular_members:
-            pdf.set_font("Liberation", "B", 8)
-            pdf.set_text_color(232, 160, 32)
-            pdf.cell(0, 6, _s("Stammspieler"), new_x="LMARGIN", new_y="NEXT")
-            pdf.set_text_color(0, 0, 0)
-            for i, m in enumerate(regular_members):
-                _monthly_member_row(m, fill=(i % 2 == 1))
-
-        # Guests
-        if guest_members:
-            pdf.ln(2)
-            pdf.set_font("Liberation", "B", 8)
-            pdf.set_text_color(232, 160, 32)
-            pdf.cell(0, 6, _s("Gäste"), new_x="LMARGIN", new_y="NEXT")
-            pdf.set_text_color(0, 0, 0)
-            for i, m in enumerate(guest_members):
-                _monthly_member_row(m, fill=(i % 2 == 1))
-
-    buf = io.BytesIO(pdf.output())
-    buf.seek(0)
-    return buf

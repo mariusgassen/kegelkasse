@@ -13,6 +13,8 @@
     "book:audit": "node scripts/book-audit.mjs"
   },
   "dependencies": {
+    "@formepdf/core": "^0.31.0",
+    "@formepdf/react": "^0.31.0",
     "@tanstack/react-query": "^5.106.1",
     "@tanstack/react-router": "^1.170.46",
     "@testing-library/dom": "^10.4.2",

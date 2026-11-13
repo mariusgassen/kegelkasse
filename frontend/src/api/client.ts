@@ -5,6 +5,7 @@ import {persistTokenForSW} from '@/lib/tokenStore'
 import type {ScoreboardData} from '@/lib/scoreboard'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {
+    ReportData,
     AppIconSettings,
     AppIconVariant,
     Club,
@@ -982,20 +983,29 @@ export const api = {
         return res.json() as Promise<ScoreboardData>
     },
 
-    // Reports — Excel/PDF export (admin only)
+    // Reports — Excel (server-built) and PDF (built here from /reports/data with pdfcn), admin only
+    getReportData: (year?: number) =>
+        request<ReportData>('GET', `/reports/data${year ? `?year=${year}` : ''}`),
     downloadReport: async (year?: number, format: 'xlsx' | 'pdf' = 'xlsx'): Promise<void> => {
-        const headers: Record<string, string> = {}
-        const params = new URLSearchParams()
-        if (year) params.set('year', String(year))
-        if (format !== 'xlsx') params.set('format', format)
-        const qs = params.toString() ? `?${params}` : ''
-        const res = await authedFetch(`${API_BASE}/reports/export${qs}`, {headers})
-        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
+        let blob: Blob
+        if (format === 'pdf') {
+            const data = await api.getReportData(year)
+            // Imported on demand: the Forme WASM engine must not weigh on the main bundle.
+            const {renderReportPdf} = await import('@/lib/reportPdf')
+            const bytes = await renderReportPdf(data)
+            blob = new Blob([bytes as BlobPart], {type: 'application/pdf'})
+        } else {
+            const params = new URLSearchParams()
+            if (year) params.set('year', String(year))
+            const qs = params.toString() ? `?${params}` : ''
+            const res = await authedFetch(`${API_BASE}/reports/export${qs}`, {headers: {}})
+            if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`)
+            }
+            blob = await res.blob()
         }
-        const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url

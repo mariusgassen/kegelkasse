@@ -953,3 +953,32 @@ export interface RoadmapVoteResponse {
     has_voted: boolean
     vote_count: number
 }
+
+// ── PDF report data (GET /reports/data) ───────────────────────────────────────
+
+export interface ReportMonthlyRow {
+    name: string
+    months: number[]
+    penalties: number
+    payments: number
+    balance: number
+}
+
+export interface ReportData {
+    club_name: string
+    period_label: string
+    generated_at: string
+    summary: {
+        total_penalties: number
+        total_payments: number
+        total_expenses: number
+        kassenstand: number
+        evenings: number
+        members: number
+    }
+    accounts: { nickname: string; name: string; penalties: number; payments: number; balance: number }[]
+    bookings: { date: string; type: string; description: string; amount: number; note: string }[]
+    penalties_by_person: { nickname: string; type: string; count: number; total: number }[]
+    evenings: { date: string; venue: string; closed: boolean; players: number; games: number; penalties: number; king: string }[]
+    monthly: { months: string[]; regular: ReportMonthlyRow[]; guests: ReportMonthlyRow[] }
+}
