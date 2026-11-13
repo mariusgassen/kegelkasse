@@ -34,6 +34,7 @@ import {useClub} from '@/hooks/useClub.ts'
 import type {MapStyle, Sticker} from '@/types.ts'
 import type {LatLng} from '@/components/stickers/StickerMap.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 // Leaflet is ~150 KB; only fetch it when the map or the location picker is actually shown.
 const StickerMap = lazy(() => import('@/components/stickers/StickerMap.tsx'))
@@ -247,14 +248,12 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
                     </div>
                 )}
                 {photos.length > 0 && (<>
-                    <div>
-                        <label className="field-label" htmlFor="sticker-place">{t('stickers.form.place')}</label>
+                    <Field label={t('stickers.form.place')} htmlFor="sticker-place">
                         <input id="sticker-place" className="kce-input" value={shownPlace} maxLength={120}
                                onChange={e => split ? updateCurrentPhoto({place: e.target.value}) : setPlace(e.target.value)}
                                placeholder={t('stickers.form.placeHint')}/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('stickers.form.location')}</label>
+                    </Field>
+                    <Field label={t('stickers.form.location')}>
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-sm flex items-center gap-1 ${shownPos ? 'text-ink' : 'text-muted'}`}>
                                 <MapPin size={16} aria-hidden="true"/>
@@ -280,17 +279,15 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
                                 </MapBox>
                             </div>
                         )}
-                    </div>
-                    <div>
-                        <label className="field-label" htmlFor="sticker-day">{t('stickers.form.date')}</label>
+                    </Field>
+                    <Field label={t('stickers.form.date')} htmlFor="sticker-day">
                         <input id="sticker-day" type="date" className="kce-input" value={shownDay} max={todayDateInput()}
                                onChange={e => split ? updateCurrentPhoto({takenOn: e.target.value}) : setDay(e.target.value)}/>
-                    </div>
-                    <div>
-                        <label className="field-label" htmlFor="sticker-caption">{t('stickers.form.caption')}</label>
+                    </Field>
+                    <Field label={t('stickers.form.caption')} htmlFor="sticker-caption">
                         <textarea id="sticker-caption" className="kce-input resize-none" rows={2} maxLength={1000}
                                   value={caption} onChange={e => setCaption(e.target.value)}/>
-                    </div>
+                    </Field>
                 </>)}
                 <Button type="submit" variant="primary" block disabled={!canSave}>
                     {saving ? t('action.saving') : t('action.save')}

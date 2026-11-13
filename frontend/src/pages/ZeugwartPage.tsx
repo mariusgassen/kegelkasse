@@ -15,6 +15,7 @@ import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import type {InventoryItem} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fDateTime(iso: string | null) {
     if (!iso) return ''
@@ -78,33 +79,29 @@ function ItemForm({initial, onSubmit, onCancel, busy, withStock}: {
             e.preventDefault()
             if (valid) onSubmit({name: name.trim(), icon, stock: stockN ?? 0, target: targetN ?? 0, note: note.trim()})
         }}>
-            <div>
-                <label className="field-label" htmlFor="zw-name">{t('zeugwart.name')}</label>
+            <Field label={t('zeugwart.name')} htmlFor="zw-name">
                 <div className="flex items-center gap-2">
                     <EmojiPickerButton value={icon} onChange={setIcon}/>
                     <input id="zw-name" className="kce-input flex-1" value={name} maxLength={80}
                            onChange={e => setName(e.target.value)}/>
                 </div>
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-2">
                 {withStock && (
-                    <div>
-                        <label className="field-label" htmlFor="zw-stock">{t('zeugwart.stock')}</label>
+                    <Field label={t('zeugwart.stock')} htmlFor="zw-stock">
                         <input id="zw-stock" className="kce-input" inputMode="numeric" value={stock}
                                onChange={e => setStock(e.target.value)}/>
-                    </div>
+                    </Field>
                 )}
-                <div>
-                    <label className="field-label" htmlFor="zw-target">{t('zeugwart.target')}</label>
+                <Field label={t('zeugwart.target')} htmlFor="zw-target">
                     <input id="zw-target" className="kce-input" inputMode="numeric" value={target}
                            onChange={e => setTarget(e.target.value)}/>
-                </div>
+                </Field>
             </div>
-            <div>
-                <label className="field-label" htmlFor="zw-note">{t('zeugwart.note')}</label>
+            <Field label={t('zeugwart.note')} htmlFor="zw-note">
                 <input id="zw-note" className="kce-input" value={note} maxLength={500}
                        onChange={e => setNote(e.target.value)}/>
-            </div>
+            </Field>
             <div className="flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>{t('action.cancel')}</Button>
                 <Button type="submit" variant="primary" className="flex-1" disabled={!valid || busy}>{t('action.save')}</Button>

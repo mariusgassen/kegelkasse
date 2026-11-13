@@ -23,6 +23,7 @@ import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 import {PinBadges} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -48,8 +49,7 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
         ? (defaultAmount !== undefined ? String(defaultAmount) : '0.00')
         : '1'
     return (
-        <div>
-            <label className="field-label">{label}</label>
+        <Field label={label}>
             <div className="flex items-center gap-2">
                 <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">
                     {isEuro ? '€' : '×'}
@@ -63,7 +63,7 @@ function AmountInput({mode, value, onChange, defaultAmount}: {
                        placeholder={placeholder}
                        onChange={e => onChange(e.target.value)}/>
             </div>
-        </div>
+        </Field>
     )
 }
 
@@ -752,10 +752,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
                         {/* 2 — Icon + Name */}
                         <div className="flex gap-2">
-                            <div>
-                                <label className="field-label">Icon</label>
+                            <Field label="Icon">
                                 <EmojiPickerButton value={customIcon} onChange={setCustomIcon}/>
-                            </div>
+                            </Field>
                             <div className="flex-1">
                                 <label className="field-label">Name</label>
                                 <input className="kce-input" value={customName}
@@ -778,8 +777,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             }}/>
                             <AmountInput mode={customMode} value={customAmount} onChange={setCustomAmount}/>
                             {customMode === 'count' && (
-                                <div>
-                                    <label className="field-label">{t('penalty.unitAmount')}</label>
+                                <Field label={t('penalty.unitAmount')}>
                                     <div className="flex items-center gap-2">
                                         <span
                                             className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
@@ -789,7 +787,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                                                placeholder="0,50"
                                                onChange={e => setCustomUnitAmount(e.target.value)}/>
                                     </div>
-                                </div>
+                                </Field>
                             )}
                         </div>
 
@@ -823,12 +821,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                             </button>
                         ))}
                     </div>
-                    <div>
-                        <label className="field-label">{t('drinks.variety')}</label>
+                    <Field label={t('drinks.variety')}>
                         <input className="kce-input" value={drinkVariety}
                                onChange={e => setDrinkVariety(e.target.value)}
                                placeholder={t('drinks.sortPlaceholder')}/>
-                    </div>
+                    </Field>
                     <ChipSelect
                         label={t('drinks.who')}
                         options={playerOptions}
@@ -886,10 +883,9 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                     ) : (
                         /* Icon + Name */
                         <div className="flex gap-2">
-                            <div>
-                                <label className="field-label">Icon</label>
+                            <Field label="Icon">
                                 <EmojiPickerButton value={editIcon} onChange={setEditIcon}/>
-                            </div>
+                            </Field>
                             <div className="flex-1">
                                 <label className="field-label">Name</label>
                                 <input className="kce-input" value={editName}
@@ -933,11 +929,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
                     {/* Date override (admin only) */}
                     {isAdmin(user) && (
-                        <div>
-                            <label className="field-label">{t('penalty.date')}</label>
+                        <Field label={t('penalty.date')}>
                             <input type="datetime-local" className="kce-input" value={editDate}
                                    onChange={e => setEditDate(e.target.value)}/>
-                        </div>
+                        </Field>
                     )}
 
                     <Button type="submit" variant="primary" block

@@ -6,6 +6,7 @@ import {AppLogo} from '@/components/Logo.tsx'
 import {InlineError} from '@/components/ui/InlineError.tsx'
 import {clearAuthParams} from '@/hooks/usePage.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 interface LoginPageProps {
     onLogin?: () => void
@@ -157,8 +158,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                     <>
                         <h2 className="font-display font-bold text-ink text-lg mb-5">{t('auth.login')}</h2>
                         <form onSubmit={handleLogin} className="flex flex-col gap-3">
-                            <div>
-                                <label className="field-label" htmlFor="login-username">{t('auth.email')} / {t('auth.username')}</label>
+                            <Field label={<>{t('auth.email')} / {t('auth.username')}</>} htmlFor="login-username">
                                 <input className="kce-input"
                                        id="login-username"
                                        name="username"
@@ -170,9 +170,8 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                        value={email}
                                        onChange={e => setEmail(e.target.value)}
                                        placeholder={t('auth.emailPlaceholder')} required/>
-                            </div>
-                            <div>
-                                <label className="field-label" htmlFor="login-password">{t('auth.password')}</label>
+                            </Field>
+                            <Field label={t('auth.password')} htmlFor="login-password">
                                 <input className="kce-input" type="password"
                                        id="login-password"
                                        name="password"
@@ -180,7 +179,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                        value={pw}
                                        onChange={e => setPw(e.target.value)}
                                        placeholder="••••••••" required/>
-                            </div>
+                            </Field>
                             <InlineError text={error}/>
                             <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.loginButton')}
@@ -212,8 +211,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                         ) : (
                             <form onSubmit={handleForgot} className="flex flex-col gap-3">
                                 <p className="text-muted text-xs">{t('auth.forgot.intro')}</p>
-                                <div>
-                                    <label className="field-label" htmlFor="forgot-email">{t('auth.forgot.emailLabel')}</label>
+                                <Field label={t('auth.forgot.emailLabel')} htmlFor="forgot-email">
                                     <input className="kce-input" type="email" value={email}
                                            id="forgot-email"
                                            name="email"
@@ -223,7 +221,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                            spellCheck={false}
                                            onChange={e => setEmail(e.target.value)}
                                            placeholder="name@example.de" required autoFocus/>
-                                </div>
+                                </Field>
                                 <InlineError text={error}/>
                                 <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                     {loading ? t('action.loading') : t('auth.forgot.button')}
@@ -257,15 +255,14 @@ export function LoginPage({onLogin}: LoginPageProps) {
                             <form onSubmit={handleReset} className="flex flex-col gap-3">
                                 <input type="text" name="username" autoComplete="username" hidden
                                        readOnly value={email} aria-hidden="true" tabIndex={-1}/>
-                                <div>
-                                    <label className="field-label" htmlFor="reset-password">{t('auth.password')}</label>
+                                <Field label={t('auth.password')} htmlFor="reset-password">
                                     <input className="kce-input" type="password" value={pw}
                                            id="reset-password"
                                            name="new-password"
                                            autoComplete="new-password"
                                            onChange={e => setPw(e.target.value)} placeholder="••••••••" required
                                            autoFocus/>
-                                </div>
+                                </Field>
                                 <InlineError text={error}/>
                                 <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                     {loading ? t('action.loading') : t('auth.reset.button')}
@@ -289,22 +286,19 @@ export function LoginPage({onLogin}: LoginPageProps) {
                         <form onSubmit={handleRegister} className="flex flex-col gap-3">
                             {!prefilledName && (
                                 <>
-                                    <div>
-                                        <label className="field-label">{t('auth.invite.tokenLabel')}</label>
+                                    <Field label={t('auth.invite.tokenLabel')}>
                                         <input className="kce-input" value={inviteToken}
                                                onChange={e => setInviteToken(e.target.value)}
                                                placeholder={t('auth.invite.tokenPlaceholder')} required/>
-                                    </div>
-                                    <div>
-                                        <label className="field-label">{t('auth.name')}</label>
+                                    </Field>
+                                    <Field label={t('auth.name')}>
                                         <input className="kce-input" value={name}
                                                onChange={e => setName(e.target.value)}
                                                placeholder={t('auth.namePlaceholder')} required/>
-                                    </div>
+                                    </Field>
                                 </>
                             )}
-                            <div>
-                                <label className="field-label" htmlFor="register-username">{t('auth.username')}</label>
+                            <Field label={t('auth.username')} htmlFor="register-username">
                                 <div className="relative">
                                     <span
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">@</span>
@@ -319,15 +313,14 @@ export function LoginPage({onLogin}: LoginPageProps) {
                                            onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                            placeholder={t('auth.usernamePlaceholder')} autoFocus={!!prefilledName} required/>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="field-label" htmlFor="register-password">{t('auth.password')}</label>
+                            </Field>
+                            <Field label={t('auth.password')} htmlFor="register-password">
                                 <input className="kce-input" type="password" value={pw}
                                        id="register-password"
                                        name="new-password"
                                        autoComplete="new-password"
                                        onChange={e => setPw(e.target.value)} placeholder="••••••••" required/>
-                            </div>
+                            </Field>
                             <InlineError text={error}/>
                             <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
                                 {loading ? t('action.loading') : t('auth.register.button')}

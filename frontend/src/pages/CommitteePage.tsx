@@ -28,6 +28,7 @@ import {todayDateInput} from '@/lib/datetime.ts'
 import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
 import {Tabs} from '@/components/ui/Tabs'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function fDateTime(isoStr: string) {
     return new Date(isoStr).toLocaleString('de-DE', {
@@ -209,8 +210,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                 <Sheet open onClose={() => setAddOpen(false)} title={t('committee.announcement.new')}
                        onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
-                        <div>
-                            <label className="field-label">{t('committee.announcement.title')}</label>
+                        <Field label={t('committee.announcement.title')}>
                             <input
                                 className="kce-input"
                                 value={title}
@@ -218,9 +218,8 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                 placeholder={t('committee.announcement.title')}
                                 autoFocus
                             />
-                        </div>
-                        <div>
-                            <label className="field-label">{t('committee.announcement.text')}</label>
+                        </Field>
+                        <Field label={t('committee.announcement.text')}>
                             <textarea
                                 className="kce-input resize-none"
                                 rows={4}
@@ -228,15 +227,14 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                 onChange={e => setText(e.target.value)}
                                 placeholder={t('committee.announcement.text')}
                             />
-                        </div>
-                        <div>
-                            <label className="field-label">{t('media.attach')}</label>
+                        </Field>
+                        <Field label={t('media.attach')}>
                             <MediaUploadButton
                                 value={mediaUrl}
                                 onUploaded={setMediaUrl}
                                 onRemove={() => setMediaUrl(null)}
                             />
-                        </div>
+                        </Field>
                         <Button type="submit" variant="primary" block disabled={!title.trim() || saving}>
                             {saving ? t('action.saving') : t('action.save')}
                         </Button>
@@ -470,19 +468,16 @@ function TripFormFields({date, endDate, destination, note, onDate, onEndDate, on
     const t = useT()
     return (
         <>
-            <div>
-                <label className="field-label">{t('committee.trip.date')}</label>
+            <Field label={t('committee.trip.date')}>
                 <input type="date" className="kce-input" value={date} onChange={e => onDate(e.target.value)}/>
-            </div>
-            <div>
-                <label className="field-label">{t('committee.trip.endDate')}</label>
+            </Field>
+            <Field label={t('committee.trip.endDate')}>
                 <input type="date" className="kce-input" value={endDate} min={date}
                        aria-label={t('committee.trip.endDate')}
                        onChange={e => onEndDate(e.target.value)}/>
                 <p className="text-xs text-muted mt-1">{t('committee.trip.endDateHint')}</p>
-            </div>
-            <div>
-                <label className="field-label">{t('committee.trip.destination')}</label>
+            </Field>
+            <Field label={t('committee.trip.destination')}>
                 <input
                     className="kce-input"
                     value={destination}
@@ -490,9 +485,8 @@ function TripFormFields({date, endDate, destination, note, onDate, onEndDate, on
                     placeholder={t('committee.trip.destinationPlaceholder')}
                     autoFocus
                 />
-            </div>
-            <div>
-                <label className="field-label">{t('committee.trip.note')}</label>
+            </Field>
+            <Field label={t('committee.trip.note')}>
                 <textarea
                     className="kce-input resize-none"
                     rows={3}
@@ -500,7 +494,7 @@ function TripFormFields({date, endDate, destination, note, onDate, onEndDate, on
                     onChange={e => onNote(e.target.value)}
                     placeholder={t('common.optional')}
                 />
-            </div>
+            </Field>
         </>
     )
 }
@@ -822,8 +816,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
             {addOpen && (
                 <Sheet open onClose={resetForm} title={t('committee.poll.new')} onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
-                        <div>
-                            <label className="field-label">{t('committee.poll.title')}</label>
+                        <Field label={t('committee.poll.title')}>
                             <input
                                 className="kce-input"
                                 value={newTitle}
@@ -831,9 +824,8 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                 placeholder={t('committee.poll.titlePlaceholder')}
                                 autoFocus
                             />
-                        </div>
-                        <div>
-                            <label className="field-label">{t('committee.poll.text')}</label>
+                        </Field>
+                        <Field label={t('committee.poll.text')}>
                             <textarea
                                 className="kce-input resize-none"
                                 rows={3}
@@ -841,9 +833,8 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                 onChange={e => setNewText(e.target.value)}
                                 placeholder={t('committee.poll.text')}
                             />
-                        </div>
-                        <div>
-                            <label className="field-label">{t('committee.poll.mode')}</label>
+                        </Field>
+                        <Field label={t('committee.poll.mode')}>
                             <div className="flex gap-2">
                                 {(['single', 'multi'] as const).map(m => (
                                     <button
@@ -859,9 +850,8 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                     </button>
                                 ))}
                             </div>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('committee.poll.options')}</label>
+                        </Field>
+                        <Field label={t('committee.poll.options')}>
                             <div className="flex flex-col gap-2">
                                 {newOptions.map((opt, i) => (
                                     <div key={i} className="flex gap-2">
@@ -889,7 +879,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                     {t('committee.poll.addOption')}
                                 </button>
                             </div>
-                        </div>
+                        </Field>
                         {newOptions.map(o => o.trim()).filter(Boolean).length < 2 && (
                             <p className="text-xs text-danger-fg">{t('committee.poll.minOptions')}</p>
                         )}

@@ -103,6 +103,7 @@ function resizeToBase64(file: File, size = 256): Promise<string> {
 
 import type {EveningThrowSummary} from '@/types'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 function ThrowTrendMini({evenings}: { evenings: EveningThrowSummary[] }) {
     const avgs = evenings.map(e => e.avg_pins)
@@ -663,13 +664,11 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     </div>
 
                     <div className="kce-card p-4 flex flex-col gap-3">
-                        <div>
-                            <label className="field-label">{t('profile.displayName')}</label>
+                        <Field label={t('profile.displayName')}>
                             <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
                                    placeholder={t('profile.displayNamePlaceholder')}/>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('auth.username')}</label>
+                        </Field>
+                        <Field label={t('auth.username')}>
                             <div className="relative">
                                 <span
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">@</span>
@@ -677,29 +676,26 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                        onChange={e => setUsername(e.target.value.replace(/[^a-z0-9_]/gi, '').toLowerCase())}
                                        placeholder={t('auth.usernamePlaceholder')}/>
                             </div>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('profile.loginEmail')}</label>
+                        </Field>
+                        <Field label={t('profile.loginEmail')}>
                             {isFakeEmail && !email && (
                                 <p className="text-xs text-muted mb-1">{t('profile.noEmail')}</p>
                             )}
                             <input className="kce-input" type="email" value={email}
                                    onChange={e => setEmail(e.target.value)} placeholder={t('profile.emailPlaceholder')}/>
-                        </div>
+                        </Field>
                     </div>
 
                     <div className="kce-card p-4 flex flex-col gap-3">
                         <Caption>{t('profile.changePassword')}</Caption>
-                        <div>
-                            <label className="field-label">{t('profile.currentPassword')}</label>
+                        <Field label={t('profile.currentPassword')}>
                             <input className="kce-input" type="password" value={currentPw}
                                    onChange={e => setCurrentPw(e.target.value)} placeholder="••••••••"/>
-                        </div>
-                        <div>
-                            <label className="field-label">{t('profile.newPassword')}</label>
+                        </Field>
+                        <Field label={t('profile.newPassword')}>
                             <input className="kce-input" type="password" value={newPw}
                                    onChange={e => setNewPw(e.target.value)} placeholder="••••••••"/>
-                        </div>
+                        </Field>
                     </div>
 
                     {/* Language */}

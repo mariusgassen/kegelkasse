@@ -27,7 +27,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: 'btn-ghost', source: 'index.css', status: 'css-class', use: 'Defined, never used (dead).', uses: '0'},
     {name: 'kce-card', source: 'index.css', status: 'css-class', use: 'Card surface (16px radius, 1px line).', uses: '163'},
     {name: 'kce-input', source: 'index.css', status: 'css-class', use: 'Text input, select and textarea.', uses: '161'},
-    {name: 'field-label', source: 'index.css', status: 'css-class', use: 'Uppercase form label.', uses: '184'},
+    {name: 'field-label', source: 'index.css', status: 'css-class', use: 'Uppercase form label.', uses: '72'},
     {name: 'sec-heading', source: 'index.css', status: 'css-class', use: 'Section heading with trailing rule.', uses: '53'},
     {name: 'chip / chip.active', source: 'index.css', status: 'css-class', use: 'Filter / multi-select pill.', uses: '10'},
     {name: '<Sheet>', source: 'ui/Sheet.tsx', status: 'component', use: 'Every bottom sheet (focus, Escape, drag, close).', uses: '87 in 28 files'},
@@ -37,7 +37,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<StatTile>', source: 'ui/StatTile.tsx', status: 'component', use: 'One number plus its caption.', uses: '36 in 4 files'},
     {name: '<Tabs>', source: 'ui/Tabs.tsx', status: 'component', use: 'Scrolling pill tab strip for pages and sheets.', uses: '5 in 5 files'},
     {name: '<Caption>', source: 'ui/Caption.tsx', status: 'component', use: 'Small uppercase caption above a block of content.', uses: '43 in 15 files'},
-    {name: '<Field>', source: 'ui/Field.tsx', status: 'component', use: 'Form control with label, hint and error line.', uses: '2 (TripExpenses)'},
+    {name: '<Field>', source: 'ui/Field.tsx', status: 'component', use: 'Form control with label, hint and error line.', uses: '~120 (most pages)'},
     {name: '<ConfirmSheet>', source: 'ui/ConfirmSheet.tsx', status: 'component', use: 'Confirm-before-delete sheet: message + one red button.', uses: '6 in 4 files'},
     {name: '<Switch>', source: 'ui/Switch.tsx', status: 'component', use: 'On/off setting row (label + hint). Token colours.', uses: '5 in 3 files'},
     {name: '<ModeToggle>', source: 'ui/ModeToggle.tsx', status: 'component', use: 'Segmented 2–3 way switch inside a panel.', uses: '14 in 5 files'},
@@ -181,5 +181,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Adopt <Field> for the ~140 form labels that still use the field-label class by hand', why: '<Field> and <Caption> exist; ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
+        {step: '1. Finish <Field>: ~70 field-label uses remain (ClubAdminPage 24, GamesPage 7, ProtocolPage 5, kiosk views); most are non-wrapping labels (group headings, checkbox rows) that need a decision, not a mechanical swap', why: '<Field> and <Caption> exist; ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
 ]

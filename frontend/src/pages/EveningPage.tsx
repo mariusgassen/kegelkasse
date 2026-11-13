@@ -19,6 +19,7 @@ import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 import type {ClubPin, EveningPlayer, RegularMember, Team} from '@/types.ts'
 import {MeBadge, MemberBadges} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 export function EveningPage() {
     const t = useT()
@@ -510,20 +511,17 @@ export function EveningPage() {
             <Sheet open={editSheet} onClose={() => setEditSheet(false)} title={t('evening.edit')}
                    onSubmit={saveEvening}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('evening.date')}</label>
+                    <Field label={t('evening.date')}>
                         <input className="kce-input" type="date" value={editDate}
                                onChange={e => setEditDate(e.target.value)}/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('evening.venue')}</label>
+                    </Field>
+                    <Field label={t('evening.venue')}>
                         <input className="kce-input" value={editVenue} onChange={e => setEditVenue(e.target.value)}
                                placeholder={t('evening.venuePlaceholder')}/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('evening.note')}</label>
+                    </Field>
+                    <Field label={t('evening.note')}>
                         <input className="kce-input" value={editNote} onChange={e => setEditNote(e.target.value)}/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block>{t('action.save')}</Button>
                 </div>
             </Sheet>
@@ -538,8 +536,7 @@ export function EveningPage() {
                             ⚠️ {t('player.noTeamsYet')}
                         </div>
                     ) : (
-                        <div>
-                            <label className="field-label">{t('team.label')}</label>
+                        <Field label={t('team.label')}>
                             <div className="flex gap-2 overflow-x-auto pb-1">
                                 {teams.map(tm => (
                                     <button
@@ -551,7 +548,7 @@ export function EveningPage() {
                                     </button>
                                 ))}
                             </div>
-                        </div>
+                        </Field>
                     )}
                     {(() => {
                         const stamm = regularMembers.filter(rm => !rm.is_guest && !rm.deactivated_at && !players.some(p => p.regular_member_id === rm.id))
@@ -610,8 +607,7 @@ export function EveningPage() {
                             )}
                         </>)
                     })()}
-                    <div>
-                        <label className="field-label">{t('player.newGuest')}</label>
+                    <Field label={t('player.newGuest')}>
                         <input className="kce-input" value={guestName}
                                onChange={e => {
                                    setGuestName(e.target.value);
@@ -621,7 +617,7 @@ export function EveningPage() {
                         {guestName.trim() && (
                             <p className="text-xs text-muted mt-1">{t('player.guestSaveHint')}</p>
                         )}
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block
                             disabled={(selectedMemberIds.size === 0 && !guestName.trim()) || teams.length === 0 || addPlayerTeamId === null}>
                         {selectedMemberIds.size > 1 ? `${selectedMemberIds.size} ${t('player.addMany')}` : t('action.add')}
@@ -635,14 +631,13 @@ export function EveningPage() {
                 {editingPlayer && (
                     <div className="flex flex-col gap-3">
                         <div className="text-sm font-bold text-ink">{editingPlayer.name}</div>
-                        <div>
-                            <label className="field-label">{t('team.label')}</label>
+                        <Field label={t('team.label')}>
                             <select className="kce-input" value={editPlayerTeam ?? ''}
                                     onChange={e => setEditPlayerTeam(e.target.value ? Number(e.target.value) : null)}>
                                 {teams.length === 0 && <option value="">{t('player.noTeam')}</option>}
                                 {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                             </select>
-                        </div>
+                        </Field>
                         <Button type="submit" variant="primary" block
                                 disabled={teams.length > 0 && !editPlayerTeam}>
                             {t('action.save')}
@@ -655,11 +650,10 @@ export function EveningPage() {
             <Sheet open={teamSheet} onClose={() => setTeamSheet(false)}
                    title={editingTeam ? t('team.edit') : t('team.create')} onSubmit={saveTeam}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('team.name')}</label>
+                    <Field label={t('team.name')}>
                         <input className="kce-input" value={teamName} onChange={e => setTeamName(e.target.value)}
                                placeholder={t('team.namePlaceholder')}/>
-                    </div>
+                    </Field>
                     <ChipSelect
                         label={t('team.members')}
                         options={availableForTeam(editingTeam?.id ?? null)}

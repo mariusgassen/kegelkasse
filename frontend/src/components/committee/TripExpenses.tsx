@@ -75,8 +75,7 @@ function AddExpenseSheet({trip, open, onClose, expense}: {
     return (
         <Sheet open={open} onClose={onClose} title={`💶 ${t(expense ? 'trip.expenses.edit' : 'trip.expenses.add')}`} onSubmit={submit}>
             <div className="flex flex-col gap-3">
-                {needsPayer && <div>
-                    <label className="field-label">{t('trip.expenses.paidByLabel')}</label>
+                {needsPayer && <Field label={t('trip.expenses.paidByLabel')}>
                     <div className="flex gap-2 flex-wrap" data-testid="trip-expense-payer">
                         {candidates.map(m => (
                             <button key={m.id} type="button" aria-pressed={payer === m.id}
@@ -86,20 +85,19 @@ function AddExpenseSheet({trip, open, onClose, expense}: {
                             </button>
                         ))}
                     </div>
-                </div>}
+                </Field>}
                 <Field label={t('treasury.expense.description')} htmlFor="trip-exp-desc">
                     <input id="trip-exp-desc" className="kce-input" value={description} autoFocus
                            onChange={e => setDescription(e.target.value)}
                            placeholder={t('trip.expenses.descPlaceholder')}/>
                 </Field>
-                <div>
-                    <label className="field-label" htmlFor="trip-exp-amount">{t('treasury.payment.amount')}</label>
+                <Field label={t('treasury.payment.amount')} htmlFor="trip-exp-amount">
                     <div className="flex items-center gap-2">
                         <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                         <input id="trip-exp-amount" className="kce-input flex-1" type="text" inputMode="decimal"
                                value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00"/>
                     </div>
-                </div>
+                </Field>
                 <Field label={t('treasury.expense.date')} htmlFor="trip-exp-date">
                     <input id="trip-exp-date" type="date" className="kce-input" value={day}
                            onChange={e => setDay(e.target.value)}/>

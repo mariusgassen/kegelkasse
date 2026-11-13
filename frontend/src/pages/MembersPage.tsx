@@ -22,6 +22,7 @@ import {parseAmount} from '@/utils/parse.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import type {RegularMember} from '@/types.ts'
 import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 
 type MemberAction = SheetAction
 
@@ -643,8 +644,7 @@ export function MembersPage() {
                         </div>
                     )}
                     {/* Payout on departure */}
-                    <div>
-                        <label className="field-label">{t('member.payoutLabel')}</label>
+                    <Field label={t('member.payoutLabel')}>
                         <p className="text-xs text-muted mb-1.5">{t('member.payoutHint')}</p>
                         {removeOpenDebt !== null && removeOpenDebt > 0.01 && (
                             <p className="text-xs text-accent-fg mb-1.5">
@@ -661,7 +661,7 @@ export function MembersPage() {
                                 onChange={e => setRemovePayoutAmount(e.target.value)}
                             />
                         </div>
-                    </div>
+                    </Field>
                     <div className="flex gap-2">
                         <Button variant="secondary" size="sm" className="flex-1" onClick={() => setRemoveConfirm(null)}>
                             {t('action.cancel')}
@@ -686,8 +686,7 @@ export function MembersPage() {
                         </div>
                     )}
                     {/* Pro-rata entry fee (1/x of treasury incl. open debts) */}
-                    <div>
-                        <label className="field-label">{t('member.entryFeeLabel')}</label>
+                    <Field label={t('member.entryFeeLabel')}>
                         <p className="text-xs text-muted mb-1.5">{t('member.entryFeeHint')}</p>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
@@ -699,7 +698,7 @@ export function MembersPage() {
                                 onChange={e => setPromoteEntryFee(e.target.value)}
                             />
                         </div>
-                    </div>
+                    </Field>
                     <div className="flex gap-2">
                         <Button variant="secondary" size="sm" className="flex-1" onClick={() => setPromoteConfirm(null)}>
                             {t('action.cancel')}
@@ -723,8 +722,7 @@ export function MembersPage() {
                             <div className="font-bold text-sm">{deactivateConfirm.nickname || deactivateConfirm.name}</div>
                         </div>
                     )}
-                    <div>
-                        <label className="field-label" htmlFor="deactivate-date">{t('member.deactivateDateLabel')}</label>
+                    <Field label={t('member.deactivateDateLabel')} htmlFor="deactivate-date">
                         <p className="text-xs text-muted mb-1.5">{t('member.deactivateDateHint')}</p>
                         <input
                             id="deactivate-date"
@@ -733,7 +731,7 @@ export function MembersPage() {
                             value={deactivateDate}
                             onChange={e => setDeactivateDate(e.target.value)}
                         />
-                    </div>
+                    </Field>
                     <div className="flex gap-2">
                         <Button variant="secondary" size="sm" className="flex-1" onClick={() => setDeactivateConfirm(null)}>
                             {t('action.cancel')}
@@ -888,17 +886,15 @@ export function MembersPage() {
             <Sheet open={sheet} onClose={() => setSheet(false)}
                    title={editing ? t('action.edit') : t('member.add')} onSubmit={save}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('auth.name')}</label>
+                    <Field label={t('auth.name')}>
                         <input className="kce-input" value={name} onChange={e => setName(e.target.value)}
                                placeholder={t('member.namePlaceholder')}/>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('member.nickname')}</label>
+                    </Field>
+                    <Field label={t('member.nickname')}>
                         <input className="kce-input" value={nickname} onChange={e => setNickname(e.target.value)}
                                placeholder="z.B. Kapitän, Aufschläger…"/>
                         {editing && <NicknameSuggestions memberId={editing.id} onPick={setNickname}/>}
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block disabled={saving || !name.trim()}>
                         {t('action.save')}
                     </Button>
