@@ -382,6 +382,16 @@ describe('TreasuryPage — bookings tab', () => {
         })
     })
 
+    it('shows a month separator with in/out sums and closing balance', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            const seps = screen.getAllByTestId('booking-month-sep')
+            expect(seps.length).toBeGreaterThan(0)
+            expect(seps[0]).toHaveTextContent('treasury.statements.closing')
+        })
+    })
+
     it('shows member payment entries in bookings', async () => {
         await setupWithData()
         await renderTreasuryPage()

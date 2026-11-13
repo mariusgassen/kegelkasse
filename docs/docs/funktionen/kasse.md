@@ -140,6 +140,8 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Einzahlungen, Auszahlungen und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
 
+Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Einzahlungen, Auszahlungen und den Kassensaldo am Monatsende.
+
 ## Verlauf (Saldo-Graph)
 
 Im Reiter **🔬 Analyse** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als Linien-Diagramm:

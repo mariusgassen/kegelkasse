@@ -1,5 +1,6 @@
+import {clubEventsFromBookings, monthlyStatements} from '@/lib/balanceHistory.ts'
 import {Caption} from '@/components/ui/Caption.tsx'
-import {lazy, Suspense, useEffect, useState} from 'react'
+import {Fragment, lazy, type ReactNode, Suspense, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -592,6 +593,33 @@ export function TreasuryPage() {
                 : entry.data.description.toLowerCase().includes(bq)
         )
         : mergedBookings
+
+    // Month separators in the Kassenbuch: the cash balance at the end of each month,
+    // derived from the same event stream as the Verlauf graph (all bookings, unfiltered).
+    const monthKeyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`
+    const monthStatements = new Map(
+        monthlyStatements(clubEventsFromBookings(allPayments as any[], expenses as any[]), [])
+            .map(m => [monthKeyOf(new Date(m.start)), m]))
+    const entryDate = (e: BookingEntry) => new Date(e.data.date ?? e.data.created_at ?? '')
+    const monthSeparator = (entry: BookingEntry, idx: number) => {
+        const d = entryDate(entry)
+        const key = monthKeyOf(d)
+        if (idx > 0 && monthKeyOf(entryDate(filteredBookings[idx - 1])) === key) return null
+        const m = monthStatements.get(key)
+        return (
+            <div className="flex justify-between items-baseline text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 data-testid="booking-month-sep">
+                <span>{d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+                {m && (
+                    <span className="text-right">
+                        <span className="text-positive-fg">{fe(m.inflow)}</span>
+                        {' · '}<span className="text-danger-fg">{fe(m.outflow)}</span>
+                        {' · '}{t('treasury.statements.closing')}: <span className="text-ink">{fe(m.closing)}</span>
+                    </span>
+                )}
+            </div>
+        )
+    }
 
     const paypalHandle = (club as any)?.settings?.paypal_me as string | undefined
     const myRegularMemberId = user?.regular_member_id
@@ -1327,7 +1355,7 @@ export function TreasuryPage() {
 
                     {filteredBookings.length === 0
                         ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
-                        : filteredBookings.map((entry, idx) => {
+                        : filteredBookings.map((entry, idx) => <Fragment key={`${entry.kind}-${entry.data.id}`}>{monthSeparator(entry, idx)}{((): ReactNode => {
                             if (entry.kind === 'payment') {
                                 const p = entry.data
                                 return (
@@ -1398,7 +1426,7 @@ export function TreasuryPage() {
                                     </div>
                                 )
                             }
-                        })
+                        })()}</Fragment>)
                     }
                 </div>
             )}
