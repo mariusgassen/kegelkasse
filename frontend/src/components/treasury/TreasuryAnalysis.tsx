@@ -4,6 +4,7 @@ import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
+import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {BalanceHistoryChart} from '@/components/treasury/BalanceHistoryChart.tsx'
 import {
@@ -110,14 +111,12 @@ export function TreasuryAnalysis() {
     const [balanceOnlySelected, setBalanceOnlySelected] = useState(false)
     // "What if the selected members left" adjustments (independent, only apply when
     // NOT in "only selected" view). Write-off outstanding debt is the historical default.
-    const [balanceWriteOffDebt, setBalanceWriteOffDebt] = useState(true)
     const [balanceRefundPaid, setBalanceRefundPaid] = useState(false)
     const [balanceSettleShare, setBalanceSettleShare] = useState(false)
 
     const clearBalanceFilter = () => {
         setBalanceFilterIds(new Set())
         setBalanceOnlySelected(false)
-        setBalanceWriteOffDebt(true)
         setBalanceRefundPaid(false)
         setBalanceSettleShare(false)
     }
@@ -184,7 +183,8 @@ export function TreasuryAnalysis() {
         if (balanceOnlySelected) {
             effectiveBalances = (balances as Balance[]).filter(b => balanceFilterIds.has(b.regular_member_id))
         } else {
-            if (balanceWriteOffDebt) effectiveBalances = writeOffOutstandingDebt(effectiveBalances, balanceFilterIds)
+            // A leaving member's open penalties are always written off; only a payout is optional.
+            effectiveBalances = writeOffOutstandingDebt(effectiveBalances, balanceFilterIds)
             if (balanceRefundPaid) effectiveBalances = refundPaidIn(effectiveBalances, balanceFilterIds)
         }
     }
@@ -284,7 +284,10 @@ export function TreasuryAnalysis() {
                     })}
                 </div>
                 {balanceFilterActive && (
-                    <div className="flex flex-col gap-2 mt-3 pt-2 border-t border-line" data-testid="balance-filter-options">
+                    <ExpandableCard bare className="mt-3 pt-2 border-t border-line" data-testid="balance-sim"
+                                    headerClassName="text-xs text-muted font-bold"
+                                    title={<>{t('treasury.balanceFilter.simHeading')}</>}>
+                    <div className="flex flex-col gap-2 mt-2" data-testid="balance-filter-options">
                         <label className="flex items-start gap-2 cursor-pointer">
                             <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceOnlySelected}
                                    data-testid="balance-opt-only"
@@ -297,16 +300,6 @@ export function TreasuryAnalysis() {
                         {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
                         <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
                              aria-disabled={balanceOnlySelected}>
-                            <Caption>{t('treasury.balanceFilter.simHeading')}</Caption>
-                            <label className="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
-                                       disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
-                                       onChange={e => setBalanceWriteOffDebt(e.target.checked)}/>
-                                <span>
-                                    <span className="text-xs font-bold text-ink">{t('treasury.balanceFilter.optWriteOff')}</span>
-                                    <span className="block text-xs text-muted">{t('treasury.balanceFilter.optWriteOffHint')}</span>
-                                </span>
-                            </label>
                             <label className="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceRefundPaid}
                                        disabled={balanceOnlySelected} data-testid="balance-opt-refund"
@@ -327,6 +320,7 @@ export function TreasuryAnalysis() {
                             </label>
                         </div>
                     </div>
+                    </ExpandableCard>
                 )}
             </div>
 
