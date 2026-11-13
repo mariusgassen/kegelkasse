@@ -1441,7 +1441,7 @@ export function TreasuryPage() {
                     {editTarget?.kind === 'payment' && (
                         <div>
                             <label className="field-label">
-                                {t('treasury.booking.for')}: <span className="font-bold text-kce-text">{editTarget.label}</span>
+                                {t('treasury.booking.for')}: <span className="font-bold text-ink">{editTarget.label}</span>
                             </label>
                         </div>
                     )}
@@ -1509,7 +1509,7 @@ export function TreasuryPage() {
                     </p>
                     <div>
                         <label className="field-label">
-                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-kce-text">{transferGuest?.name ?? ''}</span>
+                            {t('treasury.transfer.fromGuest')}: <span className="font-bold text-ink">{transferGuest?.name ?? ''}</span>
                         </label>
                     </div>
                     <div>
