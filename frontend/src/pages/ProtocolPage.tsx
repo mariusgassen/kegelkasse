@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
@@ -537,11 +538,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         return (
                             <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
                                 <div className="h-px flex-1 bg-line"/>
-                                <span
-                                    className="text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                <Caption as="span" className="whitespace-nowrap flex items-center gap-1">
                                     ▶ {event.game.name} · {fTime(event.ts)}
                                     {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
-                                </span>
+                                </Caption>
                                 <div className="h-px flex-1 bg-line"/>
                             </div>
                         )

@@ -5,6 +5,7 @@
  * needs a deliberate visit lives here: club records, head-to-head, season comparison and the
  * penalties × drinks correlation machinery that used to be wedged into both other tabs.
  */
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useT} from '@/i18n'
 import type {TranslationKey} from '@/i18n/de'
@@ -69,9 +70,9 @@ export function StatsLab({year, players, evenings, myMemberId, onSelectYear, onS
                 <Empty icon="🎳" text={t('stats.noData')}/>
             ) : (
                 <>
-                    <div className="text-xs font-bold text-muted uppercase tracking-wider mt-4 mb-1">
+                    <Caption className="mt-4 mb-1">
                         {t('stats.correlation.selectEvening')}
-                    </div>
+                    </Caption>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2" style={{scrollbarWidth: 'none'}}>
                         {evenings.map(e => (
                             <button key={e.id} type="button"

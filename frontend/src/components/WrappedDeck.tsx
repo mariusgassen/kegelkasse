@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useT} from '@/i18n'
 import type {WrappedStats} from '@/types'
@@ -112,9 +113,9 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
             </div>
 
             <div className="flex items-center justify-between px-4 pb-2">
-                <div className="text-xs font-bold text-muted uppercase tracking-wider">
+                <Caption>
                     {t('wrapped.title')} {stats.year}
-                </div>
+                </Caption>
                 <button
                     onClick={onClose}
                     aria-label={t('action.close')}

@@ -7,6 +7,7 @@
  * pure `lib/liveEvening.ts`; mutations go through the existing quick-entry / highlights / games
  * surfaces via the callbacks. Data stays fresh through `useActiveEvening`'s SSE + polling.
  */
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useT} from '@/i18n'
 import type {Evening} from '@/types.ts'
 import {currentGameState, buildEventFeed, eveningTotals} from '@/lib/liveEvening.ts'
@@ -49,7 +50,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                     {throwTracking && (
                         <div className="flex items-end justify-between gap-3 mt-3">
                             <div className="min-w-0">
-                                <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.onTurn')}</div>
+                                <Caption>{t('live.onTurn')}</Caption>
                                 <div className="font-display font-bold text-2xl text-ink truncate">
                                     {activePlayer ? (activePlayer.nickname || activePlayer.name) : '—'}
                                 </div>
@@ -61,7 +62,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                             </div>
                             {lastThrow && (
                                 <div className="text-right flex-shrink-0">
-                                    <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('live.lastThrow')}</div>
+                                    <Caption>{t('live.lastThrow')}</Caption>
                                     <div className="font-display font-bold text-3xl text-accent-fg leading-none">{lastThrow.pins}</div>
                                     {lastThrow.cumulative != null && (
                                         <div className="text-sm text-muted mt-0.5">Σ {lastThrow.cumulative}</div>

@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useT} from '@/i18n'
 import type {Achievement, AchievementTier} from '@/types'
@@ -134,9 +135,9 @@ export function AchievementShelf({achievements}: { achievements: Achievement[] }
     return (
         <div className="kce-card p-4">
             <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-bold text-muted uppercase tracking-wider">
+                <Caption>
                     {t('achievement.title')}
-                </div>
+                </Caption>
                 <div className="text-sm font-bold text-accent-fg">
                     {earned}/{achievements.length}
                 </div>

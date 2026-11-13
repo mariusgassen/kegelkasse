@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {useAppStore} from '@/store/app.ts'
@@ -296,7 +297,7 @@ export function TreasuryAnalysis() {
                         {/* Removal-simulation adjustments — only meaningful when NOT scoping to the subset */}
                         <div className={`flex flex-col gap-2 ${balanceOnlySelected ? 'opacity-40 pointer-events-none' : ''}`}
                              aria-disabled={balanceOnlySelected}>
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider">{t('treasury.balanceFilter.simHeading')}</div>
+                            <Caption>{t('treasury.balanceFilter.simHeading')}</Caption>
                             <label className="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" className="mt-0.5 flex-shrink-0" checked={balanceWriteOffDebt}
                                        disabled={balanceOnlySelected} data-testid="balance-opt-writeoff"
@@ -333,9 +334,9 @@ export function TreasuryAnalysis() {
             <div className="kce-card p-4 mb-3">
                 <div className="flex items-center justify-between mb-2">
                     <div>
-                        <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">
+                        <Caption className="mb-0.5">
                             {t('treasury.analysis.flowHeading')}
-                        </div>
+                        </Caption>
                         <div className={`font-display font-bold text-2xl ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}
                              data-testid="analysis-cash">{fe(kassenstand)}</div>
                     </div>

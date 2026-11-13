@@ -1,3 +1,4 @@
+import {Caption} from '@/components/ui/Caption.tsx'
 import {useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
@@ -632,9 +633,9 @@ export function TreasuryPage() {
                     {/* Mein Konto — own status first: what did I pay, what is still open? */}
                     {myBalanceEntry && (
                         <div className="kce-card p-4 mb-3">
-                            <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
+                            <Caption className="mb-1">
                                 👤 {t('treasury.my.title')}
-                            </div>
+                            </Caption>
                             <div className="flex items-end justify-between gap-3">
                                 <div>
                                     {myBalanceEntry.balance < -0.01 ? (
@@ -738,9 +739,9 @@ export function TreasuryPage() {
                          style={{background: 'linear-gradient(135deg, var(--surface), var(--surface-2))'}}>
                         <div className="flex items-center justify-between">
                             <div>
-                                <div className="text-xs font-bold text-muted uppercase tracking-wider mb-0.5">💰
+                                <Caption className="mb-0.5">💰
                                     {t('treasury.cashOnHand')}
-                                </div>
+                                </Caption>
                                 <CountUp value={kassenstand} format={fe}
                                          className={`font-display font-bold text-3xl block ${kassenstand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}/>
                                 <div className="text-xs text-muted mt-1">{t('treasury.cashOnHandHint')}</div>
