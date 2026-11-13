@@ -5,13 +5,25 @@
  */
 import type {ReactNode} from 'react'
 import {Document, Page} from '@formepdf/react'
-import {Fixed, Text, View} from '@/lib/pdf-primitives'
-import {Heading} from '@/components/pdf/heading/heading'
-import {KeyValue} from '@/components/pdf/key-value/key-value'
+import {Fixed, Image, Text, View} from '@/lib/pdf-primitives'
+import {readableOn, ensureContrast, mixOver} from '@/lib/contrast'
 import {PageNumber} from '@/components/pdf/page-number/page-number'
 import {Table, TableBody, TableCell, TableFooter, TableHeader, TableRow} from '@/components/pdf/table/table'
 import {PdfcnThemeProvider} from '@/components/pdf/theme-provider'
 import type {ReportData, ReportMonthlyRow} from '@/types'
+
+export interface ReportBranding {
+    /** Brand colour (hex) — header band, headings, table header tint. */
+    color?: string | null
+    /** Club logo as a PNG/JPEG data URI plus its pixel size (for the aspect ratio). */
+    logo?: { src: string; width: number; height: number } | null
+}
+
+const DEFAULT_ACCENT = '#2f5d3a'
+const POSITIVE = '#15803d'
+const NEGATIVE = '#b91c1c'
+const MUTED = '#71717a'
+const WHITE = '#ffffff'
 
 const PORTRAIT_W = 523 // A4 (595pt) minus 2 × 36pt margin
 const LANDSCAPE = {width: 842, height: 595}
@@ -30,52 +42,98 @@ export function reportNumber(v: number): string {
     return new Intl.NumberFormat('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(v)
 }
 
-function Section({title, children}: { title: string; children: ReactNode }) {
+/** Plus/minus sign *before* the amount: "+12,00 €" / "-12,00 €". */
+export function reportSigned(v: number): string {
+    const rounded = Math.round(v * 100) / 100
+    return rounded > 0 ? `+${reportEuro(rounded)}` : reportEuro(rounded)
+}
+
+const EMOJI = /[\p{Extended_Pictographic}\p{Emoji_Modifier}\u{1F1E6}-\u{1F1FF}️‍⃣]/gu
+
+/**
+ * The PDF's built-in Helvetica has no emoji glyphs (they render as "?"), so strip them —
+ * penalty types and names carry their icons in the app, which the PDF has no use for.
+ */
+export function pdfText(v: string): string {
+    return v.replace(EMOJI, '').replace(/\s{2,}/g, ' ').trim()
+}
+
+function sanitize<T>(v: T): T {
+    if (typeof v === 'string') return pdfText(v) as T
+    if (Array.isArray(v)) return v.map(sanitize) as T
+    if (v && typeof v === 'object') {
+        return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sanitize(x)])) as T
+    }
+    return v
+}
+
+type Tone = 'pos' | 'neg' | 'muted'
+const toneColor = (tone: Tone | undefined, fallback: string) =>
+    tone === 'pos' ? POSITIVE : tone === 'neg' ? NEGATIVE : tone === 'muted' ? MUTED : fallback
+const signTone = (v: number): Tone | undefined => (v > 0.004 ? 'pos' : v < -0.004 ? 'neg' : undefined)
+
+const FONT = 9
+const HEAD_FONT = 8.5
+
+function Cell({w, align, children, header, footer, tone}: {
+    w: number; align?: 'left' | 'right'; children: string; header?: boolean; footer?: boolean; tone?: Tone
+}) {
     return (
-        <View>
-            <Heading level={3} keepWithNext>{title}</Heading>
+        <TableCell width={w} align={align} header={header} footer={footer} style={{paddingHorizontal: 5, paddingVertical: 4}}>
+            <Text style={{
+                fontFamily: 'Helvetica',
+                fontSize: header ? HEAD_FONT : FONT,
+                fontWeight: header || footer ? 700 : 400,
+                color: header ? MUTED : toneColor(tone, '#18181b'),
+                textAlign: align ?? 'left',
+            }}>{children}</Text>
+        </TableCell>
+    )
+}
+
+function Section({title, accent, children}: { title: string; accent: string; children: ReactNode }) {
+    return (
+        <View style={{marginTop: 14, marginBottom: 4}}>
+            <View style={{borderBottomWidth: 1.5, borderBottomColor: accent, paddingBottom: 3, marginBottom: 6}}>
+                <Text style={{fontFamily: 'Helvetica', fontSize: 13, fontWeight: 700, color: accent}}>{title}</Text>
+            </View>
             {children}
         </View>
     )
 }
 
-function Cell({w, align, children, header, footer}: {
-    w: number; align?: 'left' | 'right'; children: ReactNode; header?: boolean; footer?: boolean
-}) {
-    return <TableCell width={w} align={align} header={header} footer={footer}>{children}</TableCell>
+interface Col {
+    w: number
+    head: string
+    align?: 'left' | 'right'
 }
 
-/** Column widths are a share of the page width, so every table fills the page exactly. */
-const cols = (total: number, shares: number[]) => {
-    const sum = shares.reduce((a, b) => a + b, 0)
-    return shares.map(s => Math.floor((total * s) / sum))
-}
-
-function DataTable({widths, head, rows, aligns, footer}: {
-    widths: number[]
-    head: string[]
-    rows: string[][]
-    aligns: ('left' | 'right')[]
-    footer?: string[]
+function DataTable({cols, rows, footer, tint}: {
+    cols: Col[]
+    rows: { cells: string[]; tones?: (Tone | undefined)[] }[]
+    footer?: { cells: string[]; tones?: (Tone | undefined)[] }
+    tint: string
 }) {
     return (
         <Table variant="line" zebraStripe>
             <TableHeader>
-                <TableRow header>
-                    {head.map((h, i) => <Cell key={i} w={widths[i]} align={aligns[i]} header>{h}</Cell>)}
+                <TableRow header style={{backgroundColor: tint}}>
+                    {cols.map((c, i) => <Cell key={i} w={c.w} align={c.align} header>{c.head}</Cell>)}
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {rows.map((r, ri) => (
                     <TableRow key={ri}>
-                        {r.map((c, i) => <Cell key={i} w={widths[i]} align={aligns[i]}>{c}</Cell>)}
+                        {r.cells.map((c, i) => <Cell key={i} w={cols[i].w} align={cols[i].align} tone={r.tones?.[i]}>{c}</Cell>)}
                     </TableRow>
                 ))}
             </TableBody>
             {footer && (
                 <TableFooter>
                     <TableRow footer>
-                        {footer.map((c, i) => <Cell key={i} w={widths[i]} align={aligns[i]} footer>{c}</Cell>)}
+                        {footer.cells.map((c, i) => (
+                            <Cell key={i} w={cols[i].w} align={cols[i].align} tone={footer.tones?.[i]} footer>{c}</Cell>
+                        ))}
                     </TableRow>
                 </TableFooter>
             )}
@@ -83,148 +141,234 @@ function DataTable({widths, head, rows, aligns, footer}: {
     )
 }
 
-function MonthlyTable({months, rows}: { months: string[]; rows: ReportMonthlyRow[] }) {
-    const fixed = 58
-    const nameW = 84
-    const monthW = Math.max(30, Math.floor((LANDSCAPE_W - nameW - fixed * 3) / Math.max(months.length, 1)))
+/** Fixed widths (pt) for the leading columns; the one `rest` column absorbs the remainder. */
+const fill = (total: number, widths: (number | 'rest')[]): number[] => {
+    const fixed = widths.reduce<number>((a, w) => a + (w === 'rest' ? 0 : w), 0)
+    return widths.map(w => (w === 'rest' ? Math.max(40, total - fixed) : w))
+}
+
+function MonthlyTable({months, rows, tint}: { months: string[]; rows: ReportMonthlyRow[]; tint: string }) {
+    const fixed = 62
+    const nameW = 96
+    const monthW = Math.min(64, Math.max(34, Math.floor((LANDSCAPE_W - nameW - fixed * 3) / Math.max(months.length, 1))))
+    const cols: Col[] = [
+        {w: nameW, head: 'Spieler'},
+        ...months.map(m => ({w: monthW, head: m, align: 'right' as const})),
+        {w: fixed, head: 'Strafen', align: 'right'},
+        {w: fixed, head: 'Einz.', align: 'right'},
+        {w: fixed, head: 'Saldo', align: 'right'},
+    ]
+    const signedNumber = (v: number) => (Math.round(v * 100) > 0 ? '+' : '') + reportNumber(v)
     return (
-        <Table variant="line" zebraStripe>
-            <TableHeader>
-                <TableRow header>
-                    <Cell w={nameW} header>Spieler</Cell>
-                    {months.map(m => <Cell key={m} w={monthW} align="right" header>{m}</Cell>)}
-                    <Cell w={fixed} align="right" header>Strafen</Cell>
-                    <Cell w={fixed} align="right" header>Einz.</Cell>
-                    <Cell w={fixed} align="right" header>Saldo</Cell>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {rows.map((r, i) => (
-                    <TableRow key={i}>
-                        <Cell w={nameW}>{r.name}</Cell>
-                        {r.months.map((v, mi) => (
-                            <Cell key={mi} w={monthW} align="right">{v ? reportNumber(v) : ''}</Cell>
-                        ))}
-                        <Cell w={fixed} align="right">{reportNumber(r.penalties)}</Cell>
-                        <Cell w={fixed} align="right">{reportNumber(r.payments)}</Cell>
-                        <Cell w={fixed} align="right">{reportNumber(r.balance)}</Cell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+        <DataTable
+            cols={cols}
+            tint={tint}
+            rows={rows.map(r => ({
+                cells: [
+                    r.name,
+                    ...r.months.map(v => (v ? reportNumber(v) : '')),
+                    reportNumber(r.penalties), reportNumber(r.payments), signedNumber(r.balance),
+                ],
+                tones: [...new Array<Tone | undefined>(months.length + 3).fill(undefined), signTone(r.balance)],
+            }))}
+        />
     )
 }
 
-export function ReportDocument({data}: { data: ReportData }) {
+function KpiTile({label, value, tone}: { label: string; value: string; tone?: Tone }) {
+    return (
+        <View style={{flexGrow: 1, flexBasis: 0, borderWidth: 0.75, borderColor: '#e4e4e7', borderRadius: 6, padding: 8, backgroundColor: '#fafafa'}}>
+            <Text style={{fontFamily: 'Helvetica', fontSize: 8, color: MUTED}}>{label}</Text>
+            <Text style={{fontFamily: 'Helvetica', fontSize: 14, fontWeight: 700, color: toneColor(tone, '#18181b')}}>{value}</Text>
+        </View>
+    )
+}
+
+export function ReportDocument({data: raw, branding}: { data: ReportData; branding?: ReportBranding }) {
+    const data = sanitize(raw)
     const s = data.summary
+    const base = branding?.color && /^#[0-9a-f]{6}$/i.test(branding.color) ? branding.color : DEFAULT_ACCENT
+    const accent = ensureContrast(base, WHITE) // brand colour as text on white paper
+    const bandText = readableOn(base, '#18181b', WHITE)
+    const tint = mixOver(base, WHITE, 14)
     const accountTotals = data.accounts.reduce(
         (a, r) => ({pen: a.pen + r.penalties, pay: a.pay + r.payments}),
         {pen: 0, pay: 0},
     )
-    // PageNumber has no `fixed` behaviour of its own: pin it to the footer of every page.
-    const pageNumber = (
+    const accountBalance = accountTotals.pay - accountTotals.pen
+    const logo = branding?.logo
+    const logoH = 44
+    const initial = (data.club_name.trim()[0] ?? 'K').toUpperCase()
+    // Fixed footer on every page: club + period on the left of a centred page number.
+    const footer = (
         <Fixed position="footer">
+            <Text style={{fontFamily: 'Helvetica', fontSize: 8, color: MUTED, textAlign: 'center'}}>
+                {`${data.club_name} · Kassenbericht ${data.period_label}`}
+            </Text>
             <PageNumber format="Seite {page} von {total}" align="center"/>
         </Fixed>
     )
+    const w = (shares: (number | 'rest')[]) => fill(PORTRAIT_W, shares)
+
+    const accountCols = w([92, 'rest', 70, 70, 76])
+    const evCols = w([62, 'rest', 58, 46, 46, 62, 86])
+    const bookCols = w([64, 62, 'rest', 74, 'rest'])
+    // two `rest` columns share the remainder: description ≈ 45 %, note ≈ 55 %
+    const bookRest = bookCols[2]
+    const bookW = [bookCols[0], bookCols[1], Math.round(bookRest * 0.45), bookCols[3], bookRest - Math.round(bookRest * 0.45)]
 
     return (
         <PdfcnThemeProvider>
             <Document title={`Kassenbericht – ${data.club_name}`} author={data.club_name} lang="de-DE">
                 <Page size="A4" margin={MARGIN}>
-                    {pageNumber}
-                    <Heading level={1}>{`Kassenbericht – ${data.club_name}`}</Heading>
-                    <KeyValue
-                        items={[
-                            {key: 'Zeitraum', value: data.period_label},
-                            {key: 'Erstellt am', value: data.generated_at},
-                        ]}
-                    />
-                    <Section title="Zusammenfassung">
-                        <KeyValue
-                            divided
-                            boldValue
-                            items={[
-                                {key: 'Strafen (gesamt)', value: reportEuro(s.total_penalties)},
-                                {key: 'Einzahlungen (gesamt)', value: reportEuro(s.total_payments)},
-                                {key: 'Ausgaben (gesamt)', value: reportEuro(s.total_expenses)},
-                                {key: 'Kassenstand', value: reportEuro(s.kassenstand)},
-                                {key: 'Abende', value: String(s.evenings)},
-                                {key: 'Mitglieder (aktiv)', value: String(s.members)},
+                    {footer}
+                    <View style={{
+                        flexDirection: 'row', alignItems: 'center', backgroundColor: base, borderRadius: 8,
+                        paddingVertical: 14, paddingHorizontal: 16, marginBottom: 6,
+                    }}>
+                        {logo ? (
+                            <Image src={logo.src} height={logoH} width={Math.round(logoH * logo.width / logo.height)}
+                                   style={{marginRight: 14}}/>
+                        ) : (
+                            <View style={{
+                                width: 44, height: 44, borderRadius: 22, backgroundColor: bandText, marginRight: 14,
+                                alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                <Text style={{fontFamily: 'Helvetica', fontSize: 22, fontWeight: 700, color: base}}>{initial}</Text>
+                            </View>
+                        )}
+                        <View style={{flexGrow: 1, flexBasis: 0}}>
+                            <Text style={{fontFamily: 'Helvetica', fontSize: 20, fontWeight: 700, color: bandText}}>
+                                Kassenbericht
+                            </Text>
+                            <Text style={{fontFamily: 'Helvetica', fontSize: 11, color: bandText}}>
+                                {`${data.club_name} · ${data.period_label}`}
+                            </Text>
+                        </View>
+                        <Text style={{fontFamily: 'Helvetica', fontSize: 8, color: bandText, textAlign: 'right'}}>
+                            {`Erstellt am ${data.generated_at}`}
+                        </Text>
+                    </View>
+
+                    <Section title="Zusammenfassung" accent={accent}>
+                        <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
+                            <KpiTile label="Kassenstand" value={reportEuro(s.kassenstand)} tone={signTone(s.kassenstand)}/>
+                            <KpiTile label="Einzahlungen" value={reportEuro(s.total_payments)}/>
+                            <KpiTile label="Strafen" value={reportEuro(s.total_penalties)}/>
+                            <KpiTile label="Ausgaben" value={reportEuro(s.total_expenses)}/>
+                        </View>
+                        <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED}}>
+                            {`${s.evenings} Abende · ${s.members} aktive Mitglieder`}
+                        </Text>
+                    </Section>
+
+                    <Section title="Mitglieder-Konten" accent={accent}>
+                        <DataTable
+                            tint={tint}
+                            cols={[
+                                {w: accountCols[0], head: 'Kegelname'},
+                                {w: accountCols[1], head: 'Name'},
+                                {w: accountCols[2], head: 'Strafen', align: 'right'},
+                                {w: accountCols[3], head: 'Einzahl.', align: 'right'},
+                                {w: accountCols[4], head: 'Saldo', align: 'right'},
                             ]}
+                            rows={data.accounts.map(a => ({
+                                cells: [
+                                    a.nickname, a.deactivated ? `${a.name} (deaktiviert)` : a.name,
+                                    reportEuro(a.penalties), reportEuro(a.payments), reportSigned(a.balance),
+                                ],
+                                tones: [undefined, a.deactivated ? 'muted' : undefined, undefined, undefined, signTone(a.balance)],
+                            }))}
+                            footer={{
+                                cells: ['GESAMT', '', reportEuro(accountTotals.pen), reportEuro(accountTotals.pay), reportSigned(accountBalance)],
+                                tones: [undefined, undefined, undefined, undefined, signTone(accountBalance)],
+                            }}
                         />
                     </Section>
-                    <Section title="Mitglieder-Konten">
+                </Page>
+
+                <Page size="A4" margin={MARGIN}>
+                    {footer}
+                    <Section title="Buchungen" accent={accent}>
                         <DataTable
-                            widths={cols(PORTRAIT_W, [3, 3.4, 2, 2, 2])}
-                            head={['Kegelname', 'Name', 'Strafen', 'Einzahl.', 'Saldo']}
-                            aligns={['left', 'left', 'right', 'right', 'right']}
-                            rows={data.accounts.map(a => [
-                                a.nickname, a.name, reportEuro(a.penalties), reportEuro(a.payments), reportEuro(a.balance),
-                            ])}
-                            footer={[
-                                'GESAMT', '', reportEuro(accountTotals.pen), reportEuro(accountTotals.pay),
-                                reportEuro(accountTotals.pay - accountTotals.pen),
+                            tint={tint}
+                            cols={[
+                                {w: bookW[0], head: 'Datum'},
+                                {w: bookW[1], head: 'Typ'},
+                                {w: bookW[2], head: 'Mitglied / Beschreibung'},
+                                {w: bookW[3], head: 'Betrag', align: 'right'},
+                                {w: bookW[4], head: 'Notiz'},
                             ]}
+                            rows={data.bookings.map(b => ({
+                                cells: [b.date, b.type, b.description, reportSigned(b.amount), b.note],
+                                tones: [undefined, undefined, undefined, signTone(b.amount), 'muted'],
+                            }))}
                         />
                     </Section>
                 </Page>
 
                 <Page size="A4" margin={MARGIN}>
-                    {pageNumber}
-                    <Section title="Buchungen">
+                    {footer}
+                    <Section title="Strafen nach Person" accent={accent}>
                         <DataTable
-                            widths={cols(PORTRAIT_W, [1.6, 1.6, 5, 2.2, 3])}
-                            head={['Datum', 'Typ', 'Mitglied / Beschreibung', 'Betrag', 'Notiz']}
-                            aligns={['left', 'left', 'left', 'right', 'left']}
-                            rows={data.bookings.map(b => [
-                                b.date, b.type, b.description, `${reportEuro(Math.abs(b.amount))}${b.amount >= 0 ? ' +' : ' -'}`, b.note,
-                            ])}
+                            tint={tint}
+                            cols={[
+                                {w: w([110, 'rest', 40, 80])[0], head: 'Kegelname'},
+                                {w: w([110, 'rest', 40, 80])[1], head: 'Strafen-Typ'},
+                                {w: 40, head: 'Anz.', align: 'right'},
+                                {w: 80, head: 'Betrag', align: 'right'},
+                            ]}
+                            rows={data.penalties_by_person.map(p => ({
+                                cells: [p.nickname, p.type || 'Sonstige', String(p.count), reportEuro(p.total)],
+                            }))}
                         />
                     </Section>
                 </Page>
 
                 <Page size="A4" margin={MARGIN}>
-                    {pageNumber}
-                    <Section title="Strafen nach Person">
+                    {footer}
+                    <Section title="Abende" accent={accent}>
                         <DataTable
-                            widths={cols(PORTRAIT_W, [3, 5, 1.2, 2.2])}
-                            head={['Kegelname', 'Strafen-Typ', 'Anz.', 'Betrag']}
-                            aligns={['left', 'left', 'right', 'right']}
-                            rows={data.penalties_by_person.map(p => [p.nickname, p.type, String(p.count), reportEuro(p.total)])}
-                        />
-                    </Section>
-                </Page>
-
-                <Page size="A4" margin={MARGIN}>
-                    {pageNumber}
-                    <Section title="Abende">
-                        <DataTable
-                            widths={cols(PORTRAIT_W, [1.7, 3.2, 1.7, 1.3, 1.3, 2, 2.2])}
-                            head={['Datum', 'Ort', 'Status', 'Spieler', 'Spiele', 'Strafen', 'König']}
-                            aligns={['left', 'left', 'left', 'right', 'right', 'right', 'left']}
-                            rows={data.evenings.map(e => [
-                                e.date, e.venue, e.closed ? 'Archiviert' : 'Offen', String(e.players), String(e.games),
-                                reportEuro(e.penalties), e.king,
-                            ])}
+                            tint={tint}
+                            cols={[
+                                {w: evCols[0], head: 'Datum'},
+                                {w: evCols[1], head: 'Ort'},
+                                {w: evCols[2], head: 'Status'},
+                                {w: evCols[3], head: 'Spieler', align: 'right'},
+                                {w: evCols[4], head: 'Spiele', align: 'right'},
+                                {w: evCols[5], head: 'Strafen', align: 'right'},
+                                {w: evCols[6], head: 'König'},
+                            ]}
+                            rows={data.evenings.map(e => ({
+                                cells: [
+                                    e.date, e.venue, e.closed ? 'Archiviert' : 'Offen', String(e.players), String(e.games),
+                                    reportEuro(e.penalties), e.king,
+                                ],
+                            }))}
                         />
                     </Section>
                 </Page>
 
                 {data.monthly.months.length > 0 && (
                     <Page size={LANDSCAPE} margin={MARGIN}>
-                    {pageNumber}
-                        <Section title="Monatsübersicht">
+                        {footer}
+                        <Section title="Monatsübersicht" accent={accent}>
                             {data.monthly.regular.length > 0 && (
                                 <View>
-                                    <Text>Stammspieler (Beträge in €)</Text>
-                                    <MonthlyTable months={data.monthly.months} rows={data.monthly.regular}/>
+                                    <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED, marginBottom: 3}}>
+                                        Stammspieler (Beträge in €)
+                                    </Text>
+                                    <MonthlyTable months={data.monthly.months} rows={data.monthly.regular} tint={tint}/>
                                 </View>
                             )}
                             {data.monthly.guests.length > 0 && (
-                                <View>
-                                    <Text>Gäste (Beträge in €)</Text>
-                                    <MonthlyTable months={data.monthly.months} rows={data.monthly.guests}/>
+                                <View style={{marginTop: 12}}>
+                                    <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED, marginBottom: 3}}>
+                                        {data.monthly.guest_penalty_cap != null
+                                            ? `Gäste (Beträge in €, Strafen pro Abend auf ${reportEuro(data.monthly.guest_penalty_cap)} gedeckelt)`
+                                            : 'Gäste (Beträge in €)'}
+                                    </Text>
+                                    <MonthlyTable months={data.monthly.months} rows={data.monthly.guests} tint={tint}/>
                                 </View>
                             )}
                         </Section>
@@ -236,7 +380,7 @@ export function ReportDocument({data}: { data: ReportData }) {
 }
 
 /** Render the report to PDF bytes. The Forme WASM engine is imported on demand. */
-export async function renderReportPdf(data: ReportData): Promise<Uint8Array> {
+export async function renderReportPdf(data: ReportData, branding?: ReportBranding): Promise<Uint8Array> {
     const {renderDocument} = await import('@formepdf/core')
-    return renderDocument(<ReportDocument data={data}/>)
+    return renderDocument(<ReportDocument data={data} branding={branding}/>)
 }

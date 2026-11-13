@@ -76,14 +76,15 @@ def _penalty_euro(log: PenaltyLog) -> float:
     return 0.0
 
 
-_REPORT_FIELDS = {'club_name', 'member_by_id', 'evenings', 'evening_by_id', 'player_by_id', 'penalty_logs', 'period_label', 'total_penalties', 'total_payments', 'total_expenses', 'kassenstand', 'regular_members', 'member_penalty_total', 'payments_by_member', 'booking_rows', 'pen_by_member_type', 'penalty_per_evening', 'players_per_evening', 'games_per_evening', 'king_per_evening', 'monthly_pen_by_member', 'sorted_months', 'guest_members', '_month_label'}
+_REPORT_FIELDS = {'guest_penalty_cap', 'club_name', 'member_by_id', 'evenings', 'evening_by_id', 'player_by_id', 'penalty_logs', 'period_label', 'total_penalties', 'total_payments', 'total_expenses', 'kassenstand', 'regular_members', 'member_penalty_total', 'payments_by_member', 'booking_rows', 'pen_by_member_type', 'penalty_per_evening', 'players_per_evening', 'games_per_evening', 'king_per_evening', 'monthly_pen_by_member', 'sorted_months', 'guest_members', '_month_label'}
 
 
 def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNamespace:
     """Load and aggregate everything the Excel export and the PDF data endpoint share."""
     club = db.query(Club).filter(Club.id == user.club_id).first()
     club_name = club.name if club else "Kegelclub"
-
+    settings = club.settings if club else None
+    guest_penalty_cap: Optional[float] = (settings.extra or {}).get("guest_penalty_cap") if settings else None
 
     # ── Load base data ────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     ) if evening_ids else []
 
     # Payments (optionally year-filtered)
-    payment_q = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id)
+    payment_q = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False)
     if year:
         payment_q = payment_q.filter(
             MemberPayment.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
@@ -132,7 +133,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     payments = payment_q.order_by(MemberPayment.created_at).all()
 
     # Expenses (optionally year-filtered)
-    expense_q = db.query(ClubExpense).filter(ClubExpense.club_id == user.club_id)
+    expense_q = db.query(ClubExpense).filter(ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False)
     if year:
         expense_q = expense_q.filter(
             ClubExpense.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
@@ -149,11 +150,44 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
 
     # ── Build aggregated lookups ──────────────────────────────────────────────
 
+    # Guests pay at most `guest_penalty_cap` per evening and no absence penalties (same rule as the
+    # Kasse's guest balances). Every aggregate below uses this effective amount so the report's
+    # evening, monthly and account figures agree with each other and with the Kasse.
+    guest_ids = {
+        mid for (mid,) in db.query(RegularMember.id).filter(
+            RegularMember.club_id == user.club_id, RegularMember.is_guest == True
+        )
+    }
+
+    def _log_member_id(log: PenaltyLog) -> Optional[int]:
+        if log.player_id is not None:
+            ep = player_by_id.get(log.player_id)
+            return ep.regular_member_id if ep else None
+        return log.regular_member_id
+
+    guest_raw: dict[tuple[int, int], float] = defaultdict(float)
+    for log in penalty_logs:
+        mid = _log_member_id(log)
+        if mid in guest_ids and log.player_id is not None:
+            guest_raw[(mid, log.evening_id)] += _penalty_euro(log)
+
+    def effective_euro(log: PenaltyLog) -> float:
+        euro = _penalty_euro(log)
+        mid = _log_member_id(log)
+        if mid not in guest_ids:
+            return euro
+        if log.player_id is None:
+            return 0.0
+        raw = guest_raw[(mid, log.evening_id)]
+        if guest_penalty_cap is not None and raw > guest_penalty_cap:
+            return euro * guest_penalty_cap / raw
+        return euro
+
     # penalty euro per player_id and per regular_member_id (absences)
     penalty_by_player: dict[int, float] = {}
     penalty_by_member_absence: dict[int, float] = {}
     for log in penalty_logs:
-        euro = _penalty_euro(log)
+        euro = effective_euro(log)
         if log.player_id is not None:
             penalty_by_player[log.player_id] = penalty_by_player.get(log.player_id, 0.0) + euro
         elif log.regular_member_id is not None:
@@ -191,7 +225,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     penalty_per_evening: dict[int, float] = {}
     for log in penalty_logs:
         eid = log.evening_id
-        penalty_per_evening[eid] = penalty_per_evening.get(eid, 0.0) + _penalty_euro(log)
+        penalty_per_evening[eid] = penalty_per_evening.get(eid, 0.0) + effective_euro(log)
 
     # players per evening count
     players_per_evening: dict[int, int] = {}
@@ -201,7 +235,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     # ── Shared derived data (used by both Excel and PDF) ──────────────────────
 
     period_label = str(year) if year else "Gesamt"
-    total_penalties = round(sum(_penalty_euro(l) for l in penalty_logs), 2)
+    total_penalties = round(sum(effective_euro(l) for l in penalty_logs), 2)
     total_payments = round(sum(p.amount for p in payments), 2)
     total_expenses = round(sum(e.amount for e in expenses), 2)
     kassenstand = round(total_payments - total_penalties - total_expenses, 2)
@@ -238,7 +272,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
             continue
         key = (mid, log.penalty_type_name or "Unbekannt")
         cnt, tot = pen_by_member_type.get(key, (0, 0.0))
-        pen_by_member_type[key] = (cnt + 1, round(tot + _penalty_euro(log), 2))
+        pen_by_member_type[key] = (cnt + 1, round(tot + effective_euro(log), 2))
 
     # Monthly penalties per member: {member_id: {(year, month): total_euro}}
     monthly_pen_by_member: dict[int, dict[tuple[int, int], float]] = defaultdict(lambda: defaultdict(float))
@@ -247,7 +281,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
         if ev is None:
             continue
         ym = (ev.date.year, ev.date.month)
-        euro = _penalty_euro(log)
+        euro = effective_euro(log)
         if log.player_id is not None:
             ep = player_by_id.get(log.player_id)
             mid = ep.regular_member_id if ep else None
@@ -295,7 +329,7 @@ def report_data(
         pen = d.member_penalty_total(m.id)
         pay = round(d.payments_by_member.get(m.id, 0.0), 2)
         accounts.append({"nickname": _name(m), "name": m.name, "penalties": pen, "payments": pay,
-                         "balance": round(pay - pen, 2)})
+                         "balance": round(pay - pen, 2), "deactivated": m.deactivated_at is not None})
 
     by_person = []
     for m in d.regular_members:
@@ -326,7 +360,7 @@ def report_data(
             "total_expenses": d.total_expenses,
             "kassenstand": d.kassenstand,
             "evenings": len(d.evenings),
-            "members": len(d.regular_members),
+            "members": sum(1 for m in d.regular_members if m.deactivated_at is None),
         },
         "accounts": accounts,
         "bookings": [
@@ -345,6 +379,7 @@ def report_data(
         ],
         "monthly": {
             "months": [d._month_label(ym) for ym in d.sorted_months],
+            "guest_penalty_cap": d.guest_penalty_cap,
             "regular": [_monthly_row(m) for m in d.regular_members],
             "guests": [_monthly_row(m) for m in d.guest_members],
         },
@@ -414,7 +449,7 @@ def export_report(
         ("Kassenstand", _fmt_euro(kassenstand)),
         ("", ""),
         ("Abende", str(len(evenings))),
-        ("Mitglieder (aktiv)", str(len(regular_members))),
+        ("Mitglieder (aktiv)", str(sum(1 for m in regular_members if m.deactivated_at is None))),
     ]
     for ri, (label, value) in enumerate(stats, start=6):
         ws1.cell(ri, 1, label).font = Font(bold=True)

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import {describe, expect, it} from 'vitest'
-import {renderReportPdf, reportEuro} from '../reportPdf'
+import {pdfText, renderReportPdf, reportEuro, reportSigned} from '../reportPdf'
+import {scaleToFit} from '../reportBranding'
 import type {ReportData} from '@/types'
 
 const row = (name: string) => ({name, months: [2.5, 0], penalties: 2.5, payments: 0, balance: -2.5})
@@ -24,11 +25,45 @@ describe('reportEuro', () => {
     })
 })
 
+describe('reportSigned', () => {
+    it('puts the sign before the amount', () => {
+        expect(reportSigned(12.5)).toBe('+12,50 €')
+        expect(reportSigned(-12.5)).toBe('-12,50 €')
+        expect(reportSigned(0)).toBe('0,00 €')
+        expect(reportSigned(0.001)).toBe('0,00 €')
+    })
+})
+
+describe('pdfText', () => {
+    it('strips emoji the built-in font cannot draw, keeping umlauts and digits', () => {
+        expect(pdfText('📌 Pins')).toBe('Pins')
+        expect(pdfText('🍺 Lokalrunde ⚠️')).toBe('Lokalrunde')
+        expect(pdfText('Müller 3x ✋🏽')).toBe('Müller 3x')
+    })
+})
+
+describe('scaleToFit', () => {
+    it('shrinks large logos and never enlarges small ones', () => {
+        expect(scaleToFit(800, 400)).toEqual({width: 400, height: 200})
+        expect(scaleToFit(100, 50)).toEqual({width: 100, height: 50})
+    })
+})
+
 describe('renderReportPdf', () => {
     it('renders a PDF with the report content', async () => {
         const bytes = await renderReportPdf(DATA)
         expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-')
         expect(bytes.length).toBeGreaterThan(2000)
+    })
+
+    it('renders with branding, deactivated accounts and a guest cap', async () => {
+        const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        const bytes = await renderReportPdf({
+            ...DATA,
+            accounts: [{...DATA.accounts[0], deactivated: true}],
+            monthly: {...DATA.monthly, guest_penalty_cap: 5},
+        }, {color: '#e8a020', logo: {src: tinyPng, width: 1, height: 1}})
+        expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-')
     })
 
     it('renders an empty report (no bookings, no months) without throwing', async () => {

@@ -1646,7 +1646,7 @@ export function TreasuryPage() {
 
             {/* Export sheet — admin only */}
             <Sheet open={showExportSheet} onClose={() => setShowExportSheet(false)}
-                   title={`📊 ${t('report.export')}`} onSubmit={downloadReport}>
+                   title={t('report.export')} onSubmit={downloadReport}>
                 <div className="flex flex-col gap-3">
                     <Field label={t('report.year')}>
                         <select

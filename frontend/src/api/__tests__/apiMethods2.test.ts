@@ -937,6 +937,8 @@ describe('api.downloadReport', () => {
         })
         const renderReportPdf = vi.fn().mockResolvedValue(new Uint8Array([37, 80, 68, 70]))
         vi.doMock('@/lib/reportPdf', () => ({renderReportPdf}))
+        const branding = {color: '#e8a020', logo: null}
+        vi.doMock('@/lib/reportBranding', () => ({loadReportBranding: vi.fn().mockResolvedValue(branding)}))
         vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() })
         const anchor = document.createElement('a')
         const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
@@ -947,10 +949,11 @@ describe('api.downloadReport', () => {
 
         expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/reports/data?year=2025')
         expect(mockFetch.mock.calls.some(c => String(c[0]).includes('/reports/export'))).toBe(false)
-        expect(renderReportPdf).toHaveBeenCalledWith({club_name: 'KC'})
+        expect(renderReportPdf).toHaveBeenCalledWith({club_name: 'KC'}, branding)
         expect(anchor.download).toBe('kegelkasse_report_2025.pdf')
         expect(clickSpy).toHaveBeenCalled()
         vi.doUnmock('@/lib/reportPdf')
+        vi.doUnmock('@/lib/reportBranding')
         vi.unstubAllGlobals()
         vi.restoreAllMocks()
     })

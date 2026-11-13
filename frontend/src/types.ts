@@ -976,9 +976,9 @@ export interface ReportData {
         evenings: number
         members: number
     }
-    accounts: { nickname: string; name: string; penalties: number; payments: number; balance: number }[]
+    accounts: { nickname: string; name: string; penalties: number; payments: number; balance: number; deactivated?: boolean }[]
     bookings: { date: string; type: string; description: string; amount: number; note: string }[]
     penalties_by_person: { nickname: string; type: string; count: number; total: number }[]
     evenings: { date: string; venue: string; closed: boolean; players: number; games: number; penalties: number; king: string }[]
-    monthly: { months: string[]; regular: ReportMonthlyRow[]; guests: ReportMonthlyRow[] }
+    monthly: { months: string[]; guest_penalty_cap?: number | null; regular: ReportMonthlyRow[]; guests: ReportMonthlyRow[] }
 }

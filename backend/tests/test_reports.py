@@ -199,3 +199,74 @@ class TestReportData:
         assert body["monthly"]["months"] == ["Mrz"]
         row = next(m for m in body["monthly"]["regular"] if m["name"] == "Dati")
         assert row["months"] == [2.5]
+
+
+class TestReportDataCapsAndActive:
+    """Guest cap, deactivated members and soft-deleted bookings in GET /reports/data."""
+
+    def _evening_with_penalties(self, db, club, member, amounts, day=1):
+        import time
+        from models.penalty import PenaltyMode
+        evening = Evening(club_id=club.id, date=datetime(2025, 3, day), venue="Bahn", is_closed=True)
+        db.add(evening)
+        db.flush()
+        player = EveningPlayer(evening_id=evening.id, regular_member_id=member.id, name=member.name)
+        db.add(player)
+        db.flush()
+        for a in amounts:
+            db.add(PenaltyLog(
+                evening_id=evening.id, player_id=player.id, player_name=member.name,
+                penalty_type_name="Strafe", amount=a, unit_amount=a, mode=PenaltyMode.euro,
+                client_timestamp=time.time() * 1000,
+            ))
+        db.commit()
+
+    def test_guest_penalties_are_capped_per_evening_everywhere(self, client, admin_headers, db, club):
+        from models.club import ClubSettings
+        settings = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+        if settings is None:
+            settings = ClubSettings(club_id=club.id, extra={})
+            db.add(settings)
+        settings.extra = {**(settings.extra or {}), "guest_penalty_cap": 5.0}
+        guest = RegularMember(club_id=club.id, name="Gast G", is_active=True, is_guest=True)
+        db.add(guest)
+        db.commit()
+        self._evening_with_penalties(db, club, guest, [4.0, 4.0, 4.0], day=1)  # 12 raw -> 5
+        self._evening_with_penalties(db, club, guest, [2.0], day=8)  # under the cap -> 2
+
+        body = client.get("/api/v1/reports/data?year=2025", headers=admin_headers).json()
+
+        assert body["summary"]["total_penalties"] == 7.0
+        assert [e["penalties"] for e in body["evenings"]] == [2.0, 5.0]
+        row = next(m for m in body["monthly"]["guests"] if m["name"] == "Gast G")
+        assert row["months"] == [7.0]
+        assert row["penalties"] == 7.0
+        assert body["monthly"]["guest_penalty_cap"] == 5.0
+        db.delete(settings)
+        db.commit()
+
+    def test_deactivated_member_not_counted_as_active_but_keeps_account(self, client, admin_headers, db, club):
+        db.add_all([
+            RegularMember(club_id=club.id, name="Aktiv", is_active=True),
+            RegularMember(club_id=club.id, name="Weg", is_active=True, deactivated_at=datetime(2025, 2, 1)),
+        ])
+        db.commit()
+        body = client.get("/api/v1/reports/data", headers=admin_headers).json()
+        assert body["summary"]["members"] == 1
+        acct = {a["name"]: a for a in body["accounts"]}
+        assert acct["Weg"]["deactivated"] is True
+        assert acct["Aktiv"]["deactivated"] is False
+
+    def test_deleted_payments_are_excluded(self, client, admin_headers, db, club):
+        from models.payment import MemberPayment
+        m = RegularMember(club_id=club.id, name="Zahler", is_active=True)
+        db.add(m)
+        db.flush()
+        db.add_all([
+            MemberPayment(club_id=club.id, regular_member_id=m.id, amount=10.0),
+            MemberPayment(club_id=club.id, regular_member_id=m.id, amount=99.0, is_deleted=True),
+        ])
+        db.commit()
+        body = client.get("/api/v1/reports/data", headers=admin_headers).json()
+        assert body["summary"]["total_payments"] == 10.0
+        assert len(body["bookings"]) == 1
