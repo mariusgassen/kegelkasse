@@ -368,7 +368,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                                 )}
                                             </span>
                                             {wasAbsent && isChecked && (
-                                                <span className="text-xs text-yellow-400 font-bold flex-shrink-0">
+                                                <span className="text-xs text-accent-fg font-bold flex-shrink-0">
                                                     {t('schedule.showedUpAnyway')}
                                                 </span>
                                             )}

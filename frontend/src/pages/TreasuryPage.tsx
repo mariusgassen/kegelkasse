@@ -753,7 +753,7 @@ export function TreasuryPage() {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-muted">⬇ {t('treasury.flow.expenses')}</span>
-                                <span className="font-bold text-orange-400" data-testid="glance-amount-expenses">-<CountUp value={summary.expensesGross} format={fe}/></span>
+                                <span className="font-bold text-danger-fg" data-testid="glance-amount-expenses">-<CountUp value={summary.expensesGross} format={fe}/></span>
                             </div>
                             {summary.otherIncome > 0 && (
                                 <div className="flex items-center justify-between">
@@ -1306,7 +1306,7 @@ export function TreasuryPage() {
                     <div className="flex items-center justify-between mb-3">
                         <div>
                             <span className="text-xs text-muted">{t('treasury.netExpenses')}</span>
-                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-positive-fg' : 'text-orange-400'}`}>{fe(-totalExpenses)}</div>
+                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>{fe(-totalExpenses)}</div>
                         </div>
                         {admin && (
                             <Button variant="primary" size="sm" onClick={openBookingSheet}>
@@ -1356,7 +1356,7 @@ export function TreasuryPage() {
                                 const e = entry.data
                                 return (
                                     <div key={`e-${e.id}`} className="kce-card p-3 mb-2 flex items-center gap-3">
-                                        <span className={`text-xl flex-shrink-0 ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
+                                        <span className={`text-xl flex-shrink-0 ${e.amount < 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                             {e.amount < 0 ? '⬆' : '⬇'}
                                         </span>
                                         <div className="flex-1 min-w-0">
@@ -1369,7 +1369,7 @@ export function TreasuryPage() {
                                             )}
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                            <div className={`font-bold text-sm ${e.amount < 0 ? 'text-positive-fg' : 'text-orange-400'}`}>
+                                            <div className={`font-bold text-sm ${e.amount < 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                 {e.amount < 0 ? '+' : '-'}{fe(Math.abs(e.amount))}
                                             </div>
                                             <div className="text-xs text-muted">{e.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>

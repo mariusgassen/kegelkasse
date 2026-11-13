@@ -23,8 +23,8 @@ export function SearchInput({value, onChange, placeholder, className}: SearchInp
                     type="button"
                     onClick={() => onChange('')}
                     aria-label={t('action.clear')}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-muted active:opacity-60"
-                    style={{background: 'rgba(255,255,255,0.07)', fontSize: 12, lineHeight: 1}}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center bg-surface-2 text-muted active:opacity-60"
+                    style={{fontSize: 12, lineHeight: 1}}
                 >
                     ✕
                 </button>

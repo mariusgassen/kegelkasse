@@ -95,7 +95,7 @@ export const DUPLICATES: Duplicate[] = [
     {
         id: 'colours',
         title: 'Colour literals outside the token system',
-        finding: 'Excluding the deliberately dark kiosk / artwork files (BowlingGame, CameraCapturePage, TabletQuickEntryPage, Logo, SpinWheel, ScoreboardPage): 16 hex values, 16 rgba() tints and 20 Tailwind palette classes remain in themed UI. Examples: SearchInput and NotificationPanel use rgba(255,255,255,.07), Switch knob is bg-white.',
+        finding: 'Tailwind palette classes (amber/orange/yellow/red) and rgba(255,255,255,.07) button fills are replaced by tokens (accent-tint, danger-fg, bg-surface-2), and colourLiterals.test.ts now fails on any new palette class. Still open: hex values in CommitteePage, TreasuryPage, StatsPage, ClubAdminPage, SeasonTab, and rgba overlays in ZoomableImage, StickerMap and chart strokes (intentional on photos/maps); role badges in SuperadminRolesManager are an exempt exception.',
         count: '90 hex in 11 files (74 exempt), 47 rgba in 15 files, 20 Tailwind palette in 8 files',
         where: 'CommitteePage, TreasuryPage, StatsPage, ClubAdminPage, SeasonTab (hex); OfflineNotice, TreasuryAnalysis, GamesPage, SchedulePage, EveningPage (palette); SearchInput, NotificationPanel, RootLayout, ZoomableImage (rgba)',
         proposal: 'Replace by tokens (surface-2, line, accent-tint, positive-tint …); add a lint test like iconAffordance',
@@ -197,5 +197,5 @@ export interface Next {
 
 /** Proposed migration order (see PR description). */
 export const NEXT_STEPS: Next[] = [
-        {step: '1. Fold ModeToggle into <Tabs>, replace colour literals, add lint tests', why: 'Mechanical clean-up once the primitives exist; a lint test keeps it from regressing (same approach as iconAffordance.test).'},
+        {step: '1. Replace remaining hex literals; migrate confirm sheets with extra fields', why: 'ModeToggle stays separate from <Tabs> on purpose: it is a segmented control inside a panel, Tabs is a scrolling page-section strip.'},
 ]
