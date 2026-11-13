@@ -1740,6 +1740,7 @@ export const en = {
     "roadmap.edit.duplicateNone": "Not a duplicate (Independent idea)",
     "roadmap.edit.version": "Version (planned or shipped)",
     "roadmap.edit.version.placeholder": "Leave empty: current version is set on completion",
+    "roadmap.filter.version": "Filter by version",
     "roadmap.edit.adminNotes": "Admin Note / Development Feedback",
     "roadmap.edit.adminNotes.placeholder": "Internal note or feedback for the community...",
     "roadmap.edit.pinned": "Pinned (highlight at top)",
