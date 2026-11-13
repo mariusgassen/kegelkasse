@@ -8,6 +8,7 @@ import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
+import {Field} from '@/components/ui/Field.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton'
 import {CountUp} from '@/components/ui/CountUp'
 import {SearchInput} from '@/components/ui/SearchInput.tsx'
@@ -83,8 +84,7 @@ function TripPicker({trips, value, onChange}: {
         )
     }
     return (
-        <div>
-            <label className="field-label" htmlFor="booking-trip">{t('treasury.booking.trip')}</label>
+        <Field label={t('treasury.booking.trip')} htmlFor="booking-trip">
             <select id="booking-trip" className="kce-input" value={value ?? ''}
                     onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}>
                 <option value="">{t('treasury.booking.noTrip')}</option>
@@ -92,7 +92,7 @@ function TripPicker({trips, value, onChange}: {
                     <option key={tr.id} value={tr.id}>🚌 {tr.destination} · {tr.date.slice(0, 10).split('-').reverse().join('.')}</option>
                 ))}
             </select>
-        </div>
+        </Field>
     )
 }
 
@@ -1442,32 +1442,27 @@ export function TreasuryPage() {
                         onChange={v => setEditDirection(v as 'in' | 'out')}/>
 
                     {/* Amount */}
-                    <div>
-                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                    <Field label={t('treasury.payment.amount')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={editAmount} onChange={e => setEditAmount(e.target.value)}
                                    placeholder="0,00" autoFocus/>
                         </div>
-                    </div>
+                    </Field>
 
                     {/* Note / description */}
-                    <div>
-                        <label className="field-label">
-                            {editTarget?.kind === 'expense' ? t('treasury.expense.description') : t('treasury.payment.note')}
-                        </label>
+                    <Field label={editTarget?.kind === 'expense' ? t('treasury.expense.description') : t('treasury.payment.note')}>
                         <input className="kce-input" value={editNote}
                                onChange={e => setEditNote(e.target.value)}
                                placeholder={editTarget?.kind === 'expense' ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
-                    </div>
+                    </Field>
 
                     {/* Date override */}
-                    <div>
-                        <label className="field-label">{t('treasury.expense.date')}</label>
+                    <Field label={t('treasury.expense.date')}>
                         <input type="date" className="kce-input" value={editDate}
                                onChange={e => setEditDate(e.target.value)}/>
-                    </div>
+                    </Field>
 
                     {editTarget?.kind === 'expense' && (
                         <TripPicker trips={trips as ClubTrip[]} value={editTrip} onChange={setEditTrip}/>
@@ -1492,8 +1487,7 @@ export function TreasuryPage() {
                             {t('treasury.transfer.fromGuest')}: <span className="font-bold text-ink">{transferGuest?.name ?? ''}</span>
                         </label>
                     </div>
-                    <div>
-                        <label className="field-label">{t('treasury.transfer.target')}</label>
+                    <Field label={t('treasury.transfer.target')}>
                         {memberPickerList.length === 0
                             ? <p className="text-xs text-muted">{t('treasury.transfer.noTargets')}</p>
                             : (
@@ -1507,22 +1501,20 @@ export function TreasuryPage() {
                                     ))}
                                 </div>
                             )}
-                    </div>
-                    <div>
-                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                    </Field>
+                    <Field label={t('treasury.payment.amount')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={transferAmount} onChange={e => setTransferAmount(e.target.value)}
                                    placeholder="0,00"/>
                         </div>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('treasury.payment.note')}</label>
+                    </Field>
+                    <Field label={t('treasury.payment.note')}>
                         <input className="kce-input" value={transferNote}
                                onChange={e => setTransferNote(e.target.value)}
                                placeholder={t('treasury.transfer.notePlaceholder')}/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block
                             disabled={transferring || !transferTargetId || parseAmount(transferAmount) <= 0}>
                         ✓ {t('treasury.transfer.submit')}
@@ -1541,8 +1533,7 @@ export function TreasuryPage() {
                         ]}
                         value={paymentMode}
                         onChange={v => setPaymentMode(v as 'deposit' | 'withdrawal')}/>
-                    <div>
-                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                    <Field label={t('treasury.payment.amount')}>
                         <div className="flex items-center gap-2">
                             <span
                                 className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
@@ -1550,13 +1541,12 @@ export function TreasuryPage() {
                                    value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
                                    placeholder="0,00" autoFocus/>
                         </div>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('treasury.payment.note')}</label>
+                    </Field>
+                    <Field label={t('treasury.payment.note')}>
                         <input className="kce-input" value={paymentNote}
                                onChange={e => setPaymentNote(e.target.value)}
                                placeholder={t('treasury.payment.notePlaceholder')}/>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block
                             disabled={saving || !paymentAmount || parseAmount(paymentAmount) <= 0}>
                         ✓ {t('treasury.payment.record')}
@@ -1569,8 +1559,7 @@ export function TreasuryPage() {
                    title={`📋 ${t('treasury.booking.add')}`} onSubmit={submitBooking}>
                 <div className="flex flex-col gap-3">
                     {/* Target: Club or member */}
-                    <div>
-                        <label className="field-label">{t('treasury.booking.for')}</label>
+                    <Field label={t('treasury.booking.for')}>
                         <div className="flex gap-2 flex-wrap">
                             <button type="button"
                                     className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${bookingTarget === 'club' ? 'bg-accent text-on-accent border-accent' : 'bg-surface-2 text-muted border-line'}`}
@@ -1585,7 +1574,7 @@ export function TreasuryPage() {
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </Field>
 
                     {/* Direction */}
                     <ModeToggle
@@ -1603,25 +1592,21 @@ export function TreasuryPage() {
                         onChange={v => setBookingDirection(v as 'in' | 'out')}/>
 
                     {/* Amount */}
-                    <div>
-                        <label className="field-label">{t('treasury.payment.amount')}</label>
+                    <Field label={t('treasury.payment.amount')}>
                         <div className="flex items-center gap-2">
                             <span className="text-muted font-bold text-sm w-5 text-center flex-shrink-0 select-none">€</span>
                             <input className="kce-input flex-1" type="text" inputMode="decimal"
                                    value={bookingAmount} onChange={e => setBookingAmount(e.target.value)}
                                    placeholder="0,00" autoFocus/>
                         </div>
-                    </div>
+                    </Field>
 
                     {/* Note / description */}
-                    <div>
-                        <label className="field-label">
-                            {isClubBooking ? t('treasury.expense.description') : t('treasury.payment.note')}
-                        </label>
+                    <Field label={isClubBooking ? t('treasury.expense.description') : t('treasury.payment.note')}>
                         <input className="kce-input" value={bookingNote}
                                onChange={e => setBookingNote(e.target.value)}
                                placeholder={isClubBooking ? t('treasury.expense.descPlaceholder') : t('treasury.payment.notePlaceholder')}/>
-                    </div>
+                    </Field>
 
                     {/* Member paid a club cost out of pocket → also book a linked club expense */}
                     {showAsExpense && (
@@ -1640,11 +1625,10 @@ export function TreasuryPage() {
                     )}
 
                     {/* Date override */}
-                    <div>
-                        <label className="field-label">{t('treasury.expense.date')}</label>
+                    <Field label={t('treasury.expense.date')}>
                         <input type="date" className="kce-input" value={bookingDate}
                                onChange={e => setBookingDate(e.target.value)}/>
-                    </div>
+                    </Field>
 
                     <Button type="submit" variant="primary" block
                             disabled={savingBooking || !bookingValid}>
@@ -1657,8 +1641,7 @@ export function TreasuryPage() {
             <Sheet open={showExportSheet} onClose={() => setShowExportSheet(false)}
                    title={`📊 ${t('report.export')}`} onSubmit={downloadReport}>
                 <div className="flex flex-col gap-3">
-                    <div>
-                        <label className="field-label">{t('report.year')}</label>
+                    <Field label={t('report.year')}>
                         <select
                             value={exportYear ?? ''}
                             onChange={e => setExportYear(e.target.value ? parseInt(e.target.value, 10) : null)}
@@ -1668,9 +1651,8 @@ export function TreasuryPage() {
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </select>
-                    </div>
-                    <div>
-                        <label className="field-label">{t('report.format')}</label>
+                    </Field>
+                    <Field label={t('report.format')}>
                         <select
                             value={exportFormat}
                             onChange={e => setExportFormat(e.target.value as 'xlsx' | 'pdf')}
@@ -1678,7 +1660,7 @@ export function TreasuryPage() {
                             <option value="xlsx">Excel</option>
                             <option value="pdf">PDF</option>
                         </select>
-                    </div>
+                    </Field>
                     <Button type="submit" variant="primary" block disabled={exporting}>
                         {exporting ? t('report.downloading') : t('report.download')}
                     </Button>
