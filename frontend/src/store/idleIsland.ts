@@ -27,3 +27,9 @@ export const useIslandBusyStore = create<{busy: boolean; setBusy: (busy: boolean
     busy: false,
     setBusy: (busy) => set({busy}),
 }))
+
+/** True while a fullscreen overlay (Schnellerfassung) covers the shell, so the island centres on the viewport. */
+export const useIslandFullscreenStore = create<{fullscreen: boolean; setFullscreen: (v: boolean) => void}>()((set) => ({
+    fullscreen: false,
+    setFullscreen: (fullscreen) => set({fullscreen}),
+}))
