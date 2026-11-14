@@ -1490,6 +1490,8 @@ export const en = {
     "quickEntry.gameScore": "Score",
     "quickEntry.newGame": "New game",
     "quickEntry.overview": "Overview",
+    "quickEntry.bookedTonight": "Booked {n}× tonight",
+    "quickEntry.drinkTimeline": "Drink rounds over the evening: {beer} beer, {shots} shots",
     "quickEntry.totalPenalty": "Σ penalties",
     "quickEntry.averagePenalty": "Ø per player",
     "quickEntry.drinkRound": "Round",

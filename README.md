@@ -204,6 +204,7 @@ One-time setup:
 - Optional pin scores per player/team stored as a JSON map
 - Opener flag highlights the crown game (König) in the UI
 - Configurable loser penalty: when set, penalty log entries are auto-created for every non-winner player when the game is finished
+- **Tablet quick entry reads at a glance**: penalty buttons carry a counter of how often they were booked tonight, the booked player's overview row lights up with the amount ("+0,50 €") so a mistap shows immediately, each overview row has a bar on a shared scale (top player = full bar), and the total counts up on every new penalty
 - Once a winner is picked in the finish dialog, a **loser penalty preview** shows the exact amount each loser will be charged — always, regardless of whether the game template has a per-point add-on or just a flat loser penalty. Available both in the regular Games view and in the tablet quick-entry finish panel
 - Editing a finished game recalculates its loser penalties (old entries removed, new ones created); the recalculated entries keep the game's original `finished_at` timestamp, not the edit time
 - Soft-delete (undo) without data loss
@@ -217,6 +218,7 @@ One-time setup:
 - Log beer or shot rounds with an optional variety label
 - Track which players participated in each round
 - In the tablet quick-entry panel, log a round straight from the penalty grid (🍺/🥃 buttons reuse the same player multi-selection as penalties)
+- The quick-entry panel shows a **timeline of tonight's rounds** under the drink buttons (one mark per round, height = number of people)
 - Soft-delete (undo) without data loss
 
 ### Schedule & RSVP

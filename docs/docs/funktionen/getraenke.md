@@ -26,6 +26,10 @@ eingetragen wie Strafen: Wähle in der linken Spalte die **teilnehmenden Spieler
 **🥃 Schnaps**. Die Runde wird sofort für alle ausgewählten Spieler gebucht und
 die Auswahl zurückgesetzt — kein separates Dialog-Fenster nötig.
 
+Unter den Knöpfen zeigt eine **Zeitleiste** alle Runden des Abends: von der ersten Runde links bis
+jetzt rechts, ein Strich pro Runde (Bier in der Vereinsfarbe, Schnaps in der Zweitfarbe). Je höher
+der Strich, desto mehr Leute waren in der Runde.
+
 ## Runde bearbeiten
 
 1. Tippe auf eine Runde in der Liste
