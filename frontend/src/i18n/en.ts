@@ -1563,7 +1563,7 @@ export const en = {
     "treasury.charts.periodAll": "All",
     "treasury.charts.periodHint": "The period applies to the cash trend and the evenings. The other charts show the current state.",
     "treasury.charts.waterfall": "Cash waterfall",
-    "treasury.charts.waterfallHint": "The bars float on purpose: each starts where the previous one ends (paid in − expenses = cash, + open = projected). Only the totals start at 0.",
+    "treasury.charts.waterfallHint": "All bars start at 0: paid in − expenses = cash, + open = projected. Green = in, red = out, accent = total.",
     "treasury.charts.openAction": "Open",
     "treasury.charts.trend": "Cash balance over time",
     "treasury.charts.step.paidIn": "Paid in",

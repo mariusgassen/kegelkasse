@@ -1,7 +1,7 @@
 import {useMemo, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {
-    Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Sankey, Tooltip, Treemap, XAxis, YAxis,
+    Area, AreaChart, Bar, BarChart, Cell, LabelList, ReferenceLine, Pie, PieChart, ResponsiveContainer, Sankey, Tooltip, Treemap, XAxis, YAxis,
 } from 'recharts'
 import {api} from '@/api/client.ts'
 import {chartAnimation} from '@/lib/motion.ts'
@@ -35,10 +35,6 @@ const TICK = {fill: C.muted, fontSize: 12}
 function fe(v: number | null | undefined) {
     return (v ?? 0).toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
-function feShort(v: number) {
-    return Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('de-DE', {maximumFractionDigits: 1})}k` : String(Math.round(v))
-}
-
 const TIP = {
     contentStyle: {background: C.surface, border: `1px solid ${C.line}`, borderRadius: 8, fontSize: 12, color: C.ink},
     labelStyle: {color: C.ink},
@@ -161,9 +157,12 @@ export function TreasuryCharts() {
                                                open: () => go('/treasury', {tab: 'bookings'})})
                                        }}>
                                 <XAxis dataKey="ts" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={TICK} stroke={C.line}
-                                       tickFormatter={(v: number) => new Date(v).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
-                                       tickCount={4} minTickGap={24}/>
-                                <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40} domain={['auto', 'auto']}/>
+                                       tickFormatter={(v: number) => period === null
+                                           ? String(new Date(v).getFullYear())
+                                           : new Date(v).toLocaleDateString('de-DE', {month: 'short'})}
+                                       tickCount={4} minTickGap={32}/>
+                                <YAxis hide domain={[(m: number) => Math.min(0, m), 'auto']}/>
+                                <ReferenceLine y={0} stroke={C.muted} strokeDasharray="3 3" label={{value: '0', position: 'insideTopLeft', fill: C.muted, fontSize: 12}}/>
                                 <Tooltip {...TIP} cursor={{stroke: C.muted}}
                                          content={({active, payload}) => {
                                              const p = active ? (payload?.[0]?.payload as {ts: number; value: number} | undefined) : undefined
@@ -183,10 +182,11 @@ export function TreasuryCharts() {
                     </div>
                 )}
                 {/* Horizontal bars: six step names don't fit side by side on a phone-width axis. */}
-                <ResponsiveContainer width="100%" height={waterfallData.length * 44 + 28}>
-                    <BarChart data={waterfallData} layout="vertical" margin={{top: 4, right: 12, bottom: 0, left: 0}} barCategoryGap={8}>
-                        <XAxis type="number" tick={TICK} stroke={C.line} tickFormatter={feShort} domain={[0, 'dataMax']}/>
-                        <YAxis type="category" dataKey="name" tick={TICK} stroke={C.line} interval={0} width={112}/>
+                <ResponsiveContainer width="100%" height={waterfallData.length * 58 + 8}>
+                    <BarChart data={waterfallData} layout="vertical" margin={{top: 4, right: 8, bottom: 0, left: 8}} barCategoryGap={20}>
+                        <XAxis type="number" hide domain={[(m: number) => Math.min(0, m), 'dataMax']}/>
+                        <YAxis type="category" dataKey="name" hide/>
+                        <ReferenceLine x={0} stroke={C.muted}/>
                         <Tooltip {...TIP} cursor={{fill: C.line, opacity: 0.3}}
                                  content={({active, payload}) => {
                                      const step = active ? (payload?.[0]?.payload as (WaterfallStep & { name: string }) | undefined) : undefined
@@ -205,6 +205,12 @@ export function TreasuryCharts() {
                                      open: flowTarget(st.key) ? () => goFlow(st.key) : undefined})
                              }} style={{cursor: 'pointer'}}>
                             {waterfallData.map(s => <Cell key={s.key} fill={STEP_COLOR[s.kind]}/>)}
+                            <LabelList dataKey="name" content={(p) => {
+                                // Name + amount above the bar keeps the full width for the bars (no category axis).
+                                const {y, index} = p as unknown as {y: number; index: number}
+                                const d = waterfallData[index]
+                                return d ? <text x={8} y={y - 5} fill={C.ink} fontSize={12}>{d.name} · {fe(d.amount)}</text> : null
+                            }}/>
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>
@@ -231,7 +237,7 @@ export function TreasuryCharts() {
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={bars} margin={{top: 8, right: 8, bottom: 0, left: 0}}>
                             <XAxis dataKey="label" tick={TICK} stroke={C.line} interval="preserveStartEnd"/>
-                            <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40}/>
+                            <YAxis hide domain={[0, 'auto']}/>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))} cursor={{fill: C.line, opacity: 0.3}}/>
                             <Bar dataKey="penalty_total" fill={C.accent} radius={[4, 4, 0, 0]} {...chartAnimation()} style={{cursor: 'pointer'}}
                                  onClick={(d) => {
