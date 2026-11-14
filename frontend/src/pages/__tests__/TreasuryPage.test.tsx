@@ -908,7 +908,7 @@ describe('TreasuryPage — bookings edit', () => {
         vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        fireEvent.click(screen.getAllByLabelText('treasury.booking.edit')[0])
+        await clickMenuAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByLabelText(/treasury.booking.asExpense/))
         fireEvent.click(screen.getByText('submit-sheet'))
