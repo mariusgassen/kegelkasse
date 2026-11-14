@@ -23,6 +23,11 @@ vi.mock('@/api/client.ts', async (importOriginal) => {
     }
 })
 
+const throwTrackingMock = vi.fn(() => true)
+vi.mock('@/hooks/useClub.ts', () => ({
+    useThrowTracking: () => throwTrackingMock(),
+}))
+
 import EveningIsland, {elapsedLabel, UPLOAD_STATUS_EVENT} from '../evening/EveningIsland'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
@@ -49,6 +54,7 @@ function renderIsland(data?: Evening, eveningId: number | null = 7) {
 
 describe('EveningIsland', () => {
     beforeEach(() => {
+        throwTrackingMock.mockReturnValue(true)
         useNotificationStore.setState({notifications: []})
     })
 
@@ -63,6 +69,35 @@ describe('EveningIsland', () => {
         renderIsland(evening())
         await act(async () => {})
         expect(screen.getByRole('button', {name: /island\.label/})).toBeTruthy()
+    })
+
+    it('shows the active player when throw tracking is enabled and omits them when disabled', async () => {
+        const {fireEvent} = await import('@testing-library/react')
+        const data = evening({
+            players: [{
+                id: 1, name: 'Hans', nickname: 'Hansi', regular_member_id: null,
+                team_id: null, is_king: false,
+            }],
+            games: [{
+                id: 10, name: 'Tannenbaum', template_id: null, is_opener: false,
+                winner_type: 'individual', turn_mode: 'alternating', winner_ref: null,
+                winner_name: null, scores: {}, loser_penalty: 0, per_point_penalty: 0,
+                note: null, sort_order: 0, status: 'running', started_at: null,
+                finished_at: null, client_timestamp: 0, active_player_id: 1, throws: [],
+            }],
+        })
+        const {unmount} = renderIsland(data)
+        await act(async () => {})
+        fireEvent.keyDown(screen.getByRole('button', {name: /island\.label/}), {key: 'Enter'})
+        expect(screen.getAllByText(/Tannenbaum · Hansi/).length).toBeGreaterThan(0)
+        unmount()
+
+        throwTrackingMock.mockReturnValue(false)
+        renderIsland(data)
+        await act(async () => {})
+        fireEvent.keyDown(screen.getByRole('button', {name: /island\.label/}), {key: 'Enter'})
+        expect(screen.getAllByText('Tannenbaum').length).toBeGreaterThan(0)
+        expect(screen.queryByText(/Hansi/)).toBeNull()
     })
 
     it('shows no evening activity for a closed evening', async () => {

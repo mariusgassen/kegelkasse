@@ -694,72 +694,39 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         <div style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 60,
+            zIndex: 30,
             background: 'var(--canvas)',
             display: 'flex',
             flexDirection: 'column',
         }}>
+            {/* Safe-area spacer matching RootLayout so the 56px island row aligns 1:1 with <header> */}
+            <div className="safe-top flex-shrink-0" style={{background: 'var(--surface)'}}/>
+
             {/* ── Header — 2-Tier Island-Safe Sticky Zone ── */}
             <header
                 className="flex-shrink-0"
                 style={{
                     background: 'var(--surface)',
                     borderBottom: '1px solid var(--line)',
-                    paddingTop: 'max(env(safe-area-inset-top), 8px)',
                     paddingBottom: '8px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
-                {/* Tier 1: Symmetrical wings flanking the open center stage reserved for Dynamic Island */}
-                <div className="min-h-11 flex items-center justify-between gap-2">
-                    {/* Left wing: thumb-friendly Close button + subtle Quick Entry badge on desktop */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
-                            ✕
-                        </Button>
-                    </div>
-
-                    {/* Center stage: kept completely clear so the centered Dynamic Island never collides */}
-                    <div className="flex-1 min-w-[140px] pointer-events-none" aria-hidden="true"/>
-
-                    {/* Right wing: primary game action CTA */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        {activeGame?.status === 'open' && (
-                            <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
-                                ▶ {t('game.start')}
-                            </Button>
-                        )}
-                        {activeGame?.status === 'running' && (
-                            <Button
-                                type="button"
-                                variant={finishGameOpen ? 'primary' : 'secondary'}
-                                size="xs"
-                                onClick={() => setFinishGameOpen(f => !f)}
-                            >
-                                🏁 {t('quickEntry.finishGame')}
-                            </Button>
-                        )}
-                        {!activeGame && !showNewGame && (
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                size="xs"
-                                onClick={() => setShowNewGame(true)}
-                            >
-                                ＋ {t('quickEntry.newGame')}
-                            </Button>
-                        )}
-                    </div>
+                {/* Tier 1 (56px island bar): [✕] on the far left; center + right left clear for Dynamic Island */}
+                <div className="h-14 flex items-center justify-between gap-2">
+                    <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
+                        ✕
+                    </Button>
                 </div>
 
-                {/* Tier 2: Unified Game Cockpit & Mode Strip */}
+                {/* Tier 2: Unified Game Cockpit & Mode Strip (sits cleanly below the 56px island band) */}
                 {activeGame ? (
                     <div
-                        className="mt-1.5 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
+                        className="mt-1 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
                         style={{background: 'var(--surface-2)'}}
                     >
-                        {/* Game identity & mode row */}
+                        {/* Game identity, mode & primary CTA row */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                 <span className="text-xs font-extrabold text-accent truncate">
@@ -779,9 +746,23 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     </span>
                                 )}
                             </div>
-                            <span className="text-xs font-semibold text-muted">
-                                ⚡ {t('quickEntry.title')}
-                            </span>
+                            <div className="flex items-center flex-shrink-0">
+                                {activeGame.status === 'open' && (
+                                    <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
+                                        ▶ {t('game.start')}
+                                    </Button>
+                                )}
+                                {activeGame.status === 'running' && (
+                                    <Button
+                                        type="button"
+                                        variant={finishGameOpen ? 'primary' : 'secondary'}
+                                        size="xs"
+                                        onClick={() => setFinishGameOpen(f => !f)}
+                                    >
+                                        🏁 {t('quickEntry.finishGame')}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Teams required warning — every game needs teams set up on the evening first */}
@@ -1069,8 +1050,18 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         )}
                     </div>
                 ) : (
-                    <div className="mt-1 flex items-center justify-between gap-2">
+                    <div className="mt-1 flex items-center justify-between gap-2 pb-1">
                         <span className="font-bold text-accent-fg text-xs sm:text-sm">⚡ {t('quickEntry.title')}</span>
+                        {!showNewGame && (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="xs"
+                                onClick={() => setShowNewGame(true)}
+                            >
+                                ＋ {t('quickEntry.newGame')}
+                            </Button>
+                        )}
                     </div>
                 )}
 

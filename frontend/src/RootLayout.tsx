@@ -173,19 +173,10 @@ export function RootLayout() {
 
     return (
         <div className={`app-shell${navCollapsed ? ' nav-collapsed' : ''}`}>
-            {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
+            {/* Header region: safe-area spacer + header bar + sub-banners (grid-area: header) */}
             <div className="app-header">
                 {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
                 <div className="safe-top" style={{background: 'var(--canvas)'}}/>
-                <OfflineBanner/>
-                <InstallPrompt/>
-                <UpdatePrompt/>
-                <WhatsNewNotice/>
-                {/* Live-activity island mounted once at the app root (islandcn); sits at `zIndex: 70`
-                    centered on the 56px top bar both in normal pages and during Quick Entry. */}
-                <Suspense fallback={null}>
-                    <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
-                </Suspense>
 
                 {/* ── Header — symmetrical wings flanking the centered Dynamic Island ── */}
                 <header style={{
@@ -193,9 +184,18 @@ export function RootLayout() {
                     background: 'var(--canvas)',
                     borderBottom: '1px solid var(--line)',
                 }}>
+                    {/* Live-activity island mounted inside <header> (placement="container", zIndex: 40):
+                        sits above Quick Entry (zIndex: 30) and below Sheets (.bottom-sheet z-50).
+                        Service-worker updates and release notes also present here instead of top banners. */}
+                    <Suspense fallback={null}>
+                        <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}>
+                            <UpdatePrompt/>
+                            <WhatsNewNotice/>
+                        </EveningIsland>
+                    </Suspense>
                     <div className="flex items-center justify-between gap-2 px-3 h-14">
-                        {/* Left wing: club badge + search button (72px on mobile so the centered
-                            Dynamic Island has ~225px of clear stage and never collides with text). */}
+                        {/* Left wing: club badge + search button (72px on mobile/small tablets so the
+                            centered Dynamic Island has ~260px of clear stage and never collides). */}
                         <div className="flex items-center gap-2 min-w-0">
                             {/* 5 quick taps on the logo/title opens the hidden bowling game (Easter egg). */}
                             <div
@@ -212,11 +212,11 @@ export function RootLayout() {
                                         <AppLogoAnimated size={22}/>
                                     )}
                                 </div>
-                                <div className="sr-only sm:not-sr-only min-w-0">
-                                    <h1 className="font-display font-bold text-accent-fg text-sm leading-tight truncate max-w-[140px] md:max-w-[220px]">
+                                <div className="sr-only md:not-sr-only min-w-0">
+                                    <h1 className="font-display font-bold text-accent-fg text-sm leading-tight truncate max-w-[120px] xl:max-w-[220px]">
                                         {club?.name || t('app.name')}
                                     </h1>
-                                    <p className="hidden lg:block text-xs text-muted font-bold tracking-widest truncate">
+                                    <p className="hidden xl:block text-xs text-muted font-bold tracking-widest truncate">
                                         {t('app.subtitle')}
                                     </p>
                                 </div>
@@ -236,7 +236,7 @@ export function RootLayout() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                             {activeEveningId && (
                                 <button
-                                    className="hidden md:flex text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 items-center gap-1"
+                                    className="hidden xl:flex text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 items-center gap-1"
                                     style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)', border: '1px solid color-mix(in srgb, var(--accent) 60%, transparent)'}}
                                     onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
                                     <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
@@ -273,6 +273,9 @@ export function RootLayout() {
                         </div>
                     </div>
                 </header>
+
+                <OfflineBanner/>
+                <InstallPrompt/>
 
                 {/* ── Verein hub secondary section strip ──
                     Shown only while on a Verein-group page. Switches between Neuigkeiten /
