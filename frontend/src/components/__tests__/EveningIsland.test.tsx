@@ -16,6 +16,7 @@ vi.mock('@/api/client.ts', async (importOriginal) => {
         api: {
             ...actual.api,
             getEvening: vi.fn(),
+            getPaymentRequests: vi.fn(() => Promise.resolve([])),
             confirmPaymentRequest: vi.fn(() => Promise.resolve({})),
             rejectPaymentRequest: vi.fn(() => Promise.resolve({})),
             listScheduledEvenings: vi.fn(() => Promise.resolve([])),
@@ -49,7 +50,6 @@ import {api, type UploadStatusDetail} from '@/api/client.ts'
 import {router} from '@/router'
 import {useAppStore} from '@/store/app.ts'
 import {useIdleIslandStore} from '@/store/idleIsland.ts'
-import {useNotificationStore} from '@/store/notifications.ts'
 
 function localDatePlusDays(days: number, time = '19:30'): string {
     const d = new Date()
@@ -126,7 +126,6 @@ describe('EveningIsland', () => {
         throwTrackingMock.mockReturnValue(true)
         useAppStore.setState({user: null})
         useIdleIslandStore.getState().awaken()
-        useNotificationStore.setState({notifications: []})
     })
 
     afterEach(() => {
@@ -206,20 +205,34 @@ describe('EveningIsland', () => {
     })
 
     it('hides the idle island while a payment-request activity is on show', async () => {
-        useNotificationStore.setState({
-            notifications: [{
-                id: 'n1',
-                title: 'Zahlungsanfrage',
-                body: 'Max: 15 €',
-                url: '/#treasury:accounts?rid=42',
-                receivedAt: new Date().toISOString(),
-                read: false,
-            }],
-        })
-        renderIsland(undefined, null)
+        useAppStore.setState({user: {...mockUser, role: 'admin'}})
+        renderIsland(undefined, null, (qc) => qc.setQueryData(['payment-requests'], [{id: 42, regular_member_id: 3, member_name: 'Max', amount: 15, note: null, status: 'pending', created_at: null, resolved_at: null}]))
         await act(async () => {})
-        expect(screen.getByRole('button', {name: /Zahlungsanfrage: Max: 15 €/})).toBeTruthy()
+        expect(screen.getByRole('button', {name: /paymentRequest\.pendingTitle: Max/})).toBeTruthy()
         expect(screen.queryByRole('button', {name: /island\.idle/})).toBeNull()
+    })
+
+    it('drops an already visible idle island when a payment request arrives later', async () => {
+        useAppStore.setState({user: {...mockUser, role: 'admin'}})
+        let client!: QueryClient
+        renderIsland(undefined, null, (qc) => { client = qc })
+        await act(async () => {})
+        expect(screen.queryByRole('button', {name: /paymentRequest\.pendingTitle/})).toBeNull()
+        await act(async () => {
+            vi.mocked(api.getPaymentRequests).mockResolvedValue([{id: 42, regular_member_id: 3, member_name: 'Max', amount: 15, note: null, status: 'pending', created_at: null, resolved_at: null}])
+            await client.invalidateQueries({queryKey: ['payment-requests']})
+        })
+        expect(screen.getByRole('button', {name: /paymentRequest\.pendingTitle: Max/})).toBeTruthy()
+        expect(screen.queryByRole('button', {name: /island\.idle|island\.nextEvening|profile\.myBalance/})).toBeNull()
+    })
+
+    it('shows no payment-request activity for non-admins or when nothing is pending', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => qc.setQueryData(['payment-requests'], [
+            {id: 1, regular_member_id: 3, member_name: 'Max', amount: 15, note: null, status: 'confirmed', created_at: null, resolved_at: null},
+        ]))
+        await act(async () => {})
+        expect(screen.queryByRole('button', {name: /paymentRequest\.pendingTitle/})).toBeNull()
     })
 
     it('shows an upload activity while a media file is uploading', async () => {
@@ -232,20 +245,11 @@ describe('EveningIsland', () => {
         expect(screen.getByRole('button', {name: /island\.upload.*team\.jpg/})).toBeTruthy()
     })
 
-    it('shows a payment-request approval activity for unread payment request notifications', async () => {
-        useNotificationStore.setState({
-            notifications: [{
-                id: 'n1',
-                title: 'Zahlungsanfrage',
-                body: 'Max: 15 €',
-                url: '/#treasury:accounts?rid=42',
-                receivedAt: new Date().toISOString(),
-                read: false,
-            }],
-        })
-        renderIsland(undefined, null)
+    it('shows a payment-request approval activity for open payment requests (admin)', async () => {
+        useAppStore.setState({user: {...mockUser, role: 'admin'}})
+        renderIsland(undefined, null, (qc) => qc.setQueryData(['payment-requests'], [{id: 42, regular_member_id: 3, member_name: 'Max', amount: 15, note: null, status: 'pending', created_at: null, resolved_at: null}]))
         await act(async () => {})
-        expect(screen.getByRole('button', {name: /Zahlungsanfrage: Max: 15 €/})).toBeTruthy()
+        expect(screen.getByRole('button', {name: /paymentRequest\.pendingTitle: Max/})).toBeTruthy()
     })
 
     it('shows a quick-entry booking activity when announceQuickEntryEvent fires', async () => {
@@ -492,6 +496,29 @@ describe('EveningIsland', () => {
         expect(useIdleIslandStore.getState().dismissed).toBe(true)
         expect(useIdleIslandStore.getState().dismissedScheduleId).toBe(5)
         expect(screen.queryByRole('button', {name: /island\.nextEvening/})).toBeNull()
+    })
+
+    it('brings the idle island back when the empty island is swiped sideways', async () => {
+        useAppStore.setState({user: mockUser})
+        useIdleIslandStore.getState().dismiss(5)
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [scheduled()])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+            })
+        })
+        await act(async () => {})
+        expect(screen.queryByRole('button', {name: /island\.nextEvening/})).toBeNull()
+
+        const pill = document.querySelector('[data-islandcn-hit="pill"]') as HTMLElement
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, cancelable: true, button: 0, clientX: 120, clientY: 20}))
+            window.dispatchEvent(new MouseEvent('pointermove', {bubbles: true, clientX: 170, clientY: 22}))
+            window.dispatchEvent(new MouseEvent('pointerup', {bubbles: true, clientX: 170, clientY: 22}))
+        })
+
+        expect(useIdleIslandStore.getState().dismissed).toBe(false)
+        expect(screen.getByRole('button', {name: /island\.nextEvening/})).toBeTruthy()
     })
 })
 

@@ -21,7 +21,7 @@
  *      treasurer confirm/reject actions directly from the expanded island.
  *   8. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
  */
-import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
+import {type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {
     BowlingPinsIcon,
@@ -57,9 +57,8 @@ import {
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
-import {useAppStore} from '@/store/app.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useIdleIslandStore, useIslandBusyStore} from '@/store/idleIsland.ts'
-import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {Island, IslandProvider, useIsland, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
@@ -567,30 +566,29 @@ function OfflineSyncActivity() {
     return null
 }
 
-function getNotifRid(url: string): number | null {
-    try {
-        const hash = new URL(url, window.location.href).hash
-        const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
-        const rid = new URLSearchParams(q).get('rid')
-        return rid ? parseInt(rid, 10) : null
-    } catch {
-        return null
-    }
-}
-
 function PaymentRequestActivity() {
     const t = useT()
     const island = useIslandActions()
     const queryClient = useQueryClient()
-    const {notifications, dismiss} = useNotificationStore()
+    const user = useAppStore(s => s.user)
     const [busyId, setBusyId] = useState<number | null>(null)
 
-    const pendingNotif = notifications.find(n => !n.read && getNotifRid(n.url) !== null) ?? null
-    const rid = pendingNotif ? getNotifRid(pendingNotif.url) : null
+    // Driven by the open requests themselves (admins only), not by a notification.
+    const {data: requests} = useQuery({
+        queryKey: ['payment-requests'],
+        queryFn: api.getPaymentRequests,
+        enabled: !!user && isAdmin(user),
+        staleTime: 30_000,
+        refetchInterval: 60_000,
+    })
+    const pending = requests?.find(r => r.status === 'pending') ?? null
+    const rid = pending?.id ?? null
     const activityId = rid != null ? `payment-request-${rid}` : null
+    const title = pending ? `${t('paymentRequest.pendingTitle')}` : ''
+    const body = pending ? `${pending.member_name}: ${pending.amount.toLocaleString(user?.preferred_locale ?? 'de', {style: 'currency', currency: 'EUR'})}` : ''
 
     useEffect(() => {
-        if (!pendingNotif || rid == null || !activityId) return
+        if (!pending || rid == null || !activityId) return
         const accent = islandAccent.green
         const busy = busyId === rid
 
@@ -599,7 +597,6 @@ function PaymentRequestActivity() {
             try {
                 if (confirm) await api.confirmPaymentRequest(rid)
                 else await api.rejectPaymentRequest(rid)
-                dismiss(pendingNotif.id)
                 await queryClient.invalidateQueries({queryKey: ['payment-requests']})
                 await queryClient.invalidateQueries({queryKey: ['balances']})
             } catch (e) {
@@ -613,7 +610,7 @@ function PaymentRequestActivity() {
             id: activityId,
             group: 'payment-requests',
             priority: 1,
-            label: `${pendingNotif.title}: ${pendingNotif.body}`,
+            label: `${title}: ${body}`,
             onPress: () => { router.navigate({to: '/treasury', search: {tab: 'accounts'}}).catch(() => {}) },
             compact: {
                 leading: <Glyph icon={WalletGlyph} color={accent}/>,
@@ -632,7 +629,7 @@ function PaymentRequestActivity() {
                 ),
                 bottom: (
                     <ExpandedBottom reach="action" gap={12}>
-                        <TitleStack title={pendingNotif.title} subtitle={pendingNotif.body}/>
+                        <TitleStack title={title} subtitle={body}/>
                         <div style={{display: 'flex', gap: 10}}>
                             <IslandButton
                                 size="compact"
@@ -655,7 +652,7 @@ function PaymentRequestActivity() {
             },
         })
         return () => island.end(activityId)
-    }, [island, pendingNotif, rid, activityId, busyId, dismiss, queryClient, t])
+    }, [island, pending, rid, activityId, busyId, queryClient, title, body, t])
 
     return null
 }
@@ -1167,8 +1164,16 @@ function IdleAwakenWatcher() {
     const prevSigRef = useRef('')
     const setBusy = useIslandBusyStore(s => s.setBusy)
     const busy = otherSignature !== ''
+    const island = useIslandActions()
 
-    useEffect(() => {
+    // Layout effect: runs before paint after every change of the activity list, so the idle
+    // island can never be drawn next to / in front of a real activity — not even for one frame
+    // (e.g. when its own effect re-starts it before the busy flag has propagated).
+    useLayoutEffect(() => {
+        if (busy) island.end(IDLE_STATUS_ID)
+    }, [busy, activities, island])
+
+    useLayoutEffect(() => {
         setBusy(busy)
         return () => setBusy(false)
     }, [busy, setBusy])
@@ -1213,9 +1218,11 @@ export default function EveningIsland({
     backdrop?: string
     children?: ReactNode
 }) {
+    const awakenIdle = useIdleIslandStore(st => st.awaken)
     return (
         <IslandProvider metrics={HEADER_ISLAND_METRICS}>
             <Island
+                onIdleSwipe={awakenIdle}
                 placement="container"
                 label="Live"
                 backdrop={backdrop}
