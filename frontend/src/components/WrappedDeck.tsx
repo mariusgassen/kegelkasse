@@ -114,7 +114,7 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
 
             <div className="flex items-center justify-between px-4 pb-2">
                 <Caption>
-                    {t('wrapped.title')} {stats.year}
+                    <span aria-hidden="true">🎁</span> {t('wrapped.title')} {stats.year}
                 </Caption>
                 <button
                     onClick={onClose}
@@ -168,7 +168,7 @@ export function WrappedDeck({open, onClose, stats}: WrappedDeckProps) {
             </div>
 
             <div className="flex items-center justify-center gap-2 pb-6 text-sm text-muted">
-                {idx < cards.length - 1 ? t('wrapped.tapNext') : t('wrapped.tapDone')}
+                {idx < cards.length - 1 ? `${t('wrapped.tapNext')} →` : `${t('wrapped.tapDone')} ✓`}
             </div>
         </div>
     )

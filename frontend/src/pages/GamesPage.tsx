@@ -238,7 +238,7 @@ export function GamesPage() {
                 loser_penalty: parseAmount(finishPenalty) || finishTarget.loser_penalty,
             })
             if (finishTarget.is_opener && winnerRef.startsWith('p:')) {
-                celebrate('king', t('celebration.king'))
+                celebrate('king', `👑 ${t('celebration.king')}`)
             }
             invalidate()
             setFinishTarget(null)

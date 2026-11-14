@@ -74,7 +74,7 @@ export function EveningPage() {
                     <Empty icon="🎳" text={t('evening.noActiveHint')}/>
                     <Button variant="primary" block className="mt-2"
                             onClick={() => router.navigate({to: '/schedule'}).catch(() => {})}>
-                        {t('evening.goToSchedule')}
+                        <span aria-hidden="true">📅</span> <span>{t('evening.goToSchedule')}</span>
                     </Button>
                 </div>
             </div>
@@ -264,7 +264,7 @@ export function EveningPage() {
                                             toastError(e)
                                         }
                                     }}>
-                                {t('team.fromTemplateBadge')}
+                                <span aria-hidden="true">📋</span> <span>{t('team.fromTemplateBadge')}</span>
                             </Button>
                         )}
                         <Button variant="secondary" size="xs" aria-label={t('team.randomize')}
@@ -416,7 +416,7 @@ export function EveningPage() {
             {/* ── Highlights ── */}
             <div className="flex items-center justify-between mb-2 mt-4">
                 <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
-                    {t('highlight.title')} ({evening.highlights.length})
+                    ✨ {t('highlight.title')} ({evening.highlights.length})
                 </div>
             </div>
             {evening.highlights.length === 0
@@ -434,7 +434,7 @@ export function EveningPage() {
                                 </div>
                                 {!evening.is_closed && (
                                     <CardActionMenu
-                                        title={t('highlight.title')}
+                                        title={`✨ ${t('highlight.title')}`}
                                         label={t('highlight.delete')}
                                         actions={[{
                                             icon: '🗑️', label: t('action.delete'), danger: true,
@@ -848,7 +848,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                                                     : 'bg-surface-2 text-muted border-line',
                                             ].join(' ')}
                                         >
-                                            {isAbgesagt ? t('rsvp.absent.active') : t('rsvp.absent.short')}
+                                            {isAbgesagt ? <><span aria-hidden="true">✓</span> <span>{t('rsvp.absent.active')}</span></> : t('rsvp.absent.short')}
                                         </button>
                                     )}
                                 </div>
@@ -927,7 +927,7 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
                         {t('action.cancel')}
                     </Button>
                     <Button variant="primary" className="flex-1" onClick={handleDone} disabled={saving}>
-                        {saving ? t('action.loading') : t('evening.startButton')}
+                        {saving ? t('action.loading') : <><span aria-hidden="true">🍺</span> <span>{t('evening.startButton')}</span></>}
                     </Button>
                 </div>
             </div>

@@ -211,7 +211,7 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
         setSaving(true)
         try {
             if (split) {
-                if (await saveSplit()) { showToast(t('stickers.savedMany').replace('{n}', String(photos.length))); onSaved() }
+                if (await saveSplit()) { showToast(`✓ ${t('stickers.savedMany').replace('{n}', String(photos.length))}`); onSaved() }
                 return
             }
             if (!pos) return
@@ -221,7 +221,7 @@ function StickerForm({sticker, mapStyle, onClose, onSaved}: {
             }
             if (sticker) await api.updateSticker(sticker.id, body)
             else await api.createSticker(body)
-            showToast(t('stickers.saved'))
+            showToast(`✓ ${t('stickers.saved')}`)
             onSaved()
         } catch (e) {
             toastError(e)

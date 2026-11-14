@@ -441,7 +441,7 @@ describe('ProtocolPage — penalty sheet', () => {
         fireEvent.click(screen.getByText(/\+ Strafe/))
         await waitFor(() => screen.getByTestId('sheet'))
         // penalty.confirm button should be disabled (playerIds=[])
-        const confirmBtn = screen.getByText('penalty.confirm')
+        const confirmBtn = screen.getByText('penalty.confirm').closest('button')
         expect(confirmBtn).toBeDisabled()
     })
 
@@ -910,7 +910,7 @@ describe('ProtocolPage — custom penalty tab', () => {
         await waitFor(() => screen.getByPlaceholderText(/z\.B\. Zu spät/))
         // No player selected and no name → disabled
         const confirmBtns = screen.getAllByText('penalty.confirm')
-        expect(confirmBtns[confirmBtns.length - 1]).toBeDisabled()
+        expect(confirmBtns[confirmBtns.length - 1].closest('button')).toBeDisabled()
     })
 
     it('calls api.addPenalty when custom tab form submitted with player and name', async () => {

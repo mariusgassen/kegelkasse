@@ -407,7 +407,7 @@ describe('GamesPage — finish game sheet', () => {
         fireEvent.click(hansButtons[0])
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
-            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+            expect(celebrate).toHaveBeenCalledWith('king', '👑 celebration.king')
         })
     })
 })

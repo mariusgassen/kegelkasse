@@ -1,4 +1,4 @@
-interface TabItem<T extends string> { id: T; label: string }
+interface TabItem<T extends string> { id: T; label: string; icon?: string }
 
 interface TabsProps<T extends string> {
     items: readonly TabItem<T>[]
@@ -16,7 +16,7 @@ export function Tabs<T extends string>({items, value, onChange, className = 'mb-
                 <button key={tb.id} type="button"
                         className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${value === tb.id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
                         onClick={() => onChange(tb.id)}>
-                    {tb.label}
+                    {tb.icon && <><span aria-hidden="true">{tb.icon}</span>{' '}</>}<span>{tb.label}</span>
                 </button>
             ))}
         </div>

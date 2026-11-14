@@ -65,7 +65,7 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
         try {
             await api.createAnnouncement({title: title.trim(), text: text.trim() || undefined})
             await qc.invalidateQueries({queryKey: ['committee-announcements']})
-            showToast(t('ai.posted'))
+            showToast(`${t('ai.posted')} 📣`)
             setOpen(false)
         } catch (e) {
             toastError(e)

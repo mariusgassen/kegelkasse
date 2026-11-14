@@ -65,6 +65,7 @@ export function WhatsNewSheet({open, onClose, releases = ALL_RELEASES}: {
                             {r.sections.map(s => (
                                 <div key={s.type}>
                                     <p className="text-xs font-bold text-muted mb-1">
+                                        <span aria-hidden="true">{({breaking: '⚠️', feat: '✨', fix: '🛠️', perf: '⚡'} as Record<string, string>)[s.type]}</span>{' '}
                                         {t(`whatsNew.section.${s.type}` as 'whatsNew.section.feat')}
                                     </p>
                                     <ul className="flex flex-col gap-1 list-disc pl-5">

@@ -434,8 +434,8 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
         <Sheet open={open} onClose={onClose} title={t('profile.title')}
                header={
                    <Tabs value={tab} onChange={setTab} className="" items={[
-                       {id: 'season', label: t('profile.tab.season')},
-                       {id: 'settings', label: t('profile.tab.settings')},
+                       {id: 'season', label: t('profile.tab.season'), icon: '🎳'},
+                       {id: 'settings', label: t('profile.tab.settings'), icon: '⚙️'},
                    ]}/>
                }
                overlays={<>
@@ -451,7 +451,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {myBalance?.balance != null && (
                         <div className="kce-card p-4">
                             <Caption className="mb-3">
-                                {t('profile.myBalance')}
+                                <span aria-hidden="true">💳</span> <span>{t('profile.myBalance')}</span>
                             </Caption>
                             <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs text-muted">{t('profile.balance')}</span>
@@ -501,17 +501,17 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                                         qc.invalidateQueries({queryKey: ['my-balance']})
                                                         setReportingPayment(false)
                                                         setPaymentAmount('')
-                                                        showToast(t('profile.reportPayment'))
+                                                        showToast(`${t('profile.reportPayment')} ✓`)
                                                     } catch (e) { toastError(e) }
                                                 }}>
-                                                    {t('profile.reportPayment')}
+                                                    <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                                 </Button>
                                             </div>
                                         </div>
                                     )}
                                     {!reportingPayment && (
                                         <Button variant="secondary" block className="text-sm" onClick={() => setReportingPayment(true)}>
-                                            {t('profile.reportPayment')}
+                                            <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                         </Button>
                                     )}
                                 </div>
@@ -546,7 +546,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {myStats && (
                         <div className="kce-card p-4">
                             <Caption className="mb-3">
-                                {t('profile.myStats')} {year}
+                                📊 {t('profile.myStats')} {year}
                             </Caption>
                             <div className="grid grid-cols-2 gap-2">
                                 <StatTile bare tone="negative" value={fe(myStats.penalty_total)} label={t('profile.penalties')}/>
@@ -562,7 +562,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {throwTrackingEnabled(club?.settings) && myThrowStats && myThrowStats.throw_count > 0 && (
                         <div className="kce-card p-4">
                             <Caption className="mb-3">
-                                {t('profile.throwStats')} {year}
+                                🎳 {t('profile.throwStats')} {year}
                             </Caption>
                             <div className="grid grid-cols-3 gap-2 mb-3">
                                 <StatTile bare tone="default" value={myThrowStats.avg_pins ?? '—'} label={t('stats.avgPins')}/>
@@ -731,7 +731,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {/* Celebration effects */}
                     <div className="kce-card p-4 flex items-center justify-between">
                         <div>
-                            <Caption>{t('settings.effects.title')}</Caption>
+                            <Caption><span aria-hidden="true">🎉</span> <span>{t('settings.effects.title')}</span></Caption>
                             <div className="text-xs text-muted mt-0.5">{t('settings.effects.hint')}</div>
                         </div>
                         <div className="flex gap-1">
@@ -801,9 +801,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                     {telegramConfigured && (
                         <div className="kce-card p-4 flex items-center justify-between">
                             <div>
-                                <Caption as="span">{t('telegram.title')}</Caption>
+                                <Caption as="span"><span aria-hidden="true">📨</span> <span>{t('telegram.title')}</span></Caption>
                                 {telegramLinked ? (
-                                    <div className="text-xs text-positive-fg mt-0.5">{t('telegram.connected')}</div>
+                                    <div className="text-xs text-positive-fg mt-0.5"><span aria-hidden="true">✅</span> <span>{t('telegram.connected')}</span></div>
                                 ) : telegramConnecting ? (
                                     <div className="text-xs text-muted mt-0.5">{t('telegram.linkHint')}</div>
                                 ) : null}
@@ -964,7 +964,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         onClick={() => setWhatsNewOpen(true)}
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
                     >
-                        <span>{t('profile.whatsNew')}</span>
+                        <span>🆕 {t('profile.whatsNew')}</span>
                         {hasUnseen(ALL_RELEASES, lastSeenVersion) && (
                             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-tint-fg"
                                   data-testid="whats-new-badge">{t('whatsNew.new')}</span>
@@ -978,7 +978,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         }}
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
                     >
-                        <span>{t('profile.roadmap')}</span>
+                        <span><span aria-hidden="true">🗺️</span> <span>{t('profile.roadmap')}</span></span>
                         <span className="text-muted text-xs">›</span>
                     </button>
                     <button
@@ -989,7 +989,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         }}
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink active:opacity-70 transition-opacity w-full text-left"
                     >
-                        <span>{t('profile.book')}</span>
+                        <span><span aria-hidden="true">📘</span> <span>{t('profile.book')}</span></span>
                         <span className="text-muted text-xs">›</span>
                     </button>
                     <a
@@ -998,7 +998,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
                     >
-                        <span>{t('profile.docs')}</span>
+                        <span>📖 {t('profile.docs')}</span>
                         <span className="text-muted text-xs">↗</span>
                     </a>
                     <a
@@ -1007,7 +1007,7 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                         rel="noopener noreferrer"
                         className="kce-card p-3 flex items-center justify-between text-sm text-ink no-underline active:opacity-70 transition-opacity"
                     >
-                        <span>{t('profile.apiDocs')}</span>
+                        <span>⚙️ {t('profile.apiDocs')}</span>
                         <span className="text-muted text-xs">↗</span>
                     </a>
                     <button

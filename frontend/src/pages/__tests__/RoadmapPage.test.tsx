@@ -272,7 +272,7 @@ describe('RoadmapPage', () => {
                 category: 'feature',
                 tags: null,
             })
-            expect(showToast).toHaveBeenCalledWith('roadmap.propose.success')
+            expect(showToast).toHaveBeenCalledWith('✓ roadmap.propose.success')
         })
     })
 

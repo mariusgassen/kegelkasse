@@ -895,7 +895,7 @@ describe('TabletQuickEntryPage — finish game flow', () => {
         await waitFor(() => expect(screen.getByText(/game\.finish/)).not.toBeDisabled())
         fireEvent.click(screen.getByText(/game\.finish/))
         await waitFor(() => {
-            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+            expect(celebrate).toHaveBeenCalledWith('king', '👑 celebration.king')
         })
     })
 
@@ -1029,7 +1029,7 @@ describe('TabletQuickEntryPage — alle neune celebration', () => {
         rerender(<TabletQuickEntryPage eveningId={42} players={PLAYERS as any} onClose={vi.fn()} />)
 
         await waitFor(() => {
-            expect(celebrate).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+            expect(celebrate).toHaveBeenCalledWith('allnine', '🎯 celebration.allnine')
         })
     })
 

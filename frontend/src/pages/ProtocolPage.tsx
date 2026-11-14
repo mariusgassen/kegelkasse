@@ -686,10 +686,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
             <Sheet open={sheet} onClose={() => setSheet(false)} title={t('penalty.enter')}
                    onSubmit={tab === 'quick' ? submitQuick : submitCustom}>
                 <div className="flex gap-1 mb-3">
-                    {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
+                    {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
                         <button key={id} type="button"
                                 className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                onClick={() => setTab(id)}>{label}
+                                onClick={() => setTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                         </button>
                     ))}
                 </div>
@@ -745,7 +745,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
                         <Button type="submit" variant="primary" block
                                 disabled={saving || !selectedType || playerIds.length === 0}>
-                            {t('penalty.confirm')}
+                            <span aria-hidden="true">✓</span> <span>{t('penalty.confirm')}</span>
                         </Button>
                     </div>
                 ) : (
@@ -811,7 +811,7 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
 
                         <Button type="submit" variant="primary" block
                                 disabled={saving || !customName.trim() || customPlayerIds.length === 0}>
-                            {t('penalty.confirm')}
+                            <span aria-hidden="true">✓</span> <span>{t('penalty.confirm')}</span>
                         </Button>
                     </div>
                 )}
@@ -863,10 +863,10 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 <div className="flex flex-col gap-3">
                     {/* Quick / custom toggle */}
                     <div className="flex gap-1">
-                        {([['quick', t('penalty.quick')], ['custom', t('penalty.custom')]] as const).map(([id, label]) => (
+                        {([['quick', '⚡', t('penalty.quick')], ['custom', '✏️', t('penalty.custom')]] as const).map(([id, icon, label]) => (
                             <button key={id} type="button"
                                     className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${editTab === id ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}
-                                    onClick={() => setEditTab(id)}>{label}
+                                    onClick={() => setEditTab(id)}><span aria-hidden="true">{icon}</span> <span>{label}</span>
                             </button>
                         ))}
                     </div>

@@ -207,7 +207,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
 
             {/* Add sheet */}
             {addOpen && (
-                <Sheet open onClose={() => setAddOpen(false)} title={t('committee.announcement.new')}
+                <Sheet open onClose={() => setAddOpen(false)} title={`📣 ${t('committee.announcement.new')}`}
                        onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
                         <Field label={t('committee.announcement.title')}>
@@ -415,7 +415,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
 
             {/* Add sheet */}
             {addOpen && (
-                <Sheet open onClose={resetForm} title={t('committee.trip.new')} onSubmit={handleCreate}>
+                <Sheet open onClose={resetForm} icon="🚌" title={t('committee.trip.new')} onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
                         <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
                                         onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
@@ -428,7 +428,7 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
 
             {/* Edit sheet */}
             {editTrip && (
-                <Sheet open onClose={resetForm} title={t('committee.trip.edit')} onSubmit={handleUpdate}>
+                <Sheet open onClose={resetForm} icon="✏️" title={t('committee.trip.edit')} onSubmit={handleUpdate}>
                     <div className="flex flex-col gap-3">
                         <TripFormFields date={date} endDate={endDate} destination={destination} note={note}
                                         onDate={setDate} onEndDate={setEndDate} onDestination={setDestination} onNote={setNote}/>
@@ -814,7 +814,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
 
             {/* Create sheet */}
             {addOpen && (
-                <Sheet open onClose={resetForm} title={t('committee.poll.new')} onSubmit={handleCreate}>
+                <Sheet open onClose={resetForm} title={`🗳️ ${t('committee.poll.new')}`} onSubmit={handleCreate}>
                     <div className="flex flex-col gap-3">
                         <Field label={t('committee.poll.title')}>
                             <input
@@ -937,9 +937,9 @@ export function CommitteePage() {
     }, [hashVersion])
 
     const TABS = [
-        {id: 'announcements', label: t('committee.tab.announcements')},
-        {id: 'trips', label: t('committee.tab.trips')},
-        {id: 'polls', label: t('committee.tab.polls')},
+        {id: 'announcements', label: t('committee.tab.announcements'), icon: '📣'},
+        {id: 'trips', label: t('committee.tab.trips'), icon: '🚌'},
+        {id: 'polls', label: t('committee.tab.polls'), icon: '🗳️'},
     ]
 
     return (

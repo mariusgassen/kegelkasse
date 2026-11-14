@@ -403,7 +403,7 @@ export function TreasuryAnalysis() {
 
             {/* ── Saldo-Verlauf ── */}
             <div className="kce-card p-3 mb-3">
-                <div className="sec-heading mb-2">{t('treasury.history.heading')}</div>
+                <div className="sec-heading mb-2">📈 {t('treasury.history.heading')}</div>
                 <ModeToggle
                     options={[
                         {value: 'club', label: `🏛️ ${t('treasury.history.scopeClub')}`},
@@ -446,7 +446,7 @@ export function TreasuryAnalysis() {
 
             {/* ── Stichtag & Monatsstände ── */}
             <div className="kce-card p-3 mt-3" data-testid="statements-card">
-                <div className="sec-heading mb-2">{t('treasury.statements.heading')}</div>
+                <div className="sec-heading mb-2">🗓️ {t('treasury.statements.heading')}</div>
                 <label className="field-label" htmlFor="statements-asof">{t('treasury.statements.asOf')}</label>
                 <input id="statements-asof" type="date" className="kce-input mb-2" value={asOf}
                        onChange={e => setAsOf(e.target.value)}/>

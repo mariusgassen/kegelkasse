@@ -86,7 +86,7 @@ export function BookingReviewCard({initialStart, initialEnd}: { initialStart?: s
 
     return (
         <div data-testid="booking-review">
-        <ExpandableCard title={<span className="text-sm font-bold">{t('ai.review.title')}</span>} className="mb-3">
+        <ExpandableCard title={<span className="text-sm font-bold"><span aria-hidden="true">🔍</span> <span>{t('ai.review.title')}</span></span>} className="mb-3">
             <p className="text-xs text-muted mb-2">
                 {t('ai.review.hint')}{aiEnabled ? ` ${t('ai.review.hintAi')}` : ''}
             </p>
@@ -106,7 +106,7 @@ export function BookingReviewCard({initialStart, initialEnd}: { initialStart?: s
             </Button>
             {result && (
                 result.flags.length === 0
-                    ? <p className="text-sm text-muted">{t('ai.review.clean').replace('{n}', String(result.booking_count))}</p>
+                    ? <p className="text-sm text-muted"><span>{t('ai.review.clean').replace('{n}', String(result.booking_count))}</span> <span aria-hidden="true">👍</span></p>
                     : <div>
                         <p className="text-xs text-muted mb-1">
                             {t('ai.review.count')

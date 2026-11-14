@@ -189,7 +189,7 @@ export function RoadmapPage() {
                 tags: newTags.join(',') || null,
             })
             haptic('success')
-            showToast(t('roadmap.propose.success'))
+            showToast(`✓ ${t('roadmap.propose.success')}`)
             qc.setQueryData<RoadmapItem[]>(['roadmap'], old => old ? [created, ...old] : [created])
             setNewTitle('')
             setNewDesc('')

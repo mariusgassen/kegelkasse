@@ -212,7 +212,7 @@ describe('TreasuryPage — overview tab', () => {
         await setupWithData()
         await renderTreasuryPage()
         await waitFor(() => {
-            expect(screen.getByText('treasury.openLabel')).toBeInTheDocument()
+            expect(screen.getAllByText('treasury.openLabel')[0]).toBeInTheDocument()
             expect(screen.getByText('treasury.creditLabel')).toBeInTheDocument()
         })
     })

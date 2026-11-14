@@ -68,8 +68,9 @@ function Sparkline({points}: {points: number[]}) {
 }
 
 // ── Section card wrapper ──────────────────────────────────────────────────────
-function Section({title, action, onAction, children}: {
+function Section({title, icon, action, onAction, children}: {
     title: string
+    icon?: string
     action?: string
     onAction?: () => void
     children: React.ReactNode
@@ -77,7 +78,7 @@ function Section({title, action, onAction, children}: {
     return (
         <div className="kce-card p-3">
             <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-bold text-ink">{title}</h2>
+                <h2 className="text-sm font-bold text-ink">{icon && <><span aria-hidden="true">{icon}</span>{' '}</>}<span>{title}</span></h2>
                 {action && (
                     <button onClick={onAction}
                             className="text-sm font-bold text-accent-fg flex items-center gap-0.5 active:opacity-70">
@@ -130,7 +131,7 @@ function NextAppointment({se, locale, onChanged}: {
                         attending
                             ? 'bg-positive/20 text-positive-fg'
                             : 'bg-danger/20 text-danger-fg'].join(' ')}>
-                        {attending ? t('home.rsvp.attendingState') : t('home.rsvp.absentState')}
+                        {attending ? <><span aria-hidden="true">✅</span> <span>{t('home.rsvp.attendingState')}</span></> : <><span aria-hidden="true">❌</span> <span>{t('home.rsvp.absentState')}</span></>}
                     </span>
                     <button disabled={busy} onClick={() => setStatus(attending ? 'absent' : 'attending')}
                             className="text-xs font-bold py-1.5 px-3 rounded-full border border-line bg-surface-2 text-muted transition-all active:scale-95 select-none">
@@ -279,7 +280,7 @@ export function HomePage() {
             {/* Greeting */}
             <div className="pt-1">
                 <h1 className="font-display font-bold text-xl text-ink">
-                    {displayName ? t('home.greeting').replace('{name}', displayName) : t('home.greetingNoName')}
+                    <span>{displayName ? t('home.greeting').replace('{name}', displayName) : t('home.greetingNoName')}</span> <span aria-hidden="true">👋</span>
                 </h1>
                 <p className="text-xs text-muted mt-0.5">{t('home.subtitle')}</p>
             </div>
@@ -303,7 +304,7 @@ export function HomePage() {
             )}
 
             {/* Next appointment */}
-            <Section title={t('home.nextAppointment')} action={t('home.allDates')}
+            <Section icon="📅" title={t('home.nextAppointment')} action={t('home.allDates')}
                      onAction={() => router.navigate({to: '/schedule'}).catch(() => {})}>
                 {schedLoading ? (
                     <SkeletonCard lines={2}/>
@@ -316,7 +317,7 @@ export function HomePage() {
 
             {/* My account */}
             {rmid && (
-                <Section title={t('profile.myBalance')} action={t('home.toTreasury')}
+                <Section icon="💳" title={t('profile.myBalance')} action={t('home.toTreasury')}
                          onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
                     {myBalance?.balance != null ? (
                         <div className="flex items-center justify-between">
@@ -340,7 +341,7 @@ export function HomePage() {
 
             {/* Community news */}
             {news.length > 0 && (
-                <Section title={t('home.community')} action={t('home.allNews')}
+                <Section icon="📣" title={t('home.community')} action={t('home.allNews')}
                          onAction={() => router.navigate({to: '/committee', search: {tab: 'announcements'}}).catch(() => {})}>
                     <div className="divide-y divide-surface-2">
                         {news.map(item => <CommunityRow key={`${item.kind}-${item.id}`} item={item}/>)}
@@ -350,7 +351,7 @@ export function HomePage() {
 
             {/* Personal season metric */}
             {throwTracking && throwStats && throwStats.throw_count > 0 && throwStats.avg_pins != null && (
-                <Section title={t('home.mySeason')} action={t('home.toStats')}
+                <Section icon="🎳" title={t('home.mySeason')} action={t('home.toStats')}
                          onAction={() => router.navigate({to: '/stats', search: {tab: 'year'}}).catch(() => {})}>
                     <div className="flex items-center justify-between gap-3">
                         <div>
@@ -366,7 +367,7 @@ export function HomePage() {
 
             {/* Recent penalties, grouped by evening with the evening's total */}
             {rmid && penaltyEvenings.length > 0 && (
-                <Section title={t('home.recentPenalties')} action={t('home.toTreasury')}
+                <Section icon="🎯" title={t('home.recentPenalties')} action={t('home.toTreasury')}
                          onAction={() => router.navigate({to: '/treasury', search: {tab: 'accounts', member: rmid}}).catch(() => {})}>
                     <div className="divide-y divide-surface-2">
                         {penaltyEvenings.map(g => <PenaltyEveningGroup key={g.key} g={g} locale={locale}/>)}
