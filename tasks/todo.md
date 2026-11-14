@@ -1,25 +1,18 @@
-# Fix: scrolling on the map will cause the pull to refresh to be activated
+# Fix: Tap somewhere to cancel delete of recent penalty quick entry
 
 ## Problem
-In `RootLayout.tsx`, `usePullToRefresh` is attached to `<main>`. When a user navigates to the Sticker Wall map (`tab === 'map'`) or opens the sticker location picker map, the Leaflet map is placed inside a `.page-scroll` container.
-Because the scroller is at `scrollTop === 0`, touch gestures on the map (panning/scrolling the map downwards) bubble up to `<main>` and trigger `usePullToRefresh`, pulling the entire page down and activating a page refresh instead of panning the map.
+In `TabletQuickEntryPage.tsx`, tapping a recent penalty/drink entry once puts it into a delete-confirmation state (`confirmingKey === ev.key`, showing `🗑 ✕ löschen?`). Previously, cancelling that state relied solely on `onBlur` on the `<button>`. On touch devices (iOS/iPadOS Safari, Android) and when tapping non-focusable areas, `onBlur` never fires because tapping a button does not move focus or tapping a `<div>` does not blur it, leaving the entry stuck in the delete-confirmation state.
 
 ## Plan
-- [x] 1. Update `usePullToRefresh.ts`:
-  - Check `e.touches.length === 1` in `onTouchStart` and `onTouchMove` (ignore multi-touch/pinch).
-  - Check `target.closest('.leaflet-container, [data-no-ptr], [data-prevent-ptr]')` in `onTouchStart` and return early if matched.
-- [x] 2. Update `StickerMap.tsx` and `StickersPage.tsx`:
-  - Add `data-no-ptr` to the `StickerMap` container element and `MapBox` wrapper.
-  - In `index.css`, ensure `.leaflet-container` has `overscroll-behavior: contain`.
-- [x] 3. Tests:
-  - Add test in `usePullToRefresh.test.tsx` verifying drags on `.leaflet-container` or `[data-no-ptr]` do not activate pull-to-refresh.
-  - Add test in `usePullToRefresh.test.tsx` verifying multi-touch gestures are ignored.
-- [x] 4. Verification:
-  - Run `npm test` and `npm run build` in `frontend/`.
+- [x] 1. Update `TabletQuickEntryPage.tsx`:
+  - Mark recent event buttons with `data-recent-event={ev.key}`.
+  - Add a `useEffect` when `confirmingKey` is set that listens for `pointerdown` and `click` (capture phase) on `document` and clears `confirmingKey` when the event target is outside `[data-recent-event]`, plus `keydown` (`Escape`).
+  - Also clear `confirmingKey` when cancelling a pending (`id < 0`) item in `deleteRecentEvent`.
+- [x] 2. Add tests in `TabletQuickEntryPage.test.tsx`:
+  - Verify tapping/clicking outside (`pointerdown` and `click`) cancels the confirmation state without calling `api.deletePenalty`, and a subsequent click on the recent entry re-enters confirmation rather than deleting immediately.
+  - Verify pressing `Escape` cancels the confirmation state.
+- [x] 3. Update docs (`docs/docs/funktionen/strafen.md`, `README.md`, `CLAUDE.md`).
 
 ## Review
-- Modified `usePullToRefresh.ts` so touches originating inside maps (`.leaflet-container`) or elements opting out (`[data-no-ptr]`, `[data-prevent-ptr]`) are excluded from pull-to-refresh.
-- Multi-finger touches (pinch-to-zoom gestures) are ignored on touchstart and cancel any ongoing pull on touchmove.
-- Added `data-no-ptr` to `StickerMap` and `MapBox` container in `StickersPage`.
-- Added `overscroll-behavior: contain` to `.leaflet-container` in `index.css`.
-- Added unit tests in `usePullToRefresh.test.tsx` verifying map interactions, `data-no-ptr` elements, and multi-touch behavior.
+- Added capture-phase `pointerdown` and `click` listeners (plus `Escape` key handler) on `document` in `TabletQuickEntryPage.tsx` whenever `confirmingKey` is active, resetting `confirmingKey` to `null` on any tap/click outside `[data-recent-event]`.
+- Added unit tests in `TabletQuickEntryPage.test.tsx` covering outside tap (`pointerDown`), outside click (`click`), and `Escape` key cancellation.
