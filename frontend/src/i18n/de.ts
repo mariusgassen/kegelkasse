@@ -708,6 +708,7 @@ export const de = {
     "treasury.my.settled": "Alles bezahlt",
     "treasury.my.settledHint": "Deine Strafen sind vollständig beglichen.",
     "treasury.my.creditHint": "Wird mit deinen nächsten Strafen verrechnet.",
+    "treasury.my.history": "Buchungshistorie",
     "treasury.my.paidShare": "der Strafen bezahlt",
     "treasury.analysis.intro": "Auswertung der Kassenzahlen — Spieler-Auswahl, Geldfluss im Detail und Saldo-Verlauf. Wirkt nur hier, nicht auf der Übersicht.",
     "treasury.analysis.flowHeading": "Geldfluss",

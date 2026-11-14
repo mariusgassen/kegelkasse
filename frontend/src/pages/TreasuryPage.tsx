@@ -187,6 +187,7 @@ export function TreasuryPage() {
     const [accountSearch, setAccountSearch] = useState('')
     const [bookingSearch, setBookingSearch] = useState('')
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
+    const [showMyHistory, setShowMyHistory] = useState(false)
     const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
 
     // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet;
@@ -782,6 +783,20 @@ export function TreasuryPage() {
                                     </div>
                                 </>
                             )}
+                            <div className="mt-2 pt-2 border-t border-line" data-testid="my-history">
+                                <ExpandableCard bare
+                                                headerClassName="text-xs font-bold text-muted py-1"
+                                                title={t('treasury.my.history')}
+                                                open={showMyHistory}
+                                                onToggle={open => {
+                                                    setShowMyHistory(open)
+                                                    setExpandedMember(open ? myRegularMemberId ?? null : null)
+                                                }}>
+                                    <div className="pt-2">
+                                        {renderStatement(myRegularMemberId as number, myBalanceEntry.nickname || myBalanceEntry.name)}
+                                    </div>
+                                </ExpandableCard>
+                            </div>
                             {myDebtAmount > 0 && paypalHandle && (
                                 <div className="mt-2 pt-2 border-t border-line">
                                     {!hasPendingMyRequest ? (

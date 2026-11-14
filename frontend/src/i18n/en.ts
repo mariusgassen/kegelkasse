@@ -708,6 +708,7 @@ export const en = {
     "treasury.my.settled": "All paid",
     "treasury.my.settledHint": "Your penalties are fully settled.",
     "treasury.my.creditHint": "Will be offset against your next penalties.",
+    "treasury.my.history": "Booking history",
     "treasury.my.paidShare": "of penalties paid",
     "treasury.analysis.intro": "A closer look at the treasury figures — player selection, itemised money flow and the balance history. Applies here only, not to the overview.",
     "treasury.analysis.flowHeading": "Money flow",

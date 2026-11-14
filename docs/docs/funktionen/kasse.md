@@ -183,6 +183,8 @@ Der **Konten**-Tab zeigt den aktuellen Saldo jedes Mitglieds.
 
 Admins können hier Zahlungen erfassen — siehe [Admin → Mitgliedskonten & Zahlungen](/rollen/admin#mitgliedskonten--zahlungen).
 
+Auch in der Karte **👤 Mein Konto** der Übersicht lässt sich die eigene Buchungshistorie aufklappen, ohne in den Konten-Tab zu wechseln.
+
 ### Buchungshistorie eines Kontos
 
 Ein Antippen der Zeile klappt die **Buchungshistorie** des Kontos auf — alle Beträge, die das Konto bewegt haben, neueste zuerst:

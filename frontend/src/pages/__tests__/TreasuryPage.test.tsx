@@ -515,6 +515,21 @@ describe('TreasuryPage — my balance section', () => {
             expect(screen.getByText('profile.reportPayment')).toBeInTheDocument()
         })
     })
+
+    it('opens the own booking history with month separators from Mein Konto', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithData()
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 1, amount: 10, note: 'Einzahlung', created_at: '2026-02-05T10:00:00', updated_at: null, date: null },
+        ] as any)
+        vi.mocked(api.getMemberPenalties).mockResolvedValue([] as any)
+        await setupAsMember()
+        await renderTreasuryPage()
+        const header = await screen.findByText('treasury.my.history')
+        fireEvent.click(header)
+        expect(await screen.findByTestId('statement-month-sep')).toBeInTheDocument()
+        expect(screen.getByText('Einzahlung')).toBeInTheDocument()
+    })
 })
 
 describe('TreasuryPage — overview clarity sections', () => {
