@@ -37,6 +37,7 @@ Ganz oben steht dein eigenes Konto:
 - **Noch zu zahlen** (rot), **Guthaben** (grün) oder **✓ Alles bezahlt**
 - Daneben deine Gesamtsummen: **Strafen** und **Bezahlt**
 - Ein **Fortschrittsbalken** zeigt, welcher Anteil deiner Strafen bereits bezahlt ist
+- Eine kleine **Verlaufslinie** zeigt, wie sich dein Kontostand entwickelt hat (Einzahlungen nach oben, Strafen nach unten). Sie erscheint, sobald es ein paar Buchungen gibt
 - Bei offenem Betrag (und hinterlegtem PayPal-Handle): direkt **Jetzt zahlen** (PayPal) oder **Zahlung melden**
 
 ### Kassenstand mit Geldfluss
@@ -54,11 +55,13 @@ Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zus
 
 Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Offen".
 
+Unter den Zeilen fasst ein **Balken** das Ganze zusammen: wie viel vom eingezahlten Geld ausgegeben wurde (rot), wie viel noch in der Kasse liegt (grün) und was noch offen ist (blass rot). Antippen öffnet die Analyse.
+
 Die Zeilen nennen hier nur die Beträge. Wer wie viel eingezahlt hat und welche einzelnen Posten die Summen ergeben, steht im Reiter **🔬 Analyse**.
 
 ### Wer schuldet noch?
 
-Darunter folgen unter der Überschrift **Wer schuldet noch?** zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und den Fortschrittsbalken (bezahlter Anteil der Strafen) — so ist sofort greifbar, wie weit jedes Konto vom Ausgleich entfernt ist.
+Darunter folgen unter der Überschrift **Wer schuldet noch?** zwei Kennzahl-Karten (Summe offener Beträge / Summe Guthaben) und ein Balken, der die Mitglieder aufteilt: wie viele schulden, wie viele ausgeglichen sind und wie viele Guthaben haben. Darunter folgen die Listen der Mitglieder mit offenen Beträgen bzw. Guthaben. Jede Zeile zeigt **Strafen**, **Bezahlt** und einen Balken mit dem bezahlten (grün) und offenen (rot) Teil der Strafen. Alle Balken einer Liste nutzen denselben Maßstab: ein längerer Balken heißt mehr Strafen, so ist sofort greifbar, wer am meisten zur offenen Summe beiträgt.
 
 Mitglieder mit exakt ausgeglichenem Saldo (weder Schuld noch Guthaben) erscheinen nicht als eigene Zeile, sondern als **„+ N ausgeglichen"**-Zeile darunter. Antippen klappt eine Pille-Liste der betroffenen Mitglieder auf (eigenes Konto zuerst, **Ich**-Badge) — vorher war diese Zahl nicht aufklappbar und man musste in den **Konten**-Tab wechseln, um zu sehen, wer damit gemeint ist.
 
@@ -105,7 +108,7 @@ Der Reiter **Insights** zeigt die Kasse als Bilder. Jedes Diagramm lässt sich a
 
 **Zeitraum:** Die Chips oben (dieses Jahr, letztes Jahr, Alle) gelten für den Kassenverlauf und die Abende. Die übrigen Diagramme zeigen den aktuellen Stand.
 
-Die Diagramme nutzen Recharts und werden erst geladen, wenn der Reiter geöffnet wird.
+Die Diagramme nutzen Recharts und werden erst geladen, wenn der Reiter geöffnet wird. Diagramme und Balken bauen sich beim Öffnen kurz auf. Wer das nicht mag, schaltet es mit **🎉 Feier-Effekte** im Profil oder der Systemeinstellung „Bewegung reduzieren“ ab.
 
 ## Kassenbericht (Excel / PDF)
 
@@ -138,7 +141,7 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ## Stichtag & Monatsstände
 
-Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal projiziert inklusive offener Beträge). Darunter steht pro Kalendermonat (auch ruhige Monate ohne Buchungen) Anfang, Eingezahlt, Ausgaben und Ende. Jeder Monat ist aufklappbar, der neueste ist offen; angezeigt werden die letzten 6 Monate, ältere erscheinen über „Ältere Monate anzeigen“. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
+Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal projiziert inklusive offener Beträge). Darunter steht pro Kalendermonat (auch ruhige Monate ohne Buchungen) Anfang, Eingezahlt, Ausgaben und Ende. Jeder Monat ist aufklappbar, der neueste ist offen; angezeigt werden die letzten 6 Monate, ältere erscheinen über „Ältere Monate anzeigen“. Über der Liste zeigt ein **Diagramm** die letzten 12 Monate: Einzahlungen als grüne Säule nach oben, Ausgaben als rote Säule nach unten und den Stand am Monatsende als Linie. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
 
 Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Eingezahlt, Ausgaben und den Kassensaldo am Monatsende.
 
@@ -190,9 +193,9 @@ Auch in der Karte **👤 Mein Konto** der Übersicht lässt sich die eigene Buch
 Ein Antippen der Zeile klappt die **Buchungshistorie** des Kontos auf — alle Beträge, die das Konto bewegt haben, neueste zuerst:
 
 - **Einzahlungen und Auszahlungen** einzeln, mit Notiz und Datum (Admins können sie dort bearbeiten oder stornieren)
-- **Strafen pro Kegelabend** als eine Zeile mit der **Summe** der Strafen dieses Abends und deren Anzahl (🎳 Kegelabend · 4 Strafen) — nicht jede Strafe einzeln. Abende, an denen nur eine Abwesenheitsstrafe angefallen ist, erscheinen als 🚪 Abwesenheit.
+- **Strafen pro Kegelabend** als eine Zeile mit der **Summe** der Strafen dieses Abends und deren Anzahl (🎳 Kegelabend · 4 Strafen) — nicht jede Strafe einzeln. Abende, an denen nur eine Abwesenheitsstrafe angefallen ist, erscheinen als 🚪 Abwesenheit. Ein kleiner Balken neben der Summe zeigt, wie teuer der Abend im Vergleich zum teuersten Abend des Kontos war.
 
-Im Kassenbuch und in der Konten-Historie sind die Monate einklappbar: Nur der neueste Monat ist offen, ältere öffnest du per Tipp auf die Monatszeile (bei aktiver Suche sind alle offen). Wie im Kassenbuch trennt pro Monat eine Zeile die Einträge: eingezahlt, Strafen und der **Saldo am Monatsende** des Kontos.
+Im Kassenbuch und in der Konten-Historie sind die Monate einklappbar: Nur der neueste Monat ist offen, ältere öffnest du per Tipp auf die Monatszeile (bei aktiver Suche sind alle offen). Wie im Kassenbuch trennt pro Monat eine Zeile die Einträge: eingezahlt, Strafen und der **Saldo am Monatsende** des Kontos, darunter zwei dünne Balken (eingezahlt / Strafen) auf demselben Maßstab für alle Monate.
 
 Bei Gästen zählt pro Abend der gedeckelte Betrag, der tatsächlich im Saldo landet.
 
@@ -202,7 +205,7 @@ Hat ein Mitglied Guthaben (mehr eingezahlt als Strafen), zählt dieser Betrag zw
 
 ### Übersicht & Anteil pro Spieler
 
-Oben im Konten-Tab zeigen zwei Kacheln die Summen über alle Konten: **Offen gesamt** (Summe aller Schulden) und **Bezahlt gesamt** (Summe aller Einzahlungen); ist darin Guthaben enthalten, weist ein Hinweis darauf hin, dass dieser Anteil der Kasse geschuldet ist.
+Oben im Konten-Tab zeigen zwei Kacheln die Summen über alle Konten: **Offen gesamt** (Summe aller Schulden) und **Bezahlt gesamt** (Summe aller Einzahlungen); ist darin Guthaben enthalten, weist ein Hinweis darauf hin, dass dieser Anteil der Kasse geschuldet ist. Ein Balken darunter zeigt beide Summen im Verhältnis.
 
 Darunter lässt sich **📊 Anteil pro Spieler** aufklappen: ein Balkendiagramm zeigt für jedes Mitglied den bezahlten (grün) und offenen (rot) Anteil seiner Strafen, im Verhältnis zum Mitglied mit den höchsten Strafen — so ist auf einen Blick erkennbar, wer am meisten zur offenen Summe beiträgt.
 
@@ -220,6 +223,8 @@ Der **Kassenbuch**-Tab listet alle Buchungen chronologisch:
 - Vereinsausgaben und sonstige Einnahmen (z. B. Bahnmiete, Vereinsfahrt)
 
 Mit dem **Suchfeld** lassen sich Buchungen nach Name, Notiz oder Beschreibung filtern.
+
+Jede Monatszeile zeigt Einzahlungen, Auszahlungen und den Stand am Monatsende, dazu zwei dünne Balken (grün rein, rot raus) auf demselben Maßstab für alle Monate. So fallen besonders volle Monate sofort auf.
 
 Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein oder ein Mitglied), Richtung (Einnahme/Ausgabe bzw. Einzahlung/Auszahlung), Betrag, Notiz und ein Datum (zum Nachtragen vergangener Buchungen).
 

@@ -634,8 +634,7 @@ describe('TreasuryPage — overview clarity sections', () => {
         const { container } = await renderTreasuryPage()
         await waitFor(() => screen.getByText('Hansi'))
         // 5 of 10 € penalties paid → a 50%-wide bar
-        const bar = container.querySelector('div[style*="width: 50%"]')
-        expect(bar).not.toBeNull()
+        await waitFor(() => expect(container.querySelector('div[style*="width: 50%"]')).not.toBeNull())
     })
 })
 
@@ -2325,5 +2324,73 @@ describe('TreasuryPage — delete confirmation sheets', () => {
         })
         expect(api.deleteExpense).toHaveBeenCalledTimes(1)
         resolveDelete?.()
+    })
+})
+
+describe('TreasuryPage — bars next to the numbers', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(false)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: null, regularMembers: [] }))
+    })
+
+    async function onTab(tab: string) {
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useHashTab).mockReturnValue([tab, vi.fn()] as any)
+    }
+
+    it('shows the cash flow and member split under the overview numbers', async () => {
+        await onTab('overview')
+        await setupWithData()
+        await renderTreasuryPage()
+        expect(await screen.findByTestId('cash-flow-bar')).toBeInTheDocument()
+        expect(screen.getByRole('img', { name: 'treasury.bar.membersAria' })).toBeInTheDocument()
+        expect(screen.getAllByTestId('penalty-bar').length).toBeGreaterThan(0)
+    })
+
+    it('shows a paid-vs-open bar under the account totals', async () => {
+        await onTab('accounts')
+        await setupWithData()
+        await renderTreasuryPage()
+        expect(await screen.findByTestId('accounts-total-bar')).toBeInTheDocument()
+    })
+
+    it('shows in/out bars under each Kassenbuch month', async () => {
+        await onTab('bookings')
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getAllByTestId('booking-month-bars').length).toBeGreaterThan(0))
+    })
+
+    it('draws a small balance line in Mein Konto once there is history', async () => {
+        await onTab('overview')
+        await setupWithData()
+        await setupAsMember()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPayments).mockResolvedValue([
+            { id: 1, amount: 10, note: null, created_at: '2026-02-05T10:00:00', updated_at: null, date: null },
+        ] as any)
+        vi.mocked(api.getMemberPenalties).mockResolvedValue([
+            { id: 1, amount: 4, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 7, evening_date: '2026-01-05T20:00:00', is_absence: false, created_at: '2026-01-05T20:30:00' },
+        ] as any)
+        await renderTreasuryPage()
+        expect(await screen.findByTestId('my-balance-sparkline')).toBeInTheDocument()
+    })
+
+    it('scales evening rows in the account history to the biggest evening', async () => {
+        await onTab('accounts')
+        await setupAsAdmin()
+        await setupWithData()
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.getMemberPenalties).mockResolvedValue([
+            { id: 1, amount: 4, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 7, evening_date: '2026-01-05T20:00:00', is_absence: false, created_at: '2026-01-05T20:30:00' },
+            { id: 2, amount: 2, icon: '🍺', penalty_type_name: 'Pudel', evening_id: 8, evening_date: '2026-01-06T20:00:00', is_absence: false, created_at: '2026-01-06T20:30:00' },
+        ] as any)
+        const { container } = await renderTreasuryPage()
+        await waitFor(() => screen.getByText('Hansi'))
+        fireEvent.click(screen.getByText('Hansi'))
+        await waitFor(() => expect(screen.getAllByTestId('statement-evening-bar')).toHaveLength(2))
+        await waitFor(() => expect(container.querySelector('[data-testid="statement-evening-bar"] [style*="width: 50%"]')).not.toBeNull())
     })
 })

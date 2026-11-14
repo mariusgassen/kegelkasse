@@ -18,6 +18,7 @@ import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {TreasuryAudit} from '@/components/treasury/TreasuryAudit.tsx'
 import {SkeletonChart} from '@/components/ui/Skeleton.tsx'
 import {TreasuryAnalysis} from '@/components/treasury/TreasuryAnalysis.tsx'
+import {MyBalanceSparkline} from '@/components/treasury/MyBalanceSparkline.tsx'
 // Recharts is ~90 KB gz — only fetched when the Diagramme tab is opened.
 const TreasuryCharts = lazy(() => import('@/components/treasury/TreasuryCharts.tsx').then(m => ({default: m.TreasuryCharts})))
 import {toastError} from '@/utils/error.ts'
@@ -27,6 +28,8 @@ import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {cashPaidIn, paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
+import {cashFlowSegments, fill, maxAbs, penaltyScale, penaltySegments} from '@/lib/treasuryBars.ts'
+import {BarLegend, ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {buildAccountStatement, statementMonths} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
@@ -100,6 +103,22 @@ function TripPicker({trips, value, onChange}: {
                 ))}
             </select>
         </Field>
+    )
+}
+
+// Penalty bar for a list row: paid (green) and open (red) parts, on a scale shared by the
+// whole list so a longer bar means more penalties. Replaces the per-row 0–100 % PaidShareBar
+// where rows are compared against each other.
+function PenaltyBar({b, scale}: { b: Pick<Balance, 'balance' | 'penalty_total'>; scale: number }) {
+    const t = useT()
+    const [paid, open] = penaltySegments(b)
+    return (
+        <ProportionBar className="mt-1.5" height={6} total={scale} data-testid="penalty-bar"
+                       ariaLabel={fill(t('treasury.bar.penaltyAria'), {paid: fe(paid.value), open: fe(open.value)})}
+                       segments={[
+                           {key: 'paid', value: paid.value, color: 'var(--positive)'},
+                           {key: 'open', value: open.value, color: 'var(--danger)'},
+                       ]}/>
     )
 }
 
@@ -613,6 +632,7 @@ export function TreasuryPage() {
     const monthStatements = new Map(
         monthlyStatements(clubEventsFromBookings(allPayments as any[], expenses as any[]), [])
             .map(m => [monthKeyOf(new Date(m.start)), m]))
+    const bookingMonthScale = maxAbs([...monthStatements.values()].flatMap(m => [m.inflow, m.outflow]))
     // Month sections fold: only the newest month is open until the user opens others (a search shows all).
     const [monthToggles, setMonthToggles] = useState<Record<string, boolean>>({})
     const isMonthOpen = (scope: string, key: string, newest: boolean, forceOpen = false) =>
@@ -620,6 +640,15 @@ export function TreasuryPage() {
     const toggleMonth = (scope: string, key: string, open: boolean) =>
         setMonthToggles(prev => ({...prev, [`${scope}:${key}`]: !open}))
     const entryDate = (e: BookingEntry) => new Date(e.data.date ?? e.data.created_at ?? '')
+    // Two thin bars under a month header — in vs. out on one scale shared by every month,
+    // so a busy month is visibly longer than a quiet one.
+    const monthBars = (inflow: number, outflow: number, scale: number, testid: string) => scale > 0 && (
+        <span className="basis-full flex flex-col gap-0.5 mt-1" data-testid={testid}
+              role="img" aria-label={fill(t('treasury.bar.monthAria'), {in: fe(inflow), out: fe(Math.abs(outflow))})}>
+            <ProportionBar height={4} total={scale} ariaLabel="" segments={[{key: 'in', value: inflow, color: 'var(--positive)'}]}/>
+            <ProportionBar height={4} total={scale} ariaLabel="" segments={[{key: 'out', value: Math.abs(outflow), color: 'var(--danger)'}]}/>
+        </span>
+    )
     const monthSeparator = (entry: BookingEntry, idx: number) => {
         const d = entryDate(entry)
         const key = monthKeyOf(d)
@@ -628,7 +657,7 @@ export function TreasuryPage() {
         const open = isMonthOpen('book', key, key === monthKeyOf(entryDate(filteredBookings[0])), bq !== '')
         return (
             <button type="button" aria-expanded={open}
-                 className="w-full flex justify-between items-baseline gap-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 className="w-full flex flex-wrap justify-between items-baseline gap-x-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
                  data-testid="booking-month-sep"
                  onClick={() => toggleMonth('book', key, open)}>
                 <span>{open ? '▾' : '▸'} {d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
@@ -639,6 +668,7 @@ export function TreasuryPage() {
                         {' · '}{t('treasury.statements.closing')}: <span className="text-ink">{fe(m.closing)}</span>
                     </span>
                 )}
+                {m && monthBars(m.inflow, m.outflow, bookingMonthScale, 'booking-month-bars')}
             </button>
         )
     }
@@ -660,6 +690,8 @@ export function TreasuryPage() {
     ] as const
 
     // Statement (payments + penalties per evening) for an expanded account.
+    const statementMonthScale = maxAbs([...statementMonths(accountStatement).values()].flatMap(m => [m.paid, m.penalties]))
+    const eveningScale = maxAbs(accountStatement.flatMap(e => e.kind === 'evening' ? [e.total] : []))
     const statementMonthSeparator = (entry: (typeof accountStatement)[number], idx: number) => {
         const d = new Date(entry.date ?? '')
         const key = monthKeyOf(d)
@@ -668,7 +700,7 @@ export function TreasuryPage() {
         const open = isMonthOpen(`acct${expandedMember}`, key, key === monthKeyOf(new Date(accountStatement[0].date ?? '')))
         return (
             <button type="button" aria-expanded={open}
-                 className="w-full flex justify-between items-baseline gap-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 className="w-full flex flex-wrap justify-between items-baseline gap-x-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
                  data-testid="statement-month-sep"
                  onClick={() => toggleMonth(`acct${expandedMember}`, key, open)}>
                 <span>{open ? '▾' : '▸'} {d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
@@ -679,6 +711,7 @@ export function TreasuryPage() {
                         {' · '}{t('treasury.statement.monthClosing')}: <span className={m.closing >= 0 ? 'text-positive-fg' : 'text-danger-fg'}>{fe(m.closing)}</span>
                     </span>
                 )}
+                {m && monthBars(m.paid, m.penalties, statementMonthScale, 'statement-month-bars')}
             </button>
         )
     }
@@ -700,6 +733,9 @@ export function TreasuryPage() {
                         {entry.absenceOnly ? '🚪' : '🎳'} {entry.absenceOnly ? t('treasury.statement.absence') : t('treasury.statement.evening')}
                         {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
                     </span>
+                    <ProportionBar className="w-12 flex-shrink-0" height={6} total={eveningScale} data-testid="statement-evening-bar"
+                                   ariaLabel={fe(entry.total)}
+                                   segments={[{key: 'total', value: entry.total, color: 'var(--danger)'}]}/>
                     <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
                     {admin && <span className="w-[30px] flex-shrink-0" aria-hidden="true"/>}
                 </div>
@@ -795,6 +831,7 @@ export function TreasuryPage() {
                                     </div>
                                 </>
                             )}
+                            {myRegularMemberId != null && <MyBalanceSparkline memberId={myRegularMemberId}/>}
                             <div className="mt-2 pt-2 border-t border-line" data-testid="my-history">
                                 <ExpandableCard bare
                                                 headerClassName="text-xs font-bold text-muted py-1"
@@ -916,6 +953,27 @@ export function TreasuryPage() {
                                 </>
                             )}
                         </div>
+                        {/* The flow rows as one picture: of everything that came in, how much was spent and
+                            how much is still in the till — with what is still owed appended. */}
+                        {(() => {
+                            const [spent, cash, open] = cashFlowSegments(summary)
+                            return (
+                                <button type="button" className="block w-full text-left mt-3" onClick={() => setTab('analysis')}
+                                        aria-label={fill(t('treasury.bar.flowAria'), {spent: fe(spent.value), cash: fe(cash.value), open: fe(open.value)})}>
+                                    <ProportionBar data-testid="cash-flow-bar" height={10} ariaLabel=""
+                                                   segments={[
+                                                       {key: 'expenses', value: spent.value, color: 'var(--danger)'},
+                                                       {key: 'cash', value: cash.value, color: 'var(--positive)'},
+                                                       {key: 'outstanding', value: open.value, color: 'var(--danger-tint)'},
+                                                   ]}/>
+                                    <BarLegend items={[
+                                        {key: 'expenses', color: 'var(--danger)', label: t('treasury.bar.spent')},
+                                        {key: 'cash', color: 'var(--positive)', label: t('treasury.bar.cash')},
+                                        ...(open.value > 0 ? [{key: 'outstanding', color: 'var(--danger-tint)', label: t('treasury.bar.open')}] : []),
+                                    ]}/>
+                                </button>
+                            )
+                        })()}
                     </div>
 
                     {/* Wer schuldet noch? — the two tiles head one answer; the lists below spell it out. */}
@@ -934,6 +992,23 @@ export function TreasuryPage() {
                                 className="text-xs text-muted">{credits.length} {t('treasury.membersCount')}</span>
                         </div>
                     </div>
+                    {/* Head count behind the two tiles: how many owe, are square, or hold credit. */}
+                    {balances.length > 0 && (
+                        <div className="mb-4 -mt-2" data-testid="member-split">
+                            <ProportionBar height={8} data-testid="member-split-bar"
+                                           ariaLabel={fill(t('treasury.bar.membersAria'), {owe: debtors.length, settled: exactlySettled.length, credit: credits.length})}
+                                           segments={[
+                                               {key: 'owe', value: debtors.length, color: 'var(--danger)'},
+                                               {key: 'settled', value: exactlySettled.length, color: 'var(--line)'},
+                                               {key: 'credit', value: credits.length, color: 'var(--positive)'},
+                                           ]}/>
+                            <BarLegend items={[
+                                {key: 'owe', color: 'var(--danger)', label: t('treasury.bar.owe'), value: String(debtors.length)},
+                                {key: 'settled', color: 'var(--line)', label: t('treasury.bar.settled'), value: String(exactlySettled.length)},
+                                {key: 'credit', color: 'var(--positive)', label: t('treasury.bar.credit'), value: String(credits.length)},
+                            ]}/>
+                        </div>
+                    )}
 
                     {balancesLoading && balances.length === 0
                         ? <SkeletonRows rows={3}/>
@@ -983,7 +1058,7 @@ export function TreasuryPage() {
                                                 <div className="text-xs text-muted">
                                                     {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
                                                 </div>
-                                                <PaidShareBar b={b}/>
+                                                <PenaltyBar b={b} scale={penaltyScale(debtors)}/>
                                             </div>
                                             <span
                                                 className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
@@ -1064,7 +1139,7 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">
                                                 {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
                                             </div>
-                                            <PaidShareBar b={b}/>
+                                            <PenaltyBar b={b} scale={penaltyScale(guestDebtors)}/>
                                         </div>
                                         <span className="font-bold text-danger-fg text-sm flex-shrink-0">{fe(b.balance)}</span>
                                         {admin && (
@@ -1148,6 +1223,13 @@ export function TreasuryPage() {
                                     : <span className="text-xs text-muted">{credits.length} {t('treasury.membersCount')}</span>
                                 }
                             </div>
+                            {/* Both totals as one bar: how much of everything owed has been paid. */}
+                            <ProportionBar className="col-span-2" data-testid="accounts-total-bar" height={10}
+                                           ariaLabel={fill(t('treasury.bar.penaltyAria'), {paid: fe(totalPaidMembers), open: fe(totalOutstanding)})}
+                                           segments={[
+                                               {key: 'paid', value: totalPaidMembers, color: 'var(--positive)'},
+                                               {key: 'open', value: totalOutstanding, color: 'var(--danger)'},
+                                           ]}/>
                         </div>
                     )}
 
@@ -1238,7 +1320,7 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">
                                                 {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
                                             </div>
-                                            <PaidShareBar b={b}/>
+                                            <PenaltyBar b={b} scale={penaltyScale(balances)}/>
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             {hasDebt && (
@@ -1367,7 +1449,7 @@ export function TreasuryPage() {
                                                     <div className="text-xs text-muted">
                                                         {t('treasury.penaltiesLabel')}: {fe(b.penalty_total)} · {t('treasury.paidLabel')}: {fe(b.payments_total)}
                                                     </div>
-                                                    <PaidShareBar b={b}/>
+                                                    <PenaltyBar b={b} scale={penaltyScale(guestBalances as Balance[])}/>
                                                 </div>
                                                 <div className="text-right flex-shrink-0">
                                                     {hasDebt

@@ -53,3 +53,19 @@ export function flourishEnabled(): boolean {
     if (prefersReducedMotion()) return false
     return useEffectsStore.getState().effectsEnabled
 }
+
+/**
+ * Animation props for a Recharts series (bar, line, area, pie, treemap).
+ *
+ * A chart drawing itself in (bars growing from the axis, a line tracing left to right) is a
+ * flourish, not structure: the data is readable without it. So it sits behind the same gate as the
+ * count-ups — off under `prefers-reduced-motion` and when the member switched the 🎉 effects off.
+ * Recharts only knows CSS keyword easings, so `ease-out` stands in for `EASING.standard`.
+ */
+export function chartAnimation(role: MotionDuration = 'slow'): {
+    isAnimationActive: boolean
+    animationDuration: number
+    animationEasing: 'ease-out'
+} {
+    return {isAnimationActive: flourishEnabled(), animationDuration: DURATION[role], animationEasing: 'ease-out'}
+}

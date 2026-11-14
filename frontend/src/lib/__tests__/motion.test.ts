@@ -1,7 +1,7 @@
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
-import {DURATION, EASING, prefersReducedMotion, flourishEnabled} from '@/lib/motion'
+import {DURATION, EASING, prefersReducedMotion, flourishEnabled, chartAnimation} from '@/lib/motion'
 import {useEffectsStore} from '@/store/effects'
 
 function stubMatchMedia(reduced: boolean) {
@@ -77,5 +77,29 @@ describe('flourishEnabled', () => {
     it('is off when the member turned the effects switch off', () => {
         useEffectsStore.setState({effectsEnabled: false})
         expect(flourishEnabled()).toBe(false)
+    })
+})
+
+describe('chartAnimation', () => {
+    beforeEach(() => {
+        useEffectsStore.setState({effectsEnabled: true})
+        stubMatchMedia(false)
+    })
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        useEffectsStore.setState({effectsEnabled: true})
+    })
+
+    it('animates with a token duration when flourishes are allowed', () => {
+        expect(chartAnimation()).toEqual({isAnimationActive: true, animationDuration: DURATION.slow, animationEasing: 'ease-out'})
+        expect(chartAnimation('base').animationDuration).toBe(DURATION.base)
+    })
+
+    it('holds still under reduced motion or with effects off', () => {
+        stubMatchMedia(true)
+        expect(chartAnimation().isAnimationActive).toBe(false)
+        stubMatchMedia(false)
+        useEffectsStore.setState({effectsEnabled: false})
+        expect(chartAnimation().isAnimationActive).toBe(false)
     })
 })
