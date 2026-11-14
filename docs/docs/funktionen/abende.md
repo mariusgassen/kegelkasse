@@ -55,7 +55,7 @@ Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der S
 - **Schnellerfassungs-Ereignisse**: beim Buchen von Strafen und Getränkerunden, beim Stornieren sowie beim Starten/Beenden eines Spiels zeigt die Insel sofort eine kurze Live-Quittung (z. B. Strafe, Spieler und Betrag).
 - **König & Alle Neune**: kurze Feier-Einblendung direkt in der Insel.
 - **Foto-Uploads & Offline-Warteschlange**: zeigt laufende Datei-Uploads sowie ausstehende Offline-Buchungen (mit **Jetzt synchronisieren**-Knopf, sobald wieder Verbindung besteht).
-- **Zahlungsanfragen**: Kassenwarte können eingehende Zahlungsanfragen direkt in der aufgeklappten Insel bestätigen oder ablehnen.
+- **Zahlungsanfragen**: Kassenwarte sehen offene Zahlungsanfragen (nicht die Benachrichtigung, sondern die tatsächlich noch ausstehende Bestätigung) direkt in der aufgeklappten Insel und können sie bestätigen oder ablehnen.
 - **Zweistufige Kopfzeile der Schnellerfassung**: Zeile 1 hält die Mitte für die Live-Insel frei (links **✕** Schließen + Modus-Badge, rechts die primäre Spiel-Aktion **🏁 Spiel beenden** bzw. **▶ Spiel starten**); Zeile 2 bündelt das **Spiel- & Wurf-Cockpit** (aktuelles Spiel, Zug-Reihenfolge mit Team-Farben, Wurf-Steuerung, Live-Würfe mit Kegelbild-Heatmap sowie das Aufklapp-Panel zum Spiel-Starten/Beenden).
 - **Smartphone-Layout der Schnellerfassung**: auf dem Smartphone (`< lg`) zeigt die Schnellerfassung einen Umschalter **⚡ Buchen** / **📊 Stand**; unter **Buchen** sitzt oben das zweispaltige Spieler-Raster (direkt erreichbar, bevor eine Strafe getippt wird) und darunter die zweispaltigen Getränke- und Strafen-Buttons.
 
