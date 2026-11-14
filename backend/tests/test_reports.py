@@ -289,6 +289,22 @@ class TestReportDataCapsAndActive:
         assert body["summary"]["total_payments"] == 100.0
         assert any(b["type"] == "Abschreibung" for b in body["bookings"])
 
+    def test_booking_date_wins_over_created_at(self, client, admin_headers, db, club):
+        from datetime import date
+        from models.payment import MemberPayment
+        m = RegularMember(club_id=club.id, name="Datum", is_active=True)
+        db.add(m)
+        db.flush()
+        db.add(MemberPayment(club_id=club.id, regular_member_id=m.id, amount=10.0, date=date(2020, 3, 5)))
+        db.commit()
+        body = client.get("/api/v1/reports/data?year=2020", headers=admin_headers).json()
+        assert body["summary"]["total_payments"] == 10.0
+        assert body["bookings"][0]["date"] == "05.03.2020"
+        acc = next(a for a in body["accounts"] if a["name"] == "Datum")
+        assert acc["months"][0]["payments"] == 10.0
+        other = client.get("/api/v1/reports/data?year=2019", headers=admin_headers).json()
+        assert other["summary"]["total_payments"] == 0
+
     def test_account_month_balances_are_running_and_in_excel(self, client, admin_headers, db, club):
         import io
         from openpyxl import load_workbook
