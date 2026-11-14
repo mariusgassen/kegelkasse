@@ -165,6 +165,12 @@ async function setupAsMember() {
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
+async function clickMenuAction(label: string, index = 0) {
+    fireEvent.click(screen.getAllByLabelText('action.more')[index])
+    await waitFor(() => screen.getByText(label))
+    fireEvent.click(screen.getByText(label))
+}
+
 describe('TreasuryPage — overview tab', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
@@ -792,8 +798,8 @@ describe('TreasuryPage — bookings delete', () => {
             // Expense 'Getränke' should be shown — use regex since div also has badge span
             expect(screen.getByText(/Getränke/)).toBeInTheDocument()
         })
-        // Delete buttons should be present for admin
-        expect(screen.getAllByText('✕').length).toBeGreaterThan(0)
+        // Row actions live in the ⋮ menu for admin
+        expect(screen.getAllByLabelText('action.more').length).toBeGreaterThan(0)
     })
 
     it('calls api.deleteExpense when expense ✕ clicked and confirmed', async () => {
@@ -801,10 +807,9 @@ describe('TreasuryPage — bookings delete', () => {
         vi.mocked(api.deleteExpense).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const deleteBtns = screen.getAllByText('✕')
-        // Merged order: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
+                // Merged order: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
         // So expense is at index 1
-        fireEvent.click(deleteBtns[1])
+        await clickMenuAction('action.delete', 1)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
@@ -817,8 +822,7 @@ describe('TreasuryPage — bookings delete', () => {
         vi.mocked(api.deleteExpense).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[1])
+                await clickMenuAction('action.delete', 1)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.change(screen.getByPlaceholderText('treasury.expense.deleteReasonPlaceholder'), {
             target: {value: 'Doppelt erfasst'},
@@ -843,14 +847,14 @@ describe('TreasuryPage — bookings edit', () => {
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
         // Merged order: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
-        expect(screen.getAllByLabelText('treasury.booking.edit').length).toBe(3)
+        expect(screen.getAllByLabelText('action.more').length).toBe(3)
     })
 
     it('non-admin does not see edit buttons', async () => {
         await setupAsMember()
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        expect(screen.queryByLabelText('treasury.booking.edit')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('action.more')).not.toBeInTheDocument()
     })
 
     it('opens prefilled edit sheet for an expense and calls api.updateExpense on submit', async () => {
@@ -858,8 +862,7 @@ describe('TreasuryPage — bookings edit', () => {
         vi.mocked(api.updateExpense).mockResolvedValueOnce({ id: 1 } as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const editBtns = screen.getAllByLabelText('treasury.booking.edit')
-        fireEvent.click(editBtns[1]) // expense row
+        await clickMenuAction('action.edit', 1) // expense row
         await waitFor(() => screen.getByTestId('sheet'))
         // Prefilled with current values
         expect(screen.getByDisplayValue('20.00')).toBeInTheDocument()
@@ -879,8 +882,7 @@ describe('TreasuryPage — bookings edit', () => {
         vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const editBtns = screen.getAllByLabelText('treasury.booking.edit')
-        fireEvent.click(editBtns[0]) // newest payment row (id 10, +15.00)
+        await clickMenuAction('action.edit', 0) // newest payment row (id 10, +15.00)
         await waitFor(() => screen.getByTestId('sheet'))
         expect(screen.getByDisplayValue('15.00')).toBeInTheDocument()
         fireEvent.change(screen.getByDisplayValue('15.00'), { target: { value: '10,00' } })
@@ -896,7 +898,7 @@ describe('TreasuryPage — bookings edit', () => {
         vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        fireEvent.click(screen.getAllByLabelText('treasury.booking.edit')[0])
+        await clickMenuAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         // Flip direction to withdrawal via the mocked ModeToggle option button
         fireEvent.click(screen.getByText('⬇ treasury.payment.withdrawal'))
@@ -2050,8 +2052,7 @@ describe('TreasuryPage — deletePayment error', () => {
         await waitFor(() => screen.getByText('Admin'))
         fireEvent.click(screen.getByText('Admin'))
         await waitFor(() => screen.getByText('Test Payment'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+                await clickMenuAction('action.delete', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
@@ -2154,10 +2155,9 @@ describe('TreasuryPage — delete payment in bookings tab', () => {
         vi.mocked(api.deleteMemberPayment).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('Einzahlung'))
-        const deleteBtns = screen.getAllByText('✕')
-        // Sorted by date desc: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
+                // Sorted by date desc: payment(2026-01-12), expense(2026-01-10), payment(2026-01-05)
         // deleteBtns[0] is payment id=10
-        fireEvent.click(deleteBtns[0])
+        await clickMenuAction('action.delete', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('action.delete'))
         await waitFor(() => {
@@ -2170,8 +2170,7 @@ describe('TreasuryPage — delete payment in bookings tab', () => {
         vi.mocked(api.deleteMemberPayment).mockResolvedValueOnce(undefined as any)
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('Einzahlung'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0])
+                await clickMenuAction('action.delete', 0)
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.change(screen.getByPlaceholderText('treasury.payment.deleteReasonPlaceholder'), {
             target: {value: 'Tippfehler'},
@@ -2236,8 +2235,7 @@ describe('TreasuryPage — delete confirmation sheets', () => {
         const { api } = await import('@/api/client.ts')
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[1]) // expense entry
+                await clickMenuAction('action.delete', 1)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -2248,8 +2246,7 @@ describe('TreasuryPage — delete confirmation sheets', () => {
         const { api } = await import('@/api/client.ts')
         await renderTreasuryPage()
         await waitFor(() => screen.getByText('Einzahlung'))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[0]) // payment entry
+                await clickMenuAction('action.delete', 0)
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -2264,8 +2261,7 @@ describe('TreasuryPage — delete confirmation sheets', () => {
         )
         await renderTreasuryPage()
         await waitFor(() => screen.getByText(/Getränke/))
-        const deleteBtns = screen.getAllByText('✕')
-        fireEvent.click(deleteBtns[1])
+                await clickMenuAction('action.delete', 1)
         await waitFor(() => screen.getByTestId('sheet'))
         const confirmBtn = screen.getByText('action.delete') as HTMLButtonElement
         fireEvent.click(confirmBtn)
