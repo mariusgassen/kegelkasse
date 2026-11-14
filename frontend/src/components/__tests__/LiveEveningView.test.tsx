@@ -62,7 +62,8 @@ describe('LiveEveningView', () => {
             games: [runningGame(1, [{id: 1, throw_num: 1, pins: 9, cumulative: 9, pin_states: [], player_id: 1}])],
         })
         renderView(ev)
-        expect(screen.getByText('9')).toBeInTheDocument()
+        // 9 shows twice: as the last throw and as Rudi's standing.
+        expect(screen.getAllByText('9')).toHaveLength(2)
         expect(screen.getByText('live.lastThrow')).toBeInTheDocument()
     })
 
@@ -178,5 +179,47 @@ describe('LiveEveningView', () => {
         expect(screen.queryByText('live.onTurn')).not.toBeInTheDocument()
         expect(screen.queryByText('Der Rudi')).not.toBeInTheDocument()
         expect(screen.queryByText(/live\.next/)).not.toBeInTheDocument()
+    })
+})
+
+describe('LiveEveningView — visuals', () => {
+    const pen = (id: number, player_id: number, amount: number, ts: number) => ({
+        id, player_id, team_id: null, player_name: 'x', penalty_type_name: 'Pudel', icon: '🎳', amount,
+        mode: 'euro' as const, unit_amount: null, regular_member_id: null, game_id: null, client_timestamp: ts,
+    })
+    const players = [
+        {id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false},
+        {id: 2, name: 'Toni', nickname: null, regular_member_id: null, team_id: null, is_king: false},
+    ]
+
+    it('ranks players by tonight\'s fines on a shared bar scale', () => {
+        renderView(evening({players, penalty_log: [pen(1, 1, 1, 1000), pen(2, 2, 3, 2000)]}))
+        const rows = screen.getAllByTestId(/^live-rank-\d+$/)
+        expect(rows.map(r => r.dataset.testid)).toEqual(['live-rank-2', 'live-rank-1'])
+        expect(screen.getByTestId('live-rank-bar-2')).toBeInTheDocument()
+    })
+
+    it('hides the ranking when nobody has a fine', () => {
+        renderView(evening({players}))
+        expect(screen.queryByTestId('live-ranking')).not.toBeInTheDocument()
+    })
+
+    it('draws the penalty curve once there are a few bookings', () => {
+        renderView(evening({players, penalty_log: [pen(1, 1, 1, 1000), pen(2, 2, 3, 2000), pen(3, 1, 1, 3000)]}))
+        expect(screen.getByTestId('live-curve')).toBeInTheDocument()
+    })
+
+    it('shows the running game standings, hidden without throw tracking', () => {
+        const ev = evening({players, games: [runningGame(1, [
+            {id: 1, throw_num: 1, pins: 5, cumulative: 5, pin_states: [], player_id: 1},
+            {id: 2, throw_num: 1, pins: 7, cumulative: 7, pin_states: [], player_id: 2},
+        ])]})
+        const {unmount} = renderView(ev)
+        expect(screen.getByTestId('live-standings')).toBeInTheDocument()
+        expect(screen.getByTestId('live-standing-p:2')).toBeInTheDocument()
+        unmount()
+        throwTrackingMock.mockReturnValue(false)
+        renderView(ev)
+        expect(screen.queryByTestId('live-standings')).not.toBeInTheDocument()
     })
 })

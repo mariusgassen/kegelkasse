@@ -26,8 +26,12 @@ im Abend-Bereich. Er fasst das Geschehen des Abends auf einen Blick zusammen und
 bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
 
 - **Anzeigetafel**: das gerade laufende Spiel sowie – nur bei eingeschalteter Wurf-Erfassung –
-  wer am Zug ist, wer als Nächstes wirft, und der letzte Wurf.
-- **Kennzahlen-Zeile**: Straf-Summe des Abends, Anzahl Bier- und Schnapsrunden, beendete Spiele.
+  wer am Zug ist, wer als Nächstes wirft, der letzte Wurf und der **Spielstand** als Balken pro
+  Spieler bzw. Team (Holz).
+- **Kennzahlen-Zeile**: Straf-Summe des Abends (zählt bei jeder Buchung hoch, darunter eine kleine
+  Kurve, wie die Summe über den Abend gewachsen ist), Anzahl Bier- und Schnapsrunden, beendete Spiele.
+- **Strafen heute**: Rangliste der anwesenden Spieler nach ihren Strafen, mit Balken auf gemeinsamer
+  Skala. Ändert eine Buchung die Reihenfolge, gleiten die Zeilen an ihren neuen Platz.
 - **Schnellaktionen** (daumengroß): **Strafe** / **Runde** öffnen die Schnellerfassung,
   **Highlight** springt zum Highlights-Reiter, **Spiele** zum Spiele-Reiter.
 - **Verlauf-Ticker**: Strafen, Getränkerunden, Highlights und **🎳 Alle Neune** chronologisch
