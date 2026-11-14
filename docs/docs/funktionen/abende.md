@@ -135,4 +135,4 @@ Das Löschen eines Abends ist endgültig und entfernt alle Spiele, Strafen und G
 
 ## Live-Insel
 
-Solange ein Abend läuft, zeigt die App oben eine kleine „Dynamic Island“: kompakt 🎳 und die laufende Strafensumme. Gedrückt halten klappt sie auf (Lokal, laufendes Spiel und wer dran ist, Strafensumme sowie Bier- und Schnapsrunden); ein kurzer Tipp öffnet den Abend. Sie ist nur sichtbar, solange die App geöffnet ist.
+Solange ein Abend läuft, zeigt die App oben eine kleine „Dynamic Island“: kompakt 🎳 und den laufenden Spiel-Timer bzw. die Strafensumme. Gedrückt halten klappt sie auf (Lokal, laufendes Spiel — bei aktiver Wurferfassung auch mit dem Spieler am Zug —, Strafensumme sowie Bier- und Schnapsrunden); ein kurzer Tipp öffnet den Abend. Auch App-Updates und Hinweise auf neue Versionen erscheinen dort. Sie ist nur sichtbar, solange die App geöffnet ist.

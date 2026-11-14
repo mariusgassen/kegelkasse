@@ -1,10 +1,12 @@
 /**
  * Dynamic-Island-style live activities (islandcn engine `lib/island` + content kit `components/islandcn`).
  *
- * Mounted once at the app root (`RootLayout.tsx` owns `<IslandProvider>` and `<Island placement="viewport"/>`,
- * with a standalone fallback when rendered in isolation in unit tests). Reports real live/time-taking work:
+ * Mounted once inside `<header>` (`RootLayout.tsx` owns `<EveningIsland>` with `placement="container"`
+ * at `zIndex: 40`, above Quick Entry `zIndex: 30` and below `.bottom-sheet` `z-50`). Reports real
+ * live/time-taking work and app-level notices:
  *   1. Running evening & active game timer (`id: 'evening'`) — compact: bowling glyph + game timer or pot;
- *      expanded: venue, running game / active player, and `MetricRow` for pot + beer/shot rounds.
+ *      expanded: venue, running game (+ active player when throw tracking is enabled), and `MetricRow`
+ *      for pot + beer/shot rounds.
  *   2. König & Alle-Neune moments (`id: 'celebration'`, `priority: 2`, `alert: true`) — brief alerting
  *      takeover when `celebrate()` fires.
  *   3. Media uploads (`id: 'upload'`, `priority: 1`) — live spinner while `uploadMedia()` runs, brief
@@ -13,8 +15,11 @@
  *      category breakdown, and a "Sync now" `IslandButton` when back online.
  *   5. Incoming payment-request approvals (`id: 'payment-request-<rid>'`, `group: 'payment-requests'`) —
  *      treasurer confirm/reject actions directly from the expanded island.
+ *   6. Quick-entry booking events (`id: 'quick-entry'`, `priority: 2`) — penalty, drink round, undo,
+ *      and game start/finish feedback.
+ *   7. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
  */
-import {useEffect, useRef, useState} from 'react'
+import {type ReactNode, useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {BowlingPinsIcon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
 import {
@@ -27,6 +32,7 @@ export const UPLOAD_STATUS_EVENT = 'kegelkasse:upload-status'
 export const SYNC_STARTED_EVENT = 'kegelkasse:sync-started'
 import {router} from '@/router'
 import {useT, t as tStatic} from '@/i18n'
+import {useThrowTracking} from '@/hooks/useClub.ts'
 import {currentGameState, eveningTotals} from '@/lib/liveEvening.ts'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
@@ -86,6 +92,7 @@ export function elapsedLabel(startedAt: string | null | undefined, now: number):
 function EveningActivity({eveningId}: {eveningId: number}) {
     const t = useT()
     const island = useIslandActions()
+    const throwTracking = useThrowTracking()
     // Observe only — the evening hub owns fetching/SSE. `enabled: false` never triggers a request.
     const {data: evening} = useQuery({
         queryKey: ['evening', eveningId],
@@ -96,7 +103,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
     const open = evening && !evening.is_closed ? evening : null
     const totals = eveningTotals(open)
     const {game, activePlayer} = currentGameState(open)
-    const turnName = activePlayer ? (activePlayer.nickname || activePlayer.name) : null
+    const turnName = throwTracking && activePlayer ? (activePlayer.nickname || activePlayer.name) : null
 
     const startMs = game?.started_at ? Date.parse(game.started_at) : NaN
     const timed = Number.isFinite(startMs)
@@ -659,19 +666,22 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
 export default function EveningIsland({
     eveningId,
     backdrop,
+    children,
 }: {
     eveningId?: number | null
     backdrop?: string
+    children?: ReactNode
 }) {
     return (
         <IslandProvider>
             <Island
-                placement="viewport"
+                placement="container"
                 label="Live"
                 backdrop={backdrop}
-                style={{top: 'calc(env(safe-area-inset-top, 0px) - 4px)', zIndex: 70}}
+                style={{top: -4, zIndex: 40}}
             />
             <IslandActivities eveningId={eveningId}/>
+            {children}
         </IslandProvider>
     )
 }
