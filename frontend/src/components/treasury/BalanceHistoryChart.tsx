@@ -1,4 +1,5 @@
 import {useState} from 'react'
+import {CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, XAxis, YAxis} from 'recharts'
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonChart} from '@/components/ui/Skeleton'
 import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
@@ -19,12 +20,10 @@ function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
 }
 
-const BH_PAD = {top: 12, right: 10, bottom: 22}
-const BH_AXIS_FONT = 15
-const BH_VH = 160
-const BH_VW = 400
-const BH_IH = BH_VH - BH_PAD.top - BH_PAD.bottom
-const BH_PX_PER_EVENT = 32
+const BH_AXIS_FONT = 12
+const BH_VH = 180
+const BH_VW = 334
+const BH_PX_PER_EVENT = 40
 
 const KIND_META: Record<BalanceEvent['kind'], { icon: string; color: string }> = {
     payment: {icon: '💰', color: 'var(--positive-fg)'},
@@ -103,24 +102,22 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
     // Gutter measured from the actual euro labels — a fixed one clips as soon as a club's
     // balance reaches four figures.
     const padLeft = axisLeftPad(
-        [minV, 0, maxV].map(v => compactEuro(v)), BH_AXIS_FONT, {gap: 5, min: 30})
-    const innerWidth = chartWidth - padLeft - BH_PAD.right
+        [minV, 0, maxV].map(v => compactEuro(v)), BH_AXIS_FONT, {gap: 6, min: 30})
+    // x = bucket index (discrete, evenly spaced); a single bucket sits mid-chart.
+    const xMax = buckets.length <= 1 ? 1 : buckets.length - 1
     const xS = (ts: number) => {
-        if (buckets.length === 0) return padLeft
-        const idx = bucketIndex.get(bucketStart(ts, granularity)) ?? 0
-        return buckets.length === 1 ? padLeft + innerWidth / 2 : padLeft + (idx / (buckets.length - 1)) * innerWidth
-    }
-    const yS = (v: number) => BH_PAD.top + BH_IH - ((v - minV) / span) * BH_IH
-
-    function buildPath(valueAt: (p: DualPoint) => number, baseline: number) {
-        let d = `M ${padLeft},${yS(baseline)}`
-        for (const p of points) d += ` H ${xS(p.ts)} V ${yS(valueAt(p))}`
-        d += ` H ${padLeft + innerWidth}`
-        return d
+        if (buckets.length <= 1) return 0.5
+        return bucketIndex.get(bucketStart(ts, granularity)) ?? 0
     }
 
-    const yTicks = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i)
-        .map(v => ({v, y: yS(v), label: compactEuro(v)}))
+    // Step line: hold the previous value until a point's x, then jump (Recharts "stepAfter"), starting
+    // at the window baseline and running out to the right edge.
+    function lineData(valueAt: (p: DualPoint) => number, baseline: number) {
+        return [{x: 0, v: baseline}, ...points.map(p => ({x: xS(p.ts), v: valueAt(p)}))]
+            .concat([{x: xMax, v: points.length ? valueAt(points[points.length - 1]) : baseline}])
+    }
+
+    const yTickValues = [minV, 0, maxV].filter((v, i, arr) => arr.indexOf(v) === i)
 
     // Cluster points sharing the same x-axis bucket + curve into one marker, so a bucket with
     // several bookings gets a single clickable dot instead of stacked circles where only the
@@ -160,98 +157,98 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
         return new Date(ts).toLocaleString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'})
     }
 
+    // Date labels sit on the bucket x-positions chosen above; the selected bucket's label is bold.
+    const labelAt = new Map<number, { text: string; selected: boolean }>()
+    points.forEach((p, i) => {
+        if (labelOwnerIndices.has(i)) labelAt.set(xS(p.ts), {text: fAxisDate(p.ts), selected: selectedIndices.has(i)})
+    })
+    const xTicks = Array.from(labelAt.keys()).sort((a, b) => a - b)
+
+    const markers = clusters.map(cluster => {
+        const last = cluster.points[cluster.points.length - 1]
+        // Overlay markers sit on the balance (virtual) line in club scope, but on the dedicated
+        // penalties line in the member three-line view; actual markers on the paid line.
+        const y = cluster.onOverlay ? (threeLine ? penaltyAt(last) : last.virtual) : last.actual
+        return {cluster, last, x: xS(last.ts), y}
+    })
+
     const chart = (
-        <svg width={isAll ? chartWidth : '100%'} height={BH_VH} viewBox={`0 0 ${chartWidth} ${BH_VH}`}
-             style={{display: 'block', overflow: 'visible', flexShrink: 0}}
-             onClick={() => setSelectedClusterKey(null)}>
-            {yTicks.map((tick, i) => (
-                <line key={i} x1={padLeft} y1={tick.y} x2={chartWidth - BH_PAD.right} y2={tick.y}
-                      stroke="var(--line)" strokeWidth={tick.v === 0 ? 1.2 : 0.8}
-                      strokeDasharray={tick.v === 0 ? undefined : '3,3'}/>
-            ))}
-            {!isAll && yTicks.map((tick, i) => (
-                <text key={`t-${i}`} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
-                      fontSize={BH_AXIS_FONT} fill="var(--muted)">{tick.label}</text>
-            ))}
-            {threeLine ? (
-                <>
-                    {/* Penalties (cumulative fines, red) → paid (cream) → balance on top (primary, emphasized). */}
-                    <path d={buildPath(penaltyAt, penaltyBaseline)}
-                          fill="none" stroke={KIND_META.penalty.color} strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round" opacity={0.9}/>
-                    <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--ink)" strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--accent-fg)" strokeWidth="2.4"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                </>
-            ) : (
-                <>
-                    <path d={buildPath(p => p.virtual, actualBaseline + overlayBaseline)}
-                          fill="none" stroke="var(--accent-fg)" strokeWidth="2" strokeDasharray="4,3"
-                          strokeLinecap="round" strokeLinejoin="round" opacity={0.85}/>
-                    <path d={buildPath(p => p.actual, actualBaseline)}
-                          fill="none" stroke="var(--ink)" strokeWidth="2.2"
-                          strokeLinecap="round" strokeLinejoin="round"/>
-                </>
-            )}
-            {points.map((p, i) => (
-                labelOwnerIndices.has(i) ? (
-                    <text key={`label-${i}`} x={xS(p.ts)} y={BH_VH - 6} textAnchor="middle" fontSize="15"
-                          fontWeight={selectedIndices.has(i) ? 'bold' : 'normal'}
-                          fill={selectedIndices.has(i) ? 'var(--accent-fg)' : 'var(--muted)'}>
-                        {fAxisDate(p.ts)}
-                    </text>
-                ) : null
-            ))}
-            {clusters.map(cluster => {
-                const last = cluster.points[cluster.points.length - 1]
-                const lastEvent = last.event!
-                const meta = KIND_META[lastEvent.kind]
-                // Overlay markers sit on the balance (virtual) line in club scope, but on the
-                // dedicated penalties line in the member three-line view; actual markers on the paid line.
-                const cy = yS(cluster.onOverlay ? (threeLine ? penaltyAt(last) : last.virtual) : last.actual)
-                const cx = xS(last.ts)
-                const count = cluster.points.length
-                const isSelected = selectedClusterKey === cluster.key
-                const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
-                // Every marker is clickable — including the club-wide debt overlay points, whose
-                // detail shows the change in outstanding debt and the resulting balance.
-                const ariaLabel = count > 1
-                    ? `${count}× – ${fDateTime(last.ts)}`
-                    : `${lastEvent.label || KIND_LABEL[lastEvent.kind]} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
-                return (
-                    <g key={cluster.key}
-                       tabIndex={0}
-                       role="button"
-                       aria-label={ariaLabel}
-                       style={{cursor: 'pointer'}}
-                       onClick={(evt) => { evt.stopPropagation(); toggle() }}
-                       onKeyDown={(evt) => {
-                           if (evt.key === 'Enter' || evt.key === ' ') {
-                               evt.preventDefault()
-                               evt.stopPropagation()
-                               toggle()
-                           }
-                       }}>
-                        {/* Generous transparent hit target so the small dots are easy to tap. */}
-                        <circle cx={cx} cy={cy} r="13" fill="transparent"/>
-                        <circle cx={cx} cy={cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
-                                fill={meta.color} stroke="var(--canvas)"
-                                strokeWidth={isSelected ? 1.5 : 1}/>
-                        {count > 1 && (
-                            <text x={cx} y={cy - (isSelected ? 8.5 : 7)} textAnchor="middle" fontSize="13"
-                                  fontWeight="bold" fill={meta.color}>
-                                ×{count}
-                            </text>
-                        )}
-                    </g>
-                )
-            })}
-            <line x1={padLeft} y1={BH_PAD.top + BH_IH} x2={chartWidth - BH_PAD.right} y2={BH_PAD.top + BH_IH}
-                  stroke="var(--line)" strokeWidth="1"/>
-        </svg>
+        <div style={{width: isAll ? chartWidth : '100%', flexShrink: 0}}>
+            <ResponsiveContainer width="100%" height={BH_VH}>
+                <ComposedChart margin={{top: 12, right: 6, bottom: 0, left: 0}}
+                               onClick={() => setSelectedClusterKey(null)}>
+                    <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false}/>
+                    <ReferenceLine y={0} stroke="var(--line)" strokeWidth={1.2}/>
+                    <XAxis type="number" dataKey="x" domain={[0, xMax]} ticks={xTicks} interval={0}
+                           padding={{left: 8, right: 8}} stroke="var(--line)" tickLine={false}
+                           tick={(tp: any) => {
+                               const info = labelAt.get(tp.payload.value)
+                               return (
+                                   <text x={tp.x} y={tp.y + 12} textAnchor="middle" fontSize={BH_AXIS_FONT}
+                                         fontWeight={info?.selected ? 'bold' : 'normal'}
+                                         fill={info?.selected ? 'var(--accent-fg)' : 'var(--muted)'}>
+                                       {info?.text}
+                                   </text>
+                               )
+                           }}/>
+                    <YAxis type="number" domain={[minV, maxV]} ticks={yTickValues} interval={0}
+                           tickFormatter={(v: number) => compactEuro(v)} width={padLeft} stroke="var(--line)"
+                           tick={{fill: 'var(--muted)', fontSize: BH_AXIS_FONT}}/>
+                    {threeLine ? (
+                        <>
+                            {/* Penalties (cumulative fines, red) → paid (ink) → balance on top (accent, emphasized). */}
+                            <Line data={lineData(penaltyAt, penaltyBaseline)} dataKey="v" type="stepAfter"
+                                  stroke={KIND_META.penalty.color} strokeWidth={1.8} strokeOpacity={0.9}
+                                  dot={false} activeDot={false} isAnimationActive={false}/>
+                            <Line data={lineData(p => p.actual, actualBaseline)} dataKey="v" type="stepAfter"
+                                  stroke="var(--ink)" strokeWidth={1.8} dot={false} activeDot={false} isAnimationActive={false}/>
+                            <Line data={lineData(p => p.virtual, actualBaseline + overlayBaseline)} dataKey="v" type="stepAfter"
+                                  stroke="var(--accent-fg)" strokeWidth={2.4} dot={false} activeDot={false} isAnimationActive={false}/>
+                        </>
+                    ) : (
+                        <>
+                            <Line data={lineData(p => p.virtual, actualBaseline + overlayBaseline)} dataKey="v" type="stepAfter"
+                                  stroke="var(--accent-fg)" strokeWidth={2} strokeDasharray="4 3" strokeOpacity={0.85}
+                                  dot={false} activeDot={false} isAnimationActive={false}/>
+                            <Line data={lineData(p => p.actual, actualBaseline)} dataKey="v" type="stepAfter"
+                                  stroke="var(--ink)" strokeWidth={2.2} dot={false} activeDot={false} isAnimationActive={false}/>
+                        </>
+                    )}
+                    <Scatter data={markers} dataKey="y" isAnimationActive={false}
+                             shape={(sp: any) => {
+                                 const {cluster, last} = sp.payload as typeof markers[number]
+                                 const lastEvent = last.event!
+                                 const meta = KIND_META[lastEvent.kind]
+                                 const count = cluster.points.length
+                                 const isSelected = selectedClusterKey === cluster.key
+                                 const toggle = () => setSelectedClusterKey(isSelected ? null : cluster.key)
+                                 // Every marker is clickable — including the club-wide debt overlay points, whose
+                                 // detail shows the change in outstanding debt and the resulting balance.
+                                 const ariaLabel = count > 1
+                                     ? `${count}× – ${fDateTime(last.ts)}`
+                                     : `${lastEvent.label || KIND_LABEL[lastEvent.kind]} – ${fDateTime(lastEvent.ts)} – ${fe(lastEvent.delta)}`
+                                 return (
+                                     <g tabIndex={0} role="button" aria-label={ariaLabel} style={{cursor: 'pointer'}}
+                                        onClick={(evt) => { evt.stopPropagation(); toggle() }}
+                                        onKeyDown={(evt) => {
+                                            if (evt.key === 'Enter' || evt.key === ' ') {
+                                                evt.preventDefault(); evt.stopPropagation(); toggle()
+                                            }
+                                        }}>
+                                         {/* Generous transparent hit target so the small dots are easy to tap. */}
+                                         <circle cx={sp.cx} cy={sp.cy} r={13} fill="transparent"/>
+                                         <circle cx={sp.cx} cy={sp.cy} r={isSelected ? 5 : count > 1 ? 3.5 : 2.5}
+                                                 fill={meta.color} stroke="var(--canvas)" strokeWidth={isSelected ? 1.5 : 1}/>
+                                         {count > 1 && (
+                                             <text x={sp.cx} y={sp.cy - (isSelected ? 8.5 : 7)} textAnchor="middle"
+                                                   fontSize={BH_AXIS_FONT} fontWeight="bold" fill={meta.color}>×{count}</text>
+                                         )}
+                                     </g>
+                                 )
+                             }}/>
+                </ComposedChart>
+            </ResponsiveContainer>
+        </div>
     )
 
     return (
@@ -290,16 +287,7 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
             ) : !hasData ? (
                 <Empty icon="📈" text={t('treasury.history.noData')}/>
             ) : isAll ? (
-                <div className="flex">
-                    <svg width={padLeft + 4} height={BH_VH} viewBox={`0 0 ${padLeft + 4} ${BH_VH}`}
-                         style={{flexShrink: 0, overflow: 'visible'}}>
-                        {yTicks.map((tick, i) => (
-                            <text key={i} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
-                                  fontSize={BH_AXIS_FONT} fill="var(--muted)">{tick.label}</text>
-                        ))}
-                    </svg>
-                    <div className="overflow-x-auto flex-1">{chart}</div>
-                </div>
+                <div className="overflow-x-auto">{chart}</div>
             ) : chart}
 
             {hasData && (selectedCluster ? (

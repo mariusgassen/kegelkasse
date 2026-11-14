@@ -133,12 +133,23 @@ export function TreasuryCharts() {
                         </ResponsiveContainer>
                     </div>
                 )}
-                <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={waterfallData} margin={{top: 8, right: 8, bottom: 0, left: 0}}>
-                        <XAxis dataKey="name" tick={TICK} stroke={C.line} interval={0}/>
-                        <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40}/>
-                        <Tooltip {...TIP} formatter={(_v, _n, p) => fe((p?.payload as WaterfallStep).amount)} cursor={{fill: C.line, opacity: 0.3}}/>
-                        <Bar dataKey="range" radius={[4, 4, 0, 0]} isAnimationActive={false}
+                {/* Horizontal bars: six step names don't fit side by side on a phone-width axis. */}
+                <ResponsiveContainer width="100%" height={waterfallData.length * 44 + 28}>
+                    <BarChart data={waterfallData} layout="vertical" margin={{top: 4, right: 12, bottom: 0, left: 0}} barCategoryGap={8}>
+                        <XAxis type="number" tick={TICK} stroke={C.line} tickFormatter={feShort} domain={[0, 'dataMax']}/>
+                        <YAxis type="category" dataKey="name" tick={TICK} stroke={C.line} interval={0} width={112}/>
+                        <Tooltip {...TIP} cursor={{fill: C.line, opacity: 0.3}}
+                                 content={({active, payload}) => {
+                                     const step = active ? (payload?.[0]?.payload as (WaterfallStep & { name: string }) | undefined) : undefined
+                                     if (!step) return null
+                                     return (
+                                         <div style={TIP.contentStyle} className="px-3 py-2">
+                                             <div style={{fontWeight: 700}}>{step.name}</div>
+                                             <div>{fe(step.amount)}</div>
+                                         </div>
+                                     )
+                                 }}/>
+                        <Bar dataKey="range" radius={[0, 4, 4, 0]} isAnimationActive={false}
                              onClick={(d) => goFlow((d as unknown as WaterfallStep).key)} style={{cursor: 'pointer'}}>
                             {waterfallData.map(s => <Cell key={s.key} fill={STEP_COLOR[s.kind]}/>)}
                         </Bar>
@@ -237,8 +248,8 @@ function DebtTile(props: any) {
                   fill="var(--danger-tint)" stroke={isMe ? C.accent : 'var(--canvas)'} strokeWidth={isMe ? 3 : 2}/>
             {showText && (
                 <>
-                    <text x={x + 6} y={y + 17} fontSize={12} fontWeight={700} fill="var(--danger-tint-fg)">{name}</text>
-                    <text x={x + 6} y={y + 33} fontSize={12} fill="var(--danger-tint-fg)">{fe(size)}</text>
+                    <text x={x + 6} y={y + 17} fontSize={12} fontWeight={700} fill={C.danger}>{name}</text>
+                    <text x={x + 6} y={y + 33} fontSize={12} fill={C.danger}>{fe(size)}</text>
                 </>
             )}
         </g>
