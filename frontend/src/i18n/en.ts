@@ -131,6 +131,7 @@ export const en = {
     "evening.quickStart": "Quick Start (via schedule)",
     "evening.end": "End evening",
     "evening.endConfirm": "Really end this evening?",
+    "evening.endRunningGame": "A game is still running: please enter its result and finish it first.",
     "evening.manage": "Manage",
     "live.tab": "Live",
     "live.running": "Running",

@@ -194,6 +194,31 @@ class TestUpdateEvening:
         assert resp.status_code == 200
         assert resp.json()["is_closed"] is True
 
+    def test_close_evening_blocked_by_running_game(self, client: TestClient, admin_headers: dict,
+                                                   evening: Evening, db: Session):
+        from models.game import Game
+        g = Game(evening_id=evening.id, name="G", status="running", client_timestamp=0)
+        db.add(g)
+        db.commit()
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers, json={"is_closed": True})
+        assert resp.status_code == 400
+        db.refresh(evening)
+        assert evening.is_closed is False
+        # finishing the game unblocks closing
+        g.status = "finished"
+        db.commit()
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers, json={"is_closed": True})
+        assert resp.status_code == 200
+
+    def test_close_evening_ignores_open_and_deleted_games(self, client: TestClient, admin_headers: dict,
+                                                          evening: Evening, db: Session):
+        from models.game import Game
+        db.add(Game(evening_id=evening.id, name="open", status="open", client_timestamp=0))
+        db.add(Game(evening_id=evening.id, name="gone", status="running", is_deleted=True, client_timestamp=0))
+        db.commit()
+        resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers, json={"is_closed": True})
+        assert resp.status_code == 200
+
     def test_close_evening_defaults_ended_at_to_now(self, client: TestClient, admin_headers: dict, evening: Evening):
         resp = client.patch(f"/api/v1/evening/{evening.id}", headers=admin_headers,
                             json={"is_closed": True})

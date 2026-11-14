@@ -131,6 +131,7 @@ export const de = {
     "evening.quickStart": "Schnell-Start (via Termin)",
     "evening.end": "Abend beenden",
     "evening.endConfirm": "Abend wirklich beenden?",
+    "evening.endRunningGame": "Läuft noch ein Spiel: Bitte zuerst das Ergebnis eintragen und das Spiel beenden.",
     "evening.manage": "Verwalten",
     "live.tab": "Live",
     "live.running": "Läuft",
