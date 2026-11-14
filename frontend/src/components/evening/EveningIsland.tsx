@@ -558,7 +558,7 @@ export default function EveningIsland({
 }) {
     return (
         <IslandProvider>
-            <Island placement="viewport" label="Live" backdrop={backdrop} style={{zIndex: 60}}/>
+            <Island placement="container" label="Live" backdrop={backdrop} style={{top: -4, zIndex: 60}}/>
             <IslandActivities eveningId={eveningId}/>
         </IslandProvider>
     )
