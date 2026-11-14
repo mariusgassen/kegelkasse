@@ -23,6 +23,7 @@ import {parseAmount} from '@/utils/parse.ts'
 import type {PenaltyLogEntry, PenaltyMode} from '@/types.ts'
 import {PinBadges} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {gameBandColor, gameBandIndex} from '@/lib/protocolTimeline.ts'
 import {Field} from '@/components/ui/Field.tsx'
 
 function fe(v: number) {
@@ -535,27 +536,33 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                 ? <Empty icon="⚠️" text={t('penalty.none')}/>
                 : timeline.map((event, _idx) => {
                     if (event.kind === 'game_started') {
+                        const band = gameBandIndex(evening.games, event.ts, event.game.id)
+                        const bandColor = band != null ? gameBandColor(band) : 'var(--line)'
                         return (
-                            <div key={`gs-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
-                                <div className="h-px flex-1 bg-line"/>
+                            <div key={`gs-${event.game.id}`} data-testid={`game-band-start-${event.game.id}`}
+                                 className="flex items-center gap-2 my-2 px-1">
+                                <div className="h-0.5 flex-1 rounded-full" style={{background: bandColor}}/>
                                 <Caption as="span" className="whitespace-nowrap flex items-center gap-1">
+                                    <span aria-hidden className="inline-block w-2 h-2 rounded-full" style={{background: bandColor}}/>
                                     ▶ {event.game.name} · {fTime(event.ts)}
                                     {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </Caption>
-                                <div className="h-px flex-1 bg-line"/>
+                                <div className="h-0.5 flex-1 rounded-full" style={{background: bandColor}}/>
                             </div>
                         )
                     }
                     if (event.kind === 'game_finished') {
+                        const band = gameBandIndex(evening.games, event.ts, event.game.id)
+                        const bandColor = band != null ? gameBandColor(band) : 'var(--line)'
                         return (
                             <div key={`gf-${event.game.id}`} className="flex items-center gap-2 my-2 px-1">
-                                <div className="h-px flex-1 bg-accent/40"/>
+                                <div className="h-0.5 flex-1 rounded-full" style={{background: bandColor}}/>
                                 <span
                                     className="text-xs font-bold text-accent-fg uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
                                     🏁 {event.game.name}{event.game.winner_name ? ` · ${event.game.winner_name}` : ''} · {fTime(event.ts)}
                                     {event.pending && <span className="px-1 py-0.5 rounded" style={{background: 'var(--accent-tint)', color: 'var(--accent-fg)'}}>⏳ {t('sync.pendingBadge')}</span>}
                                 </span>
-                                <div className="h-px flex-1 bg-accent/40"/>
+                                <div className="h-0.5 flex-1 rounded-full" style={{background: bandColor}}/>
                             </div>
                         )
                     }
@@ -571,9 +578,11 @@ export function ProtocolPage({onQuickEntry}: ProtocolPageProps) {
                         : null
                     const isCapped = playerTotal != null && playerTotal > guestPenaltyCap!
                     const isPendingEntry = entry.id < 0
+                    const band = isAbsence ? null : gameBandIndex(evening.games, entry.client_timestamp, entry.game_id)
                     return (
-                        <div key={`p-${entry.id}`}
-                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}>
+                        <div key={`p-${entry.id}`} data-band={band ?? undefined}
+                             className={`kce-card p-3 mb-2 flex items-center gap-3 ${isAbsence ? 'opacity-70' : ''}`}
+                             style={band != null ? {borderLeft: `4px solid ${gameBandColor(band)}`} : undefined}>
                             <span className="text-xl flex-shrink-0">{entry.icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-bold truncate flex items-center gap-1.5">

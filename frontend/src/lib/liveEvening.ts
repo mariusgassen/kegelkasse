@@ -210,3 +210,89 @@ export function eveningTotals(evening: Evening | null): EveningTotals {
         gamesTotal: evening.games.length,
     }
 }
+
+export interface RankingRow {
+    player: EveningPlayer
+    euro: number
+}
+
+/**
+ * Tonight's penalty ranking for the live tab: every present player with their uncapped euro total,
+ * highest first, name as tie-break. Absence entries (`player_id === null`) are left out — they belong
+ * to members who aren't at the table.
+ */
+export function penaltyRanking(evening: Evening | null): RankingRow[] {
+    if (!evening) return []
+    const sums = new Map<number, number>()
+    for (const p of evening.penalty_log) {
+        if (p.player_id == null) continue
+        sums.set(p.player_id, (sums.get(p.player_id) ?? 0) + penaltyEuro(p.unit_amount, p.amount))
+    }
+    return evening.players
+        .map(player => ({player, euro: sums.get(player.id) ?? 0}))
+        .sort((a, b) => b.euro - a.euro || displayName(a.player).localeCompare(displayName(b.player)))
+}
+
+export interface CurvePoint {
+    ts: number
+    euro: number
+}
+
+/**
+ * The evening's penalty total over time — a running sum in timestamp order, starting at 0 just
+ * before the first penalty so the line rises from the baseline. Empty without penalties.
+ */
+export function penaltyCurve(evening: Evening | null): CurvePoint[] {
+    if (!evening || evening.penalty_log.length === 0) return []
+    const sorted = [...evening.penalty_log].sort((a, b) => a.client_timestamp - b.client_timestamp)
+    const points: CurvePoint[] = [{ts: sorted[0].client_timestamp, euro: 0}]
+    let sum = 0
+    for (const p of sorted) {
+        sum += penaltyEuro(p.unit_amount, p.amount)
+        points.push({ts: p.client_timestamp, euro: Math.round(sum * 100) / 100})
+    }
+    return points
+}
+
+export interface StandingRow {
+    key: string
+    name: string
+    pins: number
+}
+
+/**
+ * Pins so far in the running game, per player — or per team for a team game with teams set up.
+ * A player's score is their latest cumulative value, falling back to the sum of their pins (the same
+ * rule the tablet overview uses). Highest first; empty when nothing has been thrown yet.
+ */
+export function gameStandings(evening: Evening | null, game: Game | null): StandingRow[] {
+    if (!evening || !game || game.throws.length === 0) return []
+    const perPlayer = new Map<number, number>()
+    const byPlayer = new Map<number, typeof game.throws>()
+    for (const th of game.throws) {
+        if (th.player_id == null) continue
+        const list = byPlayer.get(th.player_id) ?? []
+        list.push(th)
+        byPlayer.set(th.player_id, list)
+    }
+    for (const [pid, list] of byPlayer) {
+        const sorted = [...list].sort((a, b) => a.throw_num - b.throw_num)
+        const last = sorted[sorted.length - 1]
+        perPlayer.set(pid, last.cumulative ?? sorted.reduce((s, th) => s + th.pins, 0))
+    }
+    let rows: StandingRow[]
+    if (game.winner_type === 'team' && evening.teams.length > 0) {
+        rows = evening.teams.map(team => ({
+            key: `t:${team.id}`,
+            name: team.name,
+            pins: evening.players
+                .filter(p => p.team_id === team.id)
+                .reduce((s, p) => s + (perPlayer.get(p.id) ?? 0), 0),
+        }))
+    } else {
+        rows = evening.players
+            .filter(p => perPlayer.has(p.id))
+            .map(p => ({key: `p:${p.id}`, name: displayName(p), pins: perPlayer.get(p.id)!}))
+    }
+    return rows.sort((a, b) => b.pins - a.pins || a.name.localeCompare(b.name))
+}

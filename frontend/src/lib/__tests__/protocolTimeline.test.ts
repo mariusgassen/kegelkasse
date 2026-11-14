@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest'
-import {buildPenaltyTimeline, gamesWithPenalties, hasManualPenalties} from '../protocolTimeline'
+import {buildPenaltyTimeline, gameBandColor, gameBandIndex, gamesWithPenalties, hasManualPenalties} from '../protocolTimeline'
 import type {Evening, Game, PenaltyLogEntry} from '../../types'
 
 function game(id: number, overrides: Partial<Game> = {}): Game {
@@ -117,5 +117,31 @@ describe('hasManualPenalties', () => {
 
     it('is false when every entry belongs to a game', () => {
         expect(hasManualPenalties(evening({penalty_log: [penalty(1, {game_id: 1})]}))).toBe(false)
+    })
+})
+
+describe('gameBandIndex', () => {
+    const iso = (ms: number) => new Date(ms).toISOString()
+    const games = [
+        game(2, {started_at: iso(5000), finished_at: null}),
+        game(1, {started_at: iso(1000), finished_at: iso(3000)}),
+        game(3, {started_at: null}),
+    ]
+
+    it('numbers games in start order and uses game_id when present', () => {
+        expect(gameBandIndex(games, 0, 1)).toBe(0)
+        expect(gameBandIndex(games, 0, 2)).toBe(1)
+        expect(gameBandIndex(games, 0, 3)).toBeNull()
+    })
+
+    it('finds the game running at the timestamp', () => {
+        expect(gameBandIndex(games, 2000, null)).toBe(0)
+        expect(gameBandIndex(games, 4000, null)).toBeNull()
+        expect(gameBandIndex(games, 9000, null)).toBe(1)
+    })
+
+    it('cycles through the six team colours', () => {
+        expect(gameBandColor(0)).toBe('var(--team-0)')
+        expect(gameBandColor(7)).toBe('var(--team-1)')
     })
 })

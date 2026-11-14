@@ -290,6 +290,24 @@ describe('ProtocolPage — with penalty log entries', () => {
         // Player names appear in penalty entries
         expect(screen.getAllByText('Admin').length).toBeGreaterThan(0)
     })
+
+    it('colours penalties booked during a game with that game\'s band', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const started = new Date(Date.now() - 120000).toISOString()
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: {
+                ...ACTIVE_EVENING, penalty_log: PENALTY_LOG,
+                games: [{ id: 7, name: 'Eröffnung', status: 'running', started_at: started, finished_at: null,
+                    is_opener: false, winner_type: 'individual', turn_mode: 'alternating', winner_ref: null,
+                    winner_name: null, scores: {}, loser_penalty: 0, per_point_penalty: 0, note: null,
+                    sort_order: 0, client_timestamp: 0, template_id: null, active_player_id: null, throws: [] }],
+            } as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { container } = await renderProtocolPage()
+        expect(screen.getByTestId('game-band-start-7')).toBeInTheDocument()
+        expect(container.querySelectorAll('[data-band="0"]').length).toBe(2)
+    })
 })
 
 describe('ProtocolPage — admin features', () => {

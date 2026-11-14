@@ -61,3 +61,39 @@ export function gamesWithPenalties(evening: Evening): Game[] {
 export function hasManualPenalties(evening: Evening): boolean {
     return evening.penalty_log.some(l => l.game_id === null)
 }
+
+// Spelled out (not built from a template) so the token test can see every var() this file uses.
+const GAME_BANDS = ['var(--team-0)', 'var(--team-1)', 'var(--team-2)', 'var(--team-3)', 'var(--team-4)', 'var(--team-5)']
+
+/**
+ * Colour band of a game on the protocol timeline: the game's position among the evening's started
+ * games (in start order), cycled through the six team colours. Lets a stripe on each penalty card,
+ * and the start/finish dividers, show which game a penalty happened in.
+ */
+export function gameBandColor(index: number): string {
+    return GAME_BANDS[index % GAME_BANDS.length]
+}
+
+/**
+ * Which game a penalty belongs to, for colouring: its `game_id` if it has one (automatic loser
+ * penalties), otherwise the game that was running when it was booked — started at or before the
+ * timestamp and not yet finished. Returns the band index (see `gameBandColor`) or `null` for a
+ * penalty booked between games.
+ */
+export function gameBandIndex(games: Game[], ts: number, gameId: number | null): number | null {
+    const started = games
+        .filter(g => g.started_at)
+        .sort((a, b) => new Date(a.started_at!).getTime() - new Date(b.started_at!).getTime())
+    if (gameId != null) {
+        const i = started.findIndex(g => g.id === gameId)
+        return i >= 0 ? i : null
+    }
+    // Latest game whose window contains the timestamp (games can overlap if one was left running).
+    for (let i = started.length - 1; i >= 0; i--) {
+        const g = started[i]
+        const from = new Date(g.started_at!).getTime()
+        const to = g.finished_at ? new Date(g.finished_at).getTime() : Infinity
+        if (ts >= from && ts <= to) return i
+    }
+    return null
+}
