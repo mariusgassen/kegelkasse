@@ -552,7 +552,7 @@ const srOnly: CSSProperties = {
 
 const surfaceCss = `
 [data-islandcn],[data-islandcn] *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-[data-islandcn-hit]{position:absolute;top:0;left:0;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+[data-islandcn-hit]{position:absolute;top:0;left:0;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 [data-islandcn-hit]:focus{outline:none}
 [data-islandcn-hit]:focus-visible{outline:2px solid #0a84ff;outline-offset:3px}
 [data-islandcn-fit]{overflow-x:clip}

@@ -362,6 +362,20 @@ describe('ProfileSheet — celebration effects toggle', () => {
         expect(screen.getByText('settings.effects.off').className).toContain('bg-accent')
         expect(screen.getByText('settings.effects.on').className).not.toContain('bg-accent')
     })
+
+    it('toggles idle live island visibility on and off', async () => {
+        const { useIdleIslandStore } = await import('@/store/idleIsland')
+        useIdleIslandStore.getState().awaken()
+        await setupApiMocks()
+        await renderProfileSheet({ tab: 'settings' })
+
+        expect(screen.getByText('settings.idleIsland.title')).toBeInTheDocument()
+        fireEvent.click(screen.getByText('settings.idleIsland.off'))
+        expect(useIdleIslandStore.getState().dismissed).toBe(true)
+
+        fireEvent.click(screen.getByText('settings.idleIsland.on'))
+        expect(useIdleIslandStore.getState().dismissed).toBe(false)
+    })
 })
 
 describe('ProfileSheet — admin user', () => {

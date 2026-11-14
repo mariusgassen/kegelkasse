@@ -65,6 +65,9 @@ export const Island = ({ placement = "container", label = "Live activities", cla
     root.current = element;
   }, []);
 
+  const swipeCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => { swipeCleanup.current?.(); }, []);
+
   const interaction = useMemo<SurfaceInteraction>(() => {
     // With no activity the pill still swells under a press (idletap-t1), but it is not a control.
     const primaryLabel = scene.primary?.label ?? null;
@@ -76,9 +79,41 @@ export const Island = ({ placement = "container", label = "Live activities", cla
       onPressStart: (target: PressTarget, event) => {
         if (event.button !== 0) return;
         event.preventDefault();
+        swipeCleanup.current?.();
+        const activity = target === "bubble" ? scene.detached : scene.primary;
+        if (target === "pill" && !expanded && activity?.onDismiss) {
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const dismiss = activity.onDismiss;
+          let settled = false;
+          const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", cleanup);
+            window.removeEventListener("pointercancel", cleanup);
+            if (swipeCleanup.current === cleanup) swipeCleanup.current = null;
+          };
+          const onMove = (moveEvent: PointerEvent) => {
+            const dx = moveEvent.clientX - startX;
+            const dy = moveEvent.clientY - startY;
+            if (Math.abs(dx) >= 28 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+              cleanup();
+              store.release({ cancel: true });
+              dismiss();
+            }
+          };
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", cleanup);
+          window.addEventListener("pointercancel", cleanup);
+          swipeCleanup.current = cleanup;
+        }
         store.press(target);
       },
-      onPressEnd: () => store.release(),
+      onPressEnd: () => {
+        swipeCleanup.current?.();
+        store.release();
+      },
       onPressCancel: () => store.release({ cancel: true }),
       onActivate: (target: PressTarget) => {
         if (expanded) {

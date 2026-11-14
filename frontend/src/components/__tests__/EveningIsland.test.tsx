@@ -22,6 +22,14 @@ vi.mock('@/api/client.ts', async (importOriginal) => {
             getMyBalance: vi.fn(() => Promise.resolve({
                 regular_member_id: null, penalty_total: null, payments_total: null, balance: null,
             })),
+            getReminderSettings: vi.fn(() => Promise.resolve({
+                debt_weekly: {enabled: false},
+                upcoming_evening: {enabled: false, days_before: 5},
+                rsvp_reminder: {enabled: false, days_before: 3},
+                debt_day_of: {enabled: false},
+                payment_request_nudge: {enabled: false},
+                auto_report: {enabled: false},
+            })),
             setRsvp: vi.fn(() => Promise.resolve({status: 'attending'})),
             startGame: vi.fn(() => Promise.resolve()),
         },
@@ -40,7 +48,17 @@ import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 import {api, type UploadStatusDetail} from '@/api/client.ts'
 import {router} from '@/router'
 import {useAppStore} from '@/store/app.ts'
+import {useIdleIslandStore} from '@/store/idleIsland.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
+
+function localDatePlusDays(days: number, time = '19:30'): string {
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}T${time}`
+}
 
 const mockUser: User = {
     id: 1,
@@ -65,7 +83,7 @@ function evening(overrides: Partial<Evening> = {}): Evening {
 function scheduled(overrides: Partial<ScheduledEvening> = {}): ScheduledEvening {
     return {
         id: 5,
-        scheduled_at: '2099-12-20T19:30',
+        scheduled_at: localDatePlusDays(2),
         venue: 'Gasthaus Krone',
         note: null,
         created_at: null,
@@ -86,6 +104,14 @@ function renderIsland(
 ) {
     const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
     if (data) qc.setQueryData(['evening', 7], data)
+    qc.setQueryData(['reminder-settings'], {
+        debt_weekly: {enabled: false},
+        upcoming_evening: {enabled: false, days_before: 5},
+        rsvp_reminder: {enabled: false, days_before: 3},
+        debt_day_of: {enabled: false},
+        payment_request_nudge: {enabled: false},
+        auto_report: {enabled: false},
+    })
     seed?.(qc)
     return render(
         <QueryClientProvider client={qc}>
@@ -99,11 +125,13 @@ describe('EveningIsland', () => {
         vi.clearAllMocks()
         throwTrackingMock.mockReturnValue(true)
         useAppStore.setState({user: null})
+        useIdleIslandStore.getState().awaken()
         useNotificationStore.setState({notifications: []})
     })
 
     afterEach(() => {
         useAppStore.setState({user: null})
+        useIdleIslandStore.getState().awaken()
     })
 
     it('renders the idle capsule at rest when no activity is running', async () => {
@@ -228,40 +256,63 @@ describe('EveningIsland', () => {
         expect(api.setRsvp).toHaveBeenCalledWith(5, 'attending')
     })
 
-    it('falls back to personal balance when logged in with no upcoming evening', async () => {
+    it('falls back to personal balance & account details when logged in with no upcoming evening', async () => {
         useAppStore.setState({user: mockUser})
+        const openEvents: CustomEvent[] = []
+        const onOpen = (e: Event) => openEvents.push(e as CustomEvent)
+        window.addEventListener('kegelkasse:open-profile', onOpen)
+        try {
+            renderIsland(undefined, null, (qc) => {
+                qc.setQueryData(['schedule'], [])
+                qc.setQueryData(['my-balance'], {
+                    regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+                })
+            })
+            await act(async () => {})
+
+            const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+            expect(pill).toBeTruthy()
+
+            await act(async () => {
+                fireEvent.keyDown(pill, {key: 'Enter'})
+            })
+            expect(await screen.findByText(/treasury\.penaltiesLabel.*treasury\.paidLabel/)).toBeTruthy()
+
+            const profileBtn = await screen.findByRole('button', {name: 'profile.myBalance'})
+            await act(async () => {
+                fireEvent.click(profileBtn)
+            })
+            expect(openEvents.length).toBe(1)
+
+            await act(async () => {
+                fireEvent.keyDown(pill, {key: 'Enter'})
+            })
+            const treasuryBtn = await screen.findByRole('button', {name: 'nav.treasury'})
+            await act(async () => {
+                fireEvent.click(treasuryBtn)
+            })
+            expect(router.navigate).toHaveBeenCalledWith({
+                to: '/treasury',
+                search: {tab: 'accounts', member: 10},
+            })
+        } finally {
+            window.removeEventListener('kegelkasse:open-profile', onOpen)
+        }
+    })
+
+    it('shows the account shortcut fallback when neither upcoming evening nor member balance exists', async () => {
+        useAppStore.setState({user: {...mockUser, name: 'Admin', regular_member_id: null}})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [])
-            qc.setQueryData(['my-balance'], {
-                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
-            })
         })
         await act(async () => {})
 
-        const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+        const pill = screen.getByRole('button', {name: /island\.idleShort.*island\.idleHint/})
         expect(pill).toBeTruthy()
-
         await act(async () => {
             fireEvent.keyDown(pill, {key: 'Enter'})
         })
-        const treasuryBtn = await screen.findByRole('button', {name: 'nav.treasury'})
-        await act(async () => {
-            fireEvent.click(treasuryBtn)
-        })
-        expect(router.navigate).toHaveBeenCalledWith({
-            to: '/treasury',
-            search: {tab: 'accounts', member: 10},
-        })
-    })
-
-    it('shows the schedule shortcut fallback when neither upcoming evening nor balance exists', async () => {
-        useAppStore.setState({user: {...mockUser, regular_member_id: null}})
-        renderIsland(undefined, null, (qc) => {
-            qc.setQueryData(['schedule'], [])
-        })
-        await act(async () => {})
-
-        expect(screen.getByRole('button', {name: /island\.idleShort.*island\.idleHint/})).toBeTruthy()
+        expect(await screen.findByText('Admin')).toBeTruthy()
     })
 
     it('starts a queued open game directly from expanded evening when no game is running', async () => {
@@ -341,6 +392,77 @@ describe('EveningIsland', () => {
         }))
         await act(async () => {})
         expect(screen.queryByText('island.noGameShort')).toBeNull()
+    })
+
+    it('falls back to balance when the next scheduled evening is further ahead than club reminder days', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [scheduled({scheduled_at: localDatePlusDays(25)})])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 10, payments_total: 20, balance: 10,
+            })
+        })
+        await act(async () => {})
+
+        expect(screen.queryByRole('button', {name: /island\.nextEvening/})).toBeNull()
+        expect(screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})).toBeTruthy()
+    })
+
+    it('dismisses idle island from expanded view and awakens when another island event occurs', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+            })
+        })
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+        await act(async () => {
+            fireEvent.keyDown(pill, {key: 'Enter'})
+        })
+        const dismissBtn = await screen.findByRole('button', {name: 'island.dismiss'})
+        await act(async () => {
+            fireEvent.click(dismissBtn)
+        })
+
+        expect(useIdleIslandStore.getState().dismissed).toBe(true)
+        expect(screen.queryByRole('button', {name: /profile\.myBalance/})).toBeNull()
+
+        // Another island event (e.g. celebration or quick entry) awakens the idle status again
+        await act(async () => {
+            announceQuickEntryEvent({
+                kind: 'penalty',
+                icon: '🧱',
+                title: 'Pudelkönig',
+                subtitle: 'Hans',
+                badge: '+0,50 €',
+            })
+        })
+        expect(useIdleIslandStore.getState().dismissed).toBe(false)
+    })
+
+    it('dismisses idle island on horizontal swipe across compact pill', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [scheduled()])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+            })
+        })
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /island\.nextEvening.*Gasthaus Krone/})
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent('pointerdown', {bubbles: true, cancelable: true, button: 0, clientX: 120, clientY: 20}))
+            window.dispatchEvent(new MouseEvent('pointermove', {bubbles: true, clientX: 170, clientY: 22}))
+            window.dispatchEvent(new MouseEvent('pointerup', {bubbles: true, clientX: 170, clientY: 22}))
+        })
+
+        expect(useIdleIslandStore.getState().dismissed).toBe(true)
+        expect(useIdleIslandStore.getState().dismissedScheduleId).toBe(5)
+        expect(screen.queryByRole('button', {name: /island\.nextEvening/})).toBeNull()
     })
 })
 
