@@ -133,6 +133,18 @@ describe('TreasuryAnalysis', () => {
         await waitFor(() => expect(screen.getByTestId('statements-asof-result')).toBeInTheDocument())
     })
 
+    it('lists quiet months and folds older ones behind "show older"', async () => {
+        await setupMocks({expenses: [
+            { id: 1, amount: 5, description: 'A', date: '2026-01-10', created_at: '2026-01-10T10:00:00', updated_at: null },
+            { id: 2, amount: 5, description: 'B', date: '2026-09-10', created_at: '2026-09-10T10:00:00', updated_at: null },
+        ]})
+        await renderAnalysis()
+        // Jan–Sep = 9 calendar months, February (no bookings) included; only the newest 6 are listed
+        await waitFor(() => expect(screen.getAllByTestId('statement-month')).toHaveLength(6))
+        fireEvent.click(screen.getByTestId('statements-more'))
+        expect(screen.getAllByTestId('statement-month')).toHaveLength(9)
+    })
+
     it('offers a member scope for the history graph', async () => {
         await renderAnalysis()
         await waitFor(() => expect(screen.getByText(/treasury\.history\.scopeMember/)).toBeInTheDocument())

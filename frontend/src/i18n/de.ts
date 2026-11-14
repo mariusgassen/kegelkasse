@@ -674,6 +674,8 @@ export const de = {
     "treasury.statements.outflow": "Ausgaben",
     "treasury.statements.closing": "Ende",
     "treasury.statements.closingVirtual": "Ende projiziert",
+    "treasury.statements.showMore": "Ältere Monate anzeigen ({n})",
+    "treasury.statements.showLess": "Weniger anzeigen",
     "treasury.history.heading": "📈 Verlauf",
     "treasury.history.scopeClub": "Kasse",
     "treasury.history.scopeMember": "Mitglied",
