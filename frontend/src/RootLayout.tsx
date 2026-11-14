@@ -183,76 +183,97 @@ export function RootLayout() {
                 <InstallPrompt/>
                 <UpdatePrompt/>
                 <WhatsNewNotice/>
-                {/* Live-activity island mounted once at the app root (islandcn); code-split */}
-                <Suspense fallback={null}>
-                    <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
-                </Suspense>
-
-                {/* ── Header ── */}
+                {/* ── Header — symmetrical wings flanking the centered Dynamic Island ── */}
                 <header style={{
+                    position: 'relative',
                     background: 'var(--canvas)',
                     borderBottom: '1px solid var(--line)',
                     zIndex: 50,
                 }}>
-                    <div className="flex items-center gap-2.5 px-3 py-2">
-                        {/* 5 quick taps on the logo/title opens the hidden bowling game (Easter egg). */}
-                        <div onClick={onLogoTap} style={{display: 'flex', flexShrink: 0, cursor: 'default'}}>
-                            {club?.settings?.logo_url ? (
-                                <img src={club.settings.logo_url} alt={club.name}
-                                     style={{width: 28, height: 28, objectFit: 'contain', borderRadius: 6}}/>
-                            ) : (
-                                <AppLogoAnimated size={28}/>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0" onClick={onLogoTap}>
-                            <h1 className="font-display font-bold text-accent-fg text-sm leading-tight truncate">
-                                {club?.name || t('app.name')}
-                            </h1>
-                            <p className="text-xs text-muted font-bold tracking-widest">{t('app.subtitle')}</p>
-                        </div>
-                        {activeEveningId && (
+                    {/* Live-activity island mounted once at the app root (islandcn); anchored to the
+                        56px header bar (`top: -4` centers the 36.67px capsule on the 28px midline). */}
+                    <Suspense fallback={null}>
+                        <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
+                    </Suspense>
+
+                    <div className="flex items-center justify-between gap-2 px-3 h-14">
+                        {/* Left wing: club badge + search button (72px on mobile so the centered
+                            Dynamic Island has ~225px of clear stage and never collides with text). */}
+                        <div className="flex items-center gap-2 min-w-0">
+                            {/* 5 quick taps on the logo/title opens the hidden bowling game (Easter egg). */}
+                            <div
+                                onClick={onLogoTap}
+                                className="flex items-center gap-2.5 min-w-0"
+                                style={{cursor: 'default'}}
+                            >
+                                <div className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center flex-shrink-0 overflow-hidden"
+                                     style={{border: '1px solid color-mix(in srgb, var(--line) 70%, transparent)'}}>
+                                    {club?.settings?.logo_url ? (
+                                        <img src={club.settings.logo_url} alt={club.name}
+                                             className="w-6 h-6 object-contain rounded-full"/>
+                                    ) : (
+                                        <AppLogoAnimated size={22}/>
+                                    )}
+                                </div>
+                                <div className="sr-only sm:not-sr-only min-w-0">
+                                    <h1 className="font-display font-bold text-accent-fg text-sm leading-tight truncate max-w-[140px] md:max-w-[220px]">
+                                        {club?.name || t('app.name')}
+                                    </h1>
+                                    <p className="hidden lg:block text-xs text-muted font-bold tracking-widest truncate">
+                                        {t('app.subtitle')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Search button — paired with the club badge on the left wing to balance
+                                the notification bell + profile avatar on the right wing. */}
                             <button
-                                className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 flex items-center gap-1"
-                                style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)', border: '1px solid color-mix(in srgb, var(--accent) 60%, transparent)'}}
-                                onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
-                                <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
+                                aria-label={t('search.title')}
+                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity bg-surface-2 text-muted"
+                                onClick={() => setSearchOpen(true)}>
+                                <Search size={15} strokeWidth={2}/>
                             </button>
-                        )}
-                        {/* Search button */}
-                        <button
-                            aria-label={t('search.title')}
-                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity bg-surface-2 text-muted"
-                            onClick={() => setSearchOpen(true)}>
-                            <Search size={14} strokeWidth={2}/>
-                        </button>
-                        {/* Notification bell */}
-                        <button
-                            aria-label={t('notifications.title')}
-                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative bg-surface-2 text-muted"
-                            onClick={() => setNotifOpen(true)}>
-                            <Bell size={14} strokeWidth={2}/>
-                            {badgeCount > 0 && (
-                                <span
-                                    className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-xs font-bold leading-none px-0.5"
-                                    style={{background: 'var(--accent)', color: 'var(--on-accent)'}}>
-                                    {badgeCount > 9 ? '9+' : badgeCount}
-                                </span>
+                        </div>
+
+                        {/* Right wing: (desktop evening chip +) notification bell + profile avatar */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {activeEveningId && (
+                                <button
+                                    className="hidden md:flex text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 items-center gap-1"
+                                    style={{background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent-fg)', border: '1px solid color-mix(in srgb, var(--accent) 60%, transparent)'}}
+                                    onClick={() => { router.navigate({to: '/evening', search: {tab: 'manage'}}).catch(() => {}) }}>
+                                    <Trophy size={11} strokeWidth={2.5}/> {t('evening.active')}
+                                </button>
                             )}
-                        </button>
-                        {/* Avatar button */}
-                        <button
-                            aria-label="Profil"
-                            className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
-                            style={{
-                                background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-shade),var(--accent))',
-                                color: 'var(--canvas)'
-                            }}
-                            onClick={() => setProfileOpen(true)}>
-                            {user?.avatar
-                                ? <img src={user.avatar} alt="" className="w-full h-full object-cover"/>
-                                : (user?.name || '?')[0].toUpperCase()
-                            }
-                        </button>
+                            {/* Notification bell */}
+                            <button
+                                aria-label={t('notifications.title')}
+                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 active:opacity-70 transition-opacity relative bg-surface-2 text-muted"
+                                onClick={() => setNotifOpen(true)}>
+                                <Bell size={15} strokeWidth={2}/>
+                                {badgeCount > 0 && (
+                                    <span
+                                        className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] rounded-full flex items-center justify-center text-xs font-bold leading-none px-0.5"
+                                        style={{background: 'var(--accent)', color: 'var(--on-accent)'}}>
+                                        {badgeCount > 9 ? '9+' : badgeCount}
+                                    </span>
+                                )}
+                            </button>
+                            {/* Avatar button */}
+                            <button
+                                aria-label="Profil"
+                                className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center font-display font-bold text-sm flex-shrink-0 active:opacity-70 transition-opacity"
+                                style={{
+                                    background: user?.avatar ? 'transparent' : 'linear-gradient(135deg,var(--accent-shade),var(--accent))',
+                                    color: 'var(--canvas)'
+                                }}
+                                onClick={() => setProfileOpen(true)}>
+                                {user?.avatar
+                                    ? <img src={user.avatar} alt="" className="w-full h-full object-cover"/>
+                                    : (user?.name || '?')[0].toUpperCase()
+                                }
+                            </button>
+                        </div>
                     </div>
                 </header>
 

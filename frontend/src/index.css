@@ -298,7 +298,7 @@
         /* Cap the readable content beside the rail and centre it in the remaining space, so the
            pane no longer floats narrow with a big empty gutter on wide screens. The header bar
            still spans full width; only its inner row is centred, staying aligned with the page. */
-        .app-header > header > div {
+        .app-header > header > div:not([data-islandcn]) {
             max-width: 1040px;
             margin-inline: auto;
         }
