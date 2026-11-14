@@ -21,3 +21,9 @@ export const useIdleIslandStore = create<IdleIslandState>()(
         {name: 'kegelkasse-idle-island'},
     ),
 )
+
+/** Whether a non-idle island activity is on show (not persisted). The idle island yields to it. */
+export const useIslandBusyStore = create<{busy: boolean; setBusy: (busy: boolean) => void}>()((set) => ({
+    busy: false,
+    setBusy: (busy) => set({busy}),
+}))
