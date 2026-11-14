@@ -1144,12 +1144,16 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
     p.updated_by = user.id
     twin = _linked_expense(db, user.club_id, p.transfer_group_id)
     if data.as_club_expense is True and not twin:
+        err = None
         if p.amount < 0 or p.is_writeoff:
-            raise HTTPException(400, "Auslagen müssen ein positiver Betrag sein")
-        if not p.note:
-            raise HTTPException(400, "Beschreibung erforderlich")
-        if p.transfer_group_id:
-            raise HTTPException(400, "Buchung ist bereits mit einer anderen Buchung verknüpft")
+            err = "Auslagen müssen ein positiver Betrag sein"
+        elif not p.note:
+            err = "Beschreibung erforderlich"
+        elif p.transfer_group_id:
+            err = "Buchung ist bereits mit einer anderen Buchung verknüpft"
+        if err:
+            db.rollback()  # drop the half-applied edits above
+            raise HTTPException(400, err)
         p.transfer_group_id = str(uuid.uuid4())
         twin = ClubExpense(
             club_id=user.club_id, amount=p.amount, description=p.note, created_by=user.id,
