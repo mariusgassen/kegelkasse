@@ -61,6 +61,32 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [loadingDrink, setLoadingDrink] = useState<'beer' | 'shots' | null>(null)
     const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
     const [deletingKey, setDeletingKey] = useState<string | null>(null)
+
+    // Tap/click anywhere outside the recent event buttons (or press Escape) cancels delete confirmation.
+    // Relying on onBlur alone fails on touch devices (iOS/iPadOS Safari does not focus buttons on tap,
+    // and tapping a non-focusable area does not blur).
+    useEffect(() => {
+        if (!confirmingKey) return
+        function cancelConfirm(e: Event) {
+            const el = e.target instanceof Element
+                ? e.target
+                : e.target instanceof Node ? e.target.parentElement : null
+            if (el?.closest('[data-recent-event]')) return
+            setConfirmingKey(null)
+        }
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') setConfirmingKey(null)
+        }
+        document.addEventListener('pointerdown', cancelConfirm, true)
+        document.addEventListener('click', cancelConfirm, true)
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', cancelConfirm, true)
+            document.removeEventListener('click', cancelConfirm, true)
+            document.removeEventListener('keydown', onKeyDown)
+        }
+    }, [confirmingKey])
+
     // Rows that just received a booking light up with a "+0,50 €" chip, so a mistap shows at once.
     const [booked, setBooked] = useState<{ids: number[]; label: string; key: number} | null>(null)
     const bookedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1417,6 +1443,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button
                                     key={ev.key}
                                     type="button"
+                                    data-recent-event={ev.key}
                                     disabled={isDeleting}
                                     className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{

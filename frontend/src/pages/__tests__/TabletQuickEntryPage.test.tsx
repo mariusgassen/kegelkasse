@@ -1325,6 +1325,42 @@ describe('TabletQuickEntryPage — recent event deletion', () => {
             expect(api.deletePenalty).toHaveBeenCalledWith(42, 101)
         })
     })
+
+    it('cancels delete confirmation when tapping somewhere outside', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        const adminBtns = screen.getAllByRole('button', { name: /Admin/ })
+        const recentBtn = adminBtns[adminBtns.length - 1]
+        fireEvent.click(recentBtn)
+        await waitFor(() => expect(screen.getByText('🗑')).toBeInTheDocument())
+
+        // Tap outside (e.g. on a non-focusable section label / background)
+        fireEvent.pointerDown(screen.getByText('quickEntry.overview'))
+        await waitFor(() => expect(screen.queryByText('🗑')).not.toBeInTheDocument())
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+
+        // Tapping the recent entry again enters confirmation rather than deleting immediately
+        fireEvent.click(recentBtn)
+        await waitFor(() => expect(screen.getByText('🗑')).toBeInTheDocument())
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+
+        // Click outside also cancels
+        fireEvent.click(screen.getByText('quickEntry.recent'))
+        await waitFor(() => expect(screen.queryByText('🗑')).not.toBeInTheDocument())
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+    })
+
+    it('cancels delete confirmation on Escape key', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        const adminBtns = screen.getAllByRole('button', { name: /Admin/ })
+        fireEvent.click(adminBtns[adminBtns.length - 1])
+        await waitFor(() => expect(screen.getByText('🗑')).toBeInTheDocument())
+
+        fireEvent.keyDown(document, { key: 'Escape' })
+        await waitFor(() => expect(screen.queryByText('🗑')).not.toBeInTheDocument())
+        expect(api.deletePenalty).not.toHaveBeenCalled()
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

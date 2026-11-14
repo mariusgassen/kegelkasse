@@ -78,6 +78,7 @@ Die Schnellerfassung zeigt beim Buchen sofort, was passiert ist:
 - **Balken pro Spieler**: Unter jedem Betrag zeigt ein Balken, wie viel der Spieler im Vergleich zum
   Spitzenreiter des Abends hat (voller Balken = höchste Summe)
 - **Summe zählt hoch**: Die Gesamtsumme unten zählt bei jeder neuen Strafe zum neuen Wert hoch
+- **Letzte Einträge löschen & abbrechen**: Unten in der Leiste „Letzte Einträge“ fragt ein erster Tipp auf einen Eintrag nach (`✕ löschen?`), ein zweiter Tipp löscht ihn; ein Tipp irgendwo anders bricht den Löschvorgang wieder ab
 
 Die Animationen folgen der Systemeinstellung „Bewegung reduzieren“; Zahl und Betrag sind immer sichtbar.
 
