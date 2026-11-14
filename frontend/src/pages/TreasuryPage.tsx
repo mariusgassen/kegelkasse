@@ -28,7 +28,7 @@ import {useDeepLinkVersion} from '@/hooks/useDeepLink.ts'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {cashPaidIn, paidShare, treasurySummary} from '@/lib/treasurySummary.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
-import {buildAccountStatement} from '@/lib/accountStatement.ts'
+import {buildAccountStatement, statementMonths} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
 import {Tabs} from '@/components/ui/Tabs'
 import {Button} from '@/components/ui/Button.tsx'
@@ -187,6 +187,7 @@ export function TreasuryPage() {
     const [accountSearch, setAccountSearch] = useState('')
     const [bookingSearch, setBookingSearch] = useState('')
     const [expandedMember, setExpandedMember] = useState<number | null>(null)
+    const [showMyHistory, setShowMyHistory] = useState(false)
     const [deepLinkRid, setDeepLinkRid] = useState<number | null>(null)
 
     // Deep-link: ?memberName=X pre-fills search; ?rid=N opens payment-request confirm sheet;
@@ -650,6 +651,26 @@ export function TreasuryPage() {
     ] as const
 
     // Statement (payments + penalties per evening) for an expanded account.
+    const statementMonthSeparator = (entry: (typeof accountStatement)[number], idx: number) => {
+        const d = new Date(entry.date ?? '')
+        const key = monthKeyOf(d)
+        if (idx > 0 && monthKeyOf(new Date(accountStatement[idx - 1].date ?? '')) === key) return null
+        const m = statementMonths(accountStatement).get(key)
+        return (
+            <div className="flex justify-between items-baseline text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 data-testid="statement-month-sep">
+                <span>{d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+                {m && (
+                    <span className="text-right">
+                        <span className="text-positive-fg">{fe(m.paid)}</span>
+                        {' · '}<span className="text-danger-fg">{fe(-m.penalties)}</span>
+                        {' · '}{t('treasury.statement.monthClosing')}: <span className={m.closing >= 0 ? 'text-positive-fg' : 'text-danger-fg'}>{fe(m.closing)}</span>
+                    </span>
+                )}
+            </div>
+        )
+    }
+
     const renderStatement = (memberId: number, memberName: string) => (
         <>
         {memberPaymentsLoading || memberPenaltiesLoading
@@ -657,8 +678,8 @@ export function TreasuryPage() {
             : accountStatement.length === 0
             ?
             <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
-            : accountStatement.map(entry => entry.kind === 'evening' ? (
-                <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs"
+            : accountStatement.map((entry, idx) => <Fragment key={entry.key}>{statementMonthSeparator(entry, idx)}{entry.kind === 'evening' ? (
+                <div className="flex items-center gap-2 mb-1.5 text-xs"
                      data-testid="statement-evening">
                     <span className="font-bold flex-shrink-0 w-20 text-danger-fg">
                         {fe(-entry.total)}
@@ -668,9 +689,10 @@ export function TreasuryPage() {
                         {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
                     </span>
                     <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
+                    {admin && <span className="w-[30px] flex-shrink-0" aria-hidden="true"/>}
                 </div>
             ) : (() => { const p = entry.payment; return (
-                <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs">
+                <div className="flex items-center gap-2 mb-1.5 text-xs">
                     <span
                         className={`font-bold flex-shrink-0 w-20 ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                         {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
@@ -691,7 +713,7 @@ export function TreasuryPage() {
 
                     )}
                 </div>
-            )})())
+            )})()}</Fragment>)
         }
         </>
     )
@@ -761,6 +783,20 @@ export function TreasuryPage() {
                                     </div>
                                 </>
                             )}
+                            <div className="mt-2 pt-2 border-t border-line" data-testid="my-history">
+                                <ExpandableCard bare
+                                                headerClassName="text-xs font-bold text-muted py-1"
+                                                title={t('treasury.my.history')}
+                                                open={showMyHistory}
+                                                onToggle={open => {
+                                                    setShowMyHistory(open)
+                                                    setExpandedMember(open ? myRegularMemberId ?? null : null)
+                                                }}>
+                                    <div className="pt-2">
+                                        {renderStatement(myRegularMemberId as number, myBalanceEntry.nickname || myBalanceEntry.name)}
+                                    </div>
+                                </ExpandableCard>
+                            </div>
                             {myDebtAmount > 0 && paypalHandle && (
                                 <div className="mt-2 pt-2 border-t border-line">
                                     {!hasPendingMyRequest ? (

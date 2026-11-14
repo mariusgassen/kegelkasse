@@ -50,7 +50,7 @@ Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zus
 | ⬆ **Sonstige Einnahmen** | Nur sichtbar, wenn vorhanden — Einnahmen, die über das Ausgaben-Konto verbucht wurden (z. B. Sponsoring, Zuschuss), statt als Mitgliedseinzahlung |
 | 💰 **Kassenstand** | Eingezahlt minus Ausgaben plus Sonstige — echtes Geld in der Kasse |
 | 🔴 **Offen** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
-| → **Kassenstand, wenn alle zahlen** | Kassenstand plus offene Beträge |
+| → **Projiziert** | Kassenstand plus offene Beträge |
 
 Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Offen".
 
@@ -138,9 +138,9 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ## Stichtag & Monatsstände
 
-Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Einzahlungen, Auszahlungen und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
+Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal projiziert inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Eingezahlt, Ausgaben und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
 
-Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Einzahlungen, Auszahlungen und den Kassensaldo am Monatsende.
+Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Eingezahlt, Ausgaben und den Kassensaldo am Monatsende.
 
 ## Verlauf (Saldo-Graph)
 
@@ -183,12 +183,16 @@ Der **Konten**-Tab zeigt den aktuellen Saldo jedes Mitglieds.
 
 Admins können hier Zahlungen erfassen — siehe [Admin → Mitgliedskonten & Zahlungen](/rollen/admin#mitgliedskonten--zahlungen).
 
+Auch in der Karte **👤 Mein Konto** der Übersicht lässt sich die eigene Buchungshistorie aufklappen, ohne in den Konten-Tab zu wechseln.
+
 ### Buchungshistorie eines Kontos
 
 Ein Antippen der Zeile klappt die **Buchungshistorie** des Kontos auf — alle Beträge, die das Konto bewegt haben, neueste zuerst:
 
 - **Einzahlungen und Auszahlungen** einzeln, mit Notiz und Datum (Admins können sie dort bearbeiten oder stornieren)
 - **Strafen pro Kegelabend** als eine Zeile mit der **Summe** der Strafen dieses Abends und deren Anzahl (🎳 Kegelabend · 4 Strafen) — nicht jede Strafe einzeln. Abende, an denen nur eine Abwesenheitsstrafe angefallen ist, erscheinen als 🚪 Abwesenheit.
+
+Wie im Kassenbuch trennt pro Monat eine Zeile die Einträge: eingezahlt, Strafen und der **Saldo am Monatsende** des Kontos.
 
 Bei Gästen zählt pro Abend der gedeckelte Betrag, der tatsächlich im Saldo landet.
 

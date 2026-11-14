@@ -41,3 +41,14 @@ describe('buildAccountStatement', () => {
         expect(out[0]).toMatchObject({total: 0.3})
     })
 })
+
+describe('statementMonths', () => {
+    it('sums payments and penalties per month and carries the balance', async () => {
+        const {buildAccountStatement, statementMonths} = await import('../accountStatement.ts')
+        const pay = (id: number, amount: number, date: string) => ({id, amount, note: null, created_at: date, updated_at: null, date})
+        const pen = (id: number, amount: number, date: string) => ({amount, evening_id: id, evening_date: date, is_absence: false, created_at: date})
+        const m = statementMonths(buildAccountStatement([pay(1, 20, '2026-01-10'), pay(2, 10, '2026-02-05')], [pen(1, 5, '2026-01-20'), pen(2, 8, '2026-02-12')]))
+        expect(m.get('2026-0')).toEqual({paid: 20, penalties: 5, closing: 15})
+        expect(m.get('2026-1')).toEqual({paid: 10, penalties: 8, closing: 17})
+    })
+})
