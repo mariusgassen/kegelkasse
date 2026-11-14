@@ -6,7 +6,7 @@ Supports optional year filtering (omit for all-time).
 import io
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Optional
 
@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_admin
@@ -126,19 +127,27 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     # Payments (optionally year-filtered)
     payment_q = db.query(MemberPayment).filter(MemberPayment.club_id == user.club_id, MemberPayment.is_deleted == False)
     if year:
-        payment_q = payment_q.filter(
-            MemberPayment.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
-            MemberPayment.created_at < datetime(year + 1, 1, 1, tzinfo=timezone.utc),
-        )
+        payment_q = payment_q.filter(or_(
+            and_(MemberPayment.date.isnot(None), MemberPayment.date >= date(year, 1, 1), MemberPayment.date < date(year + 1, 1, 1)),
+            and_(
+                MemberPayment.date.is_(None),
+                MemberPayment.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
+                MemberPayment.created_at < datetime(year + 1, 1, 1, tzinfo=timezone.utc),
+            ),
+        ))
     payments = payment_q.order_by(MemberPayment.created_at).all()
 
     # Expenses (optionally year-filtered)
     expense_q = db.query(ClubExpense).filter(ClubExpense.club_id == user.club_id, ClubExpense.is_deleted == False)
     if year:
-        expense_q = expense_q.filter(
-            ClubExpense.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
-            ClubExpense.created_at < datetime(year + 1, 1, 1, tzinfo=timezone.utc),
-        )
+        expense_q = expense_q.filter(or_(
+            and_(ClubExpense.date.isnot(None), ClubExpense.date >= date(year, 1, 1), ClubExpense.date < date(year + 1, 1, 1)),
+            and_(
+                ClubExpense.date.is_(None),
+                ClubExpense.created_at >= datetime(year, 1, 1, tzinfo=timezone.utc),
+                ClubExpense.created_at < datetime(year + 1, 1, 1, tzinfo=timezone.utc),
+            ),
+        ))
     expenses = expense_q.order_by(ClubExpense.created_at).all()
 
     # Games for these evenings
@@ -260,7 +269,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     for p in payments:
         m = member_by_id.get(p.regular_member_id)
         name = (m.nickname or m.name) if m else f"#{p.regular_member_id}"
-        booking_rows.append((p.created_at, "Abschreibung" if p.is_writeoff else "Einzahlung", name, p.amount, p.note or ""))
+        booking_rows.append((p.date or p.created_at, "Abschreibung" if p.is_writeoff else "Einzahlung", name, p.amount, p.note or ""))
     for e in expenses:
         dt = e.date or e.created_at
         booking_rows.append((dt, "Ausgabe", e.description, -e.amount, ""))
@@ -318,8 +327,9 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     # can show a running balance at the end of every month.
     monthly_pay_by_member: dict[int, dict[tuple[int, int], float]] = defaultdict(lambda: defaultdict(float))
     for p in payments:
-        if p.created_at is not None:
-            monthly_pay_by_member[p.regular_member_id][(p.created_at.year, p.created_at.month)] += p.amount
+        pdt = p.date or p.created_at
+        if pdt is not None:
+            monthly_pay_by_member[p.regular_member_id][(pdt.year, pdt.month)] += p.amount
     account_months_set = set(all_months_set)
     for by_month in monthly_pay_by_member.values():
         account_months_set.update(by_month.keys())
