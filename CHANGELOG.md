@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.75.0](https://github.com/mariusgassen/kegelkasse/compare/v1.74.0...v1.75.0) (2026-11-14)
+
+
+### Features
+
+* add charts tab to the Kasse with waterfall, treemap, Sankey and donut ([#590](https://github.com/mariusgassen/kegelkasse/issues/590)) ([779c6ff](https://github.com/mariusgassen/kegelkasse/commit/779c6ffbf114c9a28621b1617907af285d4bec27))
+* editable roadmap versions, completed items pin the deployed version ([#582](https://github.com/mariusgassen/kegelkasse/issues/582)) ([186b8c6](https://github.com/mariusgassen/kegelkasse/commit/186b8c6011141e04c269399187d2673ef83a489e))
+* **evening:** Live-Abend zeigt Rangliste, Strafen-Kurve und Spielstand; Protokoll mit Spiel-Farben ([0215ba2](https://github.com/mariusgassen/kegelkasse/commit/0215ba2b2c02bbfde8c2aba18da149889dda2dee))
+* **evening:** Schnellerfassung zeigt Zähler, Balken, Aufleuchten und Getränke-Zeitleiste ([f41841b](https://github.com/mariusgassen/kegelkasse/commit/f41841b94d4e7ba5a60999edaf039e10748de016))
+* Excel-Blatt Strafen nach Abend je Abend gruppiert ([90f12ed](https://github.com/mariusgassen/kegelkasse/commit/90f12ed4db3ea0971d9b4c500ef16a5307e3ab1c))
+* Kasse mit Stichtag, Monatsständen, korrektem Saldo und Vereinsausgabe beim Bearbeiten ([#596](https://github.com/mariusgassen/kegelkasse/issues/596)) ([c951c7f](https://github.com/mariusgassen/kegelkasse/commit/c951c7f9a61ab5830c31f69d5682ca2bf20cb883))
+* Kasse zeigt Balken neben den Zahlen und animierte Diagramme ([139c0c1](https://github.com/mariusgassen/kegelkasse/commit/139c0c1ca7039289c35311746711c195ac56e875))
+* Kassenbericht listet auch offene Strafen von Gästen ([de91838](https://github.com/mariusgassen/kegelkasse/commit/de918382cf96e533c2b39af43ab7a1e316a6c41f))
+* Konten pro Monat im Kassenbericht mit Monaten als Spalten ([36bd4f8](https://github.com/mariusgassen/kegelkasse/commit/36bd4f8783aac07a7a95c8f783e7c56647726727))
+* Live-Insel für den laufenden Abend ([#608](https://github.com/mariusgassen/kegelkasse/issues/608)) ([1d90780](https://github.com/mariusgassen/kegelkasse/commit/1d90780a22313613e6b7ed4a5fc2d403df909289))
+* **roadmap:** add comments, tag/pin/duplicate management, and product manager role ([#573](https://github.com/mariusgassen/kegelkasse/issues/573)) ([c54c47f](https://github.com/mariusgassen/kegelkasse/commit/c54c47f0180faad3fe0e6cb403c0709bdc76d243))
+* show guest nicknames and disambiguate duplicate names ([b3d848c](https://github.com/mariusgassen/kegelkasse/commit/b3d848c7ce94ecb2479b47912b68d92ebeb54e9b))
+* version pills for roadmap filtering and autocomplete ([#584](https://github.com/mariusgassen/kegelkasse/issues/584)) ([4fcf5da](https://github.com/mariusgassen/kegelkasse/commit/4fcf5da4f488ead3e5c3469d620b00bce85c641f))
+
+
+### Bug Fixes
+
+* Buchungs-Aktionen in der Kasse im ⋮-Menü statt als Icon-Paar ([#598](https://github.com/mariusgassen/kegelkasse/issues/598)) ([0fec32e](https://github.com/mariusgassen/kegelkasse/commit/0fec32e1049e5a83198f12b4f7de98df5d49588f))
+* club exit write-off no longer counts as a deposit in the Kasse ([#587](https://github.com/mariusgassen/kegelkasse/issues/587)) ([c4b8e6c](https://github.com/mariusgassen/kegelkasse/commit/c4b8e6c8e7ffdb5449f2bc95b26ac5dfd31e4f0b))
+* **evening:** Spiel-Farben als feste Token-Liste ([0e54008](https://github.com/mariusgassen/kegelkasse/commit/0e540089b9abab07f45c410cff35303e5b03fed6))
+* harden community roadmap permissions, validation and notifications ([#577](https://github.com/mariusgassen/kegelkasse/issues/577)) ([132e6e8](https://github.com/mariusgassen/kegelkasse/commit/132e6e82de9bfc9bb66fe26de9ca8a7f0c9d9193))
+* Insights-Tab stürzte beim Öffnen ab ([#595](https://github.com/mariusgassen/kegelkasse/issues/595)) ([436dc14](https://github.com/mariusgassen/kegelkasse/commit/436dc1484e2ab4d8b10f49864b4ce0f4b98c441f))
+* Kassenbericht nutzt das gesetzte Buchungsdatum statt des Erstelldatums ([a44eaea](https://github.com/mariusgassen/kegelkasse/commit/a44eaea6efdac5f84d7e8d5c7adfd141b804de10))
+* keep bottom sheets (incl. global search) above the on-screen keyboard ([#580](https://github.com/mariusgassen/kegelkasse/issues/580)) ([88b77dc](https://github.com/mariusgassen/kegelkasse/commit/88b77dc832f867542cf8c99e1135a6f27aa4b669))
+* Monatsstände zeigen auch ruhige Monate und klappen ältere Monate ein ([#602](https://github.com/mariusgassen/kegelkasse/issues/602)) ([3a85ba9](https://github.com/mariusgassen/kegelkasse/commit/3a85ba9c5e935325746bb7cd7a626752dd065f67))
+* Offene Strafen im PDF-Kassenbericht markieren und separat auflisten ([01c04f9](https://github.com/mariusgassen/kegelkasse/commit/01c04f971cc1cd07b6cb86cc60c049e76c0a6abf))
+* Offene Strafen im PDF-Kassenbericht markieren und separat auflisten ([#597](https://github.com/mariusgassen/kegelkasse/issues/597)) ([2c98771](https://github.com/mariusgassen/kegelkasse/commit/2c987714f1122c6f91ca12b8d73178915d90e456))
+* PDF-Bericht mit korrektem Kassenstand, Gäste-Deckel erst ab Austritt, Buchungen je Monat und Strafen-Matrix ([#600](https://github.com/mariusgassen/kegelkasse/issues/600)) ([e07d9a3](https://github.com/mariusgassen/kegelkasse/commit/e07d9a3a010f33b6dc7c619b9acd1e4cc19d42d3))
+* PDF-Kassenbericht übersichtlicher mit Vereinslogo, Farben und korrekten Gäste-Beträgen ([#593](https://github.com/mariusgassen/kegelkasse/issues/593)) ([2296d2f](https://github.com/mariusgassen/kegelkasse/commit/2296d2ff39d816b109ad5bae81a2b0f13322f8a7))
+* Pins nicht mitgebracht ist eine Strafe pro Spieler statt pro Pin ([bbd151f](https://github.com/mariusgassen/kegelkasse/commit/bbd151f0f6bb27ae543b2d6d6683968f9fa7cd52))
+* **roadmap:** add migration 073 for tags/roles and support multiple roles per user ([#574](https://github.com/mariusgassen/kegelkasse/issues/574)) ([9ae536b](https://github.com/mariusgassen/kegelkasse/commit/9ae536bef5b57fca5f015ee60e1c66f45b0de806))
+* shorten the projected cash label in the Kasse ([#599](https://github.com/mariusgassen/kegelkasse/issues/599)) ([068c08a](https://github.com/mariusgassen/kegelkasse/commit/068c08a826d5dcd5445c450030413a858b598897))
+* **stickers:** fit map view to screen without vertical scrolling ([#571](https://github.com/mariusgassen/kegelkasse/issues/571)) ([6e5b29a](https://github.com/mariusgassen/kegelkasse/commit/6e5b29a22bf6a942de9d1487b48524121e473579))
+* **treasury:** Insights-Diagramme ohne Y-Achsen, Wasserfall ab 0 ([0c733ca](https://github.com/mariusgassen/kegelkasse/commit/0c733ca93b84bfa4ed9dbf5997c19b8b572a3a7f))
+* **treasury:** Insights-Diagramme per Antippen auswählen, Kassenverlauf mit Achsen ([64c9cbb](https://github.com/mariusgassen/kegelkasse/commit/64c9cbbc89405a4bade43198c2314b96bed46ced))
+* **treasury:** polish the PDF report — signs, colours, columns, logo, guest cap ([82ed8cb](https://github.com/mariusgassen/kegelkasse/commit/82ed8cb75d9d93fd11efa6f918d0442106198c68))
+
 ## [1.74.0](https://github.com/mariusgassen/kegelkasse/compare/v1.73.0...v1.74.0) (2026-11-11)
 
 
