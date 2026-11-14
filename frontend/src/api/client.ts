@@ -640,10 +640,11 @@ export const api = {
     startGame: (eid: number, gid: number) =>
         request<void>('POST', `/evening/${eid}/games/${gid}/start`, {client_timestamp: Date.now()}),
     finishGame: (eid: number, gid: number, d: {
-        winner_ref: string;
-        winner_name: string;
+        winner_ref?: string;
+        winner_name?: string;
         scores?: Record<string, number>;
         loser_penalty?: number;
+        player_penalties?: Record<string, number>;
     }) =>
         request<void>('POST', `/evening/${eid}/games/${gid}/finish`, {...d, client_timestamp: Date.now()}),
     updateGame: (eid: number, gid: number, d: Partial<{

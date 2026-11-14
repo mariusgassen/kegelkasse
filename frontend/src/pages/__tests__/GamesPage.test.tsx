@@ -1424,3 +1424,33 @@ describe('GamesPage — icon button aria-labels', () => {
         expect(await cardActionLabels(0)).toEqual(['action.edit', 'action.delete'])
     })
 })
+
+// ── penalty-only finish ───────────────────────────────────────────────────────
+describe('GamesPage — penalty-only finish', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
+    })
+
+    it('finishes without a winner and sends only per-player penalties', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.finishGame).mockResolvedValueOnce(undefined as any)
+        await renderGamesPage()
+        const finishBtn = screen.getAllByText(/game\.finish|game\.start/).find(b => b.textContent?.includes('game.finish'))
+        expect(finishBtn).toBeTruthy()
+        fireEvent.click(finishBtn!)
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByLabelText('game.penaltyOnly'))
+        const inputs = screen.getAllByLabelText(/^game\.penaltyOnly: /)
+        fireEvent.change(inputs[0], { target: { value: '2,5' } })
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.finishGame).toHaveBeenCalled())
+        const body = vi.mocked(api.finishGame).mock.calls[0][2] as any
+        expect(body.winner_ref).toBeUndefined()
+        expect(Object.values(body.player_penalties)).toEqual([2.5])
+    })
+})
