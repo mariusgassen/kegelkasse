@@ -121,3 +121,7 @@ Ein Abend kann unter **Historie → Abend → Löschen** dauerhaft gelöscht wer
 :::danger
 Das Löschen eines Abends ist endgültig und entfernt alle Spiele, Strafen und Getränke dieses Abends.
 :::
+
+## Live-Insel
+
+Solange ein Abend läuft, zeigt die App oben eine kleine „Dynamic Island“: kompakt 🎳 und die laufende Strafensumme. Gedrückt halten klappt sie auf (Lokal, laufendes Spiel und wer dran ist, Strafensumme sowie Bier- und Schnapsrunden); ein kurzer Tipp öffnet den Abend. Sie ist nur sichtbar, solange die App geöffnet ist.

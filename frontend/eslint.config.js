@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 
 export default [
     {
-        ignores: ['dist/**', 'node_modules/**'],
+        ignores: ['dist/**', 'node_modules/**', 'src/lib/island/**'] // vendored islandcn engine,
     },
     {
         files: ['src/**/*.{ts,tsx}'],

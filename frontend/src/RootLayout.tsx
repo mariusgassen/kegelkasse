@@ -6,7 +6,7 @@
  * <Outlet/>. The 7 pages used to be mounted at once (display:none); the router now mounts only
  * the active one, code-split and with scroll restoration.
  */
-import {useEffect, useRef, useState} from 'react'
+import {lazy, Suspense, useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Outlet} from '@tanstack/react-router'
 import {
@@ -81,6 +81,8 @@ const VEREIN_SECTIONS: { id: RoutePage; Icon: LucideIcon; labelKey: string; admi
     {id: 'zeugwart', Icon: Package, labelKey: 'nav.zeugwart'},
     {id: 'club', Icon: Settings, labelKey: 'nav.manage', adminOnly: true},
 ]
+
+const EveningIsland = lazy(() => import('./components/evening/EveningIsland'))
 
 export function RootLayout() {
     const {user, activeEveningId} = useAppStore()
@@ -164,6 +166,10 @@ export function RootLayout() {
                 <InstallPrompt/>
                 <UpdatePrompt/>
                 <WhatsNewNotice/>
+                {/* Live-activity island for the running evening (islandcn); code-split, only while one is active */}
+                {activeEveningId != null && activeEveningId > 0 && (
+                    <Suspense fallback={null}><EveningIsland eveningId={activeEveningId}/></Suspense>
+                )}
 
                 {/* ── Header ── */}
                 <header style={{
