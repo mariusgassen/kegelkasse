@@ -92,10 +92,18 @@ function burstConfetti() {
     }, CONFETTI_DURATION_MS + 500)
 }
 
+export const CELEBRATE_EVENT = 'kegelkasse:celebrate'
+
+export interface CelebrateDetail {
+    kind: CelebrationKind
+    message: string
+}
+
 /** Fires a celebration: toast + short chime always, confetti unless the user has
  * `prefers-reduced-motion` set. No-ops entirely when the user disabled effects. */
 export function celebrate(kind: CelebrationKind, message: string) {
     if (!useEffectsStore.getState().effectsEnabled) return
+    window.dispatchEvent(new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, {detail: {kind, message}}))
     showToast(message)
     playChime(kind)
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false

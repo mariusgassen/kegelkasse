@@ -1,13 +1,32 @@
-import {describe, it, expect, vi} from 'vitest'
+import {describe, it, expect, vi, beforeEach} from 'vitest'
 import {render, screen, act} from '@testing-library/react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import type {Evening} from '@/types.ts'
+import 'fake-indexeddb/auto'
 
-vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
+vi.mock('@/i18n', () => ({
+    useT: () => (key: string) => key,
+    t: (key: string) => key,
+}))
 vi.mock('@/router', () => ({router: {navigate: vi.fn(() => Promise.resolve())}}))
-vi.mock('@/api/client.ts', () => ({api: {getEvening: vi.fn()}}))
+vi.mock('@/api/client.ts', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/api/client.ts')>()
+    return {
+        ...actual,
+        api: {
+            ...actual.api,
+            getEvening: vi.fn(),
+            confirmPaymentRequest: vi.fn(() => Promise.resolve({})),
+            rejectPaymentRequest: vi.fn(() => Promise.resolve({})),
+        },
+        flushOfflineQueue: vi.fn(() => Promise.resolve({applied: 1, errors: 0})),
+    }
+})
 
-import EveningIsland, {elapsedLabel} from '../evening/EveningIsland'
+import EveningIsland, {elapsedLabel, UPLOAD_STATUS_EVENT} from '../evening/EveningIsland'
+import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
+import type {UploadStatusDetail} from '@/api/client.ts'
+import {useNotificationStore} from '@/store/notifications.ts'
 
 function evening(overrides: Partial<Evening> = {}): Evening {
     return {
@@ -17,23 +36,75 @@ function evening(overrides: Partial<Evening> = {}): Evening {
     }
 }
 
-function renderIsland(data: Evening | undefined) {
+function renderIsland(data?: Evening, eveningId: number | null = 7) {
     const qc = new QueryClient()
     if (data) qc.setQueryData(['evening', 7], data)
-    return render(<QueryClientProvider client={qc}><EveningIsland eveningId={7}/></QueryClientProvider>)
+    return render(
+        <QueryClientProvider client={qc}>
+            <EveningIsland eveningId={eveningId} backdrop="#1a1410"/>
+        </QueryClientProvider>,
+    )
 }
 
 describe('EveningIsland', () => {
+    beforeEach(() => {
+        useNotificationStore.setState({notifications: []})
+    })
+
+    it('renders the idle capsule at rest when no activity is running', async () => {
+        renderIsland(undefined, null)
+        await act(async () => {})
+        expect(screen.getByRole('region', {name: 'Live'})).toBeTruthy()
+        expect(screen.queryByRole('button', {name: /island\.label/})).toBeNull()
+    })
+
     it('announces the running evening as a live activity', async () => {
         renderIsland(evening())
         await act(async () => {})
         expect(screen.getByRole('button', {name: /island\.label/})).toBeTruthy()
     })
 
-    it('shows no activity for a closed evening', async () => {
+    it('shows no evening activity for a closed evening', async () => {
         renderIsland(evening({is_closed: true}))
         await act(async () => {})
         expect(screen.queryByRole('button', {name: /island\.label/})).toBeNull()
+    })
+
+    it('shows a celebration alert when CELEBRATE_EVENT fires', async () => {
+        const {container} = renderIsland(undefined, null)
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, {
+                detail: {kind: 'allnine', message: 'Alle Neune!'},
+            }))
+        })
+        expect(screen.getAllByText('Alle Neune!').length).toBeGreaterThan(0)
+        expect(container.querySelector('[data-presentation="expanded"]')).toBeTruthy()
+    })
+
+    it('shows an upload activity while a media file is uploading', async () => {
+        renderIsland(undefined, null)
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent<UploadStatusDetail>(UPLOAD_STATUS_EVENT, {
+                detail: {active: 1, fileName: 'team.jpg', status: 'uploading'},
+            }))
+        })
+        expect(screen.getByRole('button', {name: /island\.upload.*team\.jpg/})).toBeTruthy()
+    })
+
+    it('shows a payment-request approval activity for unread payment request notifications', async () => {
+        useNotificationStore.setState({
+            notifications: [{
+                id: 'n1',
+                title: 'Zahlungsanfrage',
+                body: 'Max: 15 €',
+                url: '/#treasury:accounts?rid=42',
+                receivedAt: new Date().toISOString(),
+                read: false,
+            }],
+        })
+        renderIsland(undefined, null)
+        await act(async () => {})
+        expect(screen.getByRole('button', {name: /Zahlungsanfrage: Max: 15 €/})).toBeTruthy()
     })
 })
 
