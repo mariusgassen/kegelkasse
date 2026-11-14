@@ -9,23 +9,17 @@ export interface WaterfallStep {
     kind: WaterfallKind
     /** Signed change (in/out) or absolute level (total). */
     amount: number
-    /** Floating bar [from, to] — works for negative running totals too. */
+    /** Bar [from, to], always anchored at 0. */
     range: [number, number]
 }
 
 /** Waterfall from the money-flow summary: paid in − expenses + other income = cash, + open debt = projected. */
 export function waterfallSteps(s: TreasurySummary): WaterfallStep[] {
     const steps: WaterfallStep[] = []
-    let level = 0
+    // Every bar starts at the 0 baseline (magnitude only); colour carries in/out/total. Negative totals extend left.
     const push = (key: WaterfallStep['key'], kind: WaterfallKind, amount: number) => {
-        if (kind === 'total') {
-            steps.push({key, kind, amount, range: [Math.min(0, amount), Math.max(0, amount)]})
-            level = amount
-        } else {
-            const next = level + amount
-            steps.push({key, kind, amount, range: [Math.min(level, next), Math.max(level, next)]})
-            level = next
-        }
+        const range: [number, number] = kind === 'total' ? [Math.min(0, amount), Math.max(0, amount)] : [0, Math.abs(amount)]
+        steps.push({key, kind, amount, range})
     }
     push('paidIn', 'in', s.paidIn)
     push('expenses', 'out', -s.expensesGross)

@@ -1,3 +1,4 @@
+import {memberLabels} from '@/lib/guestNames'
 import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
@@ -552,6 +553,7 @@ export function EveningPage() {
                     {(() => {
                         const stamm = regularMembers.filter(rm => !rm.is_guest && !rm.deactivated_at && !players.some(p => p.regular_member_id === rm.id))
                         const guests = regularMembers.filter(rm => (rm.is_guest || rm.deactivated_at) && !players.some(p => p.regular_member_id === rm.id))
+                        const guestLabel = memberLabels(guests)
                         const toggle = (id: number) => setSelectedMemberIds(prev => {
                             const next = new Set(prev);
                             next.has(id) ? next.delete(id) : next.add(id);
@@ -581,7 +583,7 @@ export function EveningPage() {
                                                         toggle(rm.id);
                                                         setGuestName('')
                                                     }}>
-                                                {rm.nickname || rm.name}
+                                                {guestLabel.get(rm.id) ?? (rm.nickname || rm.name)}
                                             </button>
                                         ))}
                                     </div>

@@ -8,6 +8,7 @@ import {api} from '@/api/client.ts'
 import {ExpandableCard} from '@/components/ui/ExpandableCard.tsx'
 import {ModeToggle} from '@/components/ui/ModeToggle.tsx'
 import {BalanceHistoryChart} from '@/components/treasury/BalanceHistoryChart.tsx'
+import {MonthlyStatementsChart} from '@/components/treasury/MonthlyStatementsChart.tsx'
 import {
     clubEventsFromBookings,
     debtEventsFromTimeline,
@@ -462,6 +463,8 @@ export function TreasuryAnalysis() {
                 ) : statements.length === 0 ? (
                     <p className="text-sm text-muted">{t('treasury.statements.empty')}</p>
                 ) : (
+                    <>
+                    <MonthlyStatementsChart statements={statements}/>
                     <div className="text-sm" data-testid="statements-months">
                         {(showAllMonths ? statements : statements.slice(0, MONTHS_SHOWN)).map((m, i) => (
                             <ExpandableCard key={m.start} bare className="border-t border-line"
@@ -491,6 +494,7 @@ export function TreasuryAnalysis() {
                             </button>
                         )}
                     </div>
+                    </>
                 )}
             </div>
         </div>

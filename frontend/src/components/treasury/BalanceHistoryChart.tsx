@@ -3,6 +3,7 @@ import {CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, 
 import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonChart} from '@/components/ui/Skeleton'
 import {axisLeftPad, compactEuro} from '@/lib/chartAxis.ts'
+import {chartAnimation} from '@/lib/motion.ts'
 import {
     type BalanceEvent,
     type DualPoint,
@@ -199,22 +200,22 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
                             {/* Penalties (cumulative fines, red) → paid (ink) → balance on top (accent, emphasized). */}
                             <Line data={lineData(penaltyAt, penaltyBaseline)} dataKey="v" type="stepAfter"
                                   stroke={KIND_META.penalty.color} strokeWidth={1.8} strokeOpacity={0.9}
-                                  dot={false} activeDot={false} isAnimationActive={false}/>
+                                  dot={false} activeDot={false} {...chartAnimation()}/>
                             <Line data={lineData(p => p.actual, actualBaseline)} dataKey="v" type="stepAfter"
-                                  stroke="var(--ink)" strokeWidth={1.8} dot={false} activeDot={false} isAnimationActive={false}/>
+                                  stroke="var(--ink)" strokeWidth={1.8} dot={false} activeDot={false} {...chartAnimation()}/>
                             <Line data={lineData(p => p.virtual, actualBaseline + overlayBaseline)} dataKey="v" type="stepAfter"
-                                  stroke="var(--accent-fg)" strokeWidth={2.4} dot={false} activeDot={false} isAnimationActive={false}/>
+                                  stroke="var(--accent-fg)" strokeWidth={2.4} dot={false} activeDot={false} {...chartAnimation()}/>
                         </>
                     ) : (
                         <>
                             <Line data={lineData(p => p.virtual, actualBaseline + overlayBaseline)} dataKey="v" type="stepAfter"
                                   stroke="var(--accent-fg)" strokeWidth={2} strokeDasharray="4 3" strokeOpacity={0.85}
-                                  dot={false} activeDot={false} isAnimationActive={false}/>
+                                  dot={false} activeDot={false} {...chartAnimation()}/>
                             <Line data={lineData(p => p.actual, actualBaseline)} dataKey="v" type="stepAfter"
-                                  stroke="var(--ink)" strokeWidth={2.2} dot={false} activeDot={false} isAnimationActive={false}/>
+                                  stroke="var(--ink)" strokeWidth={2.2} dot={false} activeDot={false} {...chartAnimation()}/>
                         </>
                     )}
-                    <Scatter data={markers} dataKey="y" isAnimationActive={false}
+                    <Scatter data={markers} dataKey="y" {...chartAnimation()}
                              shape={(sp: any) => {
                                  const {cluster, last} = sp.payload as typeof markers[number]
                                  const lastEvent = last.event!

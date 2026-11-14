@@ -33,6 +33,7 @@ import {useClub} from '@/hooks/useClub.ts'
 import {GuestRequestsSection} from '@/components/schedule/GuestRequestsSection.tsx'
 import {Switch} from '@/components/ui/Switch'
 import {Button} from '@/components/ui/Button.tsx'
+import {memberLabels, scheduledGuestLabels} from '@/lib/guestNames'
 
 const TODAY = todayDateInput()
 
@@ -138,6 +139,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
         }
     }
 
+    const guestLabel = memberLabels(availableKnownGuests)
     return (
         <div className="mt-2 p-2.5 rounded-lg bg-canvas border border-line space-y-2">
             {/* Known guest chips */}
@@ -154,7 +156,7 @@ function AddGuestForm({se, onAdded, onCancel}: {
                                 className={`chip ${matchedId === m.id ? 'active' : ''}`}
                                 onClick={() => pickKnown(m)}
                             >
-                                {m.nickname || m.name}
+                                {guestLabel.get(m.id) ?? (m.nickname || m.name)}
                             </button>
                         ))}
                     </div>
@@ -229,6 +231,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
     const [abgesagtIds, setAbgesagtIds] = useState<Set<number>>(new Set())
     const [initialized, setInitialized] = useState(false)
     const [guests, setGuests] = useState<ScheduledEveningGuest[]>([...se.guests])
+    const guestLabels = scheduledGuestLabels(guests, regularMembers)
     const [addingGuest, setAddingGuest] = useState(false)
     const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
     const [starting, setStarting] = useState(false)
@@ -405,7 +408,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                             </div>
                             {guests.map(g => (
                                 <div key={g.id} className="flex items-center gap-2 text-sm text-ink mb-1 px-1">
-                                    <span className="flex-1">🧑‍🤝‍🧑 {g.name}</span>
+                                    <span className="flex-1">🧑‍🤝‍🧑 {guestLabels.get(g.id) ?? g.name}</span>
                                     <button
                                         aria-label={`${t('action.delete')}: ${g.name}`}
                                         className="text-muted active:text-danger-fg text-xs"
@@ -491,6 +494,8 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
     onNavigate?: () => void
 }) {
     const t = useT()
+    const regularMembers = useAppStore(s => s.regularMembers)
+    const upcomingGuestLabels = scheduledGuestLabels(se.guests, regularMembers)
     const qc = useQueryClient()
     const [showGuests, setShowGuests] = useState(false)
     const [addingGuest, setAddingGuest] = useState(false)
@@ -570,7 +575,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                                     {se.guests.map(g => (
                                         <div key={g.id}
                                              className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-full bg-surface-2 text-ink">
-                                            <span>{g.name}</span>
+                                            <span>{upcomingGuestLabels.get(g.id) ?? g.name}</span>
                                             <button className="text-muted active:text-danger-fg ml-0.5 p-1 -m-0.5"
                                                     aria-label={`${t('action.delete')}: ${g.name}`}
                                                     onClick={() => removeGuest(g.id)}>
