@@ -178,6 +178,25 @@ function MonthlyTable({months, rows, tint}: { months: string[]; rows: ReportMont
     )
 }
 
+function AccountMonthsTable({months, accounts, tint}: { months: string[]; accounts: ReportData['accounts']; tint: string }) {
+    const nameW = 96
+    const monthW = Math.min(64, Math.max(36, Math.floor((LANDSCAPE_W - nameW) / Math.max(months.length, 1))))
+    const cols: Col[] = [
+        {w: nameW, head: 'Konto'},
+        ...months.map(m => ({w: monthW, head: m, align: 'right' as const})),
+    ]
+    const signedNumber = (v: number) => (Math.round(v * 100) > 0 ? '+' : '') + reportNumber(v)
+    return (
+        <DataTable
+            cols={cols}
+            tint={tint}
+            rows={accounts.map(a => ({
+                cells: [a.deactivated ? `${a.nickname} (deakt.)` : a.nickname, ...(a.month_balances ?? []).map(signedNumber)],
+                tones: [a.deactivated ? 'muted' : undefined, ...(a.month_balances ?? []).map(signTone)],
+            }))}
+        />
+    )
+}
 
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
 
@@ -492,6 +511,17 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                                     <MonthlyTable months={data.monthly.months} rows={data.monthly.guests} tint={tint}/>
                                 </View>
                             )}
+                        </Section>
+                    </Page>
+                )}
+                {(data.account_months?.length ?? 0) > 0 && (
+                    <Page size={LANDSCAPE} margin={MARGIN}>
+                        {footer}
+                        <Section title="Kontostand pro Monat" accent={accent}>
+                            <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED, marginBottom: 3}}>
+                                Saldo am Monatsende in € (Einzahlungen − Strafen, kumuliert)
+                            </Text>
+                            <AccountMonthsTable months={data.account_months!} accounts={data.accounts} tint={tint}/>
                         </Section>
                     </Page>
                 )}

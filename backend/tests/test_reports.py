@@ -289,6 +289,26 @@ class TestReportDataCapsAndActive:
         assert body["summary"]["total_payments"] == 100.0
         assert any(b["type"] == "Abschreibung" for b in body["bookings"])
 
+    def test_account_month_balances_are_running_and_in_excel(self, client, admin_headers, db, club):
+        import io
+        from openpyxl import load_workbook
+        from models.payment import MemberPayment
+        m = RegularMember(club_id=club.id, name="Konto", is_active=True)
+        db.add(m)
+        db.flush()
+        self._evening_with_penalties(db, club, m, [50.0])
+        db.add(MemberPayment(club_id=club.id, regular_member_id=m.id, amount=20.0))
+        db.commit()
+        body = client.get("/api/v1/reports/data", headers=admin_headers).json()
+        acc = next(a for a in body["accounts"] if a["name"] == "Konto")
+        assert body["account_months"] and len(acc["month_balances"]) == len(body["account_months"])
+        assert acc["month_balances"][-1] == acc["balance"] == -30.0
+        r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
+        ws = load_workbook(io.BytesIO(r.content))["Mitglieder-Konten"]
+        header = [c.value for c in ws[1]]
+        assert any(str(h).startswith("Saldo Ende") for h in header)
+        assert "Offen (€)" in header
+
     def test_guest_cap_only_applies_from_the_exit_on(self, client, admin_headers, db, club):
         from models.club import ClubSettings
         settings = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
