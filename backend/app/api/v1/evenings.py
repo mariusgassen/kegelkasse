@@ -880,9 +880,11 @@ def set_active_player(eid: int, gid: int, data: ActivePlayerUpdate,
 
 
 class GameFinish(TrimmedModel):
-    winner_ref: str   # "p:{player_id}" or "t:{team_id}"
-    winner_name: str
+    winner_ref: str = ""   # "p:{player_id}" or "t:{team_id}"; empty for penalty-only games
+    winner_name: str = ""
     scores: dict = {}
+    # Penalty-only mode: {"p:{player_id}": amount}. No winner/loser; only these penalties are booked.
+    player_penalties: Optional[dict[str, float]] = None
     loser_penalty: Optional[float] = None  # override game default
     client_timestamp: Optional[int] = None  # ms since epoch; used to preserve the true offline finish time
 
@@ -935,6 +937,31 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
                                        category="penalties")
 
 
+def _apply_player_penalties(e: Evening, g: Game, amounts: dict, db: Session, user: User):
+    """Penalty-only game: replace the game's auto-penalties with the given per-player amounts."""
+    db.query(PenaltyLog).filter(
+        PenaltyLog.game_id == g.id,
+        PenaltyLog.is_deleted == False,
+    ).update({"is_deleted": True})
+    db.flush()
+    now_ts = (g.finished_at or datetime.now(UTC)).timestamp() * 1000
+    by_ref = {f"p:{p.id}": p for p in e.players}
+    for ref, amount in amounts.items():
+        p = by_ref.get(ref)
+        if p is None:
+            raise HTTPException(status_code=400, detail=f"Unknown player {ref}")
+        if amount is None or amount < 0:
+            raise HTTPException(status_code=400, detail="Penalty must not be negative")
+        if amount == 0:
+            continue
+        db.add(PenaltyLog(
+            evening_id=e.id, player_id=p.id, player_name=p.name,
+            penalty_type_name="Spielstrafe", icon="🏆",
+            amount=amount, mode=PenaltyMode.euro,
+            game_id=g.id, client_timestamp=now_ts, created_by=user.id,
+        ))
+
+
 @router.post("/{eid}/games/{gid}/finish")
 def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: BackgroundTasks,
                 db: Session = Depends(get_db), user: User = Depends(require_club_member)):
@@ -942,8 +969,11 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
     e_date_str = format_datetime(e.date, locale=user.preferred_locale or "de")
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
     if not g: raise HTTPException(404)
-    g.winner_ref = data.winner_ref
-    g.winner_name = data.winner_name
+    penalty_only = data.player_penalties is not None
+    if not penalty_only and not data.winner_ref:
+        raise HTTPException(status_code=400, detail="winner_ref required")
+    g.winner_ref = None if penalty_only else data.winner_ref
+    g.winner_name = None if penalty_only else data.winner_name
     g.scores = data.scores
     if data.loser_penalty is not None:
         g.loser_penalty = data.loser_penalty
@@ -953,11 +983,14 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             datetime.fromtimestamp(data.client_timestamp / 1000, tz=UTC)
             if data.client_timestamp else datetime.now(UTC)
         )
-    _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
+    if penalty_only:
+        _apply_player_penalties(e, g, data.player_penalties, db, user)
+    else:
+        _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
     # King: opener game with individual winner → set king flag.
     # Opener games are constrained to winner_type=individual on creation/update,
     # so a team winner_ref here is invalid input and silently ignored.
-    if g.is_opener and data.winner_ref.startswith("p:"):
+    if g.is_opener and not penalty_only and data.winner_ref.startswith("p:"):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
         db.flush()
         try:

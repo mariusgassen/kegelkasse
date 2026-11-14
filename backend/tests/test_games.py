@@ -245,6 +245,33 @@ class TestFinishGame:
         assert game.winner_ref == f"p:{player.id}"
         assert game.finished_at is not None
 
+    def test_penalty_only_finish_books_player_penalties(self, client: TestClient, db, evening, player, player2, auth_headers):
+        gid = self._create_and_start_game(client, evening, auth_headers, loser_penalty=1.0)
+        url = f"/api/v1/evening/{evening.id}/games/{gid}/finish"
+        resp = client.post(url, json={"player_penalties": {f"p:{player.id}": 2.5, f"p:{player2.id}": 0}},
+                           headers=auth_headers)
+        assert resp.status_code == 200
+        game = db.query(Game).filter(Game.id == gid).first()
+        assert game.status == "finished"
+        assert game.winner_ref is None
+        logs = db.query(PenaltyLog).filter(PenaltyLog.game_id == gid, PenaltyLog.is_deleted == False).all()
+        assert [(l.player_id, l.amount) for l in logs] == [(player.id, 2.5)]
+        # re-edit replaces the previous penalties
+        client.post(url, json={"player_penalties": {f"p:{player2.id}": 4}}, headers=auth_headers)
+        logs = db.query(PenaltyLog).filter(PenaltyLog.game_id == gid, PenaltyLog.is_deleted == False).all()
+        assert [(l.player_id, l.amount) for l in logs] == [(player2.id, 4)]
+
+    def test_penalty_only_rejects_unknown_player_and_negative(self, client: TestClient, evening, player, auth_headers):
+        gid = self._create_and_start_game(client, evening, auth_headers)
+        url = f"/api/v1/evening/{evening.id}/games/{gid}/finish"
+        assert client.post(url, json={"player_penalties": {"p:999999": 1}}, headers=auth_headers).status_code == 400
+        assert client.post(url, json={"player_penalties": {f"p:{player.id}": -1}}, headers=auth_headers).status_code == 400
+
+    def test_finish_without_winner_or_penalties_rejected(self, client: TestClient, evening, auth_headers):
+        gid = self._create_and_start_game(client, evening, auth_headers)
+        resp = client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={}, headers=auth_headers)
+        assert resp.status_code == 400
+
     def test_opener_game_sets_king_flag(self, client: TestClient, db, evening, player, player2, user, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers, is_opener=True)
         client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={

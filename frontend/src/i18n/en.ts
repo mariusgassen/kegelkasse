@@ -247,6 +247,8 @@ export const en = {
     "game.scores": "Scores (optional)",
     "game.autoAddTeams": "Automatically add standard teams",
     "game.loserPenalty": "Loser penalty (€)",
+    "game.penaltyOnly": "Penalties only (no winner/loser)",
+    "game.penaltyOnlyHint": "Penalty per player (€)",
     "game.loserNote": "→ Applied to all except the winner.",
     "game.perPointPenalty": "Penalty per point diff (€)",
     "game.perPointNote": "→ Added on top of base penalty, based on point difference to winner.",

@@ -247,6 +247,8 @@ export const de = {
     "game.scores": "Scores (optional)",
     "game.autoAddTeams": "Standard-Teams automatisch hinzufügen",
     "game.loserPenalty": "Verlierer-Strafe (€)",
+    "game.penaltyOnly": "Nur Strafen eintragen (kein Gewinner/Verlierer)",
+    "game.penaltyOnlyHint": "Strafe pro Spieler (€)",
     "game.loserNote": "→ Wird für alle außer GewinnerIn eingetragen.",
     "game.perPointPenalty": "Strafe pro Punkt Differenz (€)",
     "game.perPointNote": "→ Zusätzlich zur Grundstrafe, basierend auf Punkte-Differenz zur GewinnerIn.",
