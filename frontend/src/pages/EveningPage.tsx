@@ -772,15 +772,20 @@ export function UnplannedAttendanceSheet({eveningId, onDone, onCancel}: {
             // Pin penalties require real player IDs — skip for pending/temp evenings (id < 0)
             if (eveningId > 0 && missingPinIds.size > 0 && pinPenalty > 0) {
                 const eveningData = await api.getEvening(eveningId)
+                // One penalty per holder, however many pins they were meant to bring
+                const missingByHolder = new Map<number, ClubPin[]>()
                 for (const pinId of missingPinIds) {
                     const pin = pins.find(p => p.id === pinId)
                     if (!pin || !pin.holder_regular_member_id) continue
-                    const player = eveningData.players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                    missingByHolder.set(pin.holder_regular_member_id, [...(missingByHolder.get(pin.holder_regular_member_id) ?? []), pin])
+                }
+                for (const [holderId, holderPins] of missingByHolder) {
+                    const player = eveningData.players.find(p => p.regular_member_id === holderId)
                     if (!player) continue
                     await api.addPenalty(eveningId, {
                         player_ids: [player.id],
-                        penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
-                        icon: pin.icon,
+                        penalty_type_name: missingPinsLabel(holderPins, t('pin.missingPenalty')),
+                        icon: holderPins[0].icon,
                         amount: pinPenalty,
                         mode: 'euro',
                         client_timestamp: Date.now(),
@@ -933,6 +938,11 @@ function formatDate(iso: string) {
 }
 
 // ── Pins alert component ──
+/** Label of the single "pins not brought" penalty of one holder. */
+function missingPinsLabel(pins: ClubPin[], text: string): string {
+    return `${pins.map(p => p.icon).join('')} ${text}`
+}
+
 function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenaltyLogged}: {
     pins: ClubPin[]
     evening: { id: number; penalty_log: { id: number; player_name: string; penalty_type_name: string }[] }
@@ -949,20 +959,23 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
     )
     if (activePins.length === 0) return null
 
-    async function logMissingPins(pin: ClubPin) {
-        const player = players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+    // Group by holder: someone holding several pins gets ONE penalty, not one per pin
+    const holders = Array.from(new Set(activePins.map(pin => pin.holder_regular_member_id as number)))
+
+    async function logMissingPins(holderPins: ClubPin[]) {
+        const player = players.find(p => p.regular_member_id === holderPins[0].holder_regular_member_id)
         if (!player) return
         try {
             await api.addPenalty(evening.id, {
                 player_ids: [player.id],
-                penalty_type_name: `${pin.icon} ${pin.name} ${t('pin.missingPenalty')}`,
-                icon: pin.icon,
+                penalty_type_name: missingPinsLabel(holderPins, t('pin.missingPenalty')),
+                icon: holderPins[0].icon,
                 amount: pinPenalty,
                 mode: 'euro',
                 client_timestamp: Date.now(),
             })
             onPenaltyLogged()
-            showToast(`${pin.icon} ${t('pin.missingPenalty')} → ${player.name}`)
+            showToast(`${holderPins[0].icon} ${t('pin.missingPenalty')} → ${player.name}`)
         } catch (e) {
             toastError(e)
         }
@@ -979,28 +992,29 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
 
     return (
         <div className="mb-3">
-            {activePins.map(pin => {
-                const holderMember = pin.holder_regular_member_id
-                    ? regularMembers.find(m => m.id === pin.holder_regular_member_id)
-                    : null
+            {holders.map(holderId => {
+                const holderPins = activePins.filter(pin => pin.holder_regular_member_id === holderId)
+                const pin = holderPins[0]
+                const holderMember = regularMembers.find(m => m.id === holderId)
                 const holderDisplayName = holderMember
                     ? (holderMember.nickname || holderMember.name)
                     : pin.holder_name
-                const holderPlayer = players.find(p => p.regular_member_id === pin.holder_regular_member_id)
+                const holderPlayer = players.find(p => p.regular_member_id === holderId)
                 const logEntry = holderPlayer
                     ? evening.penalty_log.find(l =>
-                        l.player_name === holderPlayer.name &&
-                        l.penalty_type_name.startsWith(pin.icon) &&
-                        l.penalty_type_name.includes(pin.name)
+                        l.player_name === holderPlayer.name && (
+                            l.penalty_type_name === missingPinsLabel(holderPins, t('pin.missingPenalty')) ||
+                            holderPins.some(hp => l.penalty_type_name.startsWith(hp.icon) && l.penalty_type_name.includes(hp.name))
+                        )
                     )
                     : undefined
                 const alreadyLogged = !!logEntry
                 return (
-                <div key={pin.id}
+                <div key={holderId}
                      className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1.5 border border-accent/30 bg-accent/5">
-                    <span className="text-xl flex-shrink-0">{pin.icon}</span>
+                    <span className="text-xl flex-shrink-0">{holderPins.map(hp => hp.icon).join('')}</span>
                     <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold">{pin.name}</div>
+                        <div className="text-xs font-bold">{holderPins.map(hp => hp.name).join(', ')}</div>
                         <div className="text-xs text-muted">
                             {t('pin.holder')}: {holderDisplayName}
                         </div>
@@ -1015,7 +1029,7 @@ function PinsAlert({pins, evening, players, regularMembers, pinPenalty, onPenalt
                           </div>
                         : <Button
                             variant="danger" size="xs" className="flex-shrink-0"
-                            onClick={() => logMissingPins(pin)}>
+                            onClick={() => logMissingPins(holderPins)}>
                             ✕ {t('pin.missingPenalty')}
                           </Button>
                     }
