@@ -7,7 +7,7 @@
  * second connection. The island itself is artwork: always black like the hardware, so its content
  * uses white + the raw accent (like the dark-only kiosk views), not the page-themed tokens.
  */
-import {useEffect} from 'react'
+import {useEffect, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {api} from '@/api/client.ts'
 import {router} from '@/router'
@@ -21,6 +21,18 @@ const ACCENT = 'var(--accent)'
 
 function eur(v: number): string {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR', maximumFractionDigits: 0})
+}
+
+/** m:ss (or h:mm:ss) since an ISO start time; null when the start is unknown or unparsable. */
+export function elapsedLabel(startedAt: string | null | undefined, now: number): string | null {
+    if (!startedAt) return null
+    const start = Date.parse(startedAt)
+    if (Number.isNaN(start)) return null
+    const total = Math.max(0, Math.floor((now - start) / 1000))
+    const h = Math.floor(total / 3600)
+    const m = Math.floor((total % 3600) / 60)
+    const sec = String(total % 60).padStart(2, '0')
+    return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
 function Activity({eveningId}: {eveningId: number}) {
@@ -38,9 +50,20 @@ function Activity({eveningId}: {eveningId: number}) {
     const {game, activePlayer} = currentGameState(open)
     const turnName = activePlayer ? (activePlayer.nickname || activePlayer.name) : null
 
+    // Tick once a second, but only while a game with a known start is running.
+    const [now, setNow] = useState(() => Date.now())
+    const timed = !!game?.started_at
+    useEffect(() => {
+        if (!timed) return
+        setNow(Date.now())
+        const id = window.setInterval(() => setNow(Date.now()), 1000)
+        return () => window.clearInterval(id)
+    }, [timed])
+    const timer = elapsedLabel(game?.started_at, now)
+
     const money = eur(totals.penaltyEuro)
     const gameLine = game
-        ? (turnName ? `${game.name} · ${turnName}` : game.name)
+        ? [game.name, turnName, timer].filter(Boolean).join(' · ')
         : t('island.noGame')
     const venue = open?.venue || t('island.title')
     const stats = `${money} · 🍺 ${totals.beerRounds} · 🥃 ${totals.shotRounds}`
@@ -56,7 +79,12 @@ function Activity({eveningId}: {eveningId: number}) {
             onPress: () => { router.navigate({to: '/evening'}).catch(() => {}) },
             compact: {
                 leading: <span aria-hidden style={{fontSize: 16}}>🎳</span>,
-                trailing: <span style={{color: ACCENT, fontWeight: 700, fontSize: 13}}>{money}</span>,
+                // A running game shows its timer next to the evening total; otherwise just the total.
+                trailing: (
+                    <span style={{color: ACCENT, fontWeight: 700, fontSize: 13, fontVariantNumeric: 'tabular-nums'}}>
+                        {timer ? `${timer} · ${money}` : money}
+                    </span>
+                ),
             },
             minimal: <span aria-hidden style={{fontSize: 14}}>🎳</span>,
             expanded: {
@@ -70,7 +98,7 @@ function Activity({eveningId}: {eveningId: number}) {
                 bottom: <div style={{color: ACCENT, fontWeight: 700, fontSize: 14, textAlign: 'center'}}>{stats}</div>,
             },
         })
-    }, [island, open, money, gameLine, venue, stats, t])
+    }, [island, open, money, gameLine, venue, stats, timer, t])
 
     useEffect(() => () => island.end(ACTIVITY_ID), [island])
 

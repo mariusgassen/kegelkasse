@@ -7,7 +7,7 @@ vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
 vi.mock('@/router', () => ({router: {navigate: vi.fn(() => Promise.resolve())}}))
 vi.mock('@/api/client.ts', () => ({api: {getEvening: vi.fn()}}))
 
-import EveningIsland from '../evening/EveningIsland'
+import EveningIsland, {elapsedLabel} from '../evening/EveningIsland'
 
 function evening(overrides: Partial<Evening> = {}): Evening {
     return {
@@ -34,5 +34,20 @@ describe('EveningIsland', () => {
         renderIsland(evening({is_closed: true}))
         await act(async () => {})
         expect(screen.queryByRole('button', {name: /island\.label/})).toBeNull()
+    })
+})
+
+describe('elapsedLabel', () => {
+    const start = '2026-07-23T20:00:00Z'
+    const at = (sec: number) => Date.parse(start) + sec * 1000
+    it('formats m:ss and h:mm:ss', () => {
+        expect(elapsedLabel(start, at(5))).toBe('0:05')
+        expect(elapsedLabel(start, at(65))).toBe('1:05')
+        expect(elapsedLabel(start, at(3725))).toBe('1:02:05')
+    })
+    it('never goes negative and tolerates missing/invalid starts', () => {
+        expect(elapsedLabel(start, at(-30))).toBe('0:00')
+        expect(elapsedLabel(null, at(5))).toBeNull()
+        expect(elapsedLabel('nope', at(5))).toBeNull()
     })
 })
