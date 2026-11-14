@@ -363,9 +363,8 @@ def report_data(
             pay_m = round(d.monthly_pay_by_member[m.id].get(ym, 0.0), 2)
             pen_m = round(d.monthly_pen_by_member[m.id].get(ym, 0.0), 2)
             run += pay_m - pen_m
-            if pay_m or pen_m:
-                months_detail.append({"month": _acc_month_label(ym, d), "payments": pay_m,
-                                      "penalties": pen_m, "balance": round(run, 2)})
+            months_detail.append({"month": _acc_month_label(ym, d), "payments": pay_m,
+                                  "penalties": pen_m, "balance": round(run, 2)})
         accounts.append({"nickname": _name(m), "name": m.name, "penalties": pen, "payments": pay,
                          "balance": round(pay - pen, 2), "deactivated": m.deactivated_at is not None,
                          "months": months_detail})
@@ -557,25 +556,28 @@ def export_report(
     _auto_width(ws2)
 
     ws2b = wb.create_sheet("Konten pro Monat")
-    ws2b.freeze_panes = "A2"
-    _write_header(ws2b, ["Konto", "Monat", "Einzahlung (€)", "Schulden (€)", "Saldo (€)"])
+    ws2b.freeze_panes = "C2"
+    _write_header(ws2b, ["Konto", ""] + [f"{month_names_full[ym[1] - 1]} {ym[0]}" for ym in account_months])
     rb = 2
     for m in regular_members:
-        run, first = 0.0, True
+        run = 0.0
+        pays, pens, bals = [], [], []
         for ym in account_months:
             pay_m = round(monthly_pay_by_member[m.id].get(ym, 0.0), 2)
             pen_m = round(monthly_pen_by_member[m.id].get(ym, 0.0), 2)
             run += pay_m - pen_m
-            if not (pay_m or pen_m):
-                continue
-            ws2b.cell(rb, 1, ((m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else "")) if first else "")
-            ws2b.cell(rb, 2, f"{month_names_full[ym[1] - 1]} {ym[0]}")
-            for ci, v in ((3, pay_m), (4, pen_m), (5, round(run, 2))):
+            pays.append(pay_m)
+            pens.append(pen_m)
+            bals.append(round(run, 2))
+        display = (m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else "")
+        for kind, vals in (("Einzahlung", pays), ("Schulden", pens), ("Saldo", bals)):
+            ws2b.cell(rb, 1, display if kind == "Einzahlung" else "")
+            ws2b.cell(rb, 2, kind)
+            for ci, v in enumerate(vals, start=3):
                 c = ws2b.cell(rb, ci, v)
                 c.number_format = euro_fmt
-                if ci == 5:
+                if kind == "Saldo":
                     c.font = Font(color="FF4444" if v < 0 else "4ADE80")
-            first = False
             rb += 1
     _auto_width(ws2b)
 
@@ -605,7 +607,7 @@ def export_report(
             ws3.cell(ri, 1, label)
             if ym:
                 ws3.cell(ri, 4, _month_net(ym)).number_format = '#,##0.00 "€"'
-                ws3.cell(ri, 5, "Netto bar (ohne Abschreibungen)")
+                ws3.cell(ri, 5, "Netto bar")
             ri += 1
             prev_ym = ym
         ws3.cell(ri, 1, _fmt_date(dt))
