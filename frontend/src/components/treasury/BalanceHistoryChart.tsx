@@ -174,7 +174,8 @@ export function BalanceHistoryChart({actualEvents, overlayEvents, actualLabel, v
     })
 
     const chart = (
-        <div style={{width: isAll ? chartWidth : '100%', flexShrink: 0}}>
+        <div className="select-none" style={{width: isAll ? chartWidth : '100%', flexShrink: 0, WebkitUserSelect: 'none'}}
+             onMouseDown={e => e.preventDefault()}>
             <ResponsiveContainer width="100%" height={BH_VH}>
                 <ComposedChart margin={{top: 12, right: 6, bottom: 0, left: 0}}
                                onClick={() => setSelectedClusterKey(null)}>

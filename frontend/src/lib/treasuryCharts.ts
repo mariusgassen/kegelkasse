@@ -156,3 +156,146 @@ export function eventsInYear<T extends {ts: number}>(events: T[], year: number |
     if (year == null) return events
     return events.filter(e => new Date(e.ts).getFullYear() === year)
 }
+
+export interface ZeroSplit {
+    /** True only when values strictly cross zero (both < 0 and > 0). */
+    mixed: boolean
+    /** Vertical SVG linearGradient offset (0 = top/max, 1 = bottom/min) where value === 0. */
+    offset: number
+    /** Semantic token color to use directly when values stay on one side of zero. */
+    solidColor: 'var(--positive-fg)' | 'var(--danger-fg)'
+}
+
+/**
+ * Split point for an area chart whose Y domain includes 0 and values may be positive and negative.
+ * Avoids gradient bounding-box artifacts on flat series by returning a solid semantic token whenever
+ * all points sit on the same side of zero.
+ */
+export function zeroSplitOffset(values: number[]): ZeroSplit {
+    if (values.length === 0) return {mixed: false, offset: 0, solidColor: 'var(--positive-fg)'}
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    if (min < 0 && max > 0) {
+        return {mixed: true, offset: max / (max - min), solidColor: 'var(--positive-fg)'}
+    }
+    return {
+        mixed: false,
+        offset: 0,
+        solidColor: min < 0 ? 'var(--danger-fg)' : 'var(--positive-fg)',
+    }
+}
+
+/** Compact date label for time X-axes: dd.MM. inside one year, dd.MM.yy across years. */
+export function formatTimeAxisTick(ts: number, minTs: number, maxTs: number, locale = 'de-DE'): string {
+    const multiYear = new Date(minTs).getFullYear() !== new Date(maxTs).getFullYear()
+    return new Date(ts).toLocaleDateString(
+        locale,
+        multiYear ? {day: '2-digit', month: '2-digit', year: '2-digit'} : {day: '2-digit', month: '2-digit'},
+    )
+}
+
+/**
+ * Select a small set (<= max) of evenly spaced reference timestamps for a time X-axis,
+ * deduplicated by formatted date label so ticks never repeat the same day.
+ */
+export function timeAxisTicks(timestamps: number[], max = 3, locale = 'de-DE'): number[] {
+    if (timestamps.length === 0 || max <= 0) return []
+    const min = Math.min(...timestamps)
+    const maxTs = Math.max(...timestamps)
+    if (min === maxTs || max === 1) return [min]
+    const uniqueCount = new Set(timestamps).size
+    const targetCount = Math.min(max, uniqueCount)
+    if (targetCount <= 1) return [min]
+    const candidates = Array.from({length: targetCount}, (_, i) =>
+        Math.round(min + ((maxTs - min) * i) / (targetCount - 1)),
+    )
+    const seen = new Set<string>()
+    const out: number[] = []
+    for (const ts of candidates) {
+        const lbl = formatTimeAxisTick(ts, min, maxTs, locale)
+        if (!seen.has(lbl)) {
+            seen.add(lbl)
+            out.push(ts)
+        }
+    }
+    return out
+}
+
+/**
+ * Reference ticks for the horizontal waterfall X-axis: always includes 0 and well-separated
+ * extremes (plus midpoint when all values lie on one side of 0).
+ */
+export function waterfallAxisTicks(ranges: [number, number][]): number[] {
+    if (ranges.length === 0) return [0]
+    let min = 0
+    let max = 0
+    for (const [a, b] of ranges) {
+        if (a < min) min = a
+        if (b < min) min = b
+        if (a > max) max = a
+        if (b > max) max = b
+    }
+    const span = max - min
+    if (span <= 0) return [0]
+    const ticks = new Set<number>([0])
+    if (min < 0 && 0 - min >= span * 0.14) ticks.add(min)
+    if (max > 0 && max >= span * 0.14) ticks.add(max)
+    if (ticks.size === 2) {
+        const onlyExtreme = min < 0 && !ticks.has(max) ? min : max
+        ticks.add(Math.round((onlyExtreme / 2) * 100) / 100)
+    }
+    return [...ticks].sort((a, b) => a - b)
+}
+
+/** Pick the index in `timestamps` closest to horizontal plot `ratio` in [0, 1] (`<=` prefers the actual event over a 0-baseline duplicate). */
+export function nearestTimeIndex(timestamps: number[], ratio: number): number {
+    if (timestamps.length === 0) return -1
+    const min = Math.min(...timestamps)
+    const max = Math.max(...timestamps)
+    if (min === max) return timestamps.length - 1
+    const clamped = Math.min(1, Math.max(0, ratio))
+    const target = min + clamped * (max - min)
+    let bestIdx = 0
+    let bestDist = Infinity
+    for (let i = 0; i < timestamps.length; i++) {
+        const dist = Math.abs(timestamps[i] - target)
+        if (dist <= bestDist) {
+            bestDist = dist
+            bestIdx = i
+        }
+    }
+    return bestIdx
+}
+
+/**
+ * Resolve clicked datum index from Recharts `onClick` state, falling back to pointer X coordinate
+ * when tooltip hover state isn't active yet (e.g. touch tap on mobile without prior hover).
+ */
+export function resolveTimeClickIndex(
+    timestamps: number[],
+    state: unknown,
+    event: unknown,
+    margin: {left: number; right: number},
+): number {
+    const st = state as {activeTooltipIndex?: unknown; activeLabel?: unknown} | null | undefined
+    const rawIdx = st?.activeTooltipIndex
+    if (rawIdx != null && rawIdx !== '' && Number.isFinite(Number(rawIdx))) {
+        const n = Number(rawIdx)
+        if (n >= 0 && n < timestamps.length) return n
+    }
+    const lbl = Number(st?.activeLabel)
+    if (Number.isFinite(lbl)) {
+        const found = timestamps.findIndex(t => t === lbl)
+        if (found >= 0) return found
+    }
+    const ev = event as {clientX?: number; currentTarget?: {getBoundingClientRect?: () => DOMRect}} | null | undefined
+    const rect = ev?.currentTarget?.getBoundingClientRect?.()
+    if (rect && rect.width > 0 && typeof ev?.clientX === 'number' && Number.isFinite(ev.clientX)) {
+        const plotWidth = Math.max(1, rect.width - margin.left - margin.right)
+        const ratio = (ev.clientX - rect.left - margin.left) / plotWidth
+        return nearestTimeIndex(timestamps, ratio)
+    }
+    return -1
+}
+
+
