@@ -698,7 +698,7 @@ export const de = {
     "treasury.flow.expenses": "Ausgaben",
     "treasury.flow.otherIncome": "Sonstige",
     "treasury.flow.outstanding": "Offen",
-    "treasury.flow.projected": "Kassenstand, wenn alle zahlen",
+    "treasury.flow.projected": "Wenn alle zahlen",
     "treasury.flow.shareSettlement": "Anteil Auswahl",
     "treasury.flow.noEntries": "Keine Einträge",
     "treasury.my.title": "Mein Konto",

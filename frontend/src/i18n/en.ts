@@ -698,7 +698,7 @@ export const en = {
     "treasury.flow.expenses": "Expenses",
     "treasury.flow.otherIncome": "Other",
     "treasury.flow.outstanding": "Open",
-    "treasury.flow.projected": "Cash if everyone pays up",
+    "treasury.flow.projected": "If all pay",
     "treasury.flow.shareSettlement": "Selection's share",
     "treasury.flow.noEntries": "No entries",
     "treasury.my.title": "My account",

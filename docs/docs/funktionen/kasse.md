@@ -50,7 +50,7 @@ Die Kassenstand-Karte zeigt nicht nur die große Zahl, sondern auch, wie sie zus
 | ⬆ **Sonstige Einnahmen** | Nur sichtbar, wenn vorhanden — Einnahmen, die über das Ausgaben-Konto verbucht wurden (z. B. Sponsoring, Zuschuss), statt als Mitgliedseinzahlung |
 | 💰 **Kassenstand** | Eingezahlt minus Ausgaben plus Sonstige — echtes Geld in der Kasse |
 | 🔴 **Offen** | Schulden, die der Kasse noch fehlen (Mitglieder + Gäste) |
-| → **Kassenstand, wenn alle zahlen** | Kassenstand plus offene Beträge |
+| → **Wenn alle zahlen** | Kassenstand plus offene Beträge |
 
 Offene Strafen zählen also erst **nach Bezahlung** zum Kassenstand — vorher erscheinen sie unter „Offen".
 
