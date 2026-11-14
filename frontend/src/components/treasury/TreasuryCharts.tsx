@@ -52,6 +52,30 @@ function goFlow(key: string) {
     if (target) go('/treasury', {tab: target.tab})
 }
 
+type Pick = {chart: string; label: string; value: string; open?: () => void}
+
+export function PickBar({sel, chart}: { sel: Pick | null; chart: string }) {
+    const t = useT()
+    if (!sel || sel.chart !== chart) return null
+    return (
+        <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-surface-2 border border-line" data-testid={`pick-${chart}`}>
+            <div className="flex-1 min-w-0">
+                <div className="text-xs text-muted truncate">{sel.label}</div>
+                <div className="font-display font-bold text-ink">{sel.value}</div>
+            </div>
+            {sel.open && (
+                <button type="button" className="btn-secondary text-sm" onClick={sel.open} data-testid={`pick-open-${chart}`}>
+                    {t('treasury.charts.openAction')} ›
+                </button>
+            )}
+        </div>
+    )
+}
+
+function dayLabel(ts: number) {
+    return new Date(ts).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: '2-digit'})
+}
+
 function ChartCard({title, hint, children, testId}: { title: string; hint?: string; children: React.ReactNode; testId: string }) {
     return (
         <div className="kce-card p-3 mb-3" data-testid={testId}>
@@ -85,6 +109,9 @@ export function TreasuryCharts() {
     // are snapshots of the current balances and are intentionally not period-bound.
     const [period, setPeriod] = useState<number | null>(thisYear)
     const year = period ?? thisYear
+    // Tap = select (shows the value in a bar under the chart), a second explicit tap on the bar's button opens the
+    // data. A touch device has no hover, so a tap that jumps straight away would never reveal the number.
+    const [sel, setSel] = useState<Pick | null>(null)
 
     const {data: balances = [], isLoading: l1} = useQuery({queryKey: ['member-balances'], queryFn: api.getMemberBalances, staleTime: 30_000})
     const {data: guests = [], isLoading: l2} = useQuery({queryKey: ['guest-balances'], queryFn: api.getGuestBalances, staleTime: 30_000})
@@ -123,14 +150,35 @@ export function TreasuryCharts() {
             {/* 1 — Wasserfall */}
             <ChartCard testId="chart-waterfall" title={t('treasury.charts.waterfall')} hint={t('treasury.charts.waterfallHint')}>
                 {trend.length > 1 && (
-                    <div className="mb-2" data-testid="chart-trend" aria-label={t('treasury.charts.trend')} role="img">
-                        <div className="text-xs text-muted mb-0.5">{t('treasury.charts.trend')}</div>
-                        <ResponsiveContainer width="100%" height={48}>
-                            <AreaChart data={trend} margin={{top: 2, right: 0, bottom: 0, left: 0}}>
-                                <Area type="monotone" dataKey="value" stroke={C.accent} fill={C.accent} fillOpacity={0.15}
-                                      strokeWidth={2} dot={false} isAnimationActive={false}/>
+                    <div className="mb-3" data-testid="chart-trend" aria-label={t('treasury.charts.trend')} role="img">
+                        <div className="text-xs text-muted mb-1">{t('treasury.charts.trend')}</div>
+                        <ResponsiveContainer width="100%" height={150}>
+                            <AreaChart data={trend} margin={{top: 6, right: 8, bottom: 0, left: 0}}
+                                       onClick={(st) => {
+                                           const p = trend.find(x => x.ts === Number((st as {activeLabel?: unknown})?.activeLabel))
+                                           if (p) setSel({chart: 'trend', label: dayLabel(p.ts), value: fe(p.value),
+                                               open: () => go('/treasury', {tab: 'bookings'})})
+                                       }}>
+                                <XAxis dataKey="ts" type="number" scale="time" domain={['dataMin', 'dataMax']} tick={TICK} stroke={C.line}
+                                       tickFormatter={(v: number) => new Date(v).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
+                                       tickCount={4} minTickGap={24}/>
+                                <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40} domain={['auto', 'auto']}/>
+                                <Tooltip {...TIP} cursor={{stroke: C.muted}}
+                                         content={({active, payload}) => {
+                                             const p = active ? (payload?.[0]?.payload as {ts: number; value: number} | undefined) : undefined
+                                             if (!p) return null
+                                             return (
+                                                 <div style={TIP.contentStyle} className="px-3 py-2">
+                                                     <div style={{fontWeight: 700}}>{dayLabel(p.ts)}</div>
+                                                     <div>{fe(p.value)}</div>
+                                                 </div>
+                                             )
+                                         }}/>
+                                <Area type="stepAfter" dataKey="value" stroke={C.accent} fill={C.accent} fillOpacity={0.15}
+                                      strokeWidth={2} dot={false} activeDot={{r: 5, fill: C.accent}} isAnimationActive={false}/>
                             </AreaChart>
                         </ResponsiveContainer>
+                        <PickBar sel={sel} chart="trend"/>
                     </div>
                 )}
                 {/* Horizontal bars: six step names don't fit side by side on a phone-width axis. */}
@@ -150,11 +198,16 @@ export function TreasuryCharts() {
                                      )
                                  }}/>
                         <Bar dataKey="range" radius={[0, 4, 4, 0]} isAnimationActive={false}
-                             onClick={(d) => goFlow((d as unknown as WaterfallStep).key)} style={{cursor: 'pointer'}}>
+                             onClick={(d) => {
+                                 const st = d as unknown as WaterfallStep & {name: string}
+                                 setSel({chart: 'waterfall', label: st.name, value: fe(st.amount),
+                                     open: flowTarget(st.key) ? () => goFlow(st.key) : undefined})
+                             }} style={{cursor: 'pointer'}}>
                             {waterfallData.map(s => <Cell key={s.key} fill={STEP_COLOR[s.kind]}/>)}
                         </Bar>
                     </BarChart>
                 </ResponsiveContainer>
+                <PickBar sel={sel} chart="waterfall"/>
             </ChartCard>
 
             {/* 2 — Treemap */}
@@ -162,11 +215,13 @@ export function TreasuryCharts() {
                 {tiles.length === 0 ? <Empty text={t('treasury.charts.noDebt')}/> : (
                     <ResponsiveContainer width="100%" height={220}>
                         <Treemap data={tiles} dataKey="size" nameKey="name" stroke="var(--canvas)" isAnimationActive={false}
-                                 content={<DebtTile onOpen={(id: number) => go('/treasury', {tab: 'accounts', member: id})}/>}>
+                                 content={<DebtTile onOpen={(id: number, name: string, size: number) => setSel({chart: 'treemap', label: name, value: fe(size),
+                                     open: () => go('/treasury', {tab: 'accounts', member: id})})}/>}>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))}/>
                         </Treemap>
                     </ResponsiveContainer>
                 )}
+                <PickBar sel={sel} chart="treemap"/>
             </ChartCard>
 
             {/* 3 — Pro Abend */}
@@ -178,10 +233,15 @@ export function TreasuryCharts() {
                             <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40}/>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))} cursor={{fill: C.line, opacity: 0.3}}/>
                             <Bar dataKey="penalty_total" fill={C.accent} radius={[4, 4, 0, 0]} isAnimationActive={false} style={{cursor: 'pointer'}}
-                                 onClick={(d) => go('/schedule', {evening: (d as unknown as {id: number}).id})}/>
+                                 onClick={(d) => {
+                                     const b = d as unknown as {id: number; label: string; penalty_total: number}
+                                     setSel({chart: 'evenings', label: b.label, value: fe(b.penalty_total),
+                                         open: () => go('/schedule', {evening: b.id})})
+                                 }}/>
                         </BarChart>
                     </ResponsiveContainer>
                 )}
+                <PickBar sel={sel} chart="evenings"/>
             </ChartCard>
 
             {/* 4 — Sankey */}
@@ -189,12 +249,15 @@ export function TreasuryCharts() {
                 {sankey.links.length === 0 ? <Empty text={t('treasury.charts.noFlow')}/> : (
                     <ResponsiveContainer width="100%" height={220}>
                         <Sankey data={sankey} nodePadding={24} nodeWidth={10} margin={{top: 4, right: 90, bottom: 4, left: 4}}
-                                node={<SankeyNode label={(k: string) => stepLabel(t, k)} onOpen={goFlow}/>}
+                                node={<SankeyNode label={(k: string) => stepLabel(t, k)}
+                                                  onOpen={(k: string, v: number) => setSel({chart: 'sankey', label: stepLabel(t, k), value: fe(v),
+                                                      open: flowTarget(k) ? () => goFlow(k) : undefined})}/>}
                                 link={{stroke: C.muted, strokeOpacity: 0.35}}>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))}/>
                         </Sankey>
                     </ResponsiveContainer>
                 )}
+                <PickBar sel={sel} chart="sankey"/>
             </ChartCard>
 
             {/* 5 — Donut */}
@@ -206,7 +269,11 @@ export function TreasuryCharts() {
                                 <PieChart>
                                     <Pie data={splitData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={70}
                                          paddingAngle={2} stroke="var(--canvas)" isAnimationActive={false}
-                                         style={{cursor: 'pointer'}} onClick={() => go('/treasury', {tab: 'accounts'})}>
+                                         style={{cursor: 'pointer'}}
+                                         onClick={(d) => {
+                                             const x = d as unknown as {name: string; value: number}
+                                             setSel({chart: 'donut', label: x.name, value: fe(x.value), open: () => go('/treasury', {tab: 'accounts'})})
+                                         }}>
                                         {splitData.map(d => <Cell key={d.key} fill={d.color}/>)}
                                     </Pie>
                                     <Tooltip {...TIP} formatter={(v) => fe(Number(v))}/>
@@ -230,6 +297,7 @@ export function TreasuryCharts() {
                         </ul>
                     </div>
                 )}
+                <PickBar sel={sel} chart="donut"/>
             </ChartCard>
         </div>
     )
@@ -243,7 +311,7 @@ function DebtTile(props: any) {
     const showText = width > 56 && height > 34
     return (
         <g style={{cursor: 'pointer'}} role="button" tabIndex={0} aria-label={`${name} ${fe(size)}`}
-           onClick={() => onOpen?.(id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onOpen?.(id) }}>
+           onClick={() => onOpen?.(id, name, size)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onOpen?.(id, name, size) }}>
             <rect x={x} y={y} width={width} height={height} rx={4}
                   fill="var(--danger-tint)" stroke={isMe ? C.accent : 'var(--canvas)'} strokeWidth={isMe ? 3 : 2}/>
             {showText && (
@@ -265,9 +333,8 @@ function SankeyNode(props: any) {
     const {x, y, width, height, payload, label, onOpen} = props
     const key: string = payload?.key ?? ''
     const right = (payload?.depth ?? 0) > 0
-    const target = flowTarget(key)
     return (
-        <g style={target ? {cursor: 'pointer'} : undefined} onClick={() => target && onOpen?.(key)}>
+        <g style={{cursor: 'pointer'}} onClick={() => onOpen?.(key, payload?.value ?? 0)}>
             <rect x={x} y={y} width={width} height={height} rx={2} fill={NODE_COLOR[key] ?? C.muted}/>
             <text x={right ? x + width + 6 : x - 6} y={y + height / 2} textAnchor={right ? 'start' : 'end'}
                   dominantBaseline="middle" fontSize={12} fill={C.ink}>

@@ -20,7 +20,7 @@ vi.mock('recharts', async () => {
 })
 
 import {api} from '@/api/client.ts'
-import {TreasuryCharts} from '@/components/treasury/TreasuryCharts.tsx'
+import {TreasuryCharts, PickBar} from '@/components/treasury/TreasuryCharts.tsx'
 
 const m = (id: number, penalty: number, paid: number) => ({
     regular_member_id: id, name: `M${id}`, nickname: null, penalty_total: penalty, payments_total: paid, balance: paid - penalty,
@@ -72,5 +72,19 @@ describe('TreasuryCharts', () => {
         fireEvent.click(screen.getByTestId(`period-${year - 1}`))
         await waitFor(() => expect(api.getYearStats).toHaveBeenCalledWith(year - 1))
         expect(screen.getByTestId(`period-${year - 1}`)).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('PickBar shows the tapped value and only navigates via its explicit button', () => {
+        const open = vi.fn()
+        const sel = {chart: 'x', label: 'Eingezahlt', value: '100,00 €', open}
+        const {rerender} = render(<PickBar sel={sel} chart="x"/>)
+        expect(screen.getByTestId('pick-x')).toHaveTextContent('100,00 €')
+        expect(open).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByTestId('pick-open-x'))
+        expect(open).toHaveBeenCalledTimes(1)
+        rerender(<PickBar sel={{...sel, open: undefined}} chart="x"/>)
+        expect(screen.queryByTestId('pick-open-x')).toBeNull()
+        rerender(<PickBar sel={sel} chart="other"/>)
+        expect(screen.queryByTestId('pick-x')).toBeNull()
     })
 })
