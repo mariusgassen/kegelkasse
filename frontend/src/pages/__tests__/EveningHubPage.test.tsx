@@ -335,6 +335,20 @@ describe('EveningHubPage — close evening edge cases', () => {
         })
     })
 
+    it('blocks closing while a game is running', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: makeEvening({games: [{id: 9, status: 'running'}]}), isLoading: false, invalidate: vi.fn(),
+            activeEveningId: 1, isPending: false,
+        } as any)
+        vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
+        await renderHubPage()
+        fireEvent.click(screen.getByText('evening.end'))
+        expect(screen.getByText('evening.endRunningGame')).toBeInTheDocument()
+        expect(screen.getByText('action.done').closest('button')).toBeDisabled()
+    })
+
     it('does not show 📚 button in close-confirm sheet', async () => {
         await setupOpen()
         fireEvent.click(screen.getByText('evening.end'))

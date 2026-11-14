@@ -174,6 +174,11 @@ def update_evening(eid: int,
         ).first()
         if other_open:
             raise HTTPException(400, "Another evening is already active")
+    if was_open and updates.get("is_closed") is True:
+        running = db.query(Game).filter(
+            Game.evening_id == e.id, Game.status == "running", Game.is_deleted == False).first()
+        if running:
+            raise HTTPException(400, "Finish running games before closing the evening")
     if "date" in updates:
         updates["date"] = _parse_date(updates["date"])
     if "ended_at" in updates:

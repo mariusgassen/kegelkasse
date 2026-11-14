@@ -29,6 +29,7 @@ export function EveningPage() {
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
     const {closeConfirm, setCloseConfirm, closing, closeEndedAt, setCloseEndedAt, openCloseConfirm, confirmClose, reopen} =
         useCloseReopenEvening(evening?.id, invalidate)
+    const hasRunningGame = !!evening?.games?.some(g => g.status === 'running')
 
     // ── Highlights ──
     const [highlightText, setHighlightText] = useState('')
@@ -222,6 +223,9 @@ export function EveningPage() {
                     onClose={() => setCloseConfirm(false)}
                 >
                     <p className="text-sm text-muted mb-4">{t('evening.endConfirm')}</p>
+                    {hasRunningGame && (
+                        <p className="text-sm text-danger-fg mb-4" role="alert">{t('evening.endRunningGame')}</p>
+                    )}
                     <Field label={t('evening.endedAt')} className="mb-4">
                         <input type="datetime-local" className="kce-input" value={closeEndedAt}
                                onChange={e => setCloseEndedAt(e.target.value)}/>
@@ -232,7 +236,7 @@ export function EveningPage() {
                                 onClick={() => setCloseConfirm(false)}>
                             {t('action.cancel')}
                         </Button>
-                        <Button type="button" variant="primary" size="sm" className="flex-1" disabled={closing}
+                        <Button type="button" variant="primary" size="sm" className="flex-1" disabled={closing || hasRunningGame}
                                 onClick={confirmClose}>
                             {t('action.done')}
                         </Button>
