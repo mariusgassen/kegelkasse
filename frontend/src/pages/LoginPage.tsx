@@ -182,7 +182,7 @@ export function LoginPage({onLogin}: LoginPageProps) {
                             </Field>
                             <InlineError text={error}/>
                             <Button type="submit" variant="primary" className="mt-1" disabled={loading}>
-                                {loading ? t('action.loading') : t('auth.loginButton')}
+                                {loading ? t('action.loading') : <><span aria-hidden="true">🎳</span> <span>{t('auth.loginButton')}</span></>}
                             </Button>
                         </form>
                         <p className="text-center text-muted text-xs mt-4">

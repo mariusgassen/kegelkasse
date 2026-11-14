@@ -104,7 +104,7 @@ export function SeasonTab() {
             const result = await api.closeSeason(year, notes || undefined, settle)
             setSnapshot(result)
             setStep('done')
-            showToast(t('season.done.title'))
+            showToast(`${t('season.done.title')} ✓`)
             qc.invalidateQueries({queryKey: ['evenings']})
         } catch (e) {
             toastError(e)

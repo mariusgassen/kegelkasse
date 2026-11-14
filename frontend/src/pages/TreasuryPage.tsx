@@ -681,12 +681,12 @@ export function TreasuryPage() {
 
     const pendingRequestCount = admin ? paymentRequests.length : 0
     const TABS = [
-        {id: 'overview', label: t('treasury.tab.overview')},
-        {id: 'analysis', label: t('treasury.tab.analysis')},
-        {id: 'charts', label: t('treasury.tab.charts')},
-        {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : '')},
-        {id: 'bookings', label: t('treasury.tab.bookings')},
-        {id: 'audit', label: t('treasury.tab.audit')},
+        {id: 'overview', label: t('treasury.tab.overview'), icon: '📊'},
+        {id: 'analysis', label: t('treasury.tab.analysis'), icon: '🔬'},
+        {id: 'charts', label: t('treasury.tab.charts'), icon: '📈'},
+        {id: 'accounts', label: t('treasury.tab.accounts') + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : ''), icon: '👤'},
+        {id: 'bookings', label: t('treasury.tab.bookings'), icon: '📒'},
+        {id: 'audit', label: t('treasury.tab.audit'), icon: '🔍'},
     ] as const
 
     // Statement (payments + penalties per evening) for an expanded account.
@@ -781,7 +781,7 @@ export function TreasuryPage() {
                         type="button"
                         onClick={() => setShowExportSheet(true)}
                         className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-2 text-muted hover:bg-surface transition-all">
-                        {t('report.export')}
+                        <span aria-hidden="true">📊</span> <span>{t('report.export')}</span>
                     </button>
                 )}
             </div>
@@ -861,7 +861,7 @@ export function TreasuryPage() {
                                                 </a>
                                                 <Button variant="secondary" size="sm" className="flex-1"
                                                         onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
-                                                    {t('profile.reportPayment')}
+                                                    <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                                 </Button>
                                             </div>
                                         ) : (
@@ -892,10 +892,10 @@ export function TreasuryPage() {
                                                             if (admin) refetchPaymentRequests()
                                                             setReportingMyPayment(false)
                                                             setMyPaymentAmount('')
-                                                            showToast(t('profile.reportPayment'))
+                                                            showToast(`${t('profile.reportPayment')} ✓`)
                                                         } catch (e) { toastError(e) }
                                                     }}>
-                                                        {t('profile.reportPayment')}
+                                                        <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                                     </Button>
                                                 </div>
                                             </div>
@@ -980,13 +980,13 @@ export function TreasuryPage() {
                     <div className="sec-heading">{t('treasury.whoOwes')}</div>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="kce-card p-4 flex flex-col gap-1">
-                            <span className="text-xs text-muted">{t('treasury.openLabel')}</span>
+                            <span className="text-xs text-muted"><span aria-hidden="true">🔴</span> <span>{t('treasury.openLabel')}</span></span>
                             <span className="font-display font-bold text-danger-fg text-xl">{fe(totalOutstanding)}</span>
                             <span
                                 className="text-xs text-muted">{debtors.length} {t('treasury.membersCount')}</span>
                         </div>
                         <div className="kce-card p-4 flex flex-col gap-1">
-                            <span className="text-xs text-muted">{t('treasury.creditLabel')}</span>
+                            <span className="text-xs text-muted"><span aria-hidden="true">🟢</span> <span>{t('treasury.creditLabel')}</span></span>
                             <span className="font-display font-bold text-positive-fg text-xl">{fe(totalSurplus)}</span>
                             <span
                                 className="text-xs text-muted">{credits.length} {t('treasury.membersCount')}</span>
@@ -1014,14 +1014,14 @@ export function TreasuryPage() {
                         ? <SkeletonRows rows={3}/>
                         : debtors.length === 0 && credits.length === 0
                         ? <div
-                            className="kce-card p-4 text-center text-sm font-bold text-positive-fg">{t('treasury.noOutstanding')}</div>
+                            className="kce-card p-4 text-center text-sm font-bold text-positive-fg">{t('treasury.noOutstanding')} 🎉</div>
                         : null
                     }
 
                     {debtors.length > 0 && (
                         <>
                             <div className="sec-heading flex items-center justify-between">
-                                <span>{t('treasury.openLabel')}</span>
+                                <span><span aria-hidden="true">🔴</span> <span>{t('treasury.openLabel')}</span></span>
                                 {admin && (
                                     <button
                                         disabled={remindingDebtors}
@@ -1077,7 +1077,7 @@ export function TreasuryPage() {
 
                     {credits.length > 0 && (
                         <>
-                            <div className="sec-heading mt-2">{t('treasury.creditLabel')}</div>
+                            <div className="sec-heading mt-2"><span aria-hidden="true">🟢</span> <span>{t('treasury.creditLabel')}</span></div>
                             <p className="text-xs text-muted mb-2">{t('treasury.creditHint')}</p>
                             {[...credits].sort((a, b) => {
                         if (a.regular_member_id === myRegularMemberId) return -1
@@ -1127,7 +1127,7 @@ export function TreasuryPage() {
                     {/* ── Gäste ausstehend ── */}
                     {guestDebtors.length > 0 && (
                         <>
-                            <div className="sec-heading mt-3">{t('treasury.guestsLabel')}</div>
+                            <div className="sec-heading mt-3">👤 {t('treasury.guestsLabel')}</div>
                             <p className="text-xs text-muted mb-2">{t('treasury.guestsHint')}</p>
                             {guestDebtors.map(b => (
                                 <div key={b.regular_member_id}
@@ -1176,7 +1176,7 @@ export function TreasuryPage() {
                     {/* Pending payment requests (admin only) */}
                     {admin && paymentRequests.length > 0 && (
                         <div className="mb-4">
-                            <div className="sec-heading">{t('paymentRequest.pendingTitle')}</div>
+                            <div className="sec-heading"><span aria-hidden="true">⏳</span> <span>{t('paymentRequest.pendingTitle')}</span></div>
                             {paymentRequests.map(r => (
                                 <div key={r.id} className={`kce-card p-3 mb-2 flex items-center gap-3 ${deepLinkRid === r.id ? 'ring-2 ring-accent' : ''}`}>
                                     <div className="flex-1 min-w-0">
@@ -1356,7 +1356,7 @@ export function TreasuryPage() {
                                                                 </a>
                                                                 <Button variant="secondary" size="sm" className="flex-1"
                                                                         onClick={() => { setReportingMyPayment(true); setMyPaymentAmount('') }}>
-                                                                    {t('profile.reportPayment')}
+                                                                    <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                                                 </Button>
                                                             </div>
                                                         ) : (
@@ -1387,10 +1387,10 @@ export function TreasuryPage() {
                                                                             if (admin) refetchPaymentRequests()
                                                                             setReportingMyPayment(false)
                                                                             setMyPaymentAmount('')
-                                                                            showToast(t('profile.reportPayment'))
+                                                                            showToast(`${t('profile.reportPayment')} ✓`)
                                                                         } catch (e) { toastError(e) }
                                                                     }}>
-                                                                        {t('profile.reportPayment')}
+                                                                        <span>{t('profile.reportPayment')}</span> <span aria-hidden="true">✓</span>
                                                                     </Button>
                                                                 </div>
                                                             </div>
@@ -1427,7 +1427,7 @@ export function TreasuryPage() {
                     {/* Guest accounts section */}
                     {(guestBalances as Balance[]).length > 0 && (
                         <>
-                            <div className="sec-heading mt-3">{t('treasury.guestsLabel')}</div>
+                            <div className="sec-heading mt-3">👤 {t('treasury.guestsLabel')}</div>
                             {(guestBalances as Balance[]).sort((a, b) => a.balance - b.balance).map(b => {
                                 const hasDebt = b.balance < -0.01
                                 const isExpanded = expandedMember === b.regular_member_id
@@ -1830,7 +1830,7 @@ export function TreasuryPage() {
 
             {/* Export sheet — admin only */}
             <Sheet open={showExportSheet} onClose={() => setShowExportSheet(false)}
-                   title={t('report.export')} onSubmit={downloadReport}>
+                   title={`📊 ${t('report.export')}`} onSubmit={downloadReport}>
                 <div className="flex flex-col gap-3">
                     <Field label={t('report.year')}>
                         <select

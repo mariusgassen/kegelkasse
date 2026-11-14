@@ -309,7 +309,7 @@ export function CameraCapturePage({onClose}: Props) {
                                 pin_states: r.pinStates,
                                 player_id: currentPid,
                             }).catch(() => {})
-                            if (r.throwPins! >= 9) celebrate('allnine', t('celebration.allnine'))
+                            if (r.throwPins! >= 9) celebrate('allnine', `🎯 ${t('celebration.allnine')}`)
                         }
                     } else if (!isKiosk) {
                         // Detecting mode: queue for confirmation (game may or may not be active)
@@ -386,7 +386,7 @@ export function CameraCapturePage({onClose}: Props) {
                     pin_states: r.pinStates,
                     player_id: currentPid,
                 }).catch(() => {}) // silent — local state is the source of truth
-                if (r.throwPins >= 9) celebrate('allnine', t('celebration.allnine'))
+                if (r.throwPins >= 9) celebrate('allnine', `🎯 ${t('celebration.allnine')}`)
             }
         }
         pendingRef.current = null
@@ -490,7 +490,7 @@ export function CameraCapturePage({onClose}: Props) {
                 pin_states: Array(9).fill(false),
                 player_id: effectivePlayerId,
             })
-            if (testPins >= 9) celebrate('allnine', t('celebration.allnine'))
+            if (testPins >= 9) celebrate('allnine', `🎯 ${t('celebration.allnine')}`)
             setTestThrowNum(prev => prev + 1)
             advanceKioskTurn(eid, gid)
         } catch (e) {
@@ -540,7 +540,7 @@ export function CameraCapturePage({onClose}: Props) {
                 loser_penalty: selectedGame.loser_penalty,
             })
             if (selectedGame.is_opener && winnerRef.startsWith('p:')) {
-                celebrate('king', t('celebration.king'))
+                celebrate('king', `👑 ${t('celebration.king')}`)
             }
             invalidate()
             onClose()

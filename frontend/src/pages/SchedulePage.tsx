@@ -87,7 +87,7 @@ function RsvpChips({se, onUpdate}: { se: ScheduledEvening; onUpdate: () => void 
                             ? 'bg-danger/20 text-danger-fg border-danger/40'
                             : 'bg-surface-2 text-muted border-line',
                     ].join(' ')}>
-                {isAbsent ? t('rsvp.absent.active') : t('rsvp.absent.short')}
+                {isAbsent ? `✓ ${t('rsvp.absent.active')}` : t('rsvp.absent.short')}
             </button>
         </div>
     )
@@ -471,7 +471,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
 
                         <div className="pt-1">
                             <Button variant="primary" block disabled={starting} onClick={doStart}>
-                                {starting ? t('action.loading') : t('schedule.start')}
+                                {starting ? t('action.loading') : <><span aria-hidden="true">▶</span> <span>{t('schedule.start')}</span></>}
                             </Button>
                         </div>
                     </>
@@ -614,7 +614,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                         <Button
                             variant="secondary" block className="text-sm opacity-60 cursor-not-allowed"
                             disabled>
-                            {t('schedule.start')}
+                            <span aria-hidden="true">▶</span> <span>{t('schedule.start')}</span>
                         </Button>
                         <p className="text-xs text-muted text-center mt-1">{t('evening.alreadyActive')}</p>
                     </>
@@ -624,7 +624,7 @@ function UpcomingCard({se, isAdminUser, activeEveningId, onEdit, onDelete, onVie
                             className={canStart ? 'btn-primary w-full text-sm' : 'btn-secondary w-full text-sm opacity-40 cursor-not-allowed'}
                             disabled={!canStart}
                             onClick={() => canStart && setStartSheet(true)}>
-                            {t('schedule.start')}
+                            <span aria-hidden="true">▶</span> <span>{t('schedule.start')}</span>
                         </button>
                         {!canStart && (
                             <p className="text-xs text-muted text-center mt-1">{t('schedule.startNotToday')}</p>
@@ -681,7 +681,7 @@ function ScheduleEditSheet({initial, defaultVenue, defaultTime, onClose, onSaved
     }
 
     return (
-        <Sheet open onClose={onClose} title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
+        <Sheet open onClose={onClose} icon="📅" title={initial ? t('schedule.edit') : t('schedule.new')} onSubmit={handleSubmit}>
             <div className="flex flex-col gap-3">
                 <Field label={t('schedule.date')}>
                     <input type="datetime-local" className="kce-input" value={datetime}
@@ -819,7 +819,7 @@ function RsvpQuickSheet({se, onClose, onUpdate}: { se: ScheduledEvening; onClose
                                 ? 'bg-positive/20 text-positive-fg border-positive/40'
                                 : 'bg-surface-2 text-muted border-line',
                         ].join(' ')}>
-                        {t('rsvp.attending.short')}
+                        ✅ {t('rsvp.attending.short')}
                     </button>
                     <button
                         disabled={busy}
@@ -894,7 +894,7 @@ function RsvpSheet({se, onClose}: { se: ScheduledEvening; onClose: () => void })
                                             {r.nickname || r.name}
                                         </span>
                                         <Button variant="secondary" size="xs" onClick={() => setFor(r.regular_member_id, 'attending')}>
-                                            → {t('rsvp.attending.short')}
+                                            → ✅ {t('rsvp.attending.short')}
                                         </Button>
                                     </div>
                                 ))}
@@ -1258,7 +1258,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                                 {detail.highlights.length > 0 && (
                                                     <div className="mb-3">
                                                         <div className="text-xs font-extrabold text-muted uppercase tracking-wider mb-1.5">
-                                                            ✨ {t('highlight.title').replace('✨ ', '')}
+                                                            ✨ {t('highlight.title')}
                                                         </div>
                                                         <div className="flex flex-col gap-2">
                                                             {detail.highlights.map(h => (
@@ -1331,7 +1331,7 @@ function HistorySection({onNavigate, defaultVenue = ''}: { onNavigate?: () => vo
                                placeholder={t('evening.venuePlaceholder')}/>
                     </Field>
                     <Button type="submit" variant="primary" block
-                            disabled={saving || !backlogDate}>{t('evening.startButton')}</Button>
+                            disabled={saving || !backlogDate}>🍺 {t('evening.startButton')}</Button>
                 </div>
             </Sheet>
 

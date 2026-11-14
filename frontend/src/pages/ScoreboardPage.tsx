@@ -128,7 +128,7 @@ export function ScoreboardPage({token}: {token: string}) {
     // ── Celebrations ──
     useEffect(() => {
         if (!celebration) return
-        celebrate(celebration.kind, t(celebration.kind === 'king' ? 'celebration.king' : 'celebration.allnine'))
+        celebrate(celebration.kind, `${celebration.kind === 'king' ? '👑' : '🎯'} ${t(celebration.kind === 'king' ? 'celebration.king' : 'celebration.allnine')}`)
         const id = setTimeout(() => setCelebration(null), CELEBRATION_MS)
         return () => clearTimeout(id)
     }, [celebration])

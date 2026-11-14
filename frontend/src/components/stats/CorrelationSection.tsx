@@ -248,7 +248,7 @@ function DrinkRateBadge({
         <div className="rounded-lg mt-2" style={{background: 'var(--surface-2)'}}>
             <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="flex flex-col min-w-0">
-                    <div className="text-xs text-muted uppercase font-bold">{label}</div>
+                    <div className="text-xs text-muted uppercase font-bold"><span aria-hidden="true">💸</span> {label}</div>
                     <div className="text-xs text-ink truncate">
                         🍻 {drinks} · €{penalty.toFixed(2)}
                     </div>
@@ -572,7 +572,7 @@ export function CorrelationSection({year, myMemberId, t}: {
     return (
         <div className="kce-card p-3 mb-4">
             <div className="flex items-baseline justify-between mb-1">
-                <div className="text-sm font-extrabold">{t('stats.correlation.title')}</div>
+                <div className="text-sm font-extrabold"><span aria-hidden="true">🍻</span> <span>{t('stats.correlation.title')}</span></div>
             </div>
             <div className="text-xs text-muted mb-2">{t('stats.correlation.subtitle')}</div>
 

@@ -403,7 +403,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
         g.lastThrow = knocked
         g.throwsLeft -= 1
         if (knocked === 9) {
-            setFlash(t('bowling.allNine'))
+            setFlash(`${t('bowling.allNine')} 🎉`)
             setTimeout(() => setFlash(null), 1400)
         }
         if (g.throwsLeft <= 0) {
@@ -555,7 +555,7 @@ export function BowlingGame({onClose}: {onClose: () => void}) {
                 {phase === 'gameover' ? (
                     <>
                         <div style={{fontSize: 15}} data-testid="bowling-result">
-                            {result?.is_record ? t('bowling.newRecord') : `${t('bowling.gameOver')} — ${g.total}`}
+                            {result?.is_record ? `🏆 ${t('bowling.newRecord')}` : `${t('bowling.gameOver')} — ${g.total}`}
                         </div>
                         <button
                             onClick={playAgain}

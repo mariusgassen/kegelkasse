@@ -512,7 +512,7 @@ export function MembersPage() {
                             {admin && (
                                 <Button variant="secondary" size="xs" className="opacity-100"
                                         onClick={() => handleReactivate(u.id)}>
-                                    {t('member.reactivate')}
+                                    <span aria-hidden="true">↩</span> <span>{t('member.reactivate')}</span>
                                 </Button>
                             )}
                         </div>
@@ -819,7 +819,7 @@ export function MembersPage() {
                                     <span>{formatEveningCount(m.evening_count)}</span>
                                 </div>
                             </div>
-                            <span className="text-xs text-muted">{t('member.keep')}</span>
+                            <span className="text-xs text-muted">{t('member.keep')} →</span>
                         </button>
                     ))}
                     {mergeCandidates.length === 0 && (
@@ -844,7 +844,7 @@ export function MembersPage() {
                                     navigator.clipboard.writeText(inviteUrl)
                                     setCopied(true)
                                     setTimeout(() => setCopied(false), 2000)
-                                }}>{copied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</Button>
+                                }}>{copied ? `✓ ${t('auth.invite.copied')}` : <><span aria-hidden="true">📋</span> <span>{t('club.invite.copy')}</span></>}</Button>
                                 <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                     await shareOrCopy(inviteUrl, `Kegelkasse Einladung für ${inviteName}`)
                                 }}>📤 {t('share.button')}</Button>
@@ -876,7 +876,7 @@ export function MembersPage() {
                                     navigator.clipboard.writeText(resetUrl)
                                     setResetCopied(true)
                                     setTimeout(() => setResetCopied(false), 2000)
-                                }}>{resetCopied ? `✓ ${t('auth.invite.copied')}` : t('club.invite.copy')}</Button>
+                                }}>{resetCopied ? `✓ ${t('auth.invite.copied')}` : <><span aria-hidden="true">📋</span> <span>{t('club.invite.copy')}</span></>}</Button>
                                 <Button variant="primary" size="sm" className="flex-1" onClick={async () => {
                                     await shareOrCopy(resetUrl, `${resetUserName} — Passwort zurücksetzen`)
                                 }}>📤 {t('share.button')}</Button>

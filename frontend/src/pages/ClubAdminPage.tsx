@@ -73,18 +73,18 @@ export function ClubAdminPage() {
     })
 
     const TABS = [
-        {id: 'settings', label: t('club.tab.settings')},
-        {id: 'members', label: t('club.tab.members')},
-        {id: 'penalties', label: t('club.tab.penalties')},
-        {id: 'templates', label: t('club.tab.templates')},
-        {id: 'teams', label: t('club.tab.teams')},
-        {id: 'pins', label: t('club.tab.pins')},
-        {id: 'committee', label: t('club.tab.committee')},
+        {id: 'settings', label: t('club.tab.settings'), icon: '⚙️'},
+        {id: 'members', label: t('club.tab.members'), icon: '👥'},
+        {id: 'penalties', label: t('club.tab.penalties'), icon: '⚠️'},
+        {id: 'templates', label: t('club.tab.templates'), icon: '🏆'},
+        {id: 'teams', label: t('club.tab.teams'), icon: '🤝'},
+        {id: 'pins', label: t('club.tab.pins'), icon: '📌'},
+        {id: 'committee', label: t('club.tab.committee'), icon: '🛠️'},
         {id: 'season', label: `📆 ${t('season.tab')}`},
         ...(user?.role === 'superadmin' ? [
-            {id: 'clubs', label: t('club.tab.clubs')},
+            {id: 'clubs', label: t('club.tab.clubs'), icon: '🏛️'},
             {id: 'roles', label: `👥 ${t('superadmin.roles.title')}`},
-            {id: 'backups', label: t('club.tab.backups')},
+            {id: 'backups', label: t('club.tab.backups'), icon: '💾'},
         ] : []),
     ]
 
@@ -580,7 +580,7 @@ function AppIconCard() {
 
     return (
         <div className="kce-card p-4">
-            <div className="sec-heading mb-3">{t('appIcon.title')}</div>
+            <div className="sec-heading mb-3">📱 {t('appIcon.title')}</div>
             <Switch checked={enabled} onChange={next => mutation.mutate({enabled: next})} label={t('appIcon.enable')} hint={t('appIcon.hint')} disabled={busy}/>
 
             {data && (
@@ -654,7 +654,7 @@ function ScoreboardLinkCard({token}: {token: string | null}) {
 
     return (
         <div className="kce-card p-4">
-            <div className="sec-heading mb-3">{t('scoreboard.title')}</div>
+            <div className="sec-heading mb-3">📺 {t('scoreboard.title')}</div>
             <p className="text-xs text-muted mb-3">{t('scoreboard.hint')}</p>
             {url ? (
                 <>
@@ -764,7 +764,7 @@ function ClubConfigCard() {
 
     return (
         <div className="kce-card p-4">
-            <div className="sec-heading mb-3">{t('club.config.title')}</div>
+            <div className="sec-heading mb-3"><span aria-hidden="true">📤</span> <span>{t('club.config.title')}</span></div>
             <p className="text-xs text-muted mb-3">{t('club.config.hint')}</p>
             <div className="flex gap-2">
                 <Button variant="secondary" className="flex-1" onClick={exportConfig} disabled={!isOnline}>
@@ -789,10 +789,10 @@ function ClubConfigCard() {
                         </p>
                     )}
                     <ul className="text-sm text-ink space-y-1">
-                        <li>{t('club.tab.penalties')}: {pendingBundle.penalty_types.length}</li>
-                        <li>{t('club.tab.templates')}: {pendingBundle.game_templates.length}</li>
-                        <li>{t('club.tab.teams')}: {pendingBundle.teams.length}</li>
-                        <li>{t('club.tab.pins')}: {pendingBundle.pins.length}</li>
+                        <li><span aria-hidden="true">⚠️</span> <span>{t('club.tab.penalties')}: {pendingBundle.penalty_types.length}</span></li>
+                        <li><span aria-hidden="true">🏆</span> <span>{t('club.tab.templates')}: {pendingBundle.game_templates.length}</span></li>
+                        <li><span aria-hidden="true">🤝</span> <span>{t('club.tab.teams')}: {pendingBundle.teams.length}</span></li>
+                        <li><span aria-hidden="true">📌</span> <span>{t('club.tab.pins')}: {pendingBundle.pins.length}</span></li>
                     </ul>
                 </ConfirmSheet>
             )}
@@ -997,7 +997,7 @@ function TelegramSettingsCard() {
 
     return (
         <div className="kce-card p-4">
-            <div className="sec-heading mb-2">{t('telegram.title')}</div>
+            <div className="sec-heading mb-2"><span aria-hidden="true">📨</span> <span>{t('telegram.title')}</span></div>
             <p className="text-xs text-muted mb-3">{t('telegram.hint')}</p>
 
             <div className="flex items-center justify-between py-1 mb-2">
@@ -1095,7 +1095,7 @@ function AiSettingsCard() {
 
     return (
         <div className="kce-card p-4" data-testid="ai-settings">
-            <div className="sec-heading mb-2">{t('ai.settings.title')}</div>
+            <div className="sec-heading mb-2">✨ {t('ai.settings.title')}</div>
             <p className="text-xs text-muted mb-3">{t('ai.settings.hint')}</p>
             {!form.key_configured && (
                 <p className="text-sm text-danger-fg mb-3" data-testid="ai-settings-no-key">{t('ai.settings.noKey')}</p>
@@ -1303,7 +1303,7 @@ function ReminderSettingsCard() {
             {/* auto_report */}
             <div className="mb-4 border-t border-surface-2 pt-4">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-ink">{t('reminders.auto_report')}</span>
+                    <span className="text-sm font-bold text-ink"><span aria-hidden="true">📊</span> <span>{t('reminders.auto_report')}</span></span>
                     <ReminderToggle value={!!autoReport.enabled} onChange={v => setAutoReport(s => ({...s, enabled: v}))} />
                 </div>
                 <p className="text-xs text-muted mb-2">{t('reminders.auto_report.hint')}</p>
@@ -1580,7 +1580,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
             ))}
 
             <Sheet open={sheet} onClose={() => setSheet(false)}
-                   title={editing ? t('club.template.edit') : t('club.template.new')} onSubmit={saveTemplate}>
+                   title={editing ? `✏️ ${t('club.template.edit')}` : `🏆 ${t('club.template.new')}`} onSubmit={saveTemplate}>
                 <div className="flex flex-col gap-3">
                     <Field label={t('game.name')}>
                         <div className="flex gap-2">
@@ -1619,7 +1619,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                    if (next) setWtype('individual')
                                }}/>
                         <label htmlFor="is-opener" className="text-sm font-bold cursor-pointer">
-                            {t('club.template.isOpener')}
+                            👑 {t('club.template.isOpener')}
                         </label>
                     </div>
                     <Field label={t('club.template.loserPenalty')}>
@@ -1838,7 +1838,7 @@ function ClubTeamsTab() {
             ))}
 
             <Sheet open={sheet} onClose={() => setSheet(false)}
-                   title={editing ? t('club.teams.edit') : t('club.teams.new')} onSubmit={save}>
+                   title={editing ? `✏️ ${t('club.teams.edit')}` : `🤝 ${t('club.teams.new')}`} onSubmit={save}>
                 <div className="flex flex-col gap-3">
                     <Field label={t('club.teams.name')}>
                         <div className="flex gap-2">
@@ -1939,7 +1939,7 @@ function PinsTab({regularMembers}: { regularMembers: RegularMemberType[] }) {
             })}
 
             <Sheet open={sheet} onClose={() => setSheet(false)}
-                   title={editing ? t('pin.edit') : t('pin.new')} onSubmit={save}>
+                   title={editing ? `📌 ${t('pin.edit')}` : `📌 ${t('pin.new')}`} onSubmit={save}>
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2">
                         <Field label={t('pin.icon')}>

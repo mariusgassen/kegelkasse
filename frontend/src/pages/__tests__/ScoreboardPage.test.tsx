@@ -163,7 +163,7 @@ describe('ScoreboardPage', () => {
 
         expect(screen.getByTestId('scoreboard-celebration')).toBeInTheDocument()
         expect(screen.getByText('scoreboard.allNine')).toBeInTheDocument()
-        expect(celebrateMock).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+        expect(celebrateMock).toHaveBeenCalledWith('allnine', '🎯 celebration.allnine')
     })
 
     it('clears the celebration takeover again', async () => {
@@ -175,7 +175,7 @@ describe('ScoreboardPage', () => {
         vi.mocked(api.getScoreboard).mockResolvedValue(payload(evening({king: {name: 'Rudi'}})))
         await act(async () => { await vi.advanceTimersByTimeAsync(6_500) })
         expect(screen.getByTestId('scoreboard-celebration')).toBeInTheDocument()
-        expect(celebrateMock).toHaveBeenCalledWith('king', 'celebration.king')
+        expect(celebrateMock).toHaveBeenCalledWith('king', '👑 celebration.king')
 
         await act(async () => { await vi.advanceTimersByTimeAsync(6_500) })
         expect(screen.queryByTestId('scoreboard-celebration')).not.toBeInTheDocument()

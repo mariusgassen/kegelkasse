@@ -136,7 +136,7 @@ export function AchievementShelf({achievements}: { achievements: Achievement[] }
         <div className="kce-card p-4">
             <div className="flex items-center justify-between mb-1">
                 <Caption>
-                    {t('achievement.title')}
+                    <span aria-hidden="true">🏅</span> {t('achievement.title')}
                 </Caption>
                 <div className="text-sm font-bold text-accent-fg">
                     {earned}/{achievements.length}

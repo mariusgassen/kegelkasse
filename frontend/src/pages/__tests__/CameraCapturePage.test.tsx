@@ -423,7 +423,7 @@ describe('CameraCapturePage — test throw mode', () => {
         await waitFor(() => screen.getByText('camera.testModeHint'))
         fireEvent.click(screen.getByText(/camera\.testSend/))
         await waitFor(() => {
-            expect(celebrate).toHaveBeenCalledWith('allnine', 'celebration.allnine')
+            expect(celebrate).toHaveBeenCalledWith('allnine', '🎯 celebration.allnine')
         })
     })
 
@@ -525,7 +525,7 @@ describe('CameraCapturePage — king celebration (opener game)', () => {
         fireEvent.click(adminBtns[adminBtns.length - 1])
         fireEvent.click(screen.getByText(/game\.finish/))
         await waitFor(() => {
-            expect(celebrate).toHaveBeenCalledWith('king', 'celebration.king')
+            expect(celebrate).toHaveBeenCalledWith('king', '👑 celebration.king')
         })
     })
 })

@@ -390,7 +390,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             setCurrentTurnIdx(prevIdx => prevIdx + (len - prev))
             const newThrows = liveThrows.slice(prev, len)
             if (throwTracking && newThrows.some(th => th.pins >= 9)) {
-                celebrate('allnine', t('celebration.allnine'))
+                celebrate('allnine', `🎯 ${t('celebration.allnine')}`)
             }
         }
     }, [liveThrows.length, activeGame?.id, activeGame?.active_player_id])
@@ -658,7 +658,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 loser_penalty: runningGame.loser_penalty,
             })
             if (runningGame.is_opener && finishWinnerRef.startsWith('p:')) {
-                celebrate('king', t('celebration.king'))
+                celebrate('king', `👑 ${t('celebration.king')}`)
             }
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})

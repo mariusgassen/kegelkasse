@@ -29,4 +29,16 @@ describe('i18n key completeness', () => {
         expect(emptyDe).toEqual([])
         expect(emptyEn).toEqual([])
     })
+
+    it('no translation value has a leading or trailing UI icon/emoji', () => {
+        // Prose note prefixes that intentionally start with an arrow.
+        const allowed = new Set(['game.loserNote', 'game.perPointNote'])
+        const edgeIcon = /^([\u2190-\u2bff\u2600-\u27bf\u{1F000}-\u{1FFFF}]\ufe0f?\s)|(\s[\u2190-\u2bff\u2600-\u27bf\u{1F000}-\u{1FFFF}]\ufe0f?)$/u
+        const deMap = de as Record<string, string>
+        const enMap = en as Record<string, string>
+        const badDe = deKeys.filter(k => !allowed.has(k) && edgeIcon.test(deMap[k]))
+        const badEn = enKeys.filter(k => !allowed.has(k) && edgeIcon.test(enMap[k]))
+        expect(badDe).toEqual([])
+        expect(badEn).toEqual([])
+    })
 })

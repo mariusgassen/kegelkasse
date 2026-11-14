@@ -82,7 +82,7 @@ export function SuperadminRolesManager() {
 
         try {
             const res = await api.superadminSetUserRoles(userId, nextRoles)
-            showToast(t('superadmin.roles.updated'))
+            showToast(`✓ ${t('superadmin.roles.updated')}`)
             qc.setQueryData<typeof users>(['superadmin-users'], old =>
                 old ? old.map(u => u.id === userId ? {...u, role: res.role, roles: res.roles} : u) : old
             )

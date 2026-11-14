@@ -85,12 +85,12 @@ export function EveningHubPage() {
 
     // The Live cockpit is only meaningful for a running evening; a closed evening falls back to
     // the protocol as before.
-    const TABS: { id: SubTab; label: string }[] = [
+    const TABS: { id: SubTab; label: string; icon?: string }[] = [
         ...(!isClosed ? [{id: 'live' as const, label: `🔴 ${t('live.tab')}`}] : []),
         {id: 'penalties', label: `📋 ${t('evening.tab.log')}`},
         {id: 'games', label: `🏆 ${t('nav.games')}`},
         {id: 'highlights', label: `✨ ${t('evening.tab.highlights')}`},
-        {id: 'manage', label: t('evening.manage')},
+        {id: 'manage', label: t('evening.manage'), icon: '⚙️'},
     ]
 
     // When the evening is closed the Live tab is gone; render the protocol instead of a blank pane.

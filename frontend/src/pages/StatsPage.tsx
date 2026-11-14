@@ -882,7 +882,7 @@ function HallOfShame({players, t, onSelect}: {
 
     return (
         <div className="mb-4">
-            <div className="text-xs font-extrabold text-muted uppercase mb-2">{t('stats.hos')}</div>
+            <div className="text-xs font-extrabold text-muted uppercase mb-2"><span aria-hidden="true">🙈</span> <span>{t('stats.hos')}</span></div>
             {entries.map(e => (
                 <button key={e.key} type="button"
                         className="kce-card p-3 mb-2 flex items-center gap-3 w-full text-left active:opacity-70 transition-opacity"
@@ -911,7 +911,7 @@ function PlayerThrowDetail({memberId, year, t}: { memberId: number; year: number
     if (!data || data.throw_count === 0) return <Empty text={t('stats.noThrowData')}/>
     return (
         <div className="mt-2 pt-2" style={{borderTop: '1px solid var(--line)'}}>
-            <Caption className="mb-1">{t('stats.throwStats')}</Caption>
+            <Caption className="mb-1">🎳 {t('stats.throwStats')}</Caption>
             <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
                     <div className="font-bold text-ink text-sm">{data.avg_pins ?? '—'}</div>
@@ -1152,7 +1152,7 @@ function EveningPlayerDetailSheet({player, evening, pins, t, onClose}: {
             {/* Throw stats + heatmap */}
             {throwCount > 0 && (
                 <div className="kce-card p-3">
-                    <Caption className="mb-2">{t('stats.throwStats')}</Caption>
+                    <Caption className="mb-2">🎳 {t('stats.throwStats')}</Caption>
                     <div className="flex justify-around text-center mb-3">
                         <div>
                             <div className="font-bold text-ink text-sm">{totalPins}</div>
@@ -1340,7 +1340,7 @@ export function StatsPage() {
             <Tabs value={tab} onChange={setTab} className="mb-3" items={[
                 {id: 'evening', label: t('stats.evening')},
                 {id: 'year', label: t('stats.year')},
-                {id: 'lab', label: t('stats.tab.lab')},
+                {id: 'lab', label: t('stats.tab.lab'), icon: '📊'},
             ]}/>
 
             {tab === 'evening' && (
@@ -1380,7 +1380,7 @@ export function StatsPage() {
 
                             {eveningStats.hallOfFame.length > 0 && (
                                 <>
-                                    <div className="text-xs font-extrabold text-muted uppercase mb-2">{t('stats.hof')}</div>
+                                    <div className="text-xs font-extrabold text-muted uppercase mb-2"><span aria-hidden="true">🏆</span> <span>{t('stats.hof')}</span></div>
                                     {eveningStats.hallOfFame.map((h, i) => (
                                         <div key={i} className="kce-card p-3 mb-2 flex items-center gap-3">
                                             <span className="text-2xl">{h.icon}</span>
@@ -1398,7 +1398,7 @@ export function StatsPage() {
 
                             {evening.highlights.length > 0 && (
                                 <>
-                                    <div className="sec-heading text-sm mt-4">✨ {t('highlight.title').replace('✨ ', '')}</div>
+                                    <div className="sec-heading text-sm mt-4">✨ {t('highlight.title')}</div>
                                     <div className="flex flex-col gap-2 mb-2">
                                         {[...evening.highlights].reverse().map(h => (
                                             <div key={h.id} id={`item-${h.id}`} className="kce-card p-3">
@@ -1658,7 +1658,7 @@ export function StatsPage() {
                         <button type="button"
                                 className="w-full text-xs text-muted py-2 font-bold"
                                 onClick={() => setShowAllMembers(v => !v)}>
-                            {showAllMembers ? t('stats.showLess') : `${t('stats.showAllMembers')} (${filteredPlayers.length})`}
+                            {showAllMembers ? <><span aria-hidden="true">▲</span> <span>{t('stats.showLess')}</span></> : <><span aria-hidden="true">▼</span> <span>{t('stats.showAllMembers')}</span> ({filteredPlayers.length})</>}
                         </button>
                     )}
                 </>

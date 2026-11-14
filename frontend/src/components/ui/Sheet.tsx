@@ -8,6 +8,8 @@ interface SheetProps {
     onClose: () => void
     /** Shown as the sheet heading, and always used as the dialog's accessible name. */
     title: string
+    /** Optional decorative icon rendered before the heading text. */
+    icon?: string
     /** Replaces the heading text (e.g. with a tab bar). The close button stays. */
     header?: ReactNode
     children: ReactNode
@@ -22,7 +24,7 @@ interface SheetProps {
     morph?: boolean
 }
 
-export function Sheet({open, onClose, title, header, children, onSubmit, overlays, morph}: SheetProps) {
+export function Sheet({open, onClose, title, icon, header, children, onSubmit, overlays, morph}: SheetProps) {
     const t = useT()
     const [dragY, setDragY] = useState(0)
     const startYRef = useRef(0)
@@ -162,7 +164,7 @@ export function Sheet({open, onClose, title, header, children, onSubmit, overlay
                 />
                 {/* Title row with close button */}
                 <div className="flex items-center justify-between gap-2 mb-4">
-                    {header ?? <div className="sheet-title mb-0">{title}</div>}
+                    {header ?? <div className="sheet-title mb-0">{icon && <><span aria-hidden="true">{icon}</span>{' '}</>}<span>{title}</span></div>}
                     <button
                         type="button"
                         onClick={onClose}
