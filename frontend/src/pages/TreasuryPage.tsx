@@ -1,5 +1,6 @@
+import {clubEventsFromBookings, monthlyStatements} from '@/lib/balanceHistory.ts'
 import {Caption} from '@/components/ui/Caption.tsx'
-import {lazy, Suspense, useEffect, useState} from 'react'
+import {Fragment, lazy, type ReactNode, Suspense, useEffect, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
@@ -50,11 +51,12 @@ type Balance = {
 type Payment = {
     id: number; regular_member_id: number; member_name: string;
     amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null;
-    is_writeoff?: boolean
+    is_writeoff?: boolean; club_expense?: boolean
 }
 
 type MemberPayment = {
     id: number; amount: number; note: string | null; created_at: string | null; updated_at: string | null; date: string | null
+    club_expense?: boolean
 }
 
 type Expense = {
@@ -166,7 +168,7 @@ export function TreasuryPage() {
         staleTime: 1000 * 60,
     })
     const tripName = (id: number | null | undefined) => (trips as ClubTrip[]).find(tr => tr.id === id)?.destination
-    const {data: expenses = [], refetch: refetchExpenses} = useQuery({
+    const {data: expenses = [], refetch: refetchExpenses, isLoading: expensesLoading} = useQuery({
         queryKey: ['club-expenses'],
         queryFn: api.getExpenses,
         staleTime: 1000 * 30,
@@ -174,7 +176,7 @@ export function TreasuryPage() {
 
     // All payments — bookings tab list + the export sheet's year picker. The Analyse tab
     // loads the same query key itself (react-query serves it from cache either way).
-    const {data: allPayments = [], refetch: refetchAllPayments} = useQuery({
+    const {data: allPayments = [], refetch: refetchAllPayments, isLoading: allPaymentsLoading} = useQuery({
         queryKey: ['all-payments'],
         queryFn: api.getAllPayments,
         enabled: tab === 'bookings' || showExportSheet,
@@ -216,13 +218,13 @@ export function TreasuryPage() {
     useEffect(() => {
         handleDeepLink()
     }, [deepLinkVersion]) // eslint-disable-line react-hooks/exhaustive-deps
-    const {data: memberPayments = []} = useQuery({
+    const {data: memberPayments = [], isLoading: memberPaymentsLoading} = useQuery({
         queryKey: ['member-payments', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPayments(expandedMember) : null,
         enabled: !!expandedMember,
         staleTime: 1000 * 30,
     })
-    const {data: memberPenalties = []} = useQuery({
+    const {data: memberPenalties = [], isLoading: memberPenaltiesLoading} = useQuery({
         queryKey: ['member-penalties', expandedMember],
         queryFn: () => expandedMember ? api.getMemberPenalties(expandedMember) : null,
         enabled: !!expandedMember,
@@ -379,14 +381,18 @@ export function TreasuryPage() {
     const [editNote, setEditNote] = useState('')
     const [editDate, setEditDate] = useState('')
     const [editTrip, setEditTrip] = useState<number | null>(null)
+    const [editAsExpense, setEditAsExpense] = useState(false)
+    const [editPayCanExpense, setEditPayCanExpense] = useState(true)
     const [savingEdit, setSavingEdit] = useState(false)
 
-    function openEditPayment(p: { id: number; amount: number; note: string | null; created_at: string | null; date: string | null }, memberId: number, label: string) {
+    function openEditPayment(p: { id: number; amount: number; note: string | null; created_at: string | null; date: string | null; club_expense?: boolean; is_writeoff?: boolean }, memberId: number, label: string) {
         setEditTarget({kind: 'payment', id: p.id, memberId, label})
         setEditDirection(p.amount >= 0 ? 'in' : 'out')
         setEditAmount(Math.abs(p.amount).toFixed(2))
         setEditNote(p.note ?? '')
         setEditDate(p.date ?? (p.created_at ? p.created_at.slice(0, 10) : ''))
+        setEditAsExpense(!!p.club_expense)
+        setEditPayCanExpense(!p.is_writeoff)
     }
 
     function openEditExpense(e: Expense) {
@@ -407,11 +413,18 @@ export function TreasuryPage() {
         try {
             if (editTarget.kind === 'payment') {
                 const amount = editDirection === 'in' ? abs : -abs
-                await api.updateMemberPayment(editTarget.id, {amount, note: editNote, date: editDate})
+                await api.updateMemberPayment(editTarget.id, {
+                    amount, note: editNote, date: editDate,
+                    as_club_expense: editDirection === 'in' ? editAsExpense : false,
+                    trip_id: editAsExpense && editTrip != null ? editTrip : undefined,
+                })
                 refetchBalances()
                 refetchGuestBalances()
                 qc.invalidateQueries({queryKey: ['member-payments', editTarget.memberId]})
                 qc.invalidateQueries({queryKey: ['all-payments']})
+                refetchExpenses()
+                qc.invalidateQueries({queryKey: ['committee-trips']})
+                qc.invalidateQueries({queryKey: ['trip-expenses']})
             } else {
                 if (!editNote.trim()) return
                 const amount = editDirection === 'out' ? abs : -abs
@@ -550,7 +563,6 @@ export function TreasuryPage() {
     // must show the club's real figures. The player filter and its leaving-member
     // simulation live in the Analyse tab and scope that tab only.
     const summary = treasurySummary(balances, guestBalances as Balance[], expenses as Expense[])
-    const totalExpenses = summary.expensesNet
     const kassenstand = summary.cashOnHand
     const projectedCash = summary.projectedCash
 
@@ -594,6 +606,33 @@ export function TreasuryPage() {
         )
         : mergedBookings
 
+    // Month separators in the Kassenbuch: the cash balance at the end of each month,
+    // derived from the same event stream as the Verlauf graph (all bookings, unfiltered).
+    const monthKeyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`
+    const monthStatements = new Map(
+        monthlyStatements(clubEventsFromBookings(allPayments as any[], expenses as any[]), [])
+            .map(m => [monthKeyOf(new Date(m.start)), m]))
+    const entryDate = (e: BookingEntry) => new Date(e.data.date ?? e.data.created_at ?? '')
+    const monthSeparator = (entry: BookingEntry, idx: number) => {
+        const d = entryDate(entry)
+        const key = monthKeyOf(d)
+        if (idx > 0 && monthKeyOf(entryDate(filteredBookings[idx - 1])) === key) return null
+        const m = monthStatements.get(key)
+        return (
+            <div className="flex justify-between items-baseline text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 data-testid="booking-month-sep">
+                <span>{d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+                {m && (
+                    <span className="text-right">
+                        <span className="text-positive-fg">{fe(m.inflow)}</span>
+                        {' · '}<span className="text-danger-fg">{fe(m.outflow)}</span>
+                        {' · '}{t('treasury.statements.closing')}: <span className="text-ink">{fe(m.closing)}</span>
+                    </span>
+                )}
+            </div>
+        )
+    }
+
     const paypalHandle = (club as any)?.settings?.paypal_me as string | undefined
     const myRegularMemberId = user?.regular_member_id
     const myBalanceEntry = balances.find(b => b.regular_member_id === myRegularMemberId)
@@ -613,7 +652,9 @@ export function TreasuryPage() {
     // Statement (payments + penalties per evening) for an expanded account.
     const renderStatement = (memberId: number, memberName: string) => (
         <>
-        {accountStatement.length === 0
+        {memberPaymentsLoading || memberPenaltiesLoading
+            ? <SkeletonRows rows={3}/>
+            : accountStatement.length === 0
             ?
             <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
             : accountStatement.map(entry => entry.kind === 'evening' ? (
@@ -659,7 +700,7 @@ export function TreasuryPage() {
     const showAsExpense = !isClubBooking && bookingDirection === 'in'
     const bookingValid = parseAmount(bookingAmount) > 0
         && (isClubBooking || (showAsExpense && bookingAsExpense) ? bookingNote.trim().length > 0 : true)
-    const editValid = parseAmount(editAmount) > 0 && (editTarget?.kind === 'expense' ? editNote.trim().length > 0 : true)
+    const editValid = parseAmount(editAmount) > 0 && (editTarget?.kind === 'expense' || (editAsExpense && editDirection === 'in') ? editNote.trim().length > 0 : true)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24">
@@ -846,7 +887,9 @@ export function TreasuryPage() {
                         </div>
                     </div>
 
-                    {debtors.length === 0 && credits.length === 0
+                    {balancesLoading && balances.length === 0
+                        ? <SkeletonRows rows={3}/>
+                        : debtors.length === 0 && credits.length === 0
                         ? <div
                             className="kce-card p-4 text-center text-sm font-bold text-positive-fg">{t('treasury.noOutstanding')}</div>
                         : null
@@ -1317,8 +1360,8 @@ export function TreasuryPage() {
                     />
                     <div className="flex items-center justify-between mb-3">
                         <div>
-                            <span className="text-xs text-muted">{t('treasury.netExpenses')}</span>
-                            <div className={`font-bold text-sm ${-totalExpenses >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>{fe(-totalExpenses)}</div>
+                            <span className="text-xs text-muted">{t('treasury.bookings.saldo')}</span>
+                            <div className={`font-bold text-sm ${summary.cashOnHand >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>{fe(summary.cashOnHand)}</div>
                         </div>
                         {admin && (
                             <Button variant="primary" size="sm" onClick={openBookingSheet}>
@@ -1327,9 +1370,11 @@ export function TreasuryPage() {
                         )}
                     </div>
 
-                    {filteredBookings.length === 0
+                    {(allPaymentsLoading || expensesLoading) && filteredBookings.length === 0
+                        ? <SkeletonRows rows={6}/>
+                        : filteredBookings.length === 0
                         ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
-                        : filteredBookings.map((entry, idx) => {
+                        : filteredBookings.map((entry, idx) => <Fragment key={`${entry.kind}-${entry.data.id}`}>{monthSeparator(entry, idx)}{((): ReactNode => {
                             if (entry.kind === 'payment') {
                                 const p = entry.data
                                 return (
@@ -1348,7 +1393,7 @@ export function TreasuryPage() {
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                            <div className={`font-bold text-sm ${p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
+                                            <div className={`font-bold text-sm ${p.is_writeoff ? 'text-muted' : p.amount >= 0 ? 'text-positive-fg' : 'text-danger-fg'}`}>
                                                 {p.amount >= 0 ? '+' : ''}{fe(p.amount)}
                                             </div>
                                             <div className="text-xs text-muted">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
@@ -1402,7 +1447,7 @@ export function TreasuryPage() {
                                     </div>
                                 )
                             }
-                        })
+                        })()}</Fragment>)
                     }
                 </div>
             )}
@@ -1473,7 +1518,18 @@ export function TreasuryPage() {
                                onChange={e => setEditDate(e.target.value)}/>
                     </Field>
 
-                    {editTarget?.kind === 'expense' && (
+                    {editTarget?.kind === 'payment' && editDirection === 'in' && editPayCanExpense && (
+                        <label className="flex items-start gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" className="mt-1" checked={editAsExpense}
+                                   onChange={e => setEditAsExpense(e.target.checked)}/>
+                            <span>
+                                <span className="font-bold">{t('treasury.booking.asExpense')}</span>
+                                <span className="block text-xs text-muted">{t('treasury.booking.asExpenseHint')}</span>
+                            </span>
+                        </label>
+                    )}
+
+                    {(editTarget?.kind === 'expense' || (editTarget?.kind === 'payment' && editAsExpense && editDirection === 'in')) && (
                         <TripPicker trips={trips as ClubTrip[]} value={editTrip} onChange={setEditTrip}/>
                     )}
 

@@ -388,6 +388,16 @@ describe('TreasuryPage — bookings tab', () => {
         })
     })
 
+    it('shows a month separator with in/out sums and closing balance', async () => {
+        await setupWithData()
+        await renderTreasuryPage()
+        await waitFor(() => {
+            const seps = screen.getAllByTestId('booking-month-sep')
+            expect(seps.length).toBeGreaterThan(0)
+            expect(seps[0]).toHaveTextContent('treasury.statements.closing')
+        })
+    })
+
     it('shows member payment entries in bookings', async () => {
         await setupWithData()
         await renderTreasuryPage()
@@ -889,7 +899,21 @@ describe('TreasuryPage — bookings edit', () => {
         fireEvent.change(screen.getByDisplayValue('Einzahlung'), { target: { value: 'Korrigiert' } })
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
-            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: 10, note: 'Korrigiert', date: '2026-01-12' })
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: 10, note: 'Korrigiert', date: '2026-01-12', as_club_expense: false, trip_id: undefined })
+        })
+    })
+
+    it('lets a deposit be turned into a Vereinsausgabe while editing', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateMemberPayment).mockResolvedValueOnce({ id: 10 } as any)
+        await renderTreasuryPage()
+        await waitFor(() => screen.getByText(/Getränke/))
+        fireEvent.click(screen.getAllByLabelText('treasury.booking.edit')[0])
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByLabelText(/treasury.booking.asExpense/))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => {
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, expect.objectContaining({ as_club_expense: true }))
         })
     })
 
@@ -904,7 +928,7 @@ describe('TreasuryPage — bookings edit', () => {
         fireEvent.click(screen.getByText('⬇ treasury.payment.withdrawal'))
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => {
-            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: -15, note: 'Einzahlung', date: '2026-01-12' })
+            expect(api.updateMemberPayment).toHaveBeenCalledWith(10, { amount: -15, note: 'Einzahlung', date: '2026-01-12', as_club_expense: false, trip_id: undefined })
         })
     })
 })

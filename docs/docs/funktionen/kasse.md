@@ -17,7 +17,7 @@ Die Kasse ist in vier Reiter unterteilt — **Übersicht** ist die Blick-Ebene (
 | Tab | Inhalt |
 |-----|--------|
 | **📊 Übersicht** | Mein Konto, Kassenstand, wer schuldet noch |
-| **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf |
+| **🔬 Analyse** | Spieler-Filter & Austritts-Simulation, Geldfluss im Detail, Saldo-Verlauf, Stichtag & Monatsstände |
 | **📈 Insights** | Wasserfall, Schulden-Treemap, Strafen pro Abend, Geldfluss-Sankey, Bezahlt-gegen-offen-Donut |
 | **👤 Konten** | Mitgliedssalden — wer hat noch Schulden? |
 | **📒 Kassenbuch** | Alle Buchungen (Einzahlungen, Auszahlungen, Vereinsausgaben) |
@@ -136,6 +136,12 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ---
 
+## Stichtag & Monatsstände
+
+Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Einzahlungen, Auszahlungen und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
+
+Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Einzahlungen, Auszahlungen und den Kassensaldo am Monatsende.
+
 ## Verlauf (Saldo-Graph)
 
 Im Reiter **🔬 Analyse** zeigt der Abschnitt **📈 Verlauf** den Saldo-Verlauf als Linien-Diagramm:
@@ -215,7 +221,7 @@ Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein od
 
 ### Auslage für den Verein (verknüpfte Buchung)
 
-Hat ein Mitglied etwas für den Verein bezahlt (z. B. die Bahn), wähle bei **+ Buchung** das Mitglied, Richtung **Einzahlung** und aktiviere **Als Vereinsausgabe verbuchen** (Beschreibung ist dann Pflicht). Es entstehen zwei **verknüpfte** Buchungen: die Gutschrift auf dem Mitgliedskonto und eine gleich hohe Vereinsausgabe — der Kassenstand bleibt dadurch korrekt. Normale Einzahlungen (Schulden begleichen) bleiben unberührt, solange die Option aus ist. Betrag und Datum werden beim Bearbeiten, Stornieren beim Löschen auf beiden Buchungen mitgeführt.
+Hat ein Mitglied etwas für den Verein bezahlt (z. B. die Bahn), wähle bei **+ Buchung** das Mitglied, Richtung **Einzahlung** und aktiviere **Als Vereinsausgabe verbuchen** (Beschreibung ist dann Pflicht). Es entstehen zwei **verknüpfte** Buchungen: die Gutschrift auf dem Mitgliedskonto und eine gleich hohe Vereinsausgabe — der Kassenstand bleibt dadurch korrekt. Normale Einzahlungen (Schulden begleichen) bleiben unberührt, solange die Option aus ist. Betrag und Datum werden beim Bearbeiten, Stornieren beim Löschen auf beiden Buchungen mitgeführt. Auch nachträglich lässt sich die Option im Bearbeiten-Dialog einer Einzahlung an- oder abschalten. Der **Saldo** über dem Kassenbuch ist der aktuelle Kassenstand; Abschreibungen stehen dort grau, da dabei kein Geld fließt.
 
 ### Buchung bearbeiten oder stornieren
 

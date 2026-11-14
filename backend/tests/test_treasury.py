@@ -295,6 +295,28 @@ class TestPaymentAsClubExpense:
         db.expire_all()
         assert db.query(MemberPayment).filter(MemberPayment.id == pid).one().is_deleted is True
 
+    def test_edit_can_turn_deposit_into_expense(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers).json()["id"]
+        r = client.patch(f"{self.URL}/{pid}", json={"as_club_expense": True}, headers=admin_headers)
+        assert r.status_code == 200 and r.json()["club_expense"] is True
+        exp = db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one()
+        assert exp.amount == 30 and exp.description == "Bahn" and exp.transfer_group_id
+        listed = client.get(self.URL, headers=admin_headers).json()
+        assert listed[0]["club_expense"] is True
+
+    def test_edit_can_drop_expense(self, client, db, club, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, as_club_expense=True).json()["id"]
+        r = client.patch(f"{self.URL}/{pid}", json={"as_club_expense": False}, headers=admin_headers)
+        assert r.status_code == 200 and r.json()["club_expense"] is False
+        db.expire_all()
+        assert db.query(ClubExpense).filter(ClubExpense.club_id == club.id).one().is_deleted is True
+        assert client.get(self.URL, headers=admin_headers).json()[0]["club_expense"] is False
+
+    def test_edit_to_expense_rejects_withdrawal(self, client, regular_member, admin_headers):
+        pid = self._create(client, regular_member, admin_headers, amount=-5).json()["id"]
+        r = client.patch(f"{self.URL}/{pid}", json={"as_club_expense": True}, headers=admin_headers)
+        assert r.status_code == 400
+
 
 # ---------------------------------------------------------------------------
 # GET /api/v1/club/member-payments/{mid} — list payments for a member

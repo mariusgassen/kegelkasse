@@ -1,6 +1,7 @@
 import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -10,6 +11,8 @@ import {BalanceHistoryChart} from '@/components/treasury/BalanceHistoryChart.tsx
 import {
     clubEventsFromBookings,
     debtEventsFromTimeline,
+    balanceAt,
+    monthlyStatements,
     memberPaymentEvents,
     memberPenaltyEvents,
 } from '@/lib/balanceHistory.ts'
@@ -237,6 +240,12 @@ export function TreasuryAnalysis() {
         ? debtEventsFromTimeline(debtTimeline)
         : memberPenaltyEvents(historyMemberPenalties as any[])
 
+    const [asOf, setAsOf] = useState('')
+    const asOfTs = asOf ? new Date(`${asOf}T23:59:59`).getTime() : null
+    const asOfActual = asOfTs === null ? null : balanceAt(historyActualEvents, asOfTs)
+    const asOfOverlay = asOfTs === null ? null : balanceAt(historyOverlayEvents, asOfTs)
+    const statements = monthlyStatements(historyActualEvents, historyOverlayEvents)
+
     return (
         <div>
             <p className="text-xs text-muted mb-3">{t('treasury.analysis.intro')}</p>
@@ -429,6 +438,42 @@ export function TreasuryAnalysis() {
                 threeLine={historyScope === 'member'}
                 loading={historyLoading}
                 t={t}/>
+
+            {/* ── Stichtag & Monatsstände ── */}
+            <div className="kce-card p-3 mt-3" data-testid="statements-card">
+                <div className="sec-heading mb-2">{t('treasury.statements.heading')}</div>
+                <label className="field-label" htmlFor="statements-asof">{t('treasury.statements.asOf')}</label>
+                <input id="statements-asof" type="date" className="kce-input mb-2" value={asOf}
+                       onChange={e => setAsOf(e.target.value)}/>
+                {asOfActual !== null && asOfOverlay !== null && (
+                    <div className="text-sm mb-3" data-testid="statements-asof-result">
+                        <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.balance')}</span>
+                            <span className="font-bold">{fe(asOfActual)}</span></div>
+                        <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.balanceVirtual')}</span>
+                            <span className="font-bold">{fe(asOfActual + asOfOverlay)}</span></div>
+                    </div>
+                )}
+                {historyLoading && statements.length === 0 ? (
+                    <SkeletonRows rows={3}/>
+                ) : statements.length === 0 ? (
+                    <p className="text-sm text-muted">{t('treasury.statements.empty')}</p>
+                ) : (
+                    <div className="text-sm" data-testid="statements-months">
+                        {statements.map(m => (
+                            <div key={m.start} className="py-2 border-t border-line">
+                                <div className="font-bold mb-1">
+                                    {new Date(m.start).toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}
+                                </div>
+                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.opening')}</span><span>{fe(m.opening)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.inflow')}</span><span className="text-positive-fg">{fe(m.inflow)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.outflow')}</span><span className="text-danger-fg">{fe(m.outflow)}</span></div>
+                                <div className="flex justify-between font-bold"><span>{t('treasury.statements.closing')}</span><span>{fe(m.closing)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.closingVirtual')}</span><span>{fe(m.closingVirtual)}</span></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
