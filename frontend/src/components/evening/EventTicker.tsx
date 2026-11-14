@@ -55,7 +55,7 @@ export function EventTicker({events}: {events: LiveEvent[]}) {
                     )
                 }
                 if (e.kind === 'game_finished') {
-                    const bandColor = e.band != null ? gameBandColor(e.band) : 'var(--line-strong)'
+                    const bandColor = e.band != null ? gameBandColor(e.band) : 'var(--line)'
                     return (
                         <div key={e.key} data-testid={`live-game-finish-${e.key.slice(3)}`}
                              className="flex items-center gap-2 py-1 px-1">
