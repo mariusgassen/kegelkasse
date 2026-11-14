@@ -52,6 +52,7 @@ def serialize_evening(e: Evening) -> dict:
         "is_closed": e.is_closed,
         "ended_at": e.ended_at.isoformat() if e.ended_at else None,
         "players": [{"id": p.id, "name": p.name, "regular_member_id": p.regular_member_id,
+                     "nickname": p.regular_member.nickname if p.regular_member else None,
                      "team_id": p.team_id, "is_king": p.is_king} for p in e.players],
         "teams": [{"id": t.id, "name": t.name} for t in e.teams],
         "penalty_log": [{"id": l.id, "player_id": l.player_id, "team_id": l.team_id,

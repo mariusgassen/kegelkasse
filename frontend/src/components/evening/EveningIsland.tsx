@@ -58,7 +58,7 @@ import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
-import {useIdleIslandStore, useIslandBusyStore} from '@/store/idleIsland.ts'
+import {useIdleIslandStore, useIslandBusyStore, useIslandFullscreenStore} from '@/store/idleIsland.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {Island, IslandProvider, useIsland, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
@@ -1233,6 +1233,7 @@ export default function EveningIsland({
     backdrop?: string
     children?: ReactNode
 }) {
+    const fullscreen = useIslandFullscreenStore(s => s.fullscreen)
     return (
         <IslandProvider metrics={HEADER_ISLAND_METRICS}>
             <HideWhenEmpty>
@@ -1240,7 +1241,9 @@ export default function EveningIsland({
                     placement="container"
                     label="Live"
                     backdrop={backdrop}
-                    style={{top: -4, zIndex: 40}}
+                    style={fullscreen
+                        ? {position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) - 4px)', zIndex: 40}
+                        : {top: -4, zIndex: 40}}
                 />
             </HideWhenEmpty>
             <IslandActivities eveningId={eveningId}/>

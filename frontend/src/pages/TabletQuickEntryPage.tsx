@@ -10,6 +10,7 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
+import {useIslandFullscreenStore} from '@/store/idleIsland.ts'
 import {useAppStore, isAdmin} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -50,10 +51,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
     const regularMembers = useAppStore(s => s.regularMembers)
+    const setIslandFullscreen = useIslandFullscreenStore(s => s.setFullscreen)
+    useEffect(() => {
+        setIslandFullscreen(true)
+        return () => setIslandFullscreen(false)
+    }, [setIslandFullscreen])
     // Kegelname: evening-player nickname, else the roster member's nickname, else the full name
     const dn = (p: {nickname?: string | null; name: string; regular_member_id?: number | null} | null | undefined): string => {
         if (!p) return ''
-        const rm = p.regular_member_id != null ? regularMembers.find(m => m.id === p.regular_member_id) : undefined
+        const rm = p.regular_member_id != null
+            ? regularMembers.find(m => m.id === p.regular_member_id)
+            : regularMembers.find(m => m.name === p.name)
         return p.nickname || rm?.nickname || p.name
     }
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
