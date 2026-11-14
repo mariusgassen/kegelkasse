@@ -674,6 +674,8 @@ export const en = {
     "treasury.statements.outflow": "Expenses",
     "treasury.statements.closing": "Closing",
     "treasury.statements.closingVirtual": "Closing projected",
+    "treasury.statements.showMore": "Show older months ({n})",
+    "treasury.statements.showLess": "Show less",
     "treasury.history.heading": "📈 History",
     "treasury.history.scopeClub": "Club",
     "treasury.history.scopeMember": "Member",

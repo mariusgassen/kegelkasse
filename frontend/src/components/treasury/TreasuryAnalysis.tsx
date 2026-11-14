@@ -103,6 +103,9 @@ function FlowRow({icon, label, amountLabel, colorClass, open, onToggle, items, m
  * Queries use the same keys as TreasuryPage, so react-query serves them from cache instead of
  * refetching when the tab is opened.
  */
+/** Months listed in the statement before "show older". */
+const MONTHS_SHOWN = 6
+
 export function TreasuryAnalysis() {
     const t = useT()
     const user = useAppStore(s => s.user)
@@ -245,6 +248,7 @@ export function TreasuryAnalysis() {
     const asOfActual = asOfTs === null ? null : balanceAt(historyActualEvents, asOfTs)
     const asOfOverlay = asOfTs === null ? null : balanceAt(historyOverlayEvents, asOfTs)
     const statements = monthlyStatements(historyActualEvents, historyOverlayEvents)
+    const [showAllMonths, setShowAllMonths] = useState(false)
 
     return (
         <div>
@@ -459,18 +463,33 @@ export function TreasuryAnalysis() {
                     <p className="text-sm text-muted">{t('treasury.statements.empty')}</p>
                 ) : (
                     <div className="text-sm" data-testid="statements-months">
-                        {statements.map(m => (
-                            <div key={m.start} className="py-2 border-t border-line">
-                                <div className="font-bold mb-1">
-                                    {new Date(m.start).toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}
+                        {(showAllMonths ? statements : statements.slice(0, MONTHS_SHOWN)).map((m, i) => (
+                            <ExpandableCard key={m.start} bare className="border-t border-line"
+                                            headerClassName="py-2 font-bold"
+                                            data-testid="statement-month"
+                                            defaultOpen={i === 0}
+                                            title={<span className="flex justify-between gap-2">
+                                                <span>{new Date(m.start).toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+                                                <span className="font-normal text-muted">{t('treasury.statements.closing')}: <span className="text-ink font-bold">{fe(m.closing)}</span></span>
+                                            </span>}>
+                                <div className="pb-2">
+                                    <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.opening')}</span><span>{fe(m.opening)}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.inflow')}</span><span className="text-positive-fg">{fe(m.inflow)}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.outflow')}</span><span className="text-danger-fg">{fe(m.outflow)}</span></div>
+                                    <div className="flex justify-between font-bold"><span>{t('treasury.statements.closing')}</span><span>{fe(m.closing)}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.closingVirtual')}</span><span>{fe(m.closingVirtual)}</span></div>
                                 </div>
-                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.opening')}</span><span>{fe(m.opening)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.inflow')}</span><span className="text-positive-fg">{fe(m.inflow)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.outflow')}</span><span className="text-danger-fg">{fe(m.outflow)}</span></div>
-                                <div className="flex justify-between font-bold"><span>{t('treasury.statements.closing')}</span><span>{fe(m.closing)}</span></div>
-                                <div className="flex justify-between"><span className="text-muted">{t('treasury.statements.closingVirtual')}</span><span>{fe(m.closingVirtual)}</span></div>
-                            </div>
+                            </ExpandableCard>
                         ))}
+                        {statements.length > MONTHS_SHOWN && (
+                            <button type="button" className="w-full pt-2 border-t border-line text-xs text-muted font-bold text-left"
+                                    data-testid="statements-more"
+                                    onClick={() => setShowAllMonths(v => !v)}>
+                                {showAllMonths
+                                    ? t('treasury.statements.showLess')
+                                    : t('treasury.statements.showMore').replace('{n}', String(statements.length - MONTHS_SHOWN))}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

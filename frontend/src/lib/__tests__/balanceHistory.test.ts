@@ -360,8 +360,10 @@ describe('balanceAt / monthlyStatements', () => {
 
     it('builds newest-first month rows with carried-over opening balances', () => {
         const rows = monthlyStatements(actual, [])
-        expect(rows).toHaveLength(2)
-        expect(rows[1]).toMatchObject({opening: 0, inflow: 100, outflow: -30, closing: 70})
+        // January, the quiet February in between, and March
+        expect(rows).toHaveLength(3)
+        expect(rows[2]).toMatchObject({opening: 0, inflow: 100, outflow: -30, closing: 70})
+        expect(rows[1]).toMatchObject({opening: 70, inflow: 0, outflow: 0, closing: 70})
         expect(rows[0]).toMatchObject({opening: 70, inflow: 50, outflow: 0, closing: 120})
     })
 

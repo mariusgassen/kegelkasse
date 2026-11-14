@@ -138,7 +138,7 @@ In **Verein → Einstellungen → Automatische Erinnerungen** kann konfiguriert 
 
 ## Stichtag & Monatsstände
 
-Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal projiziert inklusive offener Beträge). Darunter steht pro Monat mit Aktivität Anfang, Eingezahlt, Ausgaben und Ende. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
+Unter dem Verlauf-Graph zeigt die Karte **🗓️ Stichtag & Monatsstände** nicht nur Ein- und Auszahlungen, sondern deren Wirkung auf den Stand: Mit dem Datumsfeld **Kassenstand zum Stichtag** siehst du den Stand an einem beliebigen Tag (einmal real, einmal projiziert inklusive offener Beträge). Darunter steht pro Kalendermonat (auch ruhige Monate ohne Buchungen) Anfang, Eingezahlt, Ausgaben und Ende. Jeder Monat ist aufklappbar, der neueste ist offen; angezeigt werden die letzten 6 Monate, ältere erscheinen über „Ältere Monate anzeigen“. Der Umschalter des Verlaufs (Kasse / Mitglied) gilt auch hier — im Mitglied-Modus siehst du dieselben Monatsstände für ein einzelnes Konto.
 
 Im **Kassenbuch** trennt eine Zeile pro Monat die Buchungen und zeigt Eingezahlt, Ausgaben und den Kassensaldo am Monatsende.
 

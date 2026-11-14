@@ -257,8 +257,14 @@ export function balanceAt(events: BalanceEvent[], ts: number): number {
 /** One row per calendar month with activity (either stream), newest first, with opening/closing balances. */
 export function monthlyStatements(actualEvents: BalanceEvent[], overlayEvents: BalanceEvent[]): MonthStatement[] {
     const monthOf = (ts: number) => { const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), 1).getTime() }
-    const starts = new Set<number>([...actualEvents, ...overlayEvents].map(e => monthOf(e.ts)))
-    return [...starts].sort((a, b) => a - b).map(start => {
+    const active = [...actualEvents, ...overlayEvents].map(e => monthOf(e.ts))
+    if (active.length === 0) return []
+    // Every calendar month between the first and last activity — a quiet month (no bookings) still
+    // gets its row, so the statement has no gaps and the carried-over balance is visible.
+    const starts: number[] = []
+    const last = Math.max(...active)
+    for (let d = new Date(Math.min(...active)); d.getTime() <= last; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) starts.push(d.getTime())
+    return starts.map(start => {
         const end = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 1).getTime()
         const inMonth = actualEvents.filter(e => e.ts >= start && e.ts < end)
         const opening = cumulativeBaseline(actualEvents, start)
