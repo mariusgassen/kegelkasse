@@ -23,7 +23,14 @@
  */
 import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
+import {
+    BowlingPinsIcon,
+    Calendar03Icon,
+    Cancel01Icon,
+    CloudIcon,
+    CrownIcon,
+    Wallet01Icon,
+} from '@hugeicons/core-free-icons'
 import {
     api,
     flushOfflineQueue,
@@ -38,6 +45,7 @@ import {useThrowTracking} from '@/hooks/useClub.ts'
 import {OPEN_PROFILE_EVENT, type OpenProfileDetail} from '@/lib/aiLinks.ts'
 import {canStartGameInEvening, currentGameState, eveningTotals, nextOpenGame} from '@/lib/liveEvening.ts'
 import {
+    DEFAULT_UPCOMING_REMINDER_DAYS,
     deriveIdleIslandMode,
     formatEurCompact,
     formatEurFull,
@@ -50,10 +58,11 @@ import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {useAppStore} from '@/store/app.ts'
+import {useIdleIslandStore} from '@/store/idleIsland.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import {Island, IslandProvider, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
+import {Island, IslandProvider, useIsland, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
 import {Glyph} from '@/components/islandcn/glyph'
 import {CheckCircleGlyph, glyphFrom, SparkleGlyph, UploadGlyph} from '@/components/islandcn/glyphs'
 import {ExpandedBottom, SensorRow} from '@/components/islandcn/island-layout'
@@ -70,8 +79,8 @@ import {
 } from '@/components/islandcn/island-text'
 import {MetricRow} from '@/components/islandcn/metric'
 import {Spinner} from '@/components/islandcn/spinner'
-import {IslandButton} from '@/components/islandcn/island-button'
-import {islandAccent, islandInk} from '@/components/islandcn/theme'
+import {IslandButton, IslandRoundButton} from '@/components/islandcn/island-button'
+import {islandAccent, islandInk, islandSize} from '@/components/islandcn/theme'
 import {formatClock, TickingTime} from '@/components/islandcn/ticking-time'
 import type {RsvpStatus} from '@/types.ts'
 
@@ -94,6 +103,7 @@ const HEADER_ISLAND_METRICS: IslandMetricsOverrides = {
 
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
 const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
+const CloseGlyph = glyphFrom('CloseGlyph', Cancel01Icon)
 const CrownGlyph = glyphFrom('CrownGlyph', CrownIcon, {parts: 'fill'})
 const CloudSyncGlyph = glyphFrom('CloudSyncGlyph', CloudIcon, {parts: 'fill'})
 const WalletGlyph = glyphFrom('WalletGlyph', Wallet01Icon)
@@ -755,6 +765,10 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
     const island = useIslandActions()
     const queryClient = useQueryClient()
     const user = useAppStore(s => s.user)
+    const dismissed = useIdleIslandStore(s => s.dismissed)
+    const dismissedScheduleId = useIdleIslandStore(s => s.dismissedScheduleId)
+    const dismissIdle = useIdleIslandStore(s => s.dismiss)
+    const awakenIdle = useIdleIslandStore(s => s.awaken)
     const rmid = user?.regular_member_id ?? null
     const locale = user?.preferred_locale ?? 'de'
     const isLoggedIn = !!user
@@ -780,8 +794,16 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         enabled: isLoggedIn && !eveningActiveOrLoading && rmid != null,
         staleTime: 60_000,
     })
+    const {data: reminderSettings, isError: reminderSettingsError} = useQuery({
+        queryKey: ['reminder-settings'],
+        queryFn: api.getReminderSettings,
+        enabled: isLoggedIn && !eveningActiveOrLoading,
+        staleTime: 60_000,
+    })
 
     const todayKey = todayLocalKey()
+    const upcomingReminderDays = reminderSettings?.upcoming_evening?.days_before ?? DEFAULT_UPCOMING_REMINDER_DAYS
+    const reminderReady = reminderSettings !== undefined || reminderSettingsError
     const mode = useMemo(
         () => deriveIdleIslandMode({
             hasOpenEvening: eveningActiveOrLoading,
@@ -791,8 +813,20 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             regularMemberId: rmid,
             myBalance,
             balanceFailed: myBalanceError,
+            upcomingReminderDays,
+            reminderReady,
         }),
-        [eveningActiveOrLoading, isLoggedIn, schedules, todayKey, rmid, myBalance, myBalanceError],
+        [
+            eveningActiveOrLoading,
+            isLoggedIn,
+            schedules,
+            todayKey,
+            rmid,
+            myBalance,
+            myBalanceError,
+            upcomingReminderDays,
+            reminderReady,
+        ],
     )
 
     useEffect(() => {
@@ -801,8 +835,30 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             island.end(IDLE_STATUS_ID)
             return
         }
+        if (dismissed) {
+            if (mode.kind === 'schedule' && mode.appointment.id !== dismissedScheduleId) {
+                awakenIdle()
+                return
+            }
+            prevKind.current = null
+            island.end(IDLE_STATUS_ID)
+            return
+        }
         const kindChanged = prevKind.current !== null && prevKind.current !== mode.kind
         prevKind.current = mode.kind
+        const handleDismiss = () => {
+            island.collapse()
+            dismissIdle(mode.kind === 'schedule' ? mode.appointment.id : null)
+        }
+        const dismissButton = (
+            <IslandRoundButton
+                size={islandSize.button}
+                label={t('island.dismiss')}
+                onPress={handleDismiss}
+            >
+                <Glyph icon={CloseGlyph} size={18}/>
+            </IslandRoundButton>
+        )
 
         if (mode.kind === 'schedule') {
             const ap = mode.appointment
@@ -848,6 +904,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             const content = {
                 label: `${t('island.nextEvening')}: ${fullDate}${ap.venue ? `, ${ap.venue}` : ''}`,
                 onPress: () => { router.navigate({to: '/schedule', search: {evening: ap.id}}).catch(() => {}) },
+                onDismiss: handleDismiss,
                 compact: {
                     leading: leadingGlyph,
                     trailing: <BubbleForm bubble={null}>{compactTrailing}</BubbleForm>,
@@ -873,7 +930,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                     bottom: (
                         <ExpandedBottom reach="action" gap={10}>
                             <TitleStack title={fullDate} subtitle={subtitle}/>
-                            <div style={{display: 'flex', gap: 10}}>
+                            <div style={{display: 'flex', gap: 8, alignItems: 'center'}}>
                                 {ap.my_rsvp !== 'attending' ? (
                                     <IslandButton
                                         size="compact"
@@ -911,6 +968,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                                         {t('nav.schedule')}
                                     </IslandButton>
                                 )}
+                                {dismissButton}
                             </div>
                         </ExpandedBottom>
                     ),
@@ -955,6 +1013,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             const content = {
                 label: `${t('profile.myBalance')}: ${fullAmount}`,
                 onPress: () => openOwnProfile('season'),
+                onDismiss: handleDismiss,
                 compact: {
                     leading: leadingGlyph,
                     trailing: <BubbleForm bubble={null}>{compactTrailing}</BubbleForm>,
@@ -977,7 +1036,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                                 title={<NumberText value={fullAmount}/>}
                                 subtitle={accountSubtitle}
                             />
-                            <div style={{display: 'flex', gap: 10}}>
+                            <div style={{display: 'flex', gap: 8, alignItems: 'center'}}>
                                 <IslandButton
                                     size="compact"
                                     onPress={() => {
@@ -997,6 +1056,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                                 >
                                     {t('nav.treasury')}
                                 </IslandButton>
+                                {dismissButton}
                             </div>
                         </ExpandedBottom>
                     ),
@@ -1016,6 +1076,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         const content = {
             label: `${t('island.idleShort')}: ${t('island.idleHint')}`,
             onPress: () => openOwnProfile('season'),
+            onDismiss: handleDismiss,
             compact: {
                 leading: leadingGlyph,
                 trailing: <BubbleForm bubble={null}>{shortNode}</BubbleForm>,
@@ -1033,7 +1094,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                             title={user?.name || t('profile.title')}
                             subtitle={t('island.idleHint')}
                         />
-                        <div style={{display: 'flex', gap: 10}}>
+                        <div style={{display: 'flex', gap: 8, alignItems: 'center'}}>
                             <IslandButton
                                 size="compact"
                                 onPress={() => {
@@ -1053,6 +1114,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                             >
                                 {t('profile.myBalance')}
                             </IslandButton>
+                            {dismissButton}
                         </div>
                     </ExpandedBottom>
                 ),
@@ -1064,9 +1126,49 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         } else {
             island.start({id: IDLE_STATUS_ID, priority: -1, ...content})
         }
-    }, [island, queryClient, mode, todayKey, locale, rmid, rsvpBusy, user?.name, t])
+    }, [
+        island,
+        queryClient,
+        mode,
+        dismissed,
+        dismissedScheduleId,
+        dismissIdle,
+        awakenIdle,
+        todayKey,
+        locale,
+        rmid,
+        rsvpBusy,
+        user?.name,
+        t,
+    ])
 
     useEffect(() => () => island.end(IDLE_STATUS_ID), [island])
+
+    return null
+}
+
+function IdleAwakenWatcher() {
+    const {activities} = useIsland()
+    const dismissed = useIdleIslandStore(s => s.dismissed)
+    const awaken = useIdleIslandStore(s => s.awaken)
+    const otherSignature = activities
+        .filter(a => a.id !== IDLE_STATUS_ID)
+        .map(a => `${a.id}:${a.revision}:${a.order}:${a.label}`)
+        .join('|')
+    const prevSigRef = useRef('')
+
+    useEffect(() => {
+        if (!dismissed) {
+            prevSigRef.current = otherSignature
+            return
+        }
+        if (otherSignature && otherSignature !== prevSigRef.current) {
+            prevSigRef.current = otherSignature
+            awaken()
+            return
+        }
+        prevSigRef.current = otherSignature
+    }, [dismissed, otherSignature, awaken])
 
     return null
 }
@@ -1076,6 +1178,7 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
         <>
             {eveningId != null && eveningId > 0 && <EveningActivity eveningId={eveningId}/>}
             <IdleStatusActivity eveningId={eveningId}/>
+            <IdleAwakenWatcher/>
             <CelebrationActivity/>
             <QuickEntryActivity/>
             <UploadActivity/>

@@ -181,6 +181,68 @@ describe('deriveIdleIslandMode', () => {
         })).toEqual({kind: 'fallback'})
     })
 
+    it('only shows upcoming scheduled evening within the configured reminder days window', () => {
+        // Default window (5 days): 5 days ahead shows schedule, 6 days ahead falls back to balance
+        const withinDefault = deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [se({id: 2, scheduled_at: '2026-11-19T20:00'})],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
+        })
+        expect(withinDefault?.kind).toBe('schedule')
+
+        const outsideDefault = deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
+        })
+        expect(outsideDefault).toEqual({
+            kind: 'balance',
+            balance: 5,
+            penaltyTotal: 10,
+            paymentsTotal: 15,
+            balanceState: 'credit',
+        })
+
+        // Club setting overrides default (e.g. 2 days or 35 days)
+        expect(deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [se({id: 2, scheduled_at: '2026-11-18T20:00'})],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
+            upcomingReminderDays: 2,
+        })?.kind).toBe('balance')
+
+        expect(deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: undefined,
+            upcomingReminderDays: 35,
+        })?.kind).toBe('schedule')
+    })
+
+    it('waits for reminder settings when an upcoming evening exists', () => {
+        expect(deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [se({id: 2, scheduled_at: '2026-12-14T20:00'})],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: {regular_member_id: 1, penalty_total: 10, payments_total: 15, balance: 5},
+            reminderReady: false,
+        })).toBeNull()
+    })
+
     it('falls back to account shortcut for members without regularMemberId and no appointments', () => {
         const mode = deriveIdleIslandMode({
             hasOpenEvening: false,

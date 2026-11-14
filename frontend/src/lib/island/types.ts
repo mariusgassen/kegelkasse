@@ -60,6 +60,8 @@ export interface ActivityOptions extends ActivityContent {
   priority?: number;
   /** Called on a tap (a press shorter than the long-press). Defaults to none. */
   onPress?: () => void;
+  /** Called on a horizontal swipe-to-dismiss gesture on the compact pill. Defaults to none. */
+  onDismiss?: () => void;
   /** Start with an alert: expand briefly, then settle to compact. Defaults to false. */
   alert?: boolean;
   /**
@@ -85,6 +87,8 @@ export interface ActivityUpdate {
   priority?: number;
   /** Replaces the tap handler. Defaults to keeping it. */
   onPress?: () => void;
+  /** Replaces the swipe-to-dismiss handler. Defaults to keeping it. */
+  onDismiss?: () => void;
   /**
    * Expand briefly to draw attention, like an alerting ActivityKit update. The island expands with
    * the content it had and applies this update in place `motion.alertContentDelay` later, as iOS
@@ -114,6 +118,7 @@ export interface Activity {
   order: number;
   content: ActivityContent;
   onPress: (() => void) | null;
+  onDismiss: (() => void) | null;
   /** Bumped by crossfade updates: a new revision replaces the content layer instead of updating it. */
   revision: number;
   /** The group it shows in turn with (`ActivityOptions.group`), or null. */

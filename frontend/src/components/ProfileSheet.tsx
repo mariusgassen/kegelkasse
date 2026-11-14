@@ -7,6 +7,7 @@ import {api} from '@/api/client'
 import {useAppStore, isAdmin} from '@/store/app'
 import {useThemeStore, type Theme} from '@/store/theme'
 import {useEffectsStore} from '@/store/effects'
+import {useIdleIslandStore} from '@/store/idleIsland'
 import {useBowlingStore} from '@/store/bowling'
 import {useI18n, useT} from '@/i18n'
 import {showToast} from '@/components/ui/Toast'
@@ -147,6 +148,9 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
     const lastSeenVersion = useWhatsNewStore(s => s.lastSeen)
     const {theme, setTheme} = useThemeStore()
     const {effectsEnabled, setEffectsEnabled} = useEffectsStore()
+    const idleDismissed = useIdleIslandStore(s => s.dismissed)
+    const dismissIdle = useIdleIslandStore(s => s.dismiss)
+    const awakenIdle = useIdleIslandStore(s => s.awaken)
     const bowlingDiscovered = useBowlingStore(s => s.discovered)
     const {user, setUser, regularMembers} = useAppStore()
     const fileRef = useRef<HTMLInputElement>(null)
@@ -739,6 +743,22 @@ export function ProfileSheet({open, onClose, initialTab}: Props) {
                                 <button key={String(v)} onClick={() => setEffectsEnabled(v)}
                                         className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${effectsEnabled === v ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
                                     {t(v ? 'settings.effects.on' : 'settings.effects.off')}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Idle Live Island */}
+                    <div className="kce-card p-4 flex items-center justify-between">
+                        <div>
+                            <Caption><span aria-hidden="true">🏝️</span> <span>{t('settings.idleIsland.title')}</span></Caption>
+                            <div className="text-xs text-muted mt-0.5">{t('settings.idleIsland.hint')}</div>
+                        </div>
+                        <div className="flex gap-1">
+                            {([true, false] as const).map(v => (
+                                <button key={String(v)} onClick={() => v ? awakenIdle() : dismissIdle(null)}
+                                        className={`text-xs font-extrabold px-2.5 py-1 rounded-lg transition-all ${(!idleDismissed) === v ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`}>
+                                    {t(v ? 'settings.idleIsland.on' : 'settings.idleIsland.off')}
                                 </button>
                             ))}
                         </div>

@@ -133,11 +133,14 @@ export function formatEurFull(amount: number): string {
     return `${sign}${formatted} €`
 }
 
+export const DEFAULT_UPCOMING_REMINDER_DAYS = 5
+
 /**
  * Decide what the island displays when no evening is running:
- * 1. Next upcoming scheduled evening (carries personal balance if known)
- * 2. Personal balance fallback when no evening is scheduled
- * 3. Schedule quick-shortcut fallback once queries have resolved and neither exists
+ * 1. Next upcoming scheduled evening within `upcomingReminderDays` (default 5, matching the club's
+ *    `upcoming_evening.days_before` reminder setting; carries personal balance if known)
+ * 2. Personal balance fallback when no evening is within the window
+ * 3. Account quick-shortcut fallback once queries have resolved and neither exists
  * Returns `null` while an evening is open, the user is signed out, or data hasn't loaded yet.
  */
 export function deriveIdleIslandMode(params: {
@@ -148,15 +151,33 @@ export function deriveIdleIslandMode(params: {
     regularMemberId: number | null
     myBalance: MyBalanceSummary | undefined
     balanceFailed?: boolean
+    upcomingReminderDays?: number | null
+    reminderReady?: boolean
 }): IdleIslandMode | null {
-    const {hasOpenEvening, isLoggedIn, schedules, todayKey, regularMemberId, myBalance, balanceFailed} = params
+    const {
+        hasOpenEvening,
+        isLoggedIn,
+        schedules,
+        todayKey,
+        regularMemberId,
+        myBalance,
+        balanceFailed,
+        upcomingReminderDays,
+        reminderReady = true,
+    } = params
     if (!isLoggedIn || hasOpenEvening) return null
 
     const hasScheduleData = schedules !== undefined
     const hasBalanceData = regularMemberId == null || myBalance !== undefined || !!balanceFailed
     if (!hasScheduleData && !hasBalanceData) return null
 
-    const upcoming = schedules ? nextAppointment(schedules, todayKey) : null
+    const next = schedules ? nextAppointment(schedules, todayKey) : null
+    if (next && !reminderReady) return null
+
+    const windowDays = Math.max(0, upcomingReminderDays ?? DEFAULT_UPCOMING_REMINDER_DAYS)
+    const daysAhead = next ? daysUntilDate(next.scheduled_at, todayKey) : Number.NaN
+    const upcoming = next && (Number.isNaN(daysAhead) || daysAhead <= windowDays) ? next : null
+
     const rawBalance = regularMemberId != null ? (myBalance?.balance ?? null) : null
     const bState = balanceState(rawBalance)
 

@@ -245,6 +245,7 @@ export const createIslandStore = (options: { clock: IslandClock; motion: () => I
         order: nextOrder++,
         content: { compact: start.compact, minimal: start.minimal, expanded: start.expanded },
         onPress: start.onPress ?? null,
+        onDismiss: start.onDismiss ?? null,
         revision: 0,
         group: start.group ?? null,
       };
@@ -262,6 +263,7 @@ export const createIslandStore = (options: { clock: IslandClock; motion: () => I
         label: update.label ?? found.label,
         priority: update.priority ?? found.priority,
         onPress: "onPress" in update ? (update.onPress ?? null) : found.onPress,
+        onDismiss: "onDismiss" in update ? (update.onDismiss ?? null) : found.onDismiss,
         content: mergeContent(found.content, update),
         revision: update.transition === "crossfade" ? found.revision + 1 : found.revision,
       };
