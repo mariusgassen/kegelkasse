@@ -47,6 +47,7 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const totals = eveningTotals(evening)
     const ranking = penaltyRanking(evening)
     const curve = penaltyCurve(evening)
+    const avgPenalty = ranking.length > 0 ? ranking.reduce((sum, r) => sum + r.euro, 0) / ranking.length : 0
     const standings = throwTracking ? gameStandings(evening, game) : []
     const standingsMax = standings.reduce((m, r) => Math.max(m, r.pins), 0)
 
@@ -289,8 +290,9 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
             )}
 
             {/* ── Stat row ── */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 <StatTile size="sm" value={<CountUp value={totals.penaltyEuro} format={fe}/>} label={t('live.stat.penalties')} tone="default"/>
+                <StatTile size="sm" value={<CountUp value={avgPenalty} format={fe}/>} label={t('live.stat.avgPenalty')} tone="default"/>
                 <StatTile size="sm" value={totals.beerRounds} label={t('live.stat.beer')} tone="default"/>
                 <StatTile size="sm" value={totals.shotRounds} label={t('live.stat.shots')} tone="default"/>
                 <StatTile size="sm" value={`${totals.gamesFinished}/${totals.gamesTotal}`} label={t('nav.games')} tone="default"/>

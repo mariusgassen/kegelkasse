@@ -1210,7 +1210,7 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
 /** The plain black pill stays visible as a resting light, but never intercepts taps while empty. */
 function HideWhenEmpty({children}: {children: ReactNode}) {
     const {activities} = useIsland()
-    return <div style={{pointerEvents: activities.length === 0 ? 'none' : undefined}}>{children}</div>
+    return <div data-island-empty={activities.length === 0 || undefined} style={{pointerEvents: activities.length === 0 ? 'none' : undefined}}>{children}</div>
 }
 
 export default function EveningIsland({
