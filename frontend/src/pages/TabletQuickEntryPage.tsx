@@ -697,33 +697,37 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         <div style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 60,
+            zIndex: 30,
             background: 'var(--canvas)',
             display: 'flex',
             flexDirection: 'column',
         }}>
+            {/* Safe-area spacer matching RootLayout so the 56px island row aligns 1:1 with <header> */}
+            <div className="safe-top flex-shrink-0" style={{background: 'var(--surface)'}}/>
+
             {/* ── Header — full-width sticky game zone ── */}
             <div
                 className="flex-shrink-0"
                 style={{
                     background: 'var(--surface)',
                     borderBottom: '1px solid var(--line)',
-                    paddingTop: 'max(env(safe-area-inset-top), 8px)',
                     paddingBottom: '6px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
-                {/* Row 1: close (left) + center stage reserved for Dynamic Island + primary actions (right) */}
-                <div className="min-h-11 flex flex-wrap items-center justify-between gap-2">
-                    <div className="order-1 flex items-center">
-                        <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
-                            ✕
-                        </Button>
-                    </div>
+                {/* Row 1 (56px island bar): [✕] on the far left; center + right left clear for Dynamic Island */}
+                <div className="h-14 flex items-center justify-between gap-2">
+                    <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
+                        ✕
+                    </Button>
+                </div>
+
+                {/* Row 2 (game & action bar): sits below the 56px island band so it never collides with the island */}
+                <div className="flex items-center justify-between gap-2 pb-1">
                     {activeGame ? (
                         <>
-                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                 <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
                                     🎳 {activeGame.name}
                                     {activeGame.status === 'open' && (
@@ -742,8 +746,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     </span>
                                 )}
                             </div>
-                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
-                            <div className="order-2 sm:order-3 flex items-center">
+                            <div className="flex items-center flex-shrink-0">
                                 {activeGame.status === 'open' && (
                                     <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
                                         ▶ {t('game.start')}
@@ -759,11 +762,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </>
                     ) : (
                         <>
-                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
+                            <div className="flex items-center gap-2 min-w-0">
                                 <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
                             </div>
-                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
-                            <div className="order-2 sm:order-3 flex items-center">
+                            <div className="flex items-center flex-shrink-0">
                                 {!showNewGame && (
                                     <Button type="button" variant="secondary" size="xs"
                                             onClick={() => setShowNewGame(true)}>

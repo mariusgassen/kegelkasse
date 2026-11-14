@@ -1,41 +1,101 @@
+import {useEffect} from 'react'
 import {useT} from '@/i18n'
 import {useSwUpdate} from '@/hooks/useSwUpdate'
+import {Island, IslandProvider, useIslandActions} from '@/lib/island'
+import {useIslandContext} from '@/lib/island/context'
+import {Glyph} from '@/components/islandcn/glyph'
+import {DownloadGlyph} from '@/components/islandcn/glyphs'
+import {ExpandedBottom, SensorRow} from '@/components/islandcn/island-layout'
+import {BubbleForm, CompactText, ContextLabel, MinimalPair, TitleStack} from '@/components/islandcn/island-text'
+import {IslandButton} from '@/components/islandcn/island-button'
+import {islandAccent} from '@/components/islandcn/theme'
+
+export const SW_UPDATE_ID = 'sw-update'
+
+function SwUpdateActivity() {
+    const t = useT()
+    const island = useIslandActions()
+    const {needRefresh, applyUpdate, dismiss} = useSwUpdate()
+
+    useEffect(() => {
+        if (!needRefresh) {
+            island.end(SW_UPDATE_ID)
+            return
+        }
+        const accent = islandAccent.blue
+        const body = t('update.banner.body')
+        const actionLabel = t('update.banner.button')
+        const dismissLabel = t('update.banner.dismiss')
+
+        island.start({
+            id: SW_UPDATE_ID,
+            priority: 1,
+            alert: true,
+            label: `${body} — ${actionLabel}`,
+            onPress: () => island.expand(SW_UPDATE_ID),
+            compact: {
+                leading: <Glyph icon={DownloadGlyph} color={accent}/>,
+                trailing: (
+                    <BubbleForm bubble={null}>
+                        <CompactText color={accent}>{actionLabel}</CompactText>
+                    </BubbleForm>
+                ),
+            },
+            minimal: (
+                <MinimalPair
+                    leading={<Glyph icon={DownloadGlyph} color={accent}/>}
+                    trailing={<CompactText color={accent}>↑</CompactText>}
+                />
+            ),
+            expanded: {
+                leading: (
+                    <SensorRow glyph={<Glyph icon={DownloadGlyph} color={accent} size={18}/>}>
+                        <ContextLabel>{actionLabel}</ContextLabel>
+                    </SensorRow>
+                ),
+                bottom: (
+                    <ExpandedBottom reach="action" gap={12}>
+                        <div role="status">
+                            <TitleStack title={body}/>
+                        </div>
+                        <div style={{display: 'flex', gap: 10}}>
+                            <IslandButton
+                                size="compact"
+                                label={dismissLabel}
+                                onPress={dismiss}
+                            >
+                                {dismissLabel}
+                            </IslandButton>
+                            <IslandButton
+                                size="compact"
+                                tone={{kind: 'accent', color: accent}}
+                                onPress={() => { applyUpdate().catch(() => {}) }}
+                            >
+                                {actionLabel}
+                            </IslandButton>
+                        </div>
+                    </ExpandedBottom>
+                ),
+            },
+        })
+        return () => island.end(SW_UPDATE_ID)
+    }, [island, needRefresh, applyUpdate, dismiss, t])
+
+    return null
+}
 
 /**
- * Dismissible top banner shown once a new service-worker version is waiting to activate.
+ * Dynamic-Island live activity shown once a new service-worker version is waiting to activate.
  * Reloading is user-initiated (via "Aktualisieren") rather than automatic, so an installed
  * PWA never reloads unannounced mid-evening.
  */
 export function UpdatePrompt() {
-    const t = useT()
-    const {needRefresh, applyUpdate, dismiss} = useSwUpdate()
-
-    if (!needRefresh) return null
-
+    const ctx = useIslandContext()
+    if (ctx) return <SwUpdateActivity/>
     return (
-        <div
-            className="flex items-center justify-center gap-2 px-3 py-1.5 flex-shrink-0"
-            style={{
-                background: 'color-mix(in srgb, var(--accent) 18%, var(--canvas))',
-                borderBottom: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)',
-                color: 'var(--ink)',
-            }}>
-            <span className="text-xs font-bold flex-1 min-w-0 truncate">
-                🔄 {t('update.banner.body')}
-            </span>
-            <button
-                onClick={applyUpdate}
-                className="text-sm font-bold px-3 py-1 rounded-full flex-shrink-0 active:opacity-70"
-                style={{background: 'var(--accent)', color: 'var(--on-accent)', border: 'none'}}>
-                {t('update.banner.button')}
-            </button>
-            <button
-                onClick={dismiss}
-                aria-label={t('update.banner.dismiss')}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-muted active:opacity-60 flex-shrink-0"
-                style={{background: 'rgba(255,255,255,0.1)', fontSize: 13, lineHeight: 1}}>
-                ✕
-            </button>
-        </div>
+        <IslandProvider reducedMotion="always">
+            <Island label="Live"/>
+            <SwUpdateActivity/>
+        </IslandProvider>
     )
 }
