@@ -176,9 +176,7 @@ export function RootLayout() {
             {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
             <div className="app-header">
                 {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
-                <div className="safe-top" style={{background: 'var(--canvas)'}}>
-                    <div aria-hidden="true" className="ios-top-blur-shim"/>
-                </div>
+                <div className="safe-top" style={{background: 'var(--canvas)'}}/>
                 <OfflineBanner/>
                 <InstallPrompt/>
                 <UpdatePrompt/>

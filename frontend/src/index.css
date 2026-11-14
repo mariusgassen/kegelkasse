@@ -188,30 +188,19 @@
         overflow: hidden;
     }
 
-    /* Anchor the shell to the initial containing block. #root has no transform/filter, so
-       descendant position:fixed overlays (sheets, the live island) still anchor to the viewport. */
+    /* Anchor the shell to the initial containing block — no height unit, no JS measurement.
+       The real cause of the iOS-standalone dead strip was NOT the shell height but the
+       apple-mobile-web-app-status-bar-style: black-translucent meta tag (see index.html): it made
+       the web view height = screen.height − safe-area-inset-top yet anchored to the top, so a strip
+       of OS-black equal to the top inset was left at the *bottom*, physically outside the page —
+       unreachable by any CSS. With the opaque `black` status bar the web view now fills below the
+       status bar down to the physical bottom, so position:fixed;inset:0 fills it edge-to-edge and
+       the nav's env(safe-area-inset-bottom) padding clears the home indicator exactly once. #root
+       has no transform/filter, so descendant position:fixed overlays still anchor to the viewport. */
     #root {
         position: fixed;
         inset: 0;
         overflow: hidden;
-    }
-
-    /* Installed PWA with apple-mobile-web-app-status-bar-style: black-translucent (see index.html):
-       WebKit shifts the layout viewport up behind the status bar without making it taller, so
-       `100%`/`inset: 0` stop safe-area-inset-top short of the physical bottom (a 59px dead strip on
-       an iPhone 15/16 Pro). `100vh` is the full screen height in standalone mode (no browser
-       toolbars), so the shell reaches the bottom and the nav's env(safe-area-inset-bottom) padding
-       clears the home indicator exactly once. Scoped to standalone so a Safari tab, where 100vh is
-       the toolbar-less height, keeps the plain inset sizing. */
-    @media (display-mode: standalone) {
-        html, body {
-            height: 100vh;
-        }
-
-        #root {
-            bottom: auto;
-            height: 100vh;
-        }
     }
 
     body {
@@ -454,22 +443,6 @@
 
     .safe-top {
         padding-top: env(safe-area-inset-top, 0px);
-    }
-
-    /* iOS 26+ WebKit applies a native UIScrollEdgeEffect progressive blur across the top ~75pt of a
-       black-translucent standalone PWA whenever no position:fixed element at top:0 carries an opaque
-       background-color (our .app-header and .safe-top are in-flow inside the grid shell). A fixed
-       full-width strip at top:0 with background-color: var(--canvas) satisfies WebKit's top-bar
-       sampler and disables the blur, while background-clip: text on an empty element paints nothing
-       over the live island at y ≈ 14px. */
-    .ios-top-blur-shim {
-        position: fixed;
-        inset: 0 0 auto;
-        height: 11px;
-        pointer-events: none;
-        background-color: var(--canvas);
-        -webkit-background-clip: text;
-        background-clip: text;
     }
 
     .safe-bottom {
