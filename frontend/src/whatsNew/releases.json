@@ -1,6 +1,425 @@
 {
   "releases": [
     {
+      "version": "1.75.0",
+      "date": "2026-11-14",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "779c6ff",
+              "pr": 590,
+              "sha": "779c6ff",
+              "text": {
+                "en": "add charts tab to the Kasse with waterfall, treemap, Sankey and donut",
+                "de": "Neuer Diagramm-Tab in der Kasse mit Wasserfall-, Treemap-, Sankey- und Donut-Diagramm"
+              }
+            },
+            {
+              "key": "186b8c6",
+              "pr": 582,
+              "sha": "186b8c6",
+              "text": {
+                "en": "editable roadmap versions, completed items pin the deployed version",
+                "de": "Roadmap-Versionen bearbeitbar, erledigte Punkte behalten die ausgelieferte Version"
+              }
+            },
+            {
+              "key": "0215ba2",
+              "scope": "evening",
+              "sha": "0215ba2",
+              "text": {
+                "en": "Live-Abend zeigt Rangliste, Strafen-Kurve und Spielstand; Protokoll mit Spiel-Farben",
+                "de": "Live-Abend zeigt Rangliste, Strafen-Kurve und Spielstand; Protokoll mit Spiel-Farben"
+              }
+            },
+            {
+              "key": "ccfbb67",
+              "scope": "evening",
+              "pr": 618,
+              "sha": "ccfbb67",
+              "text": {
+                "en": "Live-Spielmarker, einheitliche Kacheln & neue Schnellerfassung",
+                "de": "Live-Spielmarker, einheitliche Kacheln & neue Schnellerfassung"
+              }
+            },
+            {
+              "key": "f41841b",
+              "scope": "evening",
+              "sha": "f41841b",
+              "text": {
+                "en": "Schnellerfassung zeigt Zähler, Balken, Aufleuchten und Getränke-Zeitleiste",
+                "de": "Schnellerfassung zeigt Zähler, Balken, Aufleuchten und Getränke-Zeitleiste"
+              }
+            },
+            {
+              "key": "90f12ed",
+              "sha": "90f12ed",
+              "text": {
+                "en": "Excel-Blatt Strafen nach Abend je Abend gruppiert",
+                "de": "Excel-Blatt Strafen nach Abend je Abend gruppiert"
+              }
+            },
+            {
+              "key": "35b8ec0",
+              "pr": 612,
+              "sha": "35b8ec0",
+              "text": {
+                "en": "islandcn Content-Kit, 5 Live-Aktivitäten und iOS-26-Top-Blur-Fix",
+                "de": "islandcn Content-Kit, 5 Live-Aktivitäten und iOS-26-Top-Blur-Fix"
+              }
+            },
+            {
+              "key": "c951c7f",
+              "pr": 596,
+              "sha": "c951c7f",
+              "text": {
+                "en": "Kasse mit Stichtag, Monatsständen, korrektem Saldo und Vereinsausgabe beim Bearbeiten",
+                "de": "Kasse mit Stichtag, Monatsständen, korrektem Saldo und Vereinsausgabe beim Bearbeiten"
+              }
+            },
+            {
+              "key": "139c0c1",
+              "sha": "139c0c1",
+              "text": {
+                "en": "Kasse zeigt Balken neben den Zahlen und animierte Diagramme",
+                "de": "Kasse zeigt Balken neben den Zahlen und animierte Diagramme"
+              }
+            },
+            {
+              "key": "de91838",
+              "sha": "de91838",
+              "text": {
+                "en": "Kassenbericht listet auch offene Strafen von Gästen",
+                "de": "Kassenbericht listet auch offene Strafen von Gästen"
+              }
+            },
+            {
+              "key": "36bd4f8",
+              "sha": "36bd4f8",
+              "text": {
+                "en": "Konten pro Monat im Kassenbericht mit Monaten als Spalten",
+                "de": "Konten pro Monat im Kassenbericht mit Monaten als Spalten"
+              }
+            },
+            {
+              "key": "1d90780",
+              "pr": 608,
+              "sha": "1d90780",
+              "text": {
+                "en": "Live-Insel für den laufenden Abend",
+                "de": "Live-Insel für den laufenden Abend"
+              }
+            },
+            {
+              "key": "a11f1a1",
+              "pr": 621,
+              "sha": "a11f1a1",
+              "text": {
+                "en": "Live-Insel im Ruhemodus mit nächstem Termin, Kassenstand & Spielstart",
+                "de": "Live-Insel im Ruhemodus mit nächstem Termin, Kassenstand & Spielstart"
+              }
+            },
+            {
+              "key": "a6a93b4",
+              "pr": 615,
+              "sha": "a6a93b4",
+              "text": {
+                "en": "Quick-Entry-Header reparieren, Insel-Events & Smartphone-Layout",
+                "de": "Quick-Entry-Header repariert, Insel-Events & Smartphone-Layout"
+              }
+            },
+            {
+              "key": "c54c47f",
+              "scope": "roadmap",
+              "pr": 573,
+              "sha": "c54c47f",
+              "text": {
+                "en": "add comments, tag/pin/duplicate management, and product manager role",
+                "de": "Kommentare, Verwaltung von Tags, Anpinnen und Duplikaten sowie neue Rolle Produktmanager"
+              }
+            },
+            {
+              "key": "b3d848c",
+              "sha": "b3d848c",
+              "text": {
+                "en": "show guest nicknames and disambiguate duplicate names",
+                "de": "Gast-Kegelnamen werden angezeigt und doppelte Namen lassen sich unterscheiden"
+              }
+            },
+            {
+              "key": "2a23d02",
+              "pr": 613,
+              "sha": "2a23d02",
+              "text": {
+                "en": "Top-Bar passend zur Dynamic Island umgestalten",
+                "de": "Top-Bar passend zur Dynamic Island umgestaltet"
+              }
+            },
+            {
+              "key": "4fcf5da",
+              "pr": 584,
+              "sha": "4fcf5da",
+              "text": {
+                "en": "version pills for roadmap filtering and autocomplete",
+                "de": "Versions-Pillen zum Filtern der Roadmap und für die Autovervollständigung"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "0fec32e",
+              "pr": 598,
+              "sha": "0fec32e",
+              "text": {
+                "en": "Buchungs-Aktionen in der Kasse im ⋮-Menü statt als Icon-Paar",
+                "de": "Buchungs-Aktionen in der Kasse im ⋮-Menü statt als Icon-Paar"
+              }
+            },
+            {
+              "key": "c4b8e6c",
+              "pr": 587,
+              "sha": "c4b8e6c",
+              "text": {
+                "en": "club exit write-off no longer counts as a deposit in the Kasse",
+                "de": "Ausbuchung beim Vereinsaustritt zählt in der Kasse nicht mehr als Einzahlung"
+              }
+            },
+            {
+              "key": "0e54008",
+              "scope": "evening",
+              "sha": "0e54008",
+              "text": {
+                "en": "Spiel-Farben als feste Token-Liste",
+                "de": "Spiel-Farben als feste Token-Liste"
+              }
+            },
+            {
+              "key": "132e6e8",
+              "pr": 577,
+              "sha": "132e6e8",
+              "text": {
+                "en": "harden community roadmap permissions, validation and notifications",
+                "de": "Berechtigungen, Prüfungen und Benachrichtigungen der Community-Roadmap abgesichert"
+              }
+            },
+            {
+              "key": "436dc14",
+              "pr": 595,
+              "sha": "436dc14",
+              "text": {
+                "en": "Insights-Tab stürzte beim Öffnen ab",
+                "de": "Insights-Tab stürzte beim Öffnen ab"
+              }
+            },
+            {
+              "key": "7b037aa",
+              "scope": "island",
+              "pr": 622,
+              "sha": "7b037aa",
+              "text": {
+                "en": "polish idle modes, reminder window & swipe/button dismiss",
+                "de": "Ruhemodi, Erinnerungsfenster und Schließen per Wischen oder Button verbessert"
+              }
+            },
+            {
+              "key": "a44eaea",
+              "sha": "a44eaea",
+              "text": {
+                "en": "Kassenbericht nutzt das gesetzte Buchungsdatum statt des Erstelldatums",
+                "de": "Kassenbericht nutzt das gesetzte Buchungsdatum statt des Erstelldatums"
+              }
+            },
+            {
+              "key": "88b77dc",
+              "pr": 580,
+              "sha": "88b77dc",
+              "text": {
+                "en": "keep bottom sheets (incl. global search) above the on-screen keyboard",
+                "de": "Bottom-Sheets (auch die globale Suche) bleiben über der Bildschirmtastatur"
+              }
+            },
+            {
+              "key": "4fd89e4",
+              "pr": 611,
+              "sha": "4fd89e4",
+              "text": {
+                "en": "Live-Insel sitzt auf der Dynamic Island",
+                "de": "Live-Insel sitzt auf der Dynamic Island"
+              }
+            },
+            {
+              "key": "c94ac3b",
+              "pr": 617,
+              "sha": "c94ac3b",
+              "text": {
+                "en": "Live-Insel-Kollisionen beheben, Update-/Release-Hinweise in Insel & Spieler-Filter",
+                "de": "Live-Insel-Kollisionen behoben, Update- und Release-Hinweise in der Insel & Spieler-Filter"
+              }
+            },
+            {
+              "key": "2d8f4a3",
+              "pr": 624,
+              "sha": "2d8f4a3",
+              "text": {
+                "en": "Live-Insel: Ruhe-Insel verdeckt keine Zahlungs-Meldung mehr, König ohne Mehrfach-Kronen",
+                "de": "Live-Insel: Ruhe-Insel verdeckt keine Zahlungs-Meldung mehr, König ohne Mehrfach-Kronen"
+              }
+            },
+            {
+              "key": "db2c34a",
+              "pr": 616,
+              "sha": "db2c34a",
+              "text": {
+                "en": "Löschen eines letzten Eintrags in der Schnellerfassung per Tipp abbrechen",
+                "de": "Löschen eines letzten Eintrags in der Schnellerfassung per Tipp abbrechen"
+              }
+            },
+            {
+              "key": "3a85ba9",
+              "pr": 602,
+              "sha": "3a85ba9",
+              "text": {
+                "en": "Monatsstände zeigen auch ruhige Monate und klappen ältere Monate ein",
+                "de": "Monatsstände zeigen auch ruhige Monate und klappen ältere Monate ein"
+              }
+            },
+            {
+              "key": "01c04f9",
+              "sha": "01c04f9",
+              "text": {
+                "en": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten",
+                "de": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten"
+              }
+            },
+            {
+              "key": "2c98771",
+              "pr": 597,
+              "sha": "2c98771",
+              "text": {
+                "en": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten",
+                "de": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten"
+              }
+            },
+            {
+              "key": "e07d9a3",
+              "pr": 600,
+              "sha": "e07d9a3",
+              "text": {
+                "en": "PDF-Bericht mit korrektem Kassenstand, Gäste-Deckel erst ab Austritt, Buchungen je Monat und Strafen-Matrix",
+                "de": "PDF-Bericht mit korrektem Kassenstand, Gäste-Deckel erst ab Austritt, Buchungen je Monat und Strafen-Matrix"
+              }
+            },
+            {
+              "key": "2296d2f",
+              "pr": 593,
+              "sha": "2296d2f",
+              "text": {
+                "en": "PDF-Kassenbericht übersichtlicher mit Vereinslogo, Farben und korrekten Gäste-Beträgen",
+                "de": "PDF-Kassenbericht übersichtlicher mit Vereinslogo, Farben und korrekten Gäste-Beträgen"
+              }
+            },
+            {
+              "key": "bbd151f",
+              "sha": "bbd151f",
+              "text": {
+                "en": "Pins nicht mitgebracht ist eine Strafe pro Spieler statt pro Pin",
+                "de": "Pins nicht mitgebracht ist eine Strafe pro Spieler statt pro Pin"
+              }
+            },
+            {
+              "key": "ab01dd4",
+              "pr": 623,
+              "sha": "ab01dd4",
+              "text": {
+                "en": "require finishing running games before closing an evening",
+                "de": "Laufende Spiele müssen beendet werden, bevor ein Kegelabend abgeschlossen werden kann"
+              }
+            },
+            {
+              "key": "9ae536b",
+              "scope": "roadmap",
+              "pr": 574,
+              "sha": "9ae536b",
+              "text": {
+                "en": "add migration 073 for tags/roles and support multiple roles per user",
+                "de": "Migration 073 für Tags und Rollen hinzugefügt, mehrere Rollen pro Nutzer möglich"
+              }
+            },
+            {
+              "key": "068c08a",
+              "pr": 599,
+              "sha": "068c08a",
+              "text": {
+                "en": "shorten the projected cash label in the Kasse",
+                "de": "Beschriftung des voraussichtlichen Kassenstands in der Kasse gekürzt"
+              }
+            },
+            {
+              "key": "6e5b29a",
+              "scope": "stickers",
+              "pr": 571,
+              "sha": "6e5b29a",
+              "text": {
+                "en": "fit map view to screen without vertical scrolling",
+                "de": "Kartenansicht passt jetzt ohne Scrollen auf den Bildschirm"
+              }
+            },
+            {
+              "key": "1add25e",
+              "pr": 614,
+              "sha": "1add25e",
+              "text": {
+                "en": "Top-Safe-Area auf Stand vor Dynamic-Island-Commits zurücksetzen",
+                "de": "Top-Safe-Area auf den Stand vor den Dynamic-Island-Änderungen zurückgesetzt"
+              }
+            },
+            {
+              "key": "0c733ca",
+              "scope": "treasury",
+              "sha": "0c733ca",
+              "text": {
+                "en": "Insights-Diagramme ohne Y-Achsen, Wasserfall ab 0",
+                "de": "Insights-Diagramme ohne Y-Achsen, Wasserfall beginnt bei 0"
+              }
+            },
+            {
+              "key": "64c9cbb",
+              "scope": "treasury",
+              "sha": "64c9cbb",
+              "text": {
+                "en": "Insights-Diagramme per Antippen auswählen, Kassenverlauf mit Achsen",
+                "de": "Insights-Diagramme per Antippen auswählbar, Kassenverlauf mit Achsen"
+              }
+            },
+            {
+              "key": "9883a55",
+              "scope": "treasury",
+              "pr": 620,
+              "sha": "9883a55",
+              "text": {
+                "en": "Insights-Diagramme, Positiv/Negativ-Gradient, Achsen-Labels & Auswahl",
+                "de": "Insights-Diagramme, Positiv/Negativ-Verlauf, Achsenbeschriftungen & Auswahl"
+              }
+            },
+            {
+              "key": "82ed8cb",
+              "scope": "treasury",
+              "sha": "82ed8cb",
+              "text": {
+                "en": "polish the PDF report — signs, colours, columns, logo, guest cap",
+                "de": "PDF-Bericht verbessert: Vorzeichen, Farben, Spalten, Logo, Gäste-Deckel"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.74.0",
       "date": "2026-11-11",
       "sections": [
