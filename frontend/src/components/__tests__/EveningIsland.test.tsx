@@ -1,0 +1,38 @@
+import {describe, it, expect, vi} from 'vitest'
+import {render, screen, act} from '@testing-library/react'
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
+import type {Evening} from '@/types.ts'
+
+vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
+vi.mock('@/router', () => ({router: {navigate: vi.fn(() => Promise.resolve())}}))
+vi.mock('@/api/client.ts', () => ({api: {getEvening: vi.fn()}}))
+
+import EveningIsland from '../evening/EveningIsland'
+
+function evening(overrides: Partial<Evening> = {}): Evening {
+    return {
+        id: 7, date: '2026-07-23', venue: 'Bahn 1', note: null, is_closed: false, ended_at: null,
+        season_closed: false, players: [], teams: [], penalty_log: [], games: [], drink_rounds: [],
+        highlights: [], ...overrides,
+    }
+}
+
+function renderIsland(data: Evening | undefined) {
+    const qc = new QueryClient()
+    if (data) qc.setQueryData(['evening', 7], data)
+    return render(<QueryClientProvider client={qc}><EveningIsland eveningId={7}/></QueryClientProvider>)
+}
+
+describe('EveningIsland', () => {
+    it('announces the running evening as a live activity', async () => {
+        renderIsland(evening())
+        await act(async () => {})
+        expect(screen.getByRole('button', {name: /island\.label/})).toBeTruthy()
+    })
+
+    it('shows no activity for a closed evening', async () => {
+        renderIsland(evening({is_closed: true}))
+        await act(async () => {})
+        expect(screen.queryByRole('button', {name: /island\.label/})).toBeNull()
+    })
+})
