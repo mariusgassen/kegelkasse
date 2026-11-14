@@ -160,7 +160,28 @@ describe('deriveIdleIslandMode', () => {
         })
     })
 
-    it('falls back to schedule shortcut for members without balance and no appointments', () => {
+    it('waits for myBalance before falling back when regularMemberId is present', () => {
+        expect(deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: undefined,
+        })).toBeNull()
+
+        expect(deriveIdleIslandMode({
+            hasOpenEvening: false,
+            isLoggedIn: true,
+            schedules: [],
+            todayKey: '2026-11-14',
+            regularMemberId: 1,
+            myBalance: undefined,
+            balanceFailed: true,
+        })).toEqual({kind: 'fallback'})
+    })
+
+    it('falls back to account shortcut for members without regularMemberId and no appointments', () => {
         const mode = deriveIdleIslandMode({
             hasOpenEvening: false,
             isLoggedIn: true,

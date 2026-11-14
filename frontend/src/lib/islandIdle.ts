@@ -147,12 +147,13 @@ export function deriveIdleIslandMode(params: {
     todayKey: string
     regularMemberId: number | null
     myBalance: MyBalanceSummary | undefined
+    balanceFailed?: boolean
 }): IdleIslandMode | null {
-    const {hasOpenEvening, isLoggedIn, schedules, todayKey, regularMemberId, myBalance} = params
+    const {hasOpenEvening, isLoggedIn, schedules, todayKey, regularMemberId, myBalance, balanceFailed} = params
     if (!isLoggedIn || hasOpenEvening) return null
 
     const hasScheduleData = schedules !== undefined
-    const hasBalanceData = regularMemberId == null || myBalance !== undefined
+    const hasBalanceData = regularMemberId == null || myBalance !== undefined || !!balanceFailed
     if (!hasScheduleData && !hasBalanceData) return null
 
     const upcoming = schedules ? nextAppointment(schedules, todayKey) : null
@@ -178,6 +179,6 @@ export function deriveIdleIslandMode(params: {
         }
     }
 
-    if (!hasScheduleData) return null
+    if (!hasScheduleData || !hasBalanceData) return null
     return {kind: 'fallback'}
 }

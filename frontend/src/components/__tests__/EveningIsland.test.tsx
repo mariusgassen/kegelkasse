@@ -228,40 +228,63 @@ describe('EveningIsland', () => {
         expect(api.setRsvp).toHaveBeenCalledWith(5, 'attending')
     })
 
-    it('falls back to personal balance when logged in with no upcoming evening', async () => {
+    it('falls back to personal balance & account details when logged in with no upcoming evening', async () => {
         useAppStore.setState({user: mockUser})
+        const openEvents: CustomEvent[] = []
+        const onOpen = (e: Event) => openEvents.push(e as CustomEvent)
+        window.addEventListener('kegelkasse:open-profile', onOpen)
+        try {
+            renderIsland(undefined, null, (qc) => {
+                qc.setQueryData(['schedule'], [])
+                qc.setQueryData(['my-balance'], {
+                    regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+                })
+            })
+            await act(async () => {})
+
+            const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+            expect(pill).toBeTruthy()
+
+            await act(async () => {
+                fireEvent.keyDown(pill, {key: 'Enter'})
+            })
+            expect(await screen.findByText(/treasury\.penaltiesLabel.*treasury\.paidLabel/)).toBeTruthy()
+
+            const profileBtn = await screen.findByRole('button', {name: 'profile.myBalance'})
+            await act(async () => {
+                fireEvent.click(profileBtn)
+            })
+            expect(openEvents.length).toBe(1)
+
+            await act(async () => {
+                fireEvent.keyDown(pill, {key: 'Enter'})
+            })
+            const treasuryBtn = await screen.findByRole('button', {name: 'nav.treasury'})
+            await act(async () => {
+                fireEvent.click(treasuryBtn)
+            })
+            expect(router.navigate).toHaveBeenCalledWith({
+                to: '/treasury',
+                search: {tab: 'accounts', member: 10},
+            })
+        } finally {
+            window.removeEventListener('kegelkasse:open-profile', onOpen)
+        }
+    })
+
+    it('shows the account shortcut fallback when neither upcoming evening nor member balance exists', async () => {
+        useAppStore.setState({user: {...mockUser, name: 'Admin', regular_member_id: null}})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [])
-            qc.setQueryData(['my-balance'], {
-                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
-            })
         })
         await act(async () => {})
 
-        const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+        const pill = screen.getByRole('button', {name: /island\.idleShort.*island\.idleHint/})
         expect(pill).toBeTruthy()
-
         await act(async () => {
             fireEvent.keyDown(pill, {key: 'Enter'})
         })
-        const treasuryBtn = await screen.findByRole('button', {name: 'nav.treasury'})
-        await act(async () => {
-            fireEvent.click(treasuryBtn)
-        })
-        expect(router.navigate).toHaveBeenCalledWith({
-            to: '/treasury',
-            search: {tab: 'accounts', member: 10},
-        })
-    })
-
-    it('shows the schedule shortcut fallback when neither upcoming evening nor balance exists', async () => {
-        useAppStore.setState({user: {...mockUser, regular_member_id: null}})
-        renderIsland(undefined, null, (qc) => {
-            qc.setQueryData(['schedule'], [])
-        })
-        await act(async () => {})
-
-        expect(screen.getByRole('button', {name: /island\.idleShort.*island\.idleHint/})).toBeTruthy()
+        expect(await screen.findByText('Admin')).toBeTruthy()
     })
 
     it('starts a queued open game directly from expanded evening when no game is running', async () => {

@@ -23,7 +23,7 @@
  */
 import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {Alert02Icon, BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
+import {BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
 import {
     api,
     flushOfflineQueue,
@@ -35,6 +35,7 @@ export const SYNC_STARTED_EVENT = 'kegelkasse:sync-started'
 import {router} from '@/router'
 import {useT, t as tStatic} from '@/i18n'
 import {useThrowTracking} from '@/hooks/useClub.ts'
+import {OPEN_PROFILE_EVENT, type OpenProfileDetail} from '@/lib/aiLinks.ts'
 import {canStartGameInEvening, currentGameState, eveningTotals, nextOpenGame} from '@/lib/liveEvening.ts'
 import {
     deriveIdleIslandMode,
@@ -52,7 +53,7 @@ import {useAppStore} from '@/store/app.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import {Island, IslandProvider, useIslandActions} from '@/lib/island'
+import {Island, IslandProvider, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
 import {Glyph} from '@/components/islandcn/glyph'
 import {CheckCircleGlyph, glyphFrom, SparkleGlyph, UploadGlyph} from '@/components/islandcn/glyphs'
 import {ExpandedBottom, SensorRow} from '@/components/islandcn/island-layout'
@@ -82,7 +83,15 @@ const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
 
-const AlertGlyph = glyphFrom('AlertGlyph', Alert02Icon)
+/** Narrower compact sensor cutout & max pill width so the centered pill clears the 84 px header wings on 375 px+ viewports. */
+const HEADER_ISLAND_METRICS: IslandMetricsOverrides = {
+    compact: {
+        sensorWidth: 46,
+        maxSlotWidth: 64,
+        maxWidth: 192,
+    },
+}
+
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
 const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
 const CrownGlyph = glyphFrom('CrownGlyph', CrownIcon, {parts: 'fill'})
@@ -95,6 +104,14 @@ const CATEGORY_ORDER: QueueCategory[] = [
 
 function eur(v: number): string {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR', maximumFractionDigits: 0})
+}
+
+function eurFull(v: number): string {
+    return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
+}
+
+function openOwnProfile(tab: OpenProfileDetail['tab'] = 'season') {
+    window.dispatchEvent(new CustomEvent<OpenProfileDetail>(OPEN_PROFILE_EVENT, {detail: {tab}}))
 }
 
 /** m:ss (or h:mm:ss) since an ISO start time; null when the start is unknown or unparsable. */
@@ -123,6 +140,8 @@ function EveningActivity({eveningId}: {eveningId: number}) {
     const {game, activePlayer} = currentGameState(open)
     const turnName = throwTracking && activePlayer ? (activePlayer.nickname || activePlayer.name) : null
     const openGame = nextOpenGame(open)
+    const openGameId = openGame?.id ?? null
+    const openGameName = openGame?.name ?? null
     const canStart = canStartGameInEvening(open)
 
     const startMs = game?.started_at ? Date.parse(game.started_at) : NaN
@@ -158,10 +177,11 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         }
 
         const noGame = !game
-        const eveningColor = noGame ? islandAccent.orange : ACCENT
-        const leadingGlyph = <Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor}/>
+        const iconColor = noGame ? islandInk.secondary : ACCENT
+        const statusColor = noGame ? islandAccent.yellow : ACCENT
+        const leadingGlyph = <Glyph icon={BowlingGlyph} color={iconColor}/>
         const moneyNode = (
-            <CompactText color={eveningColor}>
+            <CompactText color={ACCENT}>
                 <NumberText value={money}/>
             </CompactText>
         )
@@ -172,8 +192,8 @@ function EveningActivity({eveningId}: {eveningId: number}) {
             onPress: () => { router.navigate({to: '/evening'}).catch(() => {}) },
             compact: {
                 leading: leadingGlyph,
-                // In the attached pill, show the live game timer when a game is running, an orange
-                // "No game" warning when an evening is open without an active game, or the pot.
+                // In the attached pill, show the live game timer when a game is running, a calm
+                // short "Pause"/"Idle" badge when no game is active, or the pot.
                 trailing: (
                     <BubbleForm bubble={null}>
                         {timed ? (
@@ -181,7 +201,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
                         ) : noGame ? (
-                            <CompactText color={islandAccent.orange}>{t('island.noGameShort')}</CompactText>
+                            <CompactText color={statusColor}>{t('island.noGameShort')}</CompactText>
                         ) : (
                             moneyNode
                         )}
@@ -191,12 +211,12 @@ function EveningActivity({eveningId}: {eveningId: number}) {
             minimal: (
                 <MinimalPair
                     leading={leadingGlyph}
-                    trailing={noGame ? <CompactText color={islandAccent.orange}>!</CompactText> : moneyNode}
+                    trailing={noGame ? <CompactText color={statusColor}>–</CompactText> : moneyNode}
                 />
             ),
             expanded: {
                 leading: (
-                    <SensorRow glyph={<Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor} size={18}/>}>
+                    <SensorRow glyph={<Glyph icon={BowlingGlyph} color={iconColor} size={18}/>}>
                         <ContextLabel>{t('island.shortLabel')}</ContextLabel>
                     </SensorRow>
                 ),
@@ -230,19 +250,19 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                             title={venue}
                             subtitle={`${gameLine} · 🍺 ${totals.beerRounds} · 🥃 ${totals.shotRounds}`}
                         />
-                        {openGame && canStart ? (
+                        {openGameId != null && openGameName && canStart ? (
                             <IslandButton
                                 size="compact"
                                 disabled={startingGame}
-                                tone={{kind: 'accent', color: islandAccent.orange}}
-                                onPress={() => { handleStartGame(openGame.id).catch(() => {}) }}
+                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                                onPress={() => { handleStartGame(openGameId).catch(() => {}) }}
                             >
-                                {`▶ ${openGame.name}`}
+                                {`▶ ${openGameName}`}
                             </IslandButton>
                         ) : (
                             <IslandButton
                                 size="compact"
-                                tone={{kind: 'accent', color: islandAccent.orange}}
+                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
                                 onPress={() => {
                                     island.collapse()
                                     router.navigate({to: '/evening', search: {tab: 'games'}}).catch(() => {})
@@ -271,8 +291,8 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         timed,
         startMs,
         game,
-        openGame?.id,
-        openGame?.name,
+        openGameId,
+        openGameName,
         canStart,
         startingGame,
         totals.beerRounds,
@@ -754,7 +774,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         enabled: isLoggedIn && !eveningActiveOrLoading,
         staleTime: 60_000,
     })
-    const {data: myBalance} = useQuery({
+    const {data: myBalance, isError: myBalanceError} = useQuery({
         queryKey: ['my-balance'],
         queryFn: api.getMyBalance,
         enabled: isLoggedIn && !eveningActiveOrLoading && rmid != null,
@@ -770,8 +790,9 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             todayKey,
             regularMemberId: rmid,
             myBalance,
+            balanceFailed: myBalanceError,
         }),
-        [eveningActiveOrLoading, isLoggedIn, schedules, todayKey, rmid, myBalance],
+        [eveningActiveOrLoading, isLoggedIn, schedules, todayKey, rmid, myBalance, myBalanceError],
     )
 
     useEffect(() => {
@@ -927,10 +948,13 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                     search: {tab: 'accounts', ...(rmid != null ? {member: rmid} : {})},
                 }).catch(() => {})
             }
+            const accountSubtitle = mode.penaltyTotal != null && mode.paymentsTotal != null
+                ? `${t('treasury.penaltiesLabel')}: ${eurFull(mode.penaltyTotal)} · ${t('treasury.paidLabel')}: ${eurFull(mode.paymentsTotal)}`
+                : t('island.noUpcomingEvening')
 
             const content = {
                 label: `${t('profile.myBalance')}: ${fullAmount}`,
-                onPress: openTreasury,
+                onPress: () => openOwnProfile('season'),
                 compact: {
                     leading: leadingGlyph,
                     trailing: <BubbleForm bubble={null}>{compactTrailing}</BubbleForm>,
@@ -951,17 +975,17 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
                         <ExpandedBottom reach="action" gap={10}>
                             <TitleStack
                                 title={<NumberText value={fullAmount}/>}
-                                subtitle={t('island.noUpcomingEvening')}
+                                subtitle={accountSubtitle}
                             />
                             <div style={{display: 'flex', gap: 10}}>
                                 <IslandButton
                                     size="compact"
                                     onPress={() => {
                                         island.collapse()
-                                        router.navigate({to: '/schedule'}).catch(() => {})
+                                        openOwnProfile('season')
                                     }}
                                 >
-                                    {t('nav.schedule')}
+                                    {t('profile.myBalance')}
                                 </IslandButton>
                                 <IslandButton
                                     size="compact"
@@ -987,11 +1011,11 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             return
         }
 
-        const leadingGlyph = <Glyph icon={CalendarGlyph} color={ACCENT}/>
+        const leadingGlyph = <Glyph icon={WalletGlyph} color={ACCENT}/>
         const shortNode = <CompactText color={ACCENT}>{t('island.idleShort')}</CompactText>
         const content = {
             label: `${t('island.idleShort')}: ${t('island.idleHint')}`,
-            onPress: () => { router.navigate({to: '/schedule'}).catch(() => {}) },
+            onPress: () => openOwnProfile('season'),
             compact: {
                 leading: leadingGlyph,
                 trailing: <BubbleForm bubble={null}>{shortNode}</BubbleForm>,
@@ -999,26 +1023,37 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
             minimal: <MinimalPair leading={leadingGlyph} trailing={shortNode}/>,
             expanded: {
                 leading: (
-                    <SensorRow glyph={<Glyph icon={CalendarGlyph} color={ACCENT} size={18}/>}>
-                        <ContextLabel>{t('nav.schedule')}</ContextLabel>
+                    <SensorRow glyph={<Glyph icon={WalletGlyph} color={ACCENT} size={18}/>}>
+                        <ContextLabel>{t('profile.myBalance')}</ContextLabel>
                     </SensorRow>
                 ),
                 bottom: (
                     <ExpandedBottom reach="action" gap={10}>
                         <TitleStack
-                            title={t('home.noAppointment')}
+                            title={user?.name || t('profile.title')}
                             subtitle={t('island.idleHint')}
                         />
-                        <IslandButton
-                            size="compact"
-                            tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
-                            onPress={() => {
-                                island.collapse()
-                                router.navigate({to: '/schedule'}).catch(() => {})
-                            }}
-                        >
-                            {t('nav.schedule')}
-                        </IslandButton>
+                        <div style={{display: 'flex', gap: 10}}>
+                            <IslandButton
+                                size="compact"
+                                onPress={() => {
+                                    island.collapse()
+                                    router.navigate({to: '/schedule'}).catch(() => {})
+                                }}
+                            >
+                                {t('nav.schedule')}
+                            </IslandButton>
+                            <IslandButton
+                                size="compact"
+                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                                onPress={() => {
+                                    island.collapse()
+                                    openOwnProfile('season')
+                                }}
+                            >
+                                {t('profile.myBalance')}
+                            </IslandButton>
+                        </div>
                     </ExpandedBottom>
                 ),
             },
@@ -1029,7 +1064,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         } else {
             island.start({id: IDLE_STATUS_ID, priority: -1, ...content})
         }
-    }, [island, queryClient, mode, todayKey, locale, rmid, rsvpBusy, t])
+    }, [island, queryClient, mode, todayKey, locale, rmid, rsvpBusy, user?.name, t])
 
     useEffect(() => () => island.end(IDLE_STATUS_ID), [island])
 
@@ -1060,7 +1095,7 @@ export default function EveningIsland({
     children?: ReactNode
 }) {
     return (
-        <IslandProvider>
+        <IslandProvider metrics={HEADER_ISLAND_METRICS}>
             <Island
                 placement="container"
                 label="Live"
