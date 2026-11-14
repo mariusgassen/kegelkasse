@@ -388,6 +388,22 @@ describe('TreasuryPage — bookings tab', () => {
         })
     })
 
+    it('folds older months and opens them on tap', async () => {
+        const { api } = await import('@/api/client.ts')
+        await setupWithData()
+        vi.mocked(api.getAllPayments).mockResolvedValue([] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([
+            { id: 1, amount: 5, description: 'Neu', date: '2026-03-10', created_at: '2026-03-10T10:00:00', updated_at: null },
+            { id: 2, amount: 7, description: 'Alt', date: '2026-01-10', created_at: '2026-01-10T10:00:00', updated_at: null },
+        ] as any)
+        await renderTreasuryPage()
+        await waitFor(() => expect(screen.getByText('Neu')).toBeInTheDocument())
+        expect(screen.queryByText('Alt')).not.toBeInTheDocument()
+        const seps = screen.getAllByTestId('booking-month-sep')
+        fireEvent.click(seps[seps.length - 1])
+        expect(await screen.findByText('Alt')).toBeInTheDocument()
+    })
+
     it('shows a month separator with in/out sums and closing balance', async () => {
         await setupWithData()
         await renderTreasuryPage()

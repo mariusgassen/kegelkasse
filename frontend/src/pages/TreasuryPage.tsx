@@ -613,16 +613,25 @@ export function TreasuryPage() {
     const monthStatements = new Map(
         monthlyStatements(clubEventsFromBookings(allPayments as any[], expenses as any[]), [])
             .map(m => [monthKeyOf(new Date(m.start)), m]))
+    // Month sections fold: only the newest month is open until the user opens others (a search shows all).
+    const [monthToggles, setMonthToggles] = useState<Record<string, boolean>>({})
+    const isMonthOpen = (scope: string, key: string, newest: boolean, forceOpen = false) =>
+        forceOpen || (monthToggles[`${scope}:${key}`] ?? newest)
+    const toggleMonth = (scope: string, key: string, open: boolean) =>
+        setMonthToggles(prev => ({...prev, [`${scope}:${key}`]: !open}))
     const entryDate = (e: BookingEntry) => new Date(e.data.date ?? e.data.created_at ?? '')
     const monthSeparator = (entry: BookingEntry, idx: number) => {
         const d = entryDate(entry)
         const key = monthKeyOf(d)
         if (idx > 0 && monthKeyOf(entryDate(filteredBookings[idx - 1])) === key) return null
         const m = monthStatements.get(key)
+        const open = isMonthOpen('book', key, key === monthKeyOf(entryDate(filteredBookings[0])), bq !== '')
         return (
-            <div className="flex justify-between items-baseline text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
-                 data-testid="booking-month-sep">
-                <span>{d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+            <button type="button" aria-expanded={open}
+                 className="w-full flex justify-between items-baseline gap-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 data-testid="booking-month-sep"
+                 onClick={() => toggleMonth('book', key, open)}>
+                <span>{open ? '▾' : '▸'} {d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
                 {m && (
                     <span className="text-right">
                         <span className="text-positive-fg">{fe(m.inflow)}</span>
@@ -630,7 +639,7 @@ export function TreasuryPage() {
                         {' · '}{t('treasury.statements.closing')}: <span className="text-ink">{fe(m.closing)}</span>
                     </span>
                 )}
-            </div>
+            </button>
         )
     }
 
@@ -656,10 +665,13 @@ export function TreasuryPage() {
         const key = monthKeyOf(d)
         if (idx > 0 && monthKeyOf(new Date(accountStatement[idx - 1].date ?? '')) === key) return null
         const m = statementMonths(accountStatement).get(key)
+        const open = isMonthOpen(`acct${expandedMember}`, key, key === monthKeyOf(new Date(accountStatement[0].date ?? '')))
         return (
-            <div className="flex justify-between items-baseline text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
-                 data-testid="statement-month-sep">
-                <span>{d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
+            <button type="button" aria-expanded={open}
+                 className="w-full flex justify-between items-baseline gap-2 text-left text-xs font-bold text-muted mt-3 mb-2 pb-1 border-b border-line"
+                 data-testid="statement-month-sep"
+                 onClick={() => toggleMonth(`acct${expandedMember}`, key, open)}>
+                <span>{open ? '▾' : '▸'} {d.toLocaleDateString('de-DE', {month: 'long', year: 'numeric'})}</span>
                 {m && (
                     <span className="text-right">
                         <span className="text-positive-fg">{fe(m.paid)}</span>
@@ -667,7 +679,7 @@ export function TreasuryPage() {
                         {' · '}{t('treasury.statement.monthClosing')}: <span className={m.closing >= 0 ? 'text-positive-fg' : 'text-danger-fg'}>{fe(m.closing)}</span>
                     </span>
                 )}
-            </div>
+            </button>
         )
     }
 
@@ -678,7 +690,7 @@ export function TreasuryPage() {
             : accountStatement.length === 0
             ?
             <p className="text-xs text-muted mb-2">{t('treasury.payment.noHistory')}</p>
-            : accountStatement.map((entry, idx) => <Fragment key={entry.key}>{statementMonthSeparator(entry, idx)}{entry.kind === 'evening' ? (
+            : accountStatement.map((entry, idx) => <Fragment key={entry.key}>{statementMonthSeparator(entry, idx)}{isMonthOpen(`acct${expandedMember}`, monthKeyOf(new Date(entry.date ?? '')), monthKeyOf(new Date(entry.date ?? '')) === monthKeyOf(new Date(accountStatement[0].date ?? ''))) && (entry.kind === 'evening' ? (
                 <div className="flex items-center gap-2 mb-1.5 text-xs"
                      data-testid="statement-evening">
                     <span className="font-bold flex-shrink-0 w-20 text-danger-fg">
@@ -713,7 +725,7 @@ export function TreasuryPage() {
 
                     )}
                 </div>
-            )})()}</Fragment>)
+            )})())}</Fragment>)
         }
         </>
     )
@@ -1410,7 +1422,7 @@ export function TreasuryPage() {
                         ? <SkeletonRows rows={6}/>
                         : filteredBookings.length === 0
                         ? <Empty icon="📋" text={t('treasury.payment.noHistory')}/>
-                        : filteredBookings.map((entry, idx) => <Fragment key={`${entry.kind}-${entry.data.id}`}>{monthSeparator(entry, idx)}{((): ReactNode => {
+                        : filteredBookings.map((entry, idx) => <Fragment key={`${entry.kind}-${entry.data.id}`}>{monthSeparator(entry, idx)}{isMonthOpen('book', monthKeyOf(entryDate(entry)), monthKeyOf(entryDate(entry)) === monthKeyOf(entryDate(filteredBookings[0])), bq !== '') && ((): ReactNode => {
                             if (entry.kind === 'payment') {
                                 const p = entry.data
                                 return (
