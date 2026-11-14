@@ -1,7 +1,7 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {render, screen, act} from '@testing-library/react'
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
+import {render, screen, act, fireEvent} from '@testing-library/react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
-import type {Evening} from '@/types.ts'
+import type {Evening, ScheduledEvening, User} from '@/types.ts'
 import 'fake-indexeddb/auto'
 
 vi.mock('@/i18n', () => ({
@@ -18,6 +18,12 @@ vi.mock('@/api/client.ts', async (importOriginal) => {
             getEvening: vi.fn(),
             confirmPaymentRequest: vi.fn(() => Promise.resolve({})),
             rejectPaymentRequest: vi.fn(() => Promise.resolve({})),
+            listScheduledEvenings: vi.fn(() => Promise.resolve([])),
+            getMyBalance: vi.fn(() => Promise.resolve({
+                regular_member_id: null, penalty_total: null, payments_total: null, balance: null,
+            })),
+            setRsvp: vi.fn(() => Promise.resolve({status: 'attending'})),
+            startGame: vi.fn(() => Promise.resolve()),
         },
         flushOfflineQueue: vi.fn(() => Promise.resolve({applied: 1, errors: 0})),
     }
@@ -31,8 +37,22 @@ vi.mock('@/hooks/useClub.ts', () => ({
 import EveningIsland, {elapsedLabel, UPLOAD_STATUS_EVENT} from '../evening/EveningIsland'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
-import type {UploadStatusDetail} from '@/api/client.ts'
+import {api, type UploadStatusDetail} from '@/api/client.ts'
+import {router} from '@/router'
+import {useAppStore} from '@/store/app.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
+
+const mockUser: User = {
+    id: 1,
+    email: 'test@example.com',
+    name: 'Test User',
+    username: 'test',
+    role: 'member',
+    club_id: 1,
+    preferred_locale: 'de',
+    avatar: null,
+    regular_member_id: 10,
+}
 
 function evening(overrides: Partial<Evening> = {}): Evening {
     return {
@@ -42,9 +62,31 @@ function evening(overrides: Partial<Evening> = {}): Evening {
     }
 }
 
-function renderIsland(data?: Evening, eveningId: number | null = 7) {
-    const qc = new QueryClient()
+function scheduled(overrides: Partial<ScheduledEvening> = {}): ScheduledEvening {
+    return {
+        id: 5,
+        scheduled_at: '2099-12-20T19:30',
+        venue: 'Gasthaus Krone',
+        note: null,
+        created_at: null,
+        attending_count: 6,
+        absent_count: 1,
+        my_rsvp: null,
+        guests: [],
+        evening_id: null,
+        guest_requests_enabled: true,
+        ...overrides,
+    }
+}
+
+function renderIsland(
+    data?: Evening,
+    eveningId: number | null = 7,
+    seed?: (qc: QueryClient) => void,
+) {
+    const qc = new QueryClient({defaultOptions: {queries: {retry: false}}})
     if (data) qc.setQueryData(['evening', 7], data)
+    seed?.(qc)
     return render(
         <QueryClientProvider client={qc}>
             <EveningIsland eveningId={eveningId} backdrop="#1a1410"/>
@@ -54,8 +96,14 @@ function renderIsland(data?: Evening, eveningId: number | null = 7) {
 
 describe('EveningIsland', () => {
     beforeEach(() => {
+        vi.clearAllMocks()
         throwTrackingMock.mockReturnValue(true)
+        useAppStore.setState({user: null})
         useNotificationStore.setState({notifications: []})
+    })
+
+    afterEach(() => {
+        useAppStore.setState({user: null})
     })
 
     it('renders the idle capsule at rest when no activity is running', async () => {
@@ -155,6 +203,124 @@ describe('EveningIsland', () => {
             })
         })
         expect(screen.getByRole('button', {name: /Pudelkönig.*Hans.*\+0,50 €/})).toBeTruthy()
+    })
+
+    it('shows the next scheduled evening in idle mode and supports 1-tap RSVP', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [scheduled()])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 20, payments_total: 10, balance: -10,
+            })
+        })
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /island\.nextEvening.*Gasthaus Krone/})
+        expect(pill).toBeTruthy()
+
+        await act(async () => {
+            fireEvent.keyDown(pill, {key: 'Enter'})
+        })
+        const acceptBtn = await screen.findByRole('button', {name: 'home.rsvp.accept'})
+        await act(async () => {
+            fireEvent.click(acceptBtn)
+        })
+        expect(api.setRsvp).toHaveBeenCalledWith(5, 'attending')
+    })
+
+    it('falls back to personal balance when logged in with no upcoming evening', async () => {
+        useAppStore.setState({user: mockUser})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [])
+            qc.setQueryData(['my-balance'], {
+                regular_member_id: 10, penalty_total: 5, payments_total: 15, balance: 10,
+            })
+        })
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})
+        expect(pill).toBeTruthy()
+
+        await act(async () => {
+            fireEvent.keyDown(pill, {key: 'Enter'})
+        })
+        const treasuryBtn = await screen.findByRole('button', {name: 'nav.treasury'})
+        await act(async () => {
+            fireEvent.click(treasuryBtn)
+        })
+        expect(router.navigate).toHaveBeenCalledWith({
+            to: '/treasury',
+            search: {tab: 'accounts', member: 10},
+        })
+    })
+
+    it('shows the schedule shortcut fallback when neither upcoming evening nor balance exists', async () => {
+        useAppStore.setState({user: {...mockUser, regular_member_id: null}})
+        renderIsland(undefined, null, (qc) => {
+            qc.setQueryData(['schedule'], [])
+        })
+        await act(async () => {})
+
+        expect(screen.getByRole('button', {name: /island\.idleShort.*island\.idleHint/})).toBeTruthy()
+    })
+
+    it('starts a queued open game directly from expanded evening when no game is running', async () => {
+        renderIsland(evening({
+            teams: [{id: 1, name: 'Rot'}],
+            players: [{id: 1, name: 'Max', nickname: null, regular_member_id: null, team_id: 1, is_king: false}],
+            games: [{
+                id: 9, name: 'Sarg', template_id: null, is_opener: false, winner_type: 'team',
+                turn_mode: null, winner_ref: null, winner_name: null, scores: {}, loser_penalty: 0,
+                per_point_penalty: 0, note: null, sort_order: 0, status: 'open', started_at: null,
+                finished_at: null, client_timestamp: 0, active_player_id: null, throws: [],
+            }],
+        }))
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /island\.label/})
+        await act(async () => {
+            fireEvent.keyDown(pill, {key: 'Enter'})
+        })
+
+        const startBtn = await screen.findByRole('button', {name: '▶ Sarg'})
+        await act(async () => {
+            fireEvent.click(startBtn)
+        })
+        expect(api.startGame).toHaveBeenCalledWith(7, 9)
+    })
+
+    it('navigates to games tab from expanded evening when no queued game can be started', async () => {
+        renderIsland(evening())
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /island\.label/})
+        await act(async () => {
+            fireEvent.keyDown(pill, {key: 'Enter'})
+        })
+
+        const startBtn = await screen.findByRole('button', {name: 'island.startGame'})
+        await act(async () => {
+            fireEvent.click(startBtn)
+        })
+        expect(router.navigate).toHaveBeenCalledWith({to: '/evening', search: {tab: 'games'}})
+    })
+
+    it('prevents default on pointerdown and contextmenu to avoid text selection on long press', async () => {
+        renderIsland(evening())
+        await act(async () => {})
+
+        const pill = screen.getByRole('button', {name: /island\.label/})
+        const pointerDown = new MouseEvent('pointerdown', {bubbles: true, cancelable: true, button: 0})
+        await act(async () => {
+            pill.dispatchEvent(pointerDown)
+        })
+        expect(pointerDown.defaultPrevented).toBe(true)
+
+        const contextMenu = new MouseEvent('contextmenu', {bubbles: true, cancelable: true})
+        await act(async () => {
+            pill.dispatchEvent(contextMenu)
+        })
+        expect(contextMenu.defaultPrevented).toBe(true)
     })
 })
 
