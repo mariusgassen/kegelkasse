@@ -140,6 +140,7 @@ export const en = {
     "live.lastThrow": "Last throw",
     "live.noGame": "No game running",
     "live.noGameSub": "Tap here to start or manage a game.",
+    "live.stat.avgPenalty": "Avg penalty",
     "live.stat.penalties": "Fines",
     "live.stat.beer": "Beer",
     "live.stat.shots": "Shots",

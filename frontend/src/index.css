@@ -777,3 +777,6 @@
         animation: none !important;
     }
 }
+
+/* The empty resting-light island must never take taps: its hit buttons set pointer-events:auto themselves. */
+[data-island-empty], [data-island-empty] * { pointer-events: none !important; }

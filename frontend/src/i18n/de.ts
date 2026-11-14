@@ -140,6 +140,7 @@ export const de = {
     "live.lastThrow": "Letzter Wurf",
     "live.noGame": "Kein laufendes Spiel",
     "live.noGameSub": "Tippe hier, um ein Spiel zu starten oder zu verwalten.",
+    "live.stat.avgPenalty": "Ø Strafe",
     "live.stat.penalties": "Strafen",
     "live.stat.beer": "Bier",
     "live.stat.shots": "Schnaps",
