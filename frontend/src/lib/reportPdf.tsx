@@ -179,21 +179,43 @@ function MonthlyTable({months, rows, tint}: { months: string[]; rows: ReportMont
 }
 
 function AccountMonthsTable({accounts, tint}: { accounts: ReportData['accounts']; tint: string }) {
-    const cols: Col[] = [
-        {w: 120, head: 'Konto'}, {w: 70, head: 'Monat'},
-        {w: 90, head: 'Einzahlung', align: 'right'}, {w: 90, head: 'Schulden', align: 'right'}, {w: 90, head: 'Saldo', align: 'right'},
-    ]
-    const rows: { cells: string[]; tones?: (Tone | undefined)[] }[] = []
-    for (const a of accounts) {
-        (a.months ?? []).forEach((m, i) => {
-            rows.push({
-                cells: [i === 0 ? (a.deactivated ? `${a.nickname} (deakt.)` : a.nickname) : '', m.month,
-                    m.payments ? reportEuro(m.payments) : '–', m.penalties ? reportEuro(m.penalties) : '–', reportSigned(m.balance)],
-                tones: [undefined, undefined, m.payments ? 'pos' : 'muted', m.penalties ? 'neg' : 'muted', signTone(m.balance)],
-            })
-        })
-    }
-    return <DataTable cols={cols} tint={tint} rows={rows}/>
+    const months = (accounts.find(a => (a.months?.length ?? 0) > 0)?.months ?? []).map(m => m.month)
+    const nameW = 100, kindW = 62, perChunk = 10
+    const monthW = Math.min(64, Math.floor((LANDSCAPE_W - nameW - kindW) / Math.min(perChunk, Math.max(months.length, 1))))
+    const chunks: number[][] = []
+    for (let i = 0; i < months.length; i += perChunk) chunks.push(months.map((_, j) => j).slice(i, i + perChunk))
+    return (
+        <View>
+            {chunks.map((idx, ci) => {
+                const rows: { cells: string[]; tones?: (Tone | undefined)[] }[] = []
+                for (const a of accounts) {
+                    const ms = a.months ?? []
+                    const name = a.deactivated ? `${a.nickname} (deakt.)` : a.nickname
+                    rows.push({
+                        cells: [name, 'Einzahlung', ...idx.map(j => (ms[j]?.payments ? reportEuro(ms[j].payments) : '–'))],
+                        tones: [undefined, 'muted', ...idx.map(j => (ms[j]?.payments ? 'pos' as Tone : 'muted' as Tone))],
+                    })
+                    rows.push({
+                        cells: ['', 'Schulden', ...idx.map(j => (ms[j]?.penalties ? reportEuro(ms[j].penalties) : '–'))],
+                        tones: [undefined, 'muted', ...idx.map(j => (ms[j]?.penalties ? 'neg' as Tone : 'muted' as Tone))],
+                    })
+                    rows.push({
+                        cells: ['', 'Saldo', ...idx.map(j => (ms[j] ? reportSigned(ms[j].balance) : ''))],
+                        tones: [undefined, 'muted', ...idx.map(j => (ms[j] ? signTone(ms[j].balance) : undefined))],
+                    })
+                }
+                const cols: Col[] = [
+                    {w: nameW, head: 'Konto'}, {w: kindW, head: ''},
+                    ...idx.map(j => ({w: monthW, head: months[j], align: 'right' as const})),
+                ]
+                return (
+                    <View key={ci} style={{marginTop: ci ? 12 : 0}}>
+                        <DataTable cols={cols} tint={tint} rows={rows}/>
+                    </View>
+                )
+            })}
+        </View>
+    )
 }
 
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
@@ -513,7 +535,7 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                     </Page>
                 )}
                 {data.accounts.some(a => (a.months?.length ?? 0) > 0) && (
-                    <Page size="A4" margin={MARGIN}>
+                    <Page size={LANDSCAPE} margin={MARGIN}>
                         {footer}
                         <Section title="Konten pro Monat" accent={accent}>
                             <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED, marginBottom: 3}}>

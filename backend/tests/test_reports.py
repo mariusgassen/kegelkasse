@@ -307,7 +307,10 @@ class TestReportDataCapsAndActive:
         r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
         wb = load_workbook(io.BytesIO(r.content))
         monthly = [[c.value for c in row] for row in wb["Konten pro Monat"].iter_rows(min_row=2)]
-        assert any(row[0] == "Konto" and row[3] == 50.0 for row in monthly)
+        assert any(row[0] == "Konto" and row[1] == "Einzahlung" for row in monthly)
+        schulden = [row for row in monthly if row[1] == "Schulden" and row[0] == ""]
+        assert any(sum(v for v in row[2:] if v) == 50.0 for row in schulden)
+        assert [c.value for c in wb["Konten pro Monat"][1]][1] == ""
         ws = wb["Mitglieder-Konten"]
         header = [c.value for c in ws[1]]
         assert any(str(h).startswith("Saldo Ende") for h in header)
