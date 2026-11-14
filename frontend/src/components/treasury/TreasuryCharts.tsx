@@ -1,7 +1,7 @@
-import {useMemo, useState} from 'react'
+import {useId, useMemo, useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {
-    Area, AreaChart, Bar, BarChart, Cell, LabelList, ReferenceLine, Pie, PieChart, ResponsiveContainer, Sankey, Tooltip, Treemap, XAxis, YAxis,
+    Area, AreaChart, Bar, BarChart, Cell, LabelList, ReferenceLine, Pie, PieChart, Rectangle, ResponsiveContainer, Sankey, Tooltip, Treemap, XAxis, YAxis,
 } from 'recharts'
 import {api} from '@/api/client.ts'
 import {chartAnimation} from '@/lib/motion.ts'
@@ -24,6 +24,7 @@ import {
 const C = {
     positive: 'var(--positive-fg)',
     danger: 'var(--danger-fg)',
+    dangerTintFg: 'var(--danger-tint-fg)',
     accent: 'var(--accent-fg)',
     ink: 'var(--ink)',
     muted: 'var(--muted)',
@@ -127,6 +128,7 @@ export function TreasuryCharts() {
     if (l1 || l2 || l3) return <SkeletonChart height="260px" data-testid="charts-loading"/>
 
     const waterfallData = steps.map(s => ({...s, name: stepLabel(t, s.key)}))
+    const trendAllNonPositive = trend.length > 0 && trend.every(p => p.value <= 0)
     const splitData = [
         {key: 'paid', name: t('treasury.charts.paid'), value: split.paid, color: C.positive},
         {key: 'open', name: t('treasury.charts.open'), value: split.open, color: C.danger},
@@ -161,8 +163,9 @@ export function TreasuryCharts() {
                                            ? String(new Date(v).getFullYear())
                                            : new Date(v).toLocaleDateString('de-DE', {month: 'short'})}
                                        tickCount={4} minTickGap={32}/>
-                                <YAxis hide domain={[(m: number) => Math.min(0, m), 'auto']}/>
-                                <ReferenceLine y={0} stroke={C.muted} strokeDasharray="3 3" label={{value: '0', position: 'insideTopLeft', fill: C.muted, fontSize: 12}}/>
+                                <YAxis hide domain={[(m: number) => Math.min(0, m), (m: number) => Math.max(0, m)]}/>
+                                <ReferenceLine y={0} stroke={C.muted} strokeDasharray="3 3"
+                                               label={{value: '0', position: trendAllNonPositive ? 'insideTopLeft' : 'insideBottomLeft', fill: C.muted, fontSize: 12}}/>
                                 <Tooltip {...TIP} cursor={{stroke: C.muted}}
                                          content={({active, payload}) => {
                                              const p = active ? (payload?.[0]?.payload as {ts: number; value: number} | undefined) : undefined
@@ -174,7 +177,7 @@ export function TreasuryCharts() {
                                                  </div>
                                              )
                                          }}/>
-                                <Area type="stepAfter" dataKey="value" stroke={C.accent} fill={C.accent} fillOpacity={0.15}
+                                <Area type="stepAfter" dataKey="value" baseValue={0} stroke={C.accent} fill={C.accent} fillOpacity={0.15}
                                       strokeWidth={2} dot={false} activeDot={{r: 5, fill: C.accent}} {...chartAnimation()}/>
                             </AreaChart>
                         </ResponsiveContainer>
@@ -184,7 +187,7 @@ export function TreasuryCharts() {
                 {/* Horizontal bars: six step names don't fit side by side on a phone-width axis. */}
                 <ResponsiveContainer width="100%" height={waterfallData.length * 58 + 8}>
                     <BarChart data={waterfallData} layout="vertical" margin={{top: 4, right: 8, bottom: 0, left: 8}} barCategoryGap={20}>
-                        <XAxis type="number" hide domain={[(m: number) => Math.min(0, m), 'dataMax']}/>
+                        <XAxis type="number" hide domain={[(m: number) => Math.min(0, m), (m: number) => Math.max(0, m)]}/>
                         <YAxis type="category" dataKey="name" hide/>
                         <ReferenceLine x={0} stroke={C.muted}/>
                         <Tooltip {...TIP} cursor={{fill: C.line, opacity: 0.3}}
@@ -198,7 +201,12 @@ export function TreasuryCharts() {
                                          </div>
                                      )
                                  }}/>
-                        <Bar dataKey="range" radius={[0, 4, 4, 0]} {...chartAnimation()}
+                        <Bar dataKey="range" {...chartAnimation()}
+                             shape={(p: any) => {
+                                 const range: [number, number] | undefined = p?.payload?.range
+                                 const isNeg = Array.isArray(range) && range[0] < 0
+                                 return <Rectangle {...p} radius={isNeg ? [4, 0, 0, 4] : [0, 4, 4, 0]}/>
+                             }}
                              onClick={(d) => {
                                  const st = d as unknown as WaterfallStep & {name: string}
                                  setSel({chart: 'waterfall', label: st.name, value: fe(st.amount),
@@ -206,10 +214,16 @@ export function TreasuryCharts() {
                              }} style={{cursor: 'pointer'}}>
                             {waterfallData.map(s => <Cell key={s.key} fill={STEP_COLOR[s.kind]}/>)}
                             <LabelList dataKey="name" content={(p) => {
-                                // Name + amount above the bar keeps the full width for the bars (no category axis).
-                                const {y, index} = p as unknown as {y: number; index: number}
-                                const d = waterfallData[index]
-                                return d ? <text x={8} y={y - 5} fill={C.ink} fontSize={12}>{d.name} · {fe(d.amount)}</text> : null
+                                // Name + amount above the bar keeps the full width for the bars (no category axis);
+                                // stroke halo keeps the 0-axis line from cutting through text when negative bars shift it right.
+                                const {y, index, payload} = p as unknown as {y: number; index: number; payload?: WaterfallStep & {name: string}}
+                                const d = payload ?? waterfallData[index]
+                                return d ? (
+                                    <text x={8} y={y - 5} fill={C.ink} stroke="var(--surface)" strokeWidth={4}
+                                          strokeLinejoin="round" paintOrder="stroke" fontSize={12}>
+                                        {d.name} · {fe(d.amount)}
+                                    </text>
+                                ) : null
                             }}/>
                         </Bar>
                     </BarChart>
@@ -221,7 +235,7 @@ export function TreasuryCharts() {
             <ChartCard testId="chart-treemap" title={t('treasury.charts.treemap')} hint={t('treasury.charts.treemapHint')}>
                 {tiles.length === 0 ? <Empty text={t('treasury.charts.noDebt')}/> : (
                     <ResponsiveContainer width="100%" height={220}>
-                        <Treemap data={tiles} dataKey="size" nameKey="name" stroke="var(--canvas)" {...chartAnimation()}
+                        <Treemap data={tiles} dataKey="size" nameKey="name" {...chartAnimation()}
                                  content={<DebtTile onOpen={(id: number, name: string, size: number) => setSel({chart: 'treemap', label: name, value: fe(size),
                                      open: () => go('/treasury', {tab: 'accounts', member: id})})}/>}>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))}/>
@@ -239,7 +253,7 @@ export function TreasuryCharts() {
                             <XAxis dataKey="label" tick={TICK} stroke={C.line} interval="preserveStartEnd"/>
                             <YAxis hide domain={[0, 'auto']}/>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))} cursor={{fill: C.line, opacity: 0.3}}/>
-                            <Bar dataKey="penalty_total" fill={C.accent} radius={[4, 4, 0, 0]} {...chartAnimation()} style={{cursor: 'pointer'}}
+                            <Bar dataKey="penalty_total" name={t('treasury.charts.penalties')} fill={C.accent} radius={[4, 4, 0, 0]} {...chartAnimation()} style={{cursor: 'pointer'}}
                                  onClick={(d) => {
                                      const b = d as unknown as {id: number; label: string; penalty_total: number}
                                      setSel({chart: 'evenings', label: b.label, value: fe(b.penalty_total),
@@ -310,8 +324,9 @@ export function TreasuryCharts() {
     )
 }
 
-// Treemap tile: debt amount in the danger colour, own account outlined in the accent.
+// Treemap tile: debt amount on danger-tint using its contrast-checked danger-tint-fg twin; own account outlined in accent.
 function DebtTile(props: any) {
+    const clipId = useId()
     const {x, y, width, height, name, size, isMe, id, onOpen} = props
     // Recharts also renders the treemap root (no size/id) through this content
     if (width == null || width < 2 || height < 2 || size == null) return null
@@ -323,8 +338,15 @@ function DebtTile(props: any) {
                   fill="var(--danger-tint)" stroke={isMe ? C.accent : 'var(--canvas)'} strokeWidth={isMe ? 3 : 2}/>
             {showText && (
                 <>
-                    <text x={x + 6} y={y + 17} fontSize={12} fontWeight={700} fill={C.danger}>{name}</text>
-                    <text x={x + 6} y={y + 33} fontSize={12} fill={C.danger}>{fe(size)}</text>
+                    <defs>
+                        <clipPath id={clipId}>
+                            <rect x={x + 2} y={y + 2} width={Math.max(0, width - 4)} height={Math.max(0, height - 4)} rx={2}/>
+                        </clipPath>
+                    </defs>
+                    <g clipPath={`url(#${clipId})`}>
+                        <text x={x + 6} y={y + 17} fontSize={12} fontWeight={700} fill={C.dangerTintFg} stroke="none">{name}</text>
+                        <text x={x + 6} y={y + 33} fontSize={12} fill={C.dangerTintFg} stroke="none">{fe(size)}</text>
+                    </g>
                 </>
             )}
         </g>

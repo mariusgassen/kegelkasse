@@ -1609,6 +1609,7 @@ export const de = {
     "treasury.charts.noDebt": "Keine offenen Schulden.",
     "treasury.charts.evenings": "Strafen pro Kegelabend",
     "treasury.charts.eveningsHint": "Die Summe aller Strafen je Abend — Ausreißer fallen sofort auf.",
+    "treasury.charts.penalties": "Strafen",
     "treasury.charts.noEvenings": "Noch keine Abende in diesem Jahr.",
     "treasury.charts.sankey": "Geldfluss",
     "treasury.charts.sankeyHint": "Woher das Geld kommt und wohin es geht: Ausgaben, Kasse und offene Beträge.",

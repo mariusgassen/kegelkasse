@@ -1609,6 +1609,7 @@ export const en = {
     "treasury.charts.noDebt": "No open debts.",
     "treasury.charts.evenings": "Penalties per evening",
     "treasury.charts.eveningsHint": "The total of all penalties per evening — outliers stand out immediately.",
+    "treasury.charts.penalties": "Penalties",
     "treasury.charts.noEvenings": "No evenings this year yet.",
     "treasury.charts.sankey": "Money flow",
     "treasury.charts.sankeyHint": "Where the money comes from and where it goes: expenses, till and open amounts.",
