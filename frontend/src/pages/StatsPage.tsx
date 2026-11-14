@@ -4,6 +4,7 @@ import {AiRecapButton} from '@/components/ai/AiRecapButton.tsx'
 import {useEveningList} from '../hooks/useEvening'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useQuery} from '@tanstack/react-query'
+import {Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, XAxis, YAxis} from 'recharts'
 import {useAppStore} from '@/store/app'
 import {api} from '../api/client'
 import {useT, useI18n} from '@/i18n'
@@ -41,10 +42,7 @@ type ChartEvent = { ts: number; delta: number; entry?: PenaltyLogEntry }
 type ChartSeries = { id: number; name: string; color: string; events: ChartEvent[] }
 type SelectedPoint = { seriesId: number; entryId: number }
 
-const PAD = {top: 12, right: 12, bottom: 22}
-const VW = 400, VH = 140
-const AXIS_FONT = 15
-const IH = VH - PAD.top - PAD.bottom
+const CHART_TICK = {fill: 'var(--muted)', fontSize: 12}
 
 function CumulativeChart({series, yFormat, title, selected, onSelect}: {
     series: ChartSeries[]
@@ -57,113 +55,66 @@ function CumulativeChart({series, yFormat, title, selected, onSelect}: {
     const hasData = allTs.length > 0
     const tMin = hasData ? Math.min(...allTs) : 0
     const tMax = hasData ? Math.max(...allTs) : 1
-    const tSpan = Math.max(tMax - tMin, 60_000) // at least 1 minute span
+    const tEnd = tMin + Math.max(tMax - tMin, 60_000) // at least 1 minute span
 
-    const maxVal = Math.max(
-        0.01,
-        ...series.map(s => s.events.reduce((sum, e) => sum + e.delta, 0))
-    )
-
-    // The gutter is measured from the actual tick labels: a fixed one drawn for "€12" clips
-    // "€1.234,56" straight out of the chart, and a euro axis routinely reaches four figures.
-    const yTickValues = [0, 0.5, 1].map(f => f * maxVal)
-    const yTickLabels = yTickValues.map(yFormat)
-    const padLeft = axisLeftPad(yTickLabels, AXIS_FONT, {gap: 5, min: 26})
-    const IW = VW - padLeft - PAD.right
-
-    const xS = (t: number) => padLeft + ((t - tMin) / tSpan) * IW
-    const yS = (v: number) => PAD.top + IH - (v / maxVal) * IH
-
-    function buildPath(events: { ts: number; delta: number }[]) {
-        const sorted = [...events].sort((a, b) => a.ts - b.ts)
+    // One cumulative step line per series: a point per event plus a baseline at the left edge and a
+    // closing point at the right edge so every line spans the same time axis.
+    const lines = series.map(s => {
         let cum = 0
-        let d = `M ${xS(tMin)},${yS(0)}`
-        for (const e of sorted) {
-            d += ` H ${xS(e.ts)} V ${yS(cum + e.delta)}`
+        const pts: { ts: number; cum: number; entry?: PenaltyLogEntry; edge?: boolean }[] = [{ts: tMin, cum: 0, edge: true}]
+        for (const e of [...s.events].sort((a, b) => a.ts - b.ts)) {
             cum += e.delta
+            pts.push({ts: e.ts, cum, entry: e.entry})
         }
-        d += ` H ${xS(tMin + tSpan)}`
-        return d
-    }
-
-    const yTicks = yTickValues.map((v, i) => ({v, y: yS(v), label: yTickLabels[i]}))
+        pts.push({ts: tEnd, cum, edge: true})
+        return {s, pts}
+    })
     const fTime = (ms: number) =>
         new Date(ms).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})
-    const xTicks = hasData
-        ? [tMin, tMin + tSpan / 2, tMin + tSpan].map(t => ({label: fTime(t), x: xS(t)}))
-        : []
+    // Gutter measured from the real tick labels so four-figure euro ticks are never clipped.
+    const maxCum = Math.max(0.01, ...lines.map(l => l.pts[l.pts.length - 1].cum))
+    const axisWidth = axisLeftPad([0, maxCum / 2, maxCum].map(yFormat), 12, {gap: 6, min: 28})
 
     return (
         <div className="mb-1">
             <Caption className="mb-1">{title}</Caption>
-            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
-                 style={{overflow: 'visible', display: 'block'}}
-                 onClick={onSelect ? () => onSelect(null) : undefined}>
-                {/* Grid */}
-                {yTicks.filter(t => t.v > 0).map((tick, i) => (
-                    <line key={i} x1={padLeft} y1={tick.y} x2={VW - PAD.right} y2={tick.y}
-                          stroke="var(--line)" strokeWidth="0.8" strokeDasharray="3,3"/>
-                ))}
-                {/* Y labels */}
-                {yTicks.map((tick, i) => (
-                    <text key={i} x={padLeft - 5} y={tick.y + 3.5} textAnchor="end"
-                          fontSize={AXIS_FONT} fill="var(--muted)">{tick.label}</text>
-                ))}
-                {/* X labels */}
-                {xTicks.map((tick, i) => (
-                    <text key={i} x={tick.x} y={VH - 4} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                          fontSize={AXIS_FONT} fill="var(--muted)">{tick.label}</text>
-                ))}
-                {/* Series */}
-                {series.map(s => (
-                    <path key={s.id} d={buildPath(s.events)}
-                          fill="none" stroke={s.color} strokeWidth="2"
-                          strokeLinecap="round" strokeLinejoin="round"
-                          opacity={s.events.length > 0 ? 1 : 0.15}/>
-                ))}
-                {/* Dots */}
-                {series.map(s => {
-                    let cum = 0
-                    return [...s.events].sort((a, b) => a.ts - b.ts).map((e, i) => {
-                        cum += e.delta
-                        const isSelected = !!(selected && e.entry && selected.seriesId === s.id && selected.entryId === e.entry.id)
-                        const cx = xS(e.ts), cy = yS(cum)
-                        const interactive = !!(onSelect && e.entry)
-                        const toggle = () => onSelect!(isSelected ? null : {seriesId: s.id, entryId: e.entry!.id})
-                        return (
-                            <g key={i}
-                               tabIndex={interactive ? 0 : undefined}
-                               role={interactive ? 'button' : undefined}
-                               aria-label={interactive ? `${e.entry!.penalty_type_name} – ${e.entry!.player_name} – ${fe(e.entry!.amount)}` : undefined}
-                               style={interactive ? {cursor: 'pointer'} : undefined}
-                               onClick={interactive ? (evt) => {
-                                   evt.stopPropagation()
-                                   toggle()
-                               } : undefined}
-                               onKeyDown={interactive ? (evt) => {
-                                   if (evt.key === 'Enter' || evt.key === ' ') {
-                                       evt.preventDefault()
-                                       evt.stopPropagation()
-                                       toggle()
-                                   }
-                               } : undefined}>
-                                {interactive && (
-                                    <circle cx={cx} cy={cy} r="9" fill="transparent"/>
-                                )}
-                                <circle cx={cx} cy={cy} r={isSelected ? 4.5 : 2.5}
-                                        fill={s.color} stroke="var(--canvas)"
-                                        strokeWidth={isSelected ? 1.5 : 1}
-                                        style={{transition: 'r 0.12s'}}/>
-                            </g>
-                        )
-                    })
-                })}
-                {/* Axes */}
-                <line x1={padLeft} y1={PAD.top} x2={padLeft} y2={PAD.top + IH}
-                      stroke="var(--line)" strokeWidth="1"/>
-                <line x1={padLeft} y1={PAD.top + IH} x2={VW - PAD.right} y2={PAD.top + IH}
-                      stroke="var(--line)" strokeWidth="1"/>
-            </svg>
+            <ResponsiveContainer width="100%" height={150}>
+                <LineChart margin={{top: 8, right: 12, bottom: 0, left: 0}}
+                           onClick={onSelect ? () => onSelect(null) : undefined}>
+                    <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false}/>
+                    <XAxis type="number" dataKey="ts" domain={[tMin, tEnd]} ticks={[tMin, tMin + (tEnd - tMin) / 2, tEnd]}
+                           tickFormatter={fTime} tick={CHART_TICK} stroke="var(--line)" interval={0}/>
+                    <YAxis type="number" dataKey="cum" domain={[0, maxCum]} ticks={[0, maxCum / 2, maxCum]}
+                           tickFormatter={yFormat} tick={CHART_TICK} stroke="var(--line)" width={axisWidth} interval={0}/>
+                    {lines.map(({s, pts}) => (
+                        <Line key={s.id} data={pts} dataKey="cum" type="stepAfter" stroke={s.color} strokeWidth={2}
+                              strokeOpacity={s.events.length > 0 ? 1 : 0.15} isAnimationActive={false}
+                              dot={(p: any) => {
+                                  const {cx, cy, payload, index} = p
+                                  if (payload.edge || !payload.entry || cx == null || cy == null) return <g key={index}/>
+                                  const entry = payload.entry as PenaltyLogEntry
+                                  const isSelected = !!(selected && selected.seriesId === s.id && selected.entryId === entry.id)
+                                  const toggle = () => onSelect?.(isSelected ? null : {seriesId: s.id, entryId: entry.id})
+                                  return (
+                                      <g key={index} tabIndex={onSelect ? 0 : undefined} role={onSelect ? 'button' : undefined}
+                                         aria-label={onSelect ? `${entry.penalty_type_name} – ${entry.player_name} – ${fe(entry.amount)}` : undefined}
+                                         style={onSelect ? {cursor: 'pointer'} : undefined}
+                                         onClick={onSelect ? (evt) => { evt.stopPropagation(); toggle() } : undefined}
+                                         onKeyDown={onSelect ? (evt) => {
+                                             if (evt.key === 'Enter' || evt.key === ' ') {
+                                                 evt.preventDefault(); evt.stopPropagation(); toggle()
+                                             }
+                                         } : undefined}>
+                                          <circle cx={cx} cy={cy} r={12} fill="transparent"/>
+                                          <circle cx={cx} cy={cy} r={isSelected ? 5 : 3} fill={s.color}
+                                                  stroke="var(--canvas)" strokeWidth={isSelected ? 1.5 : 1}/>
+                                      </g>
+                                  )
+                              }}
+                              activeDot={false}/>
+                    ))}
+                </LineChart>
+            </ResponsiveContainer>
         </div>
     )
 }
@@ -788,14 +739,6 @@ function YearEveningsBarChart({evenings, t}: {
     const allZero = bars.every(b => (b.penalty_total ?? 0) === 0)
     if (allZero) return null
 
-    const VW = 400, VH = 74
-    const PAD_T = 4, PAD_B = 24, PAD_H = 4
-    const IH = VH - PAD_T - PAD_B
-    const IW = VW - PAD_H * 2
-    const maxP = Math.max(...bars.map(b => b.penalty_total ?? 0), 0.01)
-    const gap = 3
-    const barW = Math.max(2, (IW / bars.length) - gap)
-
     const fShortDate = (d: string) =>
         new Date(d).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})
     const fLongDate = (d: string) =>
@@ -825,44 +768,23 @@ function YearEveningsBarChart({evenings, t}: {
                     </span>
                 )}
             </div>
-            <svg width="100%" viewBox={`0 0 ${VW} ${VH}`}
-                 style={{display: 'block', overflow: 'visible'}}
-                 onClick={() => setSelectedIdx(null)}>
-                {bars.map((bar, i) => {
-                    const x = PAD_H + i * (barW + gap)
-                    const h = Math.max(2, ((bar.penalty_total ?? 0) / maxP) * IH)
-                    const y = PAD_T + IH - h
-                    const labelX = x + barW / 2
-                    const isSelected = selectedIdx === i
-                    const dimmed = selectedIdx !== null && !isSelected
-                    // Show every label when ≤6, every 2nd when 7–12; always show selected
-                    const showLabel = isSelected || bars.length <= 6 || i % 2 === 0
-
-                    return (
-                        <g key={bar.id}
-                           onClick={e => { e.stopPropagation(); setSelectedIdx(isSelected ? null : i) }}
-                           style={{cursor: 'pointer'}}>
-                            {/* Wider touch target */}
-                            <rect x={x - 2} y={PAD_T} width={barW + 4} height={IH + PAD_B - 2}
-                                  fill="transparent"/>
-                            <rect x={x} y={y} width={barW} height={h} rx="2"
-                                  fill="var(--accent-fg)"
-                                  opacity={dimmed ? 0.28 : isSelected ? 1 : 0.78}
-                                  style={{transition: 'opacity 0.12s'}}/>
-                            {showLabel && (
-                                <text x={labelX} y={VH - 6} textAnchor="middle"
-                                      fontSize="15"
-                                      fontWeight={isSelected ? 'bold' : 'normal'}
-                                      fill={isSelected ? 'var(--accent-fg)' : 'var(--muted)'}>
-                                    {fShortDate(bar.date)}
-                                </text>
-                            )}
-                        </g>
-                    )
-                })}
-                <line x1={PAD_H} y1={PAD_T + IH} x2={VW - PAD_H} y2={PAD_T + IH}
-                      stroke="var(--line)" strokeWidth="1"/>
-            </svg>
+            <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={bars.map((b, i) => ({i, v: b.penalty_total ?? 0, label: fShortDate(b.date)}))}
+                          margin={{top: 4, right: 4, bottom: 0, left: 4}} barCategoryGap={3}
+                          onClick={() => setSelectedIdx(null)}>
+                    <XAxis dataKey="label" tick={CHART_TICK} stroke="var(--line)" tickLine={false}
+                           interval={bars.length <= 6 ? 0 : 1}/>
+                    <YAxis hide domain={[0, 'dataMax']}/>
+                    <Bar dataKey="v" radius={[2, 2, 0, 0]} isAnimationActive={false} minPointSize={2}
+                         onClick={(_d: any, i: number, e: any) => { e?.stopPropagation?.(); setSelectedIdx(selectedIdx === i ? null : i) }}
+                         style={{cursor: 'pointer'}}>
+                        {bars.map((b, i) => (
+                            <Cell key={b.id} fill="var(--accent-fg)"
+                                  fillOpacity={selectedIdx === null ? 0.78 : selectedIdx === i ? 1 : 0.28}/>
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
         </div>
     )
 }

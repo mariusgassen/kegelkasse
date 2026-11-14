@@ -912,12 +912,10 @@ describe('StatsPage — cumulative chart axis labels', () => {
         storeState.regularMembers = []
     })
 
-    /** The chart's own viewBox, so we can check nothing is drawn outside it. */
-    function cumulativeChart(): SVGSVGElement {
-        const svgs = Array.from(document.querySelectorAll('svg'))
-            .filter(el => el.getAttribute('viewBox') === '0 0 400 140') as SVGSVGElement[]
-        expect(svgs.length).toBeGreaterThan(0)
-        return svgs[0]
+    /** Y-axis tick labels of the first Recharts chart (the cumulative penalty chart). */
+    function yTicks(): string[] {
+        return Array.from(document.querySelectorAll('.recharts-cartesian-axis-tick-value'))
+            .map(el => el.textContent ?? '').filter(t => t.startsWith('€'))
     }
 
     async function renderWithPenalties(amounts: number[]) {
@@ -931,34 +929,18 @@ describe('StatsPage — cumulative chart axis labels', () => {
             })),
         } as any)
         await renderStatsPage()
-        await waitFor(() => expect(cumulativeChart()).toBeTruthy())
+        await waitFor(() => expect(document.querySelector('.recharts-yAxis')).toBeTruthy())
     }
-
-    it('keeps four-figure euro labels inside the chart', async () => {
-        // ~2.400 € over one evening — the old fixed 38-unit gutter drew this past x = 0.
-        await renderWithPenalties([900, 850, 700])
-        const labels = Array.from(cumulativeChart().querySelectorAll('text[text-anchor="end"]'))
-        expect(labels.length).toBeGreaterThan(0)
-        for (const label of labels) {
-            const x = Number(label.getAttribute('x'))
-            const width = estimateTextWidth(label.textContent ?? '', Number(label.getAttribute('font-size')))
-            expect(x - width).toBeGreaterThanOrEqual(0)
-        }
-    })
 
     it('abbreviates large euro ticks instead of spelling them out', async () => {
         await renderWithPenalties([900, 850, 700])
-        const texts = Array.from(cumulativeChart().querySelectorAll('text[text-anchor="end"]'))
-            .map(el => el.textContent ?? '')
-        expect(texts.some(t => /k$/.test(t))).toBe(true)
+        expect(yTicks().some(t => /k$/.test(t))).toBe(true)
     })
 
-    it('keeps small euro labels inside the chart too', async () => {
+    it('shows small euro ticks in full', async () => {
         await renderWithPenalties([3, 1.5])
-        for (const label of cumulativeChart().querySelectorAll('text[text-anchor="end"]')) {
-            const x = Number(label.getAttribute('x'))
-            const width = estimateTextWidth(label.textContent ?? '', Number(label.getAttribute('font-size')))
-            expect(x - width).toBeGreaterThanOrEqual(0)
-        }
+        const ticks = yTicks()
+        expect(ticks.length).toBeGreaterThan(0)
+        expect(ticks.some(t => /k$/.test(t))).toBe(false)
     })
 })

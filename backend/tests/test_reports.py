@@ -270,3 +270,63 @@ class TestReportDataCapsAndActive:
         body = client.get("/api/v1/reports/data", headers=admin_headers).json()
         assert body["summary"]["total_payments"] == 10.0
         assert len(body["bookings"]) == 1
+
+    def test_kassenstand_is_cash_minus_expenses_like_the_kasse(self, client, admin_headers, db, club):
+        from models.payment import MemberPayment, ClubExpense
+        m = RegularMember(club_id=club.id, name="Kassierer", is_active=True)
+        db.add(m)
+        db.flush()
+        self._evening_with_penalties(db, club, m, [50.0])
+        db.add_all([
+            MemberPayment(club_id=club.id, regular_member_id=m.id, amount=100.0),
+            MemberPayment(club_id=club.id, regular_member_id=m.id, amount=30.0, is_writeoff=True),
+            ClubExpense(club_id=club.id, description="Bahn", amount=40.0),
+        ])
+        db.commit()
+        body = client.get("/api/v1/reports/data", headers=admin_headers).json()
+        # open penalties and write-offs are not cash: 100 paid in - 40 expenses
+        assert body["summary"]["kassenstand"] == 60.0
+        assert body["summary"]["total_payments"] == 100.0
+        assert any(b["type"] == "Abschreibung" for b in body["bookings"])
+
+    def test_account_month_balances_are_running_and_in_excel(self, client, admin_headers, db, club):
+        import io
+        from openpyxl import load_workbook
+        from models.payment import MemberPayment
+        m = RegularMember(club_id=club.id, name="Konto", is_active=True)
+        db.add(m)
+        db.flush()
+        self._evening_with_penalties(db, club, m, [50.0])
+        db.add(MemberPayment(club_id=club.id, regular_member_id=m.id, amount=20.0))
+        db.commit()
+        body = client.get("/api/v1/reports/data", headers=admin_headers).json()
+        acc = next(a for a in body["accounts"] if a["name"] == "Konto")
+        assert acc["months"][-1]["balance"] == acc["balance"] == -30.0
+        assert sum(x["payments"] for x in acc["months"]) == 20.0
+        assert sum(x["penalties"] for x in acc["months"]) == 50.0
+        r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
+        wb = load_workbook(io.BytesIO(r.content))
+        monthly = [[c.value for c in row] for row in wb["Konten pro Monat"].iter_rows(min_row=2)]
+        assert any(row[0] == "Konto" and row[3] == 50.0 for row in monthly)
+        ws = wb["Mitglieder-Konten"]
+        header = [c.value for c in ws[1]]
+        assert any(str(h).startswith("Saldo Ende") for h in header)
+        assert "Offen (€)" in header
+
+    def test_guest_cap_only_applies_from_the_exit_on(self, client, admin_headers, db, club):
+        from models.club import ClubSettings
+        settings = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+        if settings is None:
+            settings = ClubSettings(club_id=club.id, extra={})
+            db.add(settings)
+        settings.extra = {**(settings.extra or {}), "guest_penalty_cap": 5.0}
+        ex = RegularMember(club_id=club.id, name="Ex", is_active=True, is_guest=True,
+                           deactivated_at=datetime(2025, 3, 5))
+        db.add(ex)
+        db.commit()
+        self._evening_with_penalties(db, club, ex, [4.0, 4.0, 4.0], day=1)   # as member: 12 in full
+        self._evening_with_penalties(db, club, ex, [4.0, 4.0, 4.0], day=10)  # as guest: capped to 5
+        body = client.get("/api/v1/reports/data?year=2025", headers=admin_headers).json()
+        assert body["summary"]["total_penalties"] == 17.0
+        db.delete(settings)
+        db.commit()

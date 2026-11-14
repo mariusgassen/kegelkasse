@@ -76,7 +76,7 @@ def _penalty_euro(log: PenaltyLog) -> float:
     return 0.0
 
 
-_REPORT_FIELDS = {'guest_penalty_cap', 'club_name', 'member_by_id', 'evenings', 'evening_by_id', 'player_by_id', 'penalty_logs', 'period_label', 'total_penalties', 'total_payments', 'total_expenses', 'kassenstand', 'regular_members', 'member_penalty_total', 'payments_by_member', 'booking_rows', 'pen_by_member_type', 'penalty_per_evening', 'players_per_evening', 'games_per_evening', 'king_per_evening', 'monthly_pen_by_member', 'sorted_months', 'guest_members', '_month_label'}
+_REPORT_FIELDS = {'guest_penalty_cap', 'club_name', 'member_by_id', 'evenings', 'evening_by_id', 'player_by_id', 'penalty_logs', 'period_label', 'total_penalties', 'total_payments', 'total_expenses', 'kassenstand', 'regular_members', 'member_penalty_total', 'payments_by_member', 'booking_rows', 'pen_by_member_type', 'penalty_per_evening', 'players_per_evening', 'games_per_evening', 'king_per_evening', 'monthly_pen_by_member', 'sorted_months', 'guest_members', '_month_label', 'monthly_pay_by_member', 'account_months'}
 
 
 def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNamespace:
@@ -165,16 +165,27 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
             return ep.regular_member_id if ep else None
         return log.regular_member_id
 
+    # The cap only applies from a former member's exit on; earlier evenings were played as a regular
+    # member (uncapped, absence penalties included).
+    from app.api.v1.club import _before_leave
+
+    def _as_guest(mid: Optional[int], log: PenaltyLog) -> bool:
+        if mid not in guest_ids:
+            return False
+        ev = evening_by_id.get(log.evening_id)
+        m = member_by_id.get(mid)
+        return not (ev and m and _before_leave(ev.date, m.deactivated_at))
+
     guest_raw: dict[tuple[int, int], float] = defaultdict(float)
     for log in penalty_logs:
         mid = _log_member_id(log)
-        if mid in guest_ids and log.player_id is not None:
+        if _as_guest(mid, log) and log.player_id is not None:
             guest_raw[(mid, log.evening_id)] += _penalty_euro(log)
 
     def effective_euro(log: PenaltyLog) -> float:
         euro = _penalty_euro(log)
         mid = _log_member_id(log)
-        if mid not in guest_ids:
+        if not _as_guest(mid, log):
             return euro
         if log.player_id is None:
             return 0.0
@@ -236,9 +247,12 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
 
     period_label = str(year) if year else "Gesamt"
     total_penalties = round(sum(effective_euro(l) for l in penalty_logs), 2)
-    total_payments = round(sum(p.amount for p in payments), 2)
+    # Cash actually paid in: write-offs settle a balance without any money moving.
+    total_payments = round(sum(p.amount for p in payments if not p.is_writeoff), 2)
     total_expenses = round(sum(e.amount for e in expenses), 2)
-    kassenstand = round(total_payments - total_penalties - total_expenses, 2)
+    # Same definition as the Kasse: real money in the till (cash paid in − expenses). Open penalties
+    # are not cash.
+    kassenstand = round(total_payments - total_expenses, 2)
     regular_members = [m for m in members if not m.is_guest]
 
     # Bookings: payments + expenses merged and sorted by date
@@ -246,7 +260,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     for p in payments:
         m = member_by_id.get(p.regular_member_id)
         name = (m.nickname or m.name) if m else f"#{p.regular_member_id}"
-        booking_rows.append((p.created_at, "Einzahlung", name, p.amount, p.note or ""))
+        booking_rows.append((p.created_at, "Abschreibung" if p.is_writeoff else "Einzahlung", name, p.amount, p.note or ""))
     for e in expenses:
         dt = e.date or e.created_at
         booking_rows.append((dt, "Ausgabe", e.description, -e.amount, ""))
@@ -300,6 +314,17 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
         label = _MONTH_ABB_DE[ym[1] - 1]
         return label if single_year else f"{label} '{ym[0] % 100:02d}"
 
+    # Payments per member and month (write-offs included: they settle the balance), so the accounts
+    # can show a running balance at the end of every month.
+    monthly_pay_by_member: dict[int, dict[tuple[int, int], float]] = defaultdict(lambda: defaultdict(float))
+    for p in payments:
+        if p.created_at is not None:
+            monthly_pay_by_member[p.regular_member_id][(p.created_at.year, p.created_at.month)] += p.amount
+    account_months_set = set(all_months_set)
+    for by_month in monthly_pay_by_member.values():
+        account_months_set.update(by_month.keys())
+    account_months = sorted(account_months_set)
+
     # Guests with any penalty activity in scope
     guest_members = [m for m in members if m.is_guest and m.id in monthly_pen_by_member]
 
@@ -324,12 +349,26 @@ def report_data(
     def _date_str(v) -> str:
         return _fmt_date(v) if isinstance(v, datetime) else (v.strftime("%d.%m.%Y") if v else "")
 
+    def _acc_month_label(ym, d_):
+        single = len({y for y, _ in d_.account_months}) <= 1
+        label = _MONTH_ABB_DE[ym[1] - 1]
+        return label if single else f"{label} '{ym[0] % 100:02d}"
+
     accounts = []
     for m in d.regular_members:
         pen = d.member_penalty_total(m.id)
         pay = round(d.payments_by_member.get(m.id, 0.0), 2)
+        run, months_detail = 0.0, []
+        for ym in d.account_months:
+            pay_m = round(d.monthly_pay_by_member[m.id].get(ym, 0.0), 2)
+            pen_m = round(d.monthly_pen_by_member[m.id].get(ym, 0.0), 2)
+            run += pay_m - pen_m
+            if pay_m or pen_m:
+                months_detail.append({"month": _acc_month_label(ym, d), "payments": pay_m,
+                                      "penalties": pen_m, "balance": round(run, 2)})
         accounts.append({"nickname": _name(m), "name": m.name, "penalties": pen, "payments": pay,
-                         "balance": round(pay - pen, 2), "deactivated": m.deactivated_at is not None})
+                         "balance": round(pay - pen, 2), "deactivated": m.deactivated_at is not None,
+                         "months": months_detail})
 
     by_person = []
     for m in d.regular_members:
@@ -421,6 +460,8 @@ def export_report(
     sorted_months = d.sorted_months
     guest_members = d.guest_members
     _month_label = d._month_label
+    monthly_pay_by_member = d.monthly_pay_by_member
+    account_months = d.account_months
     year_suffix = f"_{year}" if year else ""
 
     # ── Excel output ──────────────────────────────────────────────────────────
@@ -462,36 +503,81 @@ def export_report(
 
     ws2 = wb.create_sheet("Mitglieder-Konten")
     ws2.freeze_panes = "A2"
-    cols2 = ["Kegelname", "Name", "Strafen (€)", "Einzahlungen (€)", "Saldo (€)"]
+    month_names_full = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+    single_acc_year = len({ym[0] for ym in account_months}) <= 1
+
+    def _acc_label(ym: tuple[int, int]) -> str:
+        label = _MONTH_ABB_DE[ym[1] - 1]
+        return label if single_acc_year else f"{label} '{ym[0] % 100:02d}"
+
+    cols2 = ["Kegelname", "Name", "Strafen (€)", "Einzahlungen (€)", "Saldo (€)", "Offen (€)"] + [
+        f"Saldo Ende {_acc_label(ym)}" for ym in account_months
+    ]
     _write_header(ws2, cols2)
+    euro_fmt = '#,##0.00 "€"'
+
+    def _running(mid: int) -> list[float]:
+        bal, out = 0.0, []
+        for ym in account_months:
+            bal += monthly_pay_by_member[mid].get(ym, 0.0) - monthly_pen_by_member[mid].get(ym, 0.0)
+            out.append(round(bal, 2))
+        return out
 
     for ri, m in enumerate(regular_members, start=2):
-        display = m.nickname or m.name
+        display = (m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else "")
         pen = member_penalty_total(m.id)
         pay = round(payments_by_member.get(m.id, 0.0), 2)
         bal = round(pay - pen, 2)
-        row = [display, m.name, pen, pay, bal]
+        row = [display, m.name, pen, pay, bal, round(-bal, 2) if bal < 0 else 0.0] + _running(m.id)
         for ci, val in enumerate(row, start=1):
             cell = ws2.cell(ri, ci, val)
-            if ci in (3, 4, 5):
-                cell.number_format = '#,##0.00 "€"'
-                if ci == 5:
-                    cell.font = Font(color="FF4444" if bal < 0 else "4ADE80")
+            if ci >= 3:
+                cell.number_format = euro_fmt
+                if ci == 5 or ci >= 7:
+                    cell.font = Font(color="FF4444" if val < 0 else "4ADE80")
+                elif ci == 6 and val:
+                    cell.font = Font(color="FF4444", bold=True)
 
-    # Totals row
     tr = len(regular_members) + 2
-    ws2.cell(tr, 1, "GESAMT").font = _TOTAL_FONT
-    for ci in (3, 4, 5):
-        ws2.cell(tr, ci).fill = _TOTAL_FILL
-    for ci in range(1, 6):
-        ws2.cell(tr, ci).font = _TOTAL_FONT
-        ws2.cell(tr, ci).fill = _TOTAL_FILL
     tot_pen = round(sum(member_penalty_total(m.id) for m in regular_members), 2)
     tot_pay = round(sum(payments_by_member.get(m.id, 0.0) for m in regular_members), 2)
-    ws2.cell(tr, 3, tot_pen).number_format = '#,##0.00 "€"'
-    ws2.cell(tr, 4, tot_pay).number_format = '#,##0.00 "€"'
-    ws2.cell(tr, 5, round(tot_pay - tot_pen, 2)).number_format = '#,##0.00 "€"'
+    tot_open = round(sum(max(0.0, -round(payments_by_member.get(m.id, 0.0) - member_penalty_total(m.id), 2)) for m in regular_members), 2)
+    running_all = [_running(m.id) for m in regular_members]
+    totals = [None, None, tot_pen, tot_pay, round(tot_pay - tot_pen, 2), tot_open] + [
+        round(sum(r[i] for r in running_all), 2) for i in range(len(account_months))
+    ]
+    ws2.cell(tr, 1, "GESAMT")
+    for ci in range(1, len(cols2) + 1):
+        c = ws2.cell(tr, ci)
+        if ci >= 3:
+            c.value = totals[ci - 1]
+            c.number_format = euro_fmt
+        c.font = _TOTAL_FONT
+        c.fill = _TOTAL_FILL
     _auto_width(ws2)
+
+    ws2b = wb.create_sheet("Konten pro Monat")
+    ws2b.freeze_panes = "A2"
+    _write_header(ws2b, ["Konto", "Monat", "Einzahlung (€)", "Schulden (€)", "Saldo (€)"])
+    rb = 2
+    for m in regular_members:
+        run, first = 0.0, True
+        for ym in account_months:
+            pay_m = round(monthly_pay_by_member[m.id].get(ym, 0.0), 2)
+            pen_m = round(monthly_pen_by_member[m.id].get(ym, 0.0), 2)
+            run += pay_m - pen_m
+            if not (pay_m or pen_m):
+                continue
+            ws2b.cell(rb, 1, ((m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else "")) if first else "")
+            ws2b.cell(rb, 2, f"{month_names_full[ym[1] - 1]} {ym[0]}")
+            for ci, v in ((3, pay_m), (4, pen_m), (5, round(run, 2))):
+                c = ws2b.cell(rb, ci, v)
+                c.number_format = euro_fmt
+                if ci == 5:
+                    c.font = Font(color="FF4444" if v < 0 else "4ADE80")
+            first = False
+            rb += 1
+    _auto_width(ws2b)
 
     # ── Sheet 3: Buchungen ────────────────────────────────────────────────────
 
@@ -499,15 +585,40 @@ def export_report(
     ws3.freeze_panes = "A2"
     _write_header(ws3, ["Datum", "Typ", "Mitglied / Beschreibung", "Betrag (€)", "Notiz / Buchungstext"])
 
-    for ri, (dt, typ, desc, amt, note) in enumerate(booking_rows, start=2):
+    ri = 2
+    prev_ym = "init"
+    month_names = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+    def _month_net(ym) -> float:
+        return round(sum(
+            a for (d_, t_, _, a, _) in booking_rows
+            if t_ != "Abschreibung" and d_ is not None and (d_.year, d_.month) == ym
+        ), 2)
+
+    for dt, typ, desc, amt, note in booking_rows:
+        ym = (dt.year, dt.month) if dt is not None else None
+        if ym != prev_ym:
+            label = f"{month_names[ym[1] - 1]} {ym[0]}" if ym else "Ohne Datum"
+            for ci in range(1, 6):
+                ws3.cell(ri, ci).fill = _TOTAL_FILL
+                ws3.cell(ri, ci).font = _TOTAL_FONT
+            ws3.cell(ri, 1, label)
+            if ym:
+                ws3.cell(ri, 4, _month_net(ym)).number_format = '#,##0.00 "€"'
+                ws3.cell(ri, 5, "Netto bar (ohne Abschreibungen)")
+            ri += 1
+            prev_ym = ym
         ws3.cell(ri, 1, _fmt_date(dt))
         ws3.cell(ri, 2, typ)
         ws3.cell(ri, 3, desc)
         cell_amt = ws3.cell(ri, 4, amt)
         cell_amt.number_format = '#,##0.00 "€"'
-        if amt < 0:
+        if typ == "Abschreibung":
+            cell_amt.font = Font(color="94A3B8")
+        elif amt < 0:
             cell_amt.font = Font(color="FF4444")
         ws3.cell(ri, 5, note)
+        ri += 1
 
     _auto_width(ws3)
 
@@ -515,20 +626,36 @@ def export_report(
 
     ws4 = wb.create_sheet("Strafen nach Person")
     ws4.freeze_panes = "A2"
-    _write_header(ws4, ["Kegelname", "Name", "Strafen-Typ", "Anzahl", "Betrag (€)"])
+    type_totals: dict[str, float] = {}
+    for (_mid, tname), (_, tot_) in pen_by_member_type.items():
+        type_totals[tname] = round(type_totals.get(tname, 0.0) + tot_, 2)
+    types_sorted = sorted(type_totals, key=lambda t: (-type_totals[t], t))
+    _write_header(ws4, ["Kegelname", "Summe (€)"] + types_sorted)
+    max_fill = PatternFill("solid", fgColor="FECACA")
+    min_fill = PatternFill("solid", fgColor="BBF7D0")
 
-    ri = 2
-    for m in regular_members:
-        entries = [(k[1], v[0], v[1]) for k, v in pen_by_member_type.items() if k[0] == m.id]
-        entries.sort(key=lambda x: x[0])
-        for pname, cnt, total in entries:
-            ws4.cell(ri, 1, m.nickname or m.name)
-            ws4.cell(ri, 2, m.name)
-            ws4.cell(ri, 3, pname)
-            ws4.cell(ri, 4, cnt)
-            ws4.cell(ri, 5, total).number_format = '#,##0.00 "€"'
-            ri += 1
-
+    people = [m for m in regular_members if any(k[0] == m.id for k in pen_by_member_type)]
+    people.sort(key=lambda m: -sum(v[1] for k, v in pen_by_member_type.items() if k[0] == m.id))
+    extremes: dict[str, tuple[float, float]] = {}
+    for t in types_sorted:
+        nz = [v for v in (pen_by_member_type.get((m.id, t), (0, 0.0))[1] for m in people) if v > 0]
+        if len(set(nz)) >= 2:
+            extremes[t] = (max(nz), min(nz))
+    for ri, m in enumerate(people, start=2):
+        ws4.cell(ri, 1, (m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else ""))
+        tot_m = round(sum(v[1] for k, v in pen_by_member_type.items() if k[0] == m.id), 2)
+        ws4.cell(ri, 2, tot_m).number_format = '#,##0.00 "€"'
+        for ci, t in enumerate(types_sorted, start=3):
+            v = pen_by_member_type.get((m.id, t), (0, 0.0))[1]
+            cell = ws4.cell(ri, ci, v if v else "")
+            if v:
+                cell.number_format = '#,##0.00 "€"'
+                if t in extremes:
+                    if v == extremes[t][0]:
+                        cell.fill, cell.font = max_fill, Font(bold=True, color="991B1B")
+                    elif v == extremes[t][1]:
+                        cell.fill, cell.font = min_fill, Font(bold=True, color="166534")
+    ws4.cell(len(people) + 3, 1, "Rot = höchster, grün = niedrigster Wert je Strafenart (nur wenn mindestens zwei Personen sie hatten).")
     _auto_width(ws4)
 
     # ── Sheet 5: Strafen nach Abend ───────────────────────────────────────────

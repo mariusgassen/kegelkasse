@@ -486,6 +486,8 @@ def delete_regular_member(mid: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Gäste können nicht entfernt werden — sie bleiben Teil der Vereinshistorie")
     # Regular member leaving — convert to guest so they can still play, block login, clear pins
     m.is_guest = True
+    if m.deactivated_at is None:
+        m.deactivated_at = datetime.now(timezone.utc)  # exit date: the guest cap applies from here on
     for pin in db.query(ClubPin).filter(ClubPin.holder_regular_member_id == mid).all():
         pin.holder_regular_member_id = None
         pin.holder_name = None
@@ -960,11 +962,12 @@ def list_member_penalties(mid: int, db: Session = Depends(get_db),
     result = []
     for log, evening in q.all():
         is_absence = log.player_id is None
+        as_guest = member.is_guest and not _before_leave(evening.date, member.deactivated_at)
         # Guest absence penalties don't count toward the guest balance (mirrors get_guest_balances).
-        if member.is_guest and is_absence:
+        if as_guest and is_absence:
             continue
         raw = _penalty_euro(log)
-        if guest_cap is not None and not is_absence:
+        if guest_cap is not None and as_guest and not is_absence:
             old = evening_raw.get(log.evening_id, 0.0)
             new = old + raw
             evening_raw[log.evening_id] = new
@@ -1243,6 +1246,19 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
 
 # ── Guest balances ──
 
+def _before_leave(evening_date, left_at) -> bool:
+    """True if the evening happened while the member still belonged to the club.
+
+    The guest cap (and the exclusion of absence penalties) only applies once someone is a guest —
+    i.e. from their exit on. Earlier evenings were played as a regular member and stay uncapped.
+    """
+    if left_at is None or evening_date is None:
+        return False
+    a = evening_date.replace(tzinfo=None) if evening_date.tzinfo else evening_date
+    b = left_at.replace(tzinfo=None) if left_at.tzinfo else left_at
+    return a < b
+
+
 @router.get("/guest-balances")
 def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(require_club_member)):
     """Per-guest: total penalties capped per evening, total payments, balance."""
@@ -1267,6 +1283,7 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
         db.query(
             EveningPlayer.regular_member_id,
             EveningPlayer.evening_id,
+            Evening.date,
             func.sum(_PENALTY_EURO_SQL),
         )
         .join(PenaltyLog, PenaltyLog.player_id == EveningPlayer.id)
@@ -1276,16 +1293,34 @@ def get_guest_balances(db: Session = Depends(get_db), user: User = Depends(requi
             EveningPlayer.regular_member_id.in_(guest_ids),
             PenaltyLog.is_deleted == False,
         )
-        .group_by(EveningPlayer.regular_member_id, EveningPlayer.evening_id)
+        .group_by(EveningPlayer.regular_member_id, EveningPlayer.evening_id, Evening.date)
         .all()
     )
+    left_at_by_id = {g.id: g.deactivated_at for g in guests}
 
-    # Apply per-evening cap and sum per member
+    # Apply the per-evening cap only from the exit on; earlier evenings count in full.
     penalty_by_member: dict[int, float] = {}
-    for mid, _eid, total in penalty_per_evening:
+    for mid, _eid, edate, total in penalty_per_evening:
         total = float(total or 0.0)
-        capped = min(total, guest_penalty_cap) if guest_penalty_cap is not None else total
-        penalty_by_member[mid] = penalty_by_member.get(mid, 0.0) + capped
+        if guest_penalty_cap is not None and not _before_leave(edate, left_at_by_id.get(mid)):
+            total = min(total, guest_penalty_cap)
+        penalty_by_member[mid] = penalty_by_member.get(mid, 0.0) + total
+
+    # Absence penalties from before the exit still belong to the (then regular) member.
+    for mid, edate, total in (
+        db.query(PenaltyLog.regular_member_id, Evening.date, func.sum(_PENALTY_EURO_SQL))
+        .join(Evening, Evening.id == PenaltyLog.evening_id)
+        .filter(
+            Evening.club_id == user.club_id,
+            PenaltyLog.player_id.is_(None),
+            PenaltyLog.regular_member_id.in_(guest_ids),
+            PenaltyLog.is_deleted == False,
+        )
+        .group_by(PenaltyLog.regular_member_id, Evening.date)
+        .all()
+    ):
+        if _before_leave(edate, left_at_by_id.get(mid)):
+            penalty_by_member[mid] = penalty_by_member.get(mid, 0.0) + float(total or 0.0)
 
     # Payments (guests can also have payments recorded)
     payments_by_member: dict[int, float] = {
