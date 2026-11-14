@@ -633,6 +633,7 @@ export const en = {
     "treasury.expensesLabel": "🧾 Expenses",
     "treasury.expensesTotal": "Total expenses",
     "treasury.netExpenses": "Income & expenses (balance)",
+    "treasury.bookings.saldo": "Balance (cash on hand)",
     "treasury.expense.add": "Record expense",
     "treasury.expense.none": "No expenses yet.",
     "treasury.expense.description": "Description",

@@ -221,7 +221,7 @@ Admins erfassen neue Posten über **+ Buchung**: Ziel wählen (🏛️ Verein od
 
 ### Auslage für den Verein (verknüpfte Buchung)
 
-Hat ein Mitglied etwas für den Verein bezahlt (z. B. die Bahn), wähle bei **+ Buchung** das Mitglied, Richtung **Einzahlung** und aktiviere **Als Vereinsausgabe verbuchen** (Beschreibung ist dann Pflicht). Es entstehen zwei **verknüpfte** Buchungen: die Gutschrift auf dem Mitgliedskonto und eine gleich hohe Vereinsausgabe — der Kassenstand bleibt dadurch korrekt. Normale Einzahlungen (Schulden begleichen) bleiben unberührt, solange die Option aus ist. Betrag und Datum werden beim Bearbeiten, Stornieren beim Löschen auf beiden Buchungen mitgeführt.
+Hat ein Mitglied etwas für den Verein bezahlt (z. B. die Bahn), wähle bei **+ Buchung** das Mitglied, Richtung **Einzahlung** und aktiviere **Als Vereinsausgabe verbuchen** (Beschreibung ist dann Pflicht). Es entstehen zwei **verknüpfte** Buchungen: die Gutschrift auf dem Mitgliedskonto und eine gleich hohe Vereinsausgabe — der Kassenstand bleibt dadurch korrekt. Normale Einzahlungen (Schulden begleichen) bleiben unberührt, solange die Option aus ist. Betrag und Datum werden beim Bearbeiten, Stornieren beim Löschen auf beiden Buchungen mitgeführt. Auch nachträglich lässt sich die Option im Bearbeiten-Dialog einer Einzahlung an- oder abschalten. Der **Saldo** über dem Kassenbuch ist der aktuelle Kassenstand; Abschreibungen stehen dort grau, da dabei kein Geld fließt.
 
 ### Buchung bearbeiten oder stornieren
 

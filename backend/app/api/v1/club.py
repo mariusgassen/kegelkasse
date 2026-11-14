@@ -904,7 +904,9 @@ def list_member_payments(mid: int, db: Session = Depends(get_db),
         MemberPayment.regular_member_id == mid, MemberPayment.club_id == user.club_id,
         MemberPayment.is_deleted == False,
     ).order_by(MemberPayment.created_at.desc()).all()
+    groups = _expense_groups(db, user.club_id)
     return [{"id": p.id, "amount": p.amount, "note": p.note,
+             "club_expense": bool(p.transfer_group_id and p.transfer_group_id in groups),
              "created_at": p.created_at.isoformat() if p.created_at else None,
              "updated_at": p.updated_at.isoformat() if p.updated_at else None,
              "date": p.date.isoformat() if p.date else None,
@@ -999,6 +1001,8 @@ class PaymentUpdate(TrimmedModel):
     amount: Optional[float] = None
     note: Optional[str] = None
     date: Optional[str] = None  # ISO date string; empty string clears the date
+    as_club_expense: Optional[bool] = None  # True: also book as club expense; False: drop the paired expense
+    trip_id: Optional[int] = None  # Kegelfahrt for a newly created paired expense
 
 
 def _check_trip(db: Session, club_id: int, trip_id: Optional[int]) -> Optional[int]:
@@ -1031,8 +1035,17 @@ def _linked_payment(db: Session, club_id: int, group_id: Optional[str]) -> Optio
     ).first()
 
 
-def _payment_dict(p: MemberPayment) -> dict:
-    return {"id": p.id, "amount": p.amount, "note": p.note,
+def _expense_groups(db: Session, club_id: int) -> set[str]:
+    """transfer_group_ids that have a live paired club expense (= payment booked as Vereinsausgabe)."""
+    rows = db.query(ClubExpense.transfer_group_id).filter(
+        ClubExpense.club_id == club_id, ClubExpense.is_deleted == False,  # noqa: E712
+        ClubExpense.transfer_group_id.isnot(None),
+    ).all()
+    return {r[0] for r in rows}
+
+
+def _payment_dict(p: MemberPayment, has_expense: bool = False) -> dict:
+    return {"id": p.id, "club_expense": has_expense, "amount": p.amount, "note": p.note,
             "created_at": p.created_at.isoformat() if p.created_at else None,
             "updated_at": p.updated_at.isoformat() if p.updated_at else None,
             "date": p.date.isoformat() if p.date else None,
@@ -1101,7 +1114,7 @@ def create_member_payment(data: PaymentCreate, background_tasks: BackgroundTasks
         background_tasks.add_task(
             push_to_regular_member, db, data.regular_member_id, "💰 Einzahlung erfasst",
             f"+{fee}€ in die Kasse eingetragen.", "/#treasury:bookings", category="payments")
-    return _payment_dict(payment)
+    return _payment_dict(payment, has_expense=bool(group_id))
 
 
 @router.patch("/member-payments/{pid}")
@@ -1130,11 +1143,36 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
     p.updated_at = datetime.now(timezone.utc)
     p.updated_by = user.id
     twin = _linked_expense(db, user.club_id, p.transfer_group_id)
+    if data.as_club_expense is True and not twin:
+        if p.amount < 0 or p.is_writeoff:
+            raise HTTPException(400, "Auslagen müssen ein positiver Betrag sein")
+        if not p.note:
+            raise HTTPException(400, "Beschreibung erforderlich")
+        if p.transfer_group_id:
+            raise HTTPException(400, "Buchung ist bereits mit einer anderen Buchung verknüpft")
+        p.transfer_group_id = str(uuid.uuid4())
+        twin = ClubExpense(
+            club_id=user.club_id, amount=p.amount, description=p.note, created_by=user.id,
+            date=p.date, transfer_group_id=p.transfer_group_id,
+            trip_id=_check_trip(db, user.club_id, data.trip_id),
+        )
+        db.add(twin)
+    elif data.as_club_expense is False and twin:
+        twin.is_deleted = True
+        twin.deleted_at = p.updated_at
+        twin.deleted_by = user.id
+        twin.delete_reason = "Nicht mehr als Vereinsausgabe verbucht"
+        p.transfer_group_id = None
+        twin = None
     if twin:
         twin.amount = p.amount
         twin.date = p.date
+        if p.note:
+            twin.description = p.note
         twin.updated_at = p.updated_at
         twin.updated_by = user.id
+        if data.trip_id is not None:
+            twin.trip_id = _check_trip(db, user.club_id, data.trip_id)
     db.commit()
     db.refresh(p)
     logger.info("member payment updated: id=%s member=%s amount=%.2f→%.2f by user=%s",
@@ -1146,7 +1184,7 @@ def update_member_payment(pid: int, data: PaymentUpdate, background_tasks: Backg
             push_to_regular_member, db, p.regular_member_id, "✏️ Buchung geändert",
             f"Eine Buchung wurde von {old_fee}€ auf {new_fee}€ geändert.", "/#treasury:bookings",
             category="payments")
-    return _payment_dict(p)
+    return _payment_dict(p, has_expense=twin is not None)
 
 
 @router.delete("/member-payments/{pid}", status_code=204)
@@ -1186,8 +1224,10 @@ def list_all_payments(db: Session = Depends(get_db), user: User = Depends(requir
         .order_by(MemberPayment.created_at.desc())
         .all()
     )
+    groups = _expense_groups(db, user.club_id)
     return [{
         "id": p.id, "regular_member_id": p.regular_member_id,
+        "club_expense": bool(p.transfer_group_id and p.transfer_group_id in groups),
         "member_name": m.nickname or m.name,
         "amount": p.amount, "note": p.note,
         "created_at": p.created_at.isoformat() if p.created_at else None,

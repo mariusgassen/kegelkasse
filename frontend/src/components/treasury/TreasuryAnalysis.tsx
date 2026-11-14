@@ -1,6 +1,7 @@
 import {Caption} from '@/components/ui/Caption.tsx'
 import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 import {useAppStore} from '@/store/app.ts'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
@@ -452,7 +453,9 @@ export function TreasuryAnalysis() {
                             <span className="font-bold">{fe(asOfActual + asOfOverlay)}</span></div>
                     </div>
                 )}
-                {statements.length === 0 ? (
+                {historyLoading && statements.length === 0 ? (
+                    <SkeletonRows rows={3}/>
+                ) : statements.length === 0 ? (
                     <p className="text-sm text-muted">{t('treasury.statements.empty')}</p>
                 ) : (
                     <div className="text-sm" data-testid="statements-months">

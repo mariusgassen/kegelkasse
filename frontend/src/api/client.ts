@@ -687,7 +687,7 @@ export const api = {
             created_at: string | null;
             date: string | null
         }>('POST', '/club/member-payments', {...d, idempotency_key: newIdempotencyKey()}),
-    updateMemberPayment: (pid: number, d: { amount?: number; note?: string; date?: string }) =>
+    updateMemberPayment: (pid: number, d: { amount?: number; note?: string; date?: string; as_club_expense?: boolean; trip_id?: number }) =>
         request<{
             id: number;
             amount: number;

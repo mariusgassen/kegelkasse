@@ -3,6 +3,7 @@ import {useState} from 'react'
 import {NicknameSuggestions} from '@/components/ai/AiSuggestions.tsx'
 import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {SkeletonRows} from '@/components/ui/Skeleton'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useActiveEvening} from '@/hooks/useEvening.ts'
 import {useT} from '@/i18n'
@@ -54,7 +55,7 @@ export function MembersPage() {
     })
 
     // App-Nutzer — admins always fetch all so we know if inactive exist
-    const {data: appUsers = [], refetch: refetchUsers} = useQuery({
+    const {data: appUsers = [], refetch: refetchUsers, isLoading: usersLoading} = useQuery({
         queryKey: ['club-members', admin],
         queryFn: () => api.getMembers(admin),
         staleTime: 60000,
@@ -439,7 +440,9 @@ export function MembersPage() {
                 </div>
             </div>
 
-            {activeUsers.length === 0
+            {usersLoading && activeUsers.length === 0
+                ? <SkeletonRows rows={3}/>
+                : activeUsers.length === 0
                 ? <Empty icon="📱" text={t('member.noAppUsers')}/>
                 : activeUsers.map(u => {
                     const linked = regularMembers.find(m => m.id === u.regular_member_id)
