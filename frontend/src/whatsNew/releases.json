@@ -1,6 +1,305 @@
 {
   "releases": [
     {
+      "version": "1.75.0",
+      "date": "2026-11-14",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "779c6ff",
+              "pr": 590,
+              "sha": "779c6ff",
+              "text": {
+                "en": "add charts tab to the Kasse with waterfall, treemap, Sankey and donut",
+                "de": "Diagramm-Tab in der Kasse mit Wasserfall-, Treemap-, Sankey- und Donut-Diagramm"
+              }
+            },
+            {
+              "key": "186b8c6",
+              "pr": 582,
+              "sha": "186b8c6",
+              "text": {
+                "en": "editable roadmap versions, completed items pin the deployed version",
+                "de": "Roadmap-Versionen bearbeitbar, erledigte Punkte zeigen die veröffentlichte Version fest an"
+              }
+            },
+            {
+              "key": "0215ba2",
+              "scope": "evening",
+              "sha": "0215ba2",
+              "text": {
+                "en": "Live-Abend zeigt Rangliste, Strafen-Kurve und Spielstand; Protokoll mit Spiel-Farben",
+                "de": "Live-Abend zeigt Rangliste, Strafen-Kurve und Spielstand; Protokoll mit Spiel-Farben"
+              }
+            },
+            {
+              "key": "f41841b",
+              "scope": "evening",
+              "sha": "f41841b",
+              "text": {
+                "en": "Schnellerfassung zeigt Zähler, Balken, Aufleuchten und Getränke-Zeitleiste",
+                "de": "Schnellerfassung zeigt Zähler, Balken, Aufleuchten und Getränke-Zeitleiste"
+              }
+            },
+            {
+              "key": "90f12ed",
+              "sha": "90f12ed",
+              "text": {
+                "en": "Excel-Blatt Strafen nach Abend je Abend gruppiert",
+                "de": "Excel-Blatt Strafen nach Abend je Abend gruppiert"
+              }
+            },
+            {
+              "key": "c951c7f",
+              "pr": 596,
+              "sha": "c951c7f",
+              "text": {
+                "en": "Kasse mit Stichtag, Monatsständen, korrektem Saldo und Vereinsausgabe beim Bearbeiten",
+                "de": "Kasse mit Stichtag, Monatsständen, korrektem Saldo und Vereinsausgabe beim Bearbeiten"
+              }
+            },
+            {
+              "key": "139c0c1",
+              "sha": "139c0c1",
+              "text": {
+                "en": "Kasse zeigt Balken neben den Zahlen und animierte Diagramme",
+                "de": "Kasse zeigt Balken neben den Zahlen und animierte Diagramme"
+              }
+            },
+            {
+              "key": "de91838",
+              "sha": "de91838",
+              "text": {
+                "en": "Kassenbericht listet auch offene Strafen von Gästen",
+                "de": "Kassenbericht listet auch offene Strafen von Gästen"
+              }
+            },
+            {
+              "key": "36bd4f8",
+              "sha": "36bd4f8",
+              "text": {
+                "en": "Konten pro Monat im Kassenbericht mit Monaten als Spalten",
+                "de": "Konten pro Monat im Kassenbericht mit Monaten als Spalten"
+              }
+            },
+            {
+              "key": "1d90780",
+              "pr": 608,
+              "sha": "1d90780",
+              "text": {
+                "en": "Live-Insel für den laufenden Abend",
+                "de": "Live-Insel für den laufenden Abend"
+              }
+            },
+            {
+              "key": "c54c47f",
+              "scope": "roadmap",
+              "pr": 573,
+              "sha": "c54c47f",
+              "text": {
+                "en": "add comments, tag/pin/duplicate management, and product manager role",
+                "de": "Kommentare, Verwaltung von Tags, Anheften und Duplikaten sowie Rolle Produktmanager"
+              }
+            },
+            {
+              "key": "b3d848c",
+              "sha": "b3d848c",
+              "text": {
+                "en": "show guest nicknames and disambiguate duplicate names",
+                "de": "Spitznamen von Gästen anzeigen und doppelte Namen unterscheidbar machen"
+              }
+            },
+            {
+              "key": "4fcf5da",
+              "pr": 584,
+              "sha": "4fcf5da",
+              "text": {
+                "en": "version pills for roadmap filtering and autocomplete",
+                "de": "Versions-Labels zum Filtern der Roadmap und für die Autovervollständigung"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "0fec32e",
+              "pr": 598,
+              "sha": "0fec32e",
+              "text": {
+                "en": "Buchungs-Aktionen in der Kasse im ⋮-Menü statt als Icon-Paar",
+                "de": "Buchungs-Aktionen in der Kasse im ⋮-Menü statt als Icon-Paar"
+              }
+            },
+            {
+              "key": "c4b8e6c",
+              "pr": 587,
+              "sha": "c4b8e6c",
+              "text": {
+                "en": "club exit write-off no longer counts as a deposit in the Kasse",
+                "de": "Abschreibung beim Vereinsaustritt zählt in der Kasse nicht mehr als Einzahlung"
+              }
+            },
+            {
+              "key": "0e54008",
+              "scope": "evening",
+              "sha": "0e54008",
+              "text": {
+                "en": "Spiel-Farben als feste Token-Liste",
+                "de": "Spiel-Farben als feste Token-Liste"
+              }
+            },
+            {
+              "key": "132e6e8",
+              "pr": 577,
+              "sha": "132e6e8",
+              "text": {
+                "en": "harden community roadmap permissions, validation and notifications",
+                "de": "Berechtigungen, Prüfungen und Benachrichtigungen der Community-Roadmap abgesichert"
+              }
+            },
+            {
+              "key": "436dc14",
+              "pr": 595,
+              "sha": "436dc14",
+              "text": {
+                "en": "Insights-Tab stürzte beim Öffnen ab",
+                "de": "Insights-Tab stürzte beim Öffnen ab"
+              }
+            },
+            {
+              "key": "a44eaea",
+              "sha": "a44eaea",
+              "text": {
+                "en": "Kassenbericht nutzt das gesetzte Buchungsdatum statt des Erstelldatums",
+                "de": "Kassenbericht nutzt das gesetzte Buchungsdatum statt des Erstelldatums"
+              }
+            },
+            {
+              "key": "88b77dc",
+              "pr": 580,
+              "sha": "88b77dc",
+              "text": {
+                "en": "keep bottom sheets (incl. global search) above the on-screen keyboard",
+                "de": "Untere Fenster (auch die globale Suche) bleiben über der Bildschirmtastatur"
+              }
+            },
+            {
+              "key": "3a85ba9",
+              "pr": 602,
+              "sha": "3a85ba9",
+              "text": {
+                "en": "Monatsstände zeigen auch ruhige Monate und klappen ältere Monate ein",
+                "de": "Monatsstände zeigen auch ruhige Monate und klappen ältere Monate ein"
+              }
+            },
+            {
+              "key": "01c04f9",
+              "sha": "01c04f9",
+              "text": {
+                "en": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten",
+                "de": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten"
+              }
+            },
+            {
+              "key": "2c98771",
+              "pr": 597,
+              "sha": "2c98771",
+              "text": {
+                "en": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten",
+                "de": "Offene Strafen im PDF-Kassenbericht markieren und separat auflisten"
+              }
+            },
+            {
+              "key": "e07d9a3",
+              "pr": 600,
+              "sha": "e07d9a3",
+              "text": {
+                "en": "PDF-Bericht mit korrektem Kassenstand, Gäste-Deckel erst ab Austritt, Buchungen je Monat und Strafen-Matrix",
+                "de": "PDF-Bericht mit korrektem Kassenstand, Gäste-Deckel erst ab Austritt, Buchungen je Monat und Strafen-Matrix"
+              }
+            },
+            {
+              "key": "2296d2f",
+              "pr": 593,
+              "sha": "2296d2f",
+              "text": {
+                "en": "PDF-Kassenbericht übersichtlicher mit Vereinslogo, Farben und korrekten Gäste-Beträgen",
+                "de": "PDF-Kassenbericht übersichtlicher mit Vereinslogo, Farben und korrekten Gäste-Beträgen"
+              }
+            },
+            {
+              "key": "bbd151f",
+              "sha": "bbd151f",
+              "text": {
+                "en": "Pins nicht mitgebracht ist eine Strafe pro Spieler statt pro Pin",
+                "de": "Pins nicht mitgebracht ist eine Strafe pro Spieler statt pro Pin"
+              }
+            },
+            {
+              "key": "9ae536b",
+              "scope": "roadmap",
+              "pr": 574,
+              "sha": "9ae536b",
+              "text": {
+                "en": "add migration 073 for tags/roles and support multiple roles per user",
+                "de": "Migration 073 für Tags und Rollen, mehrere Rollen pro Nutzer möglich"
+              }
+            },
+            {
+              "key": "068c08a",
+              "pr": 599,
+              "sha": "068c08a",
+              "text": {
+                "en": "shorten the projected cash label in the Kasse",
+                "de": "Kürzere Beschriftung für den voraussichtlichen Kassenstand in der Kasse"
+              }
+            },
+            {
+              "key": "6e5b29a",
+              "scope": "stickers",
+              "pr": 571,
+              "sha": "6e5b29a",
+              "text": {
+                "en": "fit map view to screen without vertical scrolling",
+                "de": "Kartenansicht passt auf den Bildschirm, ohne nach unten zu scrollen"
+              }
+            },
+            {
+              "key": "0c733ca",
+              "scope": "treasury",
+              "sha": "0c733ca",
+              "text": {
+                "en": "Insights-Diagramme ohne Y-Achsen, Wasserfall ab 0",
+                "de": "Insights-Diagramme ohne Y-Achsen, Wasserfall ab 0"
+              }
+            },
+            {
+              "key": "64c9cbb",
+              "scope": "treasury",
+              "sha": "64c9cbb",
+              "text": {
+                "en": "Insights-Diagramme per Antippen auswählen, Kassenverlauf mit Achsen",
+                "de": "Insights-Diagramme per Antippen auswählen, Kassenverlauf mit Achsen"
+              }
+            },
+            {
+              "key": "82ed8cb",
+              "scope": "treasury",
+              "sha": "82ed8cb",
+              "text": {
+                "en": "polish the PDF report — signs, colours, columns, logo, guest cap",
+                "de": "PDF-Bericht verfeinert: Vorzeichen, Farben, Spalten, Logo, Gäste-Deckel"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.74.0",
       "date": "2026-11-11",
       "sections": [
