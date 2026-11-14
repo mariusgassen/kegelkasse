@@ -1284,3 +1284,31 @@ class TestGuestCostTransfer:
             json={"guest_id": guest.id, "target_member_id": guest.id, "amount": 5.0},
         )
         assert resp.status_code == 400
+
+
+class TestGuestBalancesBeforeExit:
+    def test_cap_and_absence_exclusion_only_apply_after_exit(self, client: TestClient, db, club, admin_user, auth_headers):
+        db.add(ClubSettings(club_id=club.id, extra={"guest_penalty_cap": 5.0}))
+        ex = RegularMember(club_id=club.id, name="Ex", is_guest=True,
+                           deactivated_at=datetime(2024, 5, 1, tzinfo=timezone.utc))
+        db.add(ex)
+        db.commit()
+        db.refresh(ex)
+        for day in (1, 10):  # 1st: as member (uncapped), 10th: as guest (capped)
+            ev = Evening(club_id=club.id, date=datetime(2024, 4 if day == 1 else 6, day, tzinfo=timezone.utc))
+            db.add(ev)
+            db.commit()
+            ep = EveningPlayer(evening_id=ev.id, regular_member_id=ex.id, name=ex.name)
+            db.add(ep)
+            db.commit()
+            db.add(PenaltyLog(evening_id=ev.id, player_id=ep.id, player_name=ex.name, penalty_type_name="X",
+                              amount=12.0, mode=PenaltyMode.euro, created_by=admin_user.id,
+                              client_timestamp=time.time()))
+            if day == 1:
+                db.add(PenaltyLog(evening_id=ev.id, player_id=None, regular_member_id=ex.id, player_name=ex.name,
+                                  penalty_type_name="Abwesenheit", amount=3.0, mode=PenaltyMode.euro,
+                                  created_by=admin_user.id, client_timestamp=time.time()))
+            db.commit()
+        row = next(r for r in client.get("/api/v1/club/guest-balances", headers=auth_headers).json()
+                   if r["regular_member_id"] == ex.id)
+        assert row["penalty_total"] == 12.0 + 3.0 + 5.0
