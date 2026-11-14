@@ -49,6 +49,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const qc = useQueryClient()
     const {evening, invalidate, cancelPendingItem} = useActiveEvening()
     const penaltyTypes = useAppStore(s => s.penaltyTypes)
+    const regularMembers = useAppStore(s => s.regularMembers)
+    // Kegelname: evening-player nickname, else the roster member's nickname, else the full name
+    const dn = (p: {nickname?: string | null; name: string; regular_member_id?: number | null} | null | undefined): string => {
+        if (!p) return ''
+        const rm = p.regular_member_id != null ? regularMembers.find(m => m.id === p.regular_member_id) : undefined
+        return p.nickname || rm?.nickname || p.name
+    }
     const gameTemplates: GameTemplate[] = useAppStore(s => s.gameTemplates) ?? []
     const user = useAppStore(s => s.user)
     const throwTracking = useThrowTracking()
@@ -111,7 +118,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         const names = ids
             .map(id => players.find(p => p.id === id))
             .filter((p): p is EveningPlayer => Boolean(p))
-            .map(p => p.nickname || p.name)
+            .map(p => dn(p))
         if (names.length <= 2) return names.join(', ')
         return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
     }
@@ -190,7 +197,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             events.push({
                 key: `p-${p.id}`,
                 icon: p.icon,
-                label: `${p.player_name}${count}`,
+                label: `${dn(players.find(pl => pl.id === p.player_id)) || p.player_name}${count}`,
                 time: p.client_timestamp,
                 id: p.id,
                 type: 'penalty',
@@ -208,7 +215,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             })
         }
         return events.sort((a, b) => b.time - a.time).slice(0, 30)
-    }, [evening])
+    }, [evening, players, regularMembers])
 
     // Active game for the strip: show for any open or running game (turn order is useful pre-start too)
     const activeGame: Game | undefined = useMemo(() =>
@@ -643,7 +650,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             if (finishWinnerRef.startsWith('p:')) {
                 const pid = parseInt(finishWinnerRef.slice(2))
                 const wp = evening.players.find(p => p.id === pid)
-                winnerName = wp ? (wp.nickname || wp.name) : finishWinnerRef
+                winnerName = wp ? dn(wp) : finishWinnerRef
             } else if (finishWinnerRef.startsWith('t:')) {
                 const tid = parseInt(finishWinnerRef.slice(2))
                 winnerName = evening.teams.find(t => t.id === tid)?.name ?? finishWinnerRef
@@ -807,7 +814,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 >
                                     <span className="text-xs opacity-80">{t('quickEntry.currentPlayer')}</span>
                                     <span className="text-xs font-extrabold">
-                                        {(currentPlayer?.nickname || currentPlayer?.name) ?? '—'}
+                                        {dn(currentPlayer) || '—'}
                                     </span>
                                 </div>
                                 {/* Next 3 in queue */}
@@ -819,7 +826,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             className="text-xs text-muted px-2 py-0.5 rounded-md border border-line"
                                             style={{background: 'var(--surface)'}}
                                         >
-                                            {p.nickname || p.name}
+                                            {dn(p)}
                                         </span>
                                     )
                                 })}
@@ -848,7 +855,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <div className="flex gap-1.5 overflow-x-auto pb-0.5 items-center no-scrollbar">
                                     {[...liveThrows].reverse().map(th => {
                                         const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
-                                        const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
+                                        const throwerName = throwerPlayer ? dn(throwerPlayer) : null
                                         const isEditing = editingThrowId === th.id
                                         if (isEditing) {
                                             return (
@@ -1091,7 +1098,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button key={p.id} type="button"
                                         className={`chip ${finishWinnerRef === `p:${p.id}` ? 'active' : ''}`}
                                         onClick={() => setFinishWinnerRef(`p:${p.id}`)}>
-                                    {p.nickname || p.name}
+                                    {dn(p)}
                                 </button>
                             ))}
                         </div>
@@ -1117,7 +1124,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     ))
                                     : evening!.players.map(p => (
                                         <div key={`p:${p.id}`} className="flex items-center gap-2">
-                                            <span className="text-xs text-ink flex-1">{p.nickname || p.name}</span>
+                                            <span className="text-xs text-ink flex-1">{dn(p)}</span>
                                             <input
                                                 className="kce-input"
                                                 type="number" min="0"
@@ -1162,7 +1169,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         const total = base + diff * ppp
                                         const label = isTeamGame && p.team_id
                                             ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
-                                            : (p.nickname || p.name)
+                                            : dn(p)
                                         return (
                                             <div key={ref} className="flex justify-between text-xs py-0.5">
                                                 <span className="text-ink">{label}</span>
@@ -1325,7 +1332,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 >
                                     {isCurrent && <span className="text-xs">🎳</span>}
                                     {p.is_king && <span className="text-sm">👑</span>}
-                                    <span className="flex-1 truncate">{p.nickname || p.name}</span>
+                                    <span className="flex-1 truncate">{dn(p)}</span>
                                     {isMe && (
                                         <MeBadge/>
                                     )}
@@ -1458,7 +1465,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 >
                                     <div className="flex items-center gap-1 min-w-0">
                                         {p.is_king && <span className="text-xs">👑</span>}
-                                        <span className="text-xs font-bold text-ink flex-1 truncate">{p.nickname || p.name}</span>
+                                        <span className="text-xs font-bold text-ink flex-1 truncate">{dn(p)}</span>
                                         {isMe && (
                                             <MeBadge/>
                                         )}

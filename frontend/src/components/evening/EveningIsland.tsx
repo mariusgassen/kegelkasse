@@ -1207,6 +1207,23 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     )
 }
 
+/** The plain black pill is only shown while an activity is on; empty, it fades out. */
+function HideWhenEmpty({children}: {children: ReactNode}) {
+    const {activities} = useIsland()
+    const empty = activities.length === 0
+    return (
+        <div
+            style={{
+                opacity: empty ? 0 : 1,
+                pointerEvents: empty ? 'none' : undefined,
+                transition: `opacity ${empty ? '300ms ease 700ms' : '120ms ease'}`,
+            }}
+        >
+            {children}
+        </div>
+    )
+}
+
 export default function EveningIsland({
     eveningId,
     backdrop,
@@ -1218,12 +1235,14 @@ export default function EveningIsland({
 }) {
     return (
         <IslandProvider metrics={HEADER_ISLAND_METRICS}>
-            <Island
-                placement="container"
-                label="Live"
-                backdrop={backdrop}
-                style={{top: -4, zIndex: 40}}
-            />
+            <HideWhenEmpty>
+                <Island
+                    placement="container"
+                    label="Live"
+                    backdrop={backdrop}
+                    style={{top: -4, zIndex: 40}}
+                />
+            </HideWhenEmpty>
             <IslandActivities eveningId={eveningId}/>
             {children}
         </IslandProvider>
