@@ -349,17 +349,26 @@ def report_data(
     def _date_str(v) -> str:
         return _fmt_date(v) if isinstance(v, datetime) else (v.strftime("%d.%m.%Y") if v else "")
 
+    def _acc_month_label(ym, d_):
+        single = len({y for y, _ in d_.account_months}) <= 1
+        label = _MONTH_ABB_DE[ym[1] - 1]
+        return label if single else f"{label} '{ym[0] % 100:02d}"
+
     accounts = []
     for m in d.regular_members:
         pen = d.member_penalty_total(m.id)
         pay = round(d.payments_by_member.get(m.id, 0.0), 2)
-        run, months_bal = 0.0, []
+        run, months_detail = 0.0, []
         for ym in d.account_months:
-            run += d.monthly_pay_by_member[m.id].get(ym, 0.0) - d.monthly_pen_by_member[m.id].get(ym, 0.0)
-            months_bal.append(round(run, 2))
+            pay_m = round(d.monthly_pay_by_member[m.id].get(ym, 0.0), 2)
+            pen_m = round(d.monthly_pen_by_member[m.id].get(ym, 0.0), 2)
+            run += pay_m - pen_m
+            if pay_m or pen_m:
+                months_detail.append({"month": _acc_month_label(ym, d), "payments": pay_m,
+                                      "penalties": pen_m, "balance": round(run, 2)})
         accounts.append({"nickname": _name(m), "name": m.name, "penalties": pen, "payments": pay,
                          "balance": round(pay - pen, 2), "deactivated": m.deactivated_at is not None,
-                         "month_balances": months_bal})
+                         "months": months_detail})
 
     by_person = []
     for m in d.regular_members:
@@ -379,11 +388,6 @@ def report_data(
             "penalties": pen, "payments": pay, "balance": round(pay - pen, 2),
         }
 
-    def _acc_month_label(ym, d_):
-        single = len({y for y, _ in d_.account_months}) <= 1
-        label = _MONTH_ABB_DE[ym[1] - 1]
-        return label if single else f"{label} '{ym[0] % 100:02d}"
-
     logger.info("PDF report data generated: club=%d user=%d year=%s", user.club_id, user.id, year)
     return {
         "club_name": d.club_name,
@@ -398,7 +402,6 @@ def report_data(
             "members": sum(1 for m in d.regular_members if m.deactivated_at is None),
         },
         "accounts": accounts,
-        "account_months": [d._month_label(ym) if ym in d.sorted_months else _acc_month_label(ym, d) for ym in d.account_months],
         "bookings": [
             {"date": _date_str(dt), "type": typ, "description": desc, "amount": amt, "note": note}
             for dt, typ, desc, amt, note in d.booking_rows
@@ -500,6 +503,7 @@ def export_report(
 
     ws2 = wb.create_sheet("Mitglieder-Konten")
     ws2.freeze_panes = "A2"
+    month_names_full = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
     single_acc_year = len({ym[0] for ym in account_months}) <= 1
 
     def _acc_label(ym: tuple[int, int]) -> str:
@@ -551,6 +555,29 @@ def export_report(
         c.font = _TOTAL_FONT
         c.fill = _TOTAL_FILL
     _auto_width(ws2)
+
+    ws2b = wb.create_sheet("Konten pro Monat")
+    ws2b.freeze_panes = "A2"
+    _write_header(ws2b, ["Konto", "Monat", "Einzahlung (€)", "Schulden (€)", "Saldo (€)"])
+    rb = 2
+    for m in regular_members:
+        run, first = 0.0, True
+        for ym in account_months:
+            pay_m = round(monthly_pay_by_member[m.id].get(ym, 0.0), 2)
+            pen_m = round(monthly_pen_by_member[m.id].get(ym, 0.0), 2)
+            run += pay_m - pen_m
+            if not (pay_m or pen_m):
+                continue
+            ws2b.cell(rb, 1, ((m.nickname or m.name) + (" (deaktiviert)" if m.deactivated_at is not None else "")) if first else "")
+            ws2b.cell(rb, 2, f"{month_names_full[ym[1] - 1]} {ym[0]}")
+            for ci, v in ((3, pay_m), (4, pen_m), (5, round(run, 2))):
+                c = ws2b.cell(rb, ci, v)
+                c.number_format = euro_fmt
+                if ci == 5:
+                    c.font = Font(color="FF4444" if v < 0 else "4ADE80")
+            first = False
+            rb += 1
+    _auto_width(ws2b)
 
     # ── Sheet 3: Buchungen ────────────────────────────────────────────────────
 

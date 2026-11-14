@@ -178,24 +178,22 @@ function MonthlyTable({months, rows, tint}: { months: string[]; rows: ReportMont
     )
 }
 
-function AccountMonthsTable({months, accounts, tint}: { months: string[]; accounts: ReportData['accounts']; tint: string }) {
-    const nameW = 96
-    const monthW = Math.min(64, Math.max(36, Math.floor((LANDSCAPE_W - nameW) / Math.max(months.length, 1))))
+function AccountMonthsTable({accounts, tint}: { accounts: ReportData['accounts']; tint: string }) {
     const cols: Col[] = [
-        {w: nameW, head: 'Konto'},
-        ...months.map(m => ({w: monthW, head: m, align: 'right' as const})),
+        {w: 120, head: 'Konto'}, {w: 70, head: 'Monat'},
+        {w: 90, head: 'Einzahlung', align: 'right'}, {w: 90, head: 'Schulden', align: 'right'}, {w: 90, head: 'Saldo', align: 'right'},
     ]
-    const signedNumber = (v: number) => (Math.round(v * 100) > 0 ? '+' : '') + reportNumber(v)
-    return (
-        <DataTable
-            cols={cols}
-            tint={tint}
-            rows={accounts.map(a => ({
-                cells: [a.deactivated ? `${a.nickname} (deakt.)` : a.nickname, ...(a.month_balances ?? []).map(signedNumber)],
-                tones: [a.deactivated ? 'muted' : undefined, ...(a.month_balances ?? []).map(signTone)],
-            }))}
-        />
-    )
+    const rows: { cells: string[]; tones?: (Tone | undefined)[] }[] = []
+    for (const a of accounts) {
+        (a.months ?? []).forEach((m, i) => {
+            rows.push({
+                cells: [i === 0 ? (a.deactivated ? `${a.nickname} (deakt.)` : a.nickname) : '', m.month,
+                    m.payments ? reportEuro(m.payments) : '–', m.penalties ? reportEuro(m.penalties) : '–', reportSigned(m.balance)],
+                tones: [undefined, undefined, m.payments ? 'pos' : 'muted', m.penalties ? 'neg' : 'muted', signTone(m.balance)],
+            })
+        })
+    }
+    return <DataTable cols={cols} tint={tint} rows={rows}/>
 }
 
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
@@ -514,14 +512,14 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                         </Section>
                     </Page>
                 )}
-                {(data.account_months?.length ?? 0) > 0 && (
-                    <Page size={LANDSCAPE} margin={MARGIN}>
+                {data.accounts.some(a => (a.months?.length ?? 0) > 0) && (
+                    <Page size="A4" margin={MARGIN}>
                         {footer}
-                        <Section title="Kontostand pro Monat" accent={accent}>
+                        <Section title="Konten pro Monat" accent={accent}>
                             <Text style={{fontFamily: 'Helvetica', fontSize: 9, color: MUTED, marginBottom: 3}}>
-                                Saldo am Monatsende in € (Einzahlungen − Strafen, kumuliert)
+                                Einzahlung, Schulden und Saldo (kumuliert) am Monatsende
                             </Text>
-                            <AccountMonthsTable months={data.account_months!} accounts={data.accounts} tint={tint}/>
+                            <AccountMonthsTable accounts={data.accounts} tint={tint}/>
                         </Section>
                     </Page>
                 )}

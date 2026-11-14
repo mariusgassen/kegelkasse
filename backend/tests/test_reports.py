@@ -301,10 +301,14 @@ class TestReportDataCapsAndActive:
         db.commit()
         body = client.get("/api/v1/reports/data", headers=admin_headers).json()
         acc = next(a for a in body["accounts"] if a["name"] == "Konto")
-        assert body["account_months"] and len(acc["month_balances"]) == len(body["account_months"])
-        assert acc["month_balances"][-1] == acc["balance"] == -30.0
+        assert acc["months"][-1]["balance"] == acc["balance"] == -30.0
+        assert sum(x["payments"] for x in acc["months"]) == 20.0
+        assert sum(x["penalties"] for x in acc["months"]) == 50.0
         r = client.get("/api/v1/reports/export?format=xlsx", headers=admin_headers)
-        ws = load_workbook(io.BytesIO(r.content))["Mitglieder-Konten"]
+        wb = load_workbook(io.BytesIO(r.content))
+        monthly = [[c.value for c in row] for row in wb["Konten pro Monat"].iter_rows(min_row=2)]
+        assert any(row[0] == "Konto" and row[3] == 50.0 for row in monthly)
+        ws = wb["Mitglieder-Konten"]
         header = [c.value for c in ws[1]]
         assert any(str(h).startswith("Saldo Ende") for h in header)
         assert "Offen (€)" in header
