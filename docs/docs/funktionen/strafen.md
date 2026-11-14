@@ -67,6 +67,20 @@ gefehlt hat** und deshalb nichts eingetragen wurde. Das gilt auch beim *Neuberec
 im Protokoll selbst oft nichts sichtbar ändert. Die Mitglieder- und Gästekonten werden
 anschließend automatisch neu geladen.
 
+## Schnellerfassung am Tablet ⚡
+
+Die Schnellerfassung zeigt beim Buchen sofort, was passiert ist:
+
+- **Zähler auf den Strafen-Knöpfen**: „×3“ heißt, diese Strafe wurde heute schon dreimal vergeben
+- **Aufleuchten**: Die Zeile des Spielers in der Übersicht (rechts) leuchtet kurz auf und zeigt den
+  gebuchten Betrag, z. B. **+0,50 €** (bei Getränken **+🍺** / **+🥃**). So fällt eine Buchung beim
+  falschen Spieler sofort auf
+- **Balken pro Spieler**: Unter jedem Betrag zeigt ein Balken, wie viel der Spieler im Vergleich zum
+  Spitzenreiter des Abends hat (voller Balken = höchste Summe)
+- **Summe zählt hoch**: Die Gesamtsumme unten zählt bei jeder neuen Strafe zum neuen Wert hoch
+
+Die Animationen folgen der Systemeinstellung „Bewegung reduzieren“; Zahl und Betrag sind immer sichtbar.
+
 ## Strafe bearbeiten
 
 1. Tippe auf das **⋮**-Menü der Strafe → **Bearbeiten**

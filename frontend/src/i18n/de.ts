@@ -1490,6 +1490,8 @@ export const de = {
     "quickEntry.gameScore": "Punktestand",
     "quickEntry.newGame": "Neues Spiel",
     "quickEntry.overview": "Übersicht",
+    "quickEntry.bookedTonight": "Heute {n}× gebucht",
+    "quickEntry.drinkTimeline": "Getränkerunden im Verlauf des Abends: {beer} Bier, {shots} Schnaps",
     "quickEntry.totalPenalty": "Σ Strafen",
     "quickEntry.averagePenalty": "Ø Strafen",
     "quickEntry.drinkRound": "Runde",

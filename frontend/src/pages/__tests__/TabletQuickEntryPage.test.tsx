@@ -605,6 +605,70 @@ describe('TabletQuickEntryPage — overview column', () => {
         // Two players have "🍺 1" (Admin + Hansi participated in beer round)
         expect(screen.getAllByText(/🍺 1/).length).toBeGreaterThanOrEqual(2)
     })
+
+    it('counts how often each penalty was booked tonight on its button', async () => {
+        await renderTabletQuickEntry()
+        // Bier: 2 (Admin) + 1 (Hansi); Strafe: 3 (Admin)
+        expect(screen.getByTestId('penalty-count-1')).toHaveTextContent('×3')
+        expect(screen.getByTestId('penalty-count-2')).toHaveTextContent('×3')
+    })
+
+    it('draws a bar per player on a shared scale (top player = full bar)', async () => {
+        await renderTabletQuickEntry()
+        await waitFor(() => {
+            const top = screen.getByTestId('overview-bar-10').querySelector('[data-segment="penalty"]') as HTMLElement
+            const other = screen.getByTestId('overview-bar-11').querySelector('[data-segment="penalty"]') as HTMLElement
+            expect(top.style.width).toBe('100%')
+            expect(parseFloat(other.style.width)).toBeCloseTo((1 / 3.5) * 100, 1)
+        })
+    })
+
+    it('places every drink round on the evening timeline', async () => {
+        await renderTabletQuickEntry()
+        const tl = screen.getByTestId('drink-timeline')
+        expect(tl.querySelectorAll('[data-drink="beer"]')).toHaveLength(1)
+        expect(tl.querySelectorAll('[data-drink="shots"]')).toHaveLength(1)
+    })
+})
+
+describe('TabletQuickEntryPage — booking feedback', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { useAppStore } = await import('@/store/app.ts')
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: null, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValue([] as any)
+        vi.mocked(api.addDrinkRound).mockResolvedValue({} as any)
+    })
+
+    it('lights up the booked player row with the amount', async () => {
+        await renderTabletQuickEntry()
+        expect(screen.queryByTestId('drink-timeline')).not.toBeInTheDocument()
+        fireEvent.click(screen.getAllByText('Hansi')[0])
+        fireEvent.click(screen.getByText(/⚠️ Strafe/))
+        await waitFor(() => {
+            expect(screen.getByTestId('overview-row-11')).toHaveAttribute('data-booked', 'true')
+        })
+        expect(screen.getByTestId('overview-row-11')).toHaveTextContent('+0,50')
+        expect(screen.getByTestId('overview-row-10')).not.toHaveAttribute('data-booked')
+    })
+
+    it('marks drink bookings with the drink icon', async () => {
+        await renderTabletQuickEntry()
+        fireEvent.click(screen.getAllByText('Admin')[0])
+        fireEvent.click(screen.getByText(/🥃 drinks\.shots/))
+        await waitFor(() => {
+            expect(screen.getByTestId('overview-row-10')).toHaveTextContent('+🥃')
+        })
+    })
 })
 
 describe('TabletQuickEntryPage — overview totals (no guest cap, present players only)', () => {

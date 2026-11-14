@@ -24,6 +24,9 @@ import {buildTurnOrder} from '@/lib/turnOrder.ts'
 import type {EveningPlayer, Game, GameTemplate, PenaltyLogEntry, PenaltyType, Team} from '@/types.ts'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
+import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
+import {CountUp} from '@/components/ui/CountUp.tsx'
+import {drinkTimeline, penaltyTypeCounts} from '@/lib/quickEntryVisuals.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -58,6 +61,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const [loadingDrink, setLoadingDrink] = useState<'beer' | 'shots' | null>(null)
     const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
     const [deletingKey, setDeletingKey] = useState<string | null>(null)
+    // Rows that just received a booking light up with a "+0,50 €" chip, so a mistap shows at once.
+    const [booked, setBooked] = useState<{ids: number[]; label: string; key: number} | null>(null)
+    const bookedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    function flashBooked(ids: number[], label: string) {
+        if (bookedTimer.current) clearTimeout(bookedTimer.current)
+        setBooked({ids, label, key: Date.now()})
+        bookedTimer.current = setTimeout(() => setBooked(null), 1800)
+    }
+    useEffect(() => () => { if (bookedTimer.current) clearTimeout(bookedTimer.current) }, [])
 
     // Turn order state (mode comes from the game's turn_mode field)
     const [blockTeamIdx, setBlockTeamIdx] = useState(0)
@@ -216,6 +228,19 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         for (const v of playerOverview.values()) s += v.penaltyEuro
         return s / n
     }, [playerOverview])
+
+    // Shared scale for the per-player bars: the evening's highest total is a full bar.
+    const overviewMaxEuro = useMemo(() => {
+        let m = 0
+        for (const v of playerOverview.values()) m = Math.max(m, v.penaltyEuro)
+        return m
+    }, [playerOverview])
+
+    // How often each penalty was booked tonight — shown as a counter on its button.
+    const typeCounts = useMemo(() => penaltyTypeCounts(evening?.penalty_log ?? []), [evening])
+
+    // Drink rounds on a time axis (first round → now) instead of only a total.
+    const drinksTimeline = useMemo(() => drinkTimeline(evening?.drink_rounds ?? [], Date.now()), [evening])
 
     // Overview column: sort by penalty € descending, alphabetical tiebreak.
     const overviewSortedPlayers = useMemo(() =>
@@ -437,6 +462,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
+            flashBooked(selectedPlayerIds, `+${fe(pt.default_amount)}`)
             setSelectedPlayerIds([])
             setFlashingPenaltyId(pt.id)
             setTimeout(() => setFlashingPenaltyId(null), 800)
@@ -460,6 +486,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
+            flashBooked(selectedPlayerIds, `+${type === 'beer' ? '🍺' : '🥃'}`)
             setSelectedPlayerIds([])
             setFlashingDrink(type)
             setTimeout(() => setFlashingDrink(null), 800)
@@ -1163,6 +1190,40 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 )
                             })}
                         </div>
+                        {drinksTimeline && (
+                            <div className="mt-2" data-testid="drink-timeline">
+                                <div
+                                    role="img"
+                                    aria-label={t('quickEntry.drinkTimeline')
+                                        .replace('{beer}', String(drinksTimeline.points.filter(p => p.type === 'beer').length))
+                                        .replace('{shots}', String(drinksTimeline.points.filter(p => p.type === 'shots').length))}
+                                    className="relative rounded-md"
+                                    style={{height: 28, background: 'var(--surface-2)', border: '1px solid var(--line)'}}
+                                >
+                                    {drinksTimeline.points.map(pt => (
+                                        <span
+                                            key={pt.id}
+                                            data-drink={pt.type}
+                                            className="absolute bottom-0.5 rounded-sm"
+                                            style={{
+                                                left: `clamp(2px, calc(${pt.left}% - 2px), calc(100% - 6px))`,
+                                                width: 4,
+                                                height: `${Math.max(25, (pt.size / drinksTimeline.maxSize) * 85)}%`,
+                                                background: pt.type === 'beer' ? 'var(--accent)' : 'var(--accent-2)',
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex justify-between text-xs text-muted mt-0.5">
+                                    <span>{fTime(drinksTimeline.start)}</span>
+                                    <span className="flex gap-2">
+                                        <span className="flex items-center gap-1"><span aria-hidden className="inline-block w-2 h-2 rounded-full" style={{background: 'var(--accent)'}}/>{t('drinks.beer')}</span>
+                                        <span className="flex items-center gap-1"><span aria-hidden className="inline-block w-2 h-2 rounded-full" style={{background: 'var(--accent-2)'}}/>{t('drinks.shots')}</span>
+                                    </span>
+                                    <span>{fTime(drinksTimeline.end)}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     {penaltyGroups.map(([amount, types]) => (
                         <div key={amount} className="mb-4">
@@ -1184,6 +1245,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             onSelect={() => logPenalty(pt)}
                                         >
                                             {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
+                                            {(typeCounts.get(pt.name) ?? 0) > 0 && (
+                                                <span
+                                                    role="img"
+                                                    className="ml-1.5 px-1.5 rounded-full text-xs align-middle"
+                                                    style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)'}}
+                                                    aria-label={t('quickEntry.bookedTonight').replace('{n}', String(typeCounts.get(pt.name)))}
+                                                    data-testid={`penalty-count-${pt.id}`}
+                                                >
+                                                    ×{typeCounts.get(pt.name)}
+                                                </span>
+                                            )}
                                         </PenaltyPickButton>
                                     )
                                 })}
@@ -1209,16 +1281,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
+                            const justBooked = booked?.ids.includes(p.id) ?? false
                             return (
                                 <div
                                     key={p.id}
+                                    data-testid={`overview-row-${p.id}`}
+                                    data-booked={justBooked || undefined}
+                                    className={justBooked ? 'kce-booked-flash' : undefined}
                                     ref={el => {
                                         if (el) overviewRowRefs.current.set(p.id, el)
                                         else overviewRowRefs.current.delete(p.id)
                                     }}
                                     style={{
+                                        position: 'relative',
                                         background: 'var(--surface-2)',
-                                        border: '1px solid var(--line)',
+                                        border: `1px solid ${justBooked ? 'var(--accent)' : 'var(--line)'}`,
                                         borderRadius: 10,
                                         padding: '6px 8px',
                                         display: 'flex',
@@ -1240,6 +1317,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         {isMe && (
                                             <MeBadge/>
                                         )}
+                                        {justBooked && booked && (
+                                            <span
+                                                key={booked.key}
+                                                className="kce-booked-chip text-xs font-bold px-1.5 rounded-full"
+                                                style={{background: 'var(--accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap'}}
+                                            >
+                                                {booked.label}
+                                            </span>
+                                        )}
                                     </div>
                                     <div style={{
                                         display: 'flex',
@@ -1253,7 +1339,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             color: ov.penaltyEuro > 0 ? 'var(--accent)' : 'var(--muted)',
                                             fontWeight: 700,
                                         }}>
-                                            {fe(ov.penaltyEuro)}
+                                            <CountUp value={ov.penaltyEuro} format={fe}/>
                                         </span>
                                         {ov.gameScore != null && (
                                             <span role="img" aria-label={t('quickEntry.gameScore')}>
@@ -1261,6 +1347,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             </span>
                                         )}
                                     </div>
+                                    <ProportionBar
+                                        segments={[{key: 'penalty', value: ov.penaltyEuro, color: 'var(--accent)'}]}
+                                        total={overviewMaxEuro}
+                                        height={4}
+                                        ariaLabel=""
+                                        data-testid={`overview-bar-${p.id}`}
+                                    />
                                     {(ov.beerCount > 0 || ov.shotsCount > 0) && (
                                         <div style={{
                                             display: 'flex', gap: 6,
@@ -1289,7 +1382,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                             <span>{t('quickEntry.totalPenalty')}</span>
                             <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)'}}>
-                                {fe(overviewTotalEuro)}
+                                <CountUp value={overviewTotalEuro} format={fe} data-testid="overview-total"/>
                             </span>
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
