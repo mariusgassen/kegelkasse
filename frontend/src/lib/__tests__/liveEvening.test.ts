@@ -4,6 +4,9 @@ import {
     currentGameState,
     buildEventFeed,
     eveningTotals,
+    penaltyRanking,
+    penaltyCurve,
+    gameStandings,
 } from '../liveEvening'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry, DrinkRound, GameThrowLog} from '../../types'
 
@@ -246,5 +249,67 @@ describe('eveningTotals', () => {
 
     it('returns zeros for a null evening', () => {
         expect(eveningTotals(null)).toEqual({penaltyEuro: 0, beerRounds: 0, shotRounds: 0, gamesFinished: 0, gamesTotal: 0})
+    })
+})
+
+describe('penaltyRanking', () => {
+    it('ranks present players by uncapped euro total, ignoring absence entries', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi'), player(2, 'Anna'), player(3, 'Bert')],
+            penalty_log: [
+                penalty(1, {player_id: 1, amount: 1}),
+                penalty(2, {player_id: 2, amount: 3, unit_amount: 0.5}),
+                penalty(3, {player_id: 2, amount: 1}),
+                penalty(4, {player_id: null, amount: 9}),
+            ],
+        })
+        expect(penaltyRanking(ev).map(r => [r.player.name, r.euro])).toEqual([['Anna', 2.5], ['Rudi', 1], ['Bert', 0]])
+    })
+
+    it('is empty without an evening', () => {
+        expect(penaltyRanking(null)).toEqual([])
+    })
+})
+
+describe('penaltyCurve', () => {
+    it('is a running sum in time order starting at zero', () => {
+        const ev = evening({penalty_log: [
+            penalty(1, {client_timestamp: 300, amount: 2}),
+            penalty(2, {client_timestamp: 100, amount: 1}),
+        ]})
+        expect(penaltyCurve(ev)).toEqual([{ts: 100, euro: 0}, {ts: 100, euro: 1}, {ts: 300, euro: 3}])
+    })
+
+    it('is empty without penalties', () => {
+        expect(penaltyCurve(evening())).toEqual([])
+    })
+})
+
+describe('gameStandings', () => {
+    it('uses each player\'s latest cumulative, falling back to summed pins', () => {
+        const g = game({throws: [throwLog(1, 5, 1, 5), throwLog(2, 7, 2), throwLog(3, 4, 1, 9), throwLog(4, 2, 2)]})
+        const ev = evening({players: [player(1, 'Rudi'), player(2, 'Anna')], games: [g]})
+        expect(gameStandings(ev, g)).toEqual([
+            {key: 'p:2', name: 'Anna', pins: 9},
+            {key: 'p:1', name: 'Rudi', pins: 9},
+        ])
+    })
+
+    it('sums per team for a team game', () => {
+        const g = game({winner_type: 'team', throws: [throwLog(1, 5, 1), throwLog(2, 7, 2), throwLog(3, 3, 3)]})
+        const ev = evening({
+            players: [player(1, 'Rudi', 10), player(2, 'Anna', 11), player(3, 'Bert', 10)],
+            teams: [{id: 10, name: 'Blau'}, {id: 11, name: 'Rot'}],
+            games: [g],
+        })
+        expect(gameStandings(ev, g)).toEqual([
+            {key: 't:10', name: 'Blau', pins: 8},
+            {key: 't:11', name: 'Rot', pins: 7},
+        ])
+    })
+
+    it('is empty before the first throw', () => {
+        const g = game()
+        expect(gameStandings(evening({games: [g]}), g)).toEqual([])
     })
 })

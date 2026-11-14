@@ -10,9 +10,14 @@
 import {Caption} from '@/components/ui/Caption.tsx'
 import {useT} from '@/i18n'
 import type {Evening} from '@/types.ts'
-import {currentGameState, buildEventFeed, eveningTotals} from '@/lib/liveEvening.ts'
+import {currentGameState, buildEventFeed, eveningTotals, gameStandings, penaltyCurve, penaltyRanking} from '@/lib/liveEvening.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
+import {Area, AreaChart, ResponsiveContainer, YAxis} from 'recharts'
+import {chartAnimation} from '@/lib/motion.ts'
+import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
+import {CountUp} from '@/components/ui/CountUp.tsx'
 import {EventTicker} from './EventTicker.tsx'
+import {LiveRanking} from './LiveRanking.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -31,6 +36,10 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
     const feed = buildEventFeed(evening, {throws: throwTracking, t})
     const totals = eveningTotals(evening)
+    const ranking = penaltyRanking(evening)
+    const curve = penaltyCurve(evening)
+    const standings = throwTracking ? gameStandings(evening, game) : []
+    const standingsMax = standings.reduce((m, r) => Math.max(m, r.pins), 0)
 
     return (
         <div className="page-scroll px-3 py-3 pb-24 space-y-3">
@@ -71,6 +80,23 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                             )}
                         </div>
                     )}
+
+                    {standings.length > 0 && standingsMax > 0 && (
+                        <div className="mt-3 space-y-1.5" data-testid="live-standings">
+                            <Caption>{t('live.standings')}</Caption>
+                            {standings.map(r => (
+                                <div key={r.key} data-testid={`live-standing-${r.key}`}>
+                                    <div className="flex items-center justify-between gap-2 text-sm">
+                                        <span className="truncate font-bold text-ink">{r.name}</span>
+                                        <span className="font-bold text-ink tabular-nums">{r.pins}</span>
+                                    </div>
+                                    <ProportionBar segments={[{key: 'pins', value: r.pins, color: 'var(--accent)'}]}
+                                                   total={standingsMax} height={6}
+                                                   ariaLabel={t('live.pins').replace('{n}', String(r.pins))}/>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ) : (
                 <button onClick={onGoGames}
@@ -83,8 +109,22 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
             {/* ── Stat row ── */}
             <div className="grid grid-cols-4 gap-2">
                 <div className="kce-card p-2.5 text-center">
-                    <div className="font-display font-bold text-base text-ink leading-tight">{fe(totals.penaltyEuro)}</div>
+                    <div className="font-display font-bold text-base text-ink leading-tight">
+                        <CountUp value={totals.penaltyEuro} format={fe}/>
+                    </div>
                     <div className="text-xs text-muted">{t('live.stat.penalties')}</div>
+                    {curve.length >= 3 && (
+                        <div className="mt-1" style={{width: '100%', height: 24}}
+                             role="img" aria-label={t('live.curve')} data-testid="live-curve">
+                            <ResponsiveContainer>
+                                <AreaChart data={curve} margin={{top: 1, right: 0, bottom: 1, left: 0}}>
+                                    <YAxis hide domain={[0, 'dataMax']}/>
+                                    <Area type="stepAfter" dataKey="euro" stroke="var(--accent-fg)" strokeWidth={1.5}
+                                          fill="var(--accent)" fillOpacity={0.15} dot={false} {...chartAnimation()}/>
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
                 </div>
                 <div className="kce-card p-2.5 text-center">
                     <div className="font-display font-bold text-base text-ink leading-tight">🍺 {totals.beerRounds}</div>
@@ -107,6 +147,8 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                 <QuickAction emoji="✨" label={t('live.action.highlight')} onClick={onGoHighlights}/>
                 <QuickAction emoji="🏆" label={t('nav.games')} onClick={onGoGames}/>
             </div>
+
+            <LiveRanking rows={ranking} format={fe}/>
 
             {/* ── Event ticker ── */}
             <div>

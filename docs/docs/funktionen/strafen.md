@@ -143,3 +143,10 @@ Im Strafenprotokoll können Einträge nach **Spieler** und/oder **Spiel** gefilt
 - Nur passende Strafen werden angezeigt
 - Die Zahl in der Überschrift „⚠️ Strafen (N)" zeigt die Anzahl der **gefilterten** Einträge
 - Sobald ein Filter aktiv ist, erscheint zusätzlich eine **Summen-Vorschau** („Summe (Filter): …") mit dem Gesamtbetrag der gerade sichtbaren Strafen (inkl. Gäste-Deckel)
+
+
+### Farbige Spiel-Bänder
+
+Jedes Spiel des Abends bekommt im Protokoll eine eigene Farbe: Start- und Ende-Trenner tragen sie,
+und jede Strafe, die während dieses Spiels gebucht wurde, hat links einen Streifen in derselben
+Farbe. So sieht man beim Scrollen sofort, welche Strafen zu welchem Spiel gehören.
