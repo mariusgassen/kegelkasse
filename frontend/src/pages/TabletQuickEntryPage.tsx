@@ -1325,7 +1325,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 >
                                     {isCurrent && <span className="text-xs">🎳</span>}
                                     {p.is_king && <span className="text-sm">👑</span>}
-                                    <span className="flex-1 truncate">{p.name}</span>
+                                    <span className="flex-1 truncate">{p.nickname || p.name}</span>
                                     {isMe && (
                                         <MeBadge/>
                                     )}
@@ -1458,7 +1458,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 >
                                     <div className="flex items-center gap-1 min-w-0">
                                         {p.is_king && <span className="text-xs">👑</span>}
-                                        <span className="text-xs font-bold text-ink flex-1 truncate">{p.name}</span>
+                                        <span className="text-xs font-bold text-ink flex-1 truncate">{p.nickname || p.name}</span>
                                         {isMe && (
                                             <MeBadge/>
                                         )}
