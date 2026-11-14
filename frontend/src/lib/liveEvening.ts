@@ -337,3 +337,26 @@ export function gameStandings(evening: Evening | null, game: Game | null): Stand
     }
     return rows.sort((a, b) => b.pins - a.pins || a.name.localeCompare(b.name))
 }
+
+/** First game with status `'open'`, ordered by `sort_order`, or `null`. */
+export function nextOpenGame(evening: Evening | null): Game | null {
+    if (!evening || evening.is_closed) return null
+    return (
+        [...evening.games]
+            .filter(g => g.status === 'open')
+            .sort((a, b) => a.sort_order - b.sort_order)[0] ?? null
+    )
+}
+
+/**
+ * Whether a queued open game can be started immediately without opening the setup tab first
+ * (mirrors `GamesPage.tsx`: no other game running, at least one team, and every player assigned).
+ */
+export function canStartGameInEvening(evening: Evening | null): boolean {
+    if (!evening || evening.is_closed) return false
+    if (evening.games.some(g => g.status === 'running')) return false
+    if (evening.teams.length === 0) return false
+    if (evening.players.some(p => p.team_id === null)) return false
+    return true
+}
+

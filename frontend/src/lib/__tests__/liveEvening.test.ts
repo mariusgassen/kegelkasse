@@ -7,6 +7,8 @@ import {
     penaltyRanking,
     penaltyCurve,
     gameStandings,
+    nextOpenGame,
+    canStartGameInEvening,
 } from '../liveEvening'
 import type {Evening, EveningPlayer, Game, PenaltyLogEntry, DrinkRound, GameThrowLog} from '../../types'
 
@@ -376,3 +378,40 @@ describe('gameStandings', () => {
         expect(gameStandings(evening({games: [g]}), g)).toEqual([])
     })
 })
+
+describe('nextOpenGame', () => {
+    it('picks the first open game by sort_order', () => {
+        const ev = evening({
+            games: [
+                game({id: 1, name: 'Done', status: 'finished', sort_order: 0}),
+                game({id: 3, name: 'Second', status: 'open', sort_order: 3}),
+                game({id: 4, name: 'First', status: 'open', sort_order: 2}),
+            ],
+        })
+        expect(nextOpenGame(ev)?.id).toBe(4)
+    })
+
+    it('returns null when evening is null, closed, or has no open games', () => {
+        expect(nextOpenGame(null)).toBeNull()
+        expect(nextOpenGame(evening({is_closed: true, games: [game({status: 'open'})]}))).toBeNull()
+        expect(nextOpenGame(evening({games: [game({status: 'running'})]}))).toBeNull()
+    })
+})
+
+describe('canStartGameInEvening', () => {
+    it('requires open evening, no running game, teams present, and all players assigned', () => {
+        const ok = evening({
+            teams: [{id: 10, name: 'Blau'}],
+            players: [player(1, 'Rudi', 10)],
+            games: [game({status: 'open'})],
+        })
+        expect(canStartGameInEvening(ok)).toBe(true)
+
+        expect(canStartGameInEvening(null)).toBe(false)
+        expect(canStartGameInEvening({...ok, is_closed: true})).toBe(false)
+        expect(canStartGameInEvening({...ok, games: [game({status: 'running'})]})).toBe(false)
+        expect(canStartGameInEvening({...ok, teams: []})).toBe(false)
+        expect(canStartGameInEvening({...ok, players: [player(1, 'Rudi', null)]})).toBe(false)
+    })
+})
+

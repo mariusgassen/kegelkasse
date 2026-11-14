@@ -16,7 +16,7 @@ import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
 import {router} from '@/router'
 import {useEveningList} from '@/hooks/useEvening.ts'
-import {ClubPin, Evening, EveningListItem, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
+import {ClubPin, ClubTeam, Evening, EveningListItem, RegularMember, RsvpEntry, RsvpStatus, ScheduledEvening, ScheduledEveningGuest} from '@/types.ts'
 import {UnplannedAttendanceSheet} from '@/pages/EveningPage.tsx'
 import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
@@ -220,6 +220,11 @@ export function StartEveningSheet({se, onClose, onStarted}: {
         staleTime: 60000,
     })
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, staleTime: 60000})
+    const {data: clubTeams = []} = useQuery<ClubTeam[]>({
+        queryKey: ['club-teams'],
+        queryFn: () => (api.listClubTeams ? api.listClubTeams() : Promise.resolve([])),
+        staleTime: 60000,
+    })
     const pinPenalty = club?.settings?.pin_penalty ?? 0
 
     const activeMembers = regularMembers.filter(
@@ -234,6 +239,7 @@ export function StartEveningSheet({se, onClose, onStarted}: {
     const guestLabels = scheduledGuestLabels(guests, regularMembers)
     const [addingGuest, setAddingGuest] = useState(false)
     const [missingPinIds, setMissingPinIds] = useState<Set<number>>(new Set())
+    const [memberTeams, setMemberTeams] = useState<Record<number, number>>({})
     const [starting, setStarting] = useState(false)
 
     // Initialize attendance and cancellations from RSVPs once loaded
@@ -250,6 +256,12 @@ export function StartEveningSheet({se, onClose, onStarted}: {
             const next = new Set(prev)
             if (next.has(id)) {
                 next.delete(id)
+                setMemberTeams(mt => {
+                    if (!(id in mt)) return mt
+                    const copy = {...mt}
+                    delete copy[id]
+                    return copy
+                })
             } else {
                 next.add(id)
                 // If re-checked, remove from abgesagt
@@ -281,6 +293,31 @@ export function StartEveningSheet({se, onClose, onStarted}: {
         })
     }
 
+    function shuffleSelectedTeams() {
+        if (clubTeams.length === 0) return
+        const ids = Array.from(checkedIds)
+        for (let i = ids.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[ids[i], ids[j]] = [ids[j], ids[i]]
+        }
+        const next: Record<number, number> = {}
+        ids.forEach((id, idx) => {
+            next[id] = clubTeams[idx % clubTeams.length].id
+        })
+        setMemberTeams(next)
+    }
+
+    function selectMemberTeam(memberId: number, clubTeamId: number) {
+        setMemberTeams(prev => {
+            if (prev[memberId] === clubTeamId) {
+                const copy = {...prev}
+                delete copy[memberId]
+                return copy
+            }
+            return {...prev, [memberId]: clubTeamId}
+        })
+    }
+
     async function doStart() {
         setStarting(true)
         try {
@@ -288,8 +325,28 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                 member_ids: Array.from(checkedIds),
             })
             if (ev && ev.id > 0) {
-                // Auto-assign players to club teams (same as ad-hoc flow)
-                try { await api.applyClubTeamsToEvening(ev.id) } catch { /* no templates configured */ }
+                // Apply club team templates, and persist any per-member choices made in the start sheet
+                try {
+                    const withTeams = await api.applyClubTeamsToEvening?.(ev.id, false)
+                    const chosenEntries = Object.entries(memberTeams)
+                    if (withTeams?.teams?.length && withTeams?.players?.length && chosenEntries.length > 0 && api.updatePlayer) {
+                        const eveningTeamByClubId = new Map<number, number>()
+                        clubTeams.forEach((ct, idx) => {
+                            const match = withTeams.teams.find(tm => tm.name === ct.name) ?? withTeams.teams[idx]
+                            if (match) eveningTeamByClubId.set(ct.id, match.id)
+                        })
+                        const updates: Promise<unknown>[] = []
+                        for (const player of withTeams.players) {
+                            if (player.regular_member_id == null) continue
+                            const chosenClubTeamId = memberTeams[player.regular_member_id]
+                            const targetTeamId = chosenClubTeamId != null ? eveningTeamByClubId.get(chosenClubTeamId) : undefined
+                            if (targetTeamId != null) {
+                                updates.push(api.updatePlayer(ev.id, player.id, {team_id: targetTeamId}))
+                            }
+                        }
+                        if (updates.length > 0) await Promise.all(updates)
+                    }
+                } catch { /* no templates configured */ }
                 // Record explicitly cancelled members (allows absence-penalty calc to distinguish them)
                 if (abgesagtIds.size > 0) {
                     await api.markCancelled(ev.id, Array.from(abgesagtIds))
@@ -466,6 +523,46 @@ export function StartEveningSheet({se, onClose, onStarted}: {
                                         </button>
                                     )
                                 })}
+                            </div>
+                        )}
+
+                        {clubTeams.length > 0 && checkedIds.size > 0 && (
+                            <div className="pt-2 border-t border-surface-2" data-testid="start-evening-teams">
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="text-xs font-extrabold text-muted uppercase tracking-wider">
+                                        🤝 {t('team.setup')}
+                                    </div>
+                                    <Button variant="secondary" size="xs" onClick={shuffleSelectedTeams}>
+                                        🎲 {t('team.shuffle')}
+                                    </Button>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                                    {sortedMembers.filter(m => checkedIds.has(m.id)).map(m => (
+                                        <div key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                                            <span className="truncate text-ink">{m.nickname || m.name}</span>
+                                            <div className="flex flex-wrap justify-end gap-1">
+                                                {clubTeams.map(ct => {
+                                                    const active = memberTeams[m.id] === ct.id
+                                                    return (
+                                                        <button
+                                                            key={ct.id}
+                                                            type="button"
+                                                            onClick={() => selectMemberTeam(m.id, ct.id)}
+                                                            className={[
+                                                                'px-2 py-0.5 rounded-full text-xs font-bold transition-colors',
+                                                                active
+                                                                    ? 'bg-accent text-on-accent'
+                                                                    : 'bg-surface-2 text-muted hover:text-ink',
+                                                            ].join(' ')}
+                                                        >
+                                                            {ct.name}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 

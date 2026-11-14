@@ -26,6 +26,7 @@ im Abend-Bereich. Er fasst das Geschehen des Abends auf einen Blick zusammen und
 bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
 
 - **Schnellerfassung als Hauptansicht (⚡)**: Direkt im Live-Reiter als prominente Aktionskarte sowie dauerhaft als hervorgehobener **⚡ Schnellerfassung**-Knopf in der Abend-Reiterleiste erreichbar.
+- **Warnung bei fehlendem Spiel & Team-Auswahl direkt zum Start**: Läuft noch kein Spiel, weist eine auffällige Warnkarte direkt auf den Spielstart hin. Zu Abendbeginn (beim Starten auf der **Termine**-Seite mit Vorlagen oder direkt oben im Live-Modus, solange noch Teams/Zuweisungen fehlen oder kein Spiel gestartet wurde) lassen sich Teams direkt per Vorlage, Zufalls-Mix oder Antippen je Spieler festlegen.
 - **Anzeigetafel**: das gerade laufende Spiel sowie – nur bei eingeschalteter Wurf-Erfassung –
   wer am Zug ist, wer als Nächstes wirft, der letzte Wurf und der **Spielstand** als Balken pro
   Spieler bzw. Team (Holz).
@@ -49,7 +50,8 @@ gewohnt zuerst das Protokoll.
 
 Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der Schnellerfassung sichtbar):
 
-- **Laufender Abend & Spiel-Timer**: zeigt die Strafensumme bzw. die laufende Spielzeit (`m:ss`); langes Drücken klappt Lokal, aktuelles Spiel / Spieler am Zug sowie Kasse, Bier- und Schnapsrunden auf; Antippen springt direkt zum Abend.
+- **Laufender Abend & Spiel-Timer**: zeigt die laufende Spielzeit (`m:ss`), solange ein Spiel läuft; läuft bei geöffnetem Abend gerade **kein Spiel**, wechselt die Insel in einen auffälligen **orangenen Warnzustand** (Warn-Icon + **„Kein Spiel“** bzw. **`!`** in der Seitenblase), damit sofort auffällt, dass noch ein Spiel gestartet werden sollte. Langes Drücken klappt Lokal, aktuelles Spiel / Spieler am Zug sowie Kasse, Bier- und Schnapsrunden auf – bzw. im Warnzustand direkt den hervorgehobenen Knopf zum Spielstart; Antippen springt direkt zum Abend.
+- **Im Ruhezustand (kein aktiver Abend)**: statt einer leeren Notch zeigt die Insel den **nächsten geplanten Termin** (Datum/Uhrzeit, farbig nach deinem RSVP-Status — aufgeklappt mit **1-Tipp-Zu-/Absage** und deinem aktuellen Kassenstand), fällt ohne kommenden Termin auf deinen **persönlichen Kassenstand** zurück (Tipp/Klick führt zu deinem Konto) oder verlinkt auf die **Termine-Übersicht**.
 - **Schnellerfassungs-Ereignisse**: beim Buchen von Strafen und Getränkerunden, beim Stornieren sowie beim Starten/Beenden eines Spiels zeigt die Insel sofort eine kurze Live-Quittung (z. B. Strafe, Spieler und Betrag).
 - **König & Alle Neune**: kurze Feier-Einblendung direkt in der Insel.
 - **Foto-Uploads & Offline-Warteschlange**: zeigt laufende Datei-Uploads sowie ausstehende Offline-Buchungen (mit **Jetzt synchronisieren**-Knopf, sobald wieder Verbindung besteht).
@@ -134,4 +136,4 @@ Das Löschen eines Abends ist endgültig und entfernt alle Spiele, Strafen und G
 
 ## Live-Insel
 
-Solange ein Abend läuft, zeigt die App oben eine kleine „Dynamic Island“: kompakt 🎳 und den laufenden Spiel-Timer bzw. die Strafensumme. Gedrückt halten klappt sie auf (Lokal, laufendes Spiel — bei aktiver Wurferfassung auch mit dem Spieler am Zug —, Strafensumme sowie Bier- und Schnapsrunden); ein kurzer Tipp öffnet den Abend. Auch App-Updates und Hinweise auf neue Versionen erscheinen dort. Sie ist nur sichtbar, solange die App geöffnet ist.
+Solange ein Abend läuft, zeigt die App oben eine kleine „Dynamic Island“: kompakt 🎳 und die laufende Spielzeit bzw. Strafensumme. Gedrückt halten klappt sie auf (Lokal, laufendes Spiel — bei aktiver Wurferfassung auch mit dem Spieler am Zug —, Strafensumme sowie Bier- und Schnapsrunden, oder einen direkten Spiel-Start-Knopf, falls noch kein Spiel läuft); ein kurzer Tipp öffnet den Abend. Außerhalb eines Abends zeigt sie den nächsten geplanten Termin (mit 1-Tipp-Zu-/Absage im aufgeklappten Zustand) oder deinen persönlichen Kassenstand; auch App-Updates und Hinweise auf neue Versionen erscheinen dort. Sie ist nur innerhalb der App sichtbar, solange diese geöffnet ist.

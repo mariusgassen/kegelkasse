@@ -6,22 +6,24 @@
  * live/time-taking work and app-level notices:
  *   1. Running evening & active game timer (`id: 'evening'`) — compact: bowling glyph + game timer or pot;
  *      expanded: venue, running game (+ active player when throw tracking is enabled), and `MetricRow`
- *      for pot + beer/shot rounds.
- *   2. König & Alle-Neune moments (`id: 'celebration'`, `priority: 2`, `alert: true`) — brief alerting
+ *      for pot + beer/shot rounds (or a quick-start game button when no game is running yet).
+ *   2. Idle status when no evening is running (`id: 'idle-status'`, `priority: -1`) — next scheduled
+ *      evening with 1-tap RSVP & balance badge, personal treasury balance fallback, or schedule shortcut.
+ *   3. König & Alle-Neune moments (`id: 'celebration'`, `priority: 2`, `alert: true`) — brief alerting
  *      takeover when `celebrate()` fires.
- *   3. Media uploads (`id: 'upload'`, `priority: 1`) — live spinner while `uploadMedia()` runs, brief
+ *   4. Quick-entry booking events (`id: 'quick-entry'`, `priority: 2`) — instant penalty, drink round,
+ *      undo, and game start/finish receipts.
+ *   5. Media uploads (`id: 'upload'`, `priority: 1`) — live spinner while `uploadMedia()` runs, brief
  *      check mark on completion.
- *   4. Offline queue & background sync (`id: 'offline-sync'`, `priority: 1`) — pending mutation count,
+ *   6. Offline queue & background sync (`id: 'offline-sync'`, `priority: 1`) — pending mutation count,
  *      category breakdown, and a "Sync now" `IslandButton` when back online.
- *   5. Incoming payment-request approvals (`id: 'payment-request-<rid>'`, `group: 'payment-requests'`) —
+ *   7. Incoming payment-request approvals (`id: 'payment-request-<rid>'`, `group: 'payment-requests'`) —
  *      treasurer confirm/reject actions directly from the expanded island.
- *   6. Quick-entry booking events (`id: 'quick-entry'`, `priority: 2`) — penalty, drink round, undo,
- *      and game start/finish feedback.
- *   7. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
+ *   8. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
  */
-import {type ReactNode, useEffect, useRef, useState} from 'react'
+import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {BowlingPinsIcon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
+import {Alert02Icon, BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
 import {
     api,
     flushOfflineQueue,
@@ -33,10 +35,20 @@ export const SYNC_STARTED_EVENT = 'kegelkasse:sync-started'
 import {router} from '@/router'
 import {useT, t as tStatic} from '@/i18n'
 import {useThrowTracking} from '@/hooks/useClub.ts'
-import {currentGameState, eveningTotals} from '@/lib/liveEvening.ts'
+import {canStartGameInEvening, currentGameState, eveningTotals, nextOpenGame} from '@/lib/liveEvening.ts'
+import {
+    deriveIdleIslandMode,
+    formatEurCompact,
+    formatEurFull,
+    formatScheduleCompact,
+    formatScheduleFull,
+    todayLocalKey,
+    type IdleIslandMode,
+} from '@/lib/islandIdle.ts'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
+import {useAppStore} from '@/store/app.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -60,15 +72,19 @@ import {Spinner} from '@/components/islandcn/spinner'
 import {IslandButton} from '@/components/islandcn/island-button'
 import {islandAccent, islandInk} from '@/components/islandcn/theme'
 import {formatClock, TickingTime} from '@/components/islandcn/ticking-time'
+import type {RsvpStatus} from '@/types.ts'
 
 const EVENING_ID = 'evening'
+const IDLE_STATUS_ID = 'idle-status'
 const CELEBRATE_ID = 'celebration'
 const QUICK_ENTRY_ID = 'quick-entry'
 const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
 
+const AlertGlyph = glyphFrom('AlertGlyph', Alert02Icon)
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
+const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
 const CrownGlyph = glyphFrom('CrownGlyph', CrownIcon, {parts: 'fill'})
 const CloudSyncGlyph = glyphFrom('CloudSyncGlyph', CloudIcon, {parts: 'fill'})
 const WalletGlyph = glyphFrom('WalletGlyph', Wallet01Icon)
@@ -93,6 +109,8 @@ function EveningActivity({eveningId}: {eveningId: number}) {
     const t = useT()
     const island = useIslandActions()
     const throwTracking = useThrowTracking()
+    const queryClient = useQueryClient()
+    const [startingGame, setStartingGame] = useState(false)
     // Observe only — the evening hub owns fetching/SSE. `enabled: false` never triggers a request.
     const {data: evening} = useQuery({
         queryKey: ['evening', eveningId],
@@ -104,6 +122,8 @@ function EveningActivity({eveningId}: {eveningId: number}) {
     const totals = eveningTotals(open)
     const {game, activePlayer} = currentGameState(open)
     const turnName = throwTracking && activePlayer ? (activePlayer.nickname || activePlayer.name) : null
+    const openGame = nextOpenGame(open)
+    const canStart = canStartGameInEvening(open)
 
     const startMs = game?.started_at ? Date.parse(game.started_at) : NaN
     const timed = Number.isFinite(startMs)
@@ -124,36 +144,59 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         const gameChanged = prevGameId.current !== undefined && prevGameId.current !== (game?.id ?? null)
         prevGameId.current = game?.id ?? null
 
-        const leadingGlyph = <Glyph icon={BowlingGlyph} color={ACCENT}/>
+        const handleStartGame = async (gid: number) => {
+            if (startingGame) return
+            setStartingGame(true)
+            try {
+                await api.startGame(open.id, gid)
+                await queryClient.invalidateQueries({queryKey: ['evening', open.id]})
+            } catch (e) {
+                toastError(e)
+            } finally {
+                setStartingGame(false)
+            }
+        }
+
+        const noGame = !game
+        const eveningColor = noGame ? islandAccent.orange : ACCENT
+        const leadingGlyph = <Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor}/>
         const moneyNode = (
-            <CompactText color={ACCENT}>
+            <CompactText color={eveningColor}>
                 <NumberText value={money}/>
             </CompactText>
         )
         const content = {
-            label: `${t('island.label')}: ${venue}, ${money}`,
+            label: noGame
+                ? `${t('island.label')}: ${venue}, ${t('island.noGame')}, ${money}`
+                : `${t('island.label')}: ${venue}, ${money}`,
             onPress: () => { router.navigate({to: '/evening'}).catch(() => {}) },
             compact: {
                 leading: leadingGlyph,
-                // In the attached pill, show the live game timer when a game is running, or the pot.
-                // In the 62pt split capsule (~20pt trailing room), drop the wide trailing text so the
-                // capsule stays a clean round icon bubble instead of clipping with an ellipsis.
+                // In the attached pill, show the live game timer when a game is running, an orange
+                // "No game" warning when an evening is open without an active game, or the pot.
                 trailing: (
                     <BubbleForm bubble={null}>
                         {timed ? (
                             <CompactText color={ACCENT}>
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
+                        ) : noGame ? (
+                            <CompactText color={islandAccent.orange}>{t('island.noGameShort')}</CompactText>
                         ) : (
                             moneyNode
                         )}
                     </BubbleForm>
                 ),
             },
-            minimal: <MinimalPair leading={leadingGlyph} trailing={moneyNode}/>,
+            minimal: (
+                <MinimalPair
+                    leading={leadingGlyph}
+                    trailing={noGame ? <CompactText color={islandAccent.orange}>!</CompactText> : moneyNode}
+                />
+            ),
             expanded: {
                 leading: (
-                    <SensorRow glyph={<Glyph icon={BowlingGlyph} color={ACCENT} size={18}/>}>
+                    <SensorRow glyph={<Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor} size={18}/>}>
                         <ContextLabel>{t('island.shortLabel')}</ContextLabel>
                     </SensorRow>
                 ),
@@ -163,12 +206,14 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                             <CompactText color={ACCENT}>
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
-                        ) : totals.gamesTotal > 0 ? (
+                        ) : game && totals.gamesTotal > 0 ? (
                             <Caption>{`${totals.gamesFinished}/${totals.gamesTotal}`}</Caption>
-                        ) : null}
+                        ) : (
+                            moneyNode
+                        )}
                     </SensorRow>
                 ),
-                bottom: (
+                bottom: game ? (
                     <ExpandedBottom reach="inset" gap={8}>
                         <TitleStack title={venue} subtitle={gameLine}/>
                         <MetricRow
@@ -178,6 +223,34 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                                 {label: `🥃 ${t('drinks.shots')}`, value: <NumberText value={totals.shotRounds}/>},
                             ]}
                         />
+                    </ExpandedBottom>
+                ) : (
+                    <ExpandedBottom reach="action" gap={10}>
+                        <TitleStack
+                            title={venue}
+                            subtitle={`${gameLine} · 🍺 ${totals.beerRounds} · 🥃 ${totals.shotRounds}`}
+                        />
+                        {openGame && canStart ? (
+                            <IslandButton
+                                size="compact"
+                                disabled={startingGame}
+                                tone={{kind: 'accent', color: islandAccent.orange}}
+                                onPress={() => { handleStartGame(openGame.id).catch(() => {}) }}
+                            >
+                                {`▶ ${openGame.name}`}
+                            </IslandButton>
+                        ) : (
+                            <IslandButton
+                                size="compact"
+                                tone={{kind: 'accent', color: islandAccent.orange}}
+                                onPress={() => {
+                                    island.collapse()
+                                    router.navigate({to: '/evening', search: {tab: 'games'}}).catch(() => {})
+                                }}
+                            >
+                                {t('island.startGame')}
+                            </IslandButton>
+                        )}
                     </ExpandedBottom>
                 ),
             },
@@ -190,13 +263,18 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         }
     }, [
         island,
+        queryClient,
         open,
         money,
         gameLine,
         venue,
         timed,
         startMs,
-        game?.id,
+        game,
+        openGame?.id,
+        openGame?.name,
+        canStart,
+        startingGame,
         totals.beerRounds,
         totals.shotRounds,
         totals.gamesFinished,
@@ -650,10 +728,319 @@ function QuickEntryActivity() {
     return null
 }
 
+// ── 7. Idle status (next scheduled evening / personal balance / schedule shortcut) ────────────
+
+function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
+    const t = useT()
+    const island = useIslandActions()
+    const queryClient = useQueryClient()
+    const user = useAppStore(s => s.user)
+    const rmid = user?.regular_member_id ?? null
+    const locale = user?.preferred_locale ?? 'de'
+    const isLoggedIn = !!user
+    const [rsvpBusy, setRsvpBusy] = useState(false)
+    const prevKind = useRef<IdleIslandMode['kind'] | null>(null)
+
+    const {data: evening} = useQuery({
+        queryKey: ['evening', eveningId ?? 0],
+        queryFn: () => api.getEvening(eveningId!),
+        enabled: false,
+    })
+    const eveningActiveOrLoading = eveningId != null && eveningId > 0 && (!evening || !evening.is_closed)
+
+    const {data: schedules} = useQuery({
+        queryKey: ['schedule'],
+        queryFn: api.listScheduledEvenings,
+        enabled: isLoggedIn && !eveningActiveOrLoading,
+        staleTime: 60_000,
+    })
+    const {data: myBalance} = useQuery({
+        queryKey: ['my-balance'],
+        queryFn: api.getMyBalance,
+        enabled: isLoggedIn && !eveningActiveOrLoading && rmid != null,
+        staleTime: 60_000,
+    })
+
+    const todayKey = todayLocalKey()
+    const mode = useMemo(
+        () => deriveIdleIslandMode({
+            hasOpenEvening: eveningActiveOrLoading,
+            isLoggedIn,
+            schedules,
+            todayKey,
+            regularMemberId: rmid,
+            myBalance,
+        }),
+        [eveningActiveOrLoading, isLoggedIn, schedules, todayKey, rmid, myBalance],
+    )
+
+    useEffect(() => {
+        if (!mode) {
+            prevKind.current = null
+            island.end(IDLE_STATUS_ID)
+            return
+        }
+        const kindChanged = prevKind.current !== null && prevKind.current !== mode.kind
+        prevKind.current = mode.kind
+
+        if (mode.kind === 'schedule') {
+            const ap = mode.appointment
+            const rsvpColor = ap.my_rsvp === 'attending'
+                ? islandAccent.green
+                : ap.my_rsvp === 'absent'
+                    ? islandInk.secondary
+                    : islandAccent.orange
+            const compactTime = formatScheduleCompact(ap.scheduled_at, todayKey, locale, {
+                today: t('island.today'),
+                tomorrow: t('island.tomorrow'),
+                inDays: (n) => t('island.inDays').replace('{n}', String(n)),
+            })
+            const fullDate = formatScheduleFull(ap.scheduled_at, locale)
+            const rsvpText = ap.my_rsvp === 'attending'
+                ? t('island.rsvp.attending')
+                : ap.my_rsvp === 'absent'
+                    ? t('island.rsvp.absent')
+                    : t('island.rsvp.open')
+            const subtitle = [
+                ap.venue,
+                ap.attending_count > 0 ? `✅ ${ap.attending_count}` : null,
+                rsvpText,
+            ].filter(Boolean).join(' · ')
+
+            const handleRsvp = async (status: RsvpStatus) => {
+                if (rsvpBusy) return
+                setRsvpBusy(true)
+                try {
+                    await api.setRsvp(ap.id, status)
+                    await queryClient.invalidateQueries({queryKey: ['schedule']})
+                } catch (e) {
+                    toastError(e)
+                } finally {
+                    setRsvpBusy(false)
+                }
+            }
+
+            const leadingGlyph = <Glyph icon={CalendarGlyph} color={rsvpColor}/>
+            const compactTrailing = <CompactText color={rsvpColor}>{compactTime}</CompactText>
+            const balanceColor = mode.balanceState === 'owed' ? islandAccent.red : islandAccent.green
+
+            const content = {
+                label: `${t('island.nextEvening')}: ${fullDate}${ap.venue ? `, ${ap.venue}` : ''}`,
+                onPress: () => { router.navigate({to: '/schedule', search: {evening: ap.id}}).catch(() => {}) },
+                compact: {
+                    leading: leadingGlyph,
+                    trailing: <BubbleForm bubble={null}>{compactTrailing}</BubbleForm>,
+                },
+                minimal: <MinimalPair leading={leadingGlyph} trailing={compactTrailing}/>,
+                expanded: {
+                    leading: (
+                        <SensorRow glyph={<Glyph icon={CalendarGlyph} color={rsvpColor} size={18}/>}>
+                            <ContextLabel>{t('island.nextEvening')}</ContextLabel>
+                        </SensorRow>
+                    ),
+                    trailing: mode.balance != null ? (
+                        <SensorRow align="end">
+                            <CompactText color={balanceColor}>
+                                <NumberText value={formatEurCompact(mode.balance)}/>
+                            </CompactText>
+                        </SensorRow>
+                    ) : ap.attending_count > 0 ? (
+                        <SensorRow align="end">
+                            <Caption>{`✅ ${ap.attending_count}`}</Caption>
+                        </SensorRow>
+                    ) : undefined,
+                    bottom: (
+                        <ExpandedBottom reach="action" gap={10}>
+                            <TitleStack title={fullDate} subtitle={subtitle}/>
+                            <div style={{display: 'flex', gap: 10}}>
+                                {ap.my_rsvp !== 'attending' ? (
+                                    <IslandButton
+                                        size="compact"
+                                        disabled={rsvpBusy}
+                                        tone={{kind: 'accent', color: islandAccent.green}}
+                                        onPress={() => { handleRsvp('attending').catch(() => {}) }}
+                                    >
+                                        {t('home.rsvp.accept')}
+                                    </IslandButton>
+                                ) : (
+                                    <IslandButton
+                                        size="compact"
+                                        disabled={rsvpBusy}
+                                        onPress={() => { handleRsvp('absent').catch(() => {}) }}
+                                    >
+                                        {t('home.rsvp.decline')}
+                                    </IslandButton>
+                                )}
+                                {ap.my_rsvp == null ? (
+                                    <IslandButton
+                                        size="compact"
+                                        disabled={rsvpBusy}
+                                        onPress={() => { handleRsvp('absent').catch(() => {}) }}
+                                    >
+                                        {t('home.rsvp.decline')}
+                                    </IslandButton>
+                                ) : (
+                                    <IslandButton
+                                        size="compact"
+                                        onPress={() => {
+                                            island.collapse()
+                                            router.navigate({to: '/schedule', search: {evening: ap.id}}).catch(() => {})
+                                        }}
+                                    >
+                                        {t('nav.schedule')}
+                                    </IslandButton>
+                                )}
+                            </div>
+                        </ExpandedBottom>
+                    ),
+                },
+            }
+
+            if (kindChanged) {
+                island.update(IDLE_STATUS_ID, {...content, priority: -1, transition: 'crossfade'})
+            } else {
+                island.start({id: IDLE_STATUS_ID, priority: -1, ...content})
+            }
+            return
+        }
+
+        if (mode.kind === 'balance') {
+            const balanceColor = mode.balanceState === 'owed' ? islandAccent.red : islandAccent.green
+            const compactAmount = formatEurCompact(mode.balance)
+            const fullAmount = formatEurFull(mode.balance)
+            const statusLabel = t(
+                mode.balanceState === 'owed'
+                    ? 'home.balance.owed'
+                    : mode.balanceState === 'credit'
+                        ? 'home.balance.credit'
+                        : 'home.balance.settled',
+            )
+            const leadingGlyph = <Glyph icon={WalletGlyph} color={balanceColor}/>
+            const compactTrailing = (
+                <CompactText color={balanceColor}>
+                    <NumberText value={compactAmount}/>
+                </CompactText>
+            )
+            const openTreasury = () => {
+                router.navigate({
+                    to: '/treasury',
+                    search: {tab: 'accounts', ...(rmid != null ? {member: rmid} : {})},
+                }).catch(() => {})
+            }
+
+            const content = {
+                label: `${t('profile.myBalance')}: ${fullAmount}`,
+                onPress: openTreasury,
+                compact: {
+                    leading: leadingGlyph,
+                    trailing: <BubbleForm bubble={null}>{compactTrailing}</BubbleForm>,
+                },
+                minimal: <MinimalPair leading={leadingGlyph} trailing={compactTrailing}/>,
+                expanded: {
+                    leading: (
+                        <SensorRow glyph={<Glyph icon={WalletGlyph} color={balanceColor} size={18}/>}>
+                            <ContextLabel>{t('profile.myBalance')}</ContextLabel>
+                        </SensorRow>
+                    ),
+                    trailing: (
+                        <SensorRow align="end">
+                            <CompactText color={balanceColor}>{statusLabel}</CompactText>
+                        </SensorRow>
+                    ),
+                    bottom: (
+                        <ExpandedBottom reach="action" gap={10}>
+                            <TitleStack
+                                title={<NumberText value={fullAmount}/>}
+                                subtitle={t('island.noUpcomingEvening')}
+                            />
+                            <div style={{display: 'flex', gap: 10}}>
+                                <IslandButton
+                                    size="compact"
+                                    onPress={() => {
+                                        island.collapse()
+                                        router.navigate({to: '/schedule'}).catch(() => {})
+                                    }}
+                                >
+                                    {t('nav.schedule')}
+                                </IslandButton>
+                                <IslandButton
+                                    size="compact"
+                                    tone={{kind: 'accent', color: balanceColor}}
+                                    onPress={() => {
+                                        island.collapse()
+                                        openTreasury()
+                                    }}
+                                >
+                                    {t('nav.treasury')}
+                                </IslandButton>
+                            </div>
+                        </ExpandedBottom>
+                    ),
+                },
+            }
+
+            if (kindChanged) {
+                island.update(IDLE_STATUS_ID, {...content, priority: -1, transition: 'crossfade'})
+            } else {
+                island.start({id: IDLE_STATUS_ID, priority: -1, ...content})
+            }
+            return
+        }
+
+        const leadingGlyph = <Glyph icon={CalendarGlyph} color={ACCENT}/>
+        const shortNode = <CompactText color={ACCENT}>{t('island.idleShort')}</CompactText>
+        const content = {
+            label: `${t('island.idleShort')}: ${t('island.idleHint')}`,
+            onPress: () => { router.navigate({to: '/schedule'}).catch(() => {}) },
+            compact: {
+                leading: leadingGlyph,
+                trailing: <BubbleForm bubble={null}>{shortNode}</BubbleForm>,
+            },
+            minimal: <MinimalPair leading={leadingGlyph} trailing={shortNode}/>,
+            expanded: {
+                leading: (
+                    <SensorRow glyph={<Glyph icon={CalendarGlyph} color={ACCENT} size={18}/>}>
+                        <ContextLabel>{t('nav.schedule')}</ContextLabel>
+                    </SensorRow>
+                ),
+                bottom: (
+                    <ExpandedBottom reach="action" gap={10}>
+                        <TitleStack
+                            title={t('home.noAppointment')}
+                            subtitle={t('island.idleHint')}
+                        />
+                        <IslandButton
+                            size="compact"
+                            tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                            onPress={() => {
+                                island.collapse()
+                                router.navigate({to: '/schedule'}).catch(() => {})
+                            }}
+                        >
+                            {t('nav.schedule')}
+                        </IslandButton>
+                    </ExpandedBottom>
+                ),
+            },
+        }
+
+        if (kindChanged) {
+            island.update(IDLE_STATUS_ID, {...content, priority: -1, transition: 'crossfade'})
+        } else {
+            island.start({id: IDLE_STATUS_ID, priority: -1, ...content})
+        }
+    }, [island, queryClient, mode, todayKey, locale, rmid, rsvpBusy, t])
+
+    useEffect(() => () => island.end(IDLE_STATUS_ID), [island])
+
+    return null
+}
+
 export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     return (
         <>
             {eveningId != null && eveningId > 0 && <EveningActivity eveningId={eveningId}/>}
+            <IdleStatusActivity eveningId={eveningId}/>
             <CelebrationActivity/>
             <QuickEntryActivity/>
             <UploadActivity/>

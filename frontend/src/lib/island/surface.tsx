@@ -551,7 +551,8 @@ const srOnly: CSSProperties = {
 };
 
 const surfaceCss = `
-[data-islandcn-hit]{position:absolute;top:0;left:0;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+[data-islandcn],[data-islandcn] *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+[data-islandcn-hit]{position:absolute;top:0;left:0;margin:0;padding:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 [data-islandcn-hit]:focus{outline:none}
 [data-islandcn-hit]:focus-visible{outline:2px solid #0a84ff;outline-offset:3px}
 [data-islandcn-fit]{overflow-x:clip}
@@ -2099,6 +2100,7 @@ export const IslandSurface = (props: IslandSurfaceProps) => {
       data-islandcn=""
       data-presentation={presentation.kind}
       className={props.className}
+      onContextMenu={(event) => event.preventDefault()}
       style={{
         position: props.placement === "viewport" ? "fixed" : "absolute",
         top: 0,

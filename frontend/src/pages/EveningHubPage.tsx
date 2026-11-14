@@ -190,6 +190,8 @@ export function EveningHubPage() {
                             onQuickEntry={(evening.players.length ?? 0) > 0 ? () => setQuickEntryOpen(true) : undefined}
                             onGoHighlights={() => setSubTab('highlights')}
                             onGoGames={() => setSubTab('games')}
+                            onGoManage={() => setSubTab('manage')}
+                            onUpdated={invalidate}
                         />
                     </div>
                 )}
