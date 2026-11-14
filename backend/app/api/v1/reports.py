@@ -676,23 +676,39 @@ def export_report(
     ws5.freeze_panes = "A2"
     _write_header(ws5, ["Datum", "Abend", "Mitglied", "Strafen-Typ", "Modus", "Anzahl", "Betrag (€)"])
 
-    for log in penalty_logs:
+    def _ev_sort(log):
+        ev_ = evening_by_id.get(log.evening_id)
+        return (ev_.date.replace(tzinfo=None) if ev_ and ev_.date else datetime.min, log.evening_id or 0, log.id or 0)
+
+    ri5 = 2
+    prev_ev = object()
+    logs_sorted = sorted(penalty_logs, key=_ev_sort)
+    for log in logs_sorted:
         ev = evening_by_id.get(log.evening_id)
+        if log.evening_id != prev_ev:
+            total_ev = round(sum(_penalty_euro(x) for x in logs_sorted if x.evening_id == log.evening_id), 2)
+            for ci in range(1, 8):
+                ws5.cell(ri5, ci).fill = _TOTAL_FILL
+                ws5.cell(ri5, ci).font = _TOTAL_FONT
+            ws5.cell(ri5, 1, _fmt_date(ev.date) if ev else "")
+            ws5.cell(ri5, 2, (ev.venue or "Kegelabend") if ev else "Ohne Abend")
+            ws5.cell(ri5, 7, total_ev).number_format = '#,##0.00 "€"'
+            ri5 += 1
+            prev_ev = log.evening_id
         if log.player_id is not None:
             ep = player_by_id.get(log.player_id)
             member_name = ep.name if ep else log.player_name or ""
         else:
             m = member_by_id.get(log.regular_member_id) if log.regular_member_id else None
             member_name = (m.nickname or m.name) if m else (log.player_name or "")
-        ws5.cell(ws5.max_row + 1 if ws5.max_row > 1 else 2, 1)
-        row_idx = ws5.max_row if ws5.max_row > 1 else 2
-        ws5.cell(row_idx, 1, _fmt_date(ev.date) if ev else "")
-        ws5.cell(row_idx, 2, ev.venue or "" if ev else "")
-        ws5.cell(row_idx, 3, member_name)
-        ws5.cell(row_idx, 4, log.penalty_type_name or "")
-        ws5.cell(row_idx, 5, log.mode or "")
-        ws5.cell(row_idx, 6, int(log.amount) if log.mode == "count" else "")
-        ws5.cell(row_idx, 7, round(_penalty_euro(log), 2)).number_format = '#,##0.00 "€"'
+        ws5.cell(ri5, 1, _fmt_date(ev.date) if ev else "")
+        ws5.cell(ri5, 2, ev.venue or "" if ev else "")
+        ws5.cell(ri5, 3, member_name)
+        ws5.cell(ri5, 4, log.penalty_type_name or "")
+        ws5.cell(ri5, 5, log.mode or "")
+        ws5.cell(ri5, 6, int(log.amount) if log.mode == "count" else "")
+        ws5.cell(ri5, 7, round(_penalty_euro(log), 2)).number_format = '#,##0.00 "€"'
+        ri5 += 1
 
     _auto_width(ws5)
 

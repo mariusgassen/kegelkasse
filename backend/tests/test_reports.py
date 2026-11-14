@@ -330,6 +330,9 @@ class TestReportDataCapsAndActive:
         ws = wb["Mitglieder-Konten"]
         header = [c.value for c in ws[1]]
         assert any(str(h).startswith("Saldo Ende") for h in header)
+        rows5 = [[c.value for c in row] for row in wb["Strafen nach Abend"].iter_rows(min_row=2)]
+        # one heading row per evening carrying its total (column G), then the penalties
+        assert rows5[0][6] == 50.0 and rows5[0][2] is None
         assert "Offen (€)" in header
 
     def test_guest_cap_only_applies_from_the_exit_on(self, client, admin_headers, db, club):
