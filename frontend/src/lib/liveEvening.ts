@@ -14,6 +14,7 @@
  * happened".
  */
 import type {Evening, EveningPlayer, Game} from '../types'
+import { gameBandIndex } from './protocolTimeline'
 import {buildTurnOrder} from './turnOrder'
 
 /** Euro value of a penalty log entry (count-mode = count × unit_amount, euro-mode = amount). */
@@ -78,7 +79,7 @@ export function currentGameState(evening: Evening | null): LiveGameState {
     return {game, activePlayer, nextPlayer, lastThrow}
 }
 
-export type LiveEventKind = 'penalty' | 'drink' | 'highlight' | 'throw'
+export type LiveEventKind = 'penalty' | 'drink' | 'highlight' | 'throw' | 'game_started' | 'game_finished'
 
 /** Pin count that makes a throw a milestone worth its own ticker entry ("Alle Neune"). */
 export const ALL_NINE = 9
@@ -94,6 +95,8 @@ export interface LiveEvent {
     subtitle: string | null
     /** Euro amount for penalties; null otherwise. */
     amount: number | null
+    /** Game colour-band index when the event falls within / belongs to a game. */
+    band?: number | null
 }
 
 export interface EventFeedOptions {
@@ -113,9 +116,9 @@ export interface EventFeedOptions {
 }
 
 /**
- * Build the chronological event ticker (newest first) from penalties, drink rounds, highlights and
- * — when `throws` is set — milestone throws. Capped at `limit`. Player/participant names use the
- * Kegelname convention.
+ * Build the chronological event ticker (newest first) from penalties, drink rounds, highlights,
+ * game start/finish markers, and — when `throws` is set — milestone throws. Capped at `limit`.
+ * Player/participant names use the Kegelname convention.
  */
 export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions = {}): LiveEvent[] {
     const {limit = 30, throws = false, t} = opts
@@ -124,6 +127,7 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
     const events: LiveEvent[] = []
 
     for (const p of evening.penalty_log) {
+        const isAbsence = p.player_id === null && p.penalty_type_name === 'Abwesenheit'
         events.push({
             kind: 'penalty',
             key: `penalty-${p.id}`,
@@ -132,6 +136,7 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
             title: p.player_name,
             subtitle: p.penalty_type_name,
             amount: penaltyEuro(p.unit_amount, p.amount),
+            band: isAbsence ? null : gameBandIndex(evening.games, p.client_timestamp, p.game_id),
         })
     }
 
@@ -150,6 +155,7 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
                 : (d.drink_type === 'shots' ? 'Schnaps' : 'Bier')),
             subtitle: names.length > 0 ? names.join(', ') : null,
             amount: null,
+            band: gameBandIndex(evening.games, d.client_timestamp, null),
         })
     }
 
@@ -163,7 +169,41 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
             title: h.text || (h.media_url ? '📷' : '✨'),
             subtitle: null,
             amount: null,
+            band: Number.isNaN(ts) ? null : gameBandIndex(evening.games, ts, null),
         })
+    }
+
+    for (const g of evening.games) {
+        if (g.started_at) {
+            const startTs = Date.parse(g.started_at)
+            if (!Number.isNaN(startTs)) {
+                events.push({
+                    kind: 'game_started',
+                    key: `gs-${g.id}`,
+                    ts: startTs,
+                    icon: '▶',
+                    title: g.name,
+                    subtitle: null,
+                    amount: null,
+                    band: gameBandIndex(evening.games, startTs, g.id),
+                })
+            }
+        }
+        if (g.finished_at) {
+            const finishTs = Date.parse(g.finished_at)
+            if (!Number.isNaN(finishTs)) {
+                events.push({
+                    kind: 'game_finished',
+                    key: `gf-${g.id}`,
+                    ts: finishTs,
+                    icon: '🏁',
+                    title: g.name,
+                    subtitle: g.winner_name || null,
+                    amount: null,
+                    band: gameBandIndex(evening.games, finishTs, g.id),
+                })
+            }
+        }
     }
 
     if (throws) {
@@ -183,6 +223,7 @@ export function buildEventFeed(evening: Evening | null, opts: EventFeedOptions =
                     title: thrower ? displayName(thrower) : g.name,
                     subtitle: null,
                     amount: null,
+                    band: gameBandIndex(evening.games, ts, g.id),
                 })
             }
         }

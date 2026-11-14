@@ -26,7 +26,7 @@ import {MeBadge} from '@/components/ui/MemberBadges.tsx'
 import {Button} from '@/components/ui/Button.tsx'
 import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {CountUp} from '@/components/ui/CountUp.tsx'
-import {drinkTimeline, penaltyTypeCounts} from '@/lib/quickEntryVisuals.ts'
+import {drinkTimeline} from '@/lib/quickEntryVisuals.ts'
 import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 
 function fe(v: number) {
@@ -280,9 +280,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         for (const v of playerOverview.values()) m = Math.max(m, v.penaltyEuro)
         return m
     }, [playerOverview])
-
-    // How often each penalty was booked tonight — shown as a counter on its button.
-    const typeCounts = useMemo(() => penaltyTypeCounts(evening?.penalty_log ?? []), [evening])
 
     // Drink rounds on a time axis (first round → now) instead of only a total.
     const drinksTimeline = useMemo(() => drinkTimeline(evening?.drink_rounds ?? [], Date.now()), [evening])
@@ -687,9 +684,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Shared button style helpers
     function penaltyBtnStyle(isFlashing: boolean) {
         return {
-            background: isFlashing ? 'rgba(34,197,94,0.15)' : 'var(--surface-2)',
-            borderColor: isFlashing ? '#16a34a' : 'var(--line)',
-            color: isFlashing ? '#86efac' : 'var(--ink)',
+            background: isFlashing ? 'var(--positive-tint)' : 'var(--surface-2)',
+            borderColor: isFlashing ? 'var(--positive)' : 'var(--line)',
+            color: isFlashing ? 'var(--positive-fg)' : 'var(--ink)',
         }
     }
 
@@ -702,353 +699,396 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             display: 'flex',
             flexDirection: 'column',
         }}>
-            {/* ── Header — full-width sticky game zone ── */}
-            <div
+            {/* ── Header — 2-Tier Island-Safe Sticky Zone ── */}
+            <header
                 className="flex-shrink-0"
                 style={{
                     background: 'var(--surface)',
                     borderBottom: '1px solid var(--line)',
                     paddingTop: 'max(env(safe-area-inset-top), 8px)',
-                    paddingBottom: '6px',
+                    paddingBottom: '8px',
                     paddingLeft: 'max(env(safe-area-inset-left), 12px)',
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
-                {/* Row 1: close (left) + center stage reserved for Dynamic Island + primary actions (right) */}
-                <div className="min-h-11 flex flex-wrap items-center justify-between gap-2">
-                    <div className="order-1 flex items-center">
+                {/* Tier 1: Symmetrical wings flanking the open center stage reserved for Dynamic Island */}
+                <div className="min-h-11 flex items-center justify-between gap-2">
+                    {/* Left wing: thumb-friendly Close button + subtle Quick Entry badge on desktop */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
                         <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
                             ✕
                         </Button>
                     </div>
-                    {activeGame ? (
-                        <>
-                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
-                                <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
+
+                    {/* Center stage: kept completely clear so the centered Dynamic Island never collides */}
+                    <div className="flex-1 min-w-[140px] pointer-events-none" aria-hidden="true"/>
+
+                    {/* Right wing: primary game action CTA */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {activeGame?.status === 'open' && (
+                            <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
+                                ▶ {t('game.start')}
+                            </Button>
+                        )}
+                        {activeGame?.status === 'running' && (
+                            <Button
+                                type="button"
+                                variant={finishGameOpen ? 'primary' : 'secondary'}
+                                size="xs"
+                                onClick={() => setFinishGameOpen(f => !f)}
+                            >
+                                🏁 {t('quickEntry.finishGame')}
+                            </Button>
+                        )}
+                        {!activeGame && !showNewGame && (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="xs"
+                                onClick={() => setShowNewGame(true)}
+                            >
+                                ＋ {t('quickEntry.newGame')}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Tier 2: Unified Game Cockpit & Mode Strip */}
+                {activeGame ? (
+                    <div
+                        className="mt-1.5 rounded-xl border border-line px-3 py-2 flex flex-col gap-2"
+                        style={{background: 'var(--surface-2)'}}
+                    >
+                        {/* Game identity & mode row */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                <span className="text-xs font-extrabold text-accent truncate">
                                     🎳 {activeGame.name}
                                     {activeGame.status === 'open' && (
-                                        <span style={{fontSize: 12, color: 'var(--muted)', fontWeight: 'normal', marginLeft: 4}}>
+                                        <span className="text-xs font-normal text-muted ml-1">
                                             (offen)
                                         </span>
                                     )}
                                 </span>
                                 {activeGame.turn_mode && (
-                                    <span style={{
-                                        fontSize: 12, padding: '1px 6px',
-                                        borderRadius: 6, border: '1px solid var(--line)',
-                                        color: 'var(--muted)', background: 'var(--surface-2)',
-                                    }}>
+                                    <span
+                                        className="text-xs px-2 py-0.5 rounded-md border border-line text-muted font-medium"
+                                        style={{background: 'var(--surface)'}}
+                                    >
                                         {t(`game.turnMode.${activeGame.turn_mode}` as any)}
                                     </span>
                                 )}
                             </div>
-                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
-                            <div className="order-2 sm:order-3 flex items-center">
-                                {activeGame.status === 'open' && (
-                                    <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
-                                        ▶ {t('game.start')}
-                                    </Button>
-                                )}
-                                {activeGame.status === 'running' && (
-                                    <Button type="button" variant="secondary" size="xs"
-                                            onClick={() => setFinishGameOpen(f => !f)}>
-                                        🏁 {t('quickEntry.finishGame')}
-                                    </Button>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
-                                <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
-                            </div>
-                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
-                            <div className="order-2 sm:order-3 flex items-center">
-                                {!showNewGame && (
-                                    <Button type="button" variant="secondary" size="xs"
-                                            onClick={() => setShowNewGame(true)}>
-                                        ＋ {t('quickEntry.newGame')}
-                                    </Button>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Teams required warning — every game needs teams set up on the evening first */}
-                {activeGame && teams.length === 0 && (
-                    <div style={{
-                        marginTop: 6, padding: '4px 8px',
-                        background: 'rgba(239,68,68,0.1)',
-                        borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)',
-                        display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                        <span style={{fontSize: 12}}>⚠️</span>
-                        <span style={{fontSize: 12, color: '#fca5a5'}}>{t('game.teamsRequired')}</span>
-                    </div>
-                )}
-
-                {/* Unassigned-players warning — teams exist but not all players are on one */}
-                {activeGame && teams.length > 0 && unassignedPlayers.length > 0 && (
-                    <div style={{
-                        marginTop: 6, padding: '4px 8px',
-                        background: 'var(--accent-tint)',
-                        borderRadius: 6, border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)',
-                        display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                        <span style={{fontSize: 12}}>⚠️</span>
-                        <span style={{fontSize: 12, color: 'var(--accent)'}}>
-                            {unassignedPlayers.length} {t('team.playersUnassigned')}
-                        </span>
-                    </div>
-                )}
-
-                {/* Row 2: turn order — current + queue + switch/advance (camera/throw-tracking feature) */}
-                {throwTracking && activeGame && turnOrder.length > 0 && (
-                    <div style={{
-                        marginTop: 6,
-                        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-                    }}>
-                        {/* Current player badge */}
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: 4,
-                            background: 'var(--accent)',
-                            borderRadius: 8, padding: '3px 8px',
-                        }}>
-                            <span style={{fontSize: 12, color: 'rgba(255,255,255,0.7)'}}>{t('quickEntry.currentPlayer')}</span>
-                            <span style={{fontSize: 12, fontWeight: 'bold', color: '#fff'}}>
-                                {(currentPlayer?.nickname || currentPlayer?.name) ?? '—'}
+                            <span className="text-xs font-semibold text-muted">
+                                ⚡ {t('quickEntry.title')}
                             </span>
                         </div>
-                        {/* Next 3 in queue */}
-                        {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
-                            const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
-                            return (
-                                <span key={i} style={{
-                                    fontSize: 12, color: 'var(--muted)',
-                                    background: 'var(--surface-2)',
-                                    borderRadius: 6, padding: '2px 6px',
-                                    border: '1px solid var(--line)',
-                                }}>
-                                    {p.nickname || p.name}
-                                </span>
-                            )
-                        })}
-                        <div style={{flex: 1, minWidth: 0}}/>
-                        {/* Block mode: switch team */}
-                        {gameTurnMode === 'block' && teams.length >= 1 && (
-                            <Button type="button" variant="primary" size="xs" onClick={switchTeam}>
-                                ⇄ {t('quickEntry.switchTeam')}
-                                {teams.length > 1 && (
-                                    <span style={{opacity: 0.75, marginLeft: 4}}>
-                                        → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
-                                    </span>
-                                )}
-                            </Button>
-                        )}
-                        {/* Manual advance */}
-                        <Button type="button" variant="secondary" size="xs" onClick={advanceTurn}>
-                            {t('quickEntry.advanceTurn')} ▶
-                        </Button>
-                    </div>
-                )}
 
-                {/* Row 3: throw history strip + heatmap toggle */}
-                {throwTracking && activeGame && liveThrows.length > 0 && (
-                    <div style={{marginTop: 6}}>
-                        <div style={{display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, alignItems: 'center'}} className="no-scrollbar">
-                            {[...liveThrows].reverse().map(th => {
-                                const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
-                                const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
-                                const isEditing = editingThrowId === th.id
-                                if (isEditing) {
-                                    return (
-                                        <div key={th.id} style={{
-                                            display: 'flex', alignItems: 'center', gap: 4,
-                                            background: 'color-mix(in srgb, var(--accent) 12%, var(--surface-2))',
-                                            borderRadius: 6, padding: '3px 6px',
-                                            flexShrink: 0,
-                                            border: '1px solid var(--accent)',
-                                        }}>
-                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>#{th.throw_num}</span>
-                                            <input
-                                                type="number" min="0" max="9"
-                                                value={editPins}
-                                                onChange={e => setEditPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
-                                                style={{
-                                                    width: 36, fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold',
-                                                    padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--surface)', border: '1px solid var(--accent)',
-                                                    color: 'var(--accent)', textAlign: 'center',
-                                                }}
-                                            />
-                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>Σ</span>
-                                            <input
-                                                type="number" min="0"
-                                                value={editCumulative ?? ''}
-                                                placeholder="—"
-                                                onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
-                                                style={{
-                                                    width: 44, fontSize: 12, fontFamily: 'monospace',
-                                                    padding: '1px 4px', borderRadius: 4,
-                                                    background: 'var(--surface)', border: '1px solid var(--line)',
-                                                    color: 'var(--ink)', textAlign: 'center',
-                                                }}
-                                            />
-                                            <button
-                                                type="button"
-                                                disabled={savingEditId === th.id}
-                                                aria-label={t('action.save')}
-                                                style={{fontSize: 14, color: '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
-                                                onClick={() => activeGame && handleSaveEdit(activeGame.id)}
-                                            >✓</button>
-                                            <button
-                                                type="button"
-                                                aria-label={t('action.cancel')}
-                                                style={{fontSize: 13, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
-                                                onClick={cancelEdit}
-                                            >✕</button>
-                                        </div>
-                                    )
-                                }
-                                return (
-                                    <div key={th.id} style={{
-                                        display: 'flex', alignItems: 'center', gap: 3,
-                                        background: 'var(--surface-2)',
-                                        borderRadius: 6, padding: '2px 4px 2px 6px',
-                                        flexShrink: 0,
-                                        border: '1px solid var(--line)',
-                                    }}>
-                                        <span style={{fontSize: 12, color: 'var(--muted)'}}>#{th.throw_num}</span>
-                                        {throwerName && (
-                                            <span style={{fontSize: 12, color: 'var(--accent)', fontWeight: 'bold'}}>
-                                                {throwerName}
-                                            </span>
-                                        )}
-                                        <span style={{
-                                            fontSize: 13, fontFamily: 'monospace',
-                                            fontWeight: 'bold', color: 'var(--accent)',
-                                        }}>
-                                            {th.pins}
-                                        </span>
-                                        {th.cumulative !== null && (
-                                            <span style={{fontSize: 12, color: 'var(--muted)'}}>
-                                                Σ{th.cumulative}
-                                            </span>
-                                        )}
-                                        {isAdmin(user) && (
-                                            <button
-                                                type="button"
-                                                style={{fontSize: 12, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32}}
-                                                aria-label={t('quickEntry.editThrow')}
-                                                onClick={() => startEdit(th)}
-                                            >✎</button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            disabled={voidingThrowId === th.id}
-                                            style={{
-                                                fontSize: 13, color: 'var(--danger-fg)',
-                                                background: 'none', border: 'none',
-                                                cursor: 'pointer', padding: 8, minWidth: 32, minHeight: 32,
-                                                opacity: voidingThrowId === th.id ? 0.4 : 1,
-                                            }}
-                                            aria-label={t('quickEntry.voidThrow')}
-                                            onClick={() => activeGame && handleVoidThrow(activeGame.id, th.id)}
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                            {/* Heatmap toggle */}
-                            {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
-                                <Button
-                                    type="button"
-                                    variant="secondary" size="xs"
-                                    aria-label={t('quickEntry.heatmap')}
-                                    aria-pressed={showHeatmap}
-                                    style={{flexShrink: 0, fontSize: 12, marginLeft: 2}}
-                                    onClick={() => setShowHeatmap(h => !h)}
+                        {/* Teams required warning — every game needs teams set up on the evening first */}
+                        {teams.length === 0 && (
+                            <div
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+                                style={{
+                                    background: 'var(--danger-tint)',
+                                    border: '1px solid color-mix(in srgb, var(--danger) 35%, transparent)',
+                                    color: 'var(--danger-fg)',
+                                }}
+                            >
+                                <span>⚠️</span>
+                                <span>{t('game.teamsRequired')}</span>
+                            </div>
+                        )}
+
+                        {/* Unassigned-players warning — teams exist but not all players are on one */}
+                        {teams.length > 0 && unassignedPlayers.length > 0 && (
+                            <div
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+                                style={{
+                                    background: 'var(--accent-tint)',
+                                    border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)',
+                                    color: 'var(--accent-fg)',
+                                }}
+                            >
+                                <span>⚠️</span>
+                                <span>
+                                    {unassignedPlayers.length} {t('team.playersUnassigned')}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Turn order — current + queue + switch/advance (camera/throw-tracking feature) */}
+                        {throwTracking && turnOrder.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-line">
+                                {/* Current player badge */}
+                                <div
+                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                                    style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
                                 >
-                                    🎯
+                                    <span className="text-xs opacity-80">{t('quickEntry.currentPlayer')}</span>
+                                    <span className="text-xs font-extrabold">
+                                        {(currentPlayer?.nickname || currentPlayer?.name) ?? '—'}
+                                    </span>
+                                </div>
+                                {/* Next 3 in queue */}
+                                {turnOrder.length > 1 && Array.from({length: 3}, (_, i) => {
+                                    const p = turnOrder[(currentTurnIdx + i + 1) % turnOrder.length]
+                                    return (
+                                        <span
+                                            key={i}
+                                            className="text-xs text-muted px-2 py-0.5 rounded-md border border-line"
+                                            style={{background: 'var(--surface)'}}
+                                        >
+                                            {p.nickname || p.name}
+                                        </span>
+                                    )
+                                })}
+                                <div className="flex-1 min-w-0"/>
+                                {/* Block mode: switch team */}
+                                {gameTurnMode === 'block' && teams.length >= 1 && (
+                                    <Button type="button" variant="primary" size="xs" onClick={switchTeam}>
+                                        ⇄ {t('quickEntry.switchTeam')}
+                                        {teams.length > 1 && (
+                                            <span className="opacity-75 ml-1">
+                                                → {teams[(blockTeamIdx + 1) % teams.length]?.name ?? ''}
+                                            </span>
+                                        )}
+                                    </Button>
+                                )}
+                                {/* Manual advance */}
+                                <Button type="button" variant="secondary" size="xs" onClick={advanceTurn}>
+                                    {t('quickEntry.advanceTurn')} ▶
                                 </Button>
-                            )}
-                        </div>
-                        {/* Pin heatmap */}
-                        {showHeatmap && (() => {
-                            const throwsWithPins = liveThrows.filter(th => th.pin_states && th.pin_states.length === 9)
-                            const counts = Array(9).fill(0)
-                            for (const th of throwsWithPins) {
-                                for (let i = 0; i < 9; i++) {
-                                    if (th.pin_states[i]) counts[i]++
-                                }
-                            }
-                            const maxCount = Math.max(...counts, 1)
-                            const PIN_POS: [number, number][] = [
-                                [0.50, 0.10],
-                                [0.30, 0.30], [0.70, 0.30],
-                                [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
-                                [0.30, 0.70], [0.70, 0.70],
-                                [0.50, 0.90],
-                            ]
-                            return (
-                                <div style={{marginTop: 6, display: 'flex', alignItems: 'center', gap: 10}}>
-                                    <div style={{position: 'relative', width: 80, height: 70, flexShrink: 0}}>
-                                        {PIN_POS.map(([px, py], i) => {
-                                            const ratio = counts[i] / maxCount
-                                            const bg = ratio === 0
-                                                ? 'transparent'
-                                                : `color-mix(in srgb, var(--accent) ${Math.round(ratio * 100)}%, var(--surface-2))`
+                            </div>
+                        )}
+
+                        {/* Throw history strip + heatmap toggle */}
+                        {throwTracking && liveThrows.length > 0 && (
+                            <div className="pt-1.5 border-t border-line">
+                                <div className="flex gap-1.5 overflow-x-auto pb-0.5 items-center no-scrollbar">
+                                    {[...liveThrows].reverse().map(th => {
+                                        const throwerPlayer = th.player_id ? players.find(p => p.id === th.player_id) : null
+                                        const throwerName = throwerPlayer ? (throwerPlayer.nickname || throwerPlayer.name) : null
+                                        const isEditing = editingThrowId === th.id
+                                        if (isEditing) {
                                             return (
-                                                <div key={i} style={{
-                                                    position: 'absolute',
-                                                    left: `${px * 100}%`, top: `${py * 100}%`,
-                                                    transform: 'translate(-50%, -50%)',
-                                                    width: 18, height: 18, borderRadius: '50%',
-                                                    background: bg,
-                                                    border: `2px solid ${ratio > 0 ? 'var(--accent)' : '#555'}`,
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                }}>
-                                                    {counts[i] > 0 && (
-                                                        <span style={{fontSize: 12, fontWeight: 'bold', color: ratio > 0.5 ? '#000' : 'var(--accent)'}}>
-                                                            {counts[i]}
-                                                        </span>
-                                                    )}
+                                                <div
+                                                    key={th.id}
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg flex-shrink-0"
+                                                    style={{
+                                                        background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))',
+                                                        border: '1px solid var(--accent)',
+                                                    }}
+                                                >
+                                                    <span className="text-xs text-muted">#{th.throw_num}</span>
+                                                    <input
+                                                        type="number" min="0" max="9"
+                                                        value={editPins}
+                                                        onChange={e => setEditPins(Math.min(9, Math.max(0, parseInt(e.target.value) || 0)))}
+                                                        className="w-9 text-xs font-mono font-bold px-1 py-0.5 rounded text-center"
+                                                        style={{
+                                                            background: 'var(--surface)',
+                                                            border: '1px solid var(--accent)',
+                                                            color: 'var(--accent)',
+                                                        }}
+                                                    />
+                                                    <span className="text-xs text-muted">Σ</span>
+                                                    <input
+                                                        type="number" min="0"
+                                                        value={editCumulative ?? ''}
+                                                        placeholder="—"
+                                                        onChange={e => setEditCumulative(e.target.value ? parseInt(e.target.value) : null)}
+                                                        className="w-11 text-xs font-mono px-1 py-0.5 rounded text-center"
+                                                        style={{
+                                                            background: 'var(--surface)',
+                                                            border: '1px solid var(--line)',
+                                                            color: 'var(--ink)',
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingEditId === th.id}
+                                                        aria-label={t('action.save')}
+                                                        style={{
+                                                            fontSize: 14,
+                                                            color: 'var(--positive-fg)',
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: 8,
+                                                            minWidth: 32,
+                                                            minHeight: 32,
+                                                        }}
+                                                        onClick={() => activeGame && handleSaveEdit(activeGame.id)}
+                                                    >✓</button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label={t('action.cancel')}
+                                                        style={{
+                                                            fontSize: 13,
+                                                            color: 'var(--muted)',
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: 8,
+                                                            minWidth: 32,
+                                                            minHeight: 32,
+                                                        }}
+                                                        onClick={cancelEdit}
+                                                    >✕</button>
                                                 </div>
                                             )
-                                        })}
-                                    </div>
-                                    <div style={{fontSize: 12, color: 'var(--muted)'}}>
-                                        {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
-                                    </div>
+                                        }
+                                        return (
+                                            <div
+                                                key={th.id}
+                                                className="flex items-center gap-1 px-2 py-0.5 rounded-lg flex-shrink-0 border border-line"
+                                                style={{background: 'var(--surface)'}}
+                                            >
+                                                <span className="text-xs text-muted">#{th.throw_num}</span>
+                                                {throwerName && (
+                                                    <span className="text-xs font-bold text-accent">
+                                                        {throwerName}
+                                                    </span>
+                                                )}
+                                                <span className="text-xs font-mono font-bold text-accent">
+                                                    {th.pins}
+                                                </span>
+                                                {th.cumulative !== null && (
+                                                    <span className="text-xs text-muted">
+                                                        Σ{th.cumulative}
+                                                    </span>
+                                                )}
+                                                {isAdmin(user) && (
+                                                    <button
+                                                        type="button"
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: 'var(--muted)',
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: 8,
+                                                            minWidth: 32,
+                                                            minHeight: 32,
+                                                        }}
+                                                        aria-label={t('quickEntry.editThrow')}
+                                                        onClick={() => startEdit(th)}
+                                                    >✎</button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    disabled={voidingThrowId === th.id}
+                                                    style={{
+                                                        fontSize: 13,
+                                                        color: 'var(--danger-fg)',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        padding: 8,
+                                                        minWidth: 32,
+                                                        minHeight: 32,
+                                                        opacity: voidingThrowId === th.id ? 0.4 : 1,
+                                                    }}
+                                                    aria-label={t('quickEntry.voidThrow')}
+                                                    onClick={() => activeGame && handleVoidThrow(activeGame.id, th.id)}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
+                                    {/* Heatmap toggle */}
+                                    {liveThrows.some(th => th.pin_states && th.pin_states.length === 9) && (
+                                        <Button
+                                            type="button"
+                                            variant="secondary" size="xs"
+                                            aria-label={t('quickEntry.heatmap')}
+                                            aria-pressed={showHeatmap}
+                                            style={{flexShrink: 0, fontSize: 12, marginLeft: 2}}
+                                            onClick={() => setShowHeatmap(h => !h)}
+                                        >
+                                            🎯
+                                        </Button>
+                                    )}
                                 </div>
-                            )
-                        })()}
+                                {/* Pin heatmap */}
+                                {showHeatmap && (() => {
+                                    const throwsWithPins = liveThrows.filter(th => th.pin_states && th.pin_states.length === 9)
+                                    const counts = Array(9).fill(0)
+                                    for (const th of throwsWithPins) {
+                                        for (let i = 0; i < 9; i++) {
+                                            if (th.pin_states[i]) counts[i]++
+                                        }
+                                    }
+                                    const maxCount = Math.max(...counts, 1)
+                                    const PIN_POS: [number, number][] = [
+                                        [0.50, 0.10],
+                                        [0.30, 0.30], [0.70, 0.30],
+                                        [0.10, 0.50], [0.50, 0.50], [0.90, 0.50],
+                                        [0.30, 0.70], [0.70, 0.70],
+                                        [0.50, 0.90],
+                                    ]
+                                    return (
+                                        <div className="mt-2 flex items-center gap-3">
+                                            <div style={{position: 'relative', width: 80, height: 70, flexShrink: 0}}>
+                                                {PIN_POS.map(([px, py], i) => {
+                                                    const ratio = counts[i] / maxCount
+                                                    const bg = ratio === 0
+                                                        ? 'transparent'
+                                                        : `color-mix(in srgb, var(--accent) ${Math.round(ratio * 100)}%, var(--surface-2))`
+                                                    return (
+                                                        <div key={i} style={{
+                                                            position: 'absolute',
+                                                            left: `${px * 100}%`, top: `${py * 100}%`,
+                                                            transform: 'translate(-50%, -50%)',
+                                                            width: 18, height: 18, borderRadius: '50%',
+                                                            background: bg,
+                                                            border: `2px solid ${ratio > 0 ? 'var(--accent)' : 'var(--line)'}`,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        }}>
+                                                            {counts[i] > 0 && (
+                                                                <span style={{
+                                                                    fontSize: 12,
+                                                                    fontWeight: 'bold',
+                                                                    color: ratio > 0.5 ? 'var(--on-accent)' : 'var(--accent)',
+                                                                }}>
+                                                                    {counts[i]}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                            <div className="text-xs text-muted">
+                                                {t('quickEntry.heatmapHint').replace('{n}', String(throwsWithPins.length))}
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="font-bold text-accent-fg text-xs sm:text-sm">⚡ {t('quickEntry.title')}</span>
                     </div>
                 )}
 
                 {/* Drawer: finish game panel */}
                 {finishGameOpen && activeGame && (
-                    <div style={{
-                        marginTop: 6,
-                        padding: '10px 12px',
-                        background: 'var(--surface-2)',
-                        borderRadius: 10,
-                        border: '1px solid var(--line)',
-                    }}>
-                        <div style={{
-                            fontSize: 12, fontWeight: 'bold',
-                            color: 'var(--ink)', marginBottom: 8,
-                        }}>
+                    <div
+                        className="mt-2 p-3 rounded-xl border border-line"
+                        style={{background: 'var(--surface-2)'}}
+                    >
+                        <div className="text-xs font-bold text-ink mb-2">
                             🏁 {activeGame.name} — {t('quickEntry.selectWinner')}
                             {lastThrow?.cumulative != null && (
-                                <span style={{color: 'var(--muted)', fontWeight: 'normal', marginLeft: 8}}>
-                                    {t('quickEntry.gameScore')}: <strong style={{color: 'var(--ink)'}}>{lastThrow.cumulative}</strong>
+                                <span className="text-muted font-normal ml-2">
+                                    {t('quickEntry.gameScore')}: <strong className="text-ink">{lastThrow.cumulative}</strong>
                                 </span>
                             )}
                         </div>
-                        <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8}}>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
                             {activeGame.winner_type === 'team' && evening!.teams.map(team => (
                                 <button key={team.id} type="button"
                                         className={`chip ${finishWinnerRef === `t:${team.id}` ? 'active' : ''}`}
@@ -1065,15 +1105,15 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                             ))}
                         </div>
                         {/* Score inputs */}
-                        <div style={{marginBottom: 8}}>
-                            <div style={{fontSize: 12, color: 'var(--muted)', marginBottom: 4}}>
+                        <div className="mb-2">
+                            <div className="text-xs text-muted mb-1">
                                 {t('game.scores')}
                             </div>
-                            <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                            <div className="flex flex-col gap-1">
                                 {activeGame.winner_type === 'team'
                                     ? evening!.teams.map(team => (
-                                        <div key={`t:${team.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                                            <span style={{fontSize: 12, color: 'var(--ink)', flex: 1}}>{team.name}</span>
+                                        <div key={`t:${team.id}`} className="flex items-center gap-2">
+                                            <span className="text-xs text-ink flex-1">{team.name}</span>
                                             <input
                                                 className="kce-input"
                                                 type="number" min="0"
@@ -1085,8 +1125,8 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         </div>
                                     ))
                                     : evening!.players.map(p => (
-                                        <div key={`p:${p.id}`} style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                                            <span style={{fontSize: 12, color: 'var(--ink)', flex: 1}}>{p.nickname || p.name}</span>
+                                        <div key={`p:${p.id}`} className="flex items-center gap-2">
+                                            <span className="text-xs text-ink flex-1">{p.nickname || p.name}</span>
                                             <input
                                                 className="kce-input"
                                                 type="number" min="0"
@@ -1102,11 +1142,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </div>
                         {/* Loser penalty preview */}
                         {finishWinnerRef && (
-                            <div style={{
-                                marginBottom: 8, padding: '8px 10px',
-                                background: 'var(--surface)', borderRadius: 8,
-                            }}>
-                                <div style={{fontSize: 12, fontWeight: 'bold', color: 'var(--muted)', marginBottom: 4}}>
+                            <div
+                                className="mb-2 px-2.5 py-2 rounded-lg border border-line"
+                                style={{background: 'var(--surface)'}}
+                            >
+                                <div className="text-xs font-bold text-muted mb-1">
                                     {t('game.perPointPreview')}
                                     {(activeGame.per_point_penalty ?? 0) > 0
                                         ? ` (+${fe(activeGame.per_point_penalty)}/${t('game.perPointUnit')})`
@@ -1133,16 +1173,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             ? evening!.teams.find(t => t.id === p.team_id)?.name ?? p.name
                                             : (p.nickname || p.name)
                                         return (
-                                            <div key={ref} style={{display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '1px 0'}}>
-                                                <span style={{color: 'var(--ink)'}}>{label}</span>
-                                                <span style={{color: '#f87171', fontWeight: 'bold'}}>{fe(total)}</span>
+                                            <div key={ref} className="flex justify-between text-xs py-0.5">
+                                                <span className="text-ink">{label}</span>
+                                                <span className="font-bold text-danger-fg">{fe(total)}</span>
                                             </div>
                                         )
                                     })
                                 })()}
                             </div>
                         )}
-                        <div style={{display: 'flex', gap: 6}}>
+                        <div className="flex gap-2">
                             <Button variant="secondary" size="sm" style={{flex: 1}}
                                     onClick={() => { setFinishGameOpen(false); setFinishWinnerRef(''); setFinishScores({}) }}>
                                 {t('action.cancel')}
@@ -1158,9 +1198,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Drawer: new-game template picker */}
                 {showNewGame && !activeGame && (
-                    <div style={{marginTop: 6}}>
-                        <div className="field-label mb-1">{t('club.gameTemplates')}</div>
-                        <div style={{display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6}}>
+                    <div
+                        className="mt-2 p-2.5 rounded-xl border border-line"
+                        style={{background: 'var(--surface-2)'}}
+                    >
+                        <div className="field-label mb-1.5">{t('club.gameTemplates')}</div>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
                             {gameTemplates.map(tmpl => (
                                 <button
                                     key={tmpl.id}
@@ -1182,54 +1225,50 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         </Button>
                     </div>
                 )}
-            </div>
 
-            {/* ── Mobile phone mode bar (< lg): switch between Buchen (Players + Actions) and Stand (Overview) ── */}
-            <div
-                className="lg:hidden flex items-center gap-1.5 py-1.5 border-b border-line flex-shrink-0"
-                style={{
-                    background: 'var(--surface)',
-                    paddingLeft: 'max(env(safe-area-inset-left), 12px)',
-                    paddingRight: 'max(env(safe-area-inset-right), 12px)',
-                }}
-            >
-                <button
-                    type="button"
-                    data-testid="quick-entry-tab-book"
-                    aria-pressed={mobilePane === 'book'}
-                    onClick={() => setMobilePane('book')}
-                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
-                    style={{
-                        background: mobilePane === 'book' ? 'var(--accent-tint)' : 'var(--surface-2)',
-                        borderColor: mobilePane === 'book' ? 'var(--accent)' : 'var(--line)',
-                        color: mobilePane === 'book' ? 'var(--accent-fg)' : 'var(--muted)',
-                    }}
+                {/* Mobile phone mode switcher (< lg): sleek segmented pill control inside the header */}
+                <div
+                    className="lg:hidden mt-2 p-0.5 rounded-xl border border-line flex items-center gap-1"
+                    style={{background: 'var(--surface-2)'}}
                 >
-                    <span>⚡ {t('quickEntry.mobileBook')}</span>
-                    {selectedPlayerIds.length > 0 && (
-                        <span
-                            className="px-1.5 rounded-full text-xs font-extrabold"
-                            style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
-                        >
-                            {selectedPlayerIds.length}
-                        </span>
-                    )}
-                </button>
-                <button
-                    type="button"
-                    data-testid="quick-entry-tab-overview"
-                    aria-pressed={mobilePane === 'overview'}
-                    onClick={() => setMobilePane('overview')}
-                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
-                    style={{
-                        background: mobilePane === 'overview' ? 'var(--accent-tint)' : 'var(--surface-2)',
-                        borderColor: mobilePane === 'overview' ? 'var(--accent)' : 'var(--line)',
-                        color: mobilePane === 'overview' ? 'var(--accent-fg)' : 'var(--muted)',
-                    }}
-                >
-                    <span>📊 {t('quickEntry.mobileOverview')}</span>
-                </button>
-            </div>
+                    <button
+                        type="button"
+                        data-testid="quick-entry-tab-book"
+                        aria-pressed={mobilePane === 'book'}
+                        onClick={() => setMobilePane('book')}
+                        className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
+                        style={{
+                            background: mobilePane === 'book' ? 'var(--accent-tint)' : 'transparent',
+                            borderColor: mobilePane === 'book' ? 'var(--accent)' : 'transparent',
+                            color: mobilePane === 'book' ? 'var(--accent-fg)' : 'var(--muted)',
+                        }}
+                    >
+                        <span>⚡ {t('quickEntry.mobileBook')}</span>
+                        {selectedPlayerIds.length > 0 && (
+                            <span
+                                className="px-1.5 rounded-full text-xs font-extrabold"
+                                style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
+                            >
+                                {selectedPlayerIds.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        data-testid="quick-entry-tab-overview"
+                        aria-pressed={mobilePane === 'overview'}
+                        onClick={() => setMobilePane('overview')}
+                        className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
+                        style={{
+                            background: mobilePane === 'overview' ? 'var(--accent-tint)' : 'transparent',
+                            borderColor: mobilePane === 'overview' ? 'var(--accent)' : 'transparent',
+                            color: mobilePane === 'overview' ? 'var(--accent-fg)' : 'var(--muted)',
+                        }}
+                    >
+                        <span>📊 {t('quickEntry.mobileOverview')}</span>
+                    </button>
+                </div>
+            </header>
 
             {/* ── Three-column body on wide landscape tablets (`lg`), dedicated mobile phone layout below `lg` — respects side safe areas ── */}
             <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden" style={{
@@ -1242,9 +1281,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     className={`${mobilePane === 'overview' ? 'hidden lg:flex' : 'flex'} flex-col flex-shrink-0 min-h-0 w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-line max-h-[32vh] lg:max-h-none order-1 lg:order-none`}
                 >
                     {/* Header row: label + selection status + All/None */}
-                    <div className="flex items-center gap-1 px-2 pt-2 pb-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 px-2.5 pt-2 pb-1.5 flex-shrink-0">
                         <span className="field-label">{t('penalty.who')}</span>
-                        <span style={{flex: 1, fontSize: 12, color: 'var(--muted)', textAlign: 'center'}}>
+                        <span className="flex-1 text-xs text-muted text-center font-medium">
                             {noSelection
                                 ? t('quickEntry.selectPlayer')
                                 : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
@@ -1266,7 +1305,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     </div>
 
                     {/* ── Player list: 2-col grid on phones, 3-col on small tablets, 1-col vertical stack on lg tablets ── */}
-                    <div className="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-1.5 content-start">
+                    <div className="flex-1 overflow-y-auto px-2.5 pb-2 grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-1.5 content-start">
                         {sortedPlayers.map(p => {
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
@@ -1293,7 +1332,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     }}
                                     onClick={() => togglePlayer(p.id)}
                                 >
-                                    {isCurrent && <span style={{fontSize: 12}}>🎳</span>}
+                                    {isCurrent && <span className="text-xs">🎳</span>}
                                     {p.is_king && <span className="text-sm">👑</span>}
                                     <span className="flex-1 truncate">{p.name}</span>
                                     {isMe && (
@@ -1386,17 +1425,6 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                             onSelect={() => logPenalty(pt)}
                                         >
                                             {isFlashing ? '✓ ' : ''}{pt.icon} {pt.name}
-                                            {(typeCounts.get(pt.name) ?? 0) > 0 && (
-                                                <span
-                                                    role="img"
-                                                    className="ml-1.5 px-1.5 rounded-full text-xs align-middle"
-                                                    style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)'}}
-                                                    aria-label={t('quickEntry.bookedTonight').replace('{n}', String(typeCounts.get(pt.name)))}
-                                                    data-testid={`penalty-count-${pt.id}`}
-                                                >
-                                                    ×{typeCounts.get(pt.name)}
-                                                </span>
-                                            )}
                                         </PenaltyPickButton>
                                     )
                                 })}
@@ -1407,10 +1435,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
                 {/* Column 3: Per-player overview — full-height when `Stand` tab is active on mobile, right column on `lg` tablets */}
                 <div
-                    className={`${mobilePane === 'overview' ? 'flex flex-1' : 'hidden lg:flex'} flex-col flex-shrink-0 min-h-0 p-2 w-full lg:w-[22%] lg:max-h-none order-3 lg:order-none`}
+                    className={`${mobilePane === 'overview' ? 'flex flex-1' : 'hidden lg:flex'} flex-col flex-shrink-0 min-h-0 p-2.5 w-full lg:w-[22%] lg:max-h-none order-3 lg:order-none`}
                 >
-                    <div className="field-label mb-1 flex-shrink-0">{t('quickEntry.overview')}</div>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0, overflowY: 'auto'}}>
+                    <div className="field-label mb-1.5 flex-shrink-0">{t('quickEntry.overview')}</div>
+                    <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto">
                         {overviewSortedPlayers.map(p => {
                             const ov = playerOverview.get(p.id) ?? {penaltyEuro: 0, gameScore: null, beerCount: 0, shotsCount: 0}
                             const isMe = user?.regular_member_id !== null &&
@@ -1437,42 +1465,27 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         gap: 2,
                                     }}
                                 >
-                                    <div style={{display: 'flex', alignItems: 'center', gap: 4, minWidth: 0}}>
-                                        {p.is_king && <span style={{fontSize: 12}}>👑</span>}
-                                        <span style={{
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            color: 'var(--ink)',
-                                            flex: 1,
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}>{p.name}</span>
+                                    <div className="flex items-center gap-1 min-w-0">
+                                        {p.is_king && <span className="text-xs">👑</span>}
+                                        <span className="text-xs font-bold text-ink flex-1 truncate">{p.name}</span>
                                         {isMe && (
                                             <MeBadge/>
                                         )}
                                         {justBooked && booked && (
                                             <span
                                                 key={booked.key}
-                                                className="kce-booked-chip text-xs font-bold px-1.5 rounded-full"
-                                                style={{background: 'var(--accent)', color: 'var(--on-accent)', whiteSpace: 'nowrap'}}
+                                                className="kce-booked-chip text-xs font-bold px-1.5 rounded-full whitespace-nowrap"
+                                                style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
                                             >
                                                 {booked.label}
                                             </span>
                                         )}
                                     </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        fontSize: 12,
-                                        fontFamily: 'monospace',
-                                        color: 'var(--muted)',
-                                    }}>
-                                        <span style={{
-                                            color: ov.penaltyEuro > 0 ? 'var(--accent)' : 'var(--muted)',
-                                            fontWeight: 700,
-                                        }}>
+                                    <div className="flex items-center gap-1.5 text-xs font-mono text-muted">
+                                        <span
+                                            className="font-bold"
+                                            style={{color: ov.penaltyEuro > 0 ? 'var(--accent)' : 'var(--muted)'}}
+                                        >
                                             <CountUp value={ov.penaltyEuro} format={fe}/>
                                         </span>
                                         {ov.gameScore != null && (
@@ -1489,10 +1502,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                         data-testid={`overview-bar-${p.id}`}
                                     />
                                     {(ov.beerCount > 0 || ov.shotsCount > 0) && (
-                                        <div style={{
-                                            display: 'flex', gap: 6,
-                                            fontSize: 12, color: 'var(--muted)',
-                                        }}>
+                                        <div className="flex gap-1.5 text-xs text-muted">
                                             {ov.beerCount > 0 && <span>🍺 {ov.beerCount}</span>}
                                             {ov.shotsCount > 0 && <span>🥃 {ov.shotsCount}</span>}
                                         </div>
@@ -1502,26 +1512,16 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                         })}
                     </div>
                     {/* Footer: grand total + average per player (pinned, never overlaps list) */}
-                    <div style={{
-                        marginTop: 6,
-                        paddingTop: 6,
-                        borderTop: '1px solid var(--line)',
-                        fontSize: 12,
-                        color: 'var(--muted)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 2,
-                        flexShrink: 0,
-                    }}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <div className="mt-2 pt-2 border-t border-line text-xs text-muted flex flex-col gap-1 flex-shrink-0">
+                        <div className="flex justify-between items-center">
                             <span>{t('quickEntry.totalPenalty')}</span>
-                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)'}}>
+                            <span className="font-mono font-bold text-accent">
                                 <CountUp value={overviewTotalEuro} format={fe} data-testid="overview-total"/>
                             </span>
                         </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <div className="flex justify-between items-center">
                             <span>{t('quickEntry.averagePenalty')}</span>
-                            <span style={{fontFamily: 'monospace', fontWeight: 700, color: 'var(--ink)'}}>
+                            <span className="font-mono font-bold text-ink">
                                 {fe(overviewAvgEuro)}
                             </span>
                         </div>
@@ -1542,7 +1542,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     }}
                 >
                     <div className="field-label mb-1">{t('quickEntry.recent')}</div>
-                    <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{scrollbarWidth: 'none'}}>
+                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
                         {recentEvents.map(ev => {
                             const isPendingItem = ev.id < 0
                             const isConfirming = !isPendingItem && confirmingKey === ev.key
@@ -1553,10 +1553,10 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                     type="button"
                                     data-recent-event={ev.key}
                                     disabled={isDeleting}
-                                    className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
+                                    className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 disabled:opacity-40"
                                     style={{
-                                        background: isConfirming ? 'rgba(239,68,68,0.15)' : 'var(--surface-2)',
-                                        border: `1px solid ${isConfirming ? '#dc2626' : isPendingItem ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : 'var(--line)'}`,
+                                        background: isConfirming ? 'var(--danger-tint)' : 'var(--surface-2)',
+                                        border: `1px solid ${isConfirming ? 'var(--danger)' : isPendingItem ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : 'var(--line)'}`,
                                     }}
                                     onClick={() => deleteRecentEvent(ev.key, ev.id, ev.type)}
                                     onBlur={() => { if (confirmingKey === ev.key) setConfirmingKey(null) }}

@@ -606,11 +606,10 @@ describe('TabletQuickEntryPage — overview column', () => {
         expect(screen.getAllByText(/🍺 1/).length).toBeGreaterThanOrEqual(2)
     })
 
-    it('counts how often each penalty was booked tonight on its button', async () => {
+    it('does not render ×N booking count badges on penalty buttons', async () => {
         await renderTabletQuickEntry()
-        // Bier: 2 (Admin) + 1 (Hansi); Strafe: 3 (Admin)
-        expect(screen.getByTestId('penalty-count-1')).toHaveTextContent('×3')
-        expect(screen.getByTestId('penalty-count-2')).toHaveTextContent('×3')
+        expect(screen.queryByTestId('penalty-count-1')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('penalty-count-2')).not.toBeInTheDocument()
     })
 
     it('draws a bar per player on a shared scale (top player = full bar)', async () => {
