@@ -62,13 +62,16 @@ export function hasManualPenalties(evening: Evening): boolean {
     return evening.penalty_log.some(l => l.game_id === null)
 }
 
+// Spelled out (not built from a template) so the token test can see every var() this file uses.
+const GAME_BANDS = ['var(--team-0)', 'var(--team-1)', 'var(--team-2)', 'var(--team-3)', 'var(--team-4)', 'var(--team-5)']
+
 /**
  * Colour band of a game on the protocol timeline: the game's position among the evening's started
  * games (in start order), cycled through the six team colours. Lets a stripe on each penalty card,
  * and the start/finish dividers, show which game a penalty happened in.
  */
 export function gameBandColor(index: number): string {
-    return `var(--team-${index % 6})`
+    return GAME_BANDS[index % GAME_BANDS.length]
 }
 
 /**
