@@ -1563,7 +1563,7 @@ export const de = {
     "treasury.charts.periodAll": "Alle",
     "treasury.charts.periodHint": "Der Zeitraum gilt für den Kassenverlauf und die Abende. Die übrigen Diagramme zeigen den aktuellen Stand.",
     "treasury.charts.waterfall": "Kassenstand-Wasserfall",
-    "treasury.charts.waterfallHint": "Die Balken schweben bewusst: jeder beginnt dort, wo der vorige aufhört (Eingezahlt − Ausgaben = Kassenstand, + offen = projiziert). Nur die Summenbalken starten bei 0.",
+    "treasury.charts.waterfallHint": "Alle Balken starten bei 0: Eingezahlt − Ausgaben = Kassenstand, + offen = projiziert. Grün = rein, rot = raus, Akzent = Summe.",
     "treasury.charts.openAction": "Öffnen",
     "treasury.charts.trend": "Kassenstand im Zeitverlauf",
     "treasury.charts.step.paidIn": "Eingezahlt",

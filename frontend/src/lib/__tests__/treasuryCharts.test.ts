@@ -12,9 +12,9 @@ describe('waterfallSteps', () => {
         const steps = waterfallSteps(s)
         expect(steps.map(x => x.key)).toEqual(['paidIn', 'expenses', 'cash', 'outstanding', 'projected'])
         expect(steps[0].range).toEqual([0, 110])
-        expect(steps[1].range).toEqual([80, 110])
+        expect(steps[1].range).toEqual([0, 30])
         expect(steps[2]).toMatchObject({kind: 'total', amount: 80, range: [0, 80]})
-        expect(steps[3].range).toEqual([80, 120])
+        expect(steps[3].range).toEqual([0, 40])
         expect(steps[4].amount).toBe(120)
     })
     it('skips other income and open debt when zero and keeps negative cash drawable', () => {
