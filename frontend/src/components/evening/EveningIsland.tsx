@@ -763,7 +763,7 @@ function QuickEntryActivity() {
 
 // ── 7. Idle status (next scheduled evening / personal balance / schedule shortcut) ────────────
 
-function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
+export function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
     const t = useT()
     const island = useIslandActions()
     const queryClient = useQueryClient()
@@ -1153,7 +1153,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
     return null
 }
 
-function IdleAwakenWatcher() {
+export function IdleAwakenWatcher() {
     const {activities} = useIsland()
     const dismissed = useIdleIslandStore(s => s.dismissed)
     const awaken = useIdleIslandStore(s => s.awaken)
@@ -1198,8 +1198,6 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     return (
         <>
             {eveningId != null && eveningId > 0 && <EveningActivity eveningId={eveningId}/>}
-            <IdleStatusActivity eveningId={eveningId}/>
-            <IdleAwakenWatcher/>
             <CelebrationActivity/>
             <QuickEntryActivity/>
             <UploadActivity/>
@@ -1218,11 +1216,9 @@ export default function EveningIsland({
     backdrop?: string
     children?: ReactNode
 }) {
-    const awakenIdle = useIdleIslandStore(st => st.awaken)
     return (
         <IslandProvider metrics={HEADER_ISLAND_METRICS}>
             <Island
-                onIdleSwipe={awakenIdle}
                 placement="container"
                 label="Live"
                 backdrop={backdrop}

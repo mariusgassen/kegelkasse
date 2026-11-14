@@ -59,7 +59,7 @@ function request(over: Partial<GuestRequest> = {}): GuestRequest {
     return {
         id: 1, name: 'Anna Gast', email: 'anna@example.com', message: 'Komme gern!',
         status: 'pending', created_at: '2026-10-01T10:00:00Z', decided_at: null,
-        scheduled_evening_id: 7, scheduled_at: '2026-11-14T20:00', venue: 'Altes Schalthaus',
+        scheduled_evening_id: 7, scheduled_at: '2099-11-14T20:00', venue: 'Altes Schalthaus',
         evening_cancelled: false, ...over,
     }
 }
@@ -91,7 +91,7 @@ describe('GuestRequestsSection', () => {
         vi.mocked(api.listGuestRequests).mockResolvedValue([request()])
         renderSection()
         expect(await screen.findByText('Anna Gast')).toBeInTheDocument()
-        expect(screen.getByText(/14\.11\.2026 · 20:00 · Altes Schalthaus/)).toBeInTheDocument()
+        expect(screen.getByText(/14\.11\.2099 · 20:00 · Altes Schalthaus/)).toBeInTheDocument()
         expect(screen.getByRole('link', { name: /anna@example\.com/ })).toHaveAttribute('href', 'mailto:anna@example.com')
         expect(screen.getByText('Komme gern!')).toBeInTheDocument()
         expect(screen.getByLabelText('guestRequests.pendingCount')).toHaveTextContent('1')
