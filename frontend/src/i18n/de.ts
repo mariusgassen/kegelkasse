@@ -1509,6 +1509,8 @@ export const de = {
     "quickEntry.pickDrink": "Getränk wählen",
     "quickEntry.pickParticipants": "Wer war dabei?",
     "quickEntry.applySelection": "Auswahl",
+    "quickEntry.mobileBook": "Buchen",
+    "quickEntry.mobileOverview": "Stand",
     "comment.show": "Kommentare",
     "comment.collapse": "Kommentare ausblenden",
     "comment.none": "Noch keine Kommentare.",

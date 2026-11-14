@@ -49,12 +49,14 @@ gewohnt zuerst das Protokoll.
 
 ### Live-Insel 🏝️
 
-Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auf dem iPhone direkt auf der Dynamic Island):
+Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der Schnellerfassung sichtbar):
 
 - **Laufender Abend & Spiel-Timer**: zeigt die Strafensumme bzw. die laufende Spielzeit (`m:ss`); langes Drücken klappt Lokal, aktuelles Spiel / Spieler am Zug sowie Kasse, Bier- und Schnapsrunden auf; Antippen springt direkt zum Abend.
+- **Schnellerfassungs-Ereignisse**: beim Buchen von Strafen und Getränkerunden, beim Stornieren sowie beim Starten/Beenden eines Spiels zeigt die Insel sofort eine kurze Live-Quittung (z. B. Strafe, Spieler und Betrag).
 - **König & Alle Neune**: kurze Feier-Einblendung direkt in der Insel.
 - **Foto-Uploads & Offline-Warteschlange**: zeigt laufende Datei-Uploads sowie ausstehende Offline-Buchungen (mit **Jetzt synchronisieren**-Knopf, sobald wieder Verbindung besteht).
 - **Zahlungsanfragen**: Kassenwarte können eingehende Zahlungsanfragen direkt in der aufgeklappten Insel bestätigen oder ablehnen.
+- **Smartphone-Layout der Schnellerfassung**: auf dem Smartphone (`< lg`) zeigt die Schnellerfassung einen Umschalter **⚡ Buchen** / **📊 Stand**; unter **Buchen** sitzt oben das zweispaltige Spieler-Raster (direkt erreichbar, bevor eine Strafe getippt wird) und darunter die zweispaltigen Getränke- und Strafen-Buttons.
 
 ## Highlights erfassen
 

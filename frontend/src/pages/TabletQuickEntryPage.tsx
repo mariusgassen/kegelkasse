@@ -27,6 +27,7 @@ import {Button} from '@/components/ui/Button.tsx'
 import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {CountUp} from '@/components/ui/CountUp.tsx'
 import {drinkTimeline, penaltyTypeCounts} from '@/lib/quickEntryVisuals.ts'
+import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -53,6 +54,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     const throwTracking = useThrowTracking()
     const audioCallouts = useAudioCallouts()
 
+    // Mobile phone pane switcher ('book' = players + drinks/penalties, 'overview' = standings)
+    const [mobilePane, setMobilePane] = useState<'book' | 'overview'>('book')
+
     // Penalty / drink state
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
     const [flashingPenaltyId, setFlashingPenaltyId] = useState<number | null>(null)
@@ -64,12 +68,27 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Rows that just received a booking light up with a "+0,50 €" chip, so a mistap shows at once.
     const [booked, setBooked] = useState<{ids: number[]; label: string; key: number} | null>(null)
     const bookedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const flashingPenaltyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const flashingDrinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     function flashBooked(ids: number[], label: string) {
         if (bookedTimer.current) clearTimeout(bookedTimer.current)
         setBooked({ids, label, key: Date.now()})
         bookedTimer.current = setTimeout(() => setBooked(null), 1800)
     }
-    useEffect(() => () => { if (bookedTimer.current) clearTimeout(bookedTimer.current) }, [])
+    useEffect(() => () => {
+        if (bookedTimer.current) clearTimeout(bookedTimer.current)
+        if (flashingPenaltyTimer.current) clearTimeout(flashingPenaltyTimer.current)
+        if (flashingDrinkTimer.current) clearTimeout(flashingDrinkTimer.current)
+    }, [])
+
+    function playerNamesLabel(ids: number[]): string {
+        const names = ids
+            .map(id => players.find(p => p.id === id))
+            .filter((p): p is EveningPlayer => Boolean(p))
+            .map(p => p.nickname || p.name)
+        if (names.length <= 2) return names.join(', ')
+        return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
+    }
 
     // Turn order state (mode comes from the game's turn_mode field)
     const [blockTeamIdx, setBlockTeamIdx] = useState(0)
@@ -376,6 +395,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
         try {
             await api.startGame(evening.id, activeGame.id)
             invalidate()
+            announceQuickEntryEvent({
+                kind: 'game',
+                icon: '🎳',
+                title: activeGame.name,
+                subtitle: t('game.start'),
+                badge: '▶',
+            })
         } catch (e: unknown) {
             toastError(e)
         }
@@ -403,6 +429,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             }
             invalidate()
             setShowNewGame(false)
+            announceQuickEntryEvent({
+                kind: 'game',
+                icon: '🎳',
+                title: tmpl.name,
+                subtitle: t('game.start'),
+                badge: '▶',
+            })
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -417,9 +450,17 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     }
 
     async function deleteRecentEvent(key: string, id: number, type: 'penalty' | 'drink') {
+        const ev = recentEvents.find(e => e.key === key)
         // Pending item (id < 0) — cancel the queued operation directly (no server call)
         if (id < 0) {
             await cancelPendingItem(id, type)
+            announceQuickEntryEvent({
+                kind: 'undo',
+                icon: '↩️',
+                title: ev?.label ?? t('action.delete'),
+                subtitle: t('action.delete'),
+                badge: '✕',
+            })
             return
         }
         if (deletingKey !== null) return
@@ -438,6 +479,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
+            announceQuickEntryEvent({
+                kind: 'undo',
+                icon: '↩️',
+                title: ev?.label ?? t('action.delete'),
+                subtitle: t('action.delete'),
+                badge: '✕',
+            })
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -447,10 +495,11 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
 
     async function logPenalty(pt: PenaltyType) {
         if (selectedPlayerIds.length === 0 || loadingPenaltyId !== null) return
+        const bookedIds = [...selectedPlayerIds]
         setLoadingPenaltyId(pt.id)
         try {
             await api.addPenalty(eveningId, {
-                player_ids: selectedPlayerIds,
+                player_ids: bookedIds,
                 penalty_type_name: pt.name,
                 icon: pt.icon,
                 amount: 1,
@@ -462,10 +511,18 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
-            flashBooked(selectedPlayerIds, `+${fe(pt.default_amount)}`)
+            flashBooked(bookedIds, `+${fe(pt.default_amount)}`)
+            announceQuickEntryEvent({
+                kind: 'penalty',
+                icon: pt.icon,
+                title: pt.name,
+                subtitle: playerNamesLabel(bookedIds),
+                badge: `+${fe(pt.default_amount * bookedIds.length)}`,
+            })
             setSelectedPlayerIds([])
             setFlashingPenaltyId(pt.id)
-            setTimeout(() => setFlashingPenaltyId(null), 800)
+            if (flashingPenaltyTimer.current) clearTimeout(flashingPenaltyTimer.current)
+            flashingPenaltyTimer.current = setTimeout(() => setFlashingPenaltyId(null), 800)
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -476,20 +533,29 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
     // Log a drink round for the currently selected players — same selection flow as penalties.
     async function logDrink(type: 'beer' | 'shots') {
         if (selectedPlayerIds.length === 0 || loadingDrink !== null) return
+        const bookedIds = [...selectedPlayerIds]
         setLoadingDrink(type)
         try {
             await api.addDrinkRound(eveningId, {
                 drink_type: type,
-                participant_ids: selectedPlayerIds,
+                participant_ids: bookedIds,
                 client_timestamp: Date.now(),
             })
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
-            flashBooked(selectedPlayerIds, `+${type === 'beer' ? '🍺' : '🥃'}`)
+            flashBooked(bookedIds, `+${type === 'beer' ? '🍺' : '🥃'}`)
+            announceQuickEntryEvent({
+                kind: 'drink',
+                icon: type === 'beer' ? '🍺' : '🥃',
+                title: type === 'beer' ? t('drinks.beer') : t('drinks.shots'),
+                subtitle: playerNamesLabel(bookedIds),
+                badge: `${bookedIds.length}×`,
+            })
             setSelectedPlayerIds([])
             setFlashingDrink(type)
-            setTimeout(() => setFlashingDrink(null), 800)
+            if (flashingDrinkTimer.current) clearTimeout(flashingDrinkTimer.current)
+            flashingDrinkTimer.current = setTimeout(() => setFlashingDrink(null), 800)
         } catch (e: unknown) {
             toastError(e)
         } finally {
@@ -571,6 +637,13 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             invalidate()
             qc.invalidateQueries({queryKey: ['member-balances']})
             qc.invalidateQueries({queryKey: ['guest-balances']})
+            announceQuickEntryEvent({
+                kind: 'game',
+                icon: '🏁',
+                title: runningGame.name,
+                subtitle: winnerName,
+                badge: '✓',
+            })
             setFinishGameOpen(false)
             setFinishWinnerRef('')
             setFinishScores({})
@@ -615,53 +688,63 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     paddingRight: 'max(env(safe-area-inset-right), 12px)',
                 }}
             >
-                {/* Row 1: close + game identity + primary actions */}
-                <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                    <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
-                        ✕
-                    </Button>
+                {/* Row 1: close (left) + center stage reserved for Dynamic Island + primary actions (right) */}
+                <div className="min-h-11 flex flex-wrap items-center justify-between gap-2">
+                    <div className="order-1 flex items-center">
+                        <Button type="button" variant="secondary" size="xs" onClick={onClose} aria-label={t('action.close')}>
+                            ✕
+                        </Button>
+                    </div>
                     {activeGame ? (
                         <>
-                            <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
-                                🎳 {activeGame.name}
-                                {activeGame.status === 'open' && (
-                                    <span style={{fontSize: 12, color: 'var(--muted)', fontWeight: 'normal', marginLeft: 4}}>
-                                        (offen)
+                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
+                                <span style={{fontSize: 12, fontWeight: 'bold', color: 'var(--accent)'}}>
+                                    🎳 {activeGame.name}
+                                    {activeGame.status === 'open' && (
+                                        <span style={{fontSize: 12, color: 'var(--muted)', fontWeight: 'normal', marginLeft: 4}}>
+                                            (offen)
+                                        </span>
+                                    )}
+                                </span>
+                                {activeGame.turn_mode && (
+                                    <span style={{
+                                        fontSize: 12, padding: '1px 6px',
+                                        borderRadius: 6, border: '1px solid var(--line)',
+                                        color: 'var(--muted)', background: 'var(--surface-2)',
+                                    }}>
+                                        {t(`game.turnMode.${activeGame.turn_mode}` as any)}
                                     </span>
                                 )}
-                            </span>
-                            {activeGame.turn_mode && (
-                                <span style={{
-                                    fontSize: 12, padding: '1px 6px',
-                                    borderRadius: 6, border: '1px solid var(--line)',
-                                    color: 'var(--muted)', background: 'var(--surface-2)',
-                                }}>
-                                    {t(`game.turnMode.${activeGame.turn_mode}` as any)}
-                                </span>
-                            )}
-                            <div style={{flex: 1, minWidth: 0}}/>
-                            {activeGame.status === 'open' && (
-                                <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
-                                    ▶ {t('game.start')}
-                                </Button>
-                            )}
-                            {activeGame.status === 'running' && (
-                                <Button type="button" variant="secondary" size="xs"
-                                        onClick={() => setFinishGameOpen(f => !f)}>
-                                    🏁 {t('quickEntry.finishGame')}
-                                </Button>
-                            )}
+                            </div>
+                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
+                            <div className="order-2 sm:order-3 flex items-center">
+                                {activeGame.status === 'open' && (
+                                    <Button type="button" variant="primary" size="xs" onClick={handleStartGame}>
+                                        ▶ {t('game.start')}
+                                    </Button>
+                                )}
+                                {activeGame.status === 'running' && (
+                                    <Button type="button" variant="secondary" size="xs"
+                                            onClick={() => setFinishGameOpen(f => !f)}>
+                                        🏁 {t('quickEntry.finishGame')}
+                                    </Button>
+                                )}
+                            </div>
                         </>
                     ) : (
                         <>
-                            <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
-                            <div style={{flex: 1, minWidth: 0}}/>
-                            {!showNewGame && (
-                                <Button type="button" variant="secondary" size="xs"
-                                        onClick={() => setShowNewGame(true)}>
-                                    ＋ {t('quickEntry.newGame')}
-                                </Button>
-                            )}
+                            <div className="order-3 sm:order-2 w-full sm:w-auto flex items-center gap-2 pt-0.5 sm:pt-0">
+                                <span className="font-bold text-accent-fg text-sm">⚡ {t('quickEntry.title')}</span>
+                            </div>
+                            <div className="hidden sm:block sm:order-2 sm:flex-1 sm:min-w-0"/>
+                            <div className="order-2 sm:order-3 flex items-center">
+                                {!showNewGame && (
+                                    <Button type="button" variant="secondary" size="xs"
+                                            onClick={() => setShowNewGame(true)}>
+                                        ＋ {t('quickEntry.newGame')}
+                                    </Button>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
@@ -1075,57 +1158,89 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 )}
             </div>
 
-            {/* ── Three-column body on wide landscape tablets, stacked below `lg` (portrait / smaller tablets) — respects side safe areas ── */}
-            <div className="flex flex-col lg:flex-row" style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
+            {/* ── Mobile phone mode bar (< lg): switch between Buchen (Players + Actions) and Stand (Overview) ── */}
+            <div
+                className="lg:hidden flex items-center gap-1.5 py-1.5 border-b border-line flex-shrink-0"
+                style={{
+                    background: 'var(--surface)',
+                    paddingLeft: 'max(env(safe-area-inset-left), 12px)',
+                    paddingRight: 'max(env(safe-area-inset-right), 12px)',
+                }}
+            >
+                <button
+                    type="button"
+                    data-testid="quick-entry-tab-book"
+                    aria-pressed={mobilePane === 'book'}
+                    onClick={() => setMobilePane('book')}
+                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
+                    style={{
+                        background: mobilePane === 'book' ? 'var(--accent-tint)' : 'var(--surface-2)',
+                        borderColor: mobilePane === 'book' ? 'var(--accent)' : 'var(--line)',
+                        color: mobilePane === 'book' ? 'var(--accent-fg)' : 'var(--muted)',
+                    }}
+                >
+                    <span>⚡ {t('quickEntry.mobileBook')}</span>
+                    {selectedPlayerIds.length > 0 && (
+                        <span
+                            className="px-1.5 rounded-full text-xs font-extrabold"
+                            style={{background: 'var(--accent)', color: 'var(--on-accent)'}}
+                        >
+                            {selectedPlayerIds.length}
+                        </span>
+                    )}
+                </button>
+                <button
+                    type="button"
+                    data-testid="quick-entry-tab-overview"
+                    aria-pressed={mobilePane === 'overview'}
+                    onClick={() => setMobilePane('overview')}
+                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border"
+                    style={{
+                        background: mobilePane === 'overview' ? 'var(--accent-tint)' : 'var(--surface-2)',
+                        borderColor: mobilePane === 'overview' ? 'var(--accent)' : 'var(--line)',
+                        color: mobilePane === 'overview' ? 'var(--accent-fg)' : 'var(--muted)',
+                    }}
+                >
+                    <span>📊 {t('quickEntry.mobileOverview')}</span>
+                </button>
+            </div>
+
+            {/* ── Three-column body on wide landscape tablets (`lg`), dedicated mobile phone layout below `lg` — respects side safe areas ── */}
+            <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden" style={{
                 paddingLeft: 'env(safe-area-inset-left)',
                 paddingRight: 'env(safe-area-inset-right)',
             }}>
 
-                {/* Column 1: Players (game zone now lives in the header) */}
-                <div className="w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-line max-h-[30vh] lg:max-h-none order-2 lg:order-none" style={{
-                    flexShrink: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minHeight: 0,
-                }}>
+                {/* Column 1: Players — FIRST on mobile (`order-1`) in a 2-col thumb grid so you pick players before tapping penalties */}
+                <div
+                    className={`${mobilePane === 'overview' ? 'hidden lg:flex' : 'flex'} flex-col flex-shrink-0 min-h-0 w-full lg:w-[22%] border-b lg:border-b-0 lg:border-r border-line max-h-[32vh] lg:max-h-none order-1 lg:order-none`}
+                >
+                    {/* Header row: label + selection status + All/None */}
+                    <div className="flex items-center gap-1 px-2 pt-2 pb-1 flex-shrink-0">
+                        <span className="field-label">{t('penalty.who')}</span>
+                        <span style={{flex: 1, fontSize: 12, color: 'var(--muted)', textAlign: 'center'}}>
+                            {noSelection
+                                ? t('quickEntry.selectPlayer')
+                                : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
+                        </span>
+                        <Button
+                            type="button"
+                            variant="secondary" size="xs"
+                            onClick={() => setSelectedPlayerIds(sortedPlayers.map(p => p.id))}
+                        >
+                            {t('action.all')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="secondary" size="xs"
+                            onClick={() => setSelectedPlayerIds([])}
+                        >
+                            {t('action.none')}
+                        </Button>
+                    </div>
 
-                    {/* ── Player list ── */}
-                    <div style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        padding: '8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
-                    }}>
-                        {/* Header row: label + selection status + All/None */}
-                        <div style={{display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2}}>
-                            <span className="field-label">{t('penalty.who')}</span>
-                            <span style={{flex: 1, fontSize: 12, color: 'var(--muted)', textAlign: 'center'}}>
-                                {noSelection
-                                    ? t('quickEntry.selectPlayer')
-                                    : `${selectedPlayerIds.length} ${t('quickEntry.selected')}`}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="secondary" size="xs"
-                                onClick={() => setSelectedPlayerIds(sortedPlayers.map(p => p.id))}
-                            >
-                                {t('action.all')}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary" size="xs"
-                                onClick={() => setSelectedPlayerIds([])}
-                            >
-                                {t('action.none')}
-                            </Button>
-                        </div>
-
-                        {/* Player buttons */}
+                    {/* ── Player list: 2-col grid on phones, 3-col on small tablets, 1-col vertical stack on lg tablets ── */}
+                    <div className="flex-1 overflow-y-auto px-2 pb-2 grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-1.5 content-start">
                         {sortedPlayers.map(p => {
                             const isMe = user?.regular_member_id !== null &&
                                 p.regular_member_id === user?.regular_member_id
@@ -1135,7 +1250,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                                 <button
                                     key={p.id}
                                     type="button"
-                                    className={`w-full text-left px-2 py-2 rounded-xl border font-bold text-xs
+                                    className={`w-full text-left px-2.5 py-2 rounded-xl border font-bold text-xs
                                         transition-all active:scale-95 flex items-center gap-1
                                         ${isSelected
                                             ? 'border-accent text-accent-fg'
@@ -1164,12 +1279,12 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     </div>
                 </div>
 
-                {/* Column 2: Drinks + Penalties — both driven by the column-1 player selection */}
-                <div className="flex-1 overflow-y-auto p-3 border-b lg:border-b-0 lg:border-r border-line order-1 lg:order-none">
+                {/* Column 2: Drinks + Penalties — SECOND on mobile (`order-2`), directly below the player grid */}
+                <div className={`${mobilePane === 'overview' ? 'hidden lg:block' : 'block'} flex-1 min-h-0 overflow-y-auto p-3 border-b lg:border-b-0 lg:border-r border-line order-2 lg:order-none`}>
                     {/* Drinks — same multi-select flow as penalties (no separate sheet) */}
                     <div className="mb-4">
                         <div className="field-label mb-2">{t('drinks.title')}</div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
                             {(['beer', 'shots'] as const).map(dt => {
                                 const isFlashing = flashingDrink === dt
                                 const isLoading = loadingDrink === dt
@@ -1228,7 +1343,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     {penaltyGroups.map(([amount, types]) => (
                         <div key={amount} className="mb-4">
                             <div className="field-label mb-2">{fe(amount)}</div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
                                 {types.map(pt => {
                                     const isFlashing = flashingPenaltyId === pt.id
                                     const isLoading = loadingPenaltyId === pt.id
@@ -1264,16 +1379,9 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                     ))}
                 </div>
 
-                {/* Column 3: Per-player overview — read-only stats for plausibility check */}
+                {/* Column 3: Per-player overview — full-height when `Stand` tab is active on mobile, right column on `lg` tablets */}
                 <div
-                    className="w-full lg:w-[22%] max-h-[30vh] lg:max-h-none order-3 lg:order-none"
-                    style={{
-                        flexShrink: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minHeight: 0,
-                        padding: '8px',
-                    }}
+                    className={`${mobilePane === 'overview' ? 'flex flex-1' : 'hidden lg:flex'} flex-col flex-shrink-0 min-h-0 p-2 w-full lg:w-[22%] lg:max-h-none order-3 lg:order-none`}
                 >
                     <div className="field-label mb-1 flex-shrink-0">{t('quickEntry.overview')}</div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minHeight: 0, overflowY: 'auto'}}>

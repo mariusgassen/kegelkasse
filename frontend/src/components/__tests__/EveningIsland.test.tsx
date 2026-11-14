@@ -25,6 +25,7 @@ vi.mock('@/api/client.ts', async (importOriginal) => {
 
 import EveningIsland, {elapsedLabel, UPLOAD_STATUS_EVENT} from '../evening/EveningIsland'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
+import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 import type {UploadStatusDetail} from '@/api/client.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 
@@ -105,6 +106,20 @@ describe('EveningIsland', () => {
         renderIsland(undefined, null)
         await act(async () => {})
         expect(screen.getByRole('button', {name: /Zahlungsanfrage: Max: 15 €/})).toBeTruthy()
+    })
+
+    it('shows a quick-entry booking activity when announceQuickEntryEvent fires', async () => {
+        renderIsland(evening())
+        await act(async () => {
+            announceQuickEntryEvent({
+                kind: 'penalty',
+                icon: '🧱',
+                title: 'Pudelkönig',
+                subtitle: 'Hans',
+                badge: '+0,50 €',
+            })
+        })
+        expect(screen.getByRole('button', {name: /Pudelkönig.*Hans.*\+0,50 €/})).toBeTruthy()
     })
 })
 

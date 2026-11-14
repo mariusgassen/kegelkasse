@@ -1520,3 +1520,72 @@ describe('TabletQuickEntryPage — start game blocked when players unassigned', 
         expect(api.startGame).not.toHaveBeenCalled()
     })
 })
+
+describe('TabletQuickEntryPage — mobile layout and Dynamic Island notifications', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: ACTIVE_EVENING as any,
+            invalidate: vi.fn(),
+        } as any)
+        const { isAdmin, useAppStore } = await import('@/store/app.ts')
+        vi.mocked(isAdmin).mockReturnValue(true)
+        vi.mocked(useAppStore).mockImplementation((sel?: any) => {
+            const store = { user: ADMIN_USER, penaltyTypes: PENALTY_TYPES, regularMembers: [], guestPenaltyCap: null }
+            return sel ? sel(store) : store
+        })
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.addPenalty).mockResolvedValue({} as any)
+        vi.mocked(api.addDrinkRound).mockResolvedValue({} as any)
+    })
+
+    it('switches between mobile Buchen and Stand panes', async () => {
+        await renderTabletQuickEntry()
+        const bookTab = screen.getByTestId('quick-entry-tab-book')
+        const overviewTab = screen.getByTestId('quick-entry-tab-overview')
+        expect(bookTab).toHaveAttribute('aria-pressed', 'true')
+        expect(overviewTab).toHaveAttribute('aria-pressed', 'false')
+
+        fireEvent.click(overviewTab)
+        expect(bookTab).toHaveAttribute('aria-pressed', 'false')
+        expect(overviewTab).toHaveAttribute('aria-pressed', 'true')
+
+        fireEvent.click(bookTab)
+        expect(bookTab).toHaveAttribute('aria-pressed', 'true')
+        expect(overviewTab).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('dispatches QUICK_ENTRY_EVENT to the Dynamic Island when logging a penalty or drink', async () => {
+        const { QUICK_ENTRY_EVENT } = await import('@/lib/quickEntryEvents.ts')
+        const events: any[] = []
+        const handler = (ev: Event) => events.push((ev as CustomEvent).detail)
+        window.addEventListener(QUICK_ENTRY_EVENT, handler)
+        try {
+            await renderTabletQuickEntry()
+            fireEvent.click(screen.getAllByText('Hansi')[0])
+            fireEvent.click(screen.getByText(/🍺 Bier/))
+            await waitFor(() => {
+                expect(events).toContainEqual(expect.objectContaining({
+                    kind: 'penalty',
+                    title: 'Bier',
+                    subtitle: 'Hansi',
+                }))
+            })
+
+            fireEvent.click(screen.getAllByText('Hansi')[0])
+            fireEvent.click(screen.getByText(/🍺 drinks\.beer/))
+            await waitFor(() => {
+                expect(events).toContainEqual(expect.objectContaining({
+                    kind: 'drink',
+                    icon: '🍺',
+                    subtitle: 'Hansi',
+                    badge: '1×',
+                }))
+            })
+        } finally {
+            window.removeEventListener(QUICK_ENTRY_EVENT, handler)
+        }
+    })
+})
+

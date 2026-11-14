@@ -181,19 +181,18 @@ export function RootLayout() {
                 <InstallPrompt/>
                 <UpdatePrompt/>
                 <WhatsNewNotice/>
+                {/* Live-activity island mounted once at the app root (islandcn); sits at `zIndex: 70`
+                    centered on the 56px top bar both in normal pages and during Quick Entry. */}
+                <Suspense fallback={null}>
+                    <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
+                </Suspense>
+
                 {/* ── Header — symmetrical wings flanking the centered Dynamic Island ── */}
                 <header style={{
                     position: 'relative',
                     background: 'var(--canvas)',
                     borderBottom: '1px solid var(--line)',
-                    zIndex: 50,
                 }}>
-                    {/* Live-activity island mounted once at the app root (islandcn); anchored to the
-                        56px header bar (`top: -4` centers the 36.67px capsule on the 28px midline). */}
-                    <Suspense fallback={null}>
-                        <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
-                    </Suspense>
-
                     <div className="flex items-center justify-between gap-2 px-3 h-14">
                         {/* Left wing: club badge + search button (72px on mobile so the centered
                             Dynamic Island has ~225px of clear stage and never collides with text). */}
@@ -301,9 +300,13 @@ export function RootLayout() {
                 <PullToRefreshIndicator pullDistance={pullDistance} dragging={ptrDragging} refreshing={ptrRefreshing}/>
 
                 {/* Content wrapper — slides 1:1 with the finger while dragging. Needs an opaque
-                    background so the indicator underneath stays hidden until pulled. */}
+                    background so the indicator underneath stays hidden until pulled. Deliberately no
+                    z-index here: a numeric z-index on this positioned wrapper would trap position:fixed
+                    descendants (TabletQuickEntryPage, sheets) inside a z-index:1 stacking context below
+                    any sibling with a higher z-index. DOM order already places this wrapper above
+                    <PullToRefreshIndicator/>. */}
                 <div style={{
-                    position: 'absolute', inset: 0, zIndex: 1, background: 'var(--canvas)',
+                    position: 'absolute', inset: 0, background: 'var(--canvas)',
                     // No transform at rest: any transform makes `position: fixed` descendants (every <Sheet>
                     // rendered inside a page) anchor to this wrapper instead of the viewport.
                     transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : 'none',
