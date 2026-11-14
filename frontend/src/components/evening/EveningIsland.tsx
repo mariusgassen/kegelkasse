@@ -58,7 +58,7 @@ import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
 import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {useAppStore} from '@/store/app.ts'
-import {useIdleIslandStore} from '@/store/idleIsland.ts'
+import {useIdleIslandStore, useIslandBusyStore} from '@/store/idleIsland.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
@@ -318,6 +318,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
 }
 
 function CelebrationActivity() {
+    const t = useT()
     const island = useIslandActions()
 
     useEffect(() => {
@@ -329,31 +330,36 @@ function CelebrationActivity() {
             const isKing = detail.kind === 'king'
             const glyph = isKing ? CrownGlyph : SparkleGlyph
             const accent = islandAccent.yellow
-            const short = isKing ? '👑' : '9!'
+            // The glyph already is the crown/sparkle: don't repeat it in the trailing slot, the context
+            // label or the message text (callers prefix the message with an emoji for the toast).
+            const short = isKing ? null : '9!'
+            const message = detail.message.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, '')
             island.start({
                 id: CELEBRATE_ID,
                 priority: 2,
                 alert: true,
-                label: detail.message,
+                label: message,
                 onPress: () => { router.navigate({to: '/evening'}).catch(() => {}) },
                 compact: {
                     leading: <Glyph icon={glyph} color={accent}/>,
-                    trailing: (
+                    trailing: short ? (
                         <BubbleForm bubble={null}>
                             <CompactText color={accent}>{short}</CompactText>
                         </BubbleForm>
-                    ),
+                    ) : undefined,
                 },
-                minimal: <MinimalPair leading={<Glyph icon={glyph} color={accent}/>} trailing={<CompactText color={accent}>{short}</CompactText>}/>,
+                minimal: short
+                    ? <MinimalPair leading={<Glyph icon={glyph} color={accent}/>} trailing={<CompactText color={accent}>{short}</CompactText>}/>
+                    : <Glyph icon={glyph} color={accent}/>,
                 expanded: {
                     leading: (
                         <SensorRow glyph={<Glyph icon={glyph} color={accent} size={18}/>}>
-                            <ContextLabel>{short}</ContextLabel>
+                            <ContextLabel>{t('nav.evening')}</ContextLabel>
                         </SensorRow>
                     ),
                     bottom: (
                         <ExpandedBottom reach="lift">
-                            <ExpandedTitle color={accent}>{detail.message}</ExpandedTitle>
+                            <ExpandedTitle color={accent}>{message}</ExpandedTitle>
                         </ExpandedBottom>
                     ),
                 },
@@ -366,7 +372,7 @@ function CelebrationActivity() {
             window.removeEventListener(CELEBRATE_EVENT, onCelebrate)
             island.end(CELEBRATE_ID)
         }
-    }, [island])
+    }, [island, t])
 
     return null
 }
@@ -765,6 +771,8 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
     const island = useIslandActions()
     const queryClient = useQueryClient()
     const user = useAppStore(s => s.user)
+    // Idle is the lowest-priority fallback: never share the header with a live activity (payment, upload, …).
+    const othersActive = useIslandBusyStore(s => s.busy)
     const dismissed = useIdleIslandStore(s => s.dismissed)
     const dismissedScheduleId = useIdleIslandStore(s => s.dismissedScheduleId)
     const dismissIdle = useIdleIslandStore(s => s.dismiss)
@@ -830,7 +838,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
     )
 
     useEffect(() => {
-        if (!mode) {
+        if (!mode || othersActive) {
             prevKind.current = null
             island.end(IDLE_STATUS_ID)
             return
@@ -1130,6 +1138,7 @@ function IdleStatusActivity({eveningId}: {eveningId?: number | null}) {
         island,
         queryClient,
         mode,
+        othersActive,
         dismissed,
         dismissedScheduleId,
         dismissIdle,
@@ -1156,6 +1165,13 @@ function IdleAwakenWatcher() {
         .map(a => `${a.id}:${a.revision}:${a.order}:${a.label}`)
         .join('|')
     const prevSigRef = useRef('')
+    const setBusy = useIslandBusyStore(s => s.setBusy)
+    const busy = otherSignature !== ''
+
+    useEffect(() => {
+        setBusy(busy)
+        return () => setBusy(false)
+    }, [busy, setBusy])
 
     useEffect(() => {
         if (!dismissed) {

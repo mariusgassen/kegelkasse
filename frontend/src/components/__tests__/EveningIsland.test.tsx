@@ -193,6 +193,35 @@ describe('EveningIsland', () => {
         expect(container.querySelector('[data-presentation="expanded"]')).toBeTruthy()
     })
 
+    it('does not repeat the crown emoji in a king celebration', async () => {
+        renderIsland(undefined, null)
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent<CelebrateDetail>(CELEBRATE_EVENT, {
+                detail: {kind: 'king', message: '👑 König!'},
+            }))
+        })
+        expect(screen.getAllByText('König!').length).toBeGreaterThan(0)
+        expect(screen.queryByText('👑')).toBeNull()
+        expect(screen.queryByText('👑 König!')).toBeNull()
+    })
+
+    it('hides the idle island while a payment-request activity is on show', async () => {
+        useNotificationStore.setState({
+            notifications: [{
+                id: 'n1',
+                title: 'Zahlungsanfrage',
+                body: 'Max: 15 €',
+                url: '/#treasury:accounts?rid=42',
+                receivedAt: new Date().toISOString(),
+                read: false,
+            }],
+        })
+        renderIsland(undefined, null)
+        await act(async () => {})
+        expect(screen.getByRole('button', {name: /Zahlungsanfrage: Max: 15 €/})).toBeTruthy()
+        expect(screen.queryByRole('button', {name: /island\.idle/})).toBeNull()
+    })
+
     it('shows an upload activity while a media file is uploading', async () => {
         renderIsland(undefined, null)
         await act(async () => {
