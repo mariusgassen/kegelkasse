@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {describe, expect, it} from 'vitest'
-import {pdfText, renderReportPdf, reportEuro, reportSigned} from '../reportPdf'
+import {bookingsByMonth, penaltyMatrix, pdfText, renderReportPdf, reportEuro, reportSigned} from '../reportPdf'
 import {scaleToFit} from '../reportBranding'
 import type {ReportData} from '@/types'
 
@@ -73,5 +73,34 @@ describe('renderReportPdf', () => {
         }
         const bytes = await renderReportPdf(empty)
         expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-')
+    })
+})
+
+describe('bookingsByMonth', () => {
+    it('adds a heading row per month with the cash net, leaving write-offs out', () => {
+        const rows = bookingsByMonth([
+            {date: '03.03.2025', type: 'Einzahlung', description: 'A', amount: 20, note: ''},
+            {date: '10.03.2025', type: 'Ausgabe', description: 'Bahn', amount: -5, note: ''},
+            {date: '12.03.2025', type: 'Abschreibung', description: 'A', amount: 9, note: ''},
+            {date: '02.04.2025', type: 'Einzahlung', description: 'B', amount: 7, note: ''},
+        ])
+        const heads = rows.filter(r => r.bold)
+        expect(heads.map(r => r.cells[2])).toEqual(['März 2025', 'April 2025'])
+        expect(heads.map(r => r.cells[3])).toEqual([reportSigned(15), reportSigned(7)])
+        expect(rows).toHaveLength(6)
+    })
+})
+
+describe('penaltyMatrix', () => {
+    it('orders types by cost and flags the extremes per type', () => {
+        const m = penaltyMatrix([
+            {nickname: 'A', type: 'Pin', count: 1, total: 5},
+            {nickname: 'B', type: 'Pin', count: 2, total: 10},
+            {nickname: 'A', type: 'Zu spät', count: 1, total: 20},
+        ])
+        expect(m.types).toEqual(['Zu spät', 'Pin'])
+        expect(m.people.find(p => p.name === 'B')?.values).toEqual([0, 10])
+        expect(m.extremes.get('Pin')).toEqual({max: 10, min: 5})
+        expect(m.extremes.get('Zu spät')).toBeNull() // only one person: nothing to compare
     })
 })

@@ -75,15 +75,15 @@ const signTone = (v: number): Tone | undefined => (v > 0.004 ? 'pos' : v < -0.00
 const FONT = 9
 const HEAD_FONT = 8.5
 
-function Cell({w, align, children, header, footer, tone}: {
-    w: number; align?: 'left' | 'right'; children: string; header?: boolean; footer?: boolean; tone?: Tone
+function Cell({w, align, children, header, footer, tone, bold}: {
+    w: number; align?: 'left' | 'right'; children: string; header?: boolean; footer?: boolean; tone?: Tone; bold?: boolean
 }) {
     return (
         <TableCell width={w} align={align} header={header} footer={footer} style={{paddingHorizontal: 5, paddingVertical: 4}}>
             <Text style={{
                 fontFamily: 'Helvetica',
                 fontSize: header ? HEAD_FONT : FONT,
-                fontWeight: header || footer ? 700 : 400,
+                fontWeight: header || footer || bold ? 700 : 400,
                 color: header ? MUTED : toneColor(tone, '#18181b'),
                 textAlign: align ?? 'left',
             }}>{children}</Text>
@@ -110,7 +110,7 @@ interface Col {
 
 function DataTable({cols, rows, footer, tint}: {
     cols: Col[]
-    rows: { cells: string[]; tones?: (Tone | undefined)[] }[]
+    rows: { cells: string[]; tones?: (Tone | undefined)[]; bold?: boolean | boolean[] }[]
     footer?: { cells: string[]; tones?: (Tone | undefined)[] }
     tint: string
 }) {
@@ -124,7 +124,10 @@ function DataTable({cols, rows, footer, tint}: {
             <TableBody>
                 {rows.map((r, ri) => (
                     <TableRow key={ri}>
-                        {r.cells.map((c, i) => <Cell key={i} w={cols[i].w} align={cols[i].align} tone={r.tones?.[i]}>{c}</Cell>)}
+                        {r.cells.map((c, i) => (
+                            <Cell key={i} w={cols[i].w} align={cols[i].align} tone={r.tones?.[i]}
+                                  bold={Array.isArray(r.bold) ? r.bold[i] : r.bold}>{c}</Cell>
+                        ))}
                     </TableRow>
                 ))}
             </TableBody>
@@ -172,6 +175,102 @@ function MonthlyTable({months, rows, tint}: { months: string[]; rows: ReportMont
                 tones: [...new Array<Tone | undefined>(months.length + 3).fill(undefined), signTone(r.balance)],
             }))}
         />
+    )
+}
+
+
+const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+
+/** Bookings (already date-sorted, "dd.mm.yyyy") with a heading row per month carrying the cash net. */
+export function bookingsByMonth(bookings: ReportData['bookings']) {
+    const rows: { cells: string[]; tones?: (Tone | undefined)[]; bold?: boolean }[] = []
+    let current = ''
+    for (const b of bookings) {
+        const [, mm, yyyy] = b.date.split('.')
+        const key = `${yyyy}-${mm}`
+        if (key !== current) {
+            current = key
+            const inMonth = bookings.filter(x => x.date.split('.').slice(1).reverse().join('-') === key)
+            // Write-offs settle a balance without any cash moving, so they stay out of the monthly net.
+            const net = inMonth.filter(x => x.type !== 'Abschreibung').reduce((a, x) => a + x.amount, 0)
+            const label = MONTHS_DE[Number(mm) - 1] ? `${MONTHS_DE[Number(mm) - 1]} ${yyyy}` : b.date
+            rows.push({cells: ['', '', label, reportSigned(net), ''], tones: [undefined, undefined, undefined, signTone(net), undefined], bold: true})
+        }
+        rows.push({cells: [b.date, b.type, b.description, reportSigned(b.amount), b.note], tones: [undefined, undefined, undefined, b.type === 'Abschreibung' ? 'muted' : signTone(b.amount), 'muted']})
+    }
+    return rows
+}
+
+/** Penalties per person × type. Columns ordered by total (most costly type first). */
+export function penaltyMatrix(rows: ReportData['penalties_by_person']) {
+    const typeTotal = new Map<string, number>()
+    const people = new Map<string, Map<string, number>>()
+    for (const r of rows) {
+        const t = r.type || 'Sonstige'
+        typeTotal.set(t, (typeTotal.get(t) ?? 0) + r.total)
+        const m = people.get(r.nickname) ?? new Map<string, number>()
+        m.set(t, (m.get(t) ?? 0) + r.total)
+        people.set(r.nickname, m)
+    }
+    const types = [...typeTotal.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t)
+    // Per type: the costliest and cheapest non-zero cell (only meaningful with ≥ 2 distinct values).
+    const extremes = new Map<string, { max: number; min: number } | null>()
+    for (const t of types) {
+        const vals = [...people.values()].map(m => m.get(t) ?? 0).filter(v => v > 0)
+        const max = Math.max(...vals), min = Math.min(...vals)
+        extremes.set(t, vals.length >= 2 && max !== min ? {max, min} : null)
+    }
+    return {
+        types,
+        extremes,
+        people: [...people.entries()].map(([name, m]) => ({
+            name,
+            values: types.map(t => m.get(t) ?? 0),
+            total: [...m.values()].reduce((a, v) => a + v, 0),
+        })),
+    }
+}
+
+function PenaltyMatrix({rows, tint}: { rows: ReportData['penalties_by_person']; tint: string }) {
+    const {types, extremes, people} = penaltyMatrix(rows)
+    if (!people.length) return null
+    const nameW = 90, sumW = 56, perChunk = 11
+    const chunks: string[][] = []
+    for (let i = 0; i < types.length; i += perChunk) chunks.push(types.slice(i, i + perChunk))
+    const typeW = Math.min(64, Math.floor((LANDSCAPE_W - nameW - sumW) / Math.min(perChunk, Math.max(types.length, 1))))
+    return (
+        <View>
+            {chunks.map((chunk, ci) => (
+                <View key={ci} style={{marginTop: ci ? 12 : 0}}>
+                    <DataTable
+                        tint={tint}
+                        cols={[
+                            {w: nameW, head: 'Kegelname'},
+                            {w: sumW, head: 'Summe', align: 'right'},
+                            ...chunk.map(t => ({w: typeW, head: t, align: 'right' as const})),
+                        ]}
+                        rows={people.map(p => {
+                            const cells = chunk.map(t => p.values[types.indexOf(t)])
+                            return {
+                                cells: [p.name, reportNumber(p.total), ...cells.map(v => (v ? reportNumber(v) : '–'))],
+                                tones: [undefined, undefined, ...chunk.map((t, i) => {
+                                    const ex = extremes.get(t)
+                                    if (!ex || !cells[i]) return cells[i] ? undefined : 'muted' as Tone
+                                    return cells[i] === ex.max ? 'neg' as Tone : cells[i] === ex.min ? 'pos' as Tone : undefined
+                                })],
+                                bold: [false, true, ...chunk.map((t, i) => {
+                                    const ex = extremes.get(t)
+                                    return !!ex && (cells[i] === ex.max || cells[i] === ex.min)
+                                })],
+                            }
+                        })}
+                    />
+                </View>
+            ))}
+            <Text style={{fontFamily: 'Helvetica', fontSize: 8, color: MUTED, marginTop: 6}}>
+                Beträge in €. Rot = höchster, grün = niedrigster Wert je Strafenart (nur wenn mindestens zwei Personen sie hatten).
+            </Text>
+        </View>
     )
 }
 
@@ -333,31 +432,19 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                                 {w: bookW[3], head: 'Betrag', align: 'right'},
                                 {w: bookW[4], head: 'Notiz'},
                             ]}
-                            rows={data.bookings.map(b => ({
-                                cells: [b.date, b.type, b.description, reportSigned(b.amount), b.note],
-                                tones: [undefined, undefined, undefined, signTone(b.amount), 'muted'],
-                            }))}
+                            rows={bookingsByMonth(data.bookings)}
                         />
                     </Section>
                 </Page>
 
-                <Page size="A4" margin={MARGIN}>
-                    {footer}
-                    <Section title="Strafen nach Person" accent={accent}>
-                        <DataTable
-                            tint={tint}
-                            cols={[
-                                {w: w([110, 'rest', 40, 80])[0], head: 'Kegelname'},
-                                {w: w([110, 'rest', 40, 80])[1], head: 'Strafen-Typ'},
-                                {w: 40, head: 'Anz.', align: 'right'},
-                                {w: 80, head: 'Betrag', align: 'right'},
-                            ]}
-                            rows={data.penalties_by_person.map(p => ({
-                                cells: [p.nickname, p.type || 'Sonstige', String(p.count), reportEuro(p.total)],
-                            }))}
-                        />
-                    </Section>
-                </Page>
+                {data.penalties_by_person.length > 0 && (
+                    <Page size={LANDSCAPE} margin={MARGIN}>
+                        {footer}
+                        <Section title="Strafen nach Person" accent={accent}>
+                            <PenaltyMatrix rows={data.penalties_by_person} tint={tint}/>
+                        </Section>
+                    </Page>
+                )}
 
                 <Page size="A4" margin={MARGIN}>
                     {footer}

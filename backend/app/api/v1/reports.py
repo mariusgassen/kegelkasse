@@ -165,16 +165,27 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
             return ep.regular_member_id if ep else None
         return log.regular_member_id
 
+    # The cap only applies from a former member's exit on; earlier evenings were played as a regular
+    # member (uncapped, absence penalties included).
+    from app.api.v1.club import _before_leave
+
+    def _as_guest(mid: Optional[int], log: PenaltyLog) -> bool:
+        if mid not in guest_ids:
+            return False
+        ev = evening_by_id.get(log.evening_id)
+        m = member_by_id.get(mid)
+        return not (ev and m and _before_leave(ev.date, m.deactivated_at))
+
     guest_raw: dict[tuple[int, int], float] = defaultdict(float)
     for log in penalty_logs:
         mid = _log_member_id(log)
-        if mid in guest_ids and log.player_id is not None:
+        if _as_guest(mid, log) and log.player_id is not None:
             guest_raw[(mid, log.evening_id)] += _penalty_euro(log)
 
     def effective_euro(log: PenaltyLog) -> float:
         euro = _penalty_euro(log)
         mid = _log_member_id(log)
-        if mid not in guest_ids:
+        if not _as_guest(mid, log):
             return euro
         if log.player_id is None:
             return 0.0
@@ -236,9 +247,12 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
 
     period_label = str(year) if year else "Gesamt"
     total_penalties = round(sum(effective_euro(l) for l in penalty_logs), 2)
-    total_payments = round(sum(p.amount for p in payments), 2)
+    # Cash actually paid in: write-offs settle a balance without any money moving.
+    total_payments = round(sum(p.amount for p in payments if not p.is_writeoff), 2)
     total_expenses = round(sum(e.amount for e in expenses), 2)
-    kassenstand = round(total_payments - total_penalties - total_expenses, 2)
+    # Same definition as the Kasse: real money in the till (cash paid in − expenses). Open penalties
+    # are not cash.
+    kassenstand = round(total_payments - total_expenses, 2)
     regular_members = [m for m in members if not m.is_guest]
 
     # Bookings: payments + expenses merged and sorted by date
@@ -246,7 +260,7 @@ def _collect_report(db: Session, user: User, year: Optional[int]) -> SimpleNames
     for p in payments:
         m = member_by_id.get(p.regular_member_id)
         name = (m.nickname or m.name) if m else f"#{p.regular_member_id}"
-        booking_rows.append((p.created_at, "Einzahlung", name, p.amount, p.note or ""))
+        booking_rows.append((p.created_at, "Abschreibung" if p.is_writeoff else "Einzahlung", name, p.amount, p.note or ""))
     for e in expenses:
         dt = e.date or e.created_at
         booking_rows.append((dt, "Ausgabe", e.description, -e.amount, ""))
