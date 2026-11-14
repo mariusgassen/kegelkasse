@@ -1,6 +1,6 @@
 import {cloneElement, isValidElement} from 'react'
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
-import {fireEvent, render, screen, waitFor} from '@testing-library/react'
+import {createEvent, fireEvent, render, screen, waitFor} from '@testing-library/react'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
@@ -55,7 +55,7 @@ describe('TreasuryCharts', () => {
         useEffectsStore.setState({effectsEnabled: true})
     })
 
-    it('shows a loading skeleton first, then all five chart cards', async () => {
+    it('shows a loading skeleton first, then all chart cards', async () => {
         renderIt()
         expect(screen.getByTestId('charts-loading')).toBeInTheDocument()
         await waitFor(() => expect(screen.getByTestId('treasury-charts')).toBeInTheDocument())
@@ -85,7 +85,7 @@ describe('TreasuryCharts', () => {
         }
     })
 
-    it('keeps the 0-axis aligned and bars flush on negative waterfall and trend values', async () => {
+    it('keeps trend and waterfall as separate cards with aligned 0-axes, waterfall x-ticks and flush negative bars', async () => {
         const year = new Date().getFullYear()
         vi.mocked(api.getMemberBalances).mockResolvedValue([m(1, 50, 0)] as any)
         vi.mocked(api.getExpenses).mockResolvedValue([
@@ -94,20 +94,29 @@ describe('TreasuryCharts', () => {
         ] as any)
         renderIt()
 
-        // All-negative trend must still include y=0 so its 0 reference line renders
+        // Trend is rendered in its own sibling card, not nested inside chart-waterfall
         const trend = await screen.findByTestId('chart-trend')
+        const waterfall = screen.getByTestId('chart-waterfall')
+        expect(waterfall.contains(trend)).toBe(false)
+
+        // All-negative trend must still include y=0 so its 0 reference line renders
         expect(trend.querySelector('.recharts-reference-line-line')).not.toBeNull()
         expect(trend.querySelector('.recharts-label')).toHaveTextContent('0')
 
         // Negative waterfall bar ('cash' = -100, range = [-100, 0]) must align flat at the 0-axis
-        const waterfall = screen.getByTestId('chart-waterfall')
-        const containers = waterfall.querySelectorAll('[data-testid="rc"]')
-        const barChartEl = containers[1]
+        const barChartEl = waterfall.querySelector('[data-testid="rc"]')!
         const zeroLine = barChartEl.querySelector('.recharts-reference-line-line')!
         expect(zeroLine).toBeTruthy()
         const zeroX = Number(zeroLine.getAttribute('x1'))
         expect(zeroLine.getAttribute('x2')).toBe(String(zeroX))
         expect(zeroX).toBeGreaterThan(20)
+
+        // Waterfall shows compact euro reference ticks on X-axis including 0
+        const wfTicks = Array.from(waterfall.querySelectorAll('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value'))
+            .map(el => el.textContent)
+        expect(wfTicks.length).toBeGreaterThanOrEqual(2)
+        expect(wfTicks.length).toBeLessThanOrEqual(3)
+        expect(wfTicks).toContain('€0')
 
         const rectPaths = Array.from(barChartEl.querySelectorAll('.recharts-bar-rectangle path'))
         expect(rectPaths.length).toBeGreaterThanOrEqual(2)
@@ -134,6 +143,59 @@ describe('TreasuryCharts', () => {
         expect(labels.some(l => l.textContent?.includes('treasury.charts.step.cash'))).toBe(true)
         for (const label of labels) {
             expect(label).toHaveAttribute('paint-order', 'stroke')
+        }
+    })
+
+    it('splits positive and negative trend colors, shows click label + dot without recreating waterfall bars, and blocks selection', async () => {
+        const year = new Date().getFullYear()
+        vi.mocked(api.getAllPayments).mockResolvedValue([
+            {id: 1, regular_member_id: 1, amount: 50, created_at: `${year}-01-05T10:00:00`, date: `${year}-01-05T10:00:00`},
+            {id: 2, regular_member_id: 1, amount: 80, created_at: `${year}-04-05T10:00:00`, date: `${year}-04-05T10:00:00`},
+        ] as any)
+        vi.mocked(api.getExpenses).mockResolvedValue([
+            {id: 1, amount: 90, description: 'e1', created_at: `${year}-02-05T12:00:00`, date: `${year}-02-05T12:00:00`},
+            {id: 2, amount: 10, description: 'e2', created_at: `${year}-03-05T12:00:00`, date: `${year}-03-05T12:00:00`},
+            {id: 3, amount: 5, description: 'e3', created_at: `${year}-03-20T12:00:00`, date: `${year}-03-20T12:00:00`},
+        ] as any)
+        renderIt()
+
+        const trend = await screen.findByTestId('chart-trend')
+        const waterfall = screen.getByTestId('chart-waterfall')
+
+        // Positive/negative zero-split gradient
+        const grads = trend.querySelectorAll('linearGradient')
+        expect(grads).toHaveLength(2)
+        const stops = Array.from(grads[0].querySelectorAll('stop'))
+        expect(stops.map(s => s.getAttribute('stop-color'))).toEqual([
+            'var(--positive-fg)', 'var(--positive-fg)', 'var(--danger-fg)', 'var(--danger-fg)',
+        ])
+
+        // Concise X-axis reference ticks (not every point)
+        const trendXTicks = trend.querySelectorAll('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')
+        expect(trendXTicks.length).toBeGreaterThanOrEqual(2)
+        expect(trendXTicks.length).toBeLessThanOrEqual(3)
+
+        // Snapshot a DOM element inside waterfall to confirm selecting a trend point does not remount waterfall bars
+        const firstWaterfallRect = waterfall.querySelector('.recharts-bar-rectangle path')!
+        expect(firstWaterfallRect).not.toBeNull()
+
+        const wrapper = trend.querySelector('.recharts-wrapper')!
+        vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+            x: 0, y: 0, left: 0, top: 0, right: 340, bottom: 156, width: 340, height: 156, toJSON: () => ({}),
+        })
+        fireEvent.mouseMove(wrapper, {clientX: 170, clientY: 60})
+        fireEvent.click(wrapper, {clientX: 170, clientY: 60})
+
+        await waitFor(() => expect(screen.getByTestId('pick-trend')).toBeInTheDocument())
+        expect(trend.querySelector('.recharts-reference-dot-dot')).not.toBeNull()
+        expect(waterfall.querySelector('.recharts-bar-rectangle path')).toBe(firstWaterfallRect)
+
+        // Accidental selection is blocked via select-none and mousedown preventDefault
+        for (const card of [trend, waterfall]) {
+            expect(card).toHaveClass('select-none')
+            const md = createEvent.mouseDown(card)
+            fireEvent(card, md)
+            expect(md.defaultPrevented).toBe(true)
         }
     })
 
@@ -184,3 +246,4 @@ describe('TreasuryCharts', () => {
         expect(screen.queryByTestId('pick-x')).toBeNull()
     })
 })
+

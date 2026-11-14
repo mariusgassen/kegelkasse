@@ -1,6 +1,9 @@
 import {describe, it, expect} from 'vitest'
 import {treasurySummary} from '@/lib/treasurySummary.ts'
-import {cashTrend, debtTiles, eveningBars, eventsInYear, flowTarget, paidOpenSplit, sankeyGraph, waterfallSteps} from '@/lib/treasuryCharts.ts'
+import {
+    cashTrend, debtTiles, eveningBars, eventsInYear, flowTarget, formatTimeAxisTick, nearestTimeIndex,
+    paidOpenSplit, resolveTimeClickIndex, sankeyGraph, timeAxisTicks, waterfallAxisTicks, waterfallSteps, zeroSplitOffset,
+} from '@/lib/treasuryCharts.ts'
 
 const bal = (id: number, penalty: number, paid: number, name = `M${id}`) => ({
     regular_member_id: id, name, nickname: null, penalty_total: penalty, payments_total: paid, balance: paid - penalty,
@@ -108,3 +111,67 @@ describe('flowTarget / eventsInYear', () => {
         expect(eventsInYear(ev, null)).toHaveLength(2)
     })
 })
+
+describe('zeroSplitOffset', () => {
+    it('returns solid positive/danger tokens when values stay on one side of zero', () => {
+        expect(zeroSplitOffset([0, 10, 25])).toEqual({mixed: false, offset: 0, solidColor: 'var(--positive-fg)'})
+        expect(zeroSplitOffset([0, -10, -25])).toEqual({mixed: false, offset: 0, solidColor: 'var(--danger-fg)'})
+        expect(zeroSplitOffset([])).toEqual({mixed: false, offset: 0, solidColor: 'var(--positive-fg)'})
+    })
+    it('returns the exact zero-crossing gradient offset when values span positive and negative', () => {
+        const res = zeroSplitOffset([-20, 60])
+        expect(res.mixed).toBe(true)
+        expect(res.offset).toBeCloseTo(0.75, 4)
+    })
+})
+
+describe('timeAxisTicks / formatTimeAxisTick', () => {
+    it('picks at most max evenly spaced ticks and deduplicates identical formatted dates', () => {
+        const jan1 = new Date(2026, 0, 1, 10).getTime()
+        const jan1Eve = new Date(2026, 0, 1, 22).getTime()
+        const feb1 = new Date(2026, 1, 1, 10).getTime()
+        const mar1 = new Date(2026, 2, 1, 10).getTime()
+
+        expect(timeAxisTicks([jan1, jan1Eve], 3)).toEqual([jan1])
+        expect(timeAxisTicks([jan1, feb1, mar1], 3)).toHaveLength(3)
+        expect(timeAxisTicks(Array.from({length: 20}, (_, i) => jan1 + i * 86_400_000), 3)).toHaveLength(3)
+    })
+    it('includes year only when range crosses calendar years', () => {
+        const d1 = new Date(2026, 0, 5).getTime()
+        const d2 = new Date(2026, 2, 5).getTime()
+        const d3 = new Date(2027, 0, 5).getTime()
+        expect(formatTimeAxisTick(d1, d1, d2)).toBe('05.01.')
+        expect(formatTimeAxisTick(d1, d1, d3)).toBe('05.01.26')
+    })
+})
+
+describe('waterfallAxisTicks', () => {
+    it('returns min, 0, max for mixed ranges and includes midpoint when one-sided', () => {
+        expect(waterfallAxisTicks([[0, 200], [-100, 0]])).toEqual([-100, 0, 200])
+        expect(waterfallAxisTicks([[0, 200], [0, 80]])).toEqual([0, 100, 200])
+        expect(waterfallAxisTicks([[0, 0]])).toEqual([0])
+        // Drops tiny opposite tail that would visually overlap the 0 tick
+        expect(waterfallAxisTicks([[0, 1000], [-5, 0]])).toEqual([0, 500, 1000])
+    })
+})
+
+describe('nearestTimeIndex / resolveTimeClickIndex', () => {
+    it('picks nearest timestamp and prefers real entry over duplicate baseline ts', () => {
+        expect(nearestTimeIndex([100, 100, 200, 300], 0)).toBe(1)
+        expect(nearestTimeIndex([100, 100, 200, 300], 0.52)).toBe(2)
+        expect(nearestTimeIndex([100, 100, 200, 300], 1)).toBe(3)
+        expect(nearestTimeIndex([], 0.5)).toBe(-1)
+    })
+    it('resolves via activeTooltipIndex first, then activeLabel, then pointer coordinate', () => {
+        const ts = [100, 200, 300]
+        expect(resolveTimeClickIndex(ts, {activeTooltipIndex: '1'}, null, {left: 16, right: 16})).toBe(1)
+        expect(resolveTimeClickIndex(ts, {activeTooltipIndex: null, activeLabel: 300}, null, {left: 16, right: 16})).toBe(2)
+        const fakeEvt = {
+            clientX: 166,
+            currentTarget: {getBoundingClientRect: () => ({left: 0, width: 332})},
+        }
+        expect(resolveTimeClickIndex(ts, {activeTooltipIndex: null}, fakeEvt, {left: 16, right: 16})).toBe(1)
+    })
+})
+
+
