@@ -47,6 +47,15 @@ abgeschaltet, erscheinen auch die Alle-Neune-Einträge nicht.
 Beim Beenden des Abends verschwindet der Live-Reiter wieder, und der Abend-Bereich zeigt wie
 gewohnt zuerst das Protokoll.
 
+### Live-Insel 🏝️
+
+Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auf dem iPhone direkt auf der Dynamic Island):
+
+- **Laufender Abend & Spiel-Timer**: zeigt die Strafensumme bzw. die laufende Spielzeit (`m:ss`); langes Drücken klappt Lokal, aktuelles Spiel / Spieler am Zug sowie Kasse, Bier- und Schnapsrunden auf; Antippen springt direkt zum Abend.
+- **König & Alle Neune**: kurze Feier-Einblendung direkt in der Insel.
+- **Foto-Uploads & Offline-Warteschlange**: zeigt laufende Datei-Uploads sowie ausstehende Offline-Buchungen (mit **Jetzt synchronisieren**-Knopf, sobald wieder Verbindung besteht).
+- **Zahlungsanfragen**: Kassenwarte können eingehende Zahlungsanfragen direkt in der aufgeklappten Insel bestätigen oder ablehnen.
+
 ## Highlights erfassen
 
 Unter dem Spieler-/Team-Bereich gibt es einen **✨ Highlights**-Abschnitt:

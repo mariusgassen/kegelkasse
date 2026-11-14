@@ -48,6 +48,9 @@ import {BowlingGame} from './components/BowlingGame'
 import {useNotificationStore, unreadCount} from './store/notifications'
 import {ROUTE_PAGES, type RoutePage, legacyHashToLocation} from './lib/legacyHash'
 import {OPEN_PROFILE_EVENT, type OpenProfileDetail} from './lib/aiLinks'
+import {useThemeStore} from './store/theme'
+import {DEFAULT_DARK_BG} from './lib/tokens'
+import {hexToHsl, hslToHex} from './lib/color'
 
 declare const __APP_VERSION__: string
 // Guarded so it can't throw in environments where the build-time define isn't applied (tests).
@@ -86,6 +89,7 @@ const EveningIsland = lazy(() => import('./components/evening/EveningIsland'))
 
 export function RootLayout() {
     const {user, activeEveningId} = useAppStore()
+    const theme = useThemeStore(s => s.theme)
     const t = useT()
     const queryClient = useQueryClient()
     const [page, setPage] = usePage<PageId>('evening', [...ROUTE_PAGES])
@@ -113,6 +117,17 @@ export function RootLayout() {
     const badgeCount = unreadCount(notifications)
 
     const {data: club} = useQuery({queryKey: ['club'], queryFn: api.getClub, enabled: !!user, staleTime: 60000})
+
+    const effectiveMode = theme !== 'system'
+        ? theme
+        : (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+    const baseBg = club?.settings?.bg_color ?? DEFAULT_DARK_BG
+    const canvasBg = effectiveMode === 'dark'
+        ? baseBg
+        : (() => {
+            const [h, s, l] = hexToHsl(baseBg)
+            return hslToHex(h, s, Math.max(100 - l, 85))
+        })()
 
     async function handleRefresh() {
         await queryClient.invalidateQueries()
@@ -161,15 +176,17 @@ export function RootLayout() {
             {/* Header region: safe-area spacer + banners + header bar (grid-area: header) */}
             <div className="app-header">
                 {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
-                <div className="safe-top" style={{background: 'var(--canvas)'}}/>
+                <div className="safe-top" style={{background: 'var(--canvas)'}}>
+                    <div aria-hidden="true" className="ios-top-blur-shim"/>
+                </div>
                 <OfflineBanner/>
                 <InstallPrompt/>
                 <UpdatePrompt/>
                 <WhatsNewNotice/>
-                {/* Live-activity island for the running evening (islandcn); code-split, only while one is active */}
-                {activeEveningId != null && activeEveningId > 0 && (
-                    <Suspense fallback={null}><EveningIsland eveningId={activeEveningId}/></Suspense>
-                )}
+                {/* Live-activity island mounted once at the app root (islandcn); code-split */}
+                <Suspense fallback={null}>
+                    <EveningIsland eveningId={activeEveningId} backdrop={canvasBg}/>
+                </Suspense>
 
                 {/* ── Header ── */}
                 <header style={{

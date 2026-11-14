@@ -333,17 +333,50 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     return res.status === 204 ? (null as T) : res.json()
 }
 
+export const UPLOAD_STATUS_EVENT = 'kegelkasse:upload-status'
+
+export interface UploadStatusDetail {
+    active: number
+    fileName: string
+    status: 'uploading' | 'done' | 'error'
+}
+
+let _activeUploads = 0
+
 export async function uploadMedia(file: File): Promise<string> {
-    const form = new FormData()
-    form.append('file', file)
-    const res = await authedFetch(`${API_BASE}/uploads/media`, {method: 'POST', body: form})
-    if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+    const fileName = file.name || 'Foto'
+    _activeUploads++
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent<UploadStatusDetail>(UPLOAD_STATUS_EVENT, {
+            detail: {active: _activeUploads, fileName, status: 'uploading'},
+        }))
     }
-    const data = await res.json() as {url: string}
-    return data.url
+    try {
+        const form = new FormData()
+        form.append('file', file)
+        const res = await authedFetch(`${API_BASE}/uploads/media`, {method: 'POST', body: form})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+        }
+        const data = await res.json() as {url: string}
+        _activeUploads = Math.max(0, _activeUploads - 1)
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent<UploadStatusDetail>(UPLOAD_STATUS_EVENT, {
+                detail: {active: _activeUploads, fileName, status: _activeUploads > 0 ? 'uploading' : 'done'},
+            }))
+        }
+        return data.url
+    } catch (e) {
+        _activeUploads = Math.max(0, _activeUploads - 1)
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent<UploadStatusDetail>(UPLOAD_STATUS_EVENT, {
+                detail: {active: _activeUploads, fileName, status: _activeUploads > 0 ? 'uploading' : 'error'},
+            }))
+        }
+        throw e
+    }
 }
 
 export const api = {
@@ -1085,12 +1118,18 @@ let _flushInProgress = false
  * Returns the number of successfully applied changes and any errors.
  * If another flush is already in progress, returns immediately with zeros.
  */
+export const SYNC_STARTED_EVENT = 'kegelkasse:sync-started'
+
 export async function flushOfflineQueue(): Promise<{ applied: number; errors: number }> {
     if (_flushInProgress) return {applied: 0, errors: 0}
     _flushInProgress = true
     try {
         const queued = await offlineQueue.getAll()
         if (queued.length === 0) return {applied: 0, errors: 0}
+
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent(SYNC_STARTED_EVENT, {detail: {total: queued.length}}))
+        }
 
         const sorted = [...queued].sort((a, b) => a.timestamp - b.timestamp)
         let applied = 0
