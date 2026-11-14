@@ -1509,6 +1509,8 @@ export const en = {
     "quickEntry.pickDrink": "Pick a drink",
     "quickEntry.pickParticipants": "Who was in?",
     "quickEntry.applySelection": "Use selection",
+    "quickEntry.mobileBook": "Book",
+    "quickEntry.mobileOverview": "Standings",
     "comment.show": "Comments",
     "comment.collapse": "Hide comments",
     "comment.none": "No comments yet.",

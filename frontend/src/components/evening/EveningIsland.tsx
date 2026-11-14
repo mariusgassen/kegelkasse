@@ -29,6 +29,7 @@ import {router} from '@/router'
 import {useT, t as tStatic} from '@/i18n'
 import {currentGameState, eveningTotals} from '@/lib/liveEvening.ts'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
+import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {useNotificationStore} from '@/store/notifications.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
@@ -56,6 +57,7 @@ import {formatClock, TickingTime} from '@/components/islandcn/ticking-time'
 
 const EVENING_ID = 'evening'
 const CELEBRATE_ID = 'celebration'
+const QUICK_ENTRY_ID = 'quick-entry'
 const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
@@ -537,11 +539,116 @@ function PaymentRequestActivity() {
     return null
 }
 
+// ── 6. Quick-entry booking events (penalty, drink round, undo, game start/finish) ───────────────
+
+function QuickEntryActivity() {
+    const island = useIslandActions()
+    const [active, setActive] = useState<QuickEntryEventDetail | null>(null)
+    const timerRef = useRef<number | null>(null)
+
+    useEffect(() => {
+        const onEvent = (e: Event) => {
+            const detail = (e as CustomEvent<QuickEntryEventDetail>).detail
+            if (!detail) return
+            setActive(detail)
+            if (timerRef.current) window.clearTimeout(timerRef.current)
+            timerRef.current = window.setTimeout(() => setActive(null), 2600)
+        }
+        window.addEventListener(QUICK_ENTRY_EVENT, onEvent)
+        return () => {
+            window.removeEventListener(QUICK_ENTRY_EVENT, onEvent)
+            if (timerRef.current) window.clearTimeout(timerRef.current)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!active) {
+            island.end(QUICK_ENTRY_ID)
+            return
+        }
+        const toneColor = active.kind === 'drink'
+            ? islandAccent.green
+            : active.kind === 'undo'
+                ? islandAccent.red
+                : ACCENT
+        const label = [active.title, active.subtitle, active.badge].filter(Boolean).join(' · ')
+        const leadingIcon = (
+            <span aria-hidden="true" style={{fontSize: 14, lineHeight: 1}}>
+                {active.icon}
+            </span>
+        )
+        const trailingBadge = (
+            <CompactText color={toneColor}>
+                {active.badge ?? active.subtitle}
+            </CompactText>
+        )
+        island.start({
+            id: QUICK_ENTRY_ID,
+            priority: 2,
+            label,
+            compact: {
+                leading: (
+                    <div style={{display: 'inline-flex', alignItems: 'center', gap: 5}}>
+                        {leadingIcon}
+                        <CompactText color={islandInk.primary}>
+                            {active.title}
+                        </CompactText>
+                    </div>
+                ),
+                trailing: (
+                    <BubbleForm bubble={null}>
+                        <div style={{display: 'inline-flex', alignItems: 'center', gap: 4}}>
+                            <CompactText color={islandInk.secondary}>
+                                {active.subtitle}
+                            </CompactText>
+                            {active.badge ? (
+                                <CompactText color={toneColor}>
+                                    {active.badge}
+                                </CompactText>
+                            ) : null}
+                        </div>
+                    </BubbleForm>
+                ),
+            },
+            minimal: (
+                <MinimalPair
+                    leading={leadingIcon}
+                    trailing={trailingBadge}
+                />
+            ),
+            expanded: {
+                leading: (
+                    <SensorRow glyph={leadingIcon}>
+                        <ContextLabel>{active.title}</ContextLabel>
+                    </SensorRow>
+                ),
+                trailing: active.badge ? (
+                    <SensorRow align="end">
+                        <CompactText color={toneColor}>{active.badge}</CompactText>
+                    </SensorRow>
+                ) : undefined,
+                bottom: (
+                    <ExpandedBottom reach="lift">
+                        <TitleStack
+                            title={active.title}
+                            subtitle={[active.subtitle, active.badge].filter(Boolean).join(' · ')}
+                        />
+                    </ExpandedBottom>
+                ),
+            },
+        })
+        return () => island.end(QUICK_ENTRY_ID)
+    }, [island, active])
+
+    return null
+}
+
 export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     return (
         <>
             {eveningId != null && eveningId > 0 && <EveningActivity eveningId={eveningId}/>}
             <CelebrationActivity/>
+            <QuickEntryActivity/>
             <UploadActivity/>
             <OfflineSyncActivity/>
             <PaymentRequestActivity/>
@@ -558,7 +665,12 @@ export default function EveningIsland({
 }) {
     return (
         <IslandProvider>
-            <Island placement="container" label="Live" backdrop={backdrop} style={{top: -4, zIndex: 60}}/>
+            <Island
+                placement="viewport"
+                label="Live"
+                backdrop={backdrop}
+                style={{top: 'calc(env(safe-area-inset-top, 0px) - 4px)', zIndex: 70}}
+            />
             <IslandActivities eveningId={eveningId}/>
         </IslandProvider>
     )
