@@ -116,7 +116,7 @@ describe('LiveEveningView', () => {
         })
         renderView(ev)
         // With a mocked identity t(), the drink round's fallback label is the raw key.
-        const cards = screen.getAllByText(/drinks\.beer|Pudel/)
+        const cards = screen.getAllByText(/^(drinks\.beer|Pudel)$/)
         // Drink (newer) appears before penalty (older) in DOM order.
         expect(cards[0].textContent).toContain('drinks.beer')
     })
@@ -180,11 +180,63 @@ describe('LiveEveningView', () => {
         expect(screen.queryByText('Der Rudi')).not.toBeInTheDocument()
         expect(screen.queryByText(/live\.next/)).not.toBeInTheDocument()
     })
+
+    it('renders the prominent Quick Entry hero CTA and wires it to onQuickEntry', () => {
+        renderView(evening())
+        const cta = screen.getByTestId('live-quick-entry-cta')
+        expect(cta).toHaveTextContent('quickEntry.open')
+        expect(cta).not.toBeDisabled()
+        fireEvent.click(cta)
+        expect(onQuickEntry).toHaveBeenCalledTimes(1)
+    })
+
+    it('disables the Quick Entry hero CTA when onQuickEntry is undefined', () => {
+        render(
+            <LiveEveningView evening={evening()} onQuickEntry={undefined}
+                             onGoHighlights={onGoHighlights} onGoGames={onGoGames}/>,
+        )
+        expect(screen.getByTestId('live-quick-entry-cta')).toBeDisabled()
+    })
+
+    it('renders game start/finish dividers and band borders across the full uncapped history', () => {
+        const penalties = Array.from({length: 35}, (_, i) => ({
+            id: i + 1,
+            player_id: 1,
+            team_id: null,
+            player_name: `Spieler-${i + 1}`,
+            penalty_type_name: 'Pudel',
+            icon: '🎳',
+            amount: 1,
+            mode: 'euro' as const,
+            unit_amount: null,
+            regular_member_id: null,
+            game_id: 1,
+            client_timestamp: 2000 + i,
+        }))
+        const ev = evening({
+            players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false}],
+            games: [{
+                ...runningGame(1),
+                status: 'finished' as const,
+                winner_name: 'Rudi',
+                started_at: '1970-01-01T00:00:01Z',
+                finished_at: '1970-01-01T00:00:10Z',
+            }],
+            penalty_log: penalties,
+        })
+        renderView(ev)
+        expect(screen.getByTestId('live-game-start-1')).toBeInTheDocument()
+        expect(screen.getByTestId('live-game-finish-1')).toHaveTextContent('Rudi')
+        // Uncapped feed renders all 35 penalty rows
+        expect(screen.getByText('Spieler-1')).toBeInTheDocument()
+        expect(screen.getByText('Spieler-35')).toBeInTheDocument()
+        expect(document.querySelectorAll('[data-band="0"]').length).toBe(35)
+    })
 })
 
 describe('LiveEveningView — visuals', () => {
-    const pen = (id: number, player_id: number, amount: number, ts: number) => ({
-        id, player_id, team_id: null, player_name: 'x', penalty_type_name: 'Pudel', icon: '🎳', amount,
+    const pen = (id: number, player_id: number, amount: number, ts: number, penalty_type_name = 'Pudel') => ({
+        id, player_id, team_id: null, player_name: 'x', penalty_type_name, icon: '🎳', amount,
         mode: 'euro' as const, unit_amount: null, regular_member_id: null, game_id: null, client_timestamp: ts,
     })
     const players = [
@@ -199,9 +251,30 @@ describe('LiveEveningView — visuals', () => {
         expect(screen.getByTestId('live-rank-bar-2')).toBeInTheDocument()
     })
 
-    it('hides the ranking when nobody has a fine', () => {
+    it('hides the ranking and penalty counts when nobody has a fine', () => {
         renderView(evening({players}))
         expect(screen.queryByTestId('live-ranking')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('live-penalty-counts')).not.toBeInTheDocument()
+    })
+
+    it('renders penalty type ×N counts sorted by frequency descending', () => {
+        renderView(evening({
+            players,
+            penalty_log: [
+                pen(1, 1, 1, 1000, 'Pudel'),
+                pen(2, 2, 1, 2000, 'Kranz'),
+                pen(3, 1, 1, 3000, 'Pudel'),
+            ],
+        }))
+        const container = screen.getByTestId('live-penalty-counts')
+        expect(container).toBeInTheDocument()
+        const chips = screen.getAllByTestId(/^live-penalty-count-/)
+        expect(chips.map(c => c.dataset.testid)).toEqual([
+            'live-penalty-count-Pudel',
+            'live-penalty-count-Kranz',
+        ])
+        expect(chips[0]).toHaveTextContent('×2')
+        expect(chips[1]).toHaveTextContent('×1')
     })
 
     it('draws the penalty curve once there are a few bookings', () => {

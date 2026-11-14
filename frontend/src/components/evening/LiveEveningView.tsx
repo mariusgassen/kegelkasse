@@ -8,9 +8,11 @@
  * surfaces via the callbacks. Data stays fresh through `useActiveEvening`'s SSE + polling.
  */
 import {Caption} from '@/components/ui/Caption.tsx'
+import {StatTile} from '@/components/ui/StatTile.tsx'
 import {useT} from '@/i18n'
 import type {Evening} from '@/types.ts'
 import {currentGameState, buildEventFeed, eveningTotals, gameStandings, penaltyCurve, penaltyRanking} from '@/lib/liveEvening.ts'
+import {penaltyTypeCounts} from '@/lib/quickEntryVisuals.ts'
 import {useThrowTracking} from '@/hooks/useClub.ts'
 import {Area, AreaChart, ResponsiveContainer, YAxis} from 'recharts'
 import {chartAnimation} from '@/lib/motion.ts'
@@ -34,12 +36,21 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const t = useT()
     const throwTracking = useThrowTracking()
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
-    const feed = buildEventFeed(evening, {throws: throwTracking, t})
+    const feed = buildEventFeed(evening, {throws: throwTracking, limit: Infinity, t})
     const totals = eveningTotals(evening)
     const ranking = penaltyRanking(evening)
     const curve = penaltyCurve(evening)
     const standings = throwTracking ? gameStandings(evening, game) : []
     const standingsMax = standings.reduce((m, r) => Math.max(m, r.pins), 0)
+
+    const counts = penaltyTypeCounts(evening.penalty_log)
+    const typeIcons = new Map<string, string>()
+    for (const p of evening.penalty_log) {
+        if (!typeIcons.has(p.penalty_type_name) && p.icon) {
+            typeIcons.set(p.penalty_type_name, p.icon)
+        }
+    }
+    const sortedPenaltyCounts = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 
     return (
         <div className="page-scroll px-3 py-3 pb-24 space-y-3">
@@ -108,39 +119,38 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
 
             {/* ── Stat row ── */}
             <div className="grid grid-cols-4 gap-2">
-                <div className="kce-card p-2.5 text-center">
-                    <div className="font-display font-bold text-base text-ink leading-tight">
-                        <CountUp value={totals.penaltyEuro} format={fe}/>
-                    </div>
-                    <div className="text-xs text-muted">{t('live.stat.penalties')}</div>
-                    {curve.length >= 3 && (
-                        <div className="mt-1" style={{width: '100%', height: 24}}
-                             role="img" aria-label={t('live.curve')} data-testid="live-curve">
-                            <ResponsiveContainer>
-                                <AreaChart data={curve} margin={{top: 1, right: 0, bottom: 1, left: 0}}>
-                                    <YAxis hide domain={[0, 'dataMax']}/>
-                                    <Area type="stepAfter" dataKey="euro" stroke="var(--accent-fg)" strokeWidth={1.5}
-                                          fill="var(--accent)" fillOpacity={0.15} dot={false} {...chartAnimation()}/>
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-                </div>
-                <div className="kce-card p-2.5 text-center">
-                    <div className="font-display font-bold text-base text-ink leading-tight">🍺 {totals.beerRounds}</div>
-                    <div className="text-xs text-muted">{t('live.stat.beer')}</div>
-                </div>
-                <div className="kce-card p-2.5 text-center">
-                    <div className="font-display font-bold text-base text-ink leading-tight">🥃 {totals.shotRounds}</div>
-                    <div className="text-xs text-muted">{t('live.stat.shots')}</div>
-                </div>
-                <div className="kce-card p-2.5 text-center">
-                    <div className="font-display font-bold text-base text-ink leading-tight">{totals.gamesFinished}/{totals.gamesTotal}</div>
-                    <div className="text-xs text-muted">{t('nav.games')}</div>
-                </div>
+                <StatTile size="sm" value={<CountUp value={totals.penaltyEuro} format={fe}/>} label={t('live.stat.penalties')} tone="default"/>
+                <StatTile size="sm" value={totals.beerRounds} label={t('live.stat.beer')} tone="default"/>
+                <StatTile size="sm" value={totals.shotRounds} label={t('live.stat.shots')} tone="default"/>
+                <StatTile size="sm" value={`${totals.gamesFinished}/${totals.gamesTotal}`} label={t('nav.games')} tone="default"/>
             </div>
 
-            {/* ── Quick actions ── */}
+            {curve.length >= 3 && (
+                <div className="kce-card px-3 py-2" style={{width: '100%', height: 40}}
+                     role="img" aria-label={t('live.curve')} data-testid="live-curve">
+                    <ResponsiveContainer>
+                        <AreaChart data={curve} margin={{top: 2, right: 0, bottom: 2, left: 0}}>
+                            <YAxis hide domain={[0, 'dataMax']}/>
+                            <Area type="stepAfter" dataKey="euro" stroke="var(--accent-fg)" strokeWidth={1.5}
+                                  fill="var(--accent)" fillOpacity={0.15} dot={false} {...chartAnimation()}/>
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+
+            {/* ── Primary Quick Entry CTA + Quick actions ── */}
+            <button type="button"
+                    data-testid="live-quick-entry-cta"
+                    onClick={onQuickEntry}
+                    disabled={!onQuickEntry}
+                    className="w-full rounded-xl px-4 py-3 bg-accent text-on-accent font-display font-extrabold text-sm flex items-center justify-between active:scale-[0.99] transition-transform disabled:opacity-40">
+                <span className="flex items-center gap-2">
+                    <span className="text-lg leading-none" aria-hidden="true">⚡</span>
+                    <span>{t('quickEntry.open')}</span>
+                </span>
+                <span className="text-base leading-none" aria-hidden="true">→</span>
+            </button>
+
             <div className="grid grid-cols-4 gap-2">
                 <QuickAction emoji="🎯" label={t('live.action.penalty')} onClick={onQuickEntry}/>
                 <QuickAction emoji="🍺" label={t('live.action.round')} onClick={onQuickEntry}/>
@@ -149,6 +159,22 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
             </div>
 
             <LiveRanking rows={ranking} format={fe}/>
+
+            {sortedPenaltyCounts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5" data-testid="live-penalty-counts">
+                    {sortedPenaltyCounts.map(([name, count]) => (
+                        <span key={name}
+                              data-testid={`live-penalty-count-${name}`}
+                              className="kce-card px-2.5 py-1 inline-flex items-center gap-1.5 text-xs font-bold text-ink">
+                            <span>{typeIcons.get(name) || '⚖️'} {name}</span>
+                            <span className="px-1.5 py-0.5 rounded-full text-xs font-extrabold"
+                                  style={{background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent-fg)'}}>
+                                ×{count}
+                            </span>
+                        </span>
+                    ))}
+                </div>
+            )}
 
             {/* ── Event ticker ── */}
             <div>

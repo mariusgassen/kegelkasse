@@ -756,7 +756,23 @@ describe('EveningHubPage — quick entry overlay', () => {
         vi.clearAllMocks()
     })
 
-    it('shows no quick entry overlay for closed evening (even on penalties tab)', async () => {
+    it('shows the Quick Entry button in the sub-tab strip and opens the overlay on click', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        vi.mocked(useActiveEvening).mockReturnValue({
+            evening: makeEvening(),
+            isLoading: false, invalidate: vi.fn(),
+            activeEveningId: 1, isPending: false,
+        } as any)
+        vi.mocked(useHashTab).mockReturnValue(['games', vi.fn()] as any)
+        await renderHubPage()
+        const btn = screen.getByTestId('hub-quick-entry-btn')
+        expect(btn).toHaveTextContent('quickEntry.open')
+        fireEvent.click(btn)
+        expect(screen.getByTestId('tablet-quick-entry')).toBeInTheDocument()
+    })
+
+    it('shows no quick entry button or overlay for closed evening (even on penalties tab)', async () => {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
         const { useHashTab } = await import('@/hooks/usePage.ts')
         vi.mocked(useActiveEvening).mockReturnValue({
@@ -766,10 +782,11 @@ describe('EveningHubPage — quick entry overlay', () => {
         } as any)
         vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
         await renderHubPage()
+        expect(screen.queryByTestId('hub-quick-entry-btn')).not.toBeInTheDocument()
         expect(screen.queryByTestId('tablet-quick-entry')).not.toBeInTheDocument()
     })
 
-    it('shows no quick entry overlay when evening has no players', async () => {
+    it('shows no quick entry button or overlay when evening has no players', async () => {
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
         const { useHashTab } = await import('@/hooks/usePage.ts')
         vi.mocked(useActiveEvening).mockReturnValue({
@@ -779,6 +796,7 @@ describe('EveningHubPage — quick entry overlay', () => {
         } as any)
         vi.mocked(useHashTab).mockReturnValue(['penalties', vi.fn()] as any)
         await renderHubPage()
+        expect(screen.queryByTestId('hub-quick-entry-btn')).not.toBeInTheDocument()
         expect(screen.queryByTestId('tablet-quick-entry')).not.toBeInTheDocument()
     })
 })

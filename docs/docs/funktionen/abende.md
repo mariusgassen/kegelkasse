@@ -25,17 +25,15 @@ Läuft ein Abend, öffnet die App direkt in den **Live-Modus** — den ersten Re
 im Abend-Bereich. Er fasst das Geschehen des Abends auf einen Blick zusammen und wird über die
 bestehende Echtzeit-Aktualisierung (SSE + Polling) automatisch frisch gehalten:
 
+- **Schnellerfassung als Hauptansicht (⚡)**: Direkt im Live-Reiter als prominente Aktionskarte sowie dauerhaft als hervorgehobener **⚡ Schnellerfassung**-Knopf in der Abend-Reiterleiste erreichbar.
 - **Anzeigetafel**: das gerade laufende Spiel sowie – nur bei eingeschalteter Wurf-Erfassung –
   wer am Zug ist, wer als Nächstes wirft, der letzte Wurf und der **Spielstand** als Balken pro
   Spieler bzw. Team (Holz).
-- **Kennzahlen-Zeile**: Straf-Summe des Abends (zählt bei jeder Buchung hoch, darunter eine kleine
-  Kurve, wie die Summe über den Abend gewachsen ist), Anzahl Bier- und Schnapsrunden, beendete Spiele.
-- **Strafen heute**: Rangliste der anwesenden Spieler nach ihren Strafen, mit Balken auf gemeinsamer
-  Skala. Ändert eine Buchung die Reihenfolge, gleiten die Zeilen an ihren neuen Platz.
+- **Kennzahlen-Zeile**: Vier einheitliche Kennzahl-Kacheln (Straf-Summe des Abends, Bierrunden, Schnapsrunden, beendete Spiele) sowie darunter eine eigene Verlaufs-Kurve, wie die Straf-Summe über den Abend gewachsen ist.
+- **Strafen heute & Häufigkeiten (`×N`)**: Rangliste der anwesenden Spieler nach ihren Strafen, mit Balken auf gemeinsamer Skala (Zeilen gleiten bei Platzwechseln an ihren neuen Platz), sowie eine kompakte Übersicht der heute gebuchten **Strafenarten mit Anzahl (`×N`)**.
 - **Schnellaktionen** (daumengroß): **Strafe** / **Runde** öffnen die Schnellerfassung,
   **Highlight** springt zum Highlights-Reiter, **Spiele** zum Spiele-Reiter.
-- **Verlauf-Ticker**: Strafen, Getränkerunden, Highlights und **🎳 Alle Neune** chronologisch
-  (neueste zuerst) mit Icon, Betrag und relativer Zeit.
+- **Vollständiger Verlauf-Ticker mit Spiel-Markern**: Alle Strafen, Getränkerunden, Highlights, **🎳 Alle Neune** sowie **farbige Spiel-Start- (`▶`) und Spiel-Ende-Trenner (`🏁`)** chronologisch (neueste zuerst) — Ereignisse während eines Spiels tragen links denselben farbigen Spiel-Streifen wie im Protokoll.
 
 :::note
 Im Ticker landen von den Würfen nur die **Alle Neune** — ein Abend erzeugt hunderte Würfe, der
@@ -47,7 +45,7 @@ abgeschaltet, erscheinen auch die Alle-Neune-Einträge nicht.
 Beim Beenden des Abends verschwindet der Live-Reiter wieder, und der Abend-Bereich zeigt wie
 gewohnt zuerst das Protokoll.
 
-### Live-Insel 🏝️
+### Live-Insel 🏝️ & Schnellerfassungs-Cockpit
 
 Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der Schnellerfassung sichtbar):
 
@@ -56,6 +54,7 @@ Am oberen Bildschirmrand sitzt durchgehend eine **Live-Insel** (auch über der S
 - **König & Alle Neune**: kurze Feier-Einblendung direkt in der Insel.
 - **Foto-Uploads & Offline-Warteschlange**: zeigt laufende Datei-Uploads sowie ausstehende Offline-Buchungen (mit **Jetzt synchronisieren**-Knopf, sobald wieder Verbindung besteht).
 - **Zahlungsanfragen**: Kassenwarte können eingehende Zahlungsanfragen direkt in der aufgeklappten Insel bestätigen oder ablehnen.
+- **Zweistufige Kopfzeile der Schnellerfassung**: Zeile 1 hält die Mitte für die Live-Insel frei (links **✕** Schließen + Modus-Badge, rechts die primäre Spiel-Aktion **🏁 Spiel beenden** bzw. **▶ Spiel starten**); Zeile 2 bündelt das **Spiel- & Wurf-Cockpit** (aktuelles Spiel, Zug-Reihenfolge mit Team-Farben, Wurf-Steuerung, Live-Würfe mit Kegelbild-Heatmap sowie das Aufklapp-Panel zum Spiel-Starten/Beenden).
 - **Smartphone-Layout der Schnellerfassung**: auf dem Smartphone (`< lg`) zeigt die Schnellerfassung einen Umschalter **⚡ Buchen** / **📊 Stand**; unter **Buchen** sitzt oben das zweispaltige Spieler-Raster (direkt erreichbar, bevor eine Strafe getippt wird) und darunter die zweispaltigen Getränke- und Strafen-Buttons.
 
 ## Highlights erfassen

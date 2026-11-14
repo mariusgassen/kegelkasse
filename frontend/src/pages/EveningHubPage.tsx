@@ -127,6 +127,15 @@ export function EveningHubPage() {
                     </button>
                 ))}
 
+                {!isClosed && (evening?.players.length ?? 0) > 0 && (
+                    <Button
+                        variant="primary" size="xs" className="flex-shrink-0 ml-auto"
+                        data-testid="hub-quick-entry-btn"
+                        onClick={() => setQuickEntryOpen(true)}>
+                        ⚡ {t('quickEntry.open')}
+                    </Button>
+                )}
+
                 {/* End / reopen evening — always accessible in the tab bar */}
                 {!isClosed ? (
                     <Button

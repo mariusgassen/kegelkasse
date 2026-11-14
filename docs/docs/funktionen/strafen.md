@@ -71,7 +71,7 @@ anschließend automatisch neu geladen.
 
 Die Schnellerfassung zeigt beim Buchen sofort, was passiert ist:
 
-- **Zähler auf den Strafen-Knöpfen**: „×3“ heißt, diese Strafe wurde heute schon dreimal vergeben
+- **Klare Strafen-Knöpfe ohne Zahlen-Ballast**: Die Knöpfe zeigen nur Icon, Name und Einzelbetrag; wie oft eine Strafenart heute insgesamt vergeben wurde (`×3`), steht übersichtlich im **🔴 Live**-Reiter
 - **Aufleuchten**: Die Zeile des Spielers in der Übersicht (rechts) leuchtet kurz auf und zeigt den
   gebuchten Betrag, z. B. **+0,50 €** (bei Getränken **+🍺** / **+🥃**). So fällt eine Buchung beim
   falschen Spieler sofort auf

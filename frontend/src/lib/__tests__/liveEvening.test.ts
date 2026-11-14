@@ -233,6 +233,69 @@ describe('buildEventFeed', () => {
         })
         expect(buildEventFeed(ev, {throws: true})[0].title).toBe('Eröffnung')
     })
+
+    it('emits game_started and game_finished events with winner subtitle and band index', () => {
+        const ev = evening({
+            games: [game({
+                id: 7,
+                name: 'Eröffnung',
+                status: 'finished',
+                winner_name: 'Rudi',
+                started_at: '1970-01-01T00:00:01Z',
+                finished_at: '1970-01-01T00:00:05Z',
+            })],
+        })
+        const feed = buildEventFeed(ev)
+        expect(feed).toEqual([
+            {
+                kind: 'game_finished',
+                key: 'gf-7',
+                ts: 5000,
+                icon: '🏁',
+                title: 'Eröffnung',
+                subtitle: 'Rudi',
+                amount: null,
+                band: 0,
+            },
+            {
+                kind: 'game_started',
+                key: 'gs-7',
+                ts: 1000,
+                icon: '▶',
+                title: 'Eröffnung',
+                subtitle: null,
+                amount: null,
+                band: 0,
+            },
+        ])
+    })
+
+    it('assigns game band indices to events inside a game window and null to absence penalties', () => {
+        const ev = evening({
+            players: [player(1, 'Rudi')],
+            games: [game({
+                id: 10,
+                name: 'Spiel 1',
+                started_at: '1970-01-01T00:00:01Z',
+                finished_at: '1970-01-01T00:00:06Z',
+                throws: [throwLog(1, 9, 1, 9, '1970-01-01T00:00:04Z')],
+            })],
+            penalty_log: [
+                penalty(1, {client_timestamp: 2000, game_id: 10}),
+                penalty(2, {player_id: null, penalty_type_name: 'Abwesenheit', client_timestamp: 2500, game_id: 10}),
+                penalty(3, {client_timestamp: 9000, game_id: null}),
+            ],
+            drink_rounds: [drink(1, {client_timestamp: 3000})],
+            highlights: [{id: 1, text: 'Stark!', media_url: null, created_at: '1970-01-01T00:00:05Z'}],
+        })
+        const byKey = new Map(buildEventFeed(ev, {throws: true}).map(e => [e.key, e]))
+        expect(byKey.get('penalty-1')?.band).toBe(0)
+        expect(byKey.get('penalty-2')?.band).toBeNull()
+        expect(byKey.get('penalty-3')?.band).toBeNull()
+        expect(byKey.get('drink-1')?.band).toBe(0)
+        expect(byKey.get('highlight-1')?.band).toBe(0)
+        expect(byKey.get('throw-1')?.band).toBe(0)
+    })
 })
 
 describe('eveningTotals', () => {

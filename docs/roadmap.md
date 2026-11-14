@@ -38,6 +38,12 @@ Unter **`/roadmap`** können Mitglieder und Admins:
 | Geburtstage und Jubiläen | Ideenpool | Erinnerung, Banner, optionale Geburtstagsrunde |
 | Admin-Audit-Log | Ideenpool | Revisionssicheres Änderungsprotokoll für Kassenwarte |
 | Bank-Import (CSV/CAMT) | Ideenpool | Kontoauszüge einlesen |
+| Schnellerfassung als Standard-Startansicht | Ideenpool | Optional direkt in die Schnellerfassung öffnen (z. B. gemerkter Modus pro Gerät) |
+| Team-Schnellauswahl & „Am Zug"-Chip | Ideenpool | Ein-Tipp-Buttons pro Team sowie für den aktuell werfenden Spieler über dem Spieler-Raster |
+| Sofort-Rückgängig-Toast in der Schnellerfassung | Ideenpool | Kurzes 5-Sekunden-„Rückgängig“-Banner nach jeder Strafen-/Getränkebuchung |
+| Einklappbares Spiel-Cockpit auf dem Smartphone | Ideenpool | Auf `< lg` kompakt auf 1 Zeile („Spiel · Am Zug“) reduzierbar für mehr Buchungsfläche |
+| Sonderstrafe direkt in der Schnellerfassung | Ideenpool | Inline-Freitext-/Betragsfeld für einmalige Strafen ohne Verlassen der Schnellerfassung |
+| Filter- & Einklapp-Chips im Live-Ticker | Ideenpool | Abgeschlossene Spiele im Live-Ticker einklappen oder nach Ereignisart filtern |
 | Sticker-Wand | Abgeschlossen | Vereins-Sticker auf der Weltkarte (#563) |
 | Zeugwart-Inventar | Abgeschlossen | Materialverwaltung mit Zu- und Abgängen (#548) |
 | KI-Suche & Schnellsuche | Abgeschlossen | Natürlichsprachige Fragen und Volltextsuche (#546) |
