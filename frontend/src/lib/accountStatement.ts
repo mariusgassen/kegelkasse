@@ -77,3 +77,30 @@ export function buildAccountStatement<P extends StatementPayment>(
     ]
     return entries.sort((a, b) => ts(b.date) - ts(a.date))
 }
+
+export interface StatementMonth {
+    /** Positive payments in the month. */
+    paid: number
+    /** Penalties in the month as a positive € amount. */
+    penalties: number
+    /** Account balance (payments − penalties) at the end of the month. */
+    closing: number
+}
+
+/** Month-by-month totals for a statement, keyed `${year}-${monthIndex}` (local time). */
+export function statementMonths<P extends StatementPayment>(entries: StatementEntry<P>[]): Map<string, StatementMonth> {
+    const key = (iso: string | null) => { const d = new Date(ts(iso)); return `${d.getFullYear()}-${d.getMonth()}` }
+    const out = new Map<string, StatementMonth>()
+    // Oldest first so `closing` accumulates; the map is read by key afterwards.
+    let running = 0
+    for (const e of [...entries].sort((a, b) => ts(a.date) - ts(b.date))) {
+        const k = key(e.date)
+        const m = out.get(k) ?? {paid: 0, penalties: 0, closing: 0}
+        const delta = e.kind === 'payment' ? e.payment.amount : -e.total
+        if (e.kind === 'payment') { if (e.payment.amount > 0) m.paid += e.payment.amount } else m.penalties += e.total
+        running += delta
+        m.closing = Math.round(running * 100) / 100
+        out.set(k, m)
+    }
+    return out
+}

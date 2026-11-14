@@ -273,6 +273,7 @@ export const en = {
     "treasury.statement.absence": "Absence",
     "treasury.statement.penaltyCount": "{n} penalties",
     "treasury.statement.penaltyCountOne": "1 penalty",
+    "treasury.statement.monthClosing": "Closing balance",
     "treasury.payment.deleteConfirm": "Delete payment?",
     "treasury.payment.deleteConfirmHint": "This booking will be removed.",
     "treasury.payment.deleteReasonPlaceholder": "Reason (optional)",

@@ -190,6 +190,8 @@ Ein Antippen der Zeile klappt die **Buchungshistorie** des Kontos auf — alle B
 - **Einzahlungen und Auszahlungen** einzeln, mit Notiz und Datum (Admins können sie dort bearbeiten oder stornieren)
 - **Strafen pro Kegelabend** als eine Zeile mit der **Summe** der Strafen dieses Abends und deren Anzahl (🎳 Kegelabend · 4 Strafen) — nicht jede Strafe einzeln. Abende, an denen nur eine Abwesenheitsstrafe angefallen ist, erscheinen als 🚪 Abwesenheit.
 
+Wie im Kassenbuch trennt pro Monat eine Zeile die Einträge: eingezahlt, Strafen und der **Saldo am Monatsende** des Kontos.
+
 Bei Gästen zählt pro Abend der gedeckelte Betrag, der tatsächlich im Saldo landet.
 
 :::info Guthaben ist kein „freies" Kassengeld
