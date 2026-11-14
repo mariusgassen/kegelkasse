@@ -668,6 +668,7 @@ export function TreasuryPage() {
                         {' · '}{entry.count === 1 ? t('treasury.statement.penaltyCountOne') : t('treasury.statement.penaltyCount').replace('{n}', String(entry.count))}
                     </span>
                     <span className="text-muted flex-shrink-0">{fDate(entry.date)}</span>
+                    {admin && <span className="w-[30px] flex-shrink-0" aria-hidden="true"/>}
                 </div>
             ) : (() => { const p = entry.payment; return (
                 <div key={entry.key} className="flex items-center gap-2 mb-1.5 text-xs">
