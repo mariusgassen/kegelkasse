@@ -47,6 +47,9 @@ vi.mock('@/api/client.ts', () => ({
         getEvening: vi.fn(),
         listEvenings: vi.fn(),
         listPins: vi.fn(),
+        listClubTeams: vi.fn().mockResolvedValue([]),
+        applyClubTeamsToEvening: vi.fn().mockResolvedValue({id: 0, players: [], teams: []}),
+        updatePlayer: vi.fn().mockResolvedValue({}),
         updateEvening: vi.fn(),
         createEvening: vi.fn(),
         deleteEvening: vi.fn(),
@@ -1736,6 +1739,31 @@ describe('SchedulePage — StartEveningSheet doStart', () => {
                 5,
                 expect.objectContaining({ member_ids: expect.any(Array) })
             )
+        })
+    })
+
+    it('lets user choose teams per player before starting the evening', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.listClubTeams).mockResolvedValueOnce([
+            { id: 1, name: 'Team A', sort_order: 0 },
+            { id: 2, name: 'Team B', sort_order: 1 },
+        ] as any)
+        vi.mocked(api.startEveningFromSchedule).mockResolvedValueOnce({ id: 91 } as any)
+        vi.mocked(api.applyClubTeamsToEvening).mockResolvedValueOnce({
+            id: 91,
+            teams: [{ id: 100, name: 'Team A' }, { id: 101, name: 'Team B' }],
+            players: [{ id: 500, name: 'Admin', regular_member_id: 1, team_id: null, is_king: false }],
+        } as any)
+
+        await renderStartSheet()
+        await waitFor(() => screen.getByTestId('start-evening-teams'))
+        const teamBButtons = screen.getAllByRole('button', { name: 'Team B' })
+        fireEvent.click(teamBButtons[0])
+        fireEvent.click(screen.getByText('schedule.start'))
+
+        await waitFor(() => {
+            expect(api.applyClubTeamsToEvening).toHaveBeenCalledWith(91, false)
+            expect(api.updatePlayer).toHaveBeenCalledWith(91, 500, { team_id: 101 })
         })
     })
 })

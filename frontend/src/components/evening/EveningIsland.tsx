@@ -23,7 +23,7 @@
  */
 import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
+import {Alert02Icon, BowlingPinsIcon, Calendar03Icon, CloudIcon, CrownIcon, Wallet01Icon} from '@hugeicons/core-free-icons'
 import {
     api,
     flushOfflineQueue,
@@ -82,6 +82,7 @@ const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
 
+const AlertGlyph = glyphFrom('AlertGlyph', Alert02Icon)
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
 const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
 const CrownGlyph = glyphFrom('CrownGlyph', CrownIcon, {parts: 'fill'})
@@ -156,36 +157,46 @@ function EveningActivity({eveningId}: {eveningId: number}) {
             }
         }
 
-        const leadingGlyph = <Glyph icon={BowlingGlyph} color={ACCENT}/>
+        const noGame = !game
+        const eveningColor = noGame ? islandAccent.orange : ACCENT
+        const leadingGlyph = <Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor}/>
         const moneyNode = (
-            <CompactText color={ACCENT}>
+            <CompactText color={eveningColor}>
                 <NumberText value={money}/>
             </CompactText>
         )
         const content = {
-            label: `${t('island.label')}: ${venue}, ${money}`,
+            label: noGame
+                ? `${t('island.label')}: ${venue}, ${t('island.noGame')}, ${money}`
+                : `${t('island.label')}: ${venue}, ${money}`,
             onPress: () => { router.navigate({to: '/evening'}).catch(() => {}) },
             compact: {
                 leading: leadingGlyph,
-                // In the attached pill, show the live game timer when a game is running, or the pot.
-                // In the 62pt split capsule (~20pt trailing room), drop the wide trailing text so the
-                // capsule stays a clean round icon bubble instead of clipping with an ellipsis.
+                // In the attached pill, show the live game timer when a game is running, an orange
+                // "No game" warning when an evening is open without an active game, or the pot.
                 trailing: (
                     <BubbleForm bubble={null}>
                         {timed ? (
                             <CompactText color={ACCENT}>
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
+                        ) : noGame ? (
+                            <CompactText color={islandAccent.orange}>{t('island.noGameShort')}</CompactText>
                         ) : (
                             moneyNode
                         )}
                     </BubbleForm>
                 ),
             },
-            minimal: <MinimalPair leading={leadingGlyph} trailing={moneyNode}/>,
+            minimal: (
+                <MinimalPair
+                    leading={leadingGlyph}
+                    trailing={noGame ? <CompactText color={islandAccent.orange}>!</CompactText> : moneyNode}
+                />
+            ),
             expanded: {
                 leading: (
-                    <SensorRow glyph={<Glyph icon={BowlingGlyph} color={ACCENT} size={18}/>}>
+                    <SensorRow glyph={<Glyph icon={noGame ? AlertGlyph : BowlingGlyph} color={eveningColor} size={18}/>}>
                         <ContextLabel>{t('island.shortLabel')}</ContextLabel>
                     </SensorRow>
                 ),
@@ -223,7 +234,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                             <IslandButton
                                 size="compact"
                                 disabled={startingGame}
-                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                                tone={{kind: 'accent', color: islandAccent.orange}}
                                 onPress={() => { handleStartGame(openGame.id).catch(() => {}) }}
                             >
                                 {`▶ ${openGame.name}`}
@@ -231,7 +242,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                         ) : (
                             <IslandButton
                                 size="compact"
-                                tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
+                                tone={{kind: 'accent', color: islandAccent.orange}}
                                 onPress={() => {
                                     island.collapse()
                                     router.navigate({to: '/evening', search: {tab: 'games'}}).catch(() => {})

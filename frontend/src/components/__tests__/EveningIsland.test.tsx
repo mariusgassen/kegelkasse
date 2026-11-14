@@ -322,6 +322,26 @@ describe('EveningIsland', () => {
         })
         expect(contextMenu.defaultPrevented).toBe(true)
     })
+
+    it('clearly indicates in compact pill when an evening is running without an active game', async () => {
+        const {unmount} = renderIsland(evening())
+        await act(async () => {})
+        expect(screen.getByRole('button', {name: /island\.label.*island\.noGame/})).toBeTruthy()
+        expect(screen.getAllByText('island.noGameShort').length).toBeGreaterThan(0)
+        unmount()
+
+        renderIsland(evening({
+            games: [{
+                id: 10, name: 'Sarg', template_id: null, is_opener: false,
+                winner_type: 'team', turn_mode: null, winner_ref: null, winner_name: null,
+                scores: {}, loser_penalty: 0, per_point_penalty: 0, note: null, sort_order: 0,
+                status: 'running', started_at: null, finished_at: null, client_timestamp: 0,
+                active_player_id: null, throws: [],
+            }],
+        }))
+        await act(async () => {})
+        expect(screen.queryByText('island.noGameShort')).toBeNull()
+    })
 })
 
 describe('elapsedLabel', () => {

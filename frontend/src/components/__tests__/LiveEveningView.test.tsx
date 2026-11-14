@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest'
-import {render, screen, fireEvent} from '@testing-library/react'
+import {act, render, screen, fireEvent} from '@testing-library/react'
 import React from 'react'
 import type {Evening} from '@/types.ts'
 
@@ -7,8 +7,16 @@ vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
 // The view reads throw-tracking from the club query; default it on so the throw UI is exercised.
 const throwTrackingMock = vi.fn(() => true)
 vi.mock('@/hooks/useClub.ts', () => ({useThrowTracking: () => throwTrackingMock()}))
+vi.mock('@/api/client.ts', () => ({
+    api: {
+        applyClubTeamsToEvening: vi.fn(() => Promise.resolve({})),
+        shuffleTeamPlayers: vi.fn(() => Promise.resolve({})),
+        updatePlayer: vi.fn(() => Promise.resolve({})),
+    },
+}))
 
 import {LiveEveningView} from '../evening/LiveEveningView'
+import {api} from '@/api/client.ts'
 
 function evening(overrides: Partial<Evening> = {}): Evening {
     return {
@@ -294,5 +302,74 @@ describe('LiveEveningView — visuals', () => {
         throwTrackingMock.mockReturnValue(false)
         renderView(ev)
         expect(screen.queryByTestId('live-standings')).not.toBeInTheDocument()
+    })
+
+    it('renders the no-game warning card and inline team setup at the start of an evening', async () => {
+        const onGoManage = vi.fn()
+        const onUpdated = vi.fn()
+        const ev = evening({
+            players: [
+                {id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false},
+                {id: 2, name: 'Toni', nickname: null, regular_member_id: null, team_id: 10, is_king: false},
+            ],
+            teams: [{id: 10, name: 'Team A'}, {id: 11, name: 'Team B'}],
+        })
+        render(
+            <LiveEveningView
+                evening={ev}
+                onQuickEntry={onQuickEntry}
+                onGoHighlights={onGoHighlights}
+                onGoGames={onGoGames}
+                onGoManage={onGoManage}
+                onUpdated={onUpdated}
+            />,
+        )
+        expect(screen.getByTestId('live-no-game-alert')).toBeInTheDocument()
+        expect(screen.getByTestId('live-team-setup')).toBeInTheDocument()
+        expect(screen.getByText('team.unassignedBadge')).toBeInTheDocument()
+
+        const teamBButtons = screen.getAllByRole('button', {name: 'Team B'})
+        await act(async () => {
+            fireEvent.click(teamBButtons[0])
+        })
+        expect(api.updatePlayer).toHaveBeenCalledWith(1, 1, {team_id: 11})
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', {name: /team\.shuffle/}))
+        })
+        expect(api.shuffleTeamPlayers).toHaveBeenCalledWith(1)
+    })
+
+    it('shows template/random team actions when no teams exist yet and hides team setup once a game runs with assigned teams', async () => {
+        const noTeams = evening({
+            players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: null, is_king: false}],
+            teams: [],
+        })
+        const {rerender} = render(
+            <LiveEveningView
+                evening={noTeams}
+                onQuickEntry={onQuickEntry}
+                onGoHighlights={onGoHighlights}
+                onGoGames={onGoGames}
+            />,
+        )
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', {name: /team\.randomizeShort/}))
+        })
+        expect(api.applyClubTeamsToEvening).toHaveBeenCalledWith(1, true)
+
+        rerender(
+            <LiveEveningView
+                evening={evening({
+                    players: [{id: 1, name: 'Rudi', nickname: null, regular_member_id: null, team_id: 10, is_king: false}],
+                    teams: [{id: 10, name: 'Team A'}],
+                    games: [runningGame(1)],
+                })}
+                onQuickEntry={onQuickEntry}
+                onGoHighlights={onGoHighlights}
+                onGoGames={onGoGames}
+            />,
+        )
+        expect(screen.queryByTestId('live-team-setup')).not.toBeInTheDocument()
     })
 })

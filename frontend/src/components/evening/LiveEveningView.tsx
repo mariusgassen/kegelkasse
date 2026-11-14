@@ -7,9 +7,13 @@
  * pure `lib/liveEvening.ts`; mutations go through the existing quick-entry / highlights / games
  * surfaces via the callbacks. Data stays fresh through `useActiveEvening`'s SSE + polling.
  */
+import {useState} from 'react'
+import {api} from '@/api/client.ts'
+import {Button} from '@/components/ui/Button.tsx'
 import {Caption} from '@/components/ui/Caption.tsx'
 import {StatTile} from '@/components/ui/StatTile.tsx'
 import {useT} from '@/i18n'
+import {toastError} from '@/utils/error.ts'
 import type {Evening} from '@/types.ts'
 import {currentGameState, buildEventFeed, eveningTotals, gameStandings, penaltyCurve, penaltyRanking} from '@/lib/liveEvening.ts'
 import {penaltyTypeCounts} from '@/lib/quickEntryVisuals.ts'
@@ -30,11 +34,14 @@ interface Props {
     onQuickEntry?: () => void
     onGoHighlights: () => void
     onGoGames: () => void
+    onGoManage?: () => void
+    onUpdated?: () => void
 }
 
-export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGames}: Props) {
+export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGames, onGoManage, onUpdated}: Props) {
     const t = useT()
     const throwTracking = useThrowTracking()
+    const [teamBusy, setTeamBusy] = useState(false)
     const {game, activePlayer, nextPlayer, lastThrow} = currentGameState(evening)
     const feed = buildEventFeed(evening, {throws: throwTracking, limit: Infinity, t})
     const totals = eveningTotals(evening)
@@ -42,6 +49,57 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
     const curve = penaltyCurve(evening)
     const standings = throwTracking ? gameStandings(evening, game) : []
     const standingsMax = standings.reduce((m, r) => Math.max(m, r.pins), 0)
+
+    const unassignedPlayers = evening.players.filter(p => p.team_id === null)
+    const showTeamSetup = !evening.is_closed && evening.players.length > 0 && (
+        evening.teams.length === 0
+        || unassignedPlayers.length > 0
+        || (!game && totals.gamesFinished === 0)
+    )
+    const orderedPlayers = [...evening.players].sort((a, b) => {
+        const aMissing = a.team_id === null ? 0 : 1
+        const bMissing = b.team_id === null ? 0 : 1
+        return aMissing - bMissing
+    })
+
+    async function applyTemplates(shuffle: boolean) {
+        if (teamBusy) return
+        setTeamBusy(true)
+        try {
+            await api.applyClubTeamsToEvening(evening.id, shuffle)
+            onUpdated?.()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setTeamBusy(false)
+        }
+    }
+
+    async function shuffleTeams() {
+        if (teamBusy) return
+        setTeamBusy(true)
+        try {
+            await api.shuffleTeamPlayers(evening.id)
+            onUpdated?.()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setTeamBusy(false)
+        }
+    }
+
+    async function assignPlayerTeam(playerId: number, teamId: number) {
+        if (teamBusy) return
+        setTeamBusy(true)
+        try {
+            await api.updatePlayer(evening.id, playerId, {team_id: teamId})
+            onUpdated?.()
+        } catch (e: unknown) {
+            toastError(e)
+        } finally {
+            setTeamBusy(false)
+        }
+    }
 
     const counts = penaltyTypeCounts(evening.penalty_log)
     const typeIcons = new Map<string, string>()
@@ -111,10 +169,123 @@ export function LiveEveningView({evening, onQuickEntry, onGoHighlights, onGoGame
                 </div>
             ) : (
                 <button onClick={onGoGames}
-                        className="w-full kce-card p-4 text-left active:scale-[0.99] transition-transform">
-                    <div className="text-sm font-bold text-ink">{t('live.noGame')}</div>
-                    <div className="text-sm text-muted mt-0.5">{t('live.noGameSub')}</div>
+                        data-testid="live-no-game-alert"
+                        className="w-full rounded-xl p-4 text-left border border-danger/40 bg-danger-tint active:scale-[0.99] transition-transform flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="text-sm font-bold text-danger-tint-fg flex items-center gap-1.5">
+                            <span aria-hidden="true">⚠️</span>
+                            <span>{t('live.noGame')}</span>
+                        </div>
+                        <div className="text-sm text-muted mt-0.5">{t('live.noGameSub')}</div>
+                    </div>
+                    <span className="text-base font-bold text-danger-tint-fg flex-shrink-0" aria-hidden="true">→</span>
                 </button>
+            )}
+
+            {/* ── Team selection right at the start of the evening (or when players are unassigned) ── */}
+            {showTeamSetup && (
+                <div
+                    data-testid="live-team-setup"
+                    className={[
+                        'rounded-xl p-3.5 border space-y-2.5',
+                        evening.teams.length === 0 || unassignedPlayers.length > 0
+                            ? 'bg-danger-tint border-danger/35'
+                            : 'kce-card border-line/60',
+                    ].join(' ')}
+                >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-extrabold text-ink uppercase tracking-wider">
+                                🤝 {t('team.setup')}
+                            </span>
+                            {evening.teams.length > 0 && unassignedPlayers.length > 0 && (
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-danger/20 text-danger-fg">
+                                    {t('team.unassignedBadge').replace('{n}', String(unassignedPlayers.length))}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {evening.teams.length > 0 && (
+                                <Button
+                                    variant="secondary"
+                                    size="xs"
+                                    disabled={teamBusy}
+                                    onClick={shuffleTeams}
+                                >
+                                    🎲 {t('team.shuffle')}
+                                </Button>
+                            )}
+                            {onGoManage && (
+                                <Button
+                                    variant="secondary"
+                                    size="xs"
+                                    onClick={onGoManage}
+                                >
+                                    {t('team.manage')}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    {evening.teams.length === 0 ? (
+                        <div className="space-y-2">
+                            <p className="text-xs text-muted">{t('team.applyPrompt')}</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                <Button
+                                    variant="secondary"
+                                    size="xs"
+                                    disabled={teamBusy}
+                                    onClick={() => applyTemplates(false)}
+                                >
+                                    {t('team.fromTemplateBadge')}
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    size="xs"
+                                    disabled={teamBusy}
+                                    onClick={() => applyTemplates(true)}
+                                >
+                                    🎲 {t('team.randomizeShort')}
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-1.5">
+                            <p className="text-xs text-muted">{t('team.pickHint')}</p>
+                            {orderedPlayers.map(p => (
+                                <div key={p.id} className="flex items-center justify-between gap-2 py-1 border-t border-line/40 first:border-t-0">
+                                    <span className={[
+                                        'text-sm font-semibold truncate',
+                                        p.team_id === null ? 'text-danger-tint-fg' : 'text-ink',
+                                    ].join(' ')}>
+                                        {p.nickname || p.name}
+                                    </span>
+                                    <div className="flex flex-wrap justify-end gap-1">
+                                        {evening.teams.map(tm => {
+                                            const active = p.team_id === tm.id
+                                            return (
+                                                <button
+                                                    key={tm.id}
+                                                    type="button"
+                                                    disabled={teamBusy}
+                                                    onClick={() => assignPlayerTeam(p.id, tm.id)}
+                                                    className={[
+                                                        'px-2.5 py-1 rounded-full text-xs font-bold transition-colors',
+                                                        active
+                                                            ? 'bg-accent text-on-accent'
+                                                            : 'bg-surface-2 text-muted hover:text-ink',
+                                                    ].join(' ')}
+                                                >
+                                                    {tm.name}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* ── Stat row ── */}
