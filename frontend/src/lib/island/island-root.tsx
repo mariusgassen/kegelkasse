@@ -25,10 +25,12 @@ export interface IslandProps {
   keyline?: KeylineSetting;
   /** The page colour behind the island (hex or rgb()), which sets the keyline's strength. Defaults to none. */
   backdrop?: string;
+  /** Called when the empty island (no activity on show) is swiped sideways. */
+  onIdleSwipe?: () => void;
 }
 
 /** Draws the activity stack from the nearest `<IslandProvider>`. */
-export const Island = ({ placement = "container", label = "Live activities", className, style, keyline = "auto", backdrop }: IslandProps) => {
+export const Island = ({ placement = "container", label = "Live activities", className, style, keyline = "auto", backdrop, onIdleSwipe }: IslandProps) => {
   const context = useIslandContext();
   if (!context) throw new Error("islandcn: <Island /> must be inside <IslandProvider>.");
   const { store, clock, metrics, motion, recorder } = context;
@@ -81,10 +83,11 @@ export const Island = ({ placement = "container", label = "Live activities", cla
         event.preventDefault();
         swipeCleanup.current?.();
         const activity = target === "bubble" ? scene.detached : scene.primary;
-        if (target === "pill" && !expanded && activity?.onDismiss) {
+        const swipeAction = activity?.onDismiss ?? (!activity && !expanded ? onIdleSwipe : undefined);
+        if (target === "pill" && !expanded && swipeAction) {
           const startX = event.clientX;
           const startY = event.clientY;
-          const dismiss = activity.onDismiss;
+          const dismiss = swipeAction;
           let settled = false;
           const cleanup = () => {
             if (settled) return;
@@ -124,7 +127,7 @@ export const Island = ({ placement = "container", label = "Live activities", cla
         if (activity) store.api.expand(activity.id);
       },
     };
-  }, [scene, expanded, store]);
+  }, [scene, expanded, store, onIdleSwipe]);
 
   return (
     <IslandSurface

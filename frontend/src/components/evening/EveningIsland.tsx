@@ -21,7 +21,7 @@
  *      treasurer confirm/reject actions directly from the expanded island.
  *   8. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
  */
-import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react'
+import {type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {
     BowlingPinsIcon,
@@ -1167,8 +1167,16 @@ function IdleAwakenWatcher() {
     const prevSigRef = useRef('')
     const setBusy = useIslandBusyStore(s => s.setBusy)
     const busy = otherSignature !== ''
+    const island = useIslandActions()
 
-    useEffect(() => {
+    // Layout effect: runs before paint after every change of the activity list, so the idle
+    // island can never be drawn next to / in front of a real activity — not even for one frame
+    // (e.g. when its own effect re-starts it before the busy flag has propagated).
+    useLayoutEffect(() => {
+        if (busy) island.end(IDLE_STATUS_ID)
+    }, [busy, activities, island])
+
+    useLayoutEffect(() => {
         setBusy(busy)
         return () => setBusy(false)
     }, [busy, setBusy])
@@ -1213,9 +1221,11 @@ export default function EveningIsland({
     backdrop?: string
     children?: ReactNode
 }) {
+    const awakenIdle = useIdleIslandStore(st => st.awaken)
     return (
         <IslandProvider metrics={HEADER_ISLAND_METRICS}>
             <Island
+                onIdleSwipe={awakenIdle}
                 placement="container"
                 label="Live"
                 backdrop={backdrop}
