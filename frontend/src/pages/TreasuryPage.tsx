@@ -31,6 +31,7 @@ import {buildAccountStatement} from '@/lib/accountStatement.ts'
 import type {ClubTrip} from '@/types.ts'
 import {Tabs} from '@/components/ui/Tabs'
 import {Button} from '@/components/ui/Button.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -638,14 +639,15 @@ export function TreasuryPage() {
                     <span
                         className="text-muted flex-shrink-0">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</span>
                     {admin && (
-                        <Button variant="secondary" size="xs" className="flex-shrink-0"
-                                aria-label={t('treasury.booking.edit')}
-                                onClick={() => openEditPayment(p, memberId, memberName)}>✏️</Button>
-                    )}
-                    {admin && (
-                        <Button variant="danger" size="xs" className="flex-shrink-0"
-                                aria-label={t('treasury.payment.deleteConfirm')}
-                                onClick={() => setConfirmDeletePayment({id: p.id, memberId: memberId})}>✕</Button>
+
+                        <CardActionMenu title={t('treasury.booking.edit')} actions={[
+
+                            {icon: '✏️', label: t('action.edit'), onClick: () => openEditPayment(p, memberId, memberName)},
+
+                            {icon: '🗑️', label: t('action.delete'), danger: true, onClick: () => setConfirmDeletePayment({id: p.id, memberId: memberId})},
+
+                        ]}/>
+
                     )}
                 </div>
             )})())
@@ -1352,14 +1354,15 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">{p.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(p.date ?? p.created_at)}</div>
                                         </div>
                                         {admin && (
-                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
-                                                    aria-label={t('treasury.booking.edit')}
-                                                    onClick={() => openEditPayment(p, p.regular_member_id, p.member_name)}>✏️</Button>
-                                        )}
-                                        {admin && (
-                                            <Button variant="danger" size="xs" className="flex-shrink-0"
-                                                    aria-label={t('treasury.payment.deleteConfirm')}
-                                                    onClick={() => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})}>✕</Button>
+
+                                            <CardActionMenu title={t('treasury.booking.edit')} actions={[
+
+                                                {icon: '✏️', label: t('action.edit'), onClick: () => openEditPayment(p, p.regular_member_id, p.member_name)},
+
+                                                {icon: '🗑️', label: t('action.delete'), danger: true, onClick: () => setConfirmDeletePayment({id: p.id, memberId: p.regular_member_id})},
+
+                                            ]}/>
+
                                         )}
                                     </div>
                                 )
@@ -1386,14 +1389,15 @@ export function TreasuryPage() {
                                             <div className="text-xs text-muted">{e.updated_at && <span role="img" aria-label={t('treasury.booking.edited')}>✏️ </span>}{fDate(e.date ?? e.created_at)}</div>
                                         </div>
                                         {admin && (
-                                            <Button variant="secondary" size="xs" className="flex-shrink-0"
-                                                    aria-label={t('treasury.booking.edit')}
-                                                    onClick={() => openEditExpense(e)}>✏️</Button>
-                                        )}
-                                        {admin && (
-                                            <Button variant="danger" size="xs" className="flex-shrink-0"
-                                                    aria-label={t('treasury.expense.deleteConfirm')}
-                                                    onClick={() => setConfirmDeleteExpense(e.id)}>✕</Button>
+
+                                            <CardActionMenu title={t('treasury.booking.edit')} actions={[
+
+                                                {icon: '✏️', label: t('action.edit'), onClick: () => openEditExpense(e)},
+
+                                                {icon: '🗑️', label: t('action.delete'), danger: true, onClick: () => setConfirmDeleteExpense(e.id)},
+
+                                            ]}/>
+
                                         )}
                                     </div>
                                 )
