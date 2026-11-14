@@ -145,6 +145,15 @@ describe('TreasuryAnalysis', () => {
         expect(screen.getAllByTestId('statement-month')).toHaveLength(9)
     })
 
+    it('draws the months as in/out bars with a closing line above the list', async () => {
+        await setupMocks({expenses: [
+            { id: 1, amount: 5, description: 'A', date: '2026-01-10', created_at: '2026-01-10T10:00:00', updated_at: null },
+            { id: 2, amount: 5, description: 'B', date: '2026-03-10', created_at: '2026-03-10T10:00:00', updated_at: null },
+        ]})
+        await renderAnalysis()
+        expect(await screen.findByTestId('statements-chart')).toBeInTheDocument()
+    })
+
     it('offers a member scope for the history graph', async () => {
         await renderAnalysis()
         await waitFor(() => expect(screen.getByText(/treasury\.history\.scopeMember/)).toBeInTheDocument())

@@ -432,6 +432,11 @@
             background-image: none;
             background-color: var(--surface-2);
         }
+
+        /* ProportionBar segments grow in from zero (#109 follow-up); hold them at their width. */
+        .kce-bar-seg {
+            transition: none !important;
+        }
     }
 
     .safe-top {

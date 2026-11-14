@@ -4,6 +4,7 @@ import {
     Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Sankey, Tooltip, Treemap, XAxis, YAxis,
 } from 'recharts'
 import {api} from '@/api/client.ts'
+import {chartAnimation} from '@/lib/motion.ts'
 import {router} from '@/router'
 import {useT} from '@/i18n'
 import {useAppStore} from '@/store/app.ts'
@@ -175,7 +176,7 @@ export function TreasuryCharts() {
                                              )
                                          }}/>
                                 <Area type="stepAfter" dataKey="value" stroke={C.accent} fill={C.accent} fillOpacity={0.15}
-                                      strokeWidth={2} dot={false} activeDot={{r: 5, fill: C.accent}} isAnimationActive={false}/>
+                                      strokeWidth={2} dot={false} activeDot={{r: 5, fill: C.accent}} {...chartAnimation()}/>
                             </AreaChart>
                         </ResponsiveContainer>
                         <PickBar sel={sel} chart="trend"/>
@@ -197,7 +198,7 @@ export function TreasuryCharts() {
                                          </div>
                                      )
                                  }}/>
-                        <Bar dataKey="range" radius={[0, 4, 4, 0]} isAnimationActive={false}
+                        <Bar dataKey="range" radius={[0, 4, 4, 0]} {...chartAnimation()}
                              onClick={(d) => {
                                  const st = d as unknown as WaterfallStep & {name: string}
                                  setSel({chart: 'waterfall', label: st.name, value: fe(st.amount),
@@ -214,7 +215,7 @@ export function TreasuryCharts() {
             <ChartCard testId="chart-treemap" title={t('treasury.charts.treemap')} hint={t('treasury.charts.treemapHint')}>
                 {tiles.length === 0 ? <Empty text={t('treasury.charts.noDebt')}/> : (
                     <ResponsiveContainer width="100%" height={220}>
-                        <Treemap data={tiles} dataKey="size" nameKey="name" stroke="var(--canvas)" isAnimationActive={false}
+                        <Treemap data={tiles} dataKey="size" nameKey="name" stroke="var(--canvas)" {...chartAnimation()}
                                  content={<DebtTile onOpen={(id: number, name: string, size: number) => setSel({chart: 'treemap', label: name, value: fe(size),
                                      open: () => go('/treasury', {tab: 'accounts', member: id})})}/>}>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))}/>
@@ -232,7 +233,7 @@ export function TreasuryCharts() {
                             <XAxis dataKey="label" tick={TICK} stroke={C.line} interval="preserveStartEnd"/>
                             <YAxis tick={TICK} stroke={C.line} tickFormatter={feShort} width={40}/>
                             <Tooltip {...TIP} formatter={(v) => fe(Number(v))} cursor={{fill: C.line, opacity: 0.3}}/>
-                            <Bar dataKey="penalty_total" fill={C.accent} radius={[4, 4, 0, 0]} isAnimationActive={false} style={{cursor: 'pointer'}}
+                            <Bar dataKey="penalty_total" fill={C.accent} radius={[4, 4, 0, 0]} {...chartAnimation()} style={{cursor: 'pointer'}}
                                  onClick={(d) => {
                                      const b = d as unknown as {id: number; label: string; penalty_total: number}
                                      setSel({chart: 'evenings', label: b.label, value: fe(b.penalty_total),
@@ -268,7 +269,7 @@ export function TreasuryCharts() {
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie data={splitData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={70}
-                                         paddingAngle={2} stroke="var(--canvas)" isAnimationActive={false}
+                                         paddingAngle={2} stroke="var(--canvas)" {...chartAnimation()}
                                          style={{cursor: 'pointer'}}
                                          onClick={(d) => {
                                              const x = d as unknown as {name: string; value: number}
