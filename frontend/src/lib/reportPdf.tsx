@@ -354,6 +354,12 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
     const openOf = (a: { balance: number }) => Math.max(0, Math.round(-a.balance * 100) / 100)
     const openRows = data.accounts.filter(a => openOf(a) > 0).sort((a, b) => openOf(b) - openOf(a))
     const openTotal = openRows.reduce((sum, a) => sum + openOf(a), 0)
+    // Guests' open penalties are listed too (marked as guests), but stay out of the member accounts total.
+    const guestOpenRows = data.monthly.guests
+        .filter(g => openOf(g) > 0)
+        .map(g => ({nickname: g.name, name: 'Gast', penalties: g.penalties, payments: g.payments, balance: g.balance, deactivated: false}))
+    const allOpenRows = [...openRows, ...guestOpenRows].sort((a, b) => openOf(b) - openOf(a))
+    const allOpenTotal = openTotal + guestOpenRows.reduce((sum, a) => sum + openOf(a), 0)
     const evCols = w([62, 'rest', 58, 46, 46, 62, 86])
     const bookCols = w([64, 62, 'rest', 74, 'rest'])
     // two `rest` columns share the remainder: description ≈ 45 %, note ≈ 55 %
@@ -434,7 +440,7 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                         />
                     </Section>
 
-                    {openRows.length > 0 && (
+                    {allOpenRows.length > 0 && (
                         <Section title="Offene Strafen" accent={accent}>
                             <DataTable
                                 tint={tint}
@@ -445,13 +451,13 @@ export function ReportDocument({data: raw, branding}: { data: ReportData; brandi
                                     {w: openCols[3], head: 'Bezahlt', align: 'right'},
                                     {w: openCols[4], head: 'Offen', align: 'right'},
                                 ]}
-                                rows={openRows.map(a => ({
+                                rows={allOpenRows.map(a => ({
                                     cells: [a.nickname, a.deactivated ? `${a.name} (deaktiviert)` : a.name,
                                         reportEuro(a.penalties), reportEuro(a.payments), reportEuro(openOf(a))],
                                     tones: [undefined, a.deactivated ? 'muted' : undefined, undefined, undefined, 'neg'],
                                 }))}
                                 footer={{
-                                    cells: ['GESAMT', '', '', '', reportEuro(openTotal)],
+                                    cells: ['GESAMT', '', '', '', reportEuro(allOpenTotal)],
                                     tones: [undefined, undefined, undefined, undefined, 'neg'],
                                 }}
                             />
