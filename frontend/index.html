@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <meta name="theme-color" content="#3d3540"/>
     <meta name="apple-mobile-web-app-capable" content="yes"/>
-    <!-- NOT black-translucent: on an installed iOS standalone PWA that (deprecated) value makes the
-         web view height = screen.height − safe-area-inset-top but anchors it to the top, leaving a
-         dead strip of OS-black at the *bottom* equal to the top inset (measured: 852−59=793, 59px
-         gap) that no CSS/JS inside the page can reach. `black` gives an opaque status bar so iOS
-         lays the web view out below it and fills correctly to the physical bottom; the nav's
-         env(safe-area-inset-bottom) padding still clears the home indicator. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+    <!-- black-translucent: the installed iOS PWA draws behind the status bar, so the live island
+         (#111, lib/island) can sit on the Dynamic Island instead of below it. The header's
+         .safe-top spacer (env(safe-area-inset-top)) keeps the app content below the status bar.
+         Known WebKit quirk with this value: the layout viewport stays screen.height −
+         safe-area-inset-top tall while being shifted up behind the status bar, so anything sized
+         with `100%`/`inset: 0` leaves a dead strip at the bottom (measured: 852−59=793, 59px
+         gap). `100vh` is the full screen there, so index.css sizes html/body/#root with it in
+         standalone mode. With the previous `black` value iOS laid the web view out *below* the
+         status bar, which no CSS can draw over. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
     <title>Kegelkasse</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml"/>
     <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192"/>
