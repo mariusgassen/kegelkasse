@@ -29,6 +29,7 @@ import {
     Cancel01Icon,
     CloudIcon,
     CrownIcon,
+    PauseIcon,
     Wallet01Icon,
 } from '@hugeicons/core-free-icons'
 import {
@@ -101,6 +102,7 @@ const HEADER_ISLAND_METRICS: IslandMetricsOverrides = {
 }
 
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
+const PauseGlyph = glyphFrom('PauseGlyph', PauseIcon)
 const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
 const CloseGlyph = glyphFrom('CloseGlyph', Cancel01Icon)
 const CrownGlyph = glyphFrom('CrownGlyph', CrownIcon, {parts: 'fill'})
@@ -210,7 +212,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
                         ) : noGame ? (
-                            <CompactText color={statusColor}>{t('island.noGameShort')}</CompactText>
+                            <Glyph icon={PauseGlyph} color={statusColor} size={16}/>
                         ) : (
                             moneyNode
                         )}
