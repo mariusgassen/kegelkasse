@@ -266,7 +266,7 @@ describe('EveningIsland', () => {
         expect(screen.getByRole('button', {name: /Pudelkönig.*Hans.*\+0,50 €/})).toBeTruthy()
     })
 
-    it.skip('shows the next scheduled evening in idle mode and supports 1-tap RSVP', async () => {
+    it('shows the next scheduled evening in idle mode and supports 1-tap RSVP', async () => {
         useAppStore.setState({user: mockUser})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [scheduled()])
@@ -289,7 +289,7 @@ describe('EveningIsland', () => {
         expect(api.setRsvp).toHaveBeenCalledWith(5, 'attending')
     })
 
-    it.skip('falls back to personal balance & account details when logged in with no upcoming evening', async () => {
+    it('falls back to personal balance & account details when logged in with no upcoming evening', async () => {
         useAppStore.setState({user: mockUser})
         const openEvents: CustomEvent[] = []
         const onOpen = (e: Event) => openEvents.push(e as CustomEvent)
@@ -333,7 +333,7 @@ describe('EveningIsland', () => {
         }
     })
 
-    it.skip('shows the account shortcut fallback when neither upcoming evening nor member balance exists', async () => {
+    it('shows the account shortcut fallback when neither upcoming evening nor member balance exists', async () => {
         useAppStore.setState({user: {...mockUser, name: 'Admin', regular_member_id: null}})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [])
@@ -425,7 +425,7 @@ describe('EveningIsland', () => {
         await act(async () => {})
     })
 
-    it.skip('falls back to balance when the next scheduled evening is further ahead than club reminder days', async () => {
+    it('falls back to balance when the next scheduled evening is further ahead than club reminder days', async () => {
         useAppStore.setState({user: mockUser})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [scheduled({scheduled_at: localDatePlusDays(25)})])
@@ -439,7 +439,7 @@ describe('EveningIsland', () => {
         expect(screen.getByRole('button', {name: /profile\.myBalance.*\+10,00 €/})).toBeTruthy()
     })
 
-    it.skip('dismisses idle island from expanded view and awakens when another island event occurs', async () => {
+    it('dismisses idle island from expanded view and awakens when another island event occurs', async () => {
         useAppStore.setState({user: mockUser})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [])
@@ -474,7 +474,7 @@ describe('EveningIsland', () => {
         expect(useIdleIslandStore.getState().dismissed).toBe(false)
     })
 
-    it.skip('dismisses idle island on horizontal swipe across compact pill', async () => {
+    it('dismisses idle island on horizontal swipe across compact pill', async () => {
         useAppStore.setState({user: mockUser})
         renderIsland(undefined, null, (qc) => {
             qc.setQueryData(['schedule'], [scheduled()])
@@ -496,7 +496,7 @@ describe('EveningIsland', () => {
         expect(screen.queryByRole('button', {name: /island\.nextEvening/})).toBeNull()
     })
 
-    it.skip('brings the idle island back when the empty island is swiped sideways', async () => {
+    it('brings the idle island back when the empty island is swiped sideways', async () => {
         useAppStore.setState({user: mockUser})
         useIdleIslandStore.getState().dismiss(5)
         renderIsland(undefined, null, (qc) => {

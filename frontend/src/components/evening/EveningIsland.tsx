@@ -1198,6 +1198,8 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     return (
         <>
             {eveningId != null && eveningId > 0 && <EveningActivity eveningId={eveningId}/>}
+            <IdleStatusActivity eveningId={eveningId}/>
+            <IdleAwakenWatcher/>
             <CelebrationActivity/>
             <QuickEntryActivity/>
             <UploadActivity/>
@@ -1207,10 +1209,15 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
     )
 }
 
-/** The plain black pill stays visible as a resting light, but never intercepts taps while empty. */
+/**
+ * The plain black pill stays visible as a resting light, but never intercepts taps while empty —
+ * except after the idle island was swiped away: then the empty pill must take a swipe to bring it back.
+ */
 function HideWhenEmpty({children}: {children: ReactNode}) {
     const {activities} = useIsland()
-    return <div data-island-empty={activities.length === 0 || undefined} style={{pointerEvents: activities.length === 0 ? 'none' : undefined}}>{children}</div>
+    const idleDismissed = useIdleIslandStore(s => s.dismissed)
+    const inert = activities.length === 0 && !idleDismissed
+    return <div data-island-empty={inert || undefined} style={{pointerEvents: inert ? 'none' : undefined}}>{children}</div>
 }
 
 export default function EveningIsland({
@@ -1223,10 +1230,12 @@ export default function EveningIsland({
     children?: ReactNode
 }) {
     const fullscreen = useIslandFullscreenStore(s => s.fullscreen)
+    const awakenIdle = useIdleIslandStore(st => st.awaken)
     return (
         <IslandProvider>
             <HideWhenEmpty>
                 <Island
+                    onIdleSwipe={awakenIdle}
                     placement="container"
                     label="Live"
                     backdrop={backdrop}
