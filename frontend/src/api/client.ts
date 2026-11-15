@@ -929,8 +929,8 @@ export const api = {
     getAiSettings: () => request<AiSettings>('GET', '/ai/settings'),
     updateAiSettings: (d: Partial<Pick<AiSettings, 'recaps' | 'suggestions' | 'booking_review' | 'search' | 'model' | 'search_model' | 'calls_per_hour'>>) =>
         request<AiSettings>('PATCH', '/ai/settings', d),
-    aiRecapEvening: (eveningId: number) => request<AiRecap>('POST', `/ai/recap/evening/${eveningId}`),
-    aiRecapSeason: (year: number) => request<AiRecap>('POST', `/ai/recap/season/${year}`),
+    aiRecapEvening: (eveningId: number, hint?: string) => request<AiRecap>('POST', `/ai/recap/evening/${eveningId}`, hint ? {hint} : undefined),
+    aiRecapSeason: (year: number, hint?: string) => request<AiRecap>('POST', `/ai/recap/season/${year}`, hint ? {hint} : undefined),
     aiSuggestPenaltyTypes: () => request<{ suggestions: AiPenaltySuggestion[] }>('POST', '/ai/suggest/penalty-types'),
     aiSuggestNickname: (memberId: number, hint?: string) => request<{ suggestions: AiNicknameSuggestion[] }>('POST', `/ai/suggest/nickname/${memberId}`, hint ? {hint} : undefined),
     aiAsk: (question: string) => request<AiAnswer>('POST', '/ai/ask', {question}),

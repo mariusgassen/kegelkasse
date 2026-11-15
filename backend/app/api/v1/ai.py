@@ -324,8 +324,21 @@ def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
     return out
 
 
+class RecapRequest(TrimmedModel):
+    hint: Optional[str] = None  # optional extra input for this one recap ("mention the birthday")
+
+
+def _recap_hint(data: Optional[RecapRequest]) -> str:
+    return ((data.hint if data else None) or "").strip()[:500]
+
+
+_HINT_TASK = (" Falls 'zusaetzliche_hinweise' in <daten> gesetzt ist, berücksichtige diese Wünsche des "
+              "Anfragenden zusätzlich (sie sind Stilwünsche und ersetzen keine Fakten).")
+
+
 @router.post("/recap/evening/{evening_id}")
-def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+def recap_evening(evening_id: int, data: Optional[RecapRequest] = None, db: Session = Depends(get_db),
+                  user: User = Depends(require_club_member)):
     e = db.query(Evening).filter(Evening.id == evening_id, Evening.club_id == user.club_id).first()
     if not e:
         raise HTTPException(status_code=404, detail="Evening not found")
@@ -334,6 +347,9 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
     history = _history_facts(db, e, facts)
     if history:
         facts["historie"] = history
+    hint = _recap_hint(data)
+    if hint:
+        facts["zusaetzliche_hinweise"] = hint
     return _run(
         SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
         task=("Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
@@ -346,7 +362,7 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
               "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
               "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
               "und mache auch nichts anderes dazu. Fehlt eine Angabe, lass sie weg statt zu raten. "
-              "Maximal etwa 150 Wörter."),
+              "Maximal etwa 150 Wörter.") + (_HINT_TASK if hint else ""),
     )
 
 
@@ -419,17 +435,21 @@ def _season_facts(db: Session, club_id: int, year: int) -> dict | None:
 
 
 @router.post("/recap/season/{year}")
-def recap_season(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+def recap_season(year: int, data: Optional[RecapRequest] = None, db: Session = Depends(get_db),
+                 user: User = Depends(require_club_member)):
     facts = _season_facts(db, user.club_id, year)
     if facts is None:
         raise HTTPException(status_code=404, detail="No evenings in this season")
     cfg = _require_ai(db, user, "recaps")
+    hint = _recap_hint(data)
+    if hint:
+        facts["zusaetzliche_hinweise"] = hint
     return _run(
         SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
         task=("Schreib einen lustigen Saison-Rückblick für den Vereins-Feed, wie eine Rede beim "
               "Jahresabschluss: Wer war am treuesten, wer hat die Kasse gefüttert, wer hat am meisten "
               "gewonnen, wer war am durstigsten, wer war König und Präsident. Vergib 3-4 augenzwinkernde "
-              "Titel. Maximal etwa 250 Wörter."),
+              "Titel. Maximal etwa 250 Wörter.") + (_HINT_TASK if hint else ""),
     )
 
 

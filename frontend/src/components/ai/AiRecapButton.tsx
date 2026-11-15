@@ -37,19 +37,22 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
     const [title, setTitle] = useState('')
     const [text, setText] = useState('')
     const [editing, setEditing] = useState(false)
+    const [hint, setHint] = useState('')
+    const [generated, setGenerated] = useState(false)
 
     if (!enabled) return null
 
     async function generate() {
         setLoading(true)
         try {
+            const extra = hint.trim() || undefined
             const r = target.kind === 'evening'
-                ? await api.aiRecapEvening(target.eveningId)
-                : await api.aiRecapSeason(target.year)
+                ? await api.aiRecapEvening(target.eveningId, extra)
+                : await api.aiRecapSeason(target.year, extra)
             setTitle(r.title)
             setText(r.text)
             setEditing(false)
-            setOpen(true)
+            setGenerated(true)
         } catch (e) {
             const key = aiErrorKey(e)
             if (key) showToast(t(key), 'error')
@@ -86,12 +89,23 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
     return (
         <>
             <button type="button" className={`${className} inline-flex items-center justify-center gap-1.5`}
-                    onClick={generate} disabled={loading || !online} data-testid="ai-recap-button">
+                    onClick={() => setOpen(true)} disabled={!online} data-testid="ai-recap-button">
                 <Sparkles size={14} aria-hidden="true"/>
-                {loading ? t('ai.generating') : t(target.kind === 'season' ? 'ai.button.seasonRecap' : 'ai.button.recap')}
+                {t(target.kind === 'season' ? 'ai.button.seasonRecap' : 'ai.button.recap')}
             </button>
             <Sheet open={open} onClose={() => setOpen(false)} title={t('ai.recap.title')}>
                 <div className="flex flex-col gap-3" data-testid="ai-recap-sheet">
+                    <Field label={t('ai.recap.extraLabel')} htmlFor="ai-recap-hint">
+                        <textarea id="ai-recap-hint" className="kce-input" rows={2} maxLength={500} value={hint}
+                                  onChange={e => setHint(e.target.value)}
+                                  placeholder={t('ai.recap.extraPlaceholder')}/>
+                    </Field>
+                    {!generated ? (
+                        <Button type="button" variant="primary" block onClick={generate}
+                                disabled={loading || !online} data-testid="ai-recap-generate">
+                            {loading ? t('ai.generating') : t('ai.recap.generate')}
+                        </Button>
+                    ) : (<>
                     <p className="text-xs text-muted">{t('ai.recap.hint')}</p>
                     <Field label={t('ai.recap.headline')} htmlFor="ai-recap-title">
                         <input id="ai-recap-title" className="kce-input" value={title}
@@ -128,6 +142,7 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
                             {posting ? t('action.loading') : `📣 ${t('ai.post')}`}
                         </Button>
                     )}
+                    </>)}
                 </div>
             </Sheet>
         </>

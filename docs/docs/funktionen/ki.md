@@ -68,6 +68,9 @@ Suchbegriff und Antwort bleiben erhalten, auch wenn du einem Link folgst: Öffne
   Highlight), erwähnt sie nicht und erfindet nichts dazu.
 - **Saison:** Im Statistik-Tab „Jahr“ fasst „KI-Saisonrückblick“ das ganze Jahr zusammen und vergibt
   augenzwinkernde Titel.
+- **Zusätzliche Hinweise:** Vor dem Schreiben kannst du bei Abend- und Saisonrückblick optional einen
+  Wunsch eingeben (z. B. „Karls Geburtstag erwähnen“). Er gilt nur für diesen Rückblick und ergänzt
+  die Vorgaben der KI.
 
 Der Text erscheint in einem Fenster, in dem du ihn anpassen, kopieren oder neu schreiben lassen
 kannst. Mitglieder des Vergnügungsausschusses und Admins können ihn direkt als **Neuigkeit** posten.

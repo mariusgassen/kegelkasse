@@ -179,6 +179,18 @@ def test_evening_recap_returns_text(client, auth_headers, evening, claude):
     assert r.json() == {"title": "👑 Pudelkönig regiert", "text": "Was ein Abend!"}
 
 
+def test_evening_recap_passes_user_hint(client, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    r = client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers,
+                    json={"hint": "Karls Geburtstag erwähnen"})
+    assert r.status_code == 200
+    assert "zusaetzliche_hinweise" in claude.data
+    assert "Karls Geburtstag erwähnen" in claude.data
+    claude.data = ""
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    assert "zusaetzliche_hinweise" not in claude.data
+
+
 def test_evening_recap_sends_only_aliases(client, auth_headers, evening, claude):
     claude.payload = {"title": "t", "text": "x"}
     client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
