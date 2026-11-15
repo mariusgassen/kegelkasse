@@ -1074,6 +1074,7 @@ function AiSettingsCard() {
             const res = await api.updateAiSettings({
                 recaps: form.recaps, suggestions: form.suggestions, booking_review: form.booking_review, search: form.search,
                 model: form.model, search_model: form.search_model, calls_per_hour: form.calls_per_hour,
+                recap_evening_prompt: form.recap_evening_prompt, recap_season_prompt: form.recap_season_prompt,
             })
             setForm(res)
             qc.setQueryData(['ai-settings'], res)
@@ -1136,10 +1137,29 @@ function AiSettingsCard() {
                         {t('ai.settings.limitHint').replace('{max}', String(form.max_calls_per_hour))}
                     </p>
                 </Field>
+                {([
+                    ['recap_evening_prompt', t('ai.settings.promptEvening'), 'ai-prompt-evening'],
+                    ['recap_season_prompt', t('ai.settings.promptSeason'), 'ai-prompt-season'],
+                ] as const).map(([key, label, id]) => (
+                    <Field key={key} label={label} htmlFor={id}>
+                        <textarea id={id} className="kce-input" rows={6} maxLength={3000} value={form[key]}
+                                  onChange={e => set({[key]: e.target.value})}/>
+                        <div className="flex items-start justify-between gap-3 mt-1">
+                            <p className="text-xs text-muted">{t('ai.settings.promptHint')}</p>
+                            <button type="button" className="text-xs text-accent-fg font-semibold shrink-0"
+                                    disabled={form[key] === form.default_prompts[key]}
+                                    onClick={() => set({[key]: form.default_prompts[key]})}
+                                    data-testid={`${id}-reset`}>
+                                {t('ai.settings.promptReset')}
+                            </button>
+                        </div>
+                    </Field>
+                ))}
             </div>
 
             <Button variant="primary" block className="mt-4" onClick={handleSave}
-                    disabled={!isOnline || saving || !limitOk} data-testid="ai-settings-save">
+                    disabled={!isOnline || saving || !limitOk || !form.recap_evening_prompt.trim() || !form.recap_season_prompt.trim()}
+                    data-testid="ai-settings-save">
                 {saving ? '…' : (isOnline ? t('action.save') : t('offline.btnLabel'))}
             </Button>
         </div>
