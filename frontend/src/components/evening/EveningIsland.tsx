@@ -61,7 +61,7 @@ import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useIdleIslandStore, useIslandBusyStore, useIslandFullscreenStore} from '@/store/idleIsland.ts'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
-import {Island, IslandProvider, useIsland, useIslandActions, type IslandMetricsOverrides} from '@/lib/island'
+import {Island, IslandProvider, useIsland, useIslandActions} from '@/lib/island'
 import {Glyph} from '@/components/islandcn/glyph'
 import {CheckCircleGlyph, glyphFrom, SparkleGlyph, UploadGlyph} from '@/components/islandcn/glyphs'
 import {ExpandedBottom, SensorRow} from '@/components/islandcn/island-layout'
@@ -90,15 +90,6 @@ const QUICK_ENTRY_ID = 'quick-entry'
 const UPLOAD_ID = 'upload'
 const SYNC_ID = 'offline-sync'
 const ACCENT = 'var(--accent)'
-
-/** Narrower compact sensor cutout & max pill width so the centered pill clears the 84 px header wings on 375 px+ viewports. */
-const HEADER_ISLAND_METRICS: IslandMetricsOverrides = {
-    compact: {
-        sensorWidth: 46,
-        maxSlotWidth: 64,
-        maxWidth: 192,
-    },
-}
 
 const BowlingGlyph = glyphFrom('BowlingGlyph', BowlingPinsIcon)
 const CalendarGlyph = glyphFrom('CalendarGlyph', Calendar03Icon)
@@ -186,9 +177,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         }
 
         const noGame = !game
-        const iconColor = noGame ? islandInk.secondary : ACCENT
-        const statusColor = noGame ? islandAccent.yellow : ACCENT
-        const leadingGlyph = <Glyph icon={BowlingGlyph} color={iconColor}/>
+        const leadingGlyph = <Glyph icon={BowlingGlyph} color={ACCENT}/>
         const moneyNode = (
             <CompactText color={ACCENT}>
                 <NumberText value={money}/>
@@ -209,8 +198,6 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                             <CompactText color={ACCENT}>
                                 <TickingTime source={{kind: 'elapsed', since: startMs}}/>
                             </CompactText>
-                        ) : noGame ? (
-                            <CompactText color={statusColor}>{t('island.noGameShort')}</CompactText>
                         ) : (
                             moneyNode
                         )}
@@ -220,12 +207,12 @@ function EveningActivity({eveningId}: {eveningId: number}) {
             minimal: (
                 <MinimalPair
                     leading={leadingGlyph}
-                    trailing={noGame ? <CompactText color={statusColor}>–</CompactText> : moneyNode}
+                    trailing={moneyNode}
                 />
             ),
             expanded: {
                 leading: (
-                    <SensorRow glyph={<Glyph icon={BowlingGlyph} color={iconColor} size={18}/>}>
+                    <SensorRow glyph={<Glyph icon={BowlingGlyph} color={ACCENT} size={18}/>}>
                         <ContextLabel>{t('island.shortLabel')}</ContextLabel>
                     </SensorRow>
                 ),
@@ -1224,7 +1211,7 @@ export default function EveningIsland({
 }) {
     const fullscreen = useIslandFullscreenStore(s => s.fullscreen)
     return (
-        <IslandProvider metrics={HEADER_ISLAND_METRICS}>
+        <IslandProvider>
             <HideWhenEmpty>
                 <Island
                     placement="container"

@@ -411,7 +411,6 @@ describe('EveningIsland', () => {
         const {unmount} = renderIsland(evening())
         await act(async () => {})
         expect(screen.getByRole('button', {name: /island\.label.*island\.noGame/})).toBeTruthy()
-        expect(screen.getAllByText('island.noGameShort').length).toBeGreaterThan(0)
         unmount()
 
         renderIsland(evening({
@@ -424,7 +423,6 @@ describe('EveningIsland', () => {
             }],
         }))
         await act(async () => {})
-        expect(screen.queryByText('island.noGameShort')).toBeNull()
     })
 
     it.skip('falls back to balance when the next scheduled evening is further ahead than club reminder days', async () => {
