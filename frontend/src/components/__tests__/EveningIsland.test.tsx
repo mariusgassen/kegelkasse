@@ -222,7 +222,7 @@ describe('EveningIsland', () => {
             vi.mocked(api.getPaymentRequests).mockResolvedValue([{id: 42, regular_member_id: 3, member_name: 'Max', amount: 15, note: null, status: 'pending', created_at: null, resolved_at: null}])
             await client.invalidateQueries({queryKey: ['payment-requests']})
         })
-        expect(screen.getByRole('button', {name: /paymentRequest\.pendingTitle: Max/})).toBeTruthy()
+        expect(await screen.findByRole('button', {name: /paymentRequest\.pendingTitle: Max/})).toBeTruthy()
         expect(screen.queryByRole('button', {name: /island\.idle|island\.nextEvening|profile\.myBalance/})).toBeNull()
     })
 
