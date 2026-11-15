@@ -51,6 +51,9 @@ AI_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")
 FEATURES = ("recaps", "suggestions", "booking_review", "search")
 
 
+MAX_PROMPT_LEN = 3000
+PROMPT_KEYS = ("recap_evening_prompt", "recap_season_prompt")
+
 # The search answers short questions from a prepared snapshot: the cheapest model is enough.
 SEARCH_MODEL = "claude-haiku-5-5"
 
@@ -68,6 +71,8 @@ def get_ai_config(db: Session, club_id: int) -> dict:
     cfg["model"] = settings.ANTHROPIC_MODEL
     cfg["search_model"] = SEARCH_MODEL
     cfg["calls_per_hour"] = AI_CALLS_PER_HOUR
+    for k, default in PROMPT_DEFAULTS.items():
+        cfg[k] = saved[k] if isinstance(saved.get(k), str) and saved[k].strip() else default
     for f in FEATURES:
         if isinstance(saved.get(f), bool):
             cfg[f] = saved[f]
@@ -127,7 +132,7 @@ def ai_status(db: Session = Depends(get_db), user: User = Depends(require_club_m
 
 
 def _settings_out(cfg: dict) -> dict:
-    return {**cfg, "key_configured": ai_enabled(), "models": _model_choices(),
+    return {**cfg, "default_prompts": PROMPT_DEFAULTS, "key_configured": ai_enabled(), "models": _model_choices(),
             "max_calls_per_hour": MAX_CALLS_PER_HOUR}
 
 
@@ -145,6 +150,8 @@ class AiSettingsUpdate(TrimmedModel):
     model: Optional[str] = None
     search_model: Optional[str] = None
     calls_per_hour: Optional[int] = None
+    recap_evening_prompt: Optional[str] = None  # "" resets to the default
+    recap_season_prompt: Optional[str] = None
 
 
 @router.patch("/settings")
@@ -156,12 +163,20 @@ def update_ai_settings(data: AiSettingsUpdate, db: Session = Depends(get_db),
             raise HTTPException(status_code=400, detail="Unknown model")
     if "calls_per_hour" in payload and not 1 <= payload["calls_per_hour"] <= MAX_CALLS_PER_HOUR:
         raise HTTPException(status_code=400, detail=f"calls_per_hour must be 1-{MAX_CALLS_PER_HOUR}")
+    resets = []
+    for key in PROMPT_KEYS:
+        if key in payload:
+            if len(payload[key]) > MAX_PROMPT_LEN:
+                raise HTTPException(status_code=400, detail=f"{key} must be at most {MAX_PROMPT_LEN} characters")
+            if not payload[key] or payload[key] == PROMPT_DEFAULTS[key]:
+                payload.pop(key)
+                resets.append(key)
     s = db.query(ClubSettings).filter(ClubSettings.club_id == user.club_id).first()
     if not s:
         s = ClubSettings(club_id=user.club_id)
         db.add(s)
     extra = dict(s.extra or {})
-    extra["ai"] = {**(extra.get("ai") or {}), **payload}
+    extra["ai"] = {k: v for k, v in {**(extra.get("ai") or {}), **payload}.items() if k not in resets}
     s.extra = extra
     db.commit()
     return _settings_out(get_ai_config(db, user.club_id))
@@ -324,8 +339,51 @@ def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
     return out
 
 
+RECAP_EVENING_PROMPT = (
+    "Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
+    "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
+    "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
+    "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste ruhig, aber behandle sie nicht als Mitglieder (keine Stammgast-Aussagen). "
+    "Beim Präsidentenspiel entscheidet der Sieger, wer Präsident wird. Erstmals Dabeigewesene "
+    "und Rückkehrer nach längerer Pause darfst du kurz begrüßen. "
+    "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
+    "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
+    "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
+    "und mache auch nichts anderes dazu. Fehlt eine Angabe, lass sie weg statt zu raten. "
+    "Maximal etwa 150 Wörter."
+)
+
+RECAP_SEASON_PROMPT = (
+    "Schreib einen lustigen Saison-Rückblick für den Vereins-Feed, wie eine Rede beim "
+    "Jahresabschluss: Wer war am treuesten, wer hat die Kasse gefüttert, wer hat am meisten "
+    "gewonnen, wer war am durstigsten, wer war König und Präsident. Vergib 3-4 augenzwinkernde "
+    "Titel. Maximal etwa 250 Wörter."
+)
+
+
+PROMPT_DEFAULTS = {"recap_evening_prompt": RECAP_EVENING_PROMPT, "recap_season_prompt": RECAP_SEASON_PROMPT}
+
+
+def _recap_task(cfg: dict, key: str, hint: str) -> str:
+    """The club's base prompt for this recap (or the default), plus the per-request hint note."""
+    return cfg[key] + (_HINT_TASK if hint else "")
+
+
+class RecapRequest(TrimmedModel):
+    hint: Optional[str] = None  # optional extra input for this one recap ("mention the birthday")
+
+
+def _recap_hint(data: Optional[RecapRequest]) -> str:
+    return ((data.hint if data else None) or "").strip()[:500]
+
+
+_HINT_TASK = (" Falls 'zusaetzliche_hinweise' in <daten> gesetzt ist, berücksichtige diese Wünsche des "
+              "Anfragenden zusätzlich (sie sind Stilwünsche und ersetzen keine Fakten).")
+
+
 @router.post("/recap/evening/{evening_id}")
-def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+def recap_evening(evening_id: int, data: Optional[RecapRequest] = None, db: Session = Depends(get_db),
+                  user: User = Depends(require_club_member)):
     e = db.query(Evening).filter(Evening.id == evening_id, Evening.club_id == user.club_id).first()
     if not e:
         raise HTTPException(status_code=404, detail="Evening not found")
@@ -334,19 +392,12 @@ def recap_evening(evening_id: int, db: Session = Depends(get_db), user: User = D
     history = _history_facts(db, e, facts)
     if history:
         facts["historie"] = history
+    hint = _recap_hint(data)
+    if hint:
+        facts["zusaetzliche_hinweise"] = hint
     return _run(
         SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
-        task=("Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
-              "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
-              "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
-              "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste ruhig, aber behandle sie nicht als Mitglieder (keine Stammgast-Aussagen). "
-              "Beim Präsidentenspiel entscheidet der Sieger, wer Präsident wird. Erstmals Dabeigewesene "
-              "und Rückkehrer nach längerer Pause darfst du kurz begrüßen. "
-              "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
-              "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
-              "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
-              "und mache auch nichts anderes dazu. Fehlt eine Angabe, lass sie weg statt zu raten. "
-              "Maximal etwa 150 Wörter."),
+        task=_recap_task(cfg, "recap_evening_prompt", hint),
     )
 
 
@@ -419,17 +470,18 @@ def _season_facts(db: Session, club_id: int, year: int) -> dict | None:
 
 
 @router.post("/recap/season/{year}")
-def recap_season(year: int, db: Session = Depends(get_db), user: User = Depends(require_club_member)):
+def recap_season(year: int, data: Optional[RecapRequest] = None, db: Session = Depends(get_db),
+                 user: User = Depends(require_club_member)):
     facts = _season_facts(db, user.club_id, year)
     if facts is None:
         raise HTTPException(status_code=404, detail="No evenings in this season")
     cfg = _require_ai(db, user, "recaps")
+    hint = _recap_hint(data)
+    if hint:
+        facts["zusaetzliche_hinweise"] = hint
     return _run(
         SYSTEM_PROMPT, facts, _RECAP_SCHEMA, model=cfg["model"],
-        task=("Schreib einen lustigen Saison-Rückblick für den Vereins-Feed, wie eine Rede beim "
-              "Jahresabschluss: Wer war am treuesten, wer hat die Kasse gefüttert, wer hat am meisten "
-              "gewonnen, wer war am durstigsten, wer war König und Präsident. Vergib 3-4 augenzwinkernde "
-              "Titel. Maximal etwa 250 Wörter."),
+        task=_recap_task(cfg, "recap_season_prompt", hint),
     )
 
 

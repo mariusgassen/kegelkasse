@@ -179,6 +179,18 @@ def test_evening_recap_returns_text(client, auth_headers, evening, claude):
     assert r.json() == {"title": "👑 Pudelkönig regiert", "text": "Was ein Abend!"}
 
 
+def test_evening_recap_passes_user_hint(client, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    r = client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers,
+                    json={"hint": "Karls Geburtstag erwähnen"})
+    assert r.status_code == 200
+    assert "zusaetzliche_hinweise" in claude.data
+    assert "Karls Geburtstag erwähnen" in claude.data
+    claude.calls.clear()
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    assert "zusaetzliche_hinweise" not in claude.data
+
+
 def test_evening_recap_sends_only_aliases(client, auth_headers, evening, claude):
     claude.payload = {"title": "t", "text": "x"}
     client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
@@ -452,6 +464,27 @@ def test_settings_validation(client, admin_headers):
     assert client.patch("/api/v1/ai/settings", json={"calls_per_hour": 0}, headers=admin_headers).status_code == 400
     assert client.patch("/api/v1/ai/settings", json={"calls_per_hour": 9999},
                         headers=admin_headers).status_code == 400
+
+
+def test_custom_recap_prompts_are_per_type_and_resettable(client, admin_headers, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    r = client.get("/api/v1/ai/settings", headers=admin_headers).json()
+    assert r["recap_evening_prompt"] == ai_api.RECAP_EVENING_PROMPT
+    assert r["default_prompts"]["recap_season_prompt"] == ai_api.RECAP_SEASON_PROMPT
+    r = client.patch("/api/v1/ai/settings", json={"recap_evening_prompt": "Schreib wie ein Pirat"},
+                     headers=admin_headers).json()
+    assert r["recap_evening_prompt"] == "Schreib wie ein Pirat"
+    assert r["recap_season_prompt"] == ai_api.RECAP_SEASON_PROMPT
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers, json={"hint": "Karl"})
+    assert "Schreib wie ein Pirat" in claude.data and "zusaetzliche_hinweise" in claude.data
+    assert ai_api.RECAP_EVENING_PROMPT not in claude.data
+    r = client.patch("/api/v1/ai/settings", json={"recap_evening_prompt": ""}, headers=admin_headers).json()
+    assert r["recap_evening_prompt"] == ai_api.RECAP_EVENING_PROMPT
+
+
+def test_recap_prompt_too_long_rejected(client, admin_headers):
+    r = client.patch("/api/v1/ai/settings", json={"recap_season_prompt": "x" * 3001}, headers=admin_headers)
+    assert r.status_code == 400
 
 
 def test_disabled_feature_is_blocked_and_hidden(client, admin_headers, auth_headers, evening, claude):

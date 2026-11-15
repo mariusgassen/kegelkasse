@@ -28,6 +28,10 @@ Unter **Verein → Einstellungen → ✨ KI-Funktionen** stellen Admins ein:
 - **KI-Erklärungen im Buchungs-Check** an oder aus. Die regelbasierte Prüfung läuft immer.
 - das **Modell** (Claude Opus, Sonnet oder Haiku). Opus schreibt am besten, Haiku ist am günstigsten.
 - das **Modell für die Suche** getrennt davon (Standard: Haiku – die Suche beantwortet kurze Fragen aus einem fertigen Auszug, dafür genügt das günstigste Modell).
+- den **Basis-Prompt** für Abend- und Jahresrückblick getrennt. Das ist die Anweisung an die KI (Stil,
+  Länge, Schwerpunkte); „Standard“ stellt den mitgelieferten Text wieder her. Zusätzliche Hinweise beim
+  Erstellen kommen darauf noch obendrauf. Bei eigenen Prompts sollte der Hinweis „nur Fakten aus den
+  Daten“ drinbleiben, sonst kann die KI Dinge erfinden.
 - die **maximale Anzahl KI-Anfragen pro Stunde** für den ganzen Verein (Standard 30, höchstens 200),
   damit die Kosten im Rahmen bleiben.
 
@@ -68,6 +72,9 @@ Suchbegriff und Antwort bleiben erhalten, auch wenn du einem Link folgst: Öffne
   Highlight), erwähnt sie nicht und erfindet nichts dazu.
 - **Saison:** Im Statistik-Tab „Jahr“ fasst „KI-Saisonrückblick“ das ganze Jahr zusammen und vergibt
   augenzwinkernde Titel.
+- **Zusätzliche Hinweise:** Vor dem Schreiben kannst du bei Abend- und Saisonrückblick optional einen
+  Wunsch eingeben (z. B. „Karls Geburtstag erwähnen“). Er gilt nur für diesen Rückblick und ergänzt
+  die Vorgaben der KI.
 
 Der Text erscheint in einem Fenster, in dem du ihn anpassen, kopieren oder neu schreiben lassen
 kannst. Mitglieder des Vergnügungsausschusses und Admins können ihn direkt als **Neuigkeit** posten.

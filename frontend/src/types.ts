@@ -865,6 +865,9 @@ export interface AiSettings extends Record<AiFeature, boolean> {
     model: string
     search_model: string
     calls_per_hour: number
+    recap_evening_prompt: string
+    recap_season_prompt: string
+    default_prompts: { recap_evening_prompt: string; recap_season_prompt: string }
     key_configured: boolean
     models: string[]
     max_calls_per_hour: number

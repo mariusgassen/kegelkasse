@@ -182,6 +182,8 @@ const AI_SETTINGS = {
     recaps: true, suggestions: true, booking_review: true, model: 'claude-opus-5-5', search_model: 'claude-haiku-5-5', calls_per_hour: 30,
     key_configured: true, models: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
     max_calls_per_hour: 200,
+    recap_evening_prompt: 'Abend-Standard', recap_season_prompt: 'Saison-Standard',
+    default_prompts: {recap_evening_prompt: 'Abend-Standard', recap_season_prompt: 'Saison-Standard'},
 }
 
 const APP_ICON_SETTINGS = {
@@ -2196,7 +2198,25 @@ describe('ClubAdminPage — AI settings', () => {
         await waitFor(() => expect(api.updateAiSettings).toHaveBeenCalledWith({
             recaps: false, suggestions: true, booking_review: true, model: 'claude-haiku-5-5',
             search_model: 'claude-sonnet-5-5', calls_per_hour: 12,
+            recap_evening_prompt: 'Abend-Standard', recap_season_prompt: 'Saison-Standard',
         }))
+    })
+
+    it('edits a recap base prompt and resets it to the default', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateAiSettings).mockResolvedValue(AI_SETTINGS as any)
+        await renderClubAdminPage()
+        await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
+        const evening = screen.getByLabelText('ai.settings.promptEvening')
+        expect(evening).toHaveValue('Abend-Standard')
+        fireEvent.change(evening, { target: { value: 'Schreib knapp' } })
+        fireEvent.click(screen.getByTestId('ai-prompt-evening-reset'))
+        expect(evening).toHaveValue('Abend-Standard')
+        fireEvent.change(screen.getByLabelText('ai.settings.promptSeason'), { target: { value: 'Rede im Smoking' } })
+        fireEvent.click(screen.getByTestId('ai-settings-save'))
+        await waitFor(() => expect(api.updateAiSettings).toHaveBeenCalledWith(expect.objectContaining({
+            recap_evening_prompt: 'Abend-Standard', recap_season_prompt: 'Rede im Smoking',
+        })))
     })
 
     it('blocks saving an out-of-range limit', async () => {
