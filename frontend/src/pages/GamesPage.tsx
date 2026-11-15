@@ -62,7 +62,7 @@ export function GamesPage() {
     const [winnerRef, setWinnerRef] = useState('')
     const [scoresInput, setScoresInput] = useState<Record<string, string>>({})
     const [finishPenalty, setFinishPenalty] = useState('')
-    const [penaltyOnly, setPenaltyOnly] = useState(false)
+    const [templateManualPenalties, setTemplateManualPenalties] = useState(false)
     const [playerPenaltyInput, setPlayerPenaltyInput] = useState<Record<number, string>>({})
 
 
@@ -115,6 +115,7 @@ export function GamesPage() {
         setIsOpener(isOpenerFromTmpl)
         setLoserPenalty(String(tmpl.default_loser_penalty))
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
+        setTemplateManualPenalties(!!tmpl.manual_penalties)
         const tmplWt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
         // Opener (König-Spiel) is always individual, regardless of the template's winner_type.
         setWinnerType(isOpenerFromTmpl ? 'individual' : tmplWt)
@@ -129,6 +130,7 @@ export function GamesPage() {
         setTurnMode('alternating');
         setLoserPenalty('0');
         setPerPointPenalty('0');
+        setTemplateManualPenalties(false)
         setGameNote('')
         setAddSheet(true)
     }
@@ -138,10 +140,8 @@ export function GamesPage() {
         setWinnerRef(game.winner_ref ?? '')
         setScoresInput(Object.fromEntries(Object.entries(game.scores ?? {}).map(([k, v]) => [k, String(v)])))
         setFinishPenalty(String(game.loser_penalty))
-        // A finished game without winner is a penalty-only game: prefill its booked penalties
-        const only = game.status === 'finished' && !game.winner_ref
-        setPenaltyOnly(only)
-        setPlayerPenaltyInput(only
+        // Manual-penalties game: prefill the penalties booked so far
+        setPlayerPenaltyInput(game.manual_penalties
             ? Object.fromEntries((evening?.penalty_log ?? [])
                 .filter(l => l.game_id === game.id && l.player_id != null)
                 .map(l => [l.player_id as number, String(l.amount)]))
@@ -192,6 +192,7 @@ export function GamesPage() {
                 turn_mode: winnerType === 'team' ? turnMode : null,
                 loser_penalty: parseAmount(loserPenalty),
                 per_point_penalty: parseAmount(perPointPenalty),
+                manual_penalties: templateManualPenalties || undefined,
                 note: gameNote.trim() || undefined,
                 sort_order: games.length,
                 client_timestamp: Date.now(),
@@ -233,21 +234,19 @@ export function GamesPage() {
         }
     }
 
+    function manualPenalties(): Record<string, number> {
+        const out: Record<string, number> = {}
+        for (const [id, v] of Object.entries(playerPenaltyInput)) {
+            const amount = parseAmount(v)
+            if (amount > 0) out[`p:${id}`] = amount
+        }
+        return out
+    }
+
     async function submitFinish() {
-        if (!finishTarget || (!penaltyOnly && !winnerRef)) return
+        if (!finishTarget || !winnerRef) return
         setSaving(true)
         try {
-            if (penaltyOnly) {
-                const player_penalties: Record<string, number> = {}
-                for (const [id, v] of Object.entries(playerPenaltyInput)) {
-                    const amount = parseAmount(v)
-                    if (amount > 0) player_penalties[`p:${id}`] = amount
-                }
-                await api.finishGame(evening!.id, finishTarget.id, {player_penalties})
-                invalidate()
-                setFinishTarget(null)
-                return
-            }
             const scores: Record<string, number> = {}
             for (const [k, v] of Object.entries(scoresInput)) {
                 if (v.trim()) scores[k] = parseFloat(v) || 0
@@ -256,7 +255,9 @@ export function GamesPage() {
                 winner_ref: winnerRef,
                 winner_name: winnerDisplayName(winnerRef),
                 scores,
-                loser_penalty: parseAmount(finishPenalty) || finishTarget.loser_penalty,
+                ...(finishTarget.manual_penalties
+                    ? {player_penalties: manualPenalties()}
+                    : {loser_penalty: parseAmount(finishPenalty) || finishTarget.loser_penalty}),
             })
             if (finishTarget.is_opener && winnerRef.startsWith('p:')) {
                 celebrate('king', `👑 ${t('celebration.king')}`)
@@ -597,33 +598,8 @@ export function GamesPage() {
                    onSubmit={submitFinish}>
                 {finishTarget && (
                     <div className="flex flex-col gap-3">
-                        <label className="flex items-center gap-2 text-sm text-ink">
-                            <input type="checkbox" checked={penaltyOnly}
-                                   onChange={e => setPenaltyOnly(e.target.checked)}/>
-                            {t('game.penaltyOnly')}
-                        </label>
-                        {penaltyOnly && (
-                            <div>
-                                <div className="field-label">{t('game.penaltyOnlyHint')}</div>
-                                <div className="flex flex-col gap-1.5">
-                                    {players.map(p => (
-                                        <div key={p.id} className="flex items-center gap-2">
-                                            <span className="text-xs text-ink flex-1">{playerLabel(p)}</span>
-                                            <span className="text-muted font-bold text-sm">€</span>
-                                            <input className="kce-input w-24" type="text" inputMode="decimal"
-                                                   aria-label={`${t('game.penaltyOnly')}: ${playerLabel(p)}`}
-                                                   value={playerPenaltyInput[p.id] ?? ''}
-                                                   onChange={e => setPlayerPenaltyInput(prev => ({
-                                                       ...prev, [p.id]: e.target.value
-                                                   }))}
-                                                   placeholder="0"/>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         {/* Winner selection */}
-                        {!penaltyOnly && <div>
+                        {<div>
                             <div className="field-label">{t('game.winner')}</div>
                             {canPickTeam && teams.length > 0 && (
                                 <div className="mb-2">
@@ -657,7 +633,7 @@ export function GamesPage() {
                         </div>}
 
                         {/* Scores */}
-                        {!penaltyOnly && (players.length > 0 || teams.length > 0) && (
+                        {(players.length > 0 || teams.length > 0) && (
                             <div>
                                 <div className="field-label">{t('game.scores')}</div>
                                 <div className="flex flex-col gap-1.5">
@@ -692,7 +668,7 @@ export function GamesPage() {
                         )}
 
                         {/* Loser penalty */}
-                        {!penaltyOnly && <Field label={t('game.loserPenalty')}>
+                        {!finishTarget.manual_penalties && <Field label={t('game.loserPenalty')}>
                             <div className="flex items-center gap-2">
                                 <span
                                     className="text-muted font-bold text-sm w-5 text-center flex-shrink-0">€</span>
@@ -703,7 +679,7 @@ export function GamesPage() {
                         </Field>}
 
                         {/* Loser penalty preview */}
-                        {!penaltyOnly && finishTarget && winnerRef && (
+                        {!finishTarget.manual_penalties && winnerRef && (
                             <div className="rounded-lg p-3" style={{background: 'var(--surface-2)'}}>
                                 <div className="text-xs font-bold text-muted mb-2">
                                     {t('game.perPointPreview')}
@@ -742,8 +718,29 @@ export function GamesPage() {
                             </div>
                         )}
 
+                        {finishTarget.manual_penalties && (
+                            <div>
+                                <div className="field-label">{t('game.manualPenaltiesHint')}</div>
+                                <div className="flex flex-col gap-1.5">
+                                    {players.map(p => (
+                                        <div key={p.id} className="flex items-center gap-2">
+                                            <span className="text-xs text-ink flex-1">{playerLabel(p)}</span>
+                                            <span className="text-muted font-bold text-sm">€</span>
+                                            <input className="kce-input w-24" type="text" inputMode="decimal"
+                                                   aria-label={`${t('game.manualPenalties')}: ${playerLabel(p)}`}
+                                                   value={playerPenaltyInput[p.id] ?? ''}
+                                                   onChange={e => setPlayerPenaltyInput(prev => ({
+                                                       ...prev, [p.id]: e.target.value
+                                                   }))}
+                                                   placeholder="0"/>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <Button type="submit" variant="primary" block className="mt-1"
-                                disabled={saving || (!penaltyOnly && !winnerRef)}>
+                                disabled={saving || !winnerRef}>
                             {finishTarget.status === 'finished' ? t('action.save') : t('game.finish')}
                         </Button>
                     </div>

@@ -333,6 +333,7 @@ export interface GameTemplate {
     is_opener: boolean
     default_loser_penalty: number
     per_point_penalty: number
+    manual_penalties?: boolean
     sort_order: number
 }
 
@@ -376,6 +377,7 @@ export interface ClubConfigGameTemplate {
     is_president_game: boolean
     default_loser_penalty: number
     per_point_penalty: number
+    manual_penalties?: boolean
     sort_order: number
 }
 
@@ -562,6 +564,7 @@ export interface Game {
     scores: Record<string, number>
     loser_penalty: number
     per_point_penalty: number
+    manual_penalties?: boolean
     note: string | null
     sort_order: number
     status: GameStatus

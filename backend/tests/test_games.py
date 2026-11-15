@@ -125,6 +125,13 @@ class TestCreateGame:
         assert data["name"] == "Große Hausnummer"
         assert "id" in data
 
+    def test_manual_penalties_flag_is_stored_on_game(self, client: TestClient, db, evening, auth_headers):
+        resp = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Strafenspiel", "manual_penalties": True, "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        assert resp.status_code == 200
+        assert db.query(Game).filter(Game.id == resp.json()["id"]).first().manual_penalties is True
+
     def test_opener_with_team_winner_type_rejected(self, client: TestClient, evening, auth_headers):
         # König-Spiel is always individual.
         resp = client.post(f"/api/v1/evening/{evening.id}/games", json={
@@ -245,29 +252,31 @@ class TestFinishGame:
         assert game.winner_ref == f"p:{player.id}"
         assert game.finished_at is not None
 
-    def test_penalty_only_finish_books_player_penalties(self, client: TestClient, db, evening, player, player2, auth_headers):
+    def test_manual_penalties_finish_books_player_penalties(self, client: TestClient, db, evening, player, player2, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers, loser_penalty=1.0)
         url = f"/api/v1/evening/{evening.id}/games/{gid}/finish"
-        resp = client.post(url, json={"player_penalties": {f"p:{player.id}": 2.5, f"p:{player2.id}": 0}},
+        win = {"winner_ref": f"p:{player.id}", "winner_name": player.name}
+        resp = client.post(url, json={**win, "player_penalties": {f"p:{player2.id}": 2.5, f"p:{player.id}": 0}},
                            headers=auth_headers)
         assert resp.status_code == 200
         game = db.query(Game).filter(Game.id == gid).first()
         assert game.status == "finished"
-        assert game.winner_ref is None
+        assert game.winner_ref == f"p:{player.id}"
         logs = db.query(PenaltyLog).filter(PenaltyLog.game_id == gid, PenaltyLog.is_deleted == False).all()
-        assert [(l.player_id, l.amount) for l in logs] == [(player.id, 2.5)]
+        assert [(l.player_id, l.amount) for l in logs] == [(player2.id, 2.5)]
         # re-edit replaces the previous penalties
-        client.post(url, json={"player_penalties": {f"p:{player2.id}": 4}}, headers=auth_headers)
+        client.post(url, json={**win, "player_penalties": {f"p:{player2.id}": 4}}, headers=auth_headers)
         logs = db.query(PenaltyLog).filter(PenaltyLog.game_id == gid, PenaltyLog.is_deleted == False).all()
         assert [(l.player_id, l.amount) for l in logs] == [(player2.id, 4)]
 
-    def test_penalty_only_rejects_unknown_player_and_negative(self, client: TestClient, evening, player, auth_headers):
+    def test_manual_penalties_reject_unknown_player_and_negative(self, client: TestClient, evening, player, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers)
         url = f"/api/v1/evening/{evening.id}/games/{gid}/finish"
-        assert client.post(url, json={"player_penalties": {"p:999999": 1}}, headers=auth_headers).status_code == 400
-        assert client.post(url, json={"player_penalties": {f"p:{player.id}": -1}}, headers=auth_headers).status_code == 400
+        win = {"winner_ref": f"p:{player.id}", "winner_name": player.name}
+        assert client.post(url, json={**win, "player_penalties": {"p:999999": 1}}, headers=auth_headers).status_code == 400
+        assert client.post(url, json={**win, "player_penalties": {f"p:{player.id}": -1}}, headers=auth_headers).status_code == 400
 
-    def test_finish_without_winner_or_penalties_rejected(self, client: TestClient, evening, auth_headers):
+    def test_finish_without_winner_rejected(self, client: TestClient, evening, auth_headers):
         gid = self._create_and_start_game(client, evening, auth_headers)
         resp = client.post(f"/api/v1/evening/{evening.id}/games/{gid}/finish", json={}, headers=auth_headers)
         assert resp.status_code == 400

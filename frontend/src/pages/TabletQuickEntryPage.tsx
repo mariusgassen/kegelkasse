@@ -456,6 +456,7 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
                 turn_mode: tmpl.turn_mode,
                 loser_penalty: tmpl.default_loser_penalty,
                 per_point_penalty: tmpl.per_point_penalty,
+                manual_penalties: tmpl.manual_penalties || undefined,
                 client_timestamp: Date.now(),
             })
             if (teams.length === 0) {

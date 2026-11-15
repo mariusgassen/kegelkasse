@@ -67,7 +67,7 @@ def serialize_evening(e: Evening) -> dict:
                    "is_president_game": g.is_president_game,
                    "winner_type": g.winner_type, "winner_ref": g.winner_ref,
                    "winner_name": g.winner_name, "scores": g.scores,
-                   "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "note": g.note,
+                   "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "manual_penalties": g.manual_penalties, "note": g.note,
                    "sort_order": g.sort_order, "template_id": g.template_id,
                    "status": g.status,
                    "started_at": g.started_at.isoformat() if g.started_at else None,
@@ -695,6 +695,7 @@ class GameCreate(TrimmedModel):
     turn_mode: Optional[str] = None  # 'alternating' | 'block'; only for team games
     loser_penalty: float = 0
     per_point_penalty: float = 0
+    manual_penalties: bool = False
     note: Optional[str] = None
     sort_order: int = 0
     client_timestamp: float
@@ -718,6 +719,7 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
         turn_mode=data.turn_mode if wt == "team" else None,
         loser_penalty=data.loser_penalty,
         per_point_penalty=data.per_point_penalty,
+        manual_penalties=data.manual_penalties,
         note=data.note,
         sort_order=data.sort_order,
         status="open",
@@ -880,10 +882,10 @@ def set_active_player(eid: int, gid: int, data: ActivePlayerUpdate,
 
 
 class GameFinish(TrimmedModel):
-    winner_ref: str = ""   # "p:{player_id}" or "t:{team_id}"; empty for penalty-only games
+    winner_ref: str = ""   # "p:{player_id}" or "t:{team_id}"
     winner_name: str = ""
     scores: dict = {}
-    # Penalty-only mode: {"p:{player_id}": amount}. No winner/loser; only these penalties are booked.
+    # Manual penalties: {"p:{player_id}": amount}. Replaces the calculated loser/per-point penalties.
     player_penalties: Optional[dict[str, float]] = None
     loser_penalty: Optional[float] = None  # override game default
     client_timestamp: Optional[int] = None  # ms since epoch; used to preserve the true offline finish time
@@ -938,7 +940,7 @@ def _apply_game_penalties(e: Evening, g: Game, winner_ref: str, db: Session, use
 
 
 def _apply_player_penalties(e: Evening, g: Game, amounts: dict, db: Session, user: User):
-    """Penalty-only game: replace the game's auto-penalties with the given per-player amounts."""
+    """Manual-penalties game: replace the game's auto-penalties with the given per-player amounts."""
     db.query(PenaltyLog).filter(
         PenaltyLog.game_id == g.id,
         PenaltyLog.is_deleted == False,
@@ -969,11 +971,10 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
     e_date_str = format_datetime(e.date, locale=user.preferred_locale or "de")
     g = db.query(Game).filter(Game.id == gid, Game.evening_id == e.id, Game.is_deleted == False).first()
     if not g: raise HTTPException(404)
-    penalty_only = data.player_penalties is not None
-    if not penalty_only and not data.winner_ref:
+    if not data.winner_ref:
         raise HTTPException(status_code=400, detail="winner_ref required")
-    g.winner_ref = None if penalty_only else data.winner_ref
-    g.winner_name = None if penalty_only else data.winner_name
+    g.winner_ref = data.winner_ref
+    g.winner_name = data.winner_name
     g.scores = data.scores
     if data.loser_penalty is not None:
         g.loser_penalty = data.loser_penalty
@@ -983,14 +984,14 @@ def finish_game(eid: int, gid: int, data: GameFinish, background_tasks: Backgrou
             datetime.fromtimestamp(data.client_timestamp / 1000, tz=UTC)
             if data.client_timestamp else datetime.now(UTC)
         )
-    if penalty_only:
+    if data.player_penalties is not None:
         _apply_player_penalties(e, g, data.player_penalties, db, user)
     else:
         _apply_game_penalties(e, g, data.winner_ref, db, user, background_tasks)
     # King: opener game with individual winner → set king flag.
     # Opener games are constrained to winner_type=individual on creation/update,
     # so a team winner_ref here is invalid input and silently ignored.
-    if g.is_opener and not penalty_only and data.winner_ref.startswith("p:"):
+    if g.is_opener and data.winner_ref.startswith("p:"):
         db.query(EveningPlayer).filter(EveningPlayer.evening_id == e.id).update({"is_king": False})
         db.flush()
         try:
@@ -1071,7 +1072,7 @@ def update_game(eid: int, gid: int, data: GameUpdate, db: Session = Depends(get_
 
     # Re-apply loser penalties if game is finished and penalty amount changed
     # (this also retimes them to the — possibly just-updated — g.finished_at).
-    if g.status == "finished" and penalty_changed and g.winner_ref:
+    if g.status == "finished" and penalty_changed and g.winner_ref and not g.manual_penalties:
         _apply_game_penalties(e, g, g.winner_ref, db, user)
     elif g.status == "finished" and finished_at_changed and g.finished_at:
         # Only the timestamp moved — retime the existing auto-penalties in place

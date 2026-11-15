@@ -1864,9 +1864,22 @@ describe('ClubAdminPage — game template sheet field interactions', () => {
         await waitFor(() => screen.getByText('Warmup'))
         await clickCardAction('action.edit', 0)
         await waitFor(() => screen.getByTestId('sheet'))
-        const checkbox = screen.getByRole('checkbox') as HTMLInputElement
+        const checkbox = document.getElementById('is-opener') as HTMLInputElement
         fireEvent.change(checkbox, { target: { checked: true } })
         expect(checkbox.checked).toBe(true)
+    })
+
+    it('saves the penalty-only option of a template', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.updateGameTemplate).mockResolvedValue({} as any)
+        await renderClubAdminPage()
+        await waitFor(() => screen.getByText('Warmup'))
+        await clickCardAction('action.edit', 0)
+        await waitFor(() => screen.getByTestId('sheet'))
+        fireEvent.click(screen.getByLabelText('game.manualPenalties'))
+        fireEvent.click(screen.getByText('submit-sheet'))
+        await waitFor(() => expect(api.updateGameTemplate).toHaveBeenCalled())
+        expect((vi.mocked(api.updateGameTemplate).mock.calls[0][1] as any).manual_penalties).toBe(true)
     })
 
     it('changes description input in template sheet', async () => {
