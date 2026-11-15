@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -1091,6 +1091,13 @@ describe('TabletQuickEntryPage — new game auto-start', () => {
         vi.mocked(api.startGame).mockResolvedValue(undefined as any)
     })
 
+    it('opens the template picker when the island requests the game action without a game', async () => {
+        await renderTabletQuickEntry()
+        const {requestQuickEntryGameAction} = await import('@/lib/quickEntryEvents.ts')
+        act(() => requestQuickEntryGameAction())
+        expect(await screen.findByText('Hauptspiel')).toBeInTheDocument()
+    })
+
     it('calls api.startGame immediately after api.addGame when creating a game', async () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
@@ -1403,6 +1410,16 @@ describe('TabletQuickEntryPage — start game', () => {
         const { api } = await import('@/api/client.ts')
         await renderTabletQuickEntry()
         fireEvent.click(screen.getByText(/game\.start/))
+        await waitFor(() => {
+            expect(api.startGame).toHaveBeenCalledWith(42, 3)
+        })
+    })
+
+    it('starts the open game when the island requests the game action', async () => {
+        const { api } = await import('@/api/client.ts')
+        await renderTabletQuickEntry()
+        const {requestQuickEntryGameAction} = await import('@/lib/quickEntryEvents.ts')
+        act(() => requestQuickEntryGameAction())
         await waitFor(() => {
             expect(api.startGame).toHaveBeenCalledWith(42, 3)
         })

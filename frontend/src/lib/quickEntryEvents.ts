@@ -12,3 +12,11 @@ export function announceQuickEntryEvent(detail: QuickEntryEventDetail): void {
     if (typeof window === 'undefined') return
     window.dispatchEvent(new CustomEvent<QuickEntryEventDetail>(QUICK_ENTRY_EVENT, {detail}))
 }
+
+/** Sent by the island's start-game button while Schnellerfassung covers the shell. */
+export const QUICK_ENTRY_GAME_ACTION_EVENT = 'kegelkasse:quick-entry-game-action'
+
+export function requestQuickEntryGameAction(): void {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent(QUICK_ENTRY_GAME_ACTION_EVENT))
+}

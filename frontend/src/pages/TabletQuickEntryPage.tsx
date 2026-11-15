@@ -28,7 +28,7 @@ import {Button} from '@/components/ui/Button.tsx'
 import {ProportionBar} from '@/components/ui/ProportionBar.tsx'
 import {CountUp} from '@/components/ui/CountUp.tsx'
 import {drinkTimeline} from '@/lib/quickEntryVisuals.ts'
-import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
+import {announceQuickEntryEvent, QUICK_ENTRY_GAME_ACTION_EVENT} from '@/lib/quickEntryEvents.ts'
 
 function fe(v: number) {
     return v.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})
@@ -444,6 +444,21 @@ export function TabletQuickEntryPage({eveningId, players, onClose}: Props) {
             toastError(e)
         }
     }
+
+    // The island's start-game button: same as the top bar here — start the open game, else offer templates
+    const gameActionRef = useRef<() => void>(() => {})
+    gameActionRef.current = () => {
+        if (activeGame) {
+            if (activeGame.status === 'open') handleStartGame().catch(() => {})
+        } else {
+            setShowNewGame(true)
+        }
+    }
+    useEffect(() => {
+        const onAction = () => gameActionRef.current()
+        window.addEventListener(QUICK_ENTRY_GAME_ACTION_EVENT, onAction)
+        return () => window.removeEventListener(QUICK_ENTRY_GAME_ACTION_EVENT, onAction)
+    }, [])
 
     async function handleCreateGame(tmpl: GameTemplate) {
         setCreatingGame(true)
