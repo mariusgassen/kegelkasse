@@ -55,7 +55,7 @@ import {
     type IdleIslandMode,
 } from '@/lib/islandIdle.ts'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
-import {QUICK_ENTRY_EVENT, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
+import {QUICK_ENTRY_EVENT, requestQuickEntryGameAction, type QuickEntryEventDetail} from '@/lib/quickEntryEvents.ts'
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useIdleIslandStore, useIslandBusyStore, useIslandFullscreenStore} from '@/store/idleIsland.ts'
@@ -234,7 +234,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                         <TitleStack title={venue} subtitle={gameLine}/>
                         <MetricRow
                             metrics={[
-                                {label: t('island.pot'), value: <NumberText value={money}/>, color: ACCENT},
+                                {label: t('island.pot'), value: <NumberText value={eurFull(totals.penaltyEuro)}/>, color: ACCENT},
                                 {label: `🍺 ${t('drinks.beer')}`, value: <NumberText value={totals.beerRounds}/>},
                                 {label: `🥃 ${t('drinks.shots')}`, value: <NumberText value={totals.shotRounds}/>},
                             ]}
@@ -251,7 +251,15 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                                 size="compact"
                                 disabled={startingGame}
                                 tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
-                                onPress={() => { handleStartGame(openGameId).catch(() => {}) }}
+                                onPress={() => {
+                                    // Schnellerfassung has its own start flow (team guards, turn order) — hand over to it
+                                    if (useIslandFullscreenStore.getState().fullscreen) {
+                                        island.collapse()
+                                        requestQuickEntryGameAction()
+                                        return
+                                    }
+                                    handleStartGame(openGameId).catch(() => {})
+                                }}
                             >
                                 {`▶ ${openGameName}`}
                             </IslandButton>
@@ -261,6 +269,10 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                                 tone={{kind: 'accent', color: ACCENT, text: 'var(--on-accent)'}}
                                 onPress={() => {
                                     island.collapse()
+                                    if (useIslandFullscreenStore.getState().fullscreen) {
+                                        requestQuickEntryGameAction()
+                                        return
+                                    }
                                     router.navigate({to: '/evening', search: {tab: 'games'}}).catch(() => {})
                                 }}
                             >
@@ -282,6 +294,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         queryClient,
         open,
         money,
+        totals.penaltyEuro,
         gameLine,
         venue,
         timed,
