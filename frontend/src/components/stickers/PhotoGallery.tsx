@@ -1,11 +1,11 @@
-/** The photos of one sticker post in the feed: square crops (full photo in the viewer); several as a swipeable strip numbered 1/N on the image. */
+/** The photos of one sticker post in the feed: square crops capped at 600px wide so the post size is the same on every screen (full photo in the viewer); several as a swipeable strip numbered 1/N on the image. */
 import {ZoomableImage} from '@/components/ui/ZoomableImage.tsx'
 
 export function PhotoGallery({urls, title, subtitle, shareUrl}: { urls: string[]; title?: string; subtitle?: string; shareUrl?: string }) {
     if (urls.length === 0) return null
     const many = urls.length > 1
     return (
-        <div className={`mt-2 flex gap-2 ${many ? 'overflow-x-auto snap-x snap-mandatory' : ''}`}
+        <div className={`mt-2 flex gap-2 w-full max-w-[600px] mx-auto ${many ? 'overflow-x-auto snap-x snap-mandatory' : ''}`}
              data-testid={many ? 'photo-gallery' : undefined}>
             {urls.map((u, i) => (
                 <div key={u} className="relative flex-shrink-0 w-full snap-center">
