@@ -678,6 +678,7 @@ class GameTemplateCreate(TrimmedModel):
     is_president_game: bool = False
     default_loser_penalty: float = 0
     per_point_penalty: float = 0
+    penalty_only: bool = False
     sort_order: int = 0
 
 
@@ -689,6 +690,7 @@ def _template_dict(gt: GameTemplate) -> dict:
         "turn_mode": gt.turn_mode,
         "default_loser_penalty": gt.default_loser_penalty,
         "per_point_penalty": gt.per_point_penalty,
+        "penalty_only": gt.penalty_only,
     }
 
 
@@ -705,6 +707,7 @@ def create_game_template(data: GameTemplateCreate, db: Session = Depends(get_db)
         is_president_game=data.is_president_game,
         default_loser_penalty=data.default_loser_penalty,
         per_point_penalty=data.per_point_penalty,
+        penalty_only=data.penalty_only,
         sort_order=data.sort_order
     )
     db.add(gt)
@@ -727,6 +730,7 @@ def update_game_template(gtid: int, data: GameTemplateCreate, db: Session = Depe
     gt.is_president_game = data.is_president_game
     gt.default_loser_penalty = data.default_loser_penalty
     gt.per_point_penalty = data.per_point_penalty
+    gt.penalty_only = data.penalty_only
     gt.sort_order = data.sort_order
     db.commit()
     return _template_dict(gt)
@@ -2395,6 +2399,7 @@ class ConfigGameTemplate(TrimmedModel):
     is_president_game: bool = False
     default_loser_penalty: float = 0
     per_point_penalty: float = 0
+    penalty_only: bool = False
     sort_order: int = 0
 
 
@@ -2475,7 +2480,7 @@ def export_club_config(db: Session = Depends(get_db), user: User = Depends(requi
                 name=gt.name, description=gt.description, winner_type=gt.winner_type,
                 turn_mode=gt.turn_mode, is_opener=gt.is_opener, is_president_game=gt.is_president_game,
                 default_loser_penalty=gt.default_loser_penalty, per_point_penalty=gt.per_point_penalty,
-                sort_order=gt.sort_order,
+                penalty_only=gt.penalty_only, sort_order=gt.sort_order,
             )
             for gt in game_templates
         ],
@@ -2533,7 +2538,7 @@ def import_club_config(data: ClubConfigBundle, db: Session = Depends(get_db),
             winner_type=WinnerType(wt), turn_mode=gt.turn_mode if wt == "team" else None,
             is_opener=gt.is_opener, is_president_game=gt.is_president_game,
             default_loser_penalty=gt.default_loser_penalty, per_point_penalty=gt.per_point_penalty,
-            sort_order=gt.sort_order,
+            penalty_only=gt.penalty_only, sort_order=gt.sort_order,
         ))
     for t in data.teams:
         db.add(ClubTeam(club_id=user.club_id, name=t.name, sort_order=t.sort_order))

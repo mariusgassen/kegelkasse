@@ -58,6 +58,8 @@ Strafe. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-).
 
 Im Beenden-Dialog schaltet **„Nur Strafen eintragen (kein Gewinner/Verlierer)"** den Gewinner weg: Stattdessen trägst du pro Spieler einen Strafbetrag (€) ein. Es wird kein Gewinner gespeichert, und nur diese Beträge werden als Spielstrafen gebucht. Beim erneuten Bearbeiten ersetzen die neuen Beträge die alten.
 
+In der **Spielvorlage** (Verein → Spielvorlagen) kannst du „Nur Strafen eintragen" voreinstellen: Spiele aus dieser Vorlage öffnen den Beenden-Dialog direkt im Nur-Strafen-Modus.
+
 ## Verliererstrafen
 
 Wenn eine Vorlage eine **Standard-Verliererstrafe** hat, werden beim Beenden des Spiels automatisch Strafeneinträge für alle Nicht-Gewinner erstellt.

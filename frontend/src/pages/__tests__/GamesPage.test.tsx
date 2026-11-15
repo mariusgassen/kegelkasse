@@ -1453,4 +1453,15 @@ describe('GamesPage — penalty-only finish', () => {
         expect(body.winner_ref).toBeUndefined()
         expect(Object.values(body.player_penalties)).toEqual([2.5])
     })
+
+    it('opens the finish dialog in penalty-only mode for a penalty_only game', async () => {
+        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
+        const ev = {...ACTIVE_EVENING, games: [{...RUNNING_GAME, penalty_only: true}]}
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ev as any, invalidate: vi.fn() } as any)
+        await renderGamesPage()
+        const finishBtn = screen.getAllByText(/game\.finish|game\.start/).find(b => b.textContent?.includes('game.finish'))
+        fireEvent.click(finishBtn!)
+        await waitFor(() => screen.getByTestId('sheet'))
+        expect((screen.getByLabelText('game.penaltyOnly') as HTMLInputElement).checked).toBe(true)
+    })
 })

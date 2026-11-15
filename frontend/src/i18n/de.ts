@@ -379,6 +379,7 @@ export const de = {
     "game.turnMode.alternating": "Abwechselnd",
     "game.turnMode.block": "Block",
     "game.teamsRequired": "Bitte erst Teams anlegen, um mit der Aufnahme zu beginnen.",
+    "game.penaltyOnlyShort": "nur Strafen",
     "club.template.isOpener": "Eröffnungsspiel",
     "club.template.loserPenalty": "Standard Verlierer-Strafe (€)",
     "club.teams.description": "Standard-Teams für deinen Kegelclub. Beim Abend können alle Teams auf einmal angelegt und die Spieler zufällig verteilt werden.",

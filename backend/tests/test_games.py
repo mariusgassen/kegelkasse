@@ -125,6 +125,13 @@ class TestCreateGame:
         assert data["name"] == "Große Hausnummer"
         assert "id" in data
 
+    def test_penalty_only_flag_is_stored_on_game(self, client: TestClient, db, evening, auth_headers):
+        resp = client.post(f"/api/v1/evening/{evening.id}/games", json={
+            "name": "Strafenspiel", "penalty_only": True, "client_timestamp": _ts(),
+        }, headers=auth_headers)
+        assert resp.status_code == 200
+        assert db.query(Game).filter(Game.id == resp.json()["id"]).first().penalty_only is True
+
     def test_opener_with_team_winner_type_rejected(self, client: TestClient, evening, auth_headers):
         # König-Spiel is always individual.
         resp = client.post(f"/api/v1/evening/{evening.id}/games", json={

@@ -379,6 +379,7 @@ export const en = {
     "game.turnMode.alternating": "Alternating",
     "game.turnMode.block": "Block",
     "game.teamsRequired": "Please set up teams first before starting the session.",
+    "game.penaltyOnlyShort": "penalties only",
     "club.template.isOpener": "Opening / Crown game",
     "club.template.loserPenalty": "Default loser penalty (€)",
     "club.teams.description": "Default teams for your bowling club. On an evening, all teams can be created at once and players distributed randomly.",

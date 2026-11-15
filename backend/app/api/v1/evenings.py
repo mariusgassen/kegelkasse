@@ -67,7 +67,7 @@ def serialize_evening(e: Evening) -> dict:
                    "is_president_game": g.is_president_game,
                    "winner_type": g.winner_type, "winner_ref": g.winner_ref,
                    "winner_name": g.winner_name, "scores": g.scores,
-                   "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "note": g.note,
+                   "loser_penalty": g.loser_penalty, "per_point_penalty": g.per_point_penalty, "penalty_only": g.penalty_only, "note": g.note,
                    "sort_order": g.sort_order, "template_id": g.template_id,
                    "status": g.status,
                    "started_at": g.started_at.isoformat() if g.started_at else None,
@@ -695,6 +695,7 @@ class GameCreate(TrimmedModel):
     turn_mode: Optional[str] = None  # 'alternating' | 'block'; only for team games
     loser_penalty: float = 0
     per_point_penalty: float = 0
+    penalty_only: bool = False
     note: Optional[str] = None
     sort_order: int = 0
     client_timestamp: float
@@ -718,6 +719,7 @@ def add_game(eid: int, data: GameCreate, db: Session = Depends(get_db),
         turn_mode=data.turn_mode if wt == "team" else None,
         loser_penalty=data.loser_penalty,
         per_point_penalty=data.per_point_penalty,
+        penalty_only=data.penalty_only,
         note=data.note,
         sort_order=data.sort_order,
         status="open",

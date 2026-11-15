@@ -63,6 +63,7 @@ export function GamesPage() {
     const [scoresInput, setScoresInput] = useState<Record<string, string>>({})
     const [finishPenalty, setFinishPenalty] = useState('')
     const [penaltyOnly, setPenaltyOnly] = useState(false)
+    const [templatePenaltyOnly, setTemplatePenaltyOnly] = useState(false)
     const [playerPenaltyInput, setPlayerPenaltyInput] = useState<Record<number, string>>({})
 
 
@@ -115,6 +116,7 @@ export function GamesPage() {
         setIsOpener(isOpenerFromTmpl)
         setLoserPenalty(String(tmpl.default_loser_penalty))
         setPerPointPenalty(String(tmpl.per_point_penalty ?? 0))
+        setTemplatePenaltyOnly(!!tmpl.penalty_only)
         const tmplWt = (tmpl.winner_type === 'team' || tmpl.winner_type === 'individual') ? tmpl.winner_type : 'individual'
         // Opener (König-Spiel) is always individual, regardless of the template's winner_type.
         setWinnerType(isOpenerFromTmpl ? 'individual' : tmplWt)
@@ -129,6 +131,7 @@ export function GamesPage() {
         setTurnMode('alternating');
         setLoserPenalty('0');
         setPerPointPenalty('0');
+        setTemplatePenaltyOnly(false)
         setGameNote('')
         setAddSheet(true)
     }
@@ -139,7 +142,7 @@ export function GamesPage() {
         setScoresInput(Object.fromEntries(Object.entries(game.scores ?? {}).map(([k, v]) => [k, String(v)])))
         setFinishPenalty(String(game.loser_penalty))
         // A finished game without winner is a penalty-only game: prefill its booked penalties
-        const only = game.status === 'finished' && !game.winner_ref
+        const only = game.penalty_only || (game.status === 'finished' && !game.winner_ref)
         setPenaltyOnly(only)
         setPlayerPenaltyInput(only
             ? Object.fromEntries((evening?.penalty_log ?? [])
@@ -192,6 +195,7 @@ export function GamesPage() {
                 turn_mode: winnerType === 'team' ? turnMode : null,
                 loser_penalty: parseAmount(loserPenalty),
                 per_point_penalty: parseAmount(perPointPenalty),
+                penalty_only: templatePenaltyOnly || undefined,
                 note: gameNote.trim() || undefined,
                 sort_order: games.length,
                 client_timestamp: Date.now(),

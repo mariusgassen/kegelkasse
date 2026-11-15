@@ -558,6 +558,7 @@ export const api = {
         is_opener: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
+        penalty_only?: boolean;
         sort_order: number
     }) =>
         request<GameTemplate>('POST', '/club/game-templates', d),
@@ -568,6 +569,7 @@ export const api = {
         is_opener: boolean;
         default_loser_penalty: number;
         per_point_penalty: number;
+        penalty_only?: boolean;
         sort_order: number
     }) =>
         request<GameTemplate>('PUT', `/club/game-templates/${id}`, d),
@@ -632,6 +634,7 @@ export const api = {
         turn_mode?: string | null;
         loser_penalty?: number;
         per_point_penalty?: number;
+        penalty_only?: boolean;
         note?: string;
         sort_order?: number;
         client_timestamp: number
