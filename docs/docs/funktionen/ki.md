@@ -107,7 +107,7 @@ Einschätzung, was die Prüfer nachfragen sollten, und eine Zusammenfassung.
 
 An Claude geht nur, was die jeweilige Funktion braucht:
 
-- Mitglieder erscheinen mit **Kegelname**, sonst nur mit **Vorname**; Gäste nur mit Vorname.
+- Mitglieder erscheinen mit **Kegelname**, sonst nur mit **Vorname**; Gäste nur mit Vorname. Beim Abendrückblick geht bei Mitgliedern mit Kegelname zusätzlich der **Vorname** mit, damit die KI richtig gendern kann (z. B. Königin); sie nennt ihn nicht im Text.
 - Keine E-Mail-Adressen, keine Kontostände.
 - Bei der KI-Suche gehen nur Daten raus, die das fragende Mitglied selbst sehen kann, und keine
   Geldbeträge einzelner Personen.
