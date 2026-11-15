@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.76.0](https://github.com/mariusgassen/kegelkasse/compare/v1.75.0...v1.76.0) (2026-11-15)
+
+
+### Features
+
+* Der KI-Abendrückblick wird pointierter und kürzer erzählt ([#641](https://github.com/mariusgassen/kegelkasse/issues/641)) ([69de6f7](https://github.com/mariusgassen/kegelkasse/commit/69de6f70c19acdf6f042088f70db44f96545fbc3))
+* Gastanfragen mit Vor- und Nachname, Gästedeckel in öffentlichen Terminen ([#640](https://github.com/mariusgassen/kegelkasse/issues/640)) ([f3df468](https://github.com/mariusgassen/kegelkasse/commit/f3df4680b45e9827f47ea19a4cf3064223ef42e8))
+* KI-Rückblicke mit eigenem Basis-Prompt und zusätzlichen Hinweisen ([#637](https://github.com/mariusgassen/kegelkasse/issues/637)) ([5c68d87](https://github.com/mariusgassen/kegelkasse/commit/5c68d8796474201e558457866a81fc85c11d9884))
+* Rückmeldungen erscheinen jetzt in der Dynamic Island statt als Toast unten ([#642](https://github.com/mariusgassen/kegelkasse/issues/642)) ([79f0b39](https://github.com/mariusgassen/kegelkasse/commit/79f0b393bf126fcddbb72dac3aabe9ec5b483c31))
+* Spiele ohne Gewinner/Verlierer – nur Strafen pro Spieler eintragen ([#632](https://github.com/mariusgassen/kegelkasse/issues/632)) ([5f35097](https://github.com/mariusgassen/kegelkasse/commit/5f35097166896a747f63037041b2525540890668))
+* Spielvorlagen mit manuell festgelegten Strafen ([#635](https://github.com/mariusgassen/kegelkasse/issues/635)) ([2acea2b](https://github.com/mariusgassen/kegelkasse/commit/2acea2b4a90362d15a7d4c0f71732c3db7663127))
+
+
+### Bug Fixes
+
+* Insel: Spiel starten in der Schnellerfassung, Strafensumme ausgeklappt mit Cent ([#636](https://github.com/mariusgassen/kegelkasse/issues/636)) ([0295c45](https://github.com/mariusgassen/kegelkasse/commit/0295c452cb9593379cb7533bd404c904a68ed11e))
+* leere Insel ausgeblendet, Insel in Schnellerfassung zentriert, Kegelnamen auch für Gäste ([#629](https://github.com/mariusgassen/kegelkasse/issues/629)) ([fca47f0](https://github.com/mariusgassen/kegelkasse/commit/fca47f0f96cac3bc237ca22222508631c8847463))
+* leere Insel bleibt als Ruhelicht sichtbar, fängt aber keine Taps ab ([#630](https://github.com/mariusgassen/kegelkasse/issues/630)) ([ad50bed](https://github.com/mariusgassen/kegelkasse/commit/ad50bed1b928202c914add5af0107441c09cd4a4))
+* leere Insel fängt keine Taps mehr ab, Live-Übersicht zeigt Ø Strafe ([#631](https://github.com/mariusgassen/kegelkasse/issues/631)) ([6fa34ed](https://github.com/mariusgassen/kegelkasse/commit/6fa34ed8c5e7d498039062bc429d3ebc5a3a298c))
+* Live-Insel wieder mit ursprünglichen Maßen, Kegel und Betrag nicht mehr abgeschnitten ([#634](https://github.com/mariusgassen/kegelkasse/issues/634)) ([0a217e1](https://github.com/mariusgassen/kegelkasse/commit/0a217e12f607d198b83cd9b364f6667e9b2a0676))
+* Live-Insel: Ruhe-Insel verdeckt keine echte Insel mehr, Wisch holt sie zurück, Zahlungs-Insel nach offenen Anfragen ([#626](https://github.com/mariusgassen/kegelkasse/issues/626)) ([0ada019](https://github.com/mariusgassen/kegelkasse/commit/0ada019456770a19e62bfa144b7619ea324451ed))
+* Ruhe-Insel abgeschaltet, Schnellerfassung zeigt Kegelnamen ([#628](https://github.com/mariusgassen/kegelkasse/issues/628)) ([c5afc5a](https://github.com/mariusgassen/kegelkasse/commit/c5afc5ad409308e1d3a530cf4f716a58fc52e955))
+* Ruhe-Insel ohne laufenden Abend wieder aktiv, per Swipe wegwischen und wieder einblenden ([#638](https://github.com/mariusgassen/kegelkasse/issues/638)) ([54dec71](https://github.com/mariusgassen/kegelkasse/commit/54dec71492cc0b435fcd2e34015af9a93b0efdc3))
+* Sticker-Fotos im Feed behalten auf großen Bildschirmen ihre feste Größe ([#639](https://github.com/mariusgassen/kegelkasse/issues/639)) ([fa72aac](https://github.com/mariusgassen/kegelkasse/commit/fa72aacbef53ebc79c54c41b4ba6434427c8f153))
+
 ## [1.75.0](https://github.com/mariusgassen/kegelkasse/compare/v1.74.0...v1.75.0) (2026-11-14)
 
 
