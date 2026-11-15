@@ -246,6 +246,7 @@ def _evening_facts(e: Evening) -> dict:
         elif g.winner_ref:
             winner = g.winner_name
         games.append({"spiel": g.name, "sieger": winner, "eroeffnungsspiel": bool(g.is_opener),
+                      "koenigsspiel": bool(g.is_opener),
                       "praesidentenspiel": bool(g.is_president_game), "status": g.status})
 
     return {
@@ -341,13 +342,21 @@ def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
 
 
 RECAP_EVENING_PROMPT = (
-    "Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed (etwa 150 Wörter). "
-    "Erzähl 2-3 Pointen des Abends, statt alles aufzuzählen, und schließe mit einem Satz, der sitzt. "
-    "Nenne auf jeden Fall den König, die Spielsieger und wer am meisten Strafen gezahlt hat. "
-    "Bei Teams nennst du das Team mit seinen Mitgliedern; Teamnamen sind keine Personen.\n\n"
-    "Nutze den Abschnitt historie nur, wenn er etwas Auffälliges hergibt (Rekord, Serie, deutlicher "
-    "Abstand zum Schnitt). Erstmals Dabeigewesene und Rückkehrer nach längerer Pause darfst du kurz "
-    "begrüßen. Beim Präsidentenspiel (gibt es nur einmal im Jahr) bestimmt der Sieger den Präsidenten.\n\n"
+    "Schreib einen lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed (150-200 Wörter). "
+    "Das ist kein Protokoll, sondern eine kleine Stammtisch-Reportage: Such dir die 2-3 besten "
+    "Geschichten des Abends (Highlights, teuerste Strafe, Pechvögel, Überraschungssieger, Rekorde) und "
+    "erzähl sie mit Tempo, Übertreibung und einem Augenzwinkern, in kurzen Sätzen und direkt aus der "
+    "Szene heraus. Neck die Leute freundlich beim Namen, nutze Running Gags und Kegler-Wortspiele, aber "
+    "bleib nie verletzend. Zähl keine Ergebnisse in Klammern auf: Siege und Strafen werden in die "
+    "Geschichten eingebaut, nicht als Liste hinterhergereicht. Der letzte Satz ist eine Pointe oder "
+    "ein Ausblick auf den nächsten Abend.\n\n"
+    "Pflicht: Nenne den König, die Spielsieger und wer am meisten Strafen gezahlt hat, aber knapp. "
+    "Das Königsspiel (koenigsspiel in <daten>) bestimmt den König: erwähne es nur bei der Königsnennung, "
+    "nicht noch einmal als normales Spiel. Bei Teams nennst du das Team mit seinen Mitgliedern; "
+    "Teamnamen sind keine Personen. Nutze historie nur, wenn etwas Auffälliges drinsteckt (Rekord, "
+    "Serie, deutlicher Abstand zum Schnitt). Erstmals Dabeigewesene und Rückkehrer nach längerer Pause "
+    "darfst du kurz begrüßen. Beim Präsidentenspiel (gibt es nur einmal im Jahr) bestimmt der Sieger "
+    "den Präsidenten.\n\n"
     "Regeln: Erwähne nur, was in <daten> steht, und lass fehlende Angaben weg, statt zu raten. "
     "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight, also erwähne keins. "
     "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste gern, aber ohne "

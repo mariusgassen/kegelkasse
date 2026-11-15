@@ -191,6 +191,13 @@ def test_evening_recap_passes_user_hint(client, auth_headers, evening, claude):
     assert "zusaetzliche_hinweise" not in claude.data
 
 
+def test_evening_recap_marks_king_game(client, auth_headers, evening, claude):
+    claude.payload = {"title": "t", "text": "x"}
+    client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
+    facts = json.loads(claude.data.split("<daten>\n")[1].split("</daten>")[0])
+    assert facts["spiele"][0]["koenigsspiel"] is True
+
+
 def test_evening_recap_sends_only_aliases(client, auth_headers, evening, claude):
     claude.payload = {"title": "t", "text": "x"}
     client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
