@@ -186,7 +186,7 @@ def test_evening_recap_passes_user_hint(client, auth_headers, evening, claude):
     assert r.status_code == 200
     assert "zusaetzliche_hinweise" in claude.data
     assert "Karls Geburtstag erwähnen" in claude.data
-    claude.data = ""
+    claude.calls.clear()
     client.post(f"/api/v1/ai/recap/evening/{evening.id}", headers=auth_headers)
     assert "zusaetzliche_hinweise" not in claude.data
 
