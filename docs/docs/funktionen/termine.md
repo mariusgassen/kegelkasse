@@ -140,6 +140,8 @@ Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegl
 Gastanfragen setzen voraus, dass die [öffentlichen Termine](#öffentliche-termine-z-b-für-die-vereins-homepage-admin) freigeschaltet sind. Gegen Spam ist das Formular durch ein unsichtbares Fangfeld, eine Begrenzung pro Absender und E-Mail-Adresse und eine Duplikat-Erkennung geschützt. An die eingegebene Adresse geht erst nach einer Entscheidung eine Mail.
 :::
 
+**So funktioniert die Gästeregel:** Wer als Gast angenommen wird, steht danach als „Bekannter Gast“ im Verein und steht beim Termin auf der Gästeliste. Gäste zahlen wie Mitglieder Strafen, aber pro Abend höchstens den **Gästedeckel** (Admin: Verein → Einstellungen → Sonderstrafen). Beispiel bei 15 € Deckel: Hat ein Gast an einem Abend 22 € Strafen gesammelt, werden ihm nur 15 € berechnet. Der Deckel gilt für jeden Abend einzeln; in Statistiken zählt weiter der volle Betrag. Abwesenheitsstrafen zählen bei Gästen nicht mit. Ist kein Deckel eingestellt, zahlen Gäste ohne Obergrenze.
+
 ## Termin bearbeiten & löschen *(Admin)*
 
 Tippe auf das Bearbeiten-Symbol neben einem Termin, um Datum, Lokal oder Notiz zu ändern, oder lösche den Termin endgültig.
