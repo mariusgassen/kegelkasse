@@ -348,7 +348,7 @@ RECAP_EVENING_PROMPT = (
     "Abstand zum Schnitt). Erstmals Dabeigewesene und Rückkehrer nach längerer Pause darfst du kurz "
     "begrüßen. Beim Präsidentenspiel (gibt es nur einmal im Jahr) bestimmt der Sieger den Präsidenten.\n\n"
     "Regeln: Erwähne nur, was in <daten> steht, und lass fehlende Angaben weg, statt zu raten. "
-    "Steht bei highlights \"KEINE ERFASST\", gab es keins, also erwähne keins. "
+    "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight, also erwähne keins. "
     "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste gern, aber ohne "
     "Stammgast-Aussagen."
 )
