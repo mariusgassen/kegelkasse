@@ -166,7 +166,7 @@ describe('OfflineNotice', () => {
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
-describe('showToast / ToastContainer', () => {
+describe('showToast', () => {
     it('showToast is callable', async () => {
         const { showToast } = await import('../Toast')
         expect(() => showToast('Hello')).not.toThrow()
@@ -179,11 +179,6 @@ describe('showToast / ToastContainer', () => {
         expect(() => showToast('OK!', 'success')).not.toThrow()
     })
 
-    it('ToastContainer renders without toasts', async () => {
-        const { ToastContainer } = await import('../Toast')
-        const { container } = render(<ToastContainer />)
-        expect(container.firstChild).toBeInTheDocument()
-    })
 })
 
 // ── ChipSelect ────────────────────────────────────────────────────────────────

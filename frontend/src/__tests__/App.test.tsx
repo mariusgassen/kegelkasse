@@ -25,8 +25,8 @@ vi.mock('@/components/ui/OfflineBanner.tsx', () => ({
 }))
 
 vi.mock('@/components/ui/Toast.tsx', () => ({
-    ToastContainer: () => <div data-testid="toast-container" />,
     showToast: vi.fn(),
+    subscribeToast: vi.fn(() => () => {}),
 }))
 
 vi.mock('@/components/ProfileSheet.tsx', () => ({
