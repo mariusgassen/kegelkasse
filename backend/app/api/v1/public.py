@@ -89,7 +89,16 @@ def _roster_ids(club: Club, db: Session) -> set[int]:
     )}
 
 
-def _serialize(se: ScheduledEvening, roster_ids: set[int]) -> dict:
+def _guest_cap(club: Club, db: Session) -> Optional[float]:
+    """The club's per-evening cap on guest penalties (Gästedeckel), None when unlimited."""
+    s = db.query(ClubSettings).filter(ClubSettings.club_id == club.id).first()
+    extra = (s.extra or {}) if s else {}
+    if isinstance(extra, str):
+        extra = json.loads(extra)
+    return extra.get("guest_penalty_cap")
+
+
+def _serialize(se: ScheduledEvening, roster_ids: set[int], guest_cap: Optional[float] = None) -> dict:
     members, guests = _attendance(se, roster_ids)
     return {
         "id": se.id,
@@ -98,6 +107,8 @@ def _serialize(se: ScheduledEvening, roster_ids: set[int]) -> dict:
         "note": se.note,
         "attendees": {"members": members, "guests": guests, "total": members + guests},
         "guest_requests_enabled": bool(se.guest_requests_enabled),
+        # Same for every evening; lets the website explain the guest rule with the real amount.
+        "guest_penalty_cap": guest_cap,
     }
 
 
@@ -120,8 +131,9 @@ def public_schedule(
     club = _resolve_public_club(slug, db)
     evenings = _upcoming(club, db).order_by(ScheduledEvening.scheduled_at).limit(limit).all()
     roster_ids = _roster_ids(club, db)
+    cap = _guest_cap(club, db)
     _public_headers(response)
-    return {"club": club.name, "evenings": [_serialize(se, roster_ids) for se in evenings]}
+    return {"club": club.name, "evenings": [_serialize(se, roster_ids, cap) for se in evenings]}
 
 
 def _get_upcoming(slug: str, sid: int, db: Session) -> tuple[Club, ScheduledEvening]:
@@ -137,7 +149,7 @@ def public_scheduled_evening(slug: str, sid: int, response: Response, db: Sessio
     """A single upcoming evening — for the guest-request page, which is linked by evening id."""
     club, se = _get_upcoming(slug, sid, db)
     _public_headers(response)
-    return {"club": club.name, "evening": _serialize(se, _roster_ids(club, db))}
+    return {"club": club.name, "evening": _serialize(se, _roster_ids(club, db), _guest_cap(club, db))}
 
 
 class GuestRequestCreate(TrimmedModel):

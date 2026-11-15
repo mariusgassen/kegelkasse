@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from api.deps import require_club_member
-from api.v1.schedule import ensure_guest_member
+from api.v1.schedule import _known_guest_by_name, ensure_guest_member
 from core.database import get_db
 from core.email import build_email_bodies, email_theme, get_club_email_config, send_club_email
 from core.i18n import t
@@ -140,7 +140,11 @@ def approve_guest_request(rid: int, db: Session = Depends(get_db), user: User = 
         raise HTTPException(400, "Scheduled evening was cancelled")
     # The guest becomes a roster entry right away — linked to a same-named known guest when one
     # exists, a new "Bekannter Gast" otherwise — instead of only at evening start.
+    is_new = _known_guest_by_name(db, req.club_id, req.name) is None
     member = ensure_guest_member(db, req.club_id, req.name)
+    if is_new and " " in member.name:
+        # Default Kegelname of a new guest: the first name (the form sends "Vorname Nachname").
+        member.nickname = member.name.split()[0]
     guest = ScheduledEveningGuest(
         scheduled_evening_id=req.scheduled_evening_id,
         # Guest list display name, same as picking the guest from the "Bekannte Gäste" chips.

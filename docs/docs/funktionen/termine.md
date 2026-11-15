@@ -129,7 +129,7 @@ Die Antwort ist JSON mit den kommenden, nicht abgesagten Terminen (`?limit=` 1�
 
 ## Gastanfragen
 
-Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegler** zu einem Termin kommen dürfen. Jeder Termin hat dort einen Link „Gastkegeln anfragen“, der auf eine eigene Seite pro Termin führt (z. B. `https://www.kc-eichhorn.de/gastkegeln/36` — gut als Link für Instagram geeignet). Der Gast gibt **Name, E-Mail und optional eine Nachricht** an.
+Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegler** zu einem Termin kommen dürfen. Jeder Termin hat dort einen Link „Gastkegeln anfragen“, der auf eine eigene Seite pro Termin führt (z. B. `https://www.kc-eichhorn.de/gastkegeln/36` — gut als Link für Instagram geeignet). Der Gast gibt **Vorname, Nachname, E-Mail und optional eine Nachricht** an (die App bekommt Vor- und Nachname als einen Namen). Bei einem neu angelegten Gast wird der **Vorname als Kegelname** eingetragen.
 
 - **Benachrichtigung:** Für jede neue Anfrage bekommen alle Mitglieder eine Benachrichtigung mit Link zur Übersicht. Die Kategorie „Gastanfragen“ ist standardmäßig **per E-Mail** aktiv und lässt sich im Profil wie jede andere Benachrichtigung umstellen oder abschalten. E-Mails gehen nur raus, wenn der Verein einen [E-Mail-Server](push.md#e-mail-server-admin-pro-verein) eingerichtet hat.
 - **Übersicht:** Oben auf der Seite 📅 **Termine** erscheint der Bereich 🙋 **Gastanfragen**, sobald es Anfragen gibt — offene mit Name, Termin, E-Mail und Nachricht. Erledigte sowie abgelaufene Anfragen (Termin liegt in der Vergangenheit, nicht mehr annehmbar) stehen nur als schlichte Zeile „+ N erledigt“ darunter (wie „+ N ausgeglichen“ in den Konten), die sich aufklappen lässt.
@@ -140,7 +140,7 @@ Interessierte können über die Vereins-Homepage anfragen, ob sie als **Gastkegl
 Gastanfragen setzen voraus, dass die [öffentlichen Termine](#öffentliche-termine-z-b-für-die-vereins-homepage-admin) freigeschaltet sind. Gegen Spam ist das Formular durch ein unsichtbares Fangfeld, eine Begrenzung pro Absender und E-Mail-Adresse und eine Duplikat-Erkennung geschützt. An die eingegebene Adresse geht erst nach einer Entscheidung eine Mail.
 :::
 
-**So funktioniert die Gästeregel:** Wer als Gast angenommen wird, steht danach als „Bekannter Gast“ im Verein und steht beim Termin auf der Gästeliste. Gäste zahlen wie Mitglieder Strafen, aber pro Abend höchstens den **Gästedeckel** (Admin: Verein → Einstellungen → Sonderstrafen). Beispiel bei 15 € Deckel: Hat ein Gast an einem Abend 22 € Strafen gesammelt, werden ihm nur 15 € berechnet. Der Deckel gilt für jeden Abend einzeln; in Statistiken zählt weiter der volle Betrag. Abwesenheitsstrafen zählen bei Gästen nicht mit. Ist kein Deckel eingestellt, zahlen Gäste ohne Obergrenze.
+**So funktioniert die Gästeregel:** Wer als Gast angenommen wird, steht danach als „Bekannter Gast“ im Verein und steht beim Termin auf der Gästeliste. Gäste zahlen wie Mitglieder Strafen, aber pro Abend höchstens den **Gästedeckel** (Admin: Verein → Einstellungen → Sonderstrafen). Beispiel bei 15 € Deckel: Hat ein Gast an einem Abend 22 € Strafen gesammelt, werden ihm nur 15 € berechnet. Der Deckel gilt für jeden Abend einzeln und steht in der öffentlichen Termin-Antwort als `guest_penalty_cap`, damit die Homepage ihn erklären kann; in Statistiken zählt weiter der volle Betrag. Abwesenheitsstrafen zählen bei Gästen nicht mit. Ist kein Deckel eingestellt, zahlen Gäste ohne Obergrenze.
 
 ## Termin bearbeiten & löschen *(Admin)*
 
