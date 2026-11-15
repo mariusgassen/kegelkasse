@@ -1,6 +1,157 @@
 {
   "releases": [
     {
+      "version": "1.76.0",
+      "date": "2026-11-15",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "69de6f7",
+              "pr": 641,
+              "sha": "69de6f7",
+              "text": {
+                "en": "Der KI-Abendrückblick wird pointierter und kürzer erzählt",
+                "de": "Der KI-Abendrückblick ist jetzt pointierter und kürzer erzählt"
+              }
+            },
+            {
+              "key": "f3df468",
+              "pr": 640,
+              "sha": "f3df468",
+              "text": {
+                "en": "Gastanfragen mit Vor- und Nachname, Gästedeckel in öffentlichen Terminen",
+                "de": "Gastanfragen mit Vor- und Nachname, Gästedeckel in öffentlichen Terminen"
+              }
+            },
+            {
+              "key": "5c68d87",
+              "pr": 637,
+              "sha": "5c68d87",
+              "text": {
+                "en": "KI-Rückblicke mit eigenem Basis-Prompt und zusätzlichen Hinweisen",
+                "de": "KI-Rückblicke mit eigenem Basis-Prompt und zusätzlichen Hinweisen"
+              }
+            },
+            {
+              "key": "79f0b39",
+              "pr": 642,
+              "sha": "79f0b39",
+              "text": {
+                "en": "Rückmeldungen erscheinen jetzt in der Dynamic Island statt als Toast unten",
+                "de": "Rückmeldungen erscheinen jetzt in der Dynamic Island statt unten als Toast"
+              }
+            },
+            {
+              "key": "5f35097",
+              "pr": 632,
+              "sha": "5f35097",
+              "text": {
+                "en": "Spiele ohne Gewinner/Verlierer – nur Strafen pro Spieler eintragen",
+                "de": "Spiele ohne Gewinner und Verlierer – du trägst nur die Strafen pro Spieler ein"
+              }
+            },
+            {
+              "key": "2acea2b",
+              "pr": 635,
+              "sha": "2acea2b",
+              "text": {
+                "en": "Spielvorlagen mit manuell festgelegten Strafen",
+                "de": "Spielvorlagen mit manuell festgelegten Strafen"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "0295c45",
+              "pr": 636,
+              "sha": "0295c45",
+              "text": {
+                "en": "Insel: Spiel starten in der Schnellerfassung, Strafensumme ausgeklappt mit Cent",
+                "de": "Insel: Spiel starten in der Schnellerfassung, Summe der Strafen ausgeklappt mit Cent"
+              }
+            },
+            {
+              "key": "fca47f0",
+              "pr": 629,
+              "sha": "fca47f0",
+              "text": {
+                "en": "leere Insel ausgeblendet, Insel in Schnellerfassung zentriert, Kegelnamen auch für Gäste",
+                "de": "Leere Insel ausgeblendet, Insel in der Schnellerfassung zentriert, Kegelnamen auch für Gäste"
+              }
+            },
+            {
+              "key": "ad50bed",
+              "pr": 630,
+              "sha": "ad50bed",
+              "text": {
+                "en": "leere Insel bleibt als Ruhelicht sichtbar, fängt aber keine Taps ab",
+                "de": "Leere Insel bleibt als Ruhelicht sichtbar, fängt aber keine Taps ab"
+              }
+            },
+            {
+              "key": "6fa34ed",
+              "pr": 631,
+              "sha": "6fa34ed",
+              "text": {
+                "en": "leere Insel fängt keine Taps mehr ab, Live-Übersicht zeigt Ø Strafe",
+                "de": "Leere Insel fängt keine Taps mehr ab, Live-Übersicht zeigt Ø Strafe"
+              }
+            },
+            {
+              "key": "0a217e1",
+              "pr": 634,
+              "sha": "0a217e1",
+              "text": {
+                "en": "Live-Insel wieder mit ursprünglichen Maßen, Kegel und Betrag nicht mehr abgeschnitten",
+                "de": "Live-Insel wieder in den ursprünglichen Maßen, Kegel und Betrag nicht mehr abgeschnitten"
+              }
+            },
+            {
+              "key": "0ada019",
+              "pr": 626,
+              "sha": "0ada019",
+              "text": {
+                "en": "Live-Insel: Ruhe-Insel verdeckt keine echte Insel mehr, Wisch holt sie zurück, Zahlungs-Insel nach offenen Anfragen",
+                "de": "Live-Insel: Ruhe-Insel verdeckt keine echte Insel mehr, per Wischen kommt sie zurück, Zahlungs-Insel nach offenen Anfragen"
+              }
+            },
+            {
+              "key": "c5afc5a",
+              "pr": 628,
+              "sha": "c5afc5a",
+              "text": {
+                "en": "Ruhe-Insel abgeschaltet, Schnellerfassung zeigt Kegelnamen",
+                "de": "Ruhe-Insel abgeschaltet, Schnellerfassung zeigt Kegelnamen"
+              }
+            },
+            {
+              "key": "54dec71",
+              "pr": 638,
+              "sha": "54dec71",
+              "text": {
+                "en": "Ruhe-Insel ohne laufenden Abend wieder aktiv, per Swipe wegwischen und wieder einblenden",
+                "de": "Ruhe-Insel ohne laufenden Kegelabend wieder aktiv, per Wischen weg- und wieder einblendbar"
+              }
+            },
+            {
+              "key": "fa72aac",
+              "pr": 639,
+              "sha": "fa72aac",
+              "text": {
+                "en": "Sticker-Fotos im Feed behalten auf großen Bildschirmen ihre feste Größe",
+                "de": "Sticker-Fotos im Feed behalten auf großen Bildschirmen ihre feste Größe"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.75.0",
       "date": "2026-11-14",
       "sections": [
