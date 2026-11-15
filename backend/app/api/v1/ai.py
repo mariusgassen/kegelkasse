@@ -52,6 +52,7 @@ FEATURES = ("recaps", "suggestions", "booking_review", "search")
 
 
 MAX_PROMPT_LEN = 3000
+RECAP_HINT_MAX = 1500
 PROMPT_KEYS = ("recap_evening_prompt", "recap_season_prompt")
 
 # The search answers short questions from a prepared snapshot: the cheapest model is enough.
@@ -374,7 +375,7 @@ class RecapRequest(TrimmedModel):
 
 
 def _recap_hint(data: Optional[RecapRequest]) -> str:
-    return ((data.hint if data else None) or "").strip()[:500]
+    return ((data.hint if data else None) or "").strip()[:RECAP_HINT_MAX]
 
 
 _HINT_TASK = (" Falls 'zusaetzliche_hinweise' in <daten> gesetzt ist, berücksichtige diese Wünsche des "

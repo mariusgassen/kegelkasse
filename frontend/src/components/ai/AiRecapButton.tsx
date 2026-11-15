@@ -14,6 +14,8 @@ import {aiErrorKey} from '@/lib/aiErrors.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 
+const HINT_MAX = 1500
+
 type Target = { kind: 'evening'; eveningId: number } | { kind: 'season'; year: number }
 
 /**
@@ -96,9 +98,15 @@ export function AiRecapButton({target, className = 'btn-secondary btn-sm'}: { ta
             <Sheet open={open} onClose={() => setOpen(false)} title={t('ai.recap.title')}>
                 <div className="flex flex-col gap-3" data-testid="ai-recap-sheet">
                     <Field label={t('ai.recap.extraLabel')} htmlFor="ai-recap-hint">
-                        <textarea id="ai-recap-hint" className="kce-input" rows={2} maxLength={500} value={hint}
-                                  onChange={e => setHint(e.target.value)}
+                        <textarea id="ai-recap-hint" className="kce-input min-h-32" rows={6} maxLength={HINT_MAX}
+                                  value={hint} onChange={e => setHint(e.target.value)}
                                   placeholder={t('ai.recap.extraPlaceholder')}/>
+                        <div className="flex items-start justify-between gap-3 mt-1">
+                            <p className="text-xs text-muted">{t('ai.recap.extraHint')}</p>
+                            <span className="text-xs text-muted shrink-0 tabular-nums" aria-hidden="true">
+                                {hint.length}/{HINT_MAX}
+                            </span>
+                        </div>
                     </Field>
                     {!generated ? (
                         <Button type="button" variant="primary" block onClick={generate}
