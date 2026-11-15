@@ -1,4 +1,3 @@
-import {useEffect, useState} from 'react'
 import {haptic} from '@/lib/haptics'
 
 export interface ToastMessage {
@@ -10,6 +9,10 @@ export interface ToastMessage {
 let _listeners: ((msg: ToastMessage) => void)[] = []
 let _id = 0
 
+/**
+ * Feedback after mutations. Rendered by `ToastActivity` in the Dynamic Island (`EveningIsland.tsx`);
+ * this module only owns the call API and the subscription.
+ */
 export function showToast(text: string, type: ToastMessage['type'] = 'success') {
     // Every create/update/delete in the app already ends in a toast, so wiring haptics (#72) here
     // gives the whole app confirmation feedback from one place instead of at ~200 call sites.
@@ -20,29 +23,10 @@ export function showToast(text: string, type: ToastMessage['type'] = 'success') 
     _listeners.forEach(fn => fn(msg))
 }
 
-export function ToastContainer() {
-    const [toasts, setToasts] = useState<ToastMessage[]>([])
-
-    useEffect(() => {
-        const handler = (msg: ToastMessage) => {
-            setToasts(t => [...t, msg])
-            setTimeout(() => setToasts(t => t.filter(x => x.id !== msg.id)), 2800)
-        }
-        _listeners.push(handler)
-        return () => {
-            _listeners = _listeners.filter(f => f !== handler)
-        }
-    }, [])
-
-    return (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-2 pointer-events-none">
-            {toasts.map(t => (
-                <div key={t.id}
-                     className={`px-4 py-2 rounded-xl text-xs font-bold shadow-lg animate-fade-in
-            ${t.type === 'error' ? 'bg-danger text-on-danger' : 'bg-accent-2 text-ink'}`}>
-                    {t.text}
-                </div>
-            ))}
-        </div>
-    )
+/** Subscribe to toasts; returns the unsubscribe function. */
+export function subscribeToast(fn: (msg: ToastMessage) => void): () => void {
+    _listeners.push(fn)
+    return () => {
+        _listeners = _listeners.filter(f => f !== fn)
+    }
 }

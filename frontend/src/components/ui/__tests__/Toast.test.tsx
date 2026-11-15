@@ -1,65 +1,46 @@
 /**
- * Tests for Toast.tsx — showToast and ToastContainer.
+ * Tests for Toast.tsx — showToast and subscribeToast (rendered by the Island's ToastActivity).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act, waitFor } from '@testing-library/react'
-import React from 'react'
-import { showToast, ToastContainer } from '../Toast'
+import {afterEach, describe, expect, it, vi} from 'vitest'
+import {showToast, subscribeToast, type ToastMessage} from '../Toast'
 
-// ── tests ─────────────────────────────────────────────────────────────────────
-
-describe('showToast + ToastContainer', () => {
-    beforeEach(() => vi.clearAllMocks())
-
-    it('renders the container div', () => {
-        const { container } = render(<ToastContainer />)
-        expect(container.querySelector('div')).toBeInTheDocument()
+describe('showToast + subscribeToast', () => {
+    const unsubs: (() => void)[] = []
+    afterEach(() => {
+        unsubs.splice(0).forEach(u => u())
     })
 
-    it('shows toast message when showToast is called', () => {
-        render(<ToastContainer />)
-        act(() => { showToast('Hello world') })
-        expect(screen.getByText('Hello world')).toBeInTheDocument()
+    function listen() {
+        const fn = vi.fn<(m: ToastMessage) => void>()
+        unsubs.push(subscribeToast(fn))
+        return fn
+    }
+
+    it('delivers text with success as the default type', () => {
+        const fn = listen()
+        showToast('Saved!')
+        expect(fn).toHaveBeenCalledWith(expect.objectContaining({text: 'Saved!', type: 'success'}))
     })
 
-    it('shows error-styled toast for type=error', () => {
-        render(<ToastContainer />)
-        act(() => { showToast('Something went wrong', 'error') })
-        const toast = screen.getByText('Something went wrong')
-        expect(toast.className).toContain('bg-danger')
+    it('delivers the error type', () => {
+        const fn = listen()
+        showToast('Something went wrong', 'error')
+        expect(fn).toHaveBeenCalledWith(expect.objectContaining({text: 'Something went wrong', type: 'error'}))
     })
 
-    it('shows success-styled toast by default', () => {
-        render(<ToastContainer />)
-        act(() => { showToast('Saved!') })
-        const toast = screen.getByText('Saved!')
-        expect(toast.className).toContain('bg-accent-2')
+    it('gives every toast a unique id', () => {
+        const fn = listen()
+        showToast('First')
+        showToast('Second')
+        const [a, b] = fn.mock.calls.map(c => c[0].id)
+        expect(a).not.toBe(b)
     })
 
-    it('removes toast after timeout', async () => {
-        vi.useFakeTimers({ shouldAdvanceTime: true })
-        render(<ToastContainer />)
-        act(() => { showToast('Temporary') })
-        expect(screen.getByText('Temporary')).toBeInTheDocument()
-        await act(async () => { vi.advanceTimersByTime(3000) })
-        expect(screen.queryByText('Temporary')).not.toBeInTheDocument()
-        vi.useRealTimers()
-    })
-
-    it('shows multiple toasts simultaneously', () => {
-        render(<ToastContainer />)
-        act(() => {
-            showToast('First')
-            showToast('Second')
-        })
-        expect(screen.getByText('First')).toBeInTheDocument()
-        expect(screen.getByText('Second')).toBeInTheDocument()
-    })
-
-    it('cleans up listener on unmount', () => {
-        const { unmount } = render(<ToastContainer />)
-        unmount()
-        // After unmount, showToast should not throw
-        expect(() => { showToast('After unmount') }).not.toThrow()
+    it('stops delivering after unsubscribe and does not throw', () => {
+        const fn = vi.fn()
+        const off = subscribeToast(fn)
+        off()
+        expect(() => showToast('After unsubscribe')).not.toThrow()
+        expect(fn).not.toHaveBeenCalled()
     })
 })

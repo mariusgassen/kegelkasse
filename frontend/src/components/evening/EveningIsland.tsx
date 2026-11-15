@@ -19,7 +19,8 @@
  *      category breakdown, and a "Sync now" `IslandButton` when back online.
  *   7. Incoming payment-request approvals (`id: 'payment-request-<rid>'`, `group: 'payment-requests'`) —
  *      treasurer confirm/reject actions directly from the expanded island.
- *   8. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
+ *   8. Toast feedback (`id: 'toast-<n>'`, `group: 'toasts'`, `alert: true`) — `showToast`/`toastError`.
+ *   9. Service-worker updates & release notes (`UpdatePrompt` / `WhatsNewNotice` passed as children).
  */
 import {type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -59,11 +60,11 @@ import {QUICK_ENTRY_EVENT, requestQuickEntryGameAction, type QuickEntryEventDeta
 import {offlineQueue, groupQueuedRequests, SYNC_FLUSHED_EVENT, type QueueCategory} from '@/offlineQueue.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {useIdleIslandStore, useIslandBusyStore, useIslandFullscreenStore} from '@/store/idleIsland.ts'
-import {showToast} from '@/components/ui/Toast.tsx'
+import {showToast, subscribeToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
 import {Island, IslandProvider, useIsland, useIslandActions} from '@/lib/island'
 import {Glyph} from '@/components/islandcn/glyph'
-import {CheckCircleGlyph, glyphFrom, SparkleGlyph, UploadGlyph} from '@/components/islandcn/glyphs'
+import {BellGlyph, CheckCircleGlyph, glyphFrom, SparkleGlyph, UploadGlyph, WarningGlyph} from '@/components/islandcn/glyphs'
 import {ExpandedBottom, SensorRow} from '@/components/islandcn/island-layout'
 import {
     BubbleForm,
@@ -372,6 +373,58 @@ function CelebrationActivity() {
             island.end(CELEBRATE_ID)
         }
     }, [island, t])
+
+    return null
+}
+
+const TOAST_SUCCESS_MS = 2800
+const TOAST_ERROR_MS = 5000
+
+/** `showToast` / `toastError` feedback: a brief alerting takeover; errors stay longer. */
+function ToastActivity() {
+    const island = useIslandActions()
+
+    useEffect(() => {
+        const timers = new Map<string, number>()
+        const unsubscribe = subscribeToast(msg => {
+            const type = msg.type ?? 'success'
+            const id = `toast-${msg.id}`
+            const accent = type === 'error' ? islandAccent.red : type === 'info' ? islandAccent.blue : islandAccent.green
+            const glyph = type === 'error' ? WarningGlyph : type === 'info' ? BellGlyph : CheckCircleGlyph
+            island.start({
+                id,
+                group: 'toasts',
+                priority: type === 'error' ? 3 : 2,
+                alert: true,
+                label: msg.text,
+                compact: {leading: <Glyph icon={glyph} color={accent}/>},
+                minimal: <Glyph icon={glyph} color={accent}/>,
+                expanded: {
+                    leading: (
+                        <SensorRow glyph={<Glyph icon={glyph} color={accent} size={18}/>}>
+                            <ContextLabel>Kegelkasse</ContextLabel>
+                        </SensorRow>
+                    ),
+                    bottom: (
+                        <ExpandedBottom reach="lift">
+                            <ExpandedTitle color={type === 'error' ? accent : islandInk.primary}>{msg.text}</ExpandedTitle>
+                        </ExpandedBottom>
+                    ),
+                },
+            })
+            timers.set(id, window.setTimeout(() => {
+                timers.delete(id)
+                island.end(id)
+            }, type === 'error' ? TOAST_ERROR_MS : TOAST_SUCCESS_MS))
+        })
+        return () => {
+            unsubscribe()
+            timers.forEach((timer, id) => {
+                window.clearTimeout(timer)
+                island.end(id)
+            })
+        }
+    }, [island])
 
     return null
 }
@@ -1203,6 +1256,7 @@ export function IslandActivities({eveningId}: {eveningId?: number | null}) {
             <CelebrationActivity/>
             <QuickEntryActivity/>
             <UploadActivity/>
+            <ToastActivity/>
             <OfflineSyncActivity/>
             <PaymentRequestActivity/>
         </>

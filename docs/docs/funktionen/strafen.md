@@ -61,7 +61,7 @@ Falls ein Stammspieler fehlt, können Abwesenheitsstrafen berechnet werden:
 2. Wähle die fehlenden Stammspieler
 3. Die konfigurierten Abwesenheitsstrafen werden eingetragen
 
-Während der Berechnung zeigt der Knopf einen Ladezustand; danach meldet ein **Hinweis-Toast**,
+Während der Berechnung zeigt der Knopf einen Ladezustand; danach meldet ein **Hinweis in der Island**,
 wie viele Abwesende eingetragen wurden und wie hoch die Ø-Strafe ist — bzw. dass **niemand
 gefehlt hat** und deshalb nichts eingetragen wurde. Das gilt auch beim *Neuberechnen*, wo sich
 im Protokoll selbst oft nichts sichtbar ändert. Die Mitglieder- und Gästekonten werden

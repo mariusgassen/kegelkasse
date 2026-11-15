@@ -45,6 +45,7 @@ vi.mock('@/hooks/useClub.ts', () => ({
 
 import EveningIsland, {elapsedLabel, UPLOAD_STATUS_EVENT} from '../evening/EveningIsland'
 import {CELEBRATE_EVENT, type CelebrateDetail} from '@/lib/celebrate.ts'
+import {showToast} from '@/components/ui/Toast.tsx'
 import {announceQuickEntryEvent} from '@/lib/quickEntryEvents.ts'
 import {api, type UploadStatusDetail} from '@/api/client.ts'
 import {router} from '@/router'
@@ -190,6 +191,37 @@ describe('EveningIsland', () => {
         })
         expect(screen.getAllByText('Alle Neune!').length).toBeGreaterThan(0)
         expect(container.querySelector('[data-presentation="expanded"]')).toBeTruthy()
+    })
+
+    it('shows showToast messages as an island alert and removes them afterwards', async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        try {
+            const {container} = renderIsland(undefined, null)
+            await act(async () => { showToast('Gespeichert') })
+            expect(screen.getAllByText('Gespeichert').length).toBeGreaterThan(0)
+            expect(container.querySelector('[data-presentation="expanded"]')).toBeTruthy()
+            await act(async () => { vi.advanceTimersByTime(3500) })
+            // the island plays its exit motion after the activity ended
+            await act(async () => { vi.advanceTimersByTime(2000) })
+            expect(screen.queryByText('Gespeichert')).toBeNull()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it('keeps error toasts on show longer than success toasts', async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        try {
+            renderIsland(undefined, null)
+            await act(async () => { showToast('Fehlgeschlagen', 'error') })
+            await act(async () => { vi.advanceTimersByTime(3500) })
+            expect(screen.getAllByText('Fehlgeschlagen').length).toBeGreaterThan(0)
+            await act(async () => { vi.advanceTimersByTime(2500) })
+            await act(async () => { vi.advanceTimersByTime(2000) })
+            expect(screen.queryByText('Fehlgeschlagen')).toBeNull()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     it('does not repeat the crown emoji in a king celebration', async () => {

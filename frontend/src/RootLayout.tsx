@@ -35,7 +35,6 @@ import {useNavCollapsedStore} from './store/navCollapsed'
 import {usePullToRefresh} from './hooks/usePullToRefresh'
 import {PullToRefreshIndicator} from './components/PullToRefreshIndicator'
 import {AppLogoAnimated} from './components/Logo'
-import {ToastContainer} from './components/ui/Toast'
 import {OfflineBanner} from './components/ui/OfflineBanner'
 import {InstallPrompt} from './components/InstallPrompt'
 import {UpdatePrompt} from './components/UpdatePrompt'
@@ -360,7 +359,6 @@ export function RootLayout() {
                 )}
             </nav>
 
-            <ToastContainer/>
             <NotificationPrompt/>
             <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>

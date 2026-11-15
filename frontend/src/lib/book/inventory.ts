@@ -46,7 +46,7 @@ export const PRIMITIVES: Primitive[] = [
     {name: '<Empty>', source: 'ui/Empty.tsx', status: 'component', use: 'Empty-state icon + text.', uses: '58 in 24 files'},
     {name: '<Skeleton*>', source: 'ui/Skeleton.tsx', status: 'component', use: 'Loading placeholders.', uses: '58 in 14 files'},
     {name: '<Loading>', source: 'ui/Loading.tsx', status: 'component', use: 'Text-only loader. No importers left (dead).', uses: '0'},
-    {name: 'showToast / <ToastContainer>', source: 'ui/Toast.tsx', status: 'component', use: 'Feedback after mutations.', uses: 'everywhere'},
+    {name: 'showToast (Island ToastActivity)', source: 'ui/Toast.tsx', status: 'component', use: 'Feedback after mutations, shown in the Dynamic Island.', uses: 'everywhere'},
     {name: '<CountUp>, <ZoomableImage>, <EmojiPickerButton>, <SoundPickerButton>, <MediaUploadButton>, <ReactionPill>, <ItemReactionBar>, <CommentThread>, <Markdown>', source: 'ui/*', status: 'component', use: 'Specialised widgets.', uses: 'feature-specific'},
 ]
 
