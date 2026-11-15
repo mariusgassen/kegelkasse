@@ -1506,7 +1506,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
     const [isOpener, setIsOpener] = useState(false)
     const [penalty, setPenalty] = useState('0')
     const [perPoint, setPerPoint] = useState('0')
-    const [penaltyOnly, setPenaltyOnly] = useState(false)
+    const [manualPenalties, setManualPenalties] = useState(false)
 
     const openNew = () => {
         setEditing(null);
@@ -1517,7 +1517,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setIsOpener(false);
         setPenalty('0');
         setPerPoint('0');
-        setPenaltyOnly(false);
+        setManualPenalties(false);
         setSheet(true)
     }
     const openEdit = (gt: GameTemplate) => {
@@ -1529,7 +1529,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
         setIsOpener(gt.is_opener);
         setPenalty(String(gt.default_loser_penalty));
         setPerPoint(String(gt.per_point_penalty ?? 0));
-        setPenaltyOnly(!!gt.penalty_only);
+        setManualPenalties(!!gt.manual_penalties);
         setSheet(true)
     }
 
@@ -1540,7 +1540,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
             turn_mode: wtype === 'team' ? tmMode : null,
             is_opener: isOpener,
             default_loser_penalty: parseAmount(penalty),
-            per_point_penalty: parseAmount(perPoint), penalty_only: penaltyOnly, sort_order: 0
+            per_point_penalty: parseAmount(perPoint), manual_penalties: manualPenalties, sort_order: 0
         }
         try {
             if (editing) await api.updateGameTemplate(editing.id, d)
@@ -1564,7 +1564,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         {gt.description && <div className="text-xs text-muted mt-0.5">{gt.description}</div>}
                         <div className="flex gap-2 mt-1">
                             <span className="text-xs text-muted">{gt.winner_type}{gt.turn_mode ? ` · ${gt.turn_mode}` : ''}</span>
-                            {gt.penalty_only && <span className="text-xs text-muted">· {t('game.penaltyOnlyShort')}</span>}
+                            {gt.manual_penalties && <span className="text-xs text-muted">· {t('game.manualPenaltiesShort')}</span>}
                             {gt.default_loser_penalty > 0 &&
                                 <span className="text-xs text-danger-fg">{fe(gt.default_loser_penalty)}</span>}
                             {(gt.per_point_penalty ?? 0) > 0 &&
@@ -1627,12 +1627,13 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                         </label>
                     </div>
                     <div className="flex items-center gap-3">
-                        <input type="checkbox" id="tmpl-penalty-only" checked={penaltyOnly}
-                               onChange={e => setPenaltyOnly(e.target.checked)}/>
-                        <label htmlFor="tmpl-penalty-only" className="text-sm font-bold cursor-pointer">
-                            {t('game.penaltyOnly')}
+                        <input type="checkbox" id="tmpl-manual-penalties" checked={manualPenalties}
+                               onChange={e => setManualPenalties(e.target.checked)}/>
+                        <label htmlFor="tmpl-manual-penalties" className="text-sm font-bold cursor-pointer">
+                            {t('game.manualPenalties')}
                         </label>
                     </div>
+                    {!manualPenalties && <>
                     <Field label={t('club.template.loserPenalty')}>
                         <input className="kce-input" type="text" inputMode="decimal" value={penalty}
                                onChange={e => setPenalty(e.target.value)}/></Field>
@@ -1641,6 +1642,7 @@ function GameTemplatesTab({templates, onChanged}: { templates: GameTemplate[]; o
                                onChange={e => setPerPoint(e.target.value)}/>
                         <p className="text-xs text-muted mt-1">{t('game.perPointNote')}</p>
                     </Field>
+                    </>}
                     <Button type="submit" variant="primary" block className="mt-1">{t('action.save')}</Button>
                 </div>
             </Sheet>

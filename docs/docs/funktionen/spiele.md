@@ -54,11 +54,9 @@ Ein Wurf mit 0 Kegeln löst keinen eigenen Ton mehr aus — stattdessen wird der
 anderer Sound) einem passenden Strafentyp zugewiesen und spielt automatisch beim Eintragen dieser
 Strafe. Siehe [Strafen → Audio-Ansagen](strafen.md#audio-ansagen-).
 
-## Nur Strafen eintragen
+## Strafen manuell festlegen
 
-Im Beenden-Dialog schaltet **„Nur Strafen eintragen (kein Gewinner/Verlierer)"** den Gewinner weg: Stattdessen trägst du pro Spieler einen Strafbetrag (€) ein. Es wird kein Gewinner gespeichert, und nur diese Beträge werden als Spielstrafen gebucht. Beim erneuten Bearbeiten ersetzen die neuen Beträge die alten.
-
-In der **Spielvorlage** (Verein → Spielvorlagen) kannst du „Nur Strafen eintragen" voreinstellen: Spiele aus dieser Vorlage öffnen den Beenden-Dialog direkt im Nur-Strafen-Modus.
+In der **Spielvorlage** (Verein → Spielvorlagen) schaltet **„Strafen manuell festlegen"** die automatische Berechnung ab: Der Gewinner (Team oder Einzelspieler) bleibt, aber im Beenden-Dialog trägst du pro Spieler den Strafbetrag (€) selbst ein, statt Verlierer- und Punktestrafe berechnen zu lassen. Die Beträge werden als Spielstrafen gebucht; beim erneuten Bearbeiten ersetzen die neuen Beträge die alten.
 
 ## Verliererstrafen
 

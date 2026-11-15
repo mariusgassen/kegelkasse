@@ -626,15 +626,15 @@ class TestGameTemplates:
         assert resp.status_code == 200
         assert resp.json()["name"] == "Eröffnung"
 
-    def test_penalty_only_flag_roundtrip(self, client: TestClient, admin_headers: dict):
+    def test_manual_penalties_flag_roundtrip(self, client: TestClient, admin_headers: dict):
         resp = client.post("/api/v1/club/game-templates", headers=admin_headers,
-                           json={"name": "Strafenspiel", "penalty_only": True})
+                           json={"name": "Strafenspiel", "manual_penalties": True})
         assert resp.status_code == 200
-        assert resp.json()["penalty_only"] is True
+        assert resp.json()["manual_penalties"] is True
         gid = resp.json()["id"]
         resp = client.put(f"/api/v1/club/game-templates/{gid}", headers=admin_headers,
-                          json={"name": "Strafenspiel", "penalty_only": False})
-        assert resp.json()["penalty_only"] is False
+                          json={"name": "Strafenspiel", "manual_penalties": False})
+        assert resp.json()["manual_penalties"] is False
 
     def test_member_cannot_create(self, client: TestClient, auth_headers: dict):
         resp = client.post("/api/v1/club/game-templates", headers=auth_headers,

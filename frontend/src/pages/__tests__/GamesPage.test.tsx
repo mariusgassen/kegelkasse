@@ -1425,43 +1425,32 @@ describe('GamesPage — icon button aria-labels', () => {
     })
 })
 
-// ── penalty-only finish ───────────────────────────────────────────────────────
-describe('GamesPage — penalty-only finish', () => {
+// ── manual penalties finish ───────────────────────────────────────────────────
+describe('GamesPage — manual-penalties finish', () => {
     beforeEach(async () => {
         vi.clearAllMocks()
         const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        vi.mocked(useActiveEvening).mockReturnValue({ evening: ACTIVE_EVENING as any, invalidate: vi.fn() } as any)
+        const ev = {...ACTIVE_EVENING, games: [{...RUNNING_GAME, manual_penalties: true}]}
+        vi.mocked(useActiveEvening).mockReturnValue({ evening: ev as any, invalidate: vi.fn() } as any)
         const { isAdmin, useAppStore } = await import('@/store/app.ts')
         vi.mocked(isAdmin).mockReturnValue(true)
         vi.mocked(useAppStore).mockImplementation((sel: any) => sel({ user: { id: 1, role: 'admin' }, gameTemplates: [], regularMembers: [] }))
     })
 
-    it('finishes without a winner and sends only per-player penalties', async () => {
+    it('keeps the winner and sends per-player penalties instead of the loser penalty', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.finishGame).mockResolvedValueOnce(undefined as any)
         await renderGamesPage()
-        const finishBtn = screen.getAllByText(/game\.finish|game\.start/).find(b => b.textContent?.includes('game.finish'))
-        expect(finishBtn).toBeTruthy()
-        fireEvent.click(finishBtn!)
+        fireEvent.click(screen.getAllByText(/game\.finish/)[0])
         await waitFor(() => screen.getByTestId('sheet'))
-        fireEvent.click(screen.getByLabelText('game.penaltyOnly'))
-        const inputs = screen.getAllByLabelText(/^game\.penaltyOnly: /)
-        fireEvent.change(inputs[0], { target: { value: '2,5' } })
+        expect(screen.queryByText('game.loserPenalty')).not.toBeInTheDocument()
+        fireEvent.click(screen.getAllByRole('button', { name: 'Hans' })[0])
+        fireEvent.change(screen.getAllByLabelText(/^game\.manualPenalties: /)[0], { target: { value: '2,5' } })
         fireEvent.click(screen.getByText('submit-sheet'))
         await waitFor(() => expect(api.finishGame).toHaveBeenCalled())
         const body = vi.mocked(api.finishGame).mock.calls[0][2] as any
-        expect(body.winner_ref).toBeUndefined()
+        expect(body.winner_ref).toBe('p:1')
+        expect(body.loser_penalty).toBeUndefined()
         expect(Object.values(body.player_penalties)).toEqual([2.5])
-    })
-
-    it('opens the finish dialog in penalty-only mode for a penalty_only game', async () => {
-        const { useActiveEvening } = await import('@/hooks/useEvening.ts')
-        const ev = {...ACTIVE_EVENING, games: [{...RUNNING_GAME, penalty_only: true}]}
-        vi.mocked(useActiveEvening).mockReturnValue({ evening: ev as any, invalidate: vi.fn() } as any)
-        await renderGamesPage()
-        const finishBtn = screen.getAllByText(/game\.finish|game\.start/).find(b => b.textContent?.includes('game.finish'))
-        fireEvent.click(finishBtn!)
-        await waitFor(() => screen.getByTestId('sheet'))
-        expect((screen.getByLabelText('game.penaltyOnly') as HTMLInputElement).checked).toBe(true)
     })
 })

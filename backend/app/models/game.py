@@ -35,7 +35,7 @@ class GameTemplate(Base):
     turn_mode = Column(String(20), nullable=True)  # 'alternating' | 'block' (team games only)
     default_loser_penalty = Column(Float, default=0)
     per_point_penalty = Column(Float, default=0)
-    penalty_only = Column(Boolean, default=False, nullable=False, server_default=expression.false())  # no winner/loser, only per-player penalties
+    manual_penalties = Column(Boolean, default=False, nullable=False, server_default=expression.false())  # no winner/loser, only per-player penalties
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     club = relationship("Club", back_populates="game_templates")
@@ -59,7 +59,7 @@ class Game(Base):
     active_player_id = Column(Integer, ForeignKey("evening_player.id", ondelete="SET NULL"), nullable=True)
     loser_penalty = Column(Float, default=0)
     per_point_penalty = Column(Float, default=0)  # extra penalty per point diff from winner
-    penalty_only = Column(Boolean, default=False, nullable=False, server_default=expression.false())
+    manual_penalties = Column(Boolean, default=False, nullable=False, server_default=expression.false())
     note = Column(Text, nullable=True)
     status = Column(String, default="open", nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=True)
