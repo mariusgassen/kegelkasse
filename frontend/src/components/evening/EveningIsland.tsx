@@ -234,7 +234,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
                         <TitleStack title={venue} subtitle={gameLine}/>
                         <MetricRow
                             metrics={[
-                                {label: t('island.pot'), value: <NumberText value={money}/>, color: ACCENT},
+                                {label: t('island.pot'), value: <NumberText value={eurFull(totals.penaltyEuro)}/>, color: ACCENT},
                                 {label: `🍺 ${t('drinks.beer')}`, value: <NumberText value={totals.beerRounds}/>},
                                 {label: `🥃 ${t('drinks.shots')}`, value: <NumberText value={totals.shotRounds}/>},
                             ]}
@@ -294,6 +294,7 @@ function EveningActivity({eveningId}: {eveningId: number}) {
         queryClient,
         open,
         money,
+        totals.penaltyEuro,
         gameLine,
         venue,
         timed,
