@@ -89,10 +89,24 @@ class TestPublicSchedule:
         _settings(db, club, True)
         _evening(db, club, 3)
         evening = client.get(URL).json()["evenings"][0]
-        assert set(evening) == {"id", "scheduled_at", "venue", "note", "attendees", "guest_requests_enabled"}
+        assert set(evening) == {"id", "scheduled_at", "venue", "note", "attendees", "guest_requests_enabled",
+                                "guest_penalty_cap"}
         assert evening["scheduled_at"].endswith("Z")
         assert evening["venue"] == "Kegelstube"
         assert evening["note"] == "Geheime Notiz"
+
+    def test_guest_penalty_cap_is_exposed(self, client: TestClient, db: Session, club: Club):
+        s = _settings(db, club, True)
+        s.extra = {**s.extra, "guest_penalty_cap": 15}
+        db.commit()
+        se = _evening(db, club, 3)
+        assert client.get(URL).json()["evenings"][0]["guest_penalty_cap"] == 15
+        assert client.get(f"{URL}/{se.id}").json()["evening"]["guest_penalty_cap"] == 15
+
+    def test_guest_penalty_cap_is_null_when_unset(self, client: TestClient, db: Session, club: Club):
+        _settings(db, club, True)
+        _evening(db, club, 3)
+        assert client.get(URL).json()["evenings"][0]["guest_penalty_cap"] is None
 
     def test_attendance_is_counted_without_personal_details(self, client: TestClient, db: Session, club: Club):
         _settings(db, club, True)

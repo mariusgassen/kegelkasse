@@ -237,7 +237,7 @@ class TestGuestRequestDecision:
         db.refresh(req)
         assert req.decided_by == user.id
         guest = db.query(ScheduledEveningGuest).filter(ScheduledEveningGuest.id == req.guest_id).one()
-        assert (guest.scheduled_evening_id, guest.name) == (se.id, "Anna Gast")
+        assert (guest.scheduled_evening_id, guest.name) == (se.id, "Anna")
         (_, to, subject, text, _html), _ = send.call_args
         assert to == "anna@example.com"
         assert subject == "Du bist dabei: Gastkegeln am 14.11.2099"
@@ -267,6 +267,15 @@ class TestGuestRequestDecision:
         assert guest.regular_member_id == member.id
         listed = client.get("/api/v1/club/regular-members", headers=auth_headers).json()
         assert any(m["id"] == member.id and m["is_guest"] for m in listed)
+
+    def test_approve_sets_first_name_as_nickname_for_new_guest(self, client, db, club, auth_headers):
+        se = _evening(db, club)
+        req = _request(db, club, se)
+        r, _ = self._decide(client, auth_headers, req.id, "approve")
+        assert r.status_code == 200
+        member = db.query(RegularMember).filter(RegularMember.club_id == club.id).one()
+        assert member.nickname == "Anna"
+        assert db.query(ScheduledEveningGuest).one().name == "Anna"
 
     def test_approve_links_same_named_known_guest(self, client, db, club, auth_headers):
         """A known guest with the same full name is linked instead of duplicated (case-insensitive)."""
