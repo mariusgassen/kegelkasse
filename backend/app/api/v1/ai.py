@@ -340,17 +340,17 @@ def _history_facts(db: Session, e: Evening, facts: dict) -> dict | None:
 
 
 RECAP_EVENING_PROMPT = (
-    "Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed. "
-    "Nenne den König und die Spielsieger (bei Teams: das Team mit seinen Mitgliedern; "
-    "Teamnamen sind keine Personen) und wer am meisten Strafen gezahlt hat. "
-    "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste ruhig, aber behandle sie nicht als Mitglieder (keine Stammgast-Aussagen). "
-    "Beim Präsidentenspiel entscheidet der Sieger, wer Präsident wird. Erstmals Dabeigewesene "
-    "und Rückkehrer nach längerer Pause darfst du kurz begrüßen. "
-    "Nutze den Abschnitt historie in <daten> für Einordnung (Rekorde, Serien, Vergleich zum Schnitt), "
-    "aber nur wenn sie etwas Auffälliges hergibt. Erwähne nur, was in <daten> steht: "
-    "Steht bei highlights \"KEINE ERFASST\", gab es kein Highlight - erwähne es nicht "
-    "und mache auch nichts anderes dazu. Fehlt eine Angabe, lass sie weg statt zu raten. "
-    "Maximal etwa 150 Wörter."
+    "Schreib einen kurzen, lustigen Rückblick auf diesen Kegelabend für den Vereins-Feed (etwa 150 Wörter). "
+    "Erzähl 2-3 Pointen des Abends, statt alles aufzuzählen, und schließe mit einem Satz, der sitzt. "
+    "Nenne auf jeden Fall den König, die Spielsieger und wer am meisten Strafen gezahlt hat. "
+    "Bei Teams nennst du das Team mit seinen Mitgliedern; Teamnamen sind keine Personen.\n\n"
+    "Nutze den Abschnitt historie nur, wenn er etwas Auffälliges hergibt (Rekord, Serie, deutlicher "
+    "Abstand zum Schnitt). Erstmals Dabeigewesene und Rückkehrer nach längerer Pause darfst du kurz "
+    "begrüßen. Beim Präsidentenspiel (gibt es nur einmal im Jahr) bestimmt der Sieger den Präsidenten.\n\n"
+    "Regeln: Erwähne nur, was in <daten> steht, und lass fehlende Angaben weg, statt zu raten. "
+    "Steht bei highlights \"KEINE ERFASST\", gab es keins, also erwähne keins. "
+    "Wer in gaeste steht, war Gast und kein Vereinsmitglied: nenne Gäste gern, aber ohne "
+    "Stammgast-Aussagen."
 )
 
 RECAP_SEASON_PROMPT = (
