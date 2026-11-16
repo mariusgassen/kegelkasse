@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.76.1](https://github.com/mariusgassen/kegelkasse/compare/v1.76.0...v1.76.1) (2026-11-16)
+
+
+### Dependencies
+
+* bump the production-dependencies group in /backend with 5 updates ([#646](https://github.com/mariusgassen/kegelkasse/issues/646)) ([ea3828b](https://github.com/mariusgassen/kegelkasse/commit/ea3828b698929c3de578bc5a071606ab510a1794))
+* bump the production-dependencies group in /frontend with 2 updates ([#645](https://github.com/mariusgassen/kegelkasse/issues/645)) ([3ab73ca](https://github.com/mariusgassen/kegelkasse/commit/3ab73cacf45903ca187724253b3fed4811d7f8f1))
+
 ## [1.76.0](https://github.com/mariusgassen/kegelkasse/compare/v1.75.0...v1.76.0) (2026-11-15)
 
 
