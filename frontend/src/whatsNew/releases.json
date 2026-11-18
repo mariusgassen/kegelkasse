@@ -1,6 +1,67 @@
 {
   "releases": [
     {
+      "version": "1.79.0",
+      "date": "2026-11-18",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "be5fa63",
+              "pr": 662,
+              "sha": "be5fa63",
+              "text": {
+                "en": "Dokument-Upload überarbeitet, Dokumente in der globalen Suche",
+                "de": "Dokument-Upload überarbeitet, Dokumente in der globalen Suche"
+              }
+            },
+            {
+              "key": "16957dd",
+              "pr": 653,
+              "sha": "16957dd",
+              "text": {
+                "en": "Neuigkeiten als ein Feed mit Filter (Start und Verein)",
+                "de": "Neuigkeiten als ein Feed mit Filter (Start und Verein)"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "28a51c5",
+              "pr": 660,
+              "sha": "28a51c5",
+              "text": {
+                "en": "Datenbank-Update nach dem Neuigkeiten-Feed wieder lauffähig",
+                "de": "Datenbank-Update nach dem Neuigkeiten-Feed wieder lauffähig"
+              }
+            },
+            {
+              "key": "32a1c6e",
+              "pr": 661,
+              "sha": "32a1c6e",
+              "text": {
+                "en": "Sheets öffnen wieder unterhalb der Top-Bar",
+                "de": "Sheets öffnen wieder unterhalb der oberen Leiste"
+              }
+            },
+            {
+              "key": "dbfd864",
+              "pr": 658,
+              "sha": "dbfd864",
+              "text": {
+                "en": "Sheets wieder vollständig sichtbar und KI-Analyse für Dokumente funktioniert wieder",
+                "de": "Sheets wieder vollständig sichtbar und KI-Analyse für Dokumente funktioniert wieder"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.78.0",
       "date": "2026-11-18",
       "sections": [
