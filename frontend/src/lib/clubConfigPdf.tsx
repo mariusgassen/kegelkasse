@@ -166,6 +166,7 @@ export function ClubConfigDocument({data: raw, branding}: { data: ClubConfigBund
         return [
             flags ? `${gt.name} (${flags})` : gt.name,
             templateMode(gt),
+            gt.description || '–',
             configEuro(gt.default_loser_penalty),
             configEuro(gt.per_point_penalty),
         ]
@@ -232,10 +233,11 @@ export function ClubConfigDocument({data: raw, branding}: { data: ClubConfigBund
                             <DataTable
                                 tint={tint}
                                 cols={[
-                                    {w: 180, head: 'Vorlage'},
-                                    {w: 105, head: 'Modus'},
-                                    {w: 120, head: 'Verliererstrafe', align: 'right'},
-                                    {w: 118, head: 'pro Punkt', align: 'right'},
+                                    {w: 120, head: 'Vorlage'},
+                                    {w: 80, head: 'Modus'},
+                                    {w: 143, head: 'Kommentar'},
+                                    {w: 100, head: 'Verliererstrafe', align: 'right'},
+                                    {w: 80, head: 'pro Punkt', align: 'right'},
                                 ]}
                                 rows={templateRows}
                             />
