@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.78.0](https://github.com/mariusgassen/kegelkasse/compare/v1.77.0...v1.78.0) (2026-11-18)
+
+
+### Features
+
+* KI füllt beim Dokument-Upload das Formular aus und fasst Änderungen zusammen ([#656](https://github.com/mariusgassen/kegelkasse/issues/656)) ([e6a1f20](https://github.com/mariusgassen/kegelkasse/commit/e6a1f20e0a820925f94e47fa8067b291d4cb3c4e))
+* Kommentare der Spielvorlagen im Vereinseinstellungen-Export ([#651](https://github.com/mariusgassen/kegelkasse/issues/651)) ([e4e8c28](https://github.com/mariusgassen/kegelkasse/commit/e4e8c281c816cf6a5d71724820122e50401d0814))
+
+
+### Bug Fixes
+
+* **dokumente:** Upload robuster prüfen, KI-Ausfüllen nur mit Datei und Fehler über Sheets anzeigen ([#657](https://github.com/mariusgassen/kegelkasse/issues/657)) ([6a07168](https://github.com/mariusgassen/kegelkasse/commit/6a071683257461987e49311c32d82f9239e502f2))
+* PDFs öffnen in einer App-Ansicht und lassen sich als echte Datei teilen ([#655](https://github.com/mariusgassen/kegelkasse/issues/655)) ([f9b0f69](https://github.com/mariusgassen/kegelkasse/commit/f9b0f690bd3c50663debdc6d23d2efff34024030))
+* Vereinseinstellungen übersichtlicher in drei Bereiche gegliedert ([#652](https://github.com/mariusgassen/kegelkasse/issues/652)) ([4a1b0bd](https://github.com/mariusgassen/kegelkasse/commit/4a1b0bdfa2203a8c98ef88c2d83545792b238cb7))
+
 ## [1.77.0](https://github.com/mariusgassen/kegelkasse/compare/v1.76.1...v1.77.0) (2026-11-18)
 
 
