@@ -1,6 +1,33 @@
 {
   "releases": [
     {
+      "version": "1.76.1",
+      "date": "2026-11-16",
+      "sections": [
+        {
+          "type": "deps",
+          "items": [
+            {
+              "key": "ea3828b",
+              "pr": 646,
+              "sha": "ea3828b",
+              "text": {
+                "en": "bump the production-dependencies group in /backend with 5 updates"
+              }
+            },
+            {
+              "key": "3ab73ca",
+              "pr": 645,
+              "sha": "3ab73ca",
+              "text": {
+                "en": "bump the production-dependencies group in /frontend with 2 updates"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.76.0",
       "date": "2026-11-15",
       "sections": [
