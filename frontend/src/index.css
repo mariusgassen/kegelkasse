@@ -596,11 +596,12 @@
     }
 
     .bottom-sheet {
-        @apply fixed inset-0 z-50 flex items-end justify-center;
+        @apply fixed inset-x-0 bottom-0 z-50 flex items-end justify-center;
+        /* Start below the app header (safe-area spacer + top bar, published by RootLayout) so sheets
+           never cover it; 44px fallback keeps sheets clear of the notch where it isn't mounted. */
+        top: var(--app-header-h, env(safe-area-inset-top, 44px));
         background: rgba(0, 0, 0, .8);
         backdrop-filter: blur(6px);
-        /* Prevent sheet from sliding behind the notch/status bar in PWA mode */
-        padding-top: env(safe-area-inset-top, 44px);
     }
 
     .sheet-panel {
