@@ -268,3 +268,14 @@ def test_analyze_schema_enum_matches_declared_type():
     assert branches["string"]["enum"] == ["satzung", "geschaeftsordnung", "protokoll", "sonstiges"]
     for name, p in _ANALYZE_SCHEMA["properties"].items():
         assert not isinstance(p.get("type"), list), name
+
+
+def test_analyze_prompt_asks_for_markdown_and_passes_hint(client, admin, claude):
+    first = _upload(client, admin, version="1.0").json()
+    res = _analyze(client, admin, group_id=first["group_id"], hint="Achte auf die Beiträge")
+    assert res.status_code == 200
+    call = claude.calls[0]
+    assert "Markdown" in call["system"]
+    text = call["messages"][0]["content"][-1]["text"]
+    assert "Achte auf die Beiträge" in text
+    assert '"bisherige_version": "1.0"' in text

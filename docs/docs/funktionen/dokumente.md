@@ -8,7 +8,7 @@ Hier liegen die Vereinsdokumente: Satzung, Geschäftsordnung, Protokolle und Son
 
 ## Versionen
 
-Eine neue Fassung lädst du über **Neue Version hochladen** am bestehenden Dokument hoch. Die aktuelle Version steht oben, ältere bleiben unter **Frühere Versionen** abrufbar. Jede Version behält ihre eigenen Angaben (Version, Beschlussdatum, Gültig ab) und ihre eigenen Bestätigungen.
+Eine neue Fassung lädst du über das Menü (⋮) am bestehenden Dokument mit **Neue Version hochladen** hoch. Die Versionsnummer wird automatisch vorgeschlagen (aus „1.0“ wird „1.1“) und lässt sich jederzeit überschreiben. Die aktuelle Version steht oben, ältere bleiben unter **Frühere Versionen** abrufbar. Jede Version behält ihre eigenen Angaben (Version, Beschlussdatum, Gültig ab) und ihre eigenen Bestätigungen.
 
 ## Bestätigen
 
@@ -16,4 +16,6 @@ Jedes Mitglied kann pro Version **Kenntnis genommen** oder **Zugestimmt** wähle
 
 ## ✨ Mit KI ausfüllen
 
-Wenn die KI im Verein aktiv ist (siehe [KI-Funktionen](ki)), erscheint beim Hochladen der Knopf **Mit KI ausfüllen**. Erst wenn du ihn drückst, wird das PDF zur Auswertung an die Claude-API geschickt. Die KI schlägt Titel, Art, Version, Beschlussdatum und Gültig-ab-Datum vor und schreibt eine kurze **Zusammenfassung**. Bei einer neuen Version vergleicht sie zusätzlich mit der bisherigen Fassung und fasst die **Änderungen zur Vorversion** zusammen. Alle Vorschläge kannst du vor dem Hochladen ändern. Die Zusammenfassung steht danach für alle Mitglieder auf der Dokumentkarte. KI-Texte können Fehler enthalten, prüfe sie deshalb gegen das Dokument.
+Dokumente findest du auch in der globalen Suche (🔍 oben oder Strg/Cmd+K): nach Titel, Dateiname, Version oder Stichwort aus der Zusammenfassung. Der Treffer öffnet die Seite und hebt das Dokument hervor, bei einer älteren Version klappt der Verlauf auf.
+
+Wenn die KI im Verein aktiv ist (siehe [KI-Funktionen](ki)), erscheint beim Hochladen der Knopf **Mit KI ausfüllen**. Erst wenn du ihn drückst, wird das PDF zur Auswertung an die Claude-API geschickt. Die KI schlägt Titel, Art, Version, Beschlussdatum und Gültig-ab-Datum vor und schreibt eine kurze **Zusammenfassung**. Bei einer neuen Version vergleicht sie zusätzlich mit der bisherigen Fassung und fasst die **Änderungen zur Vorversion** zusammen. Mit dem optionalen **Hinweis an die KI** lenkst du die Auswertung (z. B. „Achte auf die Beiträge“). Alle Vorschläge kannst du vor dem Hochladen ändern. Zusammenfassung und Änderungen sind Markdown-Felder (`- Stichpunkt`, `**fett**`) mit Vorschau. Sie stehen danach für alle Mitglieder auf der Dokumentkarte. KI-Texte können Fehler enthalten, prüfe sie deshalb gegen das Dokument.

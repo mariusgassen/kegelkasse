@@ -26,6 +26,13 @@ vi.mock('@/store/app.ts', () => ({
     isAdmin: vi.fn(() => false),
 }))
 
+const mockHashParams = vi.hoisted(() => ({value: ''}))
+vi.mock('@/utils/hashParams.ts', () => ({
+    getHashParams: () => new URLSearchParams(mockHashParams.value),
+    clearHashParams: vi.fn(),
+}))
+const flashMock = vi.hoisted(() => vi.fn(() => () => {}))
+vi.mock('@/hooks/useDeepLink.ts', () => ({useDeepLinkVersion: () => 'v', flashDeepLinkTarget: flashMock}))
 const aiOn = vi.hoisted(() => ({value: false}))
 const apiMock = vi.hoisted(() => ({
     analyzeClubDocument: vi.fn(),
@@ -67,6 +74,7 @@ beforeEach(() => {
     apiMock.deleteClubDocument.mockResolvedValue(undefined)
     vi.mocked(isAdmin).mockReturnValue(false)
     aiOn.value = false
+    mockHashParams.value = ''
 })
 
 describe('ClubDocumentsPage', () => {
@@ -121,7 +129,8 @@ describe('ClubDocumentsPage', () => {
     it('lets an admin delete a document after confirmation', async () => {
         vi.mocked(isAdmin).mockReturnValue(true)
         renderPage()
-        fireEvent.click(await screen.findByTestId('document-delete'))
+        fireEvent.click(await screen.findByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('document.delete'))
         fireEvent.click(await screen.findByText('action.confirmDelete'))
         await waitFor(() => expect(api.deleteClubDocument).toHaveBeenCalledWith(7))
     })
@@ -132,8 +141,8 @@ describe('ClubDocumentsPage', () => {
             member_count: 5, can_upload: false,
         })
         renderPage()
-        expect((await screen.findByTestId('document-summary')).textContent).toBe('- Zweck')
-        expect(screen.getByTestId('document-change-summary').textContent).toContain('- Beitrag erhöht')
+        expect((await screen.findByTestId('document-summary')).textContent).toBe('Zweck')
+        expect(screen.getByTestId('document-change-summary').textContent).toContain('Beitrag erhöht')
     })
 
     it('hides the AI button when AI is off', async () => {
@@ -153,12 +162,13 @@ describe('ClubDocumentsPage', () => {
             effective_date: null, summary: '- Zweck', change_summary: '- Beitrag erhöht',
         })
         renderPage()
-        fireEvent.click(await screen.findByTestId('document-new-version'))
+        fireEvent.click(await screen.findByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('document.upload.newVersion'))
         const file = new File(['%PDF'], 'S.pdf', {type: 'application/pdf'})
         fireEvent.change(screen.getByTestId('document-file-input'), {target: {files: [file]}})
         fireEvent.click(screen.getByTestId('document-ai-fill'))
 
-        await waitFor(() => expect(api.analyzeClubDocument).toHaveBeenCalledWith(file, 'g1'))
+        await waitFor(() => expect(api.analyzeClubDocument).toHaveBeenCalledWith(file, 'g1', undefined))
         await waitFor(() => expect((screen.getByLabelText('document.upload.version') as HTMLInputElement).value).toBe('3.0'))
         expect((screen.getByLabelText('document.changeSummary') as HTMLTextAreaElement).value).toBe('- Beitrag erhöht')
         fireEvent.change(screen.getByLabelText('document.summary'), {target: {value: '- Zweck (geprüft)'}})
@@ -167,5 +177,69 @@ describe('ClubDocumentsPage', () => {
         await waitFor(() => expect(api.uploadClubDocument).toHaveBeenCalledWith(expect.objectContaining({
             group_id: 'g1', version: '3.0', summary: '- Zweck (geprüft)', change_summary: '- Beitrag erhöht',
         })))
+    })
+
+    it('renders summaries as Markdown on the card', async () => {
+        apiMock.listClubDocuments.mockResolvedValue({
+            documents: [{...DOC, summary: '- Beitrag **60 €**', change_summary: null}],
+            member_count: 5, can_upload: false,
+        })
+        renderPage()
+        const box = await screen.findByTestId('document-summary')
+        expect(box.querySelector('strong')?.textContent).toBe('60 €')
+        expect(box.querySelector('li')).toBeTruthy()
+    })
+
+    it('suggests the next version number for a new version and keeps it editable', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        renderPage()
+        fireEvent.click(await screen.findByLabelText('action.more'))
+        fireEvent.click(await screen.findByText('document.upload.newVersion'))
+        const input = screen.getByLabelText('document.upload.version') as HTMLInputElement
+        expect(input.value).toBe('2.1')            // DOC.version is 2.0
+        fireEvent.change(input, {target: {value: '3.0'}})
+        expect(input.value).toBe('3.0')
+    })
+
+    it('previews the summary as Markdown and passes the AI hint', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        aiOn.value = true
+        apiMock.analyzeClubDocument.mockResolvedValue({
+            title: null, document_type: null, version: null, decision_date: null,
+            effective_date: null, summary: null, change_summary: null,
+        })
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-add-button'))
+        const file = new File(['%PDF'], 'S.pdf', {type: 'application/pdf'})
+        fireEvent.change(screen.getByTestId('document-file-input'), {target: {files: [file]}})
+        fireEvent.change(screen.getByLabelText('document.summary'), {target: {value: '**wichtig**'}})
+        fireEvent.click(screen.getByTestId('doc-summary-preview-tab'))
+        expect(screen.getByTestId('doc-summary-preview').querySelector('strong')?.textContent).toBe('wichtig')
+
+        fireEvent.change(screen.getByLabelText('document.ai.hintLabel'), {target: {value: 'Beiträge'}})
+        fireEvent.click(screen.getByTestId('document-ai-fill'))
+        await waitFor(() => expect(api.analyzeClubDocument).toHaveBeenCalledWith(file, undefined, 'Beiträge'))
+    })
+
+    it('closes the upload dialog with the cancel button', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-add-button'))
+        fireEvent.click(screen.getByTestId('document-cancel'))
+        expect(screen.queryByTestId('document-upload-sheet')).toBeNull()
+    })
+
+    it('flashes the document a search deep link points to', async () => {
+        mockHashParams.value = 'item=7'
+        renderPage()
+        await screen.findByTestId('document-card')
+        await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-7'))
+    })
+
+    it('opens the history first when the deep link points to an older version', async () => {
+        mockHashParams.value = 'item=5'
+        renderPage()
+        await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-5'))
+        expect(document.getElementById('document-5')).toBeTruthy()
     })
 })

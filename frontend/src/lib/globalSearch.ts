@@ -7,7 +7,7 @@
 import type {Locale} from '@/i18n'
 import type {RoutePage} from '@/lib/legacyHash'
 
-export type SearchResultKind = 'member' | 'account' | 'evening' | 'announcement' | 'trip' | 'sticker' | 'payment' | 'expense'
+export type SearchResultKind = 'member' | 'account' | 'evening' | 'announcement' | 'trip' | 'sticker' | 'document' | 'payment' | 'expense'
 
 /** A typed router navigation target — `to` is constrained to a real route path. */
 export interface SearchNav {
@@ -47,6 +47,17 @@ export interface TripLike {
     destination: string
     date: string
     note?: string | null
+}
+
+export interface DocumentLike {
+    id: number
+    title: string
+    version?: string | null
+    document_type?: string
+    file_name?: string | null
+    summary?: string | null
+    change_summary?: string | null
+    is_current?: boolean
 }
 
 export interface StickerLike {
@@ -162,6 +173,35 @@ export function searchAnnouncements(query: string, items: AnnouncementLike[]): S
             id: a.id,
             title: a.title,
             nav: {to: '/committee', search: {tab: 'announcements', item: a.id}},
+        }))
+}
+
+const DOCUMENT_KEYWORDS = ['dokument', 'dokumente', 'document', 'documents', 'unterlagen']
+const DOCUMENT_TYPE_WORDS: Record<string, string[]> = {
+    satzung: ['satzung', 'statutes'],
+    geschaeftsordnung: ['geschäftsordnung', 'geschaeftsordnung', 'rules of procedure'],
+    protokoll: ['protokoll', 'minutes'],
+}
+
+/** Club documents (Satzung, Geschäftsordnung, ...): title, file name, version, type word or summary text. A bare "Dokumente" lists the current ones. */
+export function searchDocuments(query: string, items: DocumentLike[]): SearchResult[] {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    const listAll = DOCUMENT_KEYWORDS.includes(q)
+    return items
+        .filter(d => listAll
+            ? d.is_current !== false
+            : matches(d.title, q) || matches(d.file_name, q) || matches(d.version, q) || matches(d.summary, q)
+                || matches(d.change_summary, q)
+                || (DOCUMENT_TYPE_WORDS[d.document_type ?? '']?.some(w => w.includes(q)) ?? false))
+        .sort((a, b) => Number(b.is_current !== false) - Number(a.is_current !== false))
+        .slice(0, RESULT_LIMIT)
+        .map(d => ({
+            kind: 'document' as const,
+            id: d.id,
+            title: d.title,
+            subtitle: d.version ? `v${d.version}` : undefined,
+            nav: {to: '/documents', search: {item: d.id}},
         }))
 }
 
