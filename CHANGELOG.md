@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.79.1](https://github.com/mariusgassen/kegelkasse/compare/v1.79.0...v1.79.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* Dateiauswahl im Dokument-Upload ohne doppelten Text ([#664](https://github.com/mariusgassen/kegelkasse/issues/664)) ([bd6c71e](https://github.com/mariusgassen/kegelkasse/commit/bd6c71ec22163789f6ffb54206e54844ca4f639b))
+* Griff der Sheets bleibt auch bei langen Formularen sichtbar ([#663](https://github.com/mariusgassen/kegelkasse/issues/663)) ([2a29668](https://github.com/mariusgassen/kegelkasse/commit/2a2966888979451a53dcf6ee85ffa13ca8d65cd0))
+
 ## [1.79.0](https://github.com/mariusgassen/kegelkasse/compare/v1.78.0...v1.79.0) (2026-11-18)
 
 
