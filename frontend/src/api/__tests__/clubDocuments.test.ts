@@ -89,30 +89,19 @@ describe('api.analyzeClubDocument', () => {
 })
 
 describe('api.downloadClubDocument', () => {
-    it('downloads the authenticated blob under the stored file name', async () => {
+    it('opens the authenticated PDF in the in-app viewer under the stored file name', async () => {
         const {api} = await import('../client')
         mockFetch.mockResolvedValueOnce(new Response('%PDF-1.4', {status: 200, headers: {'Content-Type': 'application/pdf'}}))
 
-        const click = vi.fn()
-        const create = document.createElement.bind(document)
-        vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-            const el = create(tag)
-            if (tag === 'a') el.click = click
-            return el
-        })
-        const createObjectURL = vi.fn(() => 'blob:doc')
-        const revokeObjectURL = vi.fn()
-        vi.stubGlobal('URL', {...URL, createObjectURL, revokeObjectURL})
+        const {usePdfViewer} = await import('@/store/pdfViewer')
 
         await api.downloadClubDocument(7, 'Satzung_KCE.pdf')
 
         expect(mockFetch).toHaveBeenCalledWith('/api/v1/club/documents/7/download', expect.objectContaining({
             headers: expect.objectContaining({Authorization: 'Bearer test-jwt-token'}),
         }))
-        expect(createObjectURL).toHaveBeenCalledOnce()
-        expect(click).toHaveBeenCalledOnce()
-        expect(revokeObjectURL).toHaveBeenCalledWith('blob:doc')
-        vi.restoreAllMocks()
+        expect(usePdfViewer.getState().file?.name).toBe('Satzung_KCE.pdf')
+        usePdfViewer.getState().close()
     })
 })
 

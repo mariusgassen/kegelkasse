@@ -42,6 +42,7 @@ import {UpdatePrompt} from './components/UpdatePrompt'
 import {WhatsNewNotice} from './components/WhatsNewNotice'
 import {NotificationPrompt} from './components/NotificationPrompt'
 import {ProfileSheet} from './components/ProfileSheet'
+import {PdfViewerSheet} from './components/PdfViewerSheet'
 import {NotificationPanel} from './components/NotificationPanel'
 import {GlobalSearch} from './components/GlobalSearch'
 import {BowlingGame} from './components/BowlingGame'
@@ -363,6 +364,7 @@ export function RootLayout() {
 
             <NotificationPrompt/>
             <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
+            <PdfViewerSheet/>
             <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
             {bowlingOpen && <BowlingGame onClose={() => setBowlingOpen(false)}/>}

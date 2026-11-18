@@ -1564,6 +1564,9 @@ export const en = {
     "media.linkCopied": "Link copied",
     "media.copyFailed": "Copy failed",
     "media.saveFailed": "Save failed",
+    "pdf.share": "Share",
+    "pdf.download": "Download",
+    "pdf.shareFailed": "Sharing failed",
 
     "season.tab": "Season Close",
     "season.title": "Season Closing",
