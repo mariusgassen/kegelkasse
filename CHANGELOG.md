@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.77.0](https://github.com/mariusgassen/kegelkasse/compare/v1.76.1...v1.77.0) (2026-11-18)
+
+
+### Features
+
+* PDF-Export der Vereinseinstellungen im Adminbereich ([#648](https://github.com/mariusgassen/kegelkasse/issues/648)) ([406dc9b](https://github.com/mariusgassen/kegelkasse/commit/406dc9b9f7847cf08e4aa52097a7d12c09c5f887))
+* Vereinsdokumente mit Versionen und Bestätigungs-Nachweis ([#649](https://github.com/mariusgassen/kegelkasse/issues/649)) ([7429e3d](https://github.com/mariusgassen/kegelkasse/commit/7429e3dd12b10eb8044bdbcdbc26d799ce73a7fc))
+
 ## [1.76.1](https://github.com/mariusgassen/kegelkasse/compare/v1.76.0...v1.76.1) (2026-11-16)
 
 

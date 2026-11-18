@@ -1,6 +1,35 @@
 {
   "releases": [
     {
+      "version": "1.77.0",
+      "date": "2026-11-18",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "406dc9b",
+              "pr": 648,
+              "sha": "406dc9b",
+              "text": {
+                "en": "PDF-Export der Vereinseinstellungen im Adminbereich",
+                "de": "PDF-Export der Vereinseinstellungen im Adminbereich"
+              }
+            },
+            {
+              "key": "7429e3d",
+              "pr": 649,
+              "sha": "7429e3d",
+              "text": {
+                "en": "Vereinsdokumente mit Versionen und Bestätigungs-Nachweis",
+                "de": "Vereinsdokumente mit Versionen und Bestätigungs-Nachweis"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.76.1",
       "date": "2026-11-16",
       "sections": [
