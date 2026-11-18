@@ -1,6 +1,68 @@
 {
   "releases": [
     {
+      "version": "1.78.0",
+      "date": "2026-11-18",
+      "sections": [
+        {
+          "type": "feat",
+          "items": [
+            {
+              "key": "e6a1f20",
+              "pr": 656,
+              "sha": "e6a1f20",
+              "text": {
+                "en": "KI füllt beim Dokument-Upload das Formular aus und fasst Änderungen zusammen",
+                "de": "KI füllt beim Dokument-Upload das Formular aus und fasst Änderungen zusammen"
+              }
+            },
+            {
+              "key": "e4e8c28",
+              "pr": 651,
+              "sha": "e4e8c28",
+              "text": {
+                "en": "Kommentare der Spielvorlagen im Vereinseinstellungen-Export",
+                "de": "Kommentare der Spielvorlagen im Vereinseinstellungen-Export"
+              }
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "6a07168",
+              "scope": "dokumente",
+              "pr": 657,
+              "sha": "6a07168",
+              "text": {
+                "en": "Upload robuster prüfen, KI-Ausfüllen nur mit Datei und Fehler über Sheets anzeigen",
+                "de": "Upload robuster prüfen, KI-Ausfüllen nur mit Datei und Fehler über Sheets anzeigen"
+              }
+            },
+            {
+              "key": "f9b0f69",
+              "pr": 655,
+              "sha": "f9b0f69",
+              "text": {
+                "en": "PDFs öffnen in einer App-Ansicht und lassen sich als echte Datei teilen",
+                "de": "PDFs öffnen in einer App-Ansicht und lassen sich als echte Datei teilen"
+              }
+            },
+            {
+              "key": "4a1b0bd",
+              "pr": 652,
+              "sha": "4a1b0bd",
+              "text": {
+                "en": "Vereinseinstellungen übersichtlicher in drei Bereiche gegliedert",
+                "de": "Vereinseinstellungen übersichtlicher in drei Bereiche gegliedert"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.77.0",
       "date": "2026-11-18",
       "sections": [
