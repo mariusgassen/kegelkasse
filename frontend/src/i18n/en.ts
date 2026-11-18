@@ -29,6 +29,7 @@ export const en = {
     "action.loading": "Loading…",
     "action.print": "Print / PDF",
     "action.clear": "Clear",
+    "action.remove": "Remove",
     "action.undo": "Undo",
     "action.back": "Back",
     "auth.login": "Sign in",

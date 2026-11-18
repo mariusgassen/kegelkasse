@@ -129,15 +129,24 @@ function UploadSheet({group, onClose, onUploaded}: {
                                onChange={e => setEffectiveDate(e.target.value)}/>
                     </Field>
                 </div>
-                <Field label={t('document.upload.file')} htmlFor="doc-file" hint={t('document.upload.hint')}>
+                <Field label={t('document.upload.file')} htmlFor="doc-file" hint={!file ? t('document.upload.hint') : undefined}>
                     <input id="doc-file" type="file" accept="application/pdf" className="kce-input w-full"
                            data-testid="document-file-input"
-                           onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }}/>
+                           onChange={e => setFile(e.target.files?.[0] ?? null)}/>
+                    {file && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2 text-xs">
+                            <span className="truncate" data-testid="document-file-name">📄 {file.name}</span>
+                            <button type="button" className="text-muted hover:text-ink flex-shrink-0"
+                                    onClick={() => setFile(null)} aria-label={t('action.remove')}>
+                                ✕
+                            </button>
+                        </div>
+                    )}
                 </Field>
-                {aiOn && file && (
+                {aiOn && (
                     <div>
                         <Button variant="secondary" block data-testid="document-ai-fill"
-                                disabled={analyzing || busy || !isOnline} onClick={analyze}>
+                                disabled={!file || analyzing || busy || !isOnline} onClick={analyze}>
                             <Sparkles size={14} aria-hidden="true"/>
                             {analyzing ? t('document.ai.filling') : t('document.ai.fill')}
                         </Button>
