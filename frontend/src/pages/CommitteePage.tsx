@@ -4,6 +4,7 @@
  * (is_committee) and admins can create/edit/delete Kegelfahrten.
  */
 import {useEffect, useMemo, useState} from 'react'
+import {Plus} from 'lucide-react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
@@ -903,10 +904,10 @@ export function CommitteePage() {
     }, [announcements, trips, polls])
 
     const FILTERS = [
-        {id: 'all', icon: '', label: t('home.filter.all')},
-        {id: 'announcements', icon: '📣', label: t('committee.tab.announcements')},
-        {id: 'polls', icon: '🗳️', label: t('committee.tab.polls')},
-        {id: 'trips', icon: '🚌', label: t('committee.tab.trips')},
+        {id: 'all', label: t('home.filter.all')},
+        {id: 'announcements', label: t('committee.tab.announcements')},
+        {id: 'polls', label: t('committee.tab.polls')},
+        {id: 'trips', label: t('committee.tab.trips')},
     ] as const
 
     const loading = l1 || l2 || l3
@@ -923,27 +924,28 @@ export function CommitteePage() {
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
             {/* Header */}
             <div className="flex-shrink-0 px-3 pt-3 pb-0">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="sec-heading">{t('committee.title')}</div>
+                <div className="flex items-center gap-2 mb-2">
+                    <input
+                        className="kce-input flex-1 min-w-0"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder={t('committee.search')}
+                    />
+                    <Button type="button" variant="primary" aria-label={t('committee.new')}
+                            className="w-9 h-9 flex-shrink-0 flex items-center justify-center p-0"
+                            onClick={() => setMenuOpen(true)}>
+                        <Plus size={18} strokeWidth={2.5} aria-hidden="true"/>
+                    </Button>
                 </div>
-                <Button variant="primary" block className="mb-3" onClick={() => setMenuOpen(true)}>
-                    + {t('committee.new')}
-                </Button>
-                <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label={t('committee.title')}>
+                <div className="flex gap-1.5 mb-3 overflow-x-auto" role="group" aria-label={t('committee.title')}>
                     {FILTERS.map(f => (
                         <button key={f.id} type="button" aria-pressed={tab === f.id}
-                                className={`chip ${tab === f.id ? 'active' : ''}`}
+                                className={`chip flex-shrink-0 whitespace-nowrap ${tab === f.id ? 'active' : ''}`}
                                 onClick={() => setTab(f.id)}>
-                            {f.icon && <span aria-hidden="true">{f.icon} </span>}{f.label}
+                            {f.label}
                         </button>
                     ))}
                 </div>
-                <input
-                    className="kce-input mb-3"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder={t('committee.search')}
-                />
             </div>
 
             <div className="page-scroll px-3 pb-24">

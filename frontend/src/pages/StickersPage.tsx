@@ -337,7 +337,9 @@ export function StickersPage() {
         setTarget(parseInt(item, 10))
         setHighlightComment(comment ? parseInt(comment, 10) : null)
         if (tab !== 'feed') setTab('feed')
-        clearHashParams()
+        // The URL params are cleared only once the card has been shown (below): the page can be
+        // remounted right after arriving via client-side navigation, and a remounted page must
+        // still find the deep link instead of losing the target state it was just given.
     }, [hashVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
     function extraNamesFor(s: Sticker): string[] {
@@ -351,7 +353,12 @@ export function StickersPage() {
     const posters = posterNames(stickers)
 
     useEffect(() => {
-        if (target === null || tab !== 'feed' || !stickers.some(s => s.id === target)) return
+        if (target === null || tab !== 'feed') return
+        if (!stickers.some(s => s.id === target)) {
+            // Unknown sticker (deleted / not yet loaded): give up once the list has arrived.
+            if (!isLoading) { setTarget(null); clearHashParams() }
+            return
+        }
         // A deep link may point past the cards rendered so far: render up to it first.
         const at = shown.findIndex(s => s.id === target)
         if (at < 0) return
@@ -360,6 +367,7 @@ export function StickersPage() {
         stopFlash.current?.()
         stopFlash.current = flashDeepLinkTarget(`sticker-${target}`)
         setTarget(null)
+        clearHashParams()
     }, [target, tab, stickers, shown, limit]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Render the feed a page at a time: every card also fetches its reactions/comments and photos.

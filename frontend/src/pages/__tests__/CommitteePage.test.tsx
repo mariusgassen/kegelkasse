@@ -117,7 +117,7 @@ async function clickCardAction(labelKey: string, index = 0) {
 
 // "+ New" (VGA only) opens a type picker sheet; pick the post type to open its form.
 async function openAdd(kind: 'announcement' | 'trip' | 'poll') {
-    fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+    fireEvent.click(await screen.findByLabelText('committee.new'))
     fireEvent.click(await screen.findByText((c) => c.includes(`committee.${kind}.add`)))
 }
 
@@ -191,12 +191,12 @@ describe('CommitteePage — page structure', () => {
         vi.clearAllMocks()
     })
 
-    it('shows the committee.title heading', async () => {
+    it('has no page heading and keeps the filters on one non-wrapping row', async () => {
         await setupDefaultMocks()
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(screen.getByText('committee.title')).toBeInTheDocument()
-        })
+        const group = await screen.findByRole('group', { name: 'committee.title' })
+        expect(screen.queryByText('committee.title')).not.toBeInTheDocument()
+        expect(group.className).not.toContain('flex-wrap')
     })
 
     it('shows tab strip with announcements and trips tabs', async () => {
@@ -365,7 +365,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await renderCommitteePage()
         await waitFor(() => {
             expect(
-                screen.getByText((content) => content.includes('committee.new'))
+                screen.getByLabelText('committee.new')
             ).toBeInTheDocument()
         })
     })
@@ -374,7 +374,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await setupDefaultMocks()
         // Default mocks: isAdmin = false, user = null, regularMembers = []
         await renderCommitteePage()
-        fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+        fireEvent.click(await screen.findByLabelText('committee.new'))
         await screen.findByText((c) => c.includes('committee.announcement.add'))
         expect(screen.getByText((c) => c.includes('committee.poll.add'))).toBeInTheDocument()
         expect(screen.queryByText((c) => c.includes('committee.trip.add'))).not.toBeInTheDocument()
@@ -384,7 +384,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await setupDefaultMocks()
         await setupAsAdmin()
         await renderCommitteePage()
-        fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+        fireEvent.click(await screen.findByLabelText('committee.new'))
         expect(await screen.findByText((c) => c.includes('committee.trip.add'))).toBeInTheDocument()
     })
 
@@ -394,7 +394,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await renderCommitteePage()
         await waitFor(() => {
             expect(
-                screen.getByText((content) => content.includes('committee.new'))
+                screen.getByLabelText('committee.new')
             ).toBeInTheDocument()
         })
     })
@@ -540,7 +540,7 @@ describe('CommitteePage — trips CRUD', () => {
         await setupWithTrips()
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText(/committee\.new/)).toBeInTheDocument()
+            expect(screen.getByLabelText('committee.new')).toBeInTheDocument()
         })
     })
 
@@ -1007,7 +1007,7 @@ describe('CommitteePage — polls admin actions', () => {
         await setupPollsMocks([])
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText(/committee\.new/)).toBeInTheDocument()
+            expect(screen.getByLabelText('committee.new')).toBeInTheDocument()
         })
     })
 
