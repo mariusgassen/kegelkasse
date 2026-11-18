@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.79.0](https://github.com/mariusgassen/kegelkasse/compare/v1.78.0...v1.79.0) (2026-11-18)
+
+
+### Features
+
+* Dokument-Upload überarbeitet, Dokumente in der globalen Suche ([#662](https://github.com/mariusgassen/kegelkasse/issues/662)) ([be5fa63](https://github.com/mariusgassen/kegelkasse/commit/be5fa633e44b2ff5658e8916c928f3283033d027))
+* Neuigkeiten als ein Feed mit Filter (Start und Verein) ([#653](https://github.com/mariusgassen/kegelkasse/issues/653)) ([16957dd](https://github.com/mariusgassen/kegelkasse/commit/16957dd537371b94b6623075962ebdbc50b00a10))
+
+
+### Bug Fixes
+
+* Datenbank-Update nach dem Neuigkeiten-Feed wieder lauffähig ([#660](https://github.com/mariusgassen/kegelkasse/issues/660)) ([28a51c5](https://github.com/mariusgassen/kegelkasse/commit/28a51c53fb16a9c2829676a94147dce5118ff837))
+* Sheets öffnen wieder unterhalb der Top-Bar ([#661](https://github.com/mariusgassen/kegelkasse/issues/661)) ([32a1c6e](https://github.com/mariusgassen/kegelkasse/commit/32a1c6e8fbae3d7919d780657cde18827417c9f7))
+* Sheets wieder vollständig sichtbar und KI-Analyse für Dokumente funktioniert wieder ([#658](https://github.com/mariusgassen/kegelkasse/issues/658)) ([dbfd864](https://github.com/mariusgassen/kegelkasse/commit/dbfd86442d5325c4b93b4c7bf3c4bb847c4be43d))
+
 ## [1.78.0](https://github.com/mariusgassen/kegelkasse/compare/v1.77.0...v1.78.0) (2026-11-18)
 
 
