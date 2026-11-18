@@ -1916,6 +1916,8 @@ export const de = {
     "document.upload.file": "PDF-Datei",
     "document.upload.hint": "Nur PDF, maximal 10 MB.",
     "document.upload.submit": "Hochladen",
+    "document.upload.pick": "PDF auswählen",
+    "document.upload.removeFile": "Datei entfernen",
     "document.ai.fill": "Mit KI ausfüllen",
     "document.ai.filling": "KI liest das Dokument …",
     "document.ai.hint": "Schickt das PDF zur Auswertung an die KI (Claude API). Die Vorschläge kannst du vor dem Hochladen anpassen.",

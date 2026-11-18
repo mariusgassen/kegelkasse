@@ -1916,6 +1916,8 @@ export const en = {
     "document.upload.file": "PDF file",
     "document.upload.hint": "PDF only, max 10 MB.",
     "document.upload.submit": "Upload",
+    "document.upload.pick": "Choose PDF",
+    "document.upload.removeFile": "Remove file",
     "document.ai.fill": "Fill in with AI",
     "document.ai.filling": "AI is reading the document …",
     "document.ai.hint": "Sends the PDF to the AI (Claude API) for analysis. You can adjust the suggestions before uploading.",

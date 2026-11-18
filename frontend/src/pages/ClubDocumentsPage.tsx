@@ -5,7 +5,7 @@
  */
 import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {Sparkles} from 'lucide-react'
+import {FileText, Sparkles, X} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
@@ -77,6 +77,10 @@ function MarkdownField({id, label, value, onChange}: {
     )
 }
 
+function fileSize(bytes: number): string {
+    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
 function UploadSheet({group, onClose, onUploaded}: {
     group: ClubDocument | null
     onClose: () => void
@@ -98,6 +102,7 @@ function UploadSheet({group, onClose, onUploaded}: {
     const [busy, setBusy] = useState(false)
     const [analyzing, setAnalyzing] = useState(false)
     const aiOn = useAiEnabled('suggestions')
+    const fileInput = useRef<HTMLInputElement>(null)
 
     // The PDF only leaves the server for the Claude API when the admin asks for it explicitly.
     async function analyze() {
@@ -148,11 +153,30 @@ function UploadSheet({group, onClose, onUploaded}: {
         <Sheet open onClose={onClose} title={group ? t('document.upload.newVersion') : t('document.upload')}
                onSubmit={submit}>
             <div className="flex flex-col gap-3" data-testid="document-upload-sheet">
+                {/* Hidden native input + our own button/chip: the native control prints its own
+                    "Keine Datei ausgewählt" text next to the name and looks different on every device. */}
                 <Field label={t('document.upload.file')} htmlFor="doc-file" hint={t('document.upload.hint')}>
-                    <input id="doc-file" type="file" accept="application/pdf" className="kce-input w-full"
+                    <input ref={fileInput} id="doc-file" type="file" accept="application/pdf" className="hidden"
                            data-testid="document-file-input"
                            onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }}/>
-                    {file && <p className="text-xs text-muted mt-1 truncate">📄 {file.name}</p>}
+                    {file ? (
+                        <div className="kce-card p-2.5 flex items-center gap-2" data-testid="document-file-chip">
+                            <FileText size={18} className="text-muted flex-shrink-0" aria-hidden="true"/>
+                            <span className="text-sm flex-1 min-w-0 truncate">{file.name}</span>
+                            <span className="text-xs text-muted flex-shrink-0">{fileSize(file.size)}</span>
+                            <button type="button" aria-label={t('document.upload.removeFile')}
+                                    className="flex-shrink-0 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-surface-2"
+                                    data-testid="document-file-remove" onClick={() => setFile(null)}>
+                                <X size={16} aria-hidden="true"/>
+                            </button>
+                        </div>
+                    ) : (
+                        <Button variant="secondary" block data-testid="document-file-pick"
+                                onClick={() => fileInput.current?.click()}>
+                            <FileText size={16} aria-hidden="true"/>
+                            {t('document.upload.pick')}
+                        </Button>
+                    )}
                 </Field>
                 {aiOn && file && (
                     <div className="kce-card p-3 flex flex-col gap-2">
