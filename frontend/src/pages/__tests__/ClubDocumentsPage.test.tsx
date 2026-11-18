@@ -242,4 +242,18 @@ describe('ClubDocumentsPage', () => {
         await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-5'))
         expect(document.getElementById('document-5')).toBeTruthy()
     })
+
+    it('shows the chosen PDF as a chip once and lets the admin remove it', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-add-button'))
+        expect(screen.getByTestId('document-file-pick')).toBeTruthy()
+        fireEvent.change(screen.getByTestId('document-file-input'),
+            {target: {files: [new File(['%PDF'], 'GO_KCE.pdf', {type: 'application/pdf'})]}})
+        expect(screen.queryByTestId('document-file-pick')).toBeNull()
+        expect(screen.getAllByText('GO_KCE.pdf')).toHaveLength(1)
+        fireEvent.click(screen.getByTestId('document-file-remove'))
+        expect(screen.getByTestId('document-file-pick')).toBeTruthy()
+        expect(screen.queryByTestId('document-file-chip')).toBeNull()
+    })
 })
