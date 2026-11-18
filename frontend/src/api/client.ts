@@ -1057,6 +1057,29 @@ export const api = {
         URL.revokeObjectURL(url)
     },
 
+    // Club settings PDF — built here from the config-export bundle with the same PDF stack as
+    // the report; the JSON download above stays the portable backup/import format.
+    downloadClubConfigPdf: async (): Promise<void> => {
+        const bundle = await api.exportClubConfig()
+        // Imported on demand: the Forme WASM engine must not weigh on the main bundle.
+        const [{renderClubConfigPdf}, {loadReportBranding}] = await Promise.all([
+            import('@/lib/clubConfigPdf'), import('@/lib/reportBranding'),
+        ])
+        const branding = await loadReportBranding(await api.getClub().catch(() => undefined))
+        const bytes = await renderClubConfigPdf(bundle, branding)
+        const blob = new Blob([bytes as BlobPart], {type: 'application/pdf'})
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const slug = (bundle.club_name ?? 'club').toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'club'
+        a.download = `kegelkasse_einstellungen_${slug}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    },
+
     // Backups — pgbackrest (superadmin only)
     listBackups: () => request<{
         info: PgBackrestStanza[];

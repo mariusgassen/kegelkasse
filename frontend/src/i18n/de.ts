@@ -1231,6 +1231,7 @@ export const de = {
     "club.config.title": "Konfiguration exportieren/importieren",
     "club.config.hint": "Strafenarten, Spielvorlagen, Teams, Nadeln und Grundeinstellungen als Datei exportieren — z. B. zum Einrichten eines Test- oder Zweitvereins. Enthält keine Mitglieder, Kegelabende, Zahlungen, das Logo oder geheime Links (iCal/TV).",
     "club.config.export": "Exportieren",
+    "club.config.exportPdf": "Als PDF exportieren",
     "club.config.import": "Importieren",
     "club.config.importConfirm": "Dies ersetzt die aktuellen Strafenarten, Spielvorlagen, Teams und Nadeln dieses Vereins durch die importierte Konfiguration. Mitglieder, Kegelabende und Zahlungen bleiben unverändert.",
     "club.config.importSource": "Aus: {name}",

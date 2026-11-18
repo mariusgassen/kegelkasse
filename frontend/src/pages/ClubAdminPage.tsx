@@ -702,6 +702,7 @@ function ClubConfigCard() {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [pendingBundle, setPendingBundle] = useState<ClubConfigBundle | null>(null)
     const [importing, setImporting] = useState(false)
+    const [exportingPdf, setExportingPdf] = useState(false)
 
     async function exportConfig() {
         try {
@@ -719,6 +720,17 @@ function ClubConfigCard() {
             URL.revokeObjectURL(url)
         } catch (e) {
             toastError(e)
+        }
+    }
+
+    async function exportPdf() {
+        setExportingPdf(true)
+        try {
+            await api.downloadClubConfigPdf()
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setExportingPdf(false)
         }
     }
 
@@ -777,6 +789,10 @@ function ClubConfigCard() {
                 <input ref={fileInputRef} type="file" accept="application/json" className="hidden"
                        onChange={onFileSelected}/>
             </div>
+            <Button variant="secondary" block className="mt-2" onClick={exportPdf}
+                    disabled={!isOnline || exportingPdf}>
+                {exportingPdf ? t('action.loading') : t('club.config.exportPdf')}
+            </Button>
 
             {pendingBundle && (
                 <ConfirmSheet open onClose={() => setPendingBundle(null)} title={t('club.config.import')}
