@@ -130,7 +130,7 @@ describe('contrast contract', () => {
         ]
         const defined = new Set([...cssText.matchAll(/^\s*(--[a-z0-9-]+):/gm)].map(m => m[1]))
         // Set from JS at the call site rather than declared in :root.
-        const runtime = new Set(['--target', '--icn-bg', '--icn-fg', '--icn-ring'])
+        const runtime = new Set(['--target', '--icn-bg', '--icn-fg', '--icn-ring', '--app-header-h'])
         const missing = new Set<string>()
         for (const f of files) {
             const text = readFileSync(resolve(process.cwd(), f), 'utf8')

@@ -32,6 +32,7 @@ import {useT} from './i18n'
 import {api} from './api/client'
 import {router} from './router'
 import {usePage} from './hooks/usePage'
+import {useHeaderHeightVar} from './hooks/useHeaderHeightVar'
 import {useNavCollapsedStore} from './store/navCollapsed'
 import {usePullToRefresh} from './hooks/usePullToRefresh'
 import {PullToRefreshIndicator} from './components/PullToRefreshIndicator'
@@ -107,6 +108,8 @@ export function RootLayout() {
     // Easter egg — 5 quick taps on the logo/title opens the hidden mini bowling game.
     const [bowlingOpen, setBowlingOpen] = useState(false)
     const logoTaps = useRef<number[]>([])
+    const headerRef = useRef<HTMLDivElement>(null)
+    useHeaderHeightVar(headerRef)
     const onLogoTap = () => {
         const now = Date.now()
         logoTaps.current = [...logoTaps.current, now].filter(t => now - t < 2000)
@@ -176,7 +179,7 @@ export function RootLayout() {
     return (
         <div className={`app-shell${navCollapsed ? ' nav-collapsed' : ''}`}>
             {/* Header region: safe-area spacer + header bar + sub-banners (grid-area: header) */}
-            <div className="app-header">
+            <div ref={headerRef} className="app-header">
                 {/* Safe-area spacer: absorbs the iOS notch/Dynamic Island inset once for the whole app */}
                 <div className="safe-top" style={{background: 'var(--canvas)'}}/>
 
