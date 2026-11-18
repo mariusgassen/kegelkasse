@@ -596,9 +596,11 @@
     }
 
     .bottom-sheet {
-        @apply absolute inset-0 z-50 flex items-end justify-center;
+        @apply fixed inset-0 z-50 flex items-end justify-center;
         background: rgba(0, 0, 0, .8);
         backdrop-filter: blur(6px);
+        /* Prevent sheet from sliding behind the notch/status bar in PWA mode */
+        padding-top: env(safe-area-inset-top, 44px);
     }
 
     .sheet-panel {
