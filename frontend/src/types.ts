@@ -261,6 +261,8 @@ export interface ClubDocument {
     version: string | null
     decision_date: string | null
     effective_date: string | null
+    summary: string | null
+    change_summary: string | null
     file_name: string
     file_size: number
     uploaded_by_name: string
@@ -286,6 +288,19 @@ export interface ClubDocumentUpload {
     decision_date?: string
     effective_date?: string
     group_id?: string
+    summary?: string
+    change_summary?: string
+}
+
+/** KI suggestion for the upload form; every field may be null when the PDF doesn't say. */
+export interface ClubDocumentSuggestion {
+    title: string | null
+    document_type: ClubDocumentType | null
+    version: string | null
+    decision_date: string | null
+    effective_date: string | null
+    summary: string | null
+    change_summary: string | null
 }
 
 export interface Sticker {

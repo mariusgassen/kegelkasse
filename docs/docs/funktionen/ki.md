@@ -23,7 +23,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 Unter **Verein → Einstellungen → ✨ KI-Funktionen** stellen Admins ein:
 
-- **KI-Suche**, **Rückblicke** und **Vorschläge** einzeln an oder aus. Ausgeschaltete Funktionen verschwinden
+- **KI-Suche**, **Rückblicke** und **Vorschläge** einzeln an oder aus. Zu den Vorschlägen zählt auch das Ausfüllen beim Hochladen von [Dokumenten](dokumente). Ausgeschaltete Funktionen verschwinden
   für alle Mitglieder.
 - **KI-Erklärungen im Buchungs-Check** an oder aus. Die regelbasierte Prüfung läuft immer.
 - das **Modell** (Claude Opus, Sonnet oder Haiku). Opus schreibt am besten, Haiku ist am günstigsten.

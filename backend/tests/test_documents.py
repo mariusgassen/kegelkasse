@@ -1,9 +1,13 @@
 """Tests for the club documents endpoints (upload, versioned list, protected download, acknowledgements)."""
 import io
+import json
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.orm import Session
 
+import core.ai as core_ai
+from core.config import settings
 from core.security import create_access_token, get_password_hash
 from models.club import Club
 from models.document import ClubDocument, ClubDocumentAcknowledgement
@@ -169,3 +173,84 @@ def test_delete_rules(client, admin, user):
     client.delete(f"{BASE}{doc['id']}/acknowledge", headers=_headers(user))
     assert client.delete(f"{BASE}{doc['id']}", headers=_headers(admin)).status_code == 204
     assert client.get(BASE, headers=_headers(user)).json()["documents"] == []
+
+
+# ── KI: Formularvorschlag + Zusammenfassung ─────────────────────────────────────────────────────
+
+ANALYZE = f"{BASE}analyze"
+
+
+class _FakeClaude:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+
+    def __call__(self, **kwargs):
+        self.calls.append(kwargs)
+        return SimpleNamespace(stop_reason="end_turn",
+                               content=[SimpleNamespace(type="text", text=json.dumps(self.payload))])
+
+
+@pytest.fixture()
+def claude(monkeypatch):
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "test-key")
+    fake = _FakeClaude({
+        "title": "Satzung KCE", "document_type": "satzung", "version": "2.0",
+        "decision_date": "2026-11-16", "effective_date": "kein-datum",
+        "summary": "- Zweck des Vereins", "change_summary": "- Beitrag erhöht",
+    })
+    monkeypatch.setattr(core_ai, "_create_message", fake)
+    return fake
+
+
+def _analyze(client, who, **data):
+    files = {"file": ("neu.pdf", io.BytesIO(_pdf()), "application/pdf")}
+    return client.post(ANALYZE, files=files, data=data, headers=_headers(who))
+
+
+def test_analyze_suggests_fields_for_new_document(client, admin, claude):
+    res = _analyze(client, admin)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["title"] == "Satzung KCE"
+    assert body["document_type"] == "satzung"
+    assert body["decision_date"] == "2026-11-16"
+    assert body["effective_date"] is None          # invalid date is dropped
+    assert body["summary"] == "- Zweck des Vereins"
+    assert body["change_summary"] is None          # no previous version to compare with
+    blocks = claude.calls[0]["messages"][0]["content"]
+    assert [b["type"] for b in blocks] == ["document", "text"]
+    assert nothing_stored(client, admin)
+
+
+def nothing_stored(client, admin):
+    return client.get(BASE, headers=_headers(admin)).json()["documents"] == []
+
+
+def test_analyze_new_version_compares_with_previous(client, admin, claude):
+    first = _upload(client, admin).json()
+    res = _analyze(client, admin, group_id=first["group_id"])
+    assert res.status_code == 200
+    assert res.json()["change_summary"] == "- Beitrag erhöht"
+    blocks = claude.calls[0]["messages"][0]["content"]
+    assert [b["type"] for b in blocks] == ["document", "document", "text"]
+
+
+def test_analyze_errors(client, admin, user, claude, monkeypatch):
+    assert client.post(ANALYZE, files={"file": ("x.pdf", io.BytesIO(_pdf()), "application/pdf")}).status_code == 401
+    assert _analyze(client, user).status_code == 403
+    assert _analyze(client, admin, group_id="unbekannt").status_code == 404
+    bad = {"file": ("x.pdf", io.BytesIO(b"hello"), "application/pdf")}
+    assert client.post(ANALYZE, files=bad, headers=_headers(admin)).status_code == 400
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+    assert _analyze(client, admin).status_code == 503
+
+
+def test_upload_stores_summaries(client, admin, user):
+    res = _upload(client, admin, summary="  - Zweck  ", change_summary="- Beitrag erhöht")
+    assert res.status_code == 201
+    doc = client.get(BASE, headers=_headers(user)).json()["documents"][0]
+    assert doc["summary"] == "- Zweck"
+    assert doc["change_summary"] == "- Beitrag erhöht"
+    plain = _upload(client, admin, title="Ohne").json()
+    assert plain["summary"] is None and plain["change_summary"] is None

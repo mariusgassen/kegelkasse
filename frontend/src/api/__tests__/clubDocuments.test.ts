@@ -65,6 +65,29 @@ describe('api.uploadClubDocument', () => {
     })
 })
 
+describe('api.analyzeClubDocument', () => {
+    it('posts the PDF (and the group for a new version) to the analyze endpoint', async () => {
+        const suggestion = {title: 'Satzung', document_type: 'satzung', version: '2.0', decision_date: null,
+            effective_date: null, summary: '- Zweck', change_summary: '- Beitrag erhöht'}
+        mockFetch.mockResolvedValueOnce(jsonOk(suggestion))
+        const {api} = await import('../client')
+        const file = new File(['%PDF-1.4'], 'S.pdf', {type: 'application/pdf'})
+        const result = await api.analyzeClubDocument(file, 'abc123')
+        expect(result.change_summary).toBe('- Beitrag erhöht')
+        const [url, init] = mockFetch.mock.calls[0]
+        expect(url).toBe('/api/v1/club/documents/analyze')
+        expect(init.method).toBe('POST')
+        expect((init.body as FormData).get('file')).toBe(file)
+        expect((init.body as FormData).get('group_id')).toBe('abc123')
+    })
+
+    it('surfaces the server error detail', async () => {
+        mockFetch.mockResolvedValueOnce(jsonOk({detail: 'ai_disabled'}, 503))
+        const {api} = await import('../client')
+        await expect(api.analyzeClubDocument(new File(['x'], 'x.pdf'))).rejects.toThrow('ai_disabled')
+    })
+})
+
 describe('api.downloadClubDocument', () => {
     it('downloads the authenticated blob under the stored file name', async () => {
         const {api} = await import('../client')
