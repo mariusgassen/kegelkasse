@@ -555,6 +555,7 @@ export const de = {
     "search.docs": "Dokumentation öffnen",
     "search.trips": "Kegelfahrten",
     "search.stickers": "Sticker",
+    "search.documents": "Dokumente",
     "wheel.title": "Zufalls-Strafe",
     "wheel.spin": "Drehen!",
     "playercard.winRate": "Siegquote",

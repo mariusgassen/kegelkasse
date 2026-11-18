@@ -26,6 +26,13 @@ vi.mock('@/store/app.ts', () => ({
     isAdmin: vi.fn(() => false),
 }))
 
+const mockHashParams = vi.hoisted(() => ({value: ''}))
+vi.mock('@/utils/hashParams.ts', () => ({
+    getHashParams: () => new URLSearchParams(mockHashParams.value),
+    clearHashParams: vi.fn(),
+}))
+const flashMock = vi.hoisted(() => vi.fn(() => () => {}))
+vi.mock('@/hooks/useDeepLink.ts', () => ({useDeepLinkVersion: () => 'v', flashDeepLinkTarget: flashMock}))
 const aiOn = vi.hoisted(() => ({value: false}))
 const apiMock = vi.hoisted(() => ({
     analyzeClubDocument: vi.fn(),
@@ -67,6 +74,7 @@ beforeEach(() => {
     apiMock.deleteClubDocument.mockResolvedValue(undefined)
     vi.mocked(isAdmin).mockReturnValue(false)
     aiOn.value = false
+    mockHashParams.value = ''
 })
 
 describe('ClubDocumentsPage', () => {
@@ -219,5 +227,19 @@ describe('ClubDocumentsPage', () => {
         fireEvent.click(await screen.findByTestId('document-add-button'))
         fireEvent.click(screen.getByTestId('document-cancel'))
         expect(screen.queryByTestId('document-upload-sheet')).toBeNull()
+    })
+
+    it('flashes the document a search deep link points to', async () => {
+        mockHashParams.value = 'item=7'
+        renderPage()
+        await screen.findByTestId('document-card')
+        await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-7'))
+    })
+
+    it('opens the history first when the deep link points to an older version', async () => {
+        mockHashParams.value = 'item=5'
+        renderPage()
+        await waitFor(() => expect(flashMock).toHaveBeenCalledWith('document-5'))
+        expect(document.getElementById('document-5')).toBeTruthy()
     })
 })

@@ -555,6 +555,7 @@ export const en = {
     "search.docs": "Open documentation",
     "search.trips": "Trips",
     "search.stickers": "Stickers",
+    "search.documents": "Documents",
     "wheel.title": "Random penalty",
     "wheel.spin": "Spin!",
     "playercard.winRate": "Win rate",

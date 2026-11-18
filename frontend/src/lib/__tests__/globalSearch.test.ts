@@ -6,6 +6,7 @@ import {
     searchAnnouncements,
     searchTrips,
     searchStickers,
+    searchDocuments,
     searchBookings,
     formatSearchDate,
 } from '../globalSearch'
@@ -293,5 +294,35 @@ describe('searchStickers', () => {
         expect(r).toHaveLength(1)
         expect(r[0].id).toBe(9)
         expect(r[0].subtitle).toBe('15. März 2026')
+    })
+})
+
+describe('searchDocuments', () => {
+    const docs = [
+        {id: 1, title: 'Satzung', version: '1.0', document_type: 'satzung', file_name: 'Satzung_KCE.pdf', summary: '- Beitrag **60 €**', is_current: false},
+        {id: 2, title: 'Satzung', version: '2.0', document_type: 'satzung', file_name: 'Satzung_KCE_v2.pdf', summary: null, is_current: true},
+        {id: 3, title: 'Kassenordnung', version: null, document_type: 'geschaeftsordnung', file_name: 'Kasse.pdf', summary: null, is_current: true},
+    ]
+
+    it('matches title, file name, version and summary and lists current versions first', () => {
+        const r = searchDocuments('satzung', docs)
+        expect(r.map(x => x.id)).toEqual([2, 1])
+        expect(r[0].subtitle).toBe('v2.0')
+        expect(r[0].nav).toEqual({to: '/documents', search: {item: 2}})
+        expect(searchDocuments('beitrag', docs).map(x => x.id)).toEqual([1])
+        expect(searchDocuments('kasse.pdf', docs).map(x => x.id)).toEqual([3])
+    })
+
+    it('matches the document type word', () => {
+        expect(searchDocuments('geschäftsordnung', docs).map(x => x.id)).toEqual([3])
+    })
+
+    it('a bare "dokumente" lists the current documents only', () => {
+        expect(searchDocuments('Dokumente', docs).map(x => x.id)).toEqual([2, 3])
+    })
+
+    it('returns [] for an empty query or no match', () => {
+        expect(searchDocuments('', docs)).toEqual([])
+        expect(searchDocuments('xyz', docs)).toEqual([])
     })
 })

@@ -36,6 +36,7 @@ vi.mock('@/store/app.ts', () => ({
 const mockApi = {
     listEvenings: vi.fn().mockResolvedValue([{id: 10, date: '2026-03-15', venue: 'Kegelbahn Nord'}]),
     listAnnouncements: vi.fn().mockResolvedValue([{id: 20, title: 'Sommerfest', text: null}]),
+    listClubDocuments: vi.fn().mockResolvedValue({documents: [{id: 5, title: 'Satzung', version: '2.0', document_type: 'satzung', is_current: true}], member_count: 3, can_upload: false}),
     listStickers: vi.fn().mockResolvedValue([{id: 77, place_name: 'Lissabon', caption: 'Am Tejo', created_by_name: 'Pudel'}]),
     listTrips: vi.fn().mockResolvedValue([{id: 30, destination: 'Rhein-Fahrt', date: '2026-06-01', note: null}]),
     getAllPayments: vi.fn().mockResolvedValue([
@@ -192,6 +193,15 @@ describe('GlobalSearch', () => {
         expect(screen.getByText('Lissabon')).toBeInTheDocument()
         fireEvent.click(screen.getByText('Lissabon'))
         expect(mockNavigate).toHaveBeenCalledWith({to: '/stickers', search: {tab: 'feed', item: 77}})
+        expect(onClose).toHaveBeenCalled()
+    })
+
+    it('finds club documents and selecting opens the document deep link', async () => {
+        const {onClose} = await renderSearch(true)
+        fireEvent.change(screen.getByPlaceholderText('search.placeholder'), {target: {value: 'satzung'}})
+        await waitFor(() => expect(screen.getByText(/search\.documents/)).toBeInTheDocument())
+        fireEvent.click(screen.getByText('Satzung'))
+        expect(mockNavigate).toHaveBeenCalledWith({to: '/documents', search: {item: 5}})
         expect(onClose).toHaveBeenCalled()
     })
 

@@ -3,7 +3,7 @@
  * ...); admins upload new versions with metadata. Members confirm "Kenntnis genommen" or
  * "Zugestimmt" per version, with the count and their own answer shown on the card.
  */
-import {useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Sparkles} from 'lucide-react'
 import {useT} from '@/i18n'
@@ -16,6 +16,8 @@ import {Field} from '@/components/ui/Field.tsx'
 import {Markdown} from '@/components/ui/Markdown.tsx'
 import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
 import {nextVersion} from '@/lib/documentVersion.ts'
+import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
+import {getHashParams, clearHashParams} from '@/utils/hashParams.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -334,6 +336,20 @@ export function ClubDocumentsPage() {
     const [expanded, setExpanded] = useState<string | null>(null)
     const [busyId, setBusyId] = useState<number | null>(null)
     const [deleting, setDeleting] = useState(false)
+    const [target, setTarget] = useState<number | null>(null)
+    const deepLinkVersion = useDeepLinkVersion()
+    const stopFlash = useRef<(() => void) | null>(null)
+
+    useEffect(() => () => stopFlash.current?.(), [])
+
+    // Deep link (`?item=ID`, from the global search): jump to the document. An older version opens
+    // its group's history first.
+    useEffect(() => {
+        const item = getHashParams().get('item')
+        if (!item) return
+        setTarget(parseInt(item, 10))
+        clearHashParams()
+    }, [deepLinkVersion])
 
     const {data, isLoading} = useQuery({queryKey: ['club-documents'], queryFn: api.listClubDocuments})
     const docs = data?.documents ?? []
@@ -343,6 +359,15 @@ export function ClubDocumentsPage() {
     const historyOf = (d: ClubDocument) => docs.filter(x => x.group_id === d.group_id && !x.is_current)
 
     const invalidate = () => qc.invalidateQueries({queryKey: ['club-documents']})
+
+    useEffect(() => {
+        if (target === null || isLoading) return
+        const doc = docs.find(d => d.id === target)
+        if (doc && !doc.is_current) setExpanded(doc.group_id)
+        stopFlash.current?.()
+        if (doc) stopFlash.current = flashDeepLinkTarget(`document-${doc.id}`)
+        setTarget(null)
+    }, [target, isLoading, data]) // eslint-disable-line react-hooks/exhaustive-deps
 
     async function download(d: ClubDocument) {
         try { await api.downloadClubDocument(d.id, d.file_name) } catch (e) { toastError(e) }
@@ -395,14 +420,14 @@ export function ClubDocumentsPage() {
                 : (
                     <div className="space-y-2" data-testid="document-list">
                         {current.map(doc => (
-                            <div key={doc.id}>
+                            <div key={doc.id} id={`document-${doc.id}`}>
                                 <DocumentCard doc={doc} memberCount={memberCount} canEdit={canEdit}
                                               busy={busyId === doc.id} history={historyOf(doc)}
                                               onDownload={download} onAck={ack} onWithdraw={withdraw}
                                               onNewVersion={setUploadGroup} onDelete={setToDelete}
                                               onToggleHistory={() => setExpanded(expanded === doc.group_id ? null : doc.group_id)}/>
                                 {expanded === doc.group_id && historyOf(doc).map(old => (
-                                    <div key={old.id} className="kce-card p-2 mt-1 ml-4 flex items-center gap-2">
+                                    <div key={old.id} id={`document-${old.id}`} className="kce-card p-2 mt-1 ml-4 flex items-center gap-2">
                                         <span className="text-sm flex-1 truncate">v{old.version ?? '–'} · {fDate(old.decision_date)}</span>
                                         <Button variant="secondary" className="text-xs"
                                                 onClick={() => download(old)}>

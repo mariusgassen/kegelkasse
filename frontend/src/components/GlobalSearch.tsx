@@ -18,6 +18,7 @@ import {
     searchAnnouncements,
     searchTrips,
     searchStickers,
+    searchDocuments,
     searchBookings,
     type SearchResult,
 } from '@/lib/globalSearch'
@@ -28,7 +29,7 @@ interface Props {
     onClose: () => void
 }
 
-type GroupKey = 'member' | 'account' | 'evening' | 'booking' | 'announcement' | 'trip' | 'sticker'
+type GroupKey = 'member' | 'account' | 'evening' | 'booking' | 'announcement' | 'trip' | 'sticker' | 'document'
 
 const GROUP_ICON: Record<GroupKey, string> = {
     member: '🧑',
@@ -38,6 +39,7 @@ const GROUP_ICON: Record<GroupKey, string> = {
     announcement: '📣',
     trip: '🚌',
     sticker: '🏷️',
+    document: '📄',
 }
 
 export function GlobalSearch({open, onClose}: Props) {
@@ -53,6 +55,7 @@ export function GlobalSearch({open, onClose}: Props) {
     const {data: announcements = []} = useQuery({queryKey: ['announcements'], queryFn: api.listAnnouncements, enabled: open, staleTime: 60000})
     const {data: trips = []} = useQuery({queryKey: ['trips'], queryFn: api.listTrips, enabled: open, staleTime: 60000})
     const {data: stickers = []} = useQuery({queryKey: ['stickers'], queryFn: api.listStickers, enabled: open, staleTime: 60000})
+    const {data: documents} = useQuery({queryKey: ['club-documents'], queryFn: api.listClubDocuments, enabled: open, staleTime: 60000})
     const {data: payments = []} = useQuery({queryKey: ['member-payments'], queryFn: api.getAllPayments, enabled: open, staleTime: 60000})
     const {data: expenses = []} = useQuery({queryKey: ['club-expenses'], queryFn: api.getExpenses, enabled: open, staleTime: 60000})
 
@@ -77,7 +80,8 @@ export function GlobalSearch({open, onClose}: Props) {
         {key: 'announcement', label: t('search.announcements'), results: searchAnnouncements(query, announcements)},
         {key: 'trip', label: t('search.trips'), results: searchTrips(query, trips, locale)},
         {key: 'sticker', label: t('search.stickers'), results: searchStickers(query, stickers, locale)},
-    ]), [query, regularMembers, evenings, announcements, trips, stickers, payments, expenses, locale, t])
+        {key: 'document', label: t('search.documents'), results: searchDocuments(query, documents?.documents ?? [])},
+    ]), [query, regularMembers, evenings, announcements, trips, stickers, documents, payments, expenses, locale, t])
 
     const hasQuery = query.trim().length > 0
     const totalResults = groups.reduce((sum, g) => sum + g.results.length, 0)
