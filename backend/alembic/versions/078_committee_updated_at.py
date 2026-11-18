@@ -1,13 +1,13 @@
 """News feed: last-change timestamp on announcements, trips and polls.
-Revision ID: 077
-Revises: 076
+Revision ID: 078
+Revises: 077
 Create Date: 2026-11-18
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = '077'
-down_revision = '076'
+revision = '078'
+down_revision = '077'
 branch_labels = None
 depends_on = None
 

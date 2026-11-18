@@ -15,7 +15,7 @@ class ClubAnnouncement(Base):
     media_url = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    # Last edit (migration 077); null until first change. The news feed sorts by updated_at or created_at.
+    # Last edit (migration 078); null until first change. The news feed sorts by updated_at or created_at.
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
     is_deleted = Column(Boolean, default=False, nullable=False)
 
@@ -32,7 +32,7 @@ class ClubTrip(Base):
     note = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    # Last edit (migration 077); null until first change. The news feed sorts by updated_at or created_at.
+    # Last edit (migration 078); null until first change. The news feed sorts by updated_at or created_at.
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
     is_deleted = Column(Boolean, default=False, nullable=False)
 
@@ -49,7 +49,7 @@ class ClubPoll(Base):
     is_deleted = Column(Boolean, default=False, nullable=False)
     created_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    # Last edit (migration 077); null until first change. The news feed sorts by updated_at or created_at.
+    # Last edit (migration 078); null until first change. The news feed sorts by updated_at or created_at.
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
 
