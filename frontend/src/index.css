@@ -617,6 +617,12 @@
         @apply w-full flex items-center justify-center cursor-grab active:cursor-grabbing mb-1;
         height: 28px;
         touch-action: none;
+        /* Stays reachable when a tall sheet scrolls (long forms, keyboard focus). */
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--surface);
+        border-radius: 1.5rem 1.5rem 0 0;
     }
 
     .sheet-handle::before {
