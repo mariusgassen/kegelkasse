@@ -1,6 +1,35 @@
 {
   "releases": [
     {
+      "version": "1.79.1",
+      "date": "2026-11-18",
+      "sections": [
+        {
+          "type": "fix",
+          "items": [
+            {
+              "key": "bd6c71e",
+              "pr": 664,
+              "sha": "bd6c71e",
+              "text": {
+                "en": "Dateiauswahl im Dokument-Upload ohne doppelten Text",
+                "de": "Dateiauswahl beim Dokument-Upload ohne doppelten Text"
+              }
+            },
+            {
+              "key": "2a29668",
+              "pr": 663,
+              "sha": "2a29668",
+              "text": {
+                "en": "Griff der Sheets bleibt auch bei langen Formularen sichtbar",
+                "de": "Der Griff der Sheets bleibt auch bei langen Formularen sichtbar"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.79.0",
       "date": "2026-11-18",
       "sections": [
