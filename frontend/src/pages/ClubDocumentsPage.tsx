@@ -19,6 +19,7 @@ import {Empty} from '@/components/ui/Empty.tsx'
 import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
 import {showToast} from '@/components/ui/Toast.tsx'
 import {toastError} from '@/utils/error.ts'
+import {aiErrorKey} from '@/lib/aiErrors.ts'
 import type {ClubDocument, ClubDocumentResponse, ClubDocumentType} from '@/types.ts'
 
 const TYPE_ICON: Record<ClubDocumentType, string> = {
@@ -72,7 +73,9 @@ function UploadSheet({group, onClose, onUploaded}: {
             if (s.summary) setSummary(s.summary)
             if (s.change_summary) setChangeSummary(s.change_summary)
         } catch (e) {
-            toastError(e)
+            const key = aiErrorKey(e)
+            if (key) showToast(t(key), 'error')
+            else toastError(e)
         } finally {
             setAnalyzing(false)
         }

@@ -254,3 +254,17 @@ def test_upload_stores_summaries(client, admin, user):
     assert doc["change_summary"] == "- Beitrag erhöht"
     plain = _upload(client, admin, title="Ohne").json()
     assert plain["summary"] is None and plain["change_summary"] is None
+
+
+def test_analyze_schema_enum_matches_declared_type():
+    """The API rejects enum values that don't fit the property's declared type (a null-able type list
+    with a string enum caused a 400 in production), so the enum must sit on a plain string branch."""
+    from api.v1.documents import _ANALYZE_SCHEMA
+
+    prop = _ANALYZE_SCHEMA["properties"]["document_type"]
+    assert "enum" not in prop and "type" not in prop
+    branches = {b["type"]: b for b in prop["anyOf"]}
+    assert set(branches) == {"string", "null"}
+    assert branches["string"]["enum"] == ["satzung", "geschaeftsordnung", "protokoll", "sonstiges"]
+    for name, p in _ANALYZE_SCHEMA["properties"].items():
+        assert not isinstance(p.get("type"), list), name
