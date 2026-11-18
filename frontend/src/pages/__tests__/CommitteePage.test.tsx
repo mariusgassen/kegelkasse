@@ -115,6 +115,12 @@ async function clickCardAction(labelKey: string, index = 0) {
     fireEvent.click(screen.getByText(labelKey))
 }
 
+// "+ New" (VGA only) opens a type picker sheet; pick the post type to open its form.
+async function openAdd(kind: 'announcement' | 'trip' | 'poll') {
+    fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+    fireEvent.click(await screen.findByText((c) => c.includes(`committee.${kind}.add`)))
+}
+
 async function setupDefaultMocks() {
     const { api } = await import('@/api/client.ts')
     vi.mocked(api.listAnnouncements).mockResolvedValue([] as any)
@@ -234,7 +240,7 @@ describe('CommitteePage — loading and empty states', () => {
         await setupDefaultMocks()
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText('committee.announcement.none')).toBeInTheDocument()
+            expect(screen.getByText('committee.none')).toBeInTheDocument()
         })
     })
 
@@ -288,7 +294,7 @@ describe('CommitteePage — search filtering', () => {
         await waitFor(() => {
             expect(screen.queryByText('Wichtige Ankündigung')).not.toBeInTheDocument()
             expect(screen.queryByText('Anderes Thema')).not.toBeInTheDocument()
-            expect(screen.getByText('committee.announcement.none')).toBeInTheDocument()
+            expect(screen.getByText('committee.none')).toBeInTheDocument()
         })
     })
 })
@@ -314,7 +320,7 @@ describe('CommitteePage — trips tab', () => {
         await setupDefaultMocks()
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText('committee.trip.none')).toBeInTheDocument()
+            expect(screen.getByText('committee.none')).toBeInTheDocument()
         })
     })
 
@@ -359,7 +365,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await renderCommitteePage()
         await waitFor(() => {
             expect(
-                screen.getByText((content) => content.includes('committee.announcement.add'))
+                screen.getByText((content) => content.includes('committee.new'))
             ).toBeInTheDocument()
         })
     })
@@ -378,7 +384,7 @@ describe('CommitteePage — admin and canWrite', () => {
         // Default mocks: isAdmin = false, user = null, regularMembers = []
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.queryByText((content) => content.includes('committee.announcement.add'))).not.toBeInTheDocument()
+            expect(screen.queryByText((content) => content.includes('committee.new'))).not.toBeInTheDocument()
         })
     })
 
@@ -396,7 +402,7 @@ describe('CommitteePage — admin and canWrite', () => {
         await renderCommitteePage()
         await waitFor(() => {
             expect(
-                screen.getByText((content) => content.includes('committee.announcement.add'))
+                screen.getByText((content) => content.includes('committee.new'))
             ).toBeInTheDocument()
         })
     })
@@ -418,13 +424,7 @@ describe('CommitteePage — add announcement sheet', () => {
         await setupDefaultMocks()
         await setupAsAdmin()
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(
-                screen.getByText((content) => content.includes('committee.announcement.add'))
-            ).toBeInTheDocument()
-        })
-        const addBtn = screen.getByText((content) => content.includes('committee.announcement.add'))
-        fireEvent.click(addBtn)
+        await openAdd('announcement')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('committee.announcement.new')
@@ -435,13 +435,7 @@ describe('CommitteePage — add announcement sheet', () => {
         await setupDefaultMocks()
         await setupAsAdmin()
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(
-                screen.getByText((content) => content.includes('committee.announcement.add'))
-            ).toBeInTheDocument()
-        })
-        const addBtn = screen.getByText((content) => content.includes('committee.announcement.add'))
-        fireEvent.click(addBtn)
+        await openAdd('announcement')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -455,8 +449,7 @@ describe('CommitteePage — add announcement sheet', () => {
         await setupDefaultMocks()
         await setupAsAdmin()
         await renderCommitteePage()
-        const addBtn = await screen.findByText((content) => content.includes('committee.announcement.add'))
-        fireEvent.click(addBtn)
+        await openAdd('announcement')
         await waitFor(() => {
             expect(screen.getByPlaceholderText('committee.announcement.title')).toBeInTheDocument()
             expect(screen.getByPlaceholderText('committee.announcement.text')).toBeInTheDocument()
@@ -468,13 +461,7 @@ describe('CommitteePage — add announcement sheet', () => {
         await setupDefaultMocks()
         await setupAsAdmin()
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(
-                screen.getByText((content) => content.includes('committee.trip.add'))
-            ).toBeInTheDocument()
-        })
-        const addBtn = screen.getByText((content) => content.includes('committee.trip.add'))
-        fireEvent.click(addBtn)
+        await openAdd('trip')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -561,7 +548,7 @@ describe('CommitteePage — trips CRUD', () => {
         await setupWithTrips()
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText(/committee\.trip\.add/)).toBeInTheDocument()
+            expect(screen.getByText(/committee\.new/)).toBeInTheDocument()
         })
     })
 
@@ -569,8 +556,7 @@ describe('CommitteePage — trips CRUD', () => {
         await setupAsAdmin()
         await setupWithTrips()
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
         })
@@ -592,8 +578,7 @@ describe('CommitteePage — trips CRUD', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createTrip).mockResolvedValueOnce({ id: 99, destination: 'Hamburg', date: '2026-06-01', note: null, created_by: 1 } as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByTestId('sheet'))
         // Fill destination before submitting
         const destInput = screen.getByPlaceholderText('committee.trip.destinationPlaceholder')
@@ -664,8 +649,7 @@ describe('CommitteePage — announcement CRUD', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createAnnouncement).mockResolvedValueOnce({ id: 99, title: 'Neues', text: null, media_url: null, created_at: '2026-01-20T10:00:00', created_by: 1 } as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
-        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await openAdd('announcement')
         await waitFor(() => screen.getByTestId('sheet'))
         const titleInput = screen.getByPlaceholderText('committee.announcement.title')
         fireEvent.change(titleInput, { target: { value: 'Neues Thema' } })
@@ -703,8 +687,7 @@ describe('CommitteePage — announcement add sheet fields', () => {
 
     it('shows title input in add announcement sheet', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
-        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await openAdd('announcement')
         await waitFor(() => {
             expect(screen.getByPlaceholderText('committee.announcement.title')).toBeInTheDocument()
         })
@@ -712,8 +695,7 @@ describe('CommitteePage — announcement add sheet fields', () => {
 
     it('shows text input in add announcement sheet', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
-        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await openAdd('announcement')
         await waitFor(() => {
             expect(screen.getByPlaceholderText('committee.announcement.text')).toBeInTheDocument()
         })
@@ -721,8 +703,7 @@ describe('CommitteePage — announcement add sheet fields', () => {
 
     it('closes sheet on close-sheet click', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
-        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await openAdd('announcement')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.click(screen.getByText('close-sheet'))
         await waitFor(() => {
@@ -792,8 +773,7 @@ describe('CommitteePage — trip details', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createTrip).mockResolvedValueOnce({ id: 99 } as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.change(screen.getByPlaceholderText('committee.trip.destinationPlaceholder'), { target: { value: 'Prag' } })
         fireEvent.change(screen.getByLabelText('committee.trip.endDate'), { target: { value: '2099-01-03' } })
@@ -809,8 +789,7 @@ describe('CommitteePage — trip details', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createTrip).mockResolvedValueOnce({ id: 99 } as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByTestId('sheet'))
         fireEvent.change(screen.getByPlaceholderText('committee.trip.destinationPlaceholder'), { target: { value: 'Bonn' } })
         fireEvent.click(screen.getByText('submit-sheet'))
@@ -941,7 +920,7 @@ describe('CommitteePage — polls tab', () => {
         await setupPollsMocks([])
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText('committee.poll.none')).toBeInTheDocument()
+            expect(screen.getByText('committee.none')).toBeInTheDocument()
         })
     })
 
@@ -1034,15 +1013,14 @@ describe('CommitteePage — polls admin actions', () => {
         await setupPollsMocks([])
         await renderCommitteePage()
         await waitFor(() => {
-            expect(screen.getByText(/committee\.poll\.add/)).toBeInTheDocument()
+            expect(screen.getByText(/committee\.new/)).toBeInTheDocument()
         })
     })
 
     it('opens create poll sheet when add button clicked', async () => {
         await setupPollsMocks([])
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.poll\.add/))
-        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await openAdd('poll')
         await waitFor(() => {
             expect(screen.getByTestId('sheet')).toBeInTheDocument()
             expect(screen.getByTestId('sheet-title')).toHaveTextContent('committee.poll.new')
@@ -1052,8 +1030,7 @@ describe('CommitteePage — polls admin actions', () => {
     it('create poll sheet has title input', async () => {
         await setupPollsMocks([])
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.poll\.add/))
-        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await openAdd('poll')
         await waitFor(() => {
             expect(screen.getByPlaceholderText('committee.poll.titlePlaceholder')).toBeInTheDocument()
         })
@@ -1064,8 +1041,7 @@ describe('CommitteePage — polls admin actions', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.createPoll).mockResolvedValueOnce(POLLS_UNVOTED[0] as any)
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.poll\.add/))
-        fireEvent.click(screen.getByText(/committee\.poll\.add/))
+        await openAdd('poll')
         await waitFor(() => screen.getByTestId('sheet'))
         const titleInput = screen.getByPlaceholderText('committee.poll.titlePlaceholder')
         fireEvent.change(titleInput, { target: { value: 'Neue Frage' } })
@@ -1164,7 +1140,7 @@ describe('CommitteePage — past trips section', () => {
         await setupOnTripsTab()
     })
 
-    it('shows past trips in past section', async () => {
+    it('dims past trips in the feed', async () => {
         await setupAsAdmin()
         const { api } = await import('@/api/client.ts')
         const PAST_TRIP = { id: 10, destination: 'Hamburg', date: '2020-01-01', note: 'old trip', created_by: 1 }
@@ -1172,7 +1148,7 @@ describe('CommitteePage — past trips section', () => {
         vi.mocked(api.listTrips).mockResolvedValue([PAST_TRIP] as any)
         await renderCommitteePage()
         await waitFor(() => screen.getByText('Hamburg'))
-        expect(screen.getByText(/schedule\.past/)).toBeInTheDocument()
+        expect(screen.getByText('Hamburg').closest('.kce-card')).toHaveClass('opacity-60')
     })
 
     it('shows edit button on past trip for admin', async () => {
@@ -1237,8 +1213,7 @@ describe('CommitteePage — announcement form textarea', () => {
 
     it('updates textarea value when text typed in announcement sheet', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText((c) => c.includes('committee.announcement.add')))
-        fireEvent.click(screen.getByText((c) => c.includes('committee.announcement.add')))
+        await openAdd('announcement')
         await waitFor(() => screen.getByPlaceholderText('committee.announcement.title'))
         const textarea = screen.getByPlaceholderText('committee.announcement.text')
         fireEvent.change(textarea, { target: { value: 'Some text content' } })
@@ -1259,8 +1234,7 @@ describe('CommitteePage — trip note field', () => {
 
     it('updates note textarea value in add trip sheet', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByPlaceholderText('common.optional'))
         const noteTextarea = screen.getByPlaceholderText('common.optional')
         fireEvent.change(noteTextarea, { target: { value: 'Fun trip notes' } })
@@ -1269,8 +1243,7 @@ describe('CommitteePage — trip note field', () => {
 
     it('updates date field in add trip sheet', async () => {
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByText(/committee\.trip\.date/))
         const dateInput = document.querySelector('input[type="date"]')
         expect(dateInput).toBeTruthy()
@@ -1296,8 +1269,7 @@ describe('CommitteePage — announcement error handlers', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.createAnnouncement).mockRejectedValueOnce(new Error('create fail'))
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.announcement\.add/))
-        fireEvent.click(screen.getByText(/committee\.announcement\.add/))
+        await openAdd('announcement')
         await waitFor(() => screen.getByTestId('sheet'))
         // Title input has placeholder='committee.announcement.title'
         const titleInput = screen.getByPlaceholderText('committee.announcement.title') as HTMLInputElement
@@ -1332,8 +1304,7 @@ describe('CommitteePage — trip error handlers', () => {
         const { toastError } = await import('@/utils/error.ts')
         vi.mocked(api.createTrip).mockRejectedValueOnce(new Error('create fail'))
         await renderCommitteePage()
-        await waitFor(() => screen.getByText(/committee\.trip\.add/))
-        fireEvent.click(screen.getByText(/committee\.trip\.add/))
+        await openAdd('trip')
         await waitFor(() => screen.getByTestId('sheet'))
         // Destination input has placeholder='committee.trip.destinationPlaceholder'
         const destInput = screen.getByPlaceholderText('committee.trip.destinationPlaceholder') as HTMLInputElement
@@ -1435,5 +1406,44 @@ describe('CommitteePage — deep link parsing', () => {
         await waitFor(() => {
             expect(screen.getByPlaceholderText('committee.search')).toHaveValue('München')
         })
+    })
+})
+
+// ── tests: single merged feed ─────────────────────────────────────────────────
+
+describe('CommitteePage — merged feed', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('interleaves announcements, trips and polls newest-first and filters by type', async () => {
+        const { api } = await import('@/api/client.ts')
+        const { useHashTab } = await import('@/hooks/usePage.ts')
+        const setTab = vi.fn()
+        vi.mocked(useHashTab).mockReturnValue(['all', setTab] as any)
+        mockGetHashParams.mockReturnValue(new URLSearchParams(''))  // earlier tests leave a deep link behind
+        vi.mocked(api.listAnnouncements).mockReset()
+        vi.mocked(api.listTrips).mockReset()
+        vi.mocked(api.listPolls).mockReset()
+        vi.mocked(api.listAnnouncements).mockResolvedValue([
+            { id: 1, title: 'Ank', text: null, media_url: null, created_at: '2026-01-01T10:00:00' },
+        ] as any)
+        vi.mocked(api.listTrips).mockResolvedValue([
+            { id: 2, destination: 'Harz', date: '2099-05-01', end_date: null, note: null, created_at: '2026-03-01T10:00:00' },
+        ] as any)
+        vi.mocked(api.listPolls).mockResolvedValue([
+            { id: 3, title: 'Umfr', text: null, mode: 'single', is_closed: false, created_by_name: null,
+              created_at: '2026-02-01T10:00:00', options: [] },
+        ] as any)
+        await renderCommitteePage()
+        await waitFor(() => screen.getByText('Ank'))
+        await waitFor(() => screen.getByText('Harz'))
+        await waitFor(() => screen.getByText('Umfr'))
+        const order = (txt: string) => Number((screen.getByText(txt).closest('.kce-card') as HTMLElement).style.order)
+        expect(order('Harz')).toBeLessThan(order('Umfr'))
+        expect(order('Umfr')).toBeLessThan(order('Ank'))
+
+        fireEvent.click(screen.getByText('committee.tab.polls'))
+        expect(setTab).toHaveBeenCalledWith('polls')
     })
 })

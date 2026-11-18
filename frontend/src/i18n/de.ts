@@ -1414,6 +1414,8 @@ export const de = {
     "quickEntry.logged": "Eingetragen",
     "nav.committee": "Neuigkeiten",
     "committee.title": "Vergnügungsausschuss",
+    "committee.new": "Neu",
+    "committee.none": "Noch keine Beiträge.",
     "committee.search": "Suchen…",
     "committee.tab.announcements": "Ankündigungen",
     "committee.tab.trips": "Kegelfahrten",
