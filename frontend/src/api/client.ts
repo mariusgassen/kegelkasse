@@ -458,10 +458,11 @@ export const api = {
         }
         return res.json()
     },
-    analyzeClubDocument: async (file: File, groupId?: string): Promise<ClubDocumentSuggestion> => {
+    analyzeClubDocument: async (file: File, groupId?: string, hint?: string): Promise<ClubDocumentSuggestion> => {
         const form = new FormData()
         form.append('file', file)
         if (groupId) form.append('group_id', groupId)
+        if (hint) form.append('hint', hint)
         const res = await authedFetch(`${API_BASE}/club/documents/analyze`, {method: 'POST', body: form})
         if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
         if (!res.ok) {

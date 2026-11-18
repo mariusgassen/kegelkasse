@@ -13,6 +13,9 @@ import {useAiEnabled} from '@/hooks/useAiEnabled.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
+import {Markdown} from '@/components/ui/Markdown.tsx'
+import {CardActionMenu} from '@/components/ui/ActionSheet.tsx'
+import {nextVersion} from '@/lib/documentVersion.ts'
 import {Sheet} from '@/components/ui/Sheet.tsx'
 import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
 import {Empty} from '@/components/ui/Empty.tsx'
@@ -40,6 +43,38 @@ function fDateTime(iso: string | null): string {
     })
 }
 
+/** Textarea with a Markdown preview toggle (summaries are rendered as Markdown on the card). */
+function MarkdownField({id, label, value, onChange}: {
+    id: string
+    label: string
+    value: string
+    onChange: (v: string) => void
+}) {
+    const t = useT()
+    const [preview, setPreview] = useState(false)
+    const tab = (active: boolean) =>
+        `px-2 py-0.5 rounded-md text-xs font-bold ${active ? 'bg-accent text-on-accent' : 'bg-surface-2 text-muted'}`
+    return (
+        <Field label={label} htmlFor={id} hint={t('document.markdownHint')}>
+            <div className="flex gap-1 mb-1">
+                <button type="button" aria-pressed={!preview} className={tab(!preview)}
+                        onClick={() => setPreview(false)}>{t('document.edit')}</button>
+                <button type="button" aria-pressed={preview} className={tab(preview)}
+                        data-testid={`${id}-preview-tab`}
+                        onClick={() => setPreview(true)}>{t('document.preview')}</button>
+            </div>
+            {preview ? (
+                <div className="kce-input w-full min-h-24 text-sm" data-testid={`${id}-preview`}>
+                    {value.trim() ? <Markdown text={value}/> : <span className="text-muted">–</span>}
+                </div>
+            ) : (
+                <textarea id={id} className="kce-input w-full" rows={5} value={value}
+                          maxLength={4000} onChange={e => onChange(e.target.value)}/>
+            )}
+        </Field>
+    )
+}
+
 function UploadSheet({group, onClose, onUploaded}: {
     group: ClubDocument | null
     onClose: () => void
@@ -47,13 +82,16 @@ function UploadSheet({group, onClose, onUploaded}: {
 }) {
     const t = useT()
     const isOnline = useOnline()
+    // A new version starts from the next number after the current one; the admin can overwrite it.
+    const suggestedVersion = nextVersion(group?.version)
     const [title, setTitle] = useState(group?.title ?? '')
     const [type, setType] = useState<ClubDocumentType>(group?.document_type ?? 'satzung')
-    const [version, setVersion] = useState('')
+    const [version, setVersion] = useState(suggestedVersion)
     const [decisionDate, setDecisionDate] = useState('')
     const [effectiveDate, setEffectiveDate] = useState('')
     const [summary, setSummary] = useState('')
     const [changeSummary, setChangeSummary] = useState('')
+    const [aiHint, setAiHint] = useState('')
     const [file, setFile] = useState<File | null>(null)
     const [busy, setBusy] = useState(false)
     const [analyzing, setAnalyzing] = useState(false)
@@ -64,7 +102,7 @@ function UploadSheet({group, onClose, onUploaded}: {
         if (!file) return
         setAnalyzing(true)
         try {
-            const s = await api.analyzeClubDocument(file, group?.group_id)
+            const s = await api.analyzeClubDocument(file, group?.group_id, aiHint.trim() || undefined)
             if (s.title && !title.trim()) setTitle(s.title)
             if (s.document_type && !group) setType(s.document_type)
             if (s.version) setVersion(s.version)
@@ -108,20 +146,45 @@ function UploadSheet({group, onClose, onUploaded}: {
         <Sheet open onClose={onClose} title={group ? t('document.upload.newVersion') : t('document.upload')}
                onSubmit={submit}>
             <div className="flex flex-col gap-3" data-testid="document-upload-sheet">
+                <Field label={t('document.upload.file')} htmlFor="doc-file" hint={t('document.upload.hint')}>
+                    <input id="doc-file" type="file" accept="application/pdf" className="kce-input w-full"
+                           data-testid="document-file-input"
+                           onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }}/>
+                    {file && <p className="text-xs text-muted mt-1 truncate">📄 {file.name}</p>}
+                </Field>
+                {aiOn && file && (
+                    <div className="kce-card p-3 flex flex-col gap-2">
+                        <Field label={t('document.ai.hintLabel')} htmlFor="doc-ai-hint">
+                            <input id="doc-ai-hint" className="kce-input w-full" value={aiHint} maxLength={500}
+                                   placeholder={t('document.ai.hintPlaceholder')}
+                                   onChange={e => setAiHint(e.target.value)}/>
+                        </Field>
+                        <Button variant="secondary" block data-testid="document-ai-fill"
+                                disabled={analyzing || busy || !isOnline} onClick={analyze}>
+                            <Sparkles size={14} aria-hidden="true"/>
+                            {analyzing ? t('document.ai.filling') : t('document.ai.fill')}
+                        </Button>
+                        <p className="text-xs text-muted">{t('document.ai.hint')}</p>
+                    </div>
+                )}
                 <Field label={t('document.upload.title')} htmlFor="doc-title">
                     <input id="doc-title" className="kce-input w-full" value={title}
                            onChange={e => setTitle(e.target.value)} autoFocus/>
                 </Field>
-                <Field label={t('document.upload.type')} htmlFor="doc-type">
-                    <select id="doc-type" className="kce-input w-full" value={type}
-                            onChange={e => setType(e.target.value as ClubDocumentType)}>
-                        {TYPES.map(v => <option key={v} value={v}>{t(`document.type.${v}` as never)}</option>)}
-                    </select>
-                </Field>
-                <Field label={t('document.upload.version')} htmlFor="doc-version">
-                    <input id="doc-version" className="kce-input w-full" value={version}
-                           onChange={e => setVersion(e.target.value)} placeholder="1.0"/>
-                </Field>
+                <div className="flex gap-2">
+                    <Field label={t('document.upload.type')} htmlFor="doc-type" className="flex-1">
+                        <select id="doc-type" className="kce-input w-full" value={type}
+                                onChange={e => setType(e.target.value as ClubDocumentType)}>
+                            {TYPES.map(v => <option key={v} value={v}>{t(`document.type.${v}` as never)}</option>)}
+                        </select>
+                    </Field>
+                    <Field label={t('document.upload.version')} htmlFor="doc-version" className="flex-1"
+                           hint={group && suggestedVersion && version === suggestedVersion
+                               ? t('document.upload.versionAuto').replace('{prev}', group.version ?? '') : undefined}>
+                        <input id="doc-version" className="kce-input w-full" value={version}
+                               onChange={e => setVersion(e.target.value)} placeholder="1.0"/>
+                    </Field>
+                </div>
                 <div className="flex gap-2">
                     <Field label={t('document.upload.decisionDate')} htmlFor="doc-decision" className="flex-1">
                         <input id="doc-decision" type="date" className="kce-input w-full" value={decisionDate}
@@ -132,43 +195,21 @@ function UploadSheet({group, onClose, onUploaded}: {
                                onChange={e => setEffectiveDate(e.target.value)}/>
                     </Field>
                 </div>
-                <Field label={t('document.upload.file')} htmlFor="doc-file" hint={!file ? t('document.upload.hint') : undefined}>
-                    <input id="doc-file" type="file" accept="application/pdf" className="kce-input w-full"
-                           data-testid="document-file-input"
-                           onChange={e => setFile(e.target.files?.[0] ?? null)}/>
-                    {file && (
-                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2 text-xs">
-                            <span className="truncate" data-testid="document-file-name">📄 {file.name}</span>
-                            <button type="button" className="text-muted hover:text-ink flex-shrink-0"
-                                    onClick={() => setFile(null)} aria-label={t('action.remove')}>
-                                ✕
-                            </button>
-                        </div>
-                    )}
-                </Field>
-                {aiOn && (
-                    <div>
-                        <Button variant="secondary" block data-testid="document-ai-fill"
-                                disabled={!file || analyzing || busy || !isOnline} onClick={analyze}>
-                            <Sparkles size={14} aria-hidden="true"/>
-                            {analyzing ? t('document.ai.filling') : t('document.ai.fill')}
-                        </Button>
-                        <p className="text-xs text-muted mt-1">{t('document.ai.hint')}</p>
-                    </div>
-                )}
-                <Field label={t('document.summary')} htmlFor="doc-summary">
-                    <textarea id="doc-summary" className="kce-input w-full" rows={4} value={summary}
-                              maxLength={4000} onChange={e => setSummary(e.target.value)}/>
-                </Field>
+                <MarkdownField id="doc-summary" label={t('document.summary')} value={summary} onChange={setSummary}/>
                 {group && (
-                    <Field label={t('document.changeSummary')} htmlFor="doc-changes">
-                        <textarea id="doc-changes" className="kce-input w-full" rows={4} value={changeSummary}
-                                  maxLength={4000} onChange={e => setChangeSummary(e.target.value)}/>
-                    </Field>
+                    <MarkdownField id="doc-changes" label={t('document.changeSummary')}
+                                   value={changeSummary} onChange={setChangeSummary}/>
                 )}
-                <Button type="submit" variant="primary" block disabled={busy || !isOnline || !file || !title.trim()}>
-                    {t('document.upload.submit')}
-                </Button>
+                <div className="flex gap-2 pt-1">
+                    <Button variant="secondary" className="flex-1" data-testid="document-cancel"
+                            disabled={busy} onClick={onClose}>
+                        {t('action.cancel')}
+                    </Button>
+                    <Button type="submit" variant="primary" className="flex-1"
+                            disabled={busy || !isOnline || !file || !title.trim()}>
+                        {t('document.upload.submit')}
+                    </Button>
+                </div>
             </div>
         </Sheet>
     )
@@ -199,10 +240,10 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold">{doc.title}</span>
                         {doc.version && <span className="text-xs text-muted">v{doc.version}</span>}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
                             {t(`document.type.${doc.document_type}` as never)}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
                             {t(doc.decision_date ? 'document.status.decided' : 'document.status.draft')}
                         </span>
                     </div>
@@ -211,15 +252,23 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                         <div>{t('document.uploadedAt')}: {fDateTime(doc.uploaded_at)} · {t('document.uploadedBy')}: {doc.uploaded_by_name}</div>
                     </div>
                     {doc.summary && (
-                        <p className="text-xs mt-2 whitespace-pre-line" data-testid="document-summary">{doc.summary}</p>
+                        <div className="text-xs mt-2" data-testid="document-summary">
+                            <Markdown text={doc.summary}/>
+                        </div>
                     )}
                     {doc.change_summary && (
                         <div className="text-xs mt-2" data-testid="document-change-summary">
                             <span className="font-bold">{t('document.changeSummary')}</span>
-                            <p className="whitespace-pre-line">{doc.change_summary}</p>
+                            <Markdown text={doc.change_summary}/>
                         </div>
                     )}
                 </div>
+                {canEdit && (
+                    <CardActionMenu title={doc.title} actions={[
+                        {icon: '📤', label: t('document.upload.newVersion'), disabled: busy, onClick: () => onNewVersion(doc)},
+                        {icon: '🗑️', label: t('document.delete'), danger: true, disabled: busy, onClick: () => onDelete(doc)},
+                    ]}/>
+                )}
             </div>
 
             <div className="mt-2">
@@ -258,18 +307,6 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                                 disabled={busy || !isOnline}
                                 onClick={() => onAck(doc, 'agreed')}>
                             {t('document.agreed')}
-                        </Button>
-                    </>
-                )}
-                {canEdit && (
-                    <>
-                        <Button variant="secondary" data-testid="document-new-version"
-                                disabled={busy} onClick={() => onNewVersion(doc)}>
-                            {t('document.upload.newVersion')}
-                        </Button>
-                        <Button variant="danger" data-testid="document-delete"
-                                disabled={busy} onClick={() => onDelete(doc)}>
-                            {t('document.delete')}
                         </Button>
                     </>
                 )}

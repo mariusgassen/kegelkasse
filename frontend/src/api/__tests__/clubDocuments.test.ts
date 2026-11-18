@@ -72,13 +72,14 @@ describe('api.analyzeClubDocument', () => {
         mockFetch.mockResolvedValueOnce(jsonOk(suggestion))
         const {api} = await import('../client')
         const file = new File(['%PDF-1.4'], 'S.pdf', {type: 'application/pdf'})
-        const result = await api.analyzeClubDocument(file, 'abc123')
+        const result = await api.analyzeClubDocument(file, 'abc123', 'Beiträge')
         expect(result.change_summary).toBe('- Beitrag erhöht')
         const [url, init] = mockFetch.mock.calls[0]
         expect(url).toBe('/api/v1/club/documents/analyze')
         expect(init.method).toBe('POST')
         expect((init.body as FormData).get('file')).toBe(file)
         expect((init.body as FormData).get('group_id')).toBe('abc123')
+        expect((init.body as FormData).get('hint')).toBe('Beiträge')
     })
 
     it('surfaces the server error detail', async () => {
