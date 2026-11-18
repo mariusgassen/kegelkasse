@@ -57,6 +57,7 @@ vi.mock('@/api/client.ts', () => ({
         deleteClubLogo: vi.fn(),
         regenerateScoreboardToken: vi.fn(),
         exportClubConfig: vi.fn(),
+        downloadClubConfigPdf: vi.fn(),
         importClubConfig: vi.fn(),
         updateClubSettings: vi.fn(),
         createPenaltyType: vi.fn(),
@@ -518,6 +519,14 @@ describe('ClubAdminPage — config export/import', () => {
         await waitFor(() => expect(vi.mocked(api.exportClubConfig)).toHaveBeenCalled())
         await waitFor(() => expect(clickSpy).toHaveBeenCalled())
         vi.unstubAllGlobals()
+    })
+
+    it('downloads the settings as a PDF from the config card', async () => {
+        const { api } = await import('@/api/client.ts')
+        vi.mocked(api.downloadClubConfigPdf).mockResolvedValue(undefined)
+        await renderClubAdminPage()
+        fireEvent.click(await screen.findByText('club.config.exportPdf'))
+        await waitFor(() => expect(vi.mocked(api.downloadClubConfigPdf)).toHaveBeenCalled())
     })
 
     it('shows a confirmation sheet with counts after picking a file, then imports on confirm', async () => {

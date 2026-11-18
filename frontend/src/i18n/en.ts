@@ -1231,6 +1231,7 @@ export const en = {
     "club.config.title": "Export/import configuration",
     "club.config.hint": "Export penalty types, game templates, teams, pins and base settings as a file — e.g. to set up a test or second club. Does not include members, evenings, payments, the logo, or secret links (iCal/TV).",
     "club.config.export": "Export",
+    "club.config.exportPdf": "Export as PDF",
     "club.config.import": "Import",
     "club.config.importConfirm": "This replaces this club's current penalty types, game templates, teams and pins with the imported configuration. Members, evenings and payments are left untouched.",
     "club.config.importSource": "From: {name}",

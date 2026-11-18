@@ -958,6 +958,34 @@ describe('api.downloadReport', () => {
         vi.restoreAllMocks()
     })
 
+    it('builds the club settings PDF in the app from the config export bundle', async () => {
+        vi.stubGlobal('fetch', mockFetch)
+        const bundle = {club_name: 'KC Test', penalty_types: [], settings: {}}
+        mockFetch
+            .mockResolvedValueOnce({status: 200, ok: true, json: vi.fn().mockResolvedValue(bundle)})
+            .mockResolvedValueOnce({status: 200, ok: true, json: vi.fn().mockResolvedValue({id: 1, name: 'KC Test'})})
+        const renderClubConfigPdf = vi.fn().mockResolvedValue(new Uint8Array([37, 80, 68, 70]))
+        vi.doMock('@/lib/clubConfigPdf', () => ({renderClubConfigPdf}))
+        const branding = {color: '#e8a020', logo: null}
+        vi.doMock('@/lib/reportBranding', () => ({loadReportBranding: vi.fn().mockResolvedValue(branding)}))
+        vi.stubGlobal('URL', {createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn()})
+        const anchor = document.createElement('a')
+        const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
+        vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor)
+
+        const {api} = await import('../client')
+        await api.downloadClubConfigPdf()
+
+        expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/club/config/export')
+        expect(renderClubConfigPdf).toHaveBeenCalledWith(bundle, branding)
+        expect(anchor.download).toBe('kegelkasse_einstellungen_kc-test.pdf')
+        expect(clickSpy).toHaveBeenCalled()
+        vi.doUnmock('@/lib/clubConfigPdf')
+        vi.doUnmock('@/lib/reportBranding')
+        vi.unstubAllGlobals()
+        vi.restoreAllMocks()
+    })
+
     it('throws when response is not ok', async () => {
         // Re-stub fetch in case a previous test unstubbed it
         vi.stubGlobal('fetch', mockFetch)
