@@ -204,6 +204,7 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
     const [audioCallouts, setAudioCallouts] = useState(club?.settings?.audio_callouts_enabled !== false)
     const [publicSchedule, setPublicSchedule] = useState(club?.settings?.public_schedule_enabled === true)
     const [mapStyle, setMapStyle] = useState<MapStyle>(club?.settings?.map_style || 'voyager')
+    const [section, setSection] = useState<'general' | 'operations' | 'integrations'>('general')
 
     useEffect(() => {
         if (!club) return
@@ -311,7 +312,13 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
     return (
         <div className="flex flex-col gap-4">
+            <Tabs value={section} onChange={setSection} className="-mb-1" items={[
+                {id: 'general', label: t('club.settingsSection.general')},
+                {id: 'operations', label: t('club.settingsSection.operations')},
+                {id: 'integrations', label: t('club.settingsSection.integrations')},
+            ]}/>
 
+            {section === 'general' && <>
             {/* ── Allgemein ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.general')}</div>
@@ -468,7 +475,9 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
 
             {/* ── App-Icon ── */}
             <AppIconCard/>
+            </>}
 
+            {section === 'operations' && <>
             {/* ── Sonderstrafen ── */}
             <div className="kce-card p-4">
                 <div className="sec-heading mb-3">{t('club.settings.specialPenalties')}</div>
@@ -540,17 +549,22 @@ function ClubSettingsTab({club, onSaved}: { club: any; onSaved: () => void }) {
                     <p className="text-xs text-muted mt-1">{t('club.paypalMeHint')}</p>
                 </Field>
             </div>
+            </>}
 
-            <Button variant="primary" block onClick={handleSave} disabled={!isOnline}>
-                {isOnline ? t('action.save') : t('offline.btnLabel')}
-            </Button>
+            {section !== 'integrations' && (
+                <Button variant="primary" block onClick={handleSave} disabled={!isOnline}>
+                    {isOnline ? t('action.save') : t('offline.btnLabel')}
+                </Button>
+            )}
 
+            {section === 'integrations' && <>
             <ReminderSettingsCard />
             <EmailSettingsCard />
             <TelegramSettingsCard />
             <AiSettingsCard />
             <BroadcastPushCard />
             <ClubConfigCard />
+            </>}
         </div>
     )
 }

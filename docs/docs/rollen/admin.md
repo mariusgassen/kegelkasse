@@ -12,6 +12,8 @@ Als **Admin** verwaltest du den Verein: Mitglieder, Strafentypen, Spielvorlagen 
 
 ## Vereinseinstellungen
 
+Die Einstellungen sind in drei Bereiche gegliedert: **Allgemein** (Name, Spiellokal, Erscheinungsbild, App-Icon), **Betrieb** (Sonderstrafen, Wurf-Erfassung, Audio-Ansagen, öffentliche Termine, TV-Scoreboard, Zahlungen) und **Benachrichtigungen & Integrationen** (Erinnerungen, E-Mail, Telegram, KI, Push-Nachricht, Konfigurations-Export).
+
 Unter **Verein → Einstellungen** kannst du:
 
 - **Vereinsname** festlegen
@@ -24,7 +26,7 @@ Unter **Verein → Einstellungen** kannst du:
 
 ## Konfiguration exportieren / importieren
 
-Unter **Verein → Einstellungen → Konfiguration exportieren/importieren** kannst du die Grundeinrichtung
+Unter **Verein → Einstellungen → Benachrichtigungen & Integrationen → Konfiguration exportieren/importieren** kannst du die Grundeinrichtung
 des Vereins als JSON-Datei sichern oder in einen anderen Verein übernehmen — praktisch, um z. B. einen
 Test- oder Staging-Verein mit derselben Einrichtung wie der Live-Verein zu starten.
 

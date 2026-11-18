@@ -174,9 +174,12 @@ async function clickCardAction(labelKey: string, index = 0) {
     fireEvent.click(screen.getByText(labelKey))
 }
 
-async function renderClubAdminPage() {
+async function renderClubAdminPage(section?: 'operations' | 'integrations') {
     const { ClubAdminPage } = await import('../ClubAdminPage')
-    return render(<ClubAdminPage />, { wrapper: makeWrapper() })
+    const result = render(<ClubAdminPage />, { wrapper: makeWrapper() })
+    // The settings tab is split into sub-sections; General is shown first.
+    if (section) fireEvent.click(await screen.findByText(`club.settingsSection.${section}`))
+    return result
 }
 
 const AI_SETTINGS = {
@@ -365,7 +368,7 @@ describe('ClubAdminPage — settings tab', () => {
 
     it('defaults the throw-tracking switch on and saves it off when toggled', async () => {
         const { api } = await import('@/api/client.ts')
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         const toggle = await screen.findByRole('switch', {name: 'club.throwTracking.label'})
         expect(toggle).toHaveAttribute('aria-checked', 'true')
         fireEvent.click(toggle)
@@ -381,7 +384,7 @@ describe('ClubAdminPage — settings tab', () => {
 
     it('defaults the audio-callouts switch on and saves it off when toggled', async () => {
         const { api } = await import('@/api/client.ts')
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         const toggle = await screen.findByRole('switch', {name: 'club.audioCallouts.label'})
         expect(toggle).toHaveAttribute('aria-checked', 'true')
         fireEvent.click(toggle)
@@ -396,7 +399,7 @@ describe('ClubAdminPage — settings tab', () => {
 
     it('defaults the public-schedule switch off and saves it on when toggled', async () => {
         const { api } = await import('@/api/client.ts')
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         const toggle = await screen.findByRole('switch', {name: 'club.publicSchedule.label'})
         expect(toggle).toHaveAttribute('aria-checked', 'false')
         fireEvent.click(toggle)
@@ -425,7 +428,7 @@ describe('ClubAdminPage — settings tab', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue(
             { id: 1, name: 'TestClub', slug: 'kce', settings: { public_schedule_enabled: true } } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         expect(await screen.findByText(`${window.location.origin}/api/v1/public/clubs/kce/schedule`))
             .toBeInTheDocument()
     })
@@ -434,7 +437,7 @@ describe('ClubAdminPage — settings tab', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getClub).mockResolvedValue(
             { id: 1, name: 'TestClub', settings: { scoreboard_token: 'tv-tok' } } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         expect(await screen.findByText(`${window.location.origin}/tv/tv-tok`)).toBeInTheDocument()
     })
 
@@ -443,7 +446,7 @@ describe('ClubAdminPage — settings tab', () => {
         vi.mocked(api.getClub).mockResolvedValue(
             { id: 1, name: 'TestClub', settings: { scoreboard_token: 'tv-tok' } } as any)
         vi.mocked(api.regenerateScoreboardToken).mockResolvedValue({ scoreboard_token: 'new' } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
 
         fireEvent.click(await screen.findByText('scoreboard.regenerate'))
         expect(screen.getByText('scoreboard.regenerateConfirm')).toBeInTheDocument()
@@ -465,7 +468,7 @@ describe('ClubAdminPage — settings tab', () => {
             payment_request_nudge: { enabled: false, days_pending: 3 },
             auto_report: { enabled: false, days_before: 1 },
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => {
             expect(screen.getByText('reminders.title')).toBeInTheDocument()
         })
@@ -498,7 +501,7 @@ describe('ClubAdminPage — config export/import', () => {
     })
 
     it('shows the export/import card', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         expect(await screen.findByText('club.config.title')).toBeInTheDocument()
     })
 
@@ -514,7 +517,7 @@ describe('ClubAdminPage — config export/import', () => {
         })
         vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
 
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         fireEvent.click(await screen.findByText('club.config.export'))
         await waitFor(() => expect(vi.mocked(api.exportClubConfig)).toHaveBeenCalled())
         await waitFor(() => expect(clickSpy).toHaveBeenCalled())
@@ -524,7 +527,7 @@ describe('ClubAdminPage — config export/import', () => {
     it('downloads the settings as a PDF from the config card', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.downloadClubConfigPdf).mockResolvedValue(undefined)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         fireEvent.click(await screen.findByText('club.config.exportPdf'))
         await waitFor(() => expect(vi.mocked(api.downloadClubConfigPdf)).toHaveBeenCalled())
     })
@@ -533,7 +536,7 @@ describe('ClubAdminPage — config export/import', () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.importClubConfig).mockResolvedValue(
             { ok: true, penalty_types: 2, game_templates: 1, teams: 1, pins: 0 } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
 
         const file = new File([JSON.stringify(CONFIG_BUNDLE)], 'config.json', { type: 'application/json' })
         const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
@@ -552,7 +555,7 @@ describe('ClubAdminPage — config export/import', () => {
 
     it('closes the confirmation sheet without importing on cancel', async () => {
         const { api } = await import('@/api/client.ts')
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
 
         const file = new File([JSON.stringify(CONFIG_BUNDLE)], 'config.json', { type: 'application/json' })
         const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
@@ -566,7 +569,7 @@ describe('ClubAdminPage — config export/import', () => {
 
     it('shows an error toast for an invalid file instead of the confirmation sheet', async () => {
         const { showToast } = await import('@/components/ui/Toast.tsx')
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
 
         const file = new File(['not json'], 'bad.json', { type: 'application/json' })
         const input = document.querySelector('input[type="file"][accept="application/json"]') as HTMLInputElement
@@ -1035,7 +1038,7 @@ describe('ClubAdminPage — settings save', () => {
     })
 
     it('shows broadcast title heading in settings tab', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => {
             expect(screen.getByText('broadcast.title')).toBeInTheDocument()
         })
@@ -1044,7 +1047,7 @@ describe('ClubAdminPage — settings save', () => {
     it('calls api.broadcastPush when send button clicked with title+body', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.broadcastPush).mockResolvedValueOnce(undefined as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('broadcast.title'))
         const titleInput = screen.getByPlaceholderText('broadcast.label')
         const bodyInput = screen.getByPlaceholderText('broadcast.body')
@@ -1080,7 +1083,7 @@ describe('ClubAdminPage — settings save', () => {
     })
 
     it('shows paypal input in settings tab', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('operations')
         await waitFor(() => {
             expect(screen.getByText('club.paypalMe')).toBeInTheDocument()
         })
@@ -1108,7 +1111,7 @@ describe('ClubAdminPage — reminder settings interactions', () => {
     it('calls api.updateReminderSettings when reminder save clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateReminderSettings).mockResolvedValueOnce({} as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => {
             expect(screen.getByText('reminders.title')).toBeInTheDocument()
         }, { timeout: 3000 })
@@ -1125,7 +1128,7 @@ describe('ClubAdminPage — reminder settings interactions', () => {
     it('calls api.triggerReminders when triggerNow button clicked', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.triggerReminders).mockResolvedValueOnce(undefined as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.triggerNow'))
         fireEvent.click(screen.getByText('reminders.triggerNow'))
         await waitFor(() => {
@@ -1144,7 +1147,7 @@ describe('ClubAdminPage — email settings', () => {
     })
 
     it('renders the email settings card', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
         expect(screen.getByText('email.host')).toBeInTheDocument()
         expect(screen.getByText('email.enabled')).toBeInTheDocument()
@@ -1157,7 +1160,7 @@ describe('ClubAdminPage — email settings', () => {
             from_address: 'noreply@x.de', from_name: 'My Club', use_tls: false, use_ssl: true,
             password_set: true,
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByDisplayValue('smtp.example.com')).toBeInTheDocument())
         expect(screen.getByDisplayValue('465')).toBeInTheDocument()
         expect(screen.getByDisplayValue('My Club')).toBeInTheDocument()
@@ -1168,7 +1171,7 @@ describe('ClubAdminPage — email settings', () => {
     it('saves the config, only sending the password when typed', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEmailSettings).mockResolvedValue({ password_set: false } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
         const hostInput = screen.getByPlaceholderText('smtp.example.com')
         fireEvent.change(hostInput, { target: { value: 'smtp.new.de' } })
@@ -1188,14 +1191,14 @@ describe('ClubAdminPage — email settings', () => {
             from_address: 'x@y.de', from_name: '', use_tls: true, use_ssl: false,
             base_url: 'https://kegeln.meinverein.de', password_set: false,
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByDisplayValue('https://kegeln.meinverein.de')).toBeInTheDocument())
     })
 
     it('includes the custom domain in the save payload', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateEmailSettings).mockResolvedValue({ password_set: false } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('email.title')).toBeInTheDocument())
         const baseUrlInput = screen.getByPlaceholderText('https://kegeln.meinverein.de')
         fireEvent.change(baseUrlInput, { target: { value: 'https://kegeln.example.org' } })
@@ -1215,7 +1218,7 @@ describe('ClubAdminPage — email settings', () => {
             from_name: '', use_tls: true, use_ssl: false, password_set: true,
         } as any)
         vi.mocked(api.testEmailSettings).mockResolvedValue({ ok: true, sent_to: 'me@x.de' } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('email.sendTest')).toBeInTheDocument())
         fireEvent.click(screen.getByText('email.sendTest'))
         await waitFor(() => expect(api.testEmailSettings).toHaveBeenCalled())
@@ -1233,7 +1236,7 @@ describe('ClubAdminPage — telegram settings', () => {
     })
 
     it('renders the telegram settings card', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('telegram.title')).toBeInTheDocument())
         expect(screen.getByText('telegram.botToken')).toBeInTheDocument()
     })
@@ -1243,7 +1246,7 @@ describe('ClubAdminPage — telegram settings', () => {
         vi.mocked(api.getTelegramSettings).mockResolvedValue({
             enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: true,
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('@my_club_bot')).toBeInTheDocument())
         expect(screen.getByPlaceholderText('telegram.botTokenSet')).toBeInTheDocument()
     })
@@ -1253,7 +1256,7 @@ describe('ClubAdminPage — telegram settings', () => {
         vi.mocked(api.getTelegramSettings).mockResolvedValue({
             enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: false,
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('telegram.webhookWarning')).toBeInTheDocument())
     })
 
@@ -1262,7 +1265,7 @@ describe('ClubAdminPage — telegram settings', () => {
         vi.mocked(api.updateTelegramSettings).mockResolvedValue({
             enabled: true, bot_username: 'new_bot', bot_token_set: true, webhook_registered: true,
         } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('telegram.title')).toBeInTheDocument())
         const tokenInput = screen.getByPlaceholderText('telegram.botTokenPlaceholder')
         fireEvent.change(tokenInput, { target: { value: '123:ABC' } })
@@ -1281,7 +1284,7 @@ describe('ClubAdminPage — telegram settings', () => {
             enabled: true, bot_username: 'my_club_bot', bot_token_set: true, webhook_registered: true,
         } as any)
         vi.mocked(api.testTelegramSettings).mockResolvedValue({ ok: true } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByText('telegram.sendTest')).toBeInTheDocument())
         fireEvent.click(screen.getByText('telegram.sendTest'))
         await waitFor(() => expect(api.testTelegramSettings).toHaveBeenCalled())
@@ -1605,6 +1608,7 @@ describe('ClubAdminPage — settings inputs onChange', () => {
     it('updates guestCap input when changed', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByDisplayValue('TestClub'))
+        fireEvent.click(screen.getByText('club.settingsSection.operations'))
         const input = screen.getByPlaceholderText('club.penalty.guestCapPlaceholder') as HTMLInputElement
         fireEvent.change(input, { target: { value: '5.00' } })
         expect(input.value).toBe('5.00')
@@ -1613,6 +1617,7 @@ describe('ClubAdminPage — settings inputs onChange', () => {
     it('updates noRsvpExtra input when changed', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByDisplayValue('TestClub'))
+        fireEvent.click(screen.getByText('club.settingsSection.operations'))
         const input = screen.getByPlaceholderText('club.noRsvpExtraPlaceholder') as HTMLInputElement
         fireEvent.change(input, { target: { value: '2.50' } })
         expect(input.value).toBe('2.50')
@@ -1621,6 +1626,7 @@ describe('ClubAdminPage — settings inputs onChange', () => {
     it('updates pinPenalty input when changed', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByDisplayValue('TestClub'))
+        fireEvent.click(screen.getByText('club.settingsSection.operations'))
         const input = screen.getByPlaceholderText('club.pinPenaltyPlaceholder') as HTMLInputElement
         fireEvent.change(input, { target: { value: '1.00' } })
         expect(input.value).toBe('1.00')
@@ -1629,6 +1635,7 @@ describe('ClubAdminPage — settings inputs onChange', () => {
     it('updates paypalMe input when changed', async () => {
         await renderClubAdminPage()
         await waitFor(() => screen.getByDisplayValue('TestClub'))
+        fireEvent.click(screen.getByText('club.settingsSection.operations'))
         const input = screen.getByPlaceholderText('club.paypalMePlaceholder') as HTMLInputElement
         fireEvent.change(input, { target: { value: 'myclub' } })
         expect(input.value).toBe('myclub')
@@ -1640,6 +1647,7 @@ describe('ClubAdminPage — settings inputs onChange', () => {
         vi.mocked(api.updateClubSettings).mockRejectedValueOnce(new Error('save failed'))
         await renderClubAdminPage()
         await waitFor(() => screen.getByDisplayValue('TestClub'))
+        fireEvent.click(screen.getByText('club.settingsSection.operations'))
         const saveBtns = screen.getAllByText('action.save')
         fireEvent.click(saveBtns[0])
         await waitFor(() => {
@@ -1764,7 +1772,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking debt_weekly toggle shows weekday select and min_debt input', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.title'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         // first toggle is debt_weekly
@@ -1776,7 +1784,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('changing weekday select updates value', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.title'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[0])
@@ -1787,7 +1795,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking upcoming_evening toggle shows label', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.title'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[1])
@@ -1797,7 +1805,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking rsvp_reminder toggle shows label', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.title'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[2])
@@ -1807,7 +1815,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking debt_day_of toggle updates its state', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.debt_day_of'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[3])
@@ -1815,7 +1823,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking payment_nudge toggle shows label', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.payment_nudge'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[4])
@@ -1825,7 +1833,7 @@ describe('ClubAdminPage — reminder toggle interactions', () => {
     })
 
     it('clicking auto_report toggle shows label', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => screen.getByText('reminders.auto_report'))
         const toggles = document.querySelectorAll('[aria-pressed]')
         fireEvent.click(toggles[5])
@@ -2178,7 +2186,7 @@ describe('ClubAdminPage — AI settings', () => {
     })
 
     it('shows feature switches, model choice and limit without any key field', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         const card = screen.getByTestId('ai-settings')
         expect(card.querySelector('input[type="password"]')).toBeNull()
@@ -2190,14 +2198,14 @@ describe('ClubAdminPage — AI settings', () => {
     it('warns when the server has no key', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.getAiSettings).mockResolvedValue({ ...AI_SETTINGS, key_configured: false } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByTestId('ai-settings-no-key')).toBeInTheDocument())
     })
 
     it('saves switched-off features, model and limit', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateAiSettings).mockResolvedValue({ ...AI_SETTINGS, recaps: false } as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         fireEvent.click(screen.getByRole('button', { name: 'ai.settings.recaps' }))
         fireEvent.change(screen.getByLabelText('ai.settings.model'), { target: { value: 'claude-haiku-5-5' } })
@@ -2214,7 +2222,7 @@ describe('ClubAdminPage — AI settings', () => {
     it('edits a recap base prompt and resets it to the default', async () => {
         const { api } = await import('@/api/client.ts')
         vi.mocked(api.updateAiSettings).mockResolvedValue(AI_SETTINGS as any)
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         const evening = screen.getByLabelText('ai.settings.promptEvening')
         expect(evening).toHaveValue('Abend-Standard')
@@ -2229,7 +2237,7 @@ describe('ClubAdminPage — AI settings', () => {
     })
 
     it('blocks saving an out-of-range limit', async () => {
-        await renderClubAdminPage()
+        await renderClubAdminPage('integrations')
         await waitFor(() => expect(screen.getByTestId('ai-settings')).toBeInTheDocument())
         fireEvent.change(screen.getByLabelText('ai.settings.limit'), { target: { value: '0' } })
         expect(screen.getByTestId('ai-settings-save')).toBeDisabled()
