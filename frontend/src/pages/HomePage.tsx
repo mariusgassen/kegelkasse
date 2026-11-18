@@ -25,6 +25,7 @@ import {
     recentThrowAvgs,
     recentPenaltyEvenings,
     type CommunityItem,
+    type CommunityKind,
     type PenaltyEveningSummary,
 } from '@/lib/dashboard.ts'
 
@@ -158,14 +159,26 @@ function NextAppointment({se, locale, onChanged}: {
     )
 }
 
+type TKey = Parameters<ReturnType<typeof useT>>[0]
+const NEWS_FILTERS: {id: CommunityKind | undefined; label: TKey}[] = [
+    {id: undefined, label: 'home.filter.all'},
+    {id: 'announcement', label: 'committee.tab.announcements'},
+    {id: 'trip', label: 'committee.tab.trips'},
+    {id: 'sticker', label: 'nav.stickers'},
+]
+
 // ── Community news row ─────────────────────────────────────────────────────────
+const COMMUNITY_ICON: Record<CommunityKind, string> = {announcement: '📣', trip: '🚌', sticker: '📍'}
 function CommunityRow({item}: {item: CommunityItem}) {
-    const icon = item.kind === 'trip' ? '🚌' : '📣'
+    const icon = COMMUNITY_ICON[item.kind]
     function open() {
-        router.navigate({
-            to: '/committee',
-            search: {tab: item.kind === 'trip' ? 'trips' : 'announcements', item: item.id},
-        }).catch(() => {})
+        const nav = item.kind === 'sticker'
+            ? router.navigate({to: '/stickers', search: {tab: 'feed', item: item.id}})
+            : router.navigate({
+                to: '/committee',
+                search: {tab: item.kind === 'trip' ? 'trips' : 'announcements', item: item.id},
+            })
+        nav.catch(() => {})
     }
     return (
         <button onClick={open}
@@ -221,6 +234,7 @@ function PenaltyEveningGroup({g, locale}: {g: PenaltyEveningSummary; locale: str
 export function HomePage() {
     const t = useT()
     const qc = useQueryClient()
+    const [newsFilter, setNewsFilter] = useState<CommunityKind | undefined>(undefined)
     const user = useAppStore(s => s.user)
     const activeEveningId = useAppStore(s => s.activeEveningId)
     const regularMembers = useAppStore(s => s.regularMembers)
@@ -251,6 +265,11 @@ export function HomePage() {
         queryFn: api.listTrips,
         staleTime: 60000,
     })
+    const {data: stickers = []} = useQuery({
+        queryKey: ['stickers'],
+        queryFn: api.listStickers,
+        staleTime: 60000,
+    })
     const {data: throwStats} = useQuery({
         queryKey: ['my-throws'],
         queryFn: () => api.getMyThrowStats(),
@@ -266,7 +285,8 @@ export function HomePage() {
 
     const locale = user?.preferred_locale ?? 'de'
     const upcoming = nextAppointment(schedules ?? [], todayKey())
-    const news = recentCommunity(announcements, trips, 3)
+    const hasNews = announcements.length + trips.length + stickers.length > 0
+    const news = recentCommunity(announcements, trips, stickers, 3, newsFilter)
     const bState = balanceState(myBalance?.balance)
     const spark = recentThrowAvgs(throwStats, 8)
     const penaltyEvenings = recentPenaltyEvenings(myPenalties, 3, 3)
@@ -340,11 +360,24 @@ export function HomePage() {
             )}
 
             {/* Community news */}
-            {news.length > 0 && (
+            {hasNews && (
                 <Section icon="📣" title={t('home.community')} action={t('home.allNews')}
-                         onAction={() => router.navigate({to: '/committee', search: {tab: 'announcements'}}).catch(() => {})}>
+                         onAction={() => (newsFilter === 'sticker'
+                             ? router.navigate({to: '/stickers', search: {tab: 'feed'}})
+                             : router.navigate({to: '/committee', search: {tab: newsFilter === 'trip' ? 'trips' : 'announcements'}})
+                         ).catch(() => {})}>
+                    <div className="flex flex-wrap gap-1.5 mb-1" role="group" aria-label={t('home.community')}>
+                        {NEWS_FILTERS.map(f => (
+                            <button key={f.id ?? 'all'} type="button" aria-pressed={newsFilter === f.id}
+                                    className={`chip ${newsFilter === f.id ? 'active' : ''}`}
+                                    onClick={() => setNewsFilter(f.id)}>
+                                {t(f.label)}
+                            </button>
+                        ))}
+                    </div>
                     <div className="divide-y divide-surface-2">
                         {news.map(item => <CommunityRow key={`${item.kind}-${item.id}`} item={item}/>)}
+                        {news.length === 0 && <p className="text-xs text-muted py-1.5">{t('home.newsEmpty')}</p>}
                     </div>
                 </Section>
             )}

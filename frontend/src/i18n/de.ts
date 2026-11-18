@@ -114,6 +114,8 @@ export const de = {
     "home.balance.settled": "Alles bezahlt",
     "home.community": "Neuigkeiten",
     "home.allNews": "Mehr",
+    "home.filter.all": "Alle",
+    "home.newsEmpty": "Keine Neuigkeiten in dieser Kategorie",
     "home.mySeason": "Meine Saison",
     "home.toStats": "Statistik",
     "home.avgPins": "Ø Holz pro Wurf",

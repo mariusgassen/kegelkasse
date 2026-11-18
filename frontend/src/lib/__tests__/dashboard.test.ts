@@ -7,7 +7,7 @@ import {
     recentPenaltyEvenings,
     type MemberPenaltyRow,
 } from '../dashboard'
-import type {ClubAnnouncement, ClubTrip, ScheduledEvening, ThrowStats} from '../../types'
+import type {ClubAnnouncement, ClubTrip, ScheduledEvening, Sticker, ThrowStats} from '../../types'
 
 function se(id: number, scheduled_at: string, evening_id: number | null = null): ScheduledEvening {
     return {
@@ -67,6 +67,7 @@ describe('recentCommunity', () => {
         const out = recentCommunity(
             [ann(1, 'A', '2026-07-01T10:00'), ann(2, 'B', '2026-07-20T10:00')],
             [trip(3, 'Berlin', '2026-07-10T10:00')],
+            [],
             5,
         )
         expect(out.map(i => i.id)).toEqual([2, 3, 1])
@@ -78,6 +79,7 @@ describe('recentCommunity', () => {
         const out = recentCommunity(
             [ann(1, 'A', '2026-07-01T10:00'), ann(2, 'B', '2026-07-02T10:00'), ann(3, 'C', '2026-07-03T10:00')],
             [],
+            [],
             2,
         )
         expect(out).toHaveLength(2)
@@ -85,12 +87,34 @@ describe('recentCommunity', () => {
     })
 
     it('carries title/subtitle from the source items', () => {
-        const out = recentCommunity([], [trip(9, 'Kegelfahrt Harz', '2026-07-05T10:00', 'Bus ab 8 Uhr')], 5)
+        const out = recentCommunity([], [trip(9, 'Kegelfahrt Harz', '2026-07-05T10:00', 'Bus ab 8 Uhr')], [], 5)
         expect(out[0]).toMatchObject({title: 'Kegelfahrt Harz', subtitle: 'Bus ab 8 Uhr', kind: 'trip'})
     })
 
+    const sticker = (id: number, place: string, created_at: string | null): Sticker => ({
+        id, media_url: '', media_urls: [], place_name: place, latitude: 0, longitude: 0,
+        caption: null, stuck_on: null, created_by_name: null, created_at, can_edit: false,
+    })
+
+    it('includes stickers in the merged feed', () => {
+        const out = recentCommunity([ann(1, 'A', '2026-07-01T10:00')], [], [sticker(7, 'Hamburg', '2026-07-05T10:00')], 5)
+        expect(out.map(i => [i.kind, i.id])).toEqual([['sticker', 7], ['announcement', 1]])
+        expect(out[0].title).toBe('Hamburg')
+    })
+
+    it('filters by kind before applying the cap', () => {
+        const out = recentCommunity(
+            [ann(1, 'A', '2026-07-09T10:00'), ann(2, 'B', '2026-07-08T10:00')],
+            [],
+            [sticker(7, 'Hamburg', '2026-07-01T10:00')],
+            1,
+            'sticker',
+        )
+        expect(out.map(i => i.id)).toEqual([7])
+    })
+
     it('treats a null created_at as oldest (ts 0)', () => {
-        const out = recentCommunity([ann(1, 'A', null), ann(2, 'B', '2026-07-01T10:00')], [], 5)
+        const out = recentCommunity([ann(1, 'A', null), ann(2, 'B', '2026-07-01T10:00')], [], [], 5)
         expect(out.map(i => i.id)).toEqual([2, 1])
     })
 })

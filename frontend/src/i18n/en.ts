@@ -114,6 +114,8 @@ export const en = {
     "home.balance.settled": "All paid",
     "home.community": "News",
     "home.allNews": "More",
+    "home.filter.all": "All",
+    "home.newsEmpty": "No news in this category",
     "home.mySeason": "My season",
     "home.toStats": "Statistics",
     "home.avgPins": "Avg pins per throw",
