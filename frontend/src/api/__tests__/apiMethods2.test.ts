@@ -940,18 +940,15 @@ describe('api.downloadReport', () => {
         const branding = {color: '#e8a020', logo: null}
         vi.doMock('@/lib/reportBranding', () => ({loadReportBranding: vi.fn().mockResolvedValue(branding)}))
         vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn() })
-        const anchor = document.createElement('a')
-        const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
-        vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor)
-
         const { api } = await import('../client')
+        const {usePdfViewer} = await import('@/store/pdfViewer')
         await api.downloadReport(2025, 'pdf')
 
         expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/reports/data?year=2025')
         expect(mockFetch.mock.calls.some(c => String(c[0]).includes('/reports/export'))).toBe(false)
         expect(renderReportPdf).toHaveBeenCalledWith({club_name: 'KC'}, branding)
-        expect(anchor.download).toBe('kegelkasse_report_2025.pdf')
-        expect(clickSpy).toHaveBeenCalled()
+        expect(usePdfViewer.getState().file?.name).toBe('kegelkasse_report_2025.pdf')
+        usePdfViewer.getState().close()
         vi.doUnmock('@/lib/reportPdf')
         vi.doUnmock('@/lib/reportBranding')
         vi.unstubAllGlobals()
@@ -969,17 +966,14 @@ describe('api.downloadReport', () => {
         const branding = {color: '#e8a020', logo: null}
         vi.doMock('@/lib/reportBranding', () => ({loadReportBranding: vi.fn().mockResolvedValue(branding)}))
         vi.stubGlobal('URL', {createObjectURL: vi.fn(() => 'blob:fake'), revokeObjectURL: vi.fn()})
-        const anchor = document.createElement('a')
-        const clickSpy = vi.spyOn(anchor, 'click').mockImplementation(() => {})
-        vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor)
-
         const {api} = await import('../client')
+        const {usePdfViewer} = await import('@/store/pdfViewer')
         await api.downloadClubConfigPdf()
 
         expect(mockFetch.mock.calls[0][0]).toContain('/api/v1/club/config/export')
         expect(renderClubConfigPdf).toHaveBeenCalledWith(bundle, branding)
-        expect(anchor.download).toBe('kegelkasse_einstellungen_kc-test.pdf')
-        expect(clickSpy).toHaveBeenCalled()
+        expect(usePdfViewer.getState().file?.name).toBe('kegelkasse_einstellungen_kc-test.pdf')
+        usePdfViewer.getState().close()
         vi.doUnmock('@/lib/clubConfigPdf')
         vi.doUnmock('@/lib/reportBranding')
         vi.unstubAllGlobals()

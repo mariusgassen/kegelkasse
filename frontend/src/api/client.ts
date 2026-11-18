@@ -4,6 +4,7 @@ import {pendingStore} from '@/pendingStore'
 import {persistTokenForSW} from '@/lib/tokenStore'
 import type {ScoreboardData} from '@/lib/scoreboard'
 import {todayDateInput} from '@/lib/datetime.ts'
+import {deliverFile} from '@/lib/deliverFile'
 import {
     ReportData,
     AppIconSettings,
@@ -462,14 +463,7 @@ export const api = {
             throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
         }
         const blob = await res.blob()
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        deliverFile(blob, fileName)
     },
     acknowledgeClubDocument: (id: number, response: ClubDocumentResponse) =>
         request<ClubDocument>('POST', `/club/documents/${id}/acknowledge`, {response}),
@@ -1094,15 +1088,7 @@ export const api = {
             }
             blob = await res.blob()
         }
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        const suffix = year ? `_${year}` : ''
-        a.download = `kegelkasse_report${suffix}.${format}`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        deliverFile(blob, `kegelkasse_report${year ? `_${year}` : ''}.${format}`)
     },
 
     // Club settings PDF — built here from the config-export bundle with the same PDF stack as
@@ -1116,16 +1102,9 @@ export const api = {
         const branding = await loadReportBranding(await api.getClub().catch(() => undefined))
         const bytes = await renderClubConfigPdf(bundle, branding)
         const blob = new Blob([bytes as BlobPart], {type: 'application/pdf'})
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
         const slug = (bundle.club_name ?? 'club').toLowerCase()
             .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'club'
-        a.download = `kegelkasse_einstellungen_${slug}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        deliverFile(blob, `kegelkasse_einstellungen_${slug}.pdf`)
     },
 
     // Backups — pgbackrest (superadmin only)
