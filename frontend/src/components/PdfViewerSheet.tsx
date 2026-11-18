@@ -32,7 +32,7 @@ export function PdfViewerSheet() {
 
     return (
         <Sheet open onClose={close} title={file.name} icon="📄">
-            <iframe src={url} title={file.name} className="w-full rounded-lg bg-surface-2"
+            <iframe src={url} aria-label={file.name} className="w-full rounded-lg bg-surface-2"
                     style={{height: '60vh'}} data-testid="pdf-viewer-frame"/>
             <div className="flex gap-2 mt-3">
                 <Button variant="primary" className="flex-1" onClick={share}>{t('pdf.share')}</Button>
