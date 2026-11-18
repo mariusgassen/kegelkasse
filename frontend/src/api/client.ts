@@ -10,6 +10,10 @@ import {
     AppIconVariant,
     Club,
     ClubAnnouncement,
+    ClubDocument,
+    ClubDocumentList,
+    ClubDocumentResponse,
+    ClubDocumentUpload,
     ClubSettings,
     ClubTeam,
     ClubPin,
@@ -429,6 +433,50 @@ export const api = {
         return res.json()
     },
     deleteClubLogo: () => request<void>('DELETE', '/club/logo'),
+
+    // Club documents (Satzung, Geschäftsordnung, ...)
+    listClubDocuments: () => request<ClubDocumentList>('GET', '/club/documents/'),
+    getClubDocument: (id: number) => request<ClubDocument>('GET', `/club/documents/${id}`),
+    uploadClubDocument: async (d: ClubDocumentUpload): Promise<ClubDocument> => {
+        const form = new FormData()
+        form.append('file', d.file)
+        form.append('title', d.title)
+        form.append('document_type', d.document_type)
+        if (d.version) form.append('version', d.version)
+        if (d.decision_date) form.append('decision_date', d.decision_date)
+        if (d.effective_date) form.append('effective_date', d.effective_date)
+        if (d.group_id) form.append('group_id', d.group_id)
+        const res = await authedFetch(`${API_BASE}/club/documents/`, {method: 'POST', body: form})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+        }
+        return res.json()
+    },
+    downloadClubDocument: async (id: number, fileName: string): Promise<void> => {
+        const res = await authedFetch(`${API_BASE}/club/documents/${id}/download`, {headers: {}})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    },
+    acknowledgeClubDocument: (id: number, response: ClubDocumentResponse) =>
+        request<ClubDocument>('POST', `/club/documents/${id}/acknowledge`, {response}),
+    withdrawClubDocumentAcknowledgement: (id: number) =>
+        request<void>('DELETE', `/club/documents/${id}/acknowledge`),
+    deleteClubDocument: (id: number) => request<void>('DELETE', `/club/documents/${id}`),
+
     getAppIconSettings: () => request<AppIconSettings>('GET', '/club/app-icon'),
     updateAppIconSettings: (d: {enabled?: boolean; variant?: AppIconVariant}) =>
         request<AppIconSettings>('PATCH', '/club/app-icon', d),

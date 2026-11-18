@@ -240,6 +240,54 @@ export interface ClubAnnouncement {
     created_at: string | null
 }
 
+// Vereinsdokumente — one row per uploaded version, grouped by group_id.
+export type ClubDocumentType = 'satzung' | 'geschaeftsordnung' | 'protokoll' | 'sonstiges'
+export type ClubDocumentResponse = 'acknowledged' | 'agreed'
+
+export interface ClubDocumentAcknowledgement {
+    id: number
+    responder_name: string
+    response: ClubDocumentResponse
+    confirmed_at: string | null
+    updated_at: string | null
+    is_me: boolean
+}
+
+export interface ClubDocument {
+    id: number
+    group_id: string
+    title: string
+    document_type: ClubDocumentType
+    version: string | null
+    decision_date: string | null
+    effective_date: string | null
+    file_name: string
+    file_size: number
+    uploaded_by_name: string
+    uploaded_at: string | null
+    is_current: boolean
+    acknowledged_count: number
+    my_response: ClubDocumentResponse | null
+    my_confirmed_at: string | null
+    acknowledgements?: ClubDocumentAcknowledgement[]
+}
+
+export interface ClubDocumentList {
+    documents: ClubDocument[]
+    member_count: number
+    can_upload: boolean
+}
+
+export interface ClubDocumentUpload {
+    file: File
+    title: string
+    document_type: ClubDocumentType
+    version?: string
+    decision_date?: string
+    effective_date?: string
+    group_id?: string
+}
+
 export interface Sticker {
     id: number
     media_url: string

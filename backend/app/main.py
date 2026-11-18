@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from api.v1 import ai, ai_search, app_icon, audit, auth, backups, bowling, club, comments, committee, evenings, guest_requests, inventory, public, push, reports, roadmap, schedule, scoreboard, season, stats, stickers, sync, superadmin, telegram, uploads
+from api.v1 import ai, ai_search, app_icon, audit, auth, backups, bowling, club, comments, committee, documents, evenings, guest_requests, inventory, public, push, reports, roadmap, schedule, scoreboard, season, stats, stickers, sync, superadmin, telegram, uploads
 from core.config import settings
 from core.events import event_bus
 from core.scheduler import start_scheduler, stop_scheduler
@@ -77,6 +77,7 @@ app.include_router(ai.router, prefix="/api/v1")
 app.include_router(ai_search.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(club.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")
 app.include_router(evenings.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")

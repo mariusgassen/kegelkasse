@@ -61,6 +61,7 @@ export interface TreasurySearch { tab?: 'overview' | 'analysis' | 'charts' | 'ac
 export interface ScheduleSearch { evening?: number; event?: number; rsvp?: number; requests?: number }
 export interface CommitteeSearch { tab?: 'announcements' | 'trips' | 'polls'; item?: number; comment?: number }
 export interface ClubSearch { tab?: 'settings' | 'penalties' | 'templates' | 'teams' | 'clubs' | 'members' | 'pins' | 'committee' | 'season' | 'backups' }
+export interface DocumentsSearch { item?: number }
 export interface ZeugwartSearch { item?: number }
 export interface MembersSearch { memberName?: string }
 export interface StickersSearch { tab?: 'feed' | 'map'; item?: number; comment?: number }
@@ -94,6 +95,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute('committee', () => import('./pages/CommitteePage'), 'CommitteePage', passThrough<CommitteeSearch>),
     pageRoute('stats', () => import('./pages/StatsPage'), 'StatsPage', passThrough<StatsSearch>),
     pageRoute('club', () => import('./pages/ClubAdminPage'), 'ClubAdminPage', passThrough<ClubSearch>),
+    pageRoute('documents', () => import('./pages/ClubDocumentsPage'), 'ClubDocumentsPage', passThrough<DocumentsSearch>),
     pageRoute('stickers', () => import('./pages/StickersPage'), 'StickersPage', passThrough<StickersSearch>),
     pageRoute('members', () => import('./pages/MembersPage'), 'MembersPage', passThrough<MembersSearch>),
     pageRoute('book', () => import('./pages/BookPage'), 'BookPage', passThrough<BookSearch>),

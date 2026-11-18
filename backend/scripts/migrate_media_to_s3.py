@@ -97,6 +97,7 @@ def _referenced_keys(db) -> list[tuple[str, str]]:
     from models.club import ClubSettings
     from models.comment import Comment
     from models.committee import ClubAnnouncement
+    from models.document import ClubDocument
     from models.evening import EveningHighlight
     from models.user import User
 
@@ -112,6 +113,9 @@ def _referenced_keys(db) -> list[tuple[str, str]]:
             key = key_from_url(url)
             if key:
                 refs.append((label, key))
+    # Documents store the private storage key directly (they are never served from /uploads).
+    for (key,) in db.query(ClubDocument.file_key).all():
+        refs.append(("club document", key))
     return refs
 
 
