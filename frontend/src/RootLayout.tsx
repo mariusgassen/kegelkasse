@@ -322,6 +322,11 @@ export function RootLayout() {
                         <Outlet/>
                     </div>
                 </div>
+
+                {/* Sheets/overlays scoped to the main area so they open below the top bar. */}
+                <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
+                <PdfViewerSheet/>
+                <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             </main>
 
             {/* ── Nav — bottom tab bar on mobile, side rail on ≥lg (via .app-nav grid area) ── */}
@@ -363,9 +368,6 @@ export function RootLayout() {
             </nav>
 
             <NotificationPrompt/>
-            <ProfileSheet open={profileOpen} initialTab={profileTab} onClose={() => { setProfileOpen(false); setProfileTab(undefined) }}/>
-            <PdfViewerSheet/>
-            <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)}/>
             <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)}/>
             {bowlingOpen && <BowlingGame onClose={() => setBowlingOpen(false)}/>}
         </div>
