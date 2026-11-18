@@ -5,9 +5,11 @@
  */
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {Sparkles} from 'lucide-react'
 import {useT} from '@/i18n'
 import {api} from '@/api/client.ts'
 import {useOnline} from '@/hooks/useOnline.ts'
+import {useAiEnabled} from '@/hooks/useAiEnabled.ts'
 import {isAdmin, useAppStore} from '@/store/app.ts'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
@@ -49,8 +51,32 @@ function UploadSheet({group, onClose, onUploaded}: {
     const [version, setVersion] = useState('')
     const [decisionDate, setDecisionDate] = useState('')
     const [effectiveDate, setEffectiveDate] = useState('')
+    const [summary, setSummary] = useState('')
+    const [changeSummary, setChangeSummary] = useState('')
     const [file, setFile] = useState<File | null>(null)
     const [busy, setBusy] = useState(false)
+    const [analyzing, setAnalyzing] = useState(false)
+    const aiOn = useAiEnabled('suggestions')
+
+    // The PDF only leaves the server for the Claude API when the admin asks for it explicitly.
+    async function analyze() {
+        if (!file) return
+        setAnalyzing(true)
+        try {
+            const s = await api.analyzeClubDocument(file, group?.group_id)
+            if (s.title && !title.trim()) setTitle(s.title)
+            if (s.document_type && !group) setType(s.document_type)
+            if (s.version) setVersion(s.version)
+            if (s.decision_date) setDecisionDate(s.decision_date)
+            if (s.effective_date) setEffectiveDate(s.effective_date)
+            if (s.summary) setSummary(s.summary)
+            if (s.change_summary) setChangeSummary(s.change_summary)
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setAnalyzing(false)
+        }
+    }
 
     async function submit() {
         if (!file || !title.trim()) return
@@ -62,6 +88,8 @@ function UploadSheet({group, onClose, onUploaded}: {
                 decision_date: decisionDate || undefined,
                 effective_date: effectiveDate || undefined,
                 group_id: group?.group_id,
+                summary: summary.trim() || undefined,
+                change_summary: changeSummary.trim() || undefined,
             })
             showToast(t('document.upload.submit'), 'success')
             onUploaded()
@@ -106,6 +134,26 @@ function UploadSheet({group, onClose, onUploaded}: {
                            data-testid="document-file-input"
                            onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }}/>
                 </Field>
+                {aiOn && file && (
+                    <div>
+                        <Button variant="secondary" block data-testid="document-ai-fill"
+                                disabled={analyzing || busy || !isOnline} onClick={analyze}>
+                            <Sparkles size={14} aria-hidden="true"/>
+                            {analyzing ? t('document.ai.filling') : t('document.ai.fill')}
+                        </Button>
+                        <p className="text-xs text-muted mt-1">{t('document.ai.hint')}</p>
+                    </div>
+                )}
+                <Field label={t('document.summary')} htmlFor="doc-summary">
+                    <textarea id="doc-summary" className="kce-input w-full" rows={4} value={summary}
+                              maxLength={4000} onChange={e => setSummary(e.target.value)}/>
+                </Field>
+                {group && (
+                    <Field label={t('document.changeSummary')} htmlFor="doc-changes">
+                        <textarea id="doc-changes" className="kce-input w-full" rows={4} value={changeSummary}
+                                  maxLength={4000} onChange={e => setChangeSummary(e.target.value)}/>
+                    </Field>
+                )}
                 <Button type="submit" variant="primary" block disabled={busy || !isOnline || !file || !title.trim()}>
                     {t('document.upload.submit')}
                 </Button>
@@ -150,6 +198,15 @@ function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onA
                         <div>{t('document.upload.decisionDate')}: {fDate(doc.decision_date)} · {t('document.upload.effectiveDate')}: {fDate(doc.effective_date)}</div>
                         <div>{t('document.uploadedAt')}: {fDateTime(doc.uploaded_at)} · {t('document.uploadedBy')}: {doc.uploaded_by_name}</div>
                     </div>
+                    {doc.summary && (
+                        <p className="text-xs mt-2 whitespace-pre-line" data-testid="document-summary">{doc.summary}</p>
+                    )}
+                    {doc.change_summary && (
+                        <div className="text-xs mt-2" data-testid="document-change-summary">
+                            <span className="font-bold">{t('document.changeSummary')}</span>
+                            <p className="whitespace-pre-line">{doc.change_summary}</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

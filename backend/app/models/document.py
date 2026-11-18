@@ -8,7 +8,7 @@ An acknowledgement is a simple electronic confirmation ("Kenntnis genommen" / "Z
 qualified electronic signature. The frozen ``responder_name`` keeps the trail readable if a member
 is renamed or leaves the club.
 """
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
 
 from core.database import Base
@@ -28,6 +28,8 @@ class ClubDocument(Base):
     version = Column(String, nullable=True)
     decision_date = Column(Date(), nullable=True)   # Beschlussdatum
     effective_date = Column(Date(), nullable=True)  # gültig ab
+    summary = Column(Text, nullable=True)           # short KI/admin summary of the document
+    change_summary = Column(Text, nullable=True)    # what changed compared with the previous version
     file_key = Column(String, nullable=False)       # private storage key, never a public URL
     file_name = Column(String, nullable=False)
     file_size = Column(Integer, nullable=False)

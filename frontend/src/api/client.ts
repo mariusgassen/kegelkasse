@@ -13,6 +13,7 @@ import {
     ClubDocument,
     ClubDocumentList,
     ClubDocumentResponse,
+    ClubDocumentSuggestion,
     ClubDocumentUpload,
     ClubSettings,
     ClubTeam,
@@ -446,7 +447,21 @@ export const api = {
         if (d.decision_date) form.append('decision_date', d.decision_date)
         if (d.effective_date) form.append('effective_date', d.effective_date)
         if (d.group_id) form.append('group_id', d.group_id)
+        if (d.summary) form.append('summary', d.summary)
+        if (d.change_summary) form.append('change_summary', d.change_summary)
         const res = await authedFetch(`${API_BASE}/club/documents/`, {method: 'POST', body: form})
+        if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error((err as {detail?: string}).detail ?? `HTTP ${res.status}`)
+        }
+        return res.json()
+    },
+    analyzeClubDocument: async (file: File, groupId?: string): Promise<ClubDocumentSuggestion> => {
+        const form = new FormData()
+        form.append('file', file)
+        if (groupId) form.append('group_id', groupId)
+        const res = await authedFetch(`${API_BASE}/club/documents/analyze`, {method: 'POST', body: form})
         if (res.status === 401) { authState._fireUnauthorized(); throw new UnauthorizedError() }
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))

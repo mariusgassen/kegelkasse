@@ -9,6 +9,7 @@ Each feature makes exactly one request and gets back JSON that matches a schema
 feature needs: Kegelnamen instead of full names, no e-mail addresses, no account data
 beyond what the feature is about.
 """
+import base64
 import json
 import logging
 from typing import Any
@@ -48,12 +49,14 @@ def _create_message(**kwargs):
 
 def generate_json(system: str, data: dict, schema: dict, *, task: str,
                   effort: str = "medium", max_tokens: int = 8000,
-                  model: str | None = None) -> dict[str, Any]:
+                  model: str | None = None,
+                  pdfs: list[bytes] | None = None) -> dict[str, Any]:
     """Ask Claude for a JSON object matching ``schema``.
 
     ``task`` is the instruction for this one request, ``data`` the facts it works from
     (serialised as JSON so names and numbers can't be confused with instructions).
     ``model`` is the club's choice from its AI settings; ``ANTHROPIC_MODEL`` otherwise.
+    ``pdfs`` are attached as document blocks ahead of the text (in the given order).
     """
     if not ai_enabled():
         raise AIUnavailable("AI is not configured")
@@ -63,12 +66,19 @@ def generate_json(system: str, data: dict, schema: dict, *, task: str,
     user_content = (
         f"{task}\n\n<daten>\n{json.dumps(data, ensure_ascii=False, default=str)}\n</daten>"
     )
+    content: Any = user_content
+    if pdfs:
+        content = [
+            {"type": "document", "source": {
+                "type": "base64", "media_type": "application/pdf", "data": base64.b64encode(p).decode("ascii")}}
+            for p in pdfs
+        ] + [{"type": "text", "text": user_content}]
     try:
         response = _create_message(
             model=model or settings.ANTHROPIC_MODEL,
             max_tokens=max_tokens,
             system=system,
-            messages=[{"role": "user", "content": user_content}],
+            messages=[{"role": "user", "content": content}],
             output_config={
                 "effort": effort,
                 "format": {"type": "json_schema", "schema": schema},

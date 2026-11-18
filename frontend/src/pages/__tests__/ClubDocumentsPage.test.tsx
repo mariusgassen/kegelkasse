@@ -4,6 +4,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 
 vi.mock('@/i18n', () => ({useT: () => (key: string) => key}))
 vi.mock('@/hooks/useOnline.ts', () => ({useOnline: () => true}))
+vi.mock('@/hooks/useAiEnabled.ts', () => ({useAiEnabled: () => aiOn.value}))
 vi.mock('@/utils/error.ts', () => ({toastError: vi.fn()}))
 vi.mock('@/components/ui/Toast.tsx', () => ({showToast: vi.fn()}))
 vi.mock('@/components/ui/Empty.tsx', () => ({Empty: ({text}: {text: string}) => <div>{text}</div>}))
@@ -25,7 +26,9 @@ vi.mock('@/store/app.ts', () => ({
     isAdmin: vi.fn(() => false),
 }))
 
+const aiOn = vi.hoisted(() => ({value: false}))
 const apiMock = vi.hoisted(() => ({
+    analyzeClubDocument: vi.fn(),
     listClubDocuments: vi.fn(),
     getClubDocument: vi.fn(),
     uploadClubDocument: vi.fn(),
@@ -63,6 +66,7 @@ beforeEach(() => {
     apiMock.downloadClubDocument.mockResolvedValue(undefined)
     apiMock.deleteClubDocument.mockResolvedValue(undefined)
     vi.mocked(isAdmin).mockReturnValue(false)
+    aiOn.value = false
 })
 
 describe('ClubDocumentsPage', () => {
@@ -120,5 +124,48 @@ describe('ClubDocumentsPage', () => {
         fireEvent.click(await screen.findByTestId('document-delete'))
         fireEvent.click(await screen.findByText('action.confirmDelete'))
         await waitFor(() => expect(api.deleteClubDocument).toHaveBeenCalledWith(7))
+    })
+
+    it('shows summary and change summary on the card', async () => {
+        apiMock.listClubDocuments.mockResolvedValue({
+            documents: [{...DOC, summary: '- Zweck', change_summary: '- Beitrag erhöht'}],
+            member_count: 5, can_upload: false,
+        })
+        renderPage()
+        expect((await screen.findByTestId('document-summary')).textContent).toBe('- Zweck')
+        expect(screen.getByTestId('document-change-summary').textContent).toContain('- Beitrag erhöht')
+    })
+
+    it('hides the AI button when AI is off', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-add-button'))
+        fireEvent.change(screen.getByTestId('document-file-input'),
+            {target: {files: [new File(['%PDF'], 'GO.pdf', {type: 'application/pdf'})]}})
+        expect(screen.queryByTestId('document-ai-fill')).toBeNull()
+    })
+
+    it('fills the form from the AI suggestion and uploads the edited summary', async () => {
+        vi.mocked(isAdmin).mockReturnValue(true)
+        aiOn.value = true
+        apiMock.analyzeClubDocument.mockResolvedValue({
+            title: 'Satzung KCE', document_type: 'satzung', version: '3.0', decision_date: '2026-11-16',
+            effective_date: null, summary: '- Zweck', change_summary: '- Beitrag erhöht',
+        })
+        renderPage()
+        fireEvent.click(await screen.findByTestId('document-new-version'))
+        const file = new File(['%PDF'], 'S.pdf', {type: 'application/pdf'})
+        fireEvent.change(screen.getByTestId('document-file-input'), {target: {files: [file]}})
+        fireEvent.click(screen.getByTestId('document-ai-fill'))
+
+        await waitFor(() => expect(api.analyzeClubDocument).toHaveBeenCalledWith(file, 'g1'))
+        await waitFor(() => expect((screen.getByLabelText('document.upload.version') as HTMLInputElement).value).toBe('3.0'))
+        expect((screen.getByLabelText('document.changeSummary') as HTMLTextAreaElement).value).toBe('- Beitrag erhöht')
+        fireEvent.change(screen.getByLabelText('document.summary'), {target: {value: '- Zweck (geprüft)'}})
+        fireEvent.click(screen.getByText('submit-sheet'))
+
+        await waitFor(() => expect(api.uploadClubDocument).toHaveBeenCalledWith(expect.objectContaining({
+            group_id: 'g1', version: '3.0', summary: '- Zweck (geprüft)', change_summary: '- Beitrag erhöht',
+        })))
     })
 })
