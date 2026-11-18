@@ -271,7 +271,7 @@ async def upload_document(
         group_id = uuid.uuid4().hex
 
     key = f"documents/club_{user.club_id}_{uuid.uuid4().hex}.pdf"
-    get_storage().put(key, data, _PDF_TYPE)
+    get_storage().put(key, data, "application/pdf")
     doc = ClubDocument(
         club_id=user.club_id, group_id=group_id, title=title, document_type=document_type,
         version=version.strip() if version else None,
