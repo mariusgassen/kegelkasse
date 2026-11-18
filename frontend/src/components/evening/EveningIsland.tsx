@@ -1290,12 +1290,15 @@ export default function EveningIsland({
             <HideWhenEmpty>
                 <Island
                     onIdleSwipe={awakenIdle}
-                    placement="container"
+                    placement="viewport"
                     label="Live"
                     backdrop={backdrop}
-                    style={fullscreen
-                        ? {position: 'fixed', top: 'calc(env(safe-area-inset-top, 0px) - 4px)', zIndex: 40}
-                        : {top: -4, zIndex: 40}}
+                    style={{
+                        position: 'fixed',
+                        top: 'calc(env(safe-area-inset-top, 0px) - 4px)',
+                        // Above sheets (.bottom-sheet z-50) so alerting toasts/errors stay visible.
+                        zIndex: 60,
+                    }}
                 />
             </HideWhenEmpty>
             <IslandActivities eveningId={eveningId}/>

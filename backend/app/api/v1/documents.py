@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/club/documents", tags=["club-documents"])
 
-_PDF_TYPE = "application/pdf"
+_PDF_TYPES = {"application/pdf", "application/x-pdf"}
 _MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 _GROUP_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _SUMMARY_MAX = 4000
@@ -69,12 +69,12 @@ def _parse_date(value: Optional[str], field: str) -> Optional[date]:
 
 
 async def _read_pdf(file: UploadFile) -> bytes:
-    if file.content_type != _PDF_TYPE:
-        raise HTTPException(400, "Only PDF files are supported")
     data = await file.read()
     if len(data) > _MAX_SIZE:
         raise HTTPException(413, "File too large. Maximum size is 10 MB.")
     if not data.startswith(b"%PDF"):
+        if file.content_type and file.content_type not in _PDF_TYPES:
+            raise HTTPException(400, "Only PDF files are supported")
         raise HTTPException(400, "The file is not a valid PDF")
     return data
 
@@ -179,7 +179,7 @@ def download_document(doc_id: int, db: Session = Depends(get_db), user: User = D
     if obj is None:
         raise HTTPException(404, "Document file not found")
     filename = re.sub(r"[^A-Za-z0-9._-]", "_", doc.file_name)[:120] or "dokument.pdf"
-    return StreamingResponse(obj.body, media_type=_PDF_TYPE, headers={
+    return StreamingResponse(obj.body, media_type="application/pdf", headers={
         "Content-Disposition": f'attachment; filename="{filename}"',
         "X-Content-Type-Options": "nosniff",
     })

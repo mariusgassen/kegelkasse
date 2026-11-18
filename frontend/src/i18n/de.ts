@@ -29,6 +29,7 @@ export const de = {
     "action.loading": "Lade…",
     "action.print": "Drucken / PDF",
     "action.clear": "Leeren",
+    "action.remove": "Entfernen",
     "action.undo": "Rückgängig",
     "action.back": "Zurück",
     "auth.login": "Einloggen",
