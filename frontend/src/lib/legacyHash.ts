@@ -23,6 +23,7 @@ export const ROUTE_PAGES = [
     'committee',
     'stats',
     'club',
+    'documents',
     'members',
     'stickers',
     'zeugwart',

@@ -1,0 +1,323 @@
+/**
+ * Vereinsdokumente — every member reads and downloads the club's PDFs (Satzung, Geschäftsordnung,
+ * ...); admins upload new versions with metadata. Members confirm "Kenntnis genommen" or
+ * "Zugestimmt" per version, with the count and their own answer shown on the card.
+ */
+import {useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {useT} from '@/i18n'
+import {api} from '@/api/client.ts'
+import {useOnline} from '@/hooks/useOnline.ts'
+import {isAdmin, useAppStore} from '@/store/app.ts'
+import {Button} from '@/components/ui/Button.tsx'
+import {Field} from '@/components/ui/Field.tsx'
+import {Sheet} from '@/components/ui/Sheet.tsx'
+import {ConfirmSheet} from '@/components/ui/ConfirmSheet.tsx'
+import {Empty} from '@/components/ui/Empty.tsx'
+import {SkeletonRows} from '@/components/ui/Skeleton.tsx'
+import {showToast} from '@/components/ui/Toast.tsx'
+import {toastError} from '@/utils/error.ts'
+import type {ClubDocument, ClubDocumentResponse, ClubDocumentType} from '@/types.ts'
+
+const TYPE_ICON: Record<ClubDocumentType, string> = {
+    satzung: '📜', geschaeftsordnung: '📋', protokoll: '🗓️', sonstiges: '📄',
+}
+const TYPES: ClubDocumentType[] = ['satzung', 'geschaeftsordnung', 'protokoll', 'sonstiges']
+
+function fDate(iso: string | null): string {
+    if (!iso) return '–'
+    return new Date(iso.length === 10 ? `${iso}T00:00:00` : iso)
+        .toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'})
+}
+
+function fDateTime(iso: string | null): string {
+    if (!iso) return '–'
+    return new Date(iso).toLocaleString('de-DE', {
+        day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+    })
+}
+
+function UploadSheet({group, onClose, onUploaded}: {
+    group: ClubDocument | null
+    onClose: () => void
+    onUploaded: () => void
+}) {
+    const t = useT()
+    const isOnline = useOnline()
+    const [title, setTitle] = useState(group?.title ?? '')
+    const [type, setType] = useState<ClubDocumentType>(group?.document_type ?? 'satzung')
+    const [version, setVersion] = useState('')
+    const [decisionDate, setDecisionDate] = useState('')
+    const [effectiveDate, setEffectiveDate] = useState('')
+    const [file, setFile] = useState<File | null>(null)
+    const [busy, setBusy] = useState(false)
+
+    async function submit() {
+        if (!file || !title.trim()) return
+        setBusy(true)
+        try {
+            await api.uploadClubDocument({
+                file, title: title.trim(), document_type: type,
+                version: version.trim() || undefined,
+                decision_date: decisionDate || undefined,
+                effective_date: effectiveDate || undefined,
+                group_id: group?.group_id,
+            })
+            showToast(t('document.upload.submit'), 'success')
+            onUploaded()
+            onClose()
+        } catch (e) {
+            toastError(e)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    return (
+        <Sheet open onClose={onClose} title={group ? t('document.upload.newVersion') : t('document.upload')}
+               onSubmit={submit}>
+            <div className="flex flex-col gap-3" data-testid="document-upload-sheet">
+                <Field label={t('document.upload.title')} htmlFor="doc-title">
+                    <input id="doc-title" className="kce-input w-full" value={title}
+                           onChange={e => setTitle(e.target.value)} autoFocus/>
+                </Field>
+                <Field label={t('document.upload.type')} htmlFor="doc-type">
+                    <select id="doc-type" className="kce-input w-full" value={type}
+                            onChange={e => setType(e.target.value as ClubDocumentType)}>
+                        {TYPES.map(v => <option key={v} value={v}>{t(`document.type.${v}` as never)}</option>)}
+                    </select>
+                </Field>
+                <Field label={t('document.upload.version')} htmlFor="doc-version">
+                    <input id="doc-version" className="kce-input w-full" value={version}
+                           onChange={e => setVersion(e.target.value)} placeholder="1.0"/>
+                </Field>
+                <div className="flex gap-2">
+                    <Field label={t('document.upload.decisionDate')} htmlFor="doc-decision" className="flex-1">
+                        <input id="doc-decision" type="date" className="kce-input w-full" value={decisionDate}
+                               onChange={e => setDecisionDate(e.target.value)}/>
+                    </Field>
+                    <Field label={t('document.upload.effectiveDate')} htmlFor="doc-effective" className="flex-1">
+                        <input id="doc-effective" type="date" className="kce-input w-full" value={effectiveDate}
+                               onChange={e => setEffectiveDate(e.target.value)}/>
+                    </Field>
+                </div>
+                <Field label={t('document.upload.file')} htmlFor="doc-file" hint={t('document.upload.hint')}>
+                    <input id="doc-file" type="file" accept="application/pdf" className="kce-input w-full"
+                           data-testid="document-file-input"
+                           onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }}/>
+                </Field>
+                <Button type="submit" variant="primary" block disabled={busy || !isOnline || !file || !title.trim()}>
+                    {t('document.upload.submit')}
+                </Button>
+            </div>
+        </Sheet>
+    )
+}
+
+function DocumentCard({doc, memberCount, canEdit, busy, history, onDownload, onAck, onWithdraw,
+                       onNewVersion, onDelete, onToggleHistory}: {
+    doc: ClubDocument
+    memberCount: number
+    canEdit: boolean
+    busy: boolean
+    history: ClubDocument[]
+    onDownload: (d: ClubDocument) => void
+    onAck: (d: ClubDocument, response: ClubDocumentResponse) => void
+    onWithdraw: (d: ClubDocument) => void
+    onNewVersion: (d: ClubDocument) => void
+    onDelete: (d: ClubDocument) => void
+    onToggleHistory: () => void
+}) {
+    const t = useT()
+    const isOnline = useOnline()
+    const pct = memberCount > 0 ? Math.min(100, Math.round(doc.acknowledged_count / memberCount * 100)) : 0
+    return (
+        <div className="kce-card p-3" data-testid="document-card">
+            <div className="flex items-start gap-2">
+                <span className="text-xl" aria-hidden="true">{TYPE_ICON[doc.document_type]}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold">{doc.title}</span>
+                        {doc.version && <span className="text-xs text-muted">v{doc.version}</span>}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
+                            {t(`document.type.${doc.document_type}` as never)}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-2 text-muted">
+                            {t(doc.decision_date ? 'document.status.decided' : 'document.status.draft')}
+                        </span>
+                    </div>
+                    <div className="text-xs text-muted mt-1 space-y-0.5">
+                        <div>{t('document.upload.decisionDate')}: {fDate(doc.decision_date)} · {t('document.upload.effectiveDate')}: {fDate(doc.effective_date)}</div>
+                        <div>{t('document.uploadedAt')}: {fDateTime(doc.uploaded_at)} · {t('document.uploadedBy')}: {doc.uploaded_by_name}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-2">
+                <div className="flex justify-between text-xs text-muted mb-1">
+                    <span>{t('document.progress')}</span>
+                    <span data-testid="document-progress">{doc.acknowledged_count}/{memberCount}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden" aria-hidden="true">
+                    <div className="h-full bg-positive" style={{width: `${pct}%`}}/>
+                </div>
+                {doc.my_response && (
+                    <p className="text-xs text-muted mt-1" data-testid="document-my-response">
+                        {t('document.myResponse')}: {t(`document.${doc.my_response}` as never)}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+                <Button variant="primary" className="flex-1" data-testid="document-download"
+                        disabled={busy} onClick={() => onDownload(doc)}>
+                    ⬇️ {t('document.download')}
+                </Button>
+                {doc.my_response ? (
+                    <Button variant="secondary" className="flex-1" data-testid="document-withdraw"
+                            disabled={busy || !isOnline} onClick={() => onWithdraw(doc)}>
+                        {t('document.withdraw')}
+                    </Button>
+                ) : (
+                    <>
+                        <Button variant="secondary" className="flex-1" data-testid="document-ack"
+                                disabled={busy || !isOnline}
+                                onClick={() => onAck(doc, 'acknowledged')}>
+                            {t('document.acknowledged')}
+                        </Button>
+                        <Button variant="secondary" className="flex-1" data-testid="document-agree"
+                                disabled={busy || !isOnline}
+                                onClick={() => onAck(doc, 'agreed')}>
+                            {t('document.agreed')}
+                        </Button>
+                    </>
+                )}
+                {canEdit && (
+                    <>
+                        <Button variant="secondary" data-testid="document-new-version"
+                                disabled={busy} onClick={() => onNewVersion(doc)}>
+                            {t('document.upload.newVersion')}
+                        </Button>
+                        <Button variant="danger" data-testid="document-delete"
+                                disabled={busy} onClick={() => onDelete(doc)}>
+                            {t('document.delete')}
+                        </Button>
+                    </>
+                )}
+            </div>
+
+            {history.length > 0 && (
+                <div className="mt-3 border-t border-line pt-2">
+                    <button type="button" className="text-xs text-accent" data-testid="document-history"
+                            onClick={onToggleHistory}>
+                        {t('document.history')} ({history.length})
+                    </button>
+                </div>
+            )}
+        </div>
+    )
+}
+
+export function ClubDocumentsPage() {
+    const t = useT()
+    const qc = useQueryClient()
+    const user = useAppStore(s => s.user)
+    const canEdit = isAdmin(user)
+    const [uploadGroup, setUploadGroup] = useState<ClubDocument | null | undefined>(undefined)
+    const [toDelete, setToDelete] = useState<ClubDocument | null>(null)
+    const [expanded, setExpanded] = useState<string | null>(null)
+    const [busyId, setBusyId] = useState<number | null>(null)
+    const [deleting, setDeleting] = useState(false)
+
+    const {data, isLoading} = useQuery({queryKey: ['club-documents'], queryFn: api.listClubDocuments})
+    const docs = data?.documents ?? []
+    const memberCount = data?.member_count ?? 0
+    const current = docs.filter(d => d.is_current).sort((a, b) =>
+        (b.decision_date ?? b.uploaded_at ?? '').localeCompare(a.decision_date ?? a.uploaded_at ?? ''))
+    const historyOf = (d: ClubDocument) => docs.filter(x => x.group_id === d.group_id && !x.is_current)
+
+    const invalidate = () => qc.invalidateQueries({queryKey: ['club-documents']})
+
+    async function download(d: ClubDocument) {
+        try { await api.downloadClubDocument(d.id, d.file_name) } catch (e) { toastError(e) }
+    }
+
+    async function ack(d: ClubDocument, response: ClubDocumentResponse) {
+        setBusyId(d.id)
+        try {
+            await api.acknowledgeClubDocument(d.id, response)
+            await invalidate()
+        } catch (e) { toastError(e) } finally { setBusyId(null) }
+    }
+
+    async function withdraw(d: ClubDocument) {
+        setBusyId(d.id)
+        try {
+            await api.withdrawClubDocumentAcknowledgement(d.id)
+            await invalidate()
+        } catch (e) { toastError(e) } finally { setBusyId(null) }
+    }
+
+    async function confirmDelete() {
+        if (!toDelete) return
+        setDeleting(true)
+        try {
+            await api.deleteClubDocument(toDelete.id)
+            showToast(t('document.delete'), 'success')
+            setToDelete(null)
+            await invalidate()
+        } catch (e) { toastError(e) } finally { setDeleting(false) }
+    }
+
+    return (
+        <div className="page-scroll p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+                <div>
+                    <h1 className="sec-heading">📄 {t('document.title')}</h1>
+                    <p className="text-xs text-muted">{t('document.subtitle')}</p>
+                </div>
+                {canEdit && (
+                    <Button variant="primary" className="flex-shrink-0" data-testid="document-add-button"
+                            onClick={() => setUploadGroup(null)}>
+                        + {t('document.upload')}
+                    </Button>
+                )}
+            </div>
+
+            {isLoading ? <SkeletonRows rows={4}/> : current.length === 0
+                ? <Empty icon="📄" text={t('document.empty')}/>
+                : (
+                    <div className="space-y-2" data-testid="document-list">
+                        {current.map(doc => (
+                            <div key={doc.id}>
+                                <DocumentCard doc={doc} memberCount={memberCount} canEdit={canEdit}
+                                              busy={busyId === doc.id} history={historyOf(doc)}
+                                              onDownload={download} onAck={ack} onWithdraw={withdraw}
+                                              onNewVersion={setUploadGroup} onDelete={setToDelete}
+                                              onToggleHistory={() => setExpanded(expanded === doc.group_id ? null : doc.group_id)}/>
+                                {expanded === doc.group_id && historyOf(doc).map(old => (
+                                    <div key={old.id} className="kce-card p-2 mt-1 ml-4 flex items-center gap-2">
+                                        <span className="text-sm flex-1 truncate">v{old.version ?? '–'} · {fDate(old.decision_date)}</span>
+                                        <Button variant="secondary" className="text-xs"
+                                                onClick={() => download(old)}>
+                                            ⬇️ {t('document.download')}
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+            <p className="text-xs text-muted">{t('document.legalHint')}</p>
+
+            {uploadGroup !== undefined && (
+                <UploadSheet group={uploadGroup} onClose={() => setUploadGroup(undefined)}
+                             onUploaded={invalidate}/>
+            )}
+            <ConfirmSheet open={toDelete !== null} onClose={() => setToDelete(null)}
+                          title={t('document.delete')} message={t('document.deleteConfirm')}
+                          onConfirm={confirmDelete} busy={deleting} withCancel/>
+        </div>
+    )
+}

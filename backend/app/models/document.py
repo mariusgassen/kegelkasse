@@ -1,0 +1,50 @@
+"""Vereinsdokumente — versioned club PDFs with a members' acknowledgement trail.
+
+Each upload is its own row: ``group_id`` ties the versions of one document together, while every
+version keeps the metadata and the confirmations it was actually approved with. The newest version
+of a group is the current one; older versions stay readable/downloadable as history.
+
+An acknowledgement is a simple electronic confirmation ("Kenntnis genommen" / "Zugestimmt"), not a
+qualified electronic signature. The frozen ``responder_name`` keeps the trail readable if a member
+is renamed or leaves the club.
+"""
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.sql import func
+
+from core.database import Base
+
+DOCUMENT_TYPES = ("satzung", "geschaeftsordnung", "protokoll", "sonstiges")
+ACK_RESPONSES = ("acknowledged", "agreed")
+
+
+class ClubDocument(Base):
+    __tablename__ = "club_document"
+
+    id = Column(Integer, primary_key=True, index=True)
+    club_id = Column(Integer, ForeignKey("club.id", ondelete="CASCADE"), nullable=False, index=True)
+    group_id = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    document_type = Column(String, nullable=False, default="sonstiges")
+    version = Column(String, nullable=True)
+    decision_date = Column(Date(), nullable=True)   # Beschlussdatum
+    effective_date = Column(Date(), nullable=True)  # gültig ab
+    file_key = Column(String, nullable=False)       # private storage key, never a public URL
+    file_name = Column(String, nullable=False)
+    file_size = Column(Integer, nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by_name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ClubDocumentAcknowledgement(Base):
+    __tablename__ = "club_document_acknowledgement"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("club_document.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    responder_name = Column(String, nullable=False)
+    response = Column(String, nullable=False)
+    confirmed_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (UniqueConstraint("document_id", "user_id", name="uq_club_document_ack_user"),)
