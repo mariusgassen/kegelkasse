@@ -1,9 +1,9 @@
 /**
- * CommitteePage — Vergnügungsausschuss: Kegelfahrten und Ankündigungen.
- * Committee members (is_committee) and admins can create/delete entries.
- * All club members can view.
+ * CommitteePage — Neuigkeiten: one feed of announcements, polls and Kegelfahrten.
+ * Every member can post announcements/polls (and manage their own); only committee members
+ * (is_committee) and admins can create/edit/delete Kegelfahrten.
  */
-import {useEffect, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useHashTab} from '@/hooks/usePage.ts'
 import {useDeepLinkVersion, flashDeepLinkTarget} from '@/hooks/useDeepLink.ts'
@@ -26,7 +26,6 @@ import {TripExpenses} from '@/components/committee/TripExpenses.tsx'
 import type {ClubAnnouncement, ClubPoll, ClubTrip} from '@/types.ts'
 import {todayDateInput} from '@/lib/datetime.ts'
 import {formatTripRange, isTripPast} from '@/lib/tripDates.ts'
-import {Tabs} from '@/components/ui/Tabs'
 import {Button} from '@/components/ui/Button.tsx'
 import {Field} from '@/components/ui/Field.tsx'
 
@@ -41,7 +40,23 @@ function todayStr() {
     return todayDateInput()
 }
 
+type FeedKind = 'announcement' | 'trip' | 'poll'
+
+interface FeedProps {
+    canWrite: boolean
+    /** Shared search text from the feed header. */
+    search: string
+    setSearch: (v: string) => void
+    /** CSS `order` per item key (`<kind>-<id>`): interleaves the three lists chronologically. */
+    order: Record<string, number>
+    addOpen: boolean
+    setAddOpen: (v: boolean) => void
+    /** Whether this type is shown under the current filter. */
+    visible: boolean
+}
+
 interface DeepLink {
+    kind: FeedKind
     itemId: number
     commentId: number | null
 }
@@ -69,20 +84,18 @@ function useDeepLinkScroll<T extends { id: number }>(
         setHighlightCommentId(deepLink.commentId)
         onHandled()
 
-        return flashDeepLinkTarget(`item-${target.id}`)
+        return flashDeepLinkTarget(`item-${deepLink.kind}-${target.id}`)
     }, [deepLink, items.length]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // ── Announcements Tab ─────────────────────────────────────────────────────────
 
-function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
-    canWrite: boolean
+function AnnouncementsTab({canWrite, search, setSearch, order, addOpen, setAddOpen, visible, deepLink, onDeepLinkHandled}: FeedProps & {
     deepLink: DeepLink | null
     onDeepLinkHandled: () => void
 }) {
     const t = useT()
     const qc = useQueryClient()
-    const [addOpen, setAddOpen] = useState(false)
     const [delId, setDelId] = useState<number | null>(null)
     const [title, setTitle] = useState('')
     const [text, setText] = useState('')
@@ -90,9 +103,8 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
     const [saving, setSaving] = useState(false)
     const [openCommentId, setOpenCommentId] = useState<number | null>(null)
     const [highlightCommentId, setHighlightCommentId] = useState<number | null>(null)
-    const [search, setSearch] = useState('')
 
-    const {data: announcements = [], isLoading} = useQuery({
+    const {data: announcements = []} = useQuery({
         queryKey: ['committee-announcements'],
         queryFn: api.listAnnouncements,
     })
@@ -137,29 +149,11 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
     }
 
     return (
-        <div>
-            {canWrite && (
-                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
-                    + {t('committee.announcement.add')}
-                </Button>
-            )}
-
-            <input
-                className="kce-input mb-3"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('committee.search')}
-            />
-
-            {isLoading && <SkeletonCard className="mb-2"/>}
-
-            {!isLoading && filteredAnnouncements.length === 0 && (
-                <Empty icon="📣" text={t('committee.announcement.none')}/>
-            )}
-
-            <div className="flex flex-col gap-3">
-                {filteredAnnouncements.map((a: ClubAnnouncement) => (
-                    <div key={a.id} id={`item-${a.id}`} className="kce-card p-4">
+        <div style={{display: 'contents'}}>
+            <div style={{display: 'contents'}}>
+                {visible && filteredAnnouncements.map((a: ClubAnnouncement) => (
+                    <div key={a.id} id={`item-announcement-${a.id}`} style={{order: order[`announcement-${a.id}`]}}
+                         className="kce-card p-4">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-ink text-sm leading-snug">{a.title}</p>
@@ -179,7 +173,7 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
                                     {a.created_at && fDateTime(a.created_at)}
                                 </p>
                             </div>
-                            {canWrite && (
+                            {a.can_edit && (
                                 <CardActionMenu
                                     title={a.title}
                                     actions={[
@@ -260,14 +254,12 @@ function AnnouncementsTab({canWrite, deepLink, onDeepLinkHandled}: {
 
 // ── Trips Tab (Kegelfahrten) ──────────────────────────────────────────────────
 
-function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
-    canWrite: boolean
+function TripsTab({canWrite, search, setSearch, order, addOpen, setAddOpen, visible, deepLink, onDeepLinkHandled}: FeedProps & {
     deepLink: DeepLink | null
     onDeepLinkHandled: () => void
 }) {
     const t = useT()
     const qc = useQueryClient()
-    const [addOpen, setAddOpen] = useState(false)
     const [editTrip, setEditTrip] = useState<ClubTrip | null>(null)
     const [delId, setDelId] = useState<number | null>(null)
     const [openCommentTripId, setOpenCommentTripId] = useState<number | null>(null)
@@ -277,9 +269,8 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
     const [destination, setDestination] = useState('')
     const [note, setNote] = useState('')
     const [saving, setSaving] = useState(false)
-    const [search, setSearch] = useState('')
 
-    const {data: trips = [], isLoading} = useQuery({
+    const {data: trips = []} = useQuery({
         queryKey: ['committee-trips'],
         queryFn: api.listTrips,
     })
@@ -352,66 +343,23 @@ function TripsTab({canWrite, deepLink, onDeepLinkHandled}: {
         ? (trips as ClubTrip[]).filter(tr =>
             tr.destination.toLowerCase().includes(tq) || (tr.note ?? '').toLowerCase().includes(tq))
         : trips as ClubTrip[]
-    // A running multi-day trip stays "upcoming" until its last day is over
-    const upcoming = filteredTrips.filter((tr: ClubTrip) => !isTripPast(tr.date, tr.end_date, now))
-    const past = filteredTrips.filter((tr: ClubTrip) => isTripPast(tr.date, tr.end_date, now))
-
     return (
-        <div>
-            {canWrite && (
-                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
-                    + {t('committee.trip.add')}
-                </Button>
-            )}
-
-            <input
-                className="kce-input mb-3"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('committee.search')}
-            />
-
-            {isLoading && <SkeletonCard className="mb-2"/>}
-
-            {!isLoading && filteredTrips.length === 0 && (
-                <Empty icon="🚌" text={t('committee.trip.none')}/>
-            )}
-
-            {upcoming.length > 0 && (
-                <>
-                    <p className="sec-heading mb-2">{t('schedule.upcoming')}</p>
-                    <div className="flex flex-col gap-3 mb-5">
-                        {upcoming.map((tr: ClubTrip) => (
-                            <TripCard key={tr.id} trip={tr} canWrite={canWrite}
-                                      commentOpen={openCommentTripId === tr.id}
-                                      highlightCommentId={openCommentTripId === tr.id ? (highlightCommentId ?? undefined) : undefined}
-                                      onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
-                                      onCommentClose={() => setOpenCommentTripId(null)}
-                                      onHighlightHandled={() => setHighlightCommentId(null)}
-                                      onEdit={() => openEdit(tr)}
-                                      onDelete={() => setDelId(tr.id)}/>
-                        ))}
-                    </div>
-                </>
-            )}
-
-            {past.length > 0 && (
-                <>
-                    <p className="sec-heading mb-2">{t('schedule.past')}</p>
-                    <div className="flex flex-col gap-3">
-                        {[...past].reverse().map((tr: ClubTrip) => (
-                            <TripCard key={tr.id} trip={tr} canWrite={canWrite} past
-                                      commentOpen={openCommentTripId === tr.id}
-                                      highlightCommentId={openCommentTripId === tr.id ? (highlightCommentId ?? undefined) : undefined}
-                                      onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
-                                      onCommentClose={() => setOpenCommentTripId(null)}
-                                      onHighlightHandled={() => setHighlightCommentId(null)}
-                                      onEdit={() => openEdit(tr)}
-                                      onDelete={() => setDelId(tr.id)}/>
-                        ))}
-                    </div>
-                </>
-            )}
+        <div style={{display: 'contents'}}>
+            <div style={{display: 'contents'}}>
+                {visible && filteredTrips.map((tr: ClubTrip) => (
+                    // A running multi-day trip stays "upcoming" until its last day is over
+                    <TripCard key={tr.id} trip={tr} canWrite={canWrite}
+                              order={order[`trip-${tr.id}`]}
+                              past={isTripPast(tr.date, tr.end_date, now)}
+                              commentOpen={openCommentTripId === tr.id}
+                              highlightCommentId={openCommentTripId === tr.id ? (highlightCommentId ?? undefined) : undefined}
+                              onCommentToggle={() => setOpenCommentTripId(openCommentTripId === tr.id ? null : tr.id)}
+                              onCommentClose={() => setOpenCommentTripId(null)}
+                              onHighlightHandled={() => setHighlightCommentId(null)}
+                              onEdit={() => openEdit(tr)}
+                              onDelete={() => setDelId(tr.id)}/>
+                ))}
+            </div>
 
             {/* Add sheet */}
             {addOpen && (
@@ -499,9 +447,10 @@ function TripFormFields({date, endDate, destination, note, onDate, onEndDate, on
     )
 }
 
-function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId, onCommentToggle, onCommentClose, onHighlightHandled, onEdit, onDelete}: {
+function TripCard({trip, canWrite, order, past = false, commentOpen, highlightCommentId, onCommentToggle, onCommentClose, onHighlightHandled, onEdit, onDelete}: {
     trip: ClubTrip
     canWrite: boolean
+    order?: number
     past?: boolean
     commentOpen?: boolean
     highlightCommentId?: number
@@ -513,7 +462,7 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
 }) {
     const t = useT()
     return (
-        <div id={`item-${trip.id}`} className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
+        <div id={`item-trip-${trip.id}`} style={{order}} className={`kce-card p-4 ${past ? 'opacity-60' : ''}`}>
             <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -557,10 +506,9 @@ function TripCard({trip, canWrite, past = false, commentOpen, highlightCommentId
 
 // ── Polls Tab ─────────────────────────────────────────────────────────────────
 
-function PollsTab({canWrite}: {canWrite: boolean}) {
+function PollsTab({canWrite, order, addOpen, setAddOpen, visible, search}: FeedProps) {
     const t = useT()
     const qc = useQueryClient()
-    const [addOpen, setAddOpen] = useState(false)
     const [delId, setDelId] = useState<number | null>(null)
     const [saving, setSaving] = useState(false)
 
@@ -574,7 +522,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
     const [pendingVotes, setPendingVotes] = useState<Record<number, number[]>>({})
     const [voting, setVoting] = useState<number | null>(null)
 
-    const {data: polls = [], isLoading} = useQuery({
+    const {data: polls = []} = useQuery({
         queryKey: ['committee-polls'],
         queryFn: api.listPolls,
     })
@@ -678,28 +626,22 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
         return poll.options.reduce((s, o) => s + o.vote_count, 0)
     }
 
+    const pq = search.trim().toLowerCase()
+    const filteredPolls = pq
+        ? (polls as ClubPoll[]).filter(p => p.title.toLowerCase().includes(pq) || (p.text ?? '').toLowerCase().includes(pq))
+        : polls as ClubPoll[]
+
     return (
-        <div>
-            {canWrite && (
-                <Button variant="primary" block className="mb-4" onClick={() => setAddOpen(true)}>
-                    + {t('committee.poll.add')}
-                </Button>
-            )}
-
-            {isLoading && <SkeletonCard className="mb-2"/>}
-
-            {!isLoading && (polls as ClubPoll[]).length === 0 && (
-                <Empty icon="🗳️" text={t('committee.poll.none')}/>
-            )}
-
-            <div className="flex flex-col gap-3">
-                {(polls as ClubPoll[]).map(poll => {
+        <div style={{display: 'contents'}}>
+            <div style={{display: 'contents'}}>
+                {visible && filteredPolls.map(poll => {
                     const voted = hasVoted(poll)
                     const selected = pendingVotes[poll.id] ?? []
                     const maxCount = Math.max(...poll.options.map(o => o.vote_count), 1)
 
                     return (
-                        <div key={poll.id} className={`kce-card p-4 ${poll.is_closed ? 'opacity-75' : ''}`}>
+                        <div key={poll.id} style={{order: order[`poll-${poll.id}`]}}
+                             className={`kce-card p-4 ${poll.is_closed ? 'opacity-75' : ''}`}>
                             {/* Header */}
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex-1 min-w-0">
@@ -725,7 +667,7 @@ function PollsTab({canWrite}: {canWrite: boolean}) {
                                         </p>
                                     )}
                                 </div>
-                                {canWrite && (
+                                {poll.can_edit && (
                                     <CardActionMenu
                                         title={poll.title}
                                         actions={[
@@ -915,13 +857,22 @@ export function CommitteePage() {
     const t = useT()
     const user = useAppStore(s => s.user)
     const regularMembers = useAppStore(s => s.regularMembers)
-    const [tab, setTab] = useHashTab<'announcements' | 'trips' | 'polls'>('announcements', ['announcements', 'trips', 'polls'])
+    // `tab` doubles as the post-type filter of the single feed ('all' = everything).
+    const [tab, setTab] = useHashTab<'all' | 'announcements' | 'trips' | 'polls'>('all', ['all', 'announcements', 'trips', 'polls'])
     const [deepLink, setDeepLink] = useState<DeepLink | null>(null)
+    const [search, setSearch] = useState('')
+    const [adding, setAdding] = useState<FeedKind | null>(null)
+    const [menuOpen, setMenuOpen] = useState(false)
     const hashVersion = useDeepLinkVersion()
 
     // User can write if they are admin OR their regular member has is_committee=true
     const myMember = regularMembers.find(m => m.id === user?.regular_member_id)
     const canWrite = isAdmin(user) || !!myMember?.is_committee
+
+    // Same query keys as the item components, so these share the cache (no extra requests).
+    const {data: announcements = [], isLoading: l1} = useQuery({queryKey: ['committee-announcements'], queryFn: api.listAnnouncements})
+    const {data: trips = [], isLoading: l2} = useQuery({queryKey: ['committee-trips'], queryFn: api.listTrips})
+    const {data: polls = [], isLoading: l3} = useQuery({queryKey: ['committee-polls'], queryFn: api.listPolls})
 
     // Parse deep-link params (on mount and whenever the router search changes)
     useEffect(() => {
@@ -930,17 +881,43 @@ export function CommitteePage() {
         if (!itemId) return
         const commentId = params.get('comment')
         setDeepLink({
+            kind: tab === 'trips' ? 'trip' : tab === 'polls' ? 'poll' : 'announcement',
             itemId: parseInt(itemId, 10),
             commentId: commentId ? parseInt(commentId, 10) : null,
         })
         clearHashParams()
-    }, [hashVersion])
+    }, [hashVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const TABS = [
-        {id: 'announcements', label: t('committee.tab.announcements'), icon: '📣'},
-        {id: 'trips', label: t('committee.tab.trips'), icon: '🚌'},
-        {id: 'polls', label: t('committee.tab.polls'), icon: '🗳️'},
-    ]
+    // One chronological feed (newest first): the item components render their cards with a CSS
+    // `order` taken from this ranking, so announcements, polls and trips interleave.
+    const order = useMemo(() => {
+        // Newest first by last change (falls back to the creation date).
+        const ts = (x: {created_at: string | null; updated_at?: string | null}) =>
+            Date.parse(x.updated_at ?? x.created_at ?? '') || 0
+        const all = [
+            ...(announcements as ClubAnnouncement[]).map(a => ({key: `announcement-${a.id}`, ts: ts(a)})),
+            ...(trips as ClubTrip[]).map(x => ({key: `trip-${x.id}`, ts: ts(x)})),
+            ...(polls as ClubPoll[]).map(p => ({key: `poll-${p.id}`, ts: ts(p)})),
+        ].sort((a, b) => b.ts - a.ts)
+        return Object.fromEntries(all.map((x, i) => [x.key, i]))
+    }, [announcements, trips, polls])
+
+    const FILTERS = [
+        {id: 'all', icon: '', label: t('home.filter.all')},
+        {id: 'announcements', icon: '📣', label: t('committee.tab.announcements')},
+        {id: 'polls', icon: '🗳️', label: t('committee.tab.polls')},
+        {id: 'trips', icon: '🚌', label: t('committee.tab.trips')},
+    ] as const
+
+    const loading = l1 || l2 || l3
+    const sq = search.trim().toLowerCase()
+    const match = (...fields: (string | null)[]) => !sq || fields.some(f => (f ?? '').toLowerCase().includes(sq))
+    const empty =
+        (tab !== 'all' && tab !== 'announcements' ? 0 : (announcements as ClubAnnouncement[]).filter(a => match(a.title, a.text)).length) +
+        (tab !== 'all' && tab !== 'trips' ? 0 : (trips as ClubTrip[]).filter(x => match(x.destination, x.note)).length) +
+        (tab !== 'all' && tab !== 'polls' ? 0 : (polls as ClubPoll[]).filter(p => match(p.title, p.text)).length) === 0
+    const common = {canWrite, search, setSearch, order}
+    const shown = (k: typeof tab) => tab === 'all' || tab === k
 
     return (
         <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column'}}>
@@ -948,35 +925,60 @@ export function CommitteePage() {
             <div className="flex-shrink-0 px-3 pt-3 pb-0">
                 <div className="flex items-center justify-between mb-2">
                     <div className="sec-heading">{t('committee.title')}</div>
-                    {canWrite && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-                              style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
-                            VGA
-                        </span>
-                    )}
                 </div>
-                <Tabs items={TABS} value={tab} onChange={setTab as any} className="mb-3"/>
+                <Button variant="primary" block className="mb-3" onClick={() => setMenuOpen(true)}>
+                    + {t('committee.new')}
+                </Button>
+                <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label={t('committee.title')}>
+                    {FILTERS.map(f => (
+                        <button key={f.id} type="button" aria-pressed={tab === f.id}
+                                className={`chip ${tab === f.id ? 'active' : ''}`}
+                                onClick={() => setTab(f.id)}>
+                            {f.icon && <span aria-hidden="true">{f.icon} </span>}{f.label}
+                        </button>
+                    ))}
+                </div>
+                <input
+                    className="kce-input mb-3"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder={t('committee.search')}
+                />
             </div>
 
             <div className="page-scroll px-3 pb-24">
-                {tab === 'announcements' && (
-                    <AnnouncementsTab
-                        canWrite={canWrite}
-                        deepLink={deepLink}
-                        onDeepLinkHandled={() => setDeepLink(null)}
-                    />
-                )}
-                {tab === 'trips' && (
-                    <TripsTab
-                        canWrite={canWrite}
-                        deepLink={deepLink}
-                        onDeepLinkHandled={() => setDeepLink(null)}
-                    />
-                )}
-                {tab === 'polls' && (
-                    <PollsTab canWrite={canWrite}/>
-                )}
+                {loading && <SkeletonCard className="mb-2"/>}
+                {!loading && empty && <Empty icon="📣" text={t('committee.none')}/>}
+                <div className="flex flex-col gap-3">
+                    <AnnouncementsTab {...common} visible={shown('announcements')}
+                        addOpen={adding === 'announcement'} setAddOpen={v => setAdding(v ? 'announcement' : null)}
+                        deepLink={deepLink?.kind === 'announcement' ? deepLink : null}
+                        onDeepLinkHandled={() => setDeepLink(null)}/>
+                    <PollsTab {...common} visible={shown('polls')}
+                        addOpen={adding === 'poll'} setAddOpen={v => setAdding(v ? 'poll' : null)}/>
+                    <TripsTab {...common} visible={shown('trips')}
+                        addOpen={adding === 'trip'} setAddOpen={v => setAdding(v ? 'trip' : null)}
+                        deepLink={deepLink?.kind === 'trip' ? deepLink : null}
+                        onDeepLinkHandled={() => setDeepLink(null)}/>
+                </div>
             </div>
+
+            {menuOpen && (
+                <Sheet open onClose={() => setMenuOpen(false)} title={t('committee.new')}>
+                    <div className="flex flex-col gap-2">
+                        {([
+                            ['announcement', '📣', 'committee.announcement.add'],
+                            ['poll', '🗳️', 'committee.poll.add'],
+                            ['trip', '🚌', 'committee.trip.add'],
+                        ] as const).filter(([k]) => k !== 'trip' || canWrite).map(([k, icon, label]) => (
+                            <Button key={k} variant="secondary" block
+                                    onClick={() => {setMenuOpen(false); setAdding(k)}}>
+                                {icon} {t(label)}
+                            </Button>
+                        ))}
+                    </div>
+                </Sheet>
+            )}
         </div>
     )
 }

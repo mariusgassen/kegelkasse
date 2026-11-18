@@ -238,6 +238,10 @@ export interface ClubAnnouncement {
     media_url: string | null
     created_by_name: string | null
     created_at: string | null
+    /** Last edit; null until changed. The news feed sorts by `updated_at ?? created_at`. */
+    updated_at?: string | null
+    /** Author, committee member or admin. */
+    can_edit?: boolean
 }
 
 // Vereinsdokumente — one row per uploaded version, grouped by group_id.
@@ -335,6 +339,7 @@ export interface ClubTrip {
     note: string | null
     created_by_name: string | null
     created_at: string | null
+    updated_at?: string | null
     expense_count?: number  // club expenses booked against this trip
     expense_total?: number
 }
@@ -366,6 +371,8 @@ export interface ClubPoll {
     is_closed: boolean
     created_by_name: string | null
     created_at: string | null
+    updated_at?: string | null
+    can_edit?: boolean
     options: PollOption[]
 }
 

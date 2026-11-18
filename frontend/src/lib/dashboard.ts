@@ -5,7 +5,7 @@
  * stats/me) — no new backend. These functions do the derivation so the page component stays a
  * thin view and the logic is unit-testable in isolation.
  */
-import type {ClubAnnouncement, ClubTrip, ScheduledEvening, ThrowStats} from '../types'
+import type {ClubAnnouncement, ClubTrip, ScheduledEvening, Sticker, ThrowStats} from '../types'
 
 /**
  * The next upcoming scheduled evening that has not been started yet, or `null`.
@@ -28,7 +28,7 @@ export function nextAppointment(
     )
 }
 
-export type CommunityKind = 'announcement' | 'trip'
+export type CommunityKind = 'announcement' | 'trip' | 'sticker'
 
 export interface CommunityItem {
     kind: CommunityKind
@@ -46,13 +46,16 @@ function tsOf(iso: string | null): number {
 }
 
 /**
- * Merge the latest announcements and trips into a single "news" feed, newest first, capped at
- * `limit`. Both are ordered by when they were posted (`created_at`).
+ * Merge the latest announcements, trips and stickers into a single "news" feed, newest first,
+ * capped at `limit`. Ordered by when they were posted (`created_at`). `kind` narrows the feed to
+ * one post type (filter is applied before the cap).
  */
 export function recentCommunity(
     announcements: ClubAnnouncement[],
     trips: ClubTrip[],
+    stickers: Sticker[],
     limit: number,
+    kind?: CommunityKind,
 ): CommunityItem[] {
     const items: CommunityItem[] = [
         ...announcements.map(a => ({
@@ -60,17 +63,24 @@ export function recentCommunity(
             id: a.id,
             title: a.title,
             subtitle: a.text ?? null,
-            ts: tsOf(a.created_at),
+            ts: tsOf(a.updated_at ?? a.created_at),
         })),
         ...trips.map(t => ({
             kind: 'trip' as const,
             id: t.id,
             title: t.destination,
             subtitle: t.note ?? null,
-            ts: tsOf(t.created_at),
+            ts: tsOf(t.updated_at ?? t.created_at),
+        })),
+        ...stickers.map(st => ({
+            kind: 'sticker' as const,
+            id: st.id,
+            title: st.place_name,
+            subtitle: st.caption ?? null,
+            ts: tsOf(st.created_at),
         })),
     ]
-    return items.sort((a, b) => b.ts - a.ts).slice(0, limit)
+    return items.filter(i => !kind || i.kind === kind).sort((a, b) => b.ts - a.ts).slice(0, limit)
 }
 
 export type BalanceState = 'owed' | 'credit' | 'settled'

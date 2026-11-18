@@ -8,23 +8,28 @@ Der Vergnügungsausschuss kümmert sich um Ausflüge und Ankündigungen im Club.
 
 ## Wer darf was?
 
-| Aktion | VGA-Mitglied | Admin |
-|--------|-------------|-------|
-| Ankündigungen/Kegelfahrten lesen | ✅ (alle Mitglieder) | ✅ |
-| Ankündigung erstellen | ✅ | ✅ |
-| Kegelfahrt eintragen | ✅ | ✅ |
-| VGA-Mitglieder verwalten | ❌ | ✅ |
+| Aktion | Mitglied | VGA-Mitglied | Admin |
+|--------|---------|-------------|-------|
+| Neuigkeiten lesen, kommentieren, abstimmen | ✅ | ✅ | ✅ |
+| Ankündigung / Abstimmung erstellen | ✅ | ✅ | ✅ |
+| Eigene Ankündigung / Abstimmung löschen bzw. schließen | ✅ | ✅ | ✅ |
+| Fremde Ankündigung / Abstimmung löschen bzw. schließen | ❌ | ✅ | ✅ |
+| Kegelfahrt eintragen, bearbeiten, löschen | ❌ | ✅ | ✅ |
+| VGA-Mitglieder verwalten | ❌ | ❌ | ✅ |
+
+## Ein gemeinsamer Feed
+
+Ankündigungen, Abstimmungen und Kegelfahrten erscheinen zusammen in **einem Feed** (neueste oben) statt in getrennten Tabs. Über die Filter **Alle / Ankündigungen / Abstimmungen / Kegelfahrten** und die Suche grenzt du ihn ein. Alle Mitglieder legen neue Beiträge über **+ Neu** an und wählen dort die Art; **Kegelfahrt** steht nur VGA-Mitgliedern und Admins zur Verfügung. Der Feed ist nach dem **letzten Änderungsdatum** sortiert (ohne Änderung nach dem Erstellungsdatum).
 
 ## VGA-Mitglieder ernennen
 
-Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspieler als VGA-Mitglieder markieren. VGA-Mitglieder bekommen in der Ausflug-Seite einen goldenen `VGA`-Badge und können Inhalte erstellen.
+Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspieler als VGA-Mitglieder markieren. VGA-Mitglieder dürfen als Einzige Kegelfahrten anlegen und fremde Beiträge verwalten.
 
 ## Ankündigungen
 
-- VGA-Mitglieder und Admins können Ankündigungen mit Titel und optionalem Text einstellen
+- Alle Mitglieder können Ankündigungen mit Titel und optionalem Text einstellen
 - Beim Posten erhalten alle Clubmitglieder eine **Push-Notification**
-- Ankündigungen sind in der Ausflug-Seite (`🚌 Ausflug`-Tab) unter **📣 Ankündigungen** sichtbar
-- Älteste zuerst (neueste oben)
+- Ankündigungen erscheinen im Neuigkeiten-Feed
 
 ## Kegelfahrten
 
@@ -32,7 +37,7 @@ Admins können im **Verein-Tab → 🛠️ VGA-Verwaltung** beliebige Stammspiel
 - Für mehrtägige Fahrten gibt es ein optionales **Enddatum** — die Karte zeigt dann den ganzen Zeitraum, und die Fahrt gilt bis zu ihrem letzten Tag als „kommend"
 - Kegelfahrten erscheinen außerdem als ganztägige Termine in deinem persönlichen Kalender-Abo (siehe [Termine](termine.md))
 - Beim Eintragen einer Fahrt erhalten alle Clubmitglieder eine **Push-Notification**
-- Kommende Fahrten erscheinen oben, vergangene darunter
+- Vergangene Fahrten werden im Feed abgedunkelt dargestellt
 - Bestehende Fahrten können bearbeitet und gelöscht werden
 
 ## Ausgaben der Fahrt (💶)

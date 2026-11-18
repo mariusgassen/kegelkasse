@@ -15,14 +15,31 @@ from core.push import push_to_club
 from models.committee import ClubAnnouncement, ClubTrip, ClubPoll, PollOption, PollVote
 from models.evening import RegularMember
 from models.payment import ClubExpense, MemberPayment
-from models.user import User
+from models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/committee", tags=["committee"])
 
 
-def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str]) -> dict:
+def _can_manage(user: User, created_by: Optional[int], db: Session) -> bool:
+    """Creator, committee member or admin may edit/delete a news item."""
+    if created_by is not None and created_by == user.id:
+        return True
+    if user.has_role(UserRole.admin):
+        return True
+    if not user.regular_member_id:
+        return False
+    member = db.query(RegularMember).filter(RegularMember.id == user.regular_member_id).first()
+    return bool(member and member.is_committee)
+
+
+def _require_manage(user: User, created_by: Optional[int], db: Session) -> None:
+    if not _can_manage(user, created_by, db):
+        raise HTTPException(403, "Only the author, the committee or an admin may change this")
+
+
+def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str], can_edit: bool = False) -> dict:
     return {
         "id": a.id,
         "title": a.title,
@@ -30,6 +47,8 @@ def _serialize_announcement(a: ClubAnnouncement, creator_name: Optional[str]) ->
         "media_url": a.media_url,
         "created_by_name": creator_name,
         "created_at": a.created_at.isoformat() if a.created_at else None,
+        "updated_at": a.updated_at.isoformat() if a.updated_at else None,
+        "can_edit": can_edit,
     }
 
 
@@ -50,6 +69,7 @@ def _serialize_trip(t: ClubTrip, creator_name: Optional[str], expenses: tuple[in
         "note": t.note,
         "created_by_name": creator_name,
         "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         "expense_count": expenses[0],
         "expense_total": round(expenses[1], 2),
     }
@@ -89,8 +109,9 @@ def list_announcements(
     items = db.query(ClubAnnouncement).filter(
         ClubAnnouncement.club_id == user.club_id,
         ClubAnnouncement.is_deleted == False,
-    ).order_by(ClubAnnouncement.created_at.desc()).all()
-    return [_serialize_announcement(a, _creator_name(a.created_by, db)) for a in items]
+    ).order_by(func.coalesce(ClubAnnouncement.updated_at, ClubAnnouncement.created_at).desc()).all()
+    return [_serialize_announcement(a, _creator_name(a.created_by, db), _can_manage(user, a.created_by, db))
+            for a in items]
 
 
 class AnnouncementCreate(TrimmedModel):
@@ -104,7 +125,7 @@ def create_announcement(
     data: AnnouncementCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(require_committee_or_admin),
+    user: User = Depends(require_club_member),
 ):
     ann = ClubAnnouncement(
         club_id=user.club_id,
@@ -128,14 +149,14 @@ def create_announcement(
         f"/#committee:announcements?item={ann.id}",
         # No category — announcements are always delivered, not filterable
     )
-    return _serialize_announcement(ann, author)
+    return _serialize_announcement(ann, author, True)
 
 
 @router.delete("/announcements/{aid}", status_code=204)
 def delete_announcement(
     aid: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_committee_or_admin),
+    user: User = Depends(require_club_member),
 ):
     ann = db.query(ClubAnnouncement).filter(
         ClubAnnouncement.id == aid,
@@ -144,6 +165,7 @@ def delete_announcement(
     ).first()
     if not ann:
         raise HTTPException(404, "Announcement not found")
+    _require_manage(user, ann.created_by, db)
     ann.is_deleted = True
     db.commit()
     logger.info("Announcement deleted: id=%d club=%d user=%d", aid, user.club_id, user.id)
@@ -462,7 +484,8 @@ def delete_trip(
 
 # ── Polls ─────────────────────────────────────────────────────────────────────
 
-def _serialize_poll(poll: ClubPoll, options: list, my_vote_ids: set, creator_name: Optional[str]) -> dict:
+def _serialize_poll(poll: ClubPoll, options: list, my_vote_ids: set, creator_name: Optional[str],
+                    can_edit: bool = False) -> dict:
     return {
         "id": poll.id,
         "title": poll.title,
@@ -471,6 +494,8 @@ def _serialize_poll(poll: ClubPoll, options: list, my_vote_ids: set, creator_nam
         "is_closed": poll.is_closed,
         "created_by_name": creator_name,
         "created_at": poll.created_at.isoformat() if poll.created_at else None,
+        "updated_at": poll.updated_at.isoformat() if poll.updated_at else None,
+        "can_edit": can_edit,
         "options": [
             {
                 "id": o.id,
@@ -508,7 +533,7 @@ def list_polls(
     polls = db.query(ClubPoll).filter(
         ClubPoll.club_id == user.club_id,
         ClubPoll.is_deleted == False,
-    ).order_by(ClubPoll.created_at.desc()).all()
+    ).order_by(func.coalesce(ClubPoll.updated_at, ClubPoll.created_at).desc()).all()
 
     my_votes_by_poll: dict[int, set] = {}
     all_poll_ids = [p.id for p in polls]
@@ -523,7 +548,8 @@ def list_polls(
     result = []
     for poll in polls:
         opts = _get_poll_options_with_counts(poll.id, db)
-        result.append(_serialize_poll(poll, opts, my_votes_by_poll.get(poll.id, set()), _creator_name(poll.created_by, db)))
+        result.append(_serialize_poll(poll, opts, my_votes_by_poll.get(poll.id, set()), _creator_name(poll.created_by, db),
+                                      _can_manage(user, poll.created_by, db)))
     return result
 
 
@@ -538,7 +564,7 @@ class PollCreate(TrimmedModel):
 def create_poll(
     data: PollCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_committee_or_admin),
+    user: User = Depends(require_club_member),
 ):
     if data.mode not in ("single", "multi"):
         raise HTTPException(400, "mode must be 'single' or 'multi'")
@@ -562,7 +588,7 @@ def create_poll(
     db.refresh(poll)
     logger.info("Poll created: id=%d club=%d user=%d title=%r mode=%s", poll.id, user.club_id, user.id, poll.title, poll.mode)
     opts = _get_poll_options_with_counts(poll.id, db)
-    return _serialize_poll(poll, opts, set(), _creator_name(user.id, db))
+    return _serialize_poll(poll, opts, set(), _creator_name(user.id, db), True)
 
 
 class PollUpdate(TrimmedModel):
@@ -574,7 +600,7 @@ def update_poll(
     pid: int,
     data: PollUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_committee_or_admin),
+    user: User = Depends(require_club_member),
 ):
     poll = db.query(ClubPoll).filter(
         ClubPoll.id == pid,
@@ -583,20 +609,21 @@ def update_poll(
     ).first()
     if not poll:
         raise HTTPException(404, "Poll not found")
+    _require_manage(user, poll.created_by, db)
     if data.is_closed is not None:
         poll.is_closed = data.is_closed
     db.commit()
     db.refresh(poll)
     opts = _get_poll_options_with_counts(poll.id, db)
     my_votes = {v.option_id for v in db.query(PollVote).filter(PollVote.poll_id == pid, PollVote.user_id == user.id).all()}
-    return _serialize_poll(poll, opts, my_votes, _creator_name(poll.created_by, db))
+    return _serialize_poll(poll, opts, my_votes, _creator_name(poll.created_by, db), True)
 
 
 @router.delete("/polls/{pid}", status_code=204)
 def delete_poll(
     pid: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_committee_or_admin),
+    user: User = Depends(require_club_member),
 ):
     poll = db.query(ClubPoll).filter(
         ClubPoll.id == pid,
@@ -605,6 +632,7 @@ def delete_poll(
     ).first()
     if not poll:
         raise HTTPException(404, "Poll not found")
+    _require_manage(user, poll.created_by, db)
     poll.is_deleted = True
     db.commit()
     logger.info("Poll deleted: id=%d club=%d user=%d", pid, user.club_id, user.id)
