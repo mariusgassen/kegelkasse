@@ -81,8 +81,8 @@ vi.mock('@/components/ui/Empty.tsx', () => ({
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 const ANNOUNCEMENTS = [
-    { id: 1, title: 'Wichtige Ankündigung', text: 'Text hier', media_url: null, created_at: '2026-01-10T10:00:00', created_by: 1 },
-    { id: 2, title: 'Anderes Thema', text: null, media_url: null, created_at: '2026-01-05T09:00:00', created_by: 2 },
+    { id: 1, title: 'Wichtige Ankündigung', text: 'Text hier', media_url: null, created_at: '2026-01-10T10:00:00', created_by: 1, can_edit: true },
+    { id: 2, title: 'Anderes Thema', text: null, media_url: null, created_at: '2026-01-05T09:00:00', created_by: 2, can_edit: true },
 ]
 
 const TRIPS = [
@@ -370,30 +370,22 @@ describe('CommitteePage — admin and canWrite', () => {
         })
     })
 
-    it('admin sees VGA badge', async () => {
-        await setupDefaultMocks()
-        await setupAsAdmin()
-        await renderCommitteePage()
-        await waitFor(() => {
-            expect(screen.getByText('VGA')).toBeInTheDocument()
-        })
-    })
-
-    it('non-admin non-committee member does not see add button', async () => {
+    it('every member sees the add button, but only announcement and poll types', async () => {
         await setupDefaultMocks()
         // Default mocks: isAdmin = false, user = null, regularMembers = []
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(screen.queryByText((content) => content.includes('committee.new'))).not.toBeInTheDocument()
-        })
+        fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+        await screen.findByText((c) => c.includes('committee.announcement.add'))
+        expect(screen.getByText((c) => c.includes('committee.poll.add'))).toBeInTheDocument()
+        expect(screen.queryByText((c) => c.includes('committee.trip.add'))).not.toBeInTheDocument()
     })
 
-    it('non-admin non-committee member does not see VGA badge', async () => {
+    it('admin can pick the trip type', async () => {
         await setupDefaultMocks()
+        await setupAsAdmin()
         await renderCommitteePage()
-        await waitFor(() => {
-            expect(screen.queryByText('VGA')).not.toBeInTheDocument()
-        })
+        fireEvent.click(await screen.findByText((c) => c.includes('committee.new')))
+        expect(await screen.findByText((c) => c.includes('committee.trip.add'))).toBeInTheDocument()
     })
 
     it('committee member sees add announcement button', async () => {
@@ -865,6 +857,7 @@ const POLLS: ClubPoll[] = [
         is_closed: false,
         created_by_name: 'Admin',
         created_at: '2026-04-01T10:00:00',
+        can_edit: true,
         options: [
             { id: 10, text: 'Berlin', sort_order: 0, vote_count: 3, voted_by_me: false },
             { id: 11, text: 'Hamburg', sort_order: 1, vote_count: 1, voted_by_me: true },
@@ -881,6 +874,7 @@ const POLLS_UNVOTED: ClubPoll[] = [
         is_closed: false,
         created_by_name: 'Admin',
         created_at: '2026-04-02T10:00:00',
+        can_edit: true,
         options: [
             { id: 20, text: 'Pizza', sort_order: 0, vote_count: 0, voted_by_me: false },
             { id: 21, text: 'Pasta', sort_order: 1, vote_count: 0, voted_by_me: false },

@@ -1,7 +1,7 @@
 /**
- * CommitteePage — Vergnügungsausschuss: Kegelfahrten und Ankündigungen.
- * Committee members (is_committee) and admins can create/delete entries.
- * All club members can view.
+ * CommitteePage — Neuigkeiten: one feed of announcements, polls and Kegelfahrten.
+ * Every member can post announcements/polls (and manage their own); only committee members
+ * (is_committee) and admins can create/edit/delete Kegelfahrten.
  */
 import {useEffect, useMemo, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
@@ -173,7 +173,7 @@ function AnnouncementsTab({canWrite, search, setSearch, order, addOpen, setAddOp
                                     {a.created_at && fDateTime(a.created_at)}
                                 </p>
                             </div>
-                            {canWrite && (
+                            {a.can_edit && (
                                 <CardActionMenu
                                     title={a.title}
                                     actions={[
@@ -667,7 +667,7 @@ function PollsTab({canWrite, order, addOpen, setAddOpen, visible, search}: FeedP
                                         </p>
                                     )}
                                 </div>
-                                {canWrite && (
+                                {poll.can_edit && (
                                     <CardActionMenu
                                         title={poll.title}
                                         actions={[
@@ -891,11 +891,13 @@ export function CommitteePage() {
     // One chronological feed (newest first): the item components render their cards with a CSS
     // `order` taken from this ranking, so announcements, polls and trips interleave.
     const order = useMemo(() => {
-        const ts = (iso: string | null) => (iso ? Date.parse(iso) || 0 : 0)
+        // Newest first by last change (falls back to the creation date).
+        const ts = (x: {created_at: string | null; updated_at?: string | null}) =>
+            Date.parse(x.updated_at ?? x.created_at ?? '') || 0
         const all = [
-            ...(announcements as ClubAnnouncement[]).map(a => ({key: `announcement-${a.id}`, ts: ts(a.created_at)})),
-            ...(trips as ClubTrip[]).map(x => ({key: `trip-${x.id}`, ts: ts(x.created_at)})),
-            ...(polls as ClubPoll[]).map(p => ({key: `poll-${p.id}`, ts: ts(p.created_at)})),
+            ...(announcements as ClubAnnouncement[]).map(a => ({key: `announcement-${a.id}`, ts: ts(a)})),
+            ...(trips as ClubTrip[]).map(x => ({key: `trip-${x.id}`, ts: ts(x)})),
+            ...(polls as ClubPoll[]).map(p => ({key: `poll-${p.id}`, ts: ts(p)})),
         ].sort((a, b) => b.ts - a.ts)
         return Object.fromEntries(all.map((x, i) => [x.key, i]))
     }, [announcements, trips, polls])
@@ -923,18 +925,10 @@ export function CommitteePage() {
             <div className="flex-shrink-0 px-3 pt-3 pb-0">
                 <div className="flex items-center justify-between mb-2">
                     <div className="sec-heading">{t('committee.title')}</div>
-                    {canWrite && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-                              style={{background: 'var(--accent-tint)', color: 'var(--accent-tint-fg)', border: '1px solid var(--accent-deep)'}}>
-                            VGA
-                        </span>
-                    )}
                 </div>
-                {canWrite && (
-                    <Button variant="primary" block className="mb-3" onClick={() => setMenuOpen(true)}>
-                        + {t('committee.new')}
-                    </Button>
-                )}
+                <Button variant="primary" block className="mb-3" onClick={() => setMenuOpen(true)}>
+                    + {t('committee.new')}
+                </Button>
                 <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label={t('committee.title')}>
                     {FILTERS.map(f => (
                         <button key={f.id} type="button" aria-pressed={tab === f.id}
@@ -976,7 +970,7 @@ export function CommitteePage() {
                             ['announcement', '📣', 'committee.announcement.add'],
                             ['poll', '🗳️', 'committee.poll.add'],
                             ['trip', '🚌', 'committee.trip.add'],
-                        ] as const).map(([k, icon, label]) => (
+                        ] as const).filter(([k]) => k !== 'trip' || canWrite).map(([k, icon, label]) => (
                             <Button key={k} variant="secondary" block
                                     onClick={() => {setMenuOpen(false); setAdding(k)}}>
                                 {icon} {t(label)}

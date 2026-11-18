@@ -1,4 +1,6 @@
 """Tests for committee endpoints — announcements, trips, and polls."""
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -94,11 +96,19 @@ class TestCreateAnnouncement:
         assert data["title"] == "New Event"
         assert data["text"] == "Details here"
 
-    def test_member_cannot_create(self, client: TestClient, auth_headers):
-        resp = client.post("/api/v1/committee/announcements", json={
-            "title": "Unauthorized",
-        }, headers=auth_headers)
-        assert resp.status_code == 403
+    def test_member_can_create_and_delete_own(self, client: TestClient, auth_headers):
+        resp = client.post("/api/v1/committee/announcements", json={"title": "Von Mitglied"}, headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.json()["can_edit"] is True
+        aid = resp.json()["id"]
+        assert client.delete(f"/api/v1/committee/announcements/{aid}", headers=auth_headers).status_code == 204
+
+    def test_list_flags_can_edit_only_for_own(self, client: TestClient, db, club, admin_user, auth_headers):
+        db.add(ClubAnnouncement(club_id=club.id, title="Admin-Post", created_by=admin_user.id))
+        db.commit()
+        data = client.get("/api/v1/committee/announcements", headers=auth_headers).json()
+        assert data[0]["can_edit"] is False
+        assert "updated_at" in data[0]
 
     def test_requires_auth(self, client: TestClient):
         resp = client.post("/api/v1/committee/announcements", json={"title": "X"})
@@ -304,6 +314,15 @@ class TestUpdateTrip:
         assert resp.status_code == 200
         assert resp.json()["destination"] == "Munich"
 
+    def test_patch_sets_updated_at(self, client: TestClient, db, club, admin_user, admin_headers):
+        trip = ClubTrip(club_id=club.id, date=datetime(2030, 1, 1, tzinfo=UTC), destination="Alt", created_by=admin_user.id)
+        db.add(trip)
+        db.commit()
+        assert client.get("/api/v1/committee/trips", headers=admin_headers).json()[0]["updated_at"] is None
+        resp = client.patch(f"/api/v1/committee/trips/{trip.id}", json={"destination": "Neu"}, headers=admin_headers)
+        assert resp.status_code == 200
+        assert resp.json()["updated_at"] is not None
+
     def test_member_cannot_update(self, client: TestClient, db, club, admin_user, auth_headers):
         trip = self._create_trip(db, club, admin_user)
         resp = client.patch(f"/api/v1/committee/trips/{trip.id}", json={
@@ -458,13 +477,18 @@ class TestCreatePoll:
         assert resp.status_code == 200
         assert resp.json()["mode"] == "multi"
 
-    def test_member_cannot_create(self, client: TestClient, auth_headers):
+    def test_member_can_create_and_manage_own(self, client: TestClient, auth_headers):
         resp = client.post("/api/v1/committee/polls", json={
-            "title": "Verboten",
+            "title": "Von Mitglied",
             "mode": "single",
             "options": ["A", "B"],
         }, headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
+        assert resp.json()["can_edit"] is True
+        pid = resp.json()["id"]
+        assert client.patch(f"/api/v1/committee/polls/{pid}", json={"is_closed": True},
+                            headers=auth_headers).status_code == 200
+        assert client.delete(f"/api/v1/committee/polls/{pid}", headers=auth_headers).status_code == 204
 
     def test_requires_auth(self, client: TestClient):
         resp = client.post("/api/v1/committee/polls", json={

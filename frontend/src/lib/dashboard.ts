@@ -63,14 +63,14 @@ export function recentCommunity(
             id: a.id,
             title: a.title,
             subtitle: a.text ?? null,
-            ts: tsOf(a.created_at),
+            ts: tsOf(a.updated_at ?? a.created_at),
         })),
         ...trips.map(t => ({
             kind: 'trip' as const,
             id: t.id,
             title: t.destination,
             subtitle: t.note ?? null,
-            ts: tsOf(t.created_at),
+            ts: tsOf(t.updated_at ?? t.created_at),
         })),
         ...stickers.map(st => ({
             kind: 'sticker' as const,

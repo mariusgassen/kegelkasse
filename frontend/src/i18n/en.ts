@@ -1416,7 +1416,7 @@ export const en = {
     "quickEntry.recent": "Recent entries",
     "quickEntry.logged": "Logged",
     "nav.committee": "News",
-    "committee.title": "Entertainment Committee",
+    "committee.title": "News",
     "committee.new": "New",
     "committee.none": "No posts yet.",
     "committee.search": "Search…",
