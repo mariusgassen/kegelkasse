@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.80.0](https://github.com/mariusgassen/kegelkasse/compare/v1.79.1...v1.80.0) (2026-11-19)
+
+
+### Features
+
+* Dokument-Angaben nachträglich bearbeiten, ruhige Button-Zeile ([#669](https://github.com/mariusgassen/kegelkasse/issues/669)) ([27646cb](https://github.com/mariusgassen/kegelkasse/commit/27646cb2bab263b2fa353390e92380301b705e11))
+* Dokumente mit einem Bestätigungs-Knopf, Beschriftung nach Dokumentart ([#667](https://github.com/mariusgassen/kegelkasse/issues/667)) ([e689575](https://github.com/mariusgassen/kegelkasse/commit/e68957593a6c952730d6a5a640ed376ac1f4986c))
+
+
+### Bug Fixes
+
+* Neuigkeiten kompakter, Sticker-Links im Start-Feed funktionieren ([#666](https://github.com/mariusgassen/kegelkasse/issues/666)) ([1217ecb](https://github.com/mariusgassen/kegelkasse/commit/1217ecb35419fdec1374c7cabc5dc2b4c2872b9c))
+
 ## [1.79.1](https://github.com/mariusgassen/kegelkasse/compare/v1.79.0...v1.79.1) (2026-11-18)
 
 
