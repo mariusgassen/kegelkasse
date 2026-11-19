@@ -44,7 +44,10 @@ describe('UpdatePrompt', () => {
         })
         swState.needRefresh = true
         render(<UpdatePrompt/>)
-        expect(screen.getByRole('status').textContent).toContain('Eine neue Version ist verfügbar.')
+        const status = screen.getByRole('status')
+        expect(status.textContent).toContain('Eine neue Version ist verfügbar.')
+        expect(screen.getByText('Eine neue Version ist verfügbar.').style.webkitLineClamp).toBe('2')
+        expect(screen.getAllByText('Update').length).toBeGreaterThan(0)
 
         fireEvent.click(screen.getByRole('button', {name: 'Aktualisieren'}))
         expect(swState.applyUpdate).toHaveBeenCalledTimes(1)
